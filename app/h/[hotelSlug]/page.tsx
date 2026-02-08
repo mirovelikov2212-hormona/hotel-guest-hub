@@ -5,10 +5,9 @@ import GuestHub from "@/components/GuestHub";
 export default async function HotelHubPage({
   params,
 }: {
-  params: Promise<{ hotelSlug: string }>;
+  params: { hotelSlug: string };
 }) {
-  const { hotelSlug } = await params;
-  const cfg = await getHotelConfig(hotelSlug);
+  const cfg = await getHotelConfig(params.hotelSlug);
 
   if (!cfg) return notFound();
 
