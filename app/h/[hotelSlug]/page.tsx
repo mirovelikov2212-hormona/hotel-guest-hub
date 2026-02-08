@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { notFound } from "next/navigation";
 import { getHotelConfig } from "@/lib/config";
 import GuestHub from "@/components/GuestHub";
