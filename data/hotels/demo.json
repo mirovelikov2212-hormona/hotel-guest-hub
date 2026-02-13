@@ -88,6 +88,12 @@
       "example_date": "дд.мм.гггг",
       "example_time": "чч:мм",
 
+      "ai_title": "AI Консиерж",
+      "ai_placeholder": "Задай въпрос за хотела…",
+      "ai_send": "Изпрати",
+      "ai_loading": "Мисля…",
+      "ai_error": "Грешка. Опитай пак.",
+
       "emergency_title": "Спешен случай",
       "emergency_call": "📞 Спешно обаждане към рецепция",
 
@@ -184,6 +190,12 @@
       "example_date": "TT.MM.JJJJ",
       "example_time": "HH:MM",
 
+      "ai_title": "AI Concierge",
+      "ai_placeholder": "Stelle eine Frage zum Hotel…",
+      "ai_send": "Senden",
+      "ai_loading": "Denke…",
+      "ai_error": "Fehler. Bitte erneut versuchen.",
+
       "emergency_title": "Notfall",
       "emergency_call": "📞 Notruf an die Rezeption",
 
@@ -279,6 +291,12 @@
       "prompt_occasion": "Occasion (e.g. birthday):",
       "example_date": "dd.mm.yyyy",
       "example_time": "hh:mm",
+
+      "ai_title": "AI Concierge",
+      "ai_placeholder": "Ask a question about the hotel…",
+      "ai_send": "Send",
+      "ai_loading": "Thinking…",
+      "ai_error": "Error. Please try again.",
 
       "emergency_title": "Emergency",
       "emergency_call": "📞 Call reception (emergency)",

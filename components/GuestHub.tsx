@@ -30,6 +30,10 @@ function askRequired(label: string, example: string, re: RegExp, invalidMsg: str
 export default function GuestHub({ config }: { config: HotelConfig }) {
   const [lang, setLang] = useState<LangKey>(config.languageDefault ?? "en");
 
+  const [aiQ, setAiQ] = useState("");
+  const [aiA, setAiA] = useState<string>("");
+  const [aiLoading, setAiLoading] = useState(false);
+
   const sp = useSearchParams();
   const room = sp.get("room") || "";
 
@@ -110,6 +114,37 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const openWhatsApp = (to: string, message: string, showClosedWarning: boolean) => {
     if (showClosedWarning) window.alert(closedMsg);
     window.location.href = buildWhatsAppLink(to, message);
+  };
+
+  const askAI = async () => {
+    const q = aiQ.trim();
+    if (!q) return;
+
+    setAiLoading(true);
+    setAiA("");
+
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: q,
+          hotel: {
+            hotelName: config.hotelName,
+            locationQuery: config.location?.query,
+            wifi: config.wifi,
+            departmentHours: config.departmentHours,
+          },
+        }),
+      });
+
+      const data = await res.json();
+      setAiA(String(data.answer || data.error || "Error"));
+    } catch {
+      setAiA(String(tUI("ai_error") || "Грешка. Опитай пак."));
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   // ---- Actions (with routing + validation) ----
@@ -308,6 +343,16 @@ const sendRestaurantReservation = () => {
       ],
     },
     {
+      id: "ai",
+      title: "🤖 " + tUI("ai_title"),
+      items: [
+        {
+          label: tUI("ai_open"),
+          kind: "custom",
+        } as any,
+      ],
+    },
+    {
       id: "emergency",
       title: "🚨 " + tUI("emergency_title"),
       items: [
@@ -364,7 +409,16 @@ const sendRestaurantReservation = () => {
       <div className="p-4 pb-10">
         <div className="space-y-3">
           {sections.map((sec) => (
-            <Accordion key={sec.id} section={sec} />
+            <Accordion
+              key={sec.id}
+              section={sec}
+              tUI={tUI}
+              aiQ={aiQ}
+              setAiQ={setAiQ}
+              aiA={aiA}
+              aiLoading={aiLoading}
+              askAI={askAI}
+            />
           ))}
         </div>
 
@@ -374,7 +428,23 @@ const sendRestaurantReservation = () => {
   );
 }
 
-function Accordion({ section }: { section: HubSection }) {
+function Accordion({
+  section,
+  tUI,
+  aiQ,
+  setAiQ,
+  aiA,
+  aiLoading,
+  askAI,
+}: {
+  section: HubSection;
+  tUI: (k: string) => any;
+  aiQ: string;
+  setAiQ: (v: string) => void;
+  aiA: string;
+  aiLoading: boolean;
+  askAI: () => void;
+}) {
   const [open, setOpen] = useState(false);
 
   // ✅ Lavender theme tokens (same as marketing page)
@@ -412,15 +482,40 @@ function Accordion({ section }: { section: HubSection }) {
       {open ? (
         <div className="px-4 py-4 bg-neutral-950/40">
           <div className="grid grid-cols-1 gap-2">
-            {section.items.length ? (
+            {section.id === "ai" ? (
+              <div className="grid grid-cols-1 gap-2">
+                <textarea
+                  value={aiQ}
+                  onChange={(e) => setAiQ(e.target.value)}
+                  placeholder={String(tUI("ai_placeholder") || "Попитай нещо за хотела...")}
+                  className="min-h-[90px] w-full rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={askAI}
+                  disabled={aiLoading || !aiQ.trim()}
+                  className={clsx(
+                    "rounded-xl px-3 py-3 text-left text-sm font-semibold",
+                    "bg-[#9B86BD]/14 ring-1 ring-[#9B86BD]/25 text-white",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    "hover:bg-[#9B86BD]/20 active:scale-[0.99] transition"
+                  )}
+                >
+                  {aiLoading ? String(tUI("ai_loading") || "Мисля...") : String(tUI("ai_send") || "Изпрати")}
+                </button>
+
+                {aiA ? (
+                  <div className="whitespace-pre-wrap rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800">
+                    {aiA}
+                  </div>
+                ) : null}
+              </div>
+            ) : section.items.length ? (
               section.items.map((it, idx) =>
                 it.kind === "info" ? (
                   <pre
                     key={idx}
-                    className={clsx(
-                      "whitespace-pre-wrap rounded-xl p-3 text-sm text-neutral-100",
-                      "bg-neutral-900/60 ring-1 ring-neutral-800"
-                    )}
+                    className="whitespace-pre-wrap rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800"
                   >
                     {it.info}
                   </pre>
@@ -429,13 +524,7 @@ function Accordion({ section }: { section: HubSection }) {
                     key={idx}
                     type="button"
                     onClick={it.onClick}
-                    className={clsx(
-                      "rounded-xl px-3 py-3 text-left text-sm font-semibold",
-                      accentSoft,
-                      accentSoftRing,
-                      "text-white",
-                      "hover:bg-[#9B86BD]/20 active:scale-[0.99] transition"
-                    )}
+                    className="rounded-xl px-3 py-3 text-left text-sm font-semibold bg-[#9B86BD]/14 ring-1 ring-[#9B86BD]/25 text-white hover:bg-[#9B86BD]/20 active:scale-[0.99] transition"
                   >
                     {it.label}
                   </button>
@@ -443,15 +532,9 @@ function Accordion({ section }: { section: HubSection }) {
                   <a
                     key={idx}
                     href={it.href}
-                    target={it.newTab || (it.href?.startsWith("http") ?? false) ? "_blank" : undefined}
+                    target={it.newTab || (it.href?.startsWith('http') ?? false) ? "_blank" : undefined}
                     rel="noreferrer"
-                    className={clsx(
-                      "rounded-xl px-3 py-3 text-sm font-semibold",
-                      accentSoft,
-                      accentSoftRing,
-                      "text-white",
-                      "hover:bg-[#9B86BD]/20 active:scale-[0.99] transition"
-                    )}
+                    className="rounded-xl px-3 py-3 text-sm font-semibold bg-[#9B86BD]/14 ring-1 ring-[#9B86BD]/25 text-white hover:bg-[#9B86BD]/20 active:scale-[0.99] transition"
                   >
                     {it.label}
                   </a>
