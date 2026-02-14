@@ -529,16 +529,6 @@ const sendRestaurantReservation = () => {
         </div>
       </div>
 
-      {/* Install App Button */}
-      <div className="p-4">
-        <button
-          id="installBtn"
-          className="w-full rounded-2xl bg-[#9B86BD] py-4 text-base font-semibold text-[#0D1B2A] shadow-md hover:opacity-90 transition"
-        >
-          📲 Инсталирай приложението
-      </button>
-    </div>
-
       {/* Sections */}
       <div className="p-4 pb-10">
         <div className="space-y-3">
