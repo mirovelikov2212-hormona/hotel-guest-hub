@@ -495,6 +495,11 @@ const sendRestaurantReservation = () => {
             onClick={installApp}
             className="w-full rounded-2xl bg-[#9B86BD] text-[#0D1B2A] font-semibold py-3 text-sm"
           >
+            <div className="p-4">
+              <InstallAppButton
+                label={String(tUI("install_app") || "Инсталирай приложението")}
+              />
+          </div>
             📲 Инсталирай приложението
           </button>
         </div>
