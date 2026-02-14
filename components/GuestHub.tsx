@@ -31,7 +31,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const [lang, setLang] = useState<LangKey>(config.languageDefault ?? "en");
 
   const [aiQ, setAiQ] = useState("");
-  const [aiA, setAiA] = useState<string>("");
+  const [aiAnswer, setAiAnswer] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
   const sp = useSearchParams();
@@ -117,35 +117,59 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   };
 
   const askAI = async () => {
-    const q = aiQ.trim();
-    if (!q) return;
+  if (!aiQ.trim()) return;
 
+  try {
     setAiLoading(true);
-    setAiA("");
 
-    try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: q,
-          hotel: {
-            hotelName: config.hotelName,
-            locationQuery: config.location?.query,
-            wifi: config.wifi,
-            departmentHours: config.departmentHours,
-          },
-        }),
-      });
+    const res = await fetch("/api/ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        question: aiQ,
+        lang: String(lang),
+        hotel: {
+          hotelName: config.hotelName,
+          locationQuery: config.location?.query,
+          wifi: config.wifi,
+          departmentHours: config.departmentHours,
+        },
+      }),
+    });
 
-      const data = await res.json();
-      setAiA(String(data.answer || data.error || "Error"));
-    } catch {
-      setAiA(String(tUI("ai_error") || "Грешка. Опитай пак."));
-    } finally {
-      setAiLoading(false);
+    const data = await res.json();
+
+    if (!data?.ok) {
+      setAiAnswer("Грешка при обработка.");
+      return;
     }
-  };
+
+    const dept = data.department ?? "reception";
+    const opsMsg = data.opsMessageBG ?? aiQ;
+
+    // routing by working hours
+    const routed = warnAndRouteIfClosed(dept as any);
+    const finalDept = routed.dept ?? "reception";
+
+    let to = contact.reception.whatsapp;
+
+    if (finalDept === "housekeeping") to = contact.housekeeping.whatsapp;
+    if (finalDept === "maintenance") to = contact.maintenance.whatsapp;
+    if (finalDept === "restaurant") to = contact.restaurant.whatsapp;
+    if (finalDept === "events") to = contact.events.whatsapp;
+
+    openWhatsApp(to, `${roomPrefix}${opsMsg}`, routed.warned);
+
+    // UI answer for guest
+    setAiAnswer(data.uiReply || "Изпратено.");
+    setAiQ("");
+
+  } catch (e) {
+    setAiAnswer("Сървърна грешка.");
+  } finally {
+    setAiLoading(false);
+  }
+};
 
   // ---- Actions (with routing + validation) ----
   const sendReception = (msgKey: string) => {
@@ -176,6 +200,66 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     const to = routed.dept === "reception" ? contact.reception.whatsapp : contact.restaurant.whatsapp;
     openWhatsApp(to, buildStaffMessage(msgKey), routed.warned);
   };
+
+  type AiDept = "reception" | "housekeeping" | "maintenance" | "restaurant" | "events";
+
+  const deptToWhatsApp = (dept: AiDept) => {
+    switch (dept) {
+      case "housekeeping":
+        return contact.housekeeping.whatsapp;
+      case "maintenance":
+        return contact.maintenance.whatsapp;
+      case "restaurant":
+        return contact.restaurant.whatsapp;
+      case "events":
+        return contact.events.whatsapp;
+      default:
+        return contact.reception.whatsapp;
+    }
+  };
+
+// AI -> classify -> route by working hours -> send WhatsApp
+  const sendAIRequest = async (q: string) => {
+    const res = await fetch("/api/ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        question: q,
+        lang: String(lang), // IMPORTANT: UI language
+        hotel: {
+          hotelName: config.hotelName,
+          locationQuery: config.location?.query,
+          wifi: config.wifi,
+          departmentHours: config.departmentHours,
+        },
+      }),
+    });
+
+  const data = (await res.json()) as {
+    ok: boolean;
+    department?: AiDept;
+    opsMessageBG?: string;
+    uiReply?: string;
+  };
+
+  const dept = (data.department ?? "reception") as AiDept;
+  const opsMsg = String(data.opsMessageBG ?? q);
+  const uiReply = String(data.uiReply ?? "");
+
+  // Route by hours (if closed -> reception)
+  const routed = warnAndRouteIfClosed(dept as any);
+  const finalDept = (routed.dept ?? "reception") as AiDept;
+
+  const to = finalDept === "reception"
+    ? contact.reception.whatsapp
+    : deptToWhatsApp(finalDept);
+
+  // Optional: warn guest if department closed and rerouted
+  openWhatsApp(to, `${roomPrefix}${opsMsg}`, routed.warned);
+
+  // If you have an AI UI box, you can display uiReply there
+  return uiReply;
+};
 
   // ✅ Restaurant reservation: CLEAN structured message (no template, no fillBlanks)
 const sendRestaurantReservation = () => {
@@ -415,7 +499,7 @@ const sendRestaurantReservation = () => {
               tUI={tUI}
               aiQ={aiQ}
               setAiQ={setAiQ}
-              aiA={aiA}
+              aiA={aiAnswer}
               aiLoading={aiLoading}
               askAI={askAI}
             />
@@ -423,10 +507,13 @@ const sendRestaurantReservation = () => {
         </div>
 
         <p className="mt-6 text-center text-xs text-neutral-400">{tUI("notice")}</p>
+        <InstallAppButton label={String(tUI("install_app") || "Инсталирай като App")} />
       </div>
     </div>
   );
 }
+
+import InstallAppButton from "@/components/InstallAppButton";
 
 function Accordion({
   section,

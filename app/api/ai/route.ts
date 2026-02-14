@@ -1,45 +1,140 @@
 import { NextResponse } from "next/server";
 
+type Dept = "reception" | "housekeeping" | "maintenance" | "restaurant" | "events";
+
+const UI = {
+  bg: {
+    fallback: "Разбрах. Изпращам заявката към екипа.",
+    sent: (dept: string) => `Заявката е изпратена към: ${dept}.`,
+  },
+  de: {
+    fallback: "Verstanden. Ich sende Ihre Anfrage an das Team.",
+    sent: (dept: string) => `Anfrage gesendet an: ${dept}.`,
+  },
+  en: {
+    fallback: "Got it. I’m sending your request to the team.",
+    sent: (dept: string) => `Request sent to: ${dept}.`,
+  },
+} as const;
+
+function detectDept(text: string): Dept {
+  const t = text.toLowerCase();
+
+  // housekeeping
+  if (
+    t.includes("towel") ||
+    t.includes("towels") ||
+    t.includes("хавли") ||
+    t.includes("кърп") ||
+    t.includes("clean") ||
+    t.includes("cleaning") ||
+    t.includes("почист") ||
+    t.includes("toilet paper") ||
+    t.includes("тоалетна хартия") ||
+    t.includes("pillow") ||
+    t.includes("възглав")
+  ) {
+    return "housekeeping";
+  }
+
+  // maintenance
+  if (
+    t.includes("broken") ||
+    t.includes("defect") ||
+    t.includes("kaputt") ||
+    t.includes("счуп") ||
+    t.includes("ac") ||
+    t.includes("aircon") ||
+    t.includes("klima") ||
+    t.includes("климат") ||
+    t.includes("water") ||
+    t.includes("wassert") ||
+    t.includes("вода") ||
+    t.includes("coffee machine") ||
+    t.includes("kaffeemaschine") ||
+    t.includes("кафе машина")
+  ) {
+    return "maintenance";
+  }
+
+  // restaurant
+  if (
+    t.includes("reserve") ||
+    t.includes("reservation") ||
+    t.includes("table") ||
+    t.includes("tisch") ||
+    t.includes("restaurant") ||
+    t.includes("allergen") ||
+    t.includes("алерг")
+  ) {
+    return "restaurant";
+  }
+
+  // events
+  if (
+    t.includes("event") ||
+    t.includes("programm") ||
+    t.includes("program") ||
+    t.includes("kids") ||
+    t.includes("детск") ||
+    t.includes("animation") ||
+    t.includes("анимац")
+  ) {
+    return "events";
+  }
+
+  return "reception";
+}
+
+function deptLabelBG(dept: Dept) {
+  switch (dept) {
+    case "housekeeping":
+      return "Housekeeping";
+    case "maintenance":
+      return "Поддръжка";
+    case "restaurant":
+      return "Ресторант";
+    case "events":
+      return "Събития";
+    default:
+      return "Рецепция";
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
 
-    // Accept multiple possible keys from UI:
-    const raw =
-      body?.message ??
-      body?.prompt ??
-      body?.question ??
-      body?.input ??
-      body?.text ??
-      "";
+    const question =
+      body?.question ?? body?.message ?? body?.prompt ?? body?.text ?? "";
 
-    const text = String(raw).toLowerCase().trim();
+    const lang = (body?.lang ?? "en") as "bg" | "de" | "en";
 
-    let reply = "Благодаря! Моля, обърнете се към рецепция за допълнителна информация.";
+    const text = String(question).trim();
+    const dept = detectDept(text);
 
-    if (text.includes("wifi") || text.includes("wlan")) {
-      reply = "WiFi: HotelGuest\nPassword: Welcome2026";
-    } else if (text.includes("towel") || text.includes("towels") || text.includes("хавли")) {
-      reply = "Хавлии: изпращам заявка към Housekeeping. (Демо отговор)";
-    } else if (text.includes("breakfast") || text.includes("закуска")) {
-      reply = "Закуската е от 07:30 до 10:00 в ресторанта.";
-    } else if (text.includes("checkout") || text.includes("check-out") || text.includes("check out")) {
-      reply = "Check-out е до 11:00 часа.";
-    } else if (text.includes("pool") || text.includes("басейн")) {
-      reply = "Басейнът работи от 09:00 до 18:00.";
-    }
+    // OPS message (always Bulgarian for staff)
+    const opsMessageBG =
+      `Заявка към ${deptLabelBG(dept)}:\n` +
+      `${text}`;
 
-    // Return multiple keys so ANY client expectation works:
+    // UI reply (on the selected language)
+    const ui = UI[lang] ?? UI.en;
+    const uiReply = ui.sent(dept);
+
     return NextResponse.json({
-      reply,          // your UI might use this
-      answer: reply,  // some UIs use answer
-      result: reply,  // others use result
       ok: true,
+      department: dept,       // "housekeeping" | "maintenance" | ...
+      opsMessageBG,           // message we will send to WhatsApp
+      uiReply,                // what guest sees in the UI
     });
   } catch (e: any) {
-    return NextResponse.json(
-      { ok: false, error: e?.message || "Server error" },
-      { status: 200 } // keep 200 so UI doesn't auto-fail on non-2xx
-    );
+    return NextResponse.json({
+      ok: false,
+      department: "reception",
+      opsMessageBG: "Заявка към рецепция:\n(грешка при обработка)",
+      uiReply: "Error",
+      error: e?.message || "Server error",
+    });
   }
 }
