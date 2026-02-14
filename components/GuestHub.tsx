@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { HotelConfig, LangKey, HubSection, DepartmentKey } from "@/lib/types";
+import InstallAppButton from "@/components/InstallAppButton";
 import {
   buildWhatsAppLink,
   isAfterCutoffLocal,
@@ -481,6 +482,13 @@ const sendRestaurantReservation = () => {
 
   return (
     <div className="mx-auto max-w-md">
+      {/* Cover */}
+      <div className="relative">
+        <div className="aspect-[16/9] w-full overflow-hidden bg-neutral-800">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={config.coverImage} alt={config.hotelName} className="h-full w-full object-cover" />
+        </div>
+ 
       {canInstall && (
         <div className="p-4">
           <button
@@ -491,12 +499,6 @@ const sendRestaurantReservation = () => {
           </button>
         </div>
       )}
-      {/* Cover */}
-      <div className="relative">
-        <div className="aspect-[16/9] w-full overflow-hidden bg-neutral-800">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={config.coverImage} alt={config.hotelName} className="h-full w-full object-cover" />
-        </div>
 
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-neutral-950/20 to-transparent" />
 
@@ -531,6 +533,8 @@ const sendRestaurantReservation = () => {
 
       {/* Sections */}
       <div className="p-4 pb-10">
+        {/* ✅ Install button най-отгоре */}
+
         <div className="space-y-3">
           {sections.map((sec) => (
             <Accordion
@@ -547,13 +551,10 @@ const sendRestaurantReservation = () => {
         </div>
 
         <p className="mt-6 text-center text-xs text-neutral-400">{tUI("notice")}</p>
-        <InstallAppButton label={String(tUI("install_app") || "Инсталирай като App")} />
+        </div>
       </div>
-    </div>
-  );
-}
-
-import InstallAppButton from "@/components/InstallAppButton";
+    );
+  }
 
 function Accordion({
   section,
@@ -564,6 +565,7 @@ function Accordion({
   aiLoading,
   askAI,
 }: {
+
   section: HubSection;
   tUI: (k: string) => any;
   aiQ: string;
