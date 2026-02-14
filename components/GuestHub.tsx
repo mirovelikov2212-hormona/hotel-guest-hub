@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { HotelConfig, LangKey, HubSection, DepartmentKey } from "@/lib/types";
 import {
@@ -30,12 +30,42 @@ function askRequired(label: string, example: string, re: RegExp, invalidMsg: str
 export default function GuestHub({ config }: { config: HotelConfig }) {
   const [lang, setLang] = useState<LangKey>(config.languageDefault ?? "en");
 
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [canInstall, setCanInstall] = useState(false);
+
   const [aiQ, setAiQ] = useState("");
   const [aiAnswer, setAiAnswer] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
   const sp = useSearchParams();
   const room = sp.get("room") || "";
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setCanInstall(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", handler);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+    };
+  }, []);
+
+  const installApp = async () => {
+    if (!deferredPrompt) return;
+
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+
+    if (outcome === "accepted") {
+      setCanInstall(false);
+    }
+
+    setDeferredPrompt(null);
+  };
 
   // UI language (guest)
   const tUI = (key: string) => config.i18n?.[String(lang)]?.[key] ?? key;
@@ -451,6 +481,16 @@ const sendRestaurantReservation = () => {
 
   return (
     <div className="mx-auto max-w-md">
+      {canInstall && (
+        <div className="p-4">
+          <button
+            onClick={installApp}
+            className="w-full rounded-2xl bg-[#9B86BD] text-[#0D1B2A] font-semibold py-3 text-sm"
+          >
+            📲 Инсталирай приложението
+          </button>
+        </div>
+      )}
       {/* Cover */}
       <div className="relative">
         <div className="aspect-[16/9] w-full overflow-hidden bg-neutral-800">
@@ -488,6 +528,16 @@ const sendRestaurantReservation = () => {
           </div>
         </div>
       </div>
+
+      {/* Install App Button */}
+      <div className="p-4">
+        <button
+          id="installBtn"
+          className="w-full rounded-2xl bg-[#9B86BD] py-4 text-base font-semibold text-[#0D1B2A] shadow-md hover:opacity-90 transition"
+        >
+          📲 Инсталирай приложението
+      </button>
+    </div>
 
       {/* Sections */}
       <div className="p-4 pb-10">
