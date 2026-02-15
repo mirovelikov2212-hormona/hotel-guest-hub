@@ -489,22 +489,6 @@ const sendRestaurantReservation = () => {
           <img src={config.coverImage} alt={config.hotelName} className="h-full w-full object-cover" />
         </div>
  
-      {canInstall && (
-        <div className="p-4">
-          <button
-            onClick={installApp}
-            className="w-full rounded-2xl bg-[#9B86BD] text-[#0D1B2A] font-semibold py-3 text-sm"
-          >
-            <div className="p-4">
-              <InstallAppButton
-                label={String(tUI("install_app") || "Инсталирай приложението")}
-              />
-          </div>
-            📲 Инсталирай приложението
-          </button>
-        </div>
-      )}
-
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-neutral-950/20 to-transparent" />
 
         <div className="absolute bottom-0 left-0 right-0 p-4">
@@ -536,10 +520,14 @@ const sendRestaurantReservation = () => {
         </div>
       </div>
 
+      {/* ✅ Install button (UNDER cover, not inside it) */}
+      <div className="px-4 mt-3">
+        <InstallAppButton label={String(tUI("install_app") || "Инсталирай приложението")} />
+      </div>
+
       {/* Sections */}
       <div className="p-4 pb-10">
         {/* ✅ Install button най-отгоре */}
-
         <div className="space-y-3">
           {sections.map((sec) => (
             <Accordion

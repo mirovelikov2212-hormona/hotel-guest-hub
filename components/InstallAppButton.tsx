@@ -7,6 +7,10 @@ type BIPEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
+function clsx(...xs: Array<string | false | undefined | null>) {
+  return xs.filter(Boolean).join(" ");
+}
+
 function isIOS() {
   if (typeof window === "undefined") return false;
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
@@ -14,15 +18,19 @@ function isIOS() {
 
 function isStandalone() {
   if (typeof window === "undefined") return false;
-  // iOS
   // @ts-ignore
   const iosStandalone = window.navigator.standalone === true;
-  // others
   const mql = window.matchMedia?.("(display-mode: standalone)").matches;
   return Boolean(iosStandalone || mql);
 }
 
-export default function InstallAppButton({ label = "Инсталирай като App" }: { label?: string }) {
+export default function InstallAppButton({
+  label = "Инсталирай като App",
+  className,
+}: {
+  label?: string;
+  className?: string;
+}) {
   const [bip, setBip] = useState<BIPEvent | null>(null);
   const [showIOSHint, setShowIOSHint] = useState(false);
 
@@ -36,7 +44,6 @@ export default function InstallAppButton({ label = "Инсталирай кат�
 
     window.addEventListener("beforeinstallprompt", handler);
 
-    // iOS няма beforeinstallprompt → показваме hint
     if (isIOS()) setShowIOSHint(true);
 
     return () => window.removeEventListener("beforeinstallprompt", handler);
@@ -52,7 +59,7 @@ export default function InstallAppButton({ label = "Инсталирай кат�
   if (isStandalone()) return null;
 
   return (
-    <div className="mt-3 space-y-2">
+    <div className={clsx("space-y-2", className)}>
       {bip ? (
         <button
           type="button"
