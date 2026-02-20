@@ -1,40 +1,57 @@
-const CACHE_NAME = "guest-hub-v1";
-const CORE = ["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
+const CACHE_NAME = "guest-hub-v2";
+const CORE = [
+  "/manifest.webmanifest",
+  "/icon-192.png",
+  "/icon-512.png"
+];
 
+// install
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE)));
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE))
+  );
   self.skipWaiting();
 });
 
+// activate
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))))
+      Promise.all(
+        keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k)))
+      )
     )
   );
   self.clients.claim();
 });
 
+// fetch
 self.addEventListener("fetch", (event) => {
   const req = event.request;
+  const url = new URL(req.url);
 
-  // only GET
   if (req.method !== "GET") return;
 
-  // network-first for API
-  if (new URL(req.url).pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(req).catch(() => caches.match(req))
-    );
-    return;
-  }
+  // 🚫 NEVER cache app pages
+  if (url.pathname.startsWith("/h/")) return;
 
-  // cache-first for everything else
+  // 🚫 NEVER cache APIs
+  if (url.pathname.startsWith("/api/")) return;
+
+  // 🚫 NEVER cache Next data files
+  if (url.pathname.startsWith("/_next/")) return;
+
+  // cache-first ONLY for static core assets
   event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req).then((res) => {
-      const copy = res.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
-      return res;
-    }))
+    caches.match(req).then((cached) => {
+      return (
+        cached ||
+        fetch(req).then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          return res;
+        })
+      );
+    })
   );
 });
