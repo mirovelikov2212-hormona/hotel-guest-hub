@@ -1,6 +1,5 @@
-const CACHE_NAME = "guest-hub-v2";
+const CACHE_NAME = "guest-hub-v3"; // ⬅️ ВИНАГИ увеличавай при промени
 const CORE = [
-  "/",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
@@ -8,53 +7,72 @@ const CORE = [
   "/icons/icon-512-maskable.png",
 ];
 
-// install
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE)));
   self.skipWaiting();
 });
 
-// activate
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k)))
-      )
-    )
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))));
+      await self.clients.claim();
+    })()
   );
-  self.clients.claim();
 });
 
-// fetch
+// Helper: network-first
+async function networkFirst(req) {
+  try {
+    const res = await fetch(req);
+    return res;
+  } catch (e) {
+    const cached = await caches.match(req);
+    if (cached) return cached;
+    throw e;
+  }
+}
+
+// Helper: cache-first (for static assets)
+async function cacheFirst(req) {
+  const cached = await caches.match(req);
+  if (cached) return cached;
+  const res = await fetch(req);
+  const copy = res.clone();
+  caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+  return res;
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-  const url = new URL(req.url);
-
   if (req.method !== "GET") return;
 
-  // 🚫 NEVER cache app pages
-  if (url.pathname.startsWith("/h/")) return;
+  const url = new URL(req.url);
+  const path = url.pathname;
 
-  // 🚫 NEVER cache APIs
-  if (url.pathname.startsWith("/api/")) return;
+  // Always network-first for HTML/pages and Next chunks
+  if (
+    req.mode === "navigate" ||
+    path.startsWith("/h/") ||
+    path.startsWith("/_next/")
+  ) {
+    event.respondWith(networkFirst(req));
+    return;
+  }
 
-  // 🚫 NEVER cache Next data files
-  if (url.pathname.startsWith("/_next/")) return;
+  // Network-first for API
+  if (path.startsWith("/api/")) {
+    event.respondWith(networkFirst(req));
+    return;
+  }
 
-  // cache-first ONLY for static core assets
-  event.respondWith(
-    caches.match(req).then((cached) => {
-      return (
-        cached ||
-        fetch(req).then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
-          return res;
-        })
-      );
-    })
-  );
+  // Cache-first for icons/images
+  if (path.startsWith("/icons/") || path.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
+    event.respondWith(cacheFirst(req));
+    return;
+  }
+
+  // Default: network-first (safer)
+  event.respondWith(networkFirst(req));
 });
