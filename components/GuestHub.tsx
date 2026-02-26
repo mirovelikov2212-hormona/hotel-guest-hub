@@ -305,6 +305,33 @@ const sendRestaurantReservation = () => {
   );
   if (!date) return;
 
+  const m = reDate.exec(date);
+  if (!m) return;
+
+  const dd = Number(m[1]);
+  const mm = Number(m[2]);
+  const yyyy = Number(m[3]);
+
+  const picked = new Date(yyyy, mm - 1, dd, 0, 0, 0, 0);
+  const today = new Date();
+  const today0 = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+
+  // валидира реална дата (напр. 31.02 да падне)
+  if (
+    picked.getFullYear() !== yyyy ||
+    picked.getMonth() !== mm - 1 ||
+    picked.getDate() !== dd
+  ) {
+    alert(String(tUI("invalid_date")));
+    return;
+  }
+
+// валидира да не е в миналото
+if (picked < today0) {
+  alert(String(tUI("invalid_date")));
+  return;
+}
+
   const time = askRequired(
     String(tUI("prompt_time")),
     String(tUI("example_time")),
@@ -313,6 +340,8 @@ const sendRestaurantReservation = () => {
   );
   if (!time) return;
 
+  console.log("CONFIRM TEXT:", tUI("confirm_no_occasion"));
+  
   const noOccasion = window.confirm(
     String(
       tUI("confirm_no_occasion") ||
