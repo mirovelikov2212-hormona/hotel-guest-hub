@@ -297,13 +297,17 @@ const sendRestaurantReservation = () => {
   const people = (window.prompt(String(tUI("prompt_people") || "Брой хора:"), "4") || "").trim();
   if (!people) return;
 
-  const date = askRequired(
-    String(tUI("prompt_date")),
-    String(tUI("example_date")),
-    reDate,
-    String(tUI("invalid_date"))
-  );
-  if (!date) return;
+  let date: string | null = null;
+
+  while (!date) {
+    date = askRequired(
+      String(tUI("prompt_date")),
+      String(tUI("example_date")),
+      reDate,
+      String(tUI("invalid_date"))
+    );
+    if (date === null) return; // cancel
+  }
 
   const m = reDate.exec(date);
   if (!m) return;
@@ -340,8 +344,6 @@ if (picked < today0) {
   );
   if (!time) return;
 
-  console.log("CONFIRM TEXT:", tUI("confirm_no_occasion"));
-  
   const noOccasion = window.confirm(
     String(
       tUI("confirm_no_occasion") ||
