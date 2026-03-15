@@ -53,7 +53,6 @@ function rowsToObjects(rows: string[][]): Record<string, string>[] {
 }
 
 async function fetchCsv(url: string): Promise<Record<string, string>[]> {
-  // cache buster (Google "pub" понякога кешира)
   const bust = `t=${Date.now()}`;
   const finalUrl = url.includes("?") ? `${url}&${bust}` : `${url}?${bust}`;
 
@@ -63,7 +62,6 @@ async function fetchCsv(url: string): Promise<Record<string, string>[]> {
   return rowsToObjects(parseCsv(text));
 }
 
-// key/value sheet -> map
 function toKV(rows: Record<string, string>[]): Record<string, string> {
   const m: Record<string, string> = {};
   for (const r of rows) {
@@ -80,16 +78,15 @@ function pick(m: Record<string, string>, key: string, fallback = ""): string {
 }
 
 /**
- * i18n sheet -> { bg: {wifi_title:"WiFi"...}, en: {...}, de: {...} }
+ * i18n sheet -> { bg: {...}, en: {...}, de: {...} }
  * Поддържа 2 варианта:
  * 1) header: key,bg,en,de
- * 2) header: key,lang,value  (ако някой ден решиш така)
+ * 2) header: key,lang,value
  */
 function toI18n(rows: Record<string, string>[]): Record<string, Record<string, string>> {
   const out: Record<string, Record<string, string>> = {};
   if (!rows.length) return out;
 
-  // Variant 2: key,lang,value
   const hasLangValue = "lang" in rows[0] && "value" in rows[0];
   if (hasLangValue) {
     for (const r of rows) {
@@ -103,7 +100,6 @@ function toI18n(rows: Record<string, string>[]): Record<string, Record<string, s
     return out;
   }
 
-  // Variant 1: key,bg,en,de,...
   for (const r of rows) {
     const k = (r.key ?? "").trim();
     if (!k) continue;
@@ -120,20 +116,18 @@ function toI18n(rows: Record<string, string>[]): Record<string, Record<string, s
 }
 
 export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | null> {
-  // Засега само demo (както е routing-а /h/demo)
   if (hotelSlug !== "demo") return null;
 
   const configUrl = process.env.GOOGLE_CONFIG_CSV;
-  const menuUrl = process.env.GOOGLE_MENU_CSV;
+  const venuesUrl = process.env.GOOGLE_VENUES_CSV || process.env.GOOGLE_MENU_CSV;
   const i18nUrl = process.env.GOOGLE_I18N_CSV;
 
   if (!configUrl) throw new Error("Missing env GOOGLE_CONFIG_CSV");
-  if (!menuUrl) throw new Error("Missing env GOOGLE_MENU_CSV");
   if (!i18nUrl) throw new Error("Missing env GOOGLE_I18N_CSV");
 
-  const [cfgRows, menuRows, i18nRows] = await Promise.all([
+  const [cfgRows, venueRowsRaw, i18nRows] = await Promise.all([
     fetchCsv(configUrl),
-    fetchCsv(menuUrl),
+    venuesUrl ? fetchCsv(venuesUrl) : Promise.resolve([]),
     fetchCsv(i18nUrl),
   ]);
 
@@ -196,10 +190,8 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
       tripadvisor: pick(m, "tripadvisorUrl", ""),
     },
 
-    // i18n от Sheets
     i18n,
 
-    // засега фиксирано
     languages: ["bg", "en", "de"] as any,
     languageDefault: ("en" as LangKey) as any,
     opsLanguage: ("bg" as LangKey) as any,
@@ -207,8 +199,26 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     staffHelperLanguage: ("en" as LangKey) as any,
   };
 
-  // менюто го подаваме като сурови редове (за по-късно)
-  (cfg as any).menuRows = menuRows;
+  const venueRows = venueRowsRaw
+    .map((r) => ({
+      type: (r.Type ?? "").trim().toLowerCase(),
+      name: (r.Name ?? "").trim(),
+      shortDescription: (r["Short Description"] ?? "").trim(),
+      menuUrl: (r["Menu URL"] ?? "").trim(),
+      whatsapp: (r.WhatsApp ?? "").trim(),
+      phone: (r.Phone ?? "").trim(),
+      open: (r.Open ?? "").trim(),
+      close: (r.Close ?? "").trim(),
+      requiresReservation: ["yes", "true", "1"].includes(
+        (r["Requires Reservation"] ?? "").trim().toLowerCase()
+      ),
+      active: !["no", "false", "0"].includes((r.Active ?? "").trim().toLowerCase()),
+      sortOrder: Number((r["Sort Order"] ?? "").trim() || "999"),
+    }))
+    .filter((v) => v.name && v.type && v.active)
+    .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
+
+  (cfg as any).venueRows = venueRows;
 
   return cfg;
 }

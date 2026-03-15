@@ -1,6 +1,6 @@
 // src/lib/buildHotelConfigFromSheets.ts
 import type { HotelConfig, LangKey } from "@/lib/types";
-import { loadConfigKV, loadI18N, loadMenus } from "@/lib/sheets";
+import { loadConfigKV, loadI18N, loadVenues } from "@/lib/sheets";
 
 function getBool(v?: string) {
   return String(v ?? "").trim().toLowerCase() === "true";
@@ -27,16 +27,16 @@ export async function buildHotelConfigFromSheets(): Promise<HotelConfig> {
   // Ако в .env.local ползваш GOOGLE_* - просто ги map-ваме тук като fallback.
   const CONFIG_URL = process.env.SHEET_CONFIG_URL || process.env.GOOGLE_CONFIG_CSV || "";
   const I18N_URL = process.env.SHEET_I18N_URL || process.env.GOOGLE_I18N_CSV || "";
-  const MENUS_URL = process.env.SHEET_MENUS_URL || process.env.GOOGLE_MENU_CSV || "";
+  const VENUES_URL = process.env.SHEET_VENUES_URL || process.env.GOOGLE_VENUES_CSV || "";
 
   if (!CONFIG_URL || !I18N_URL) {
     throw new Error("Missing SHEET_CONFIG_URL/SHEET_I18N_URL (or GOOGLE_CONFIG_CSV/GOOGLE_I18N_CSV) in env");
   }
 
-  const [kv, i18n, menus] = await Promise.all([
+  const [kv, i18n, venues] = await Promise.all([
     loadConfigKV(CONFIG_URL),
     loadI18N(I18N_URL),
-    MENUS_URL ? loadMenus(MENUS_URL) : Promise.resolve([]),
+    VENUES_URL ? loadVenues(VENUES_URL) : Promise.resolve([]),
   ]);
 
   const langs = getArr(kv.languages);
@@ -46,6 +46,7 @@ export async function buildHotelConfigFromSheets(): Promise<HotelConfig> {
     hotelSlug: pick(kv, ["hotelSlug"], "demo"),
     hotelName: pick(kv, ["hotelName"], "Hotel"),
     coverImage: pick(kv, ["coverImage"], ""),
+    coverImagePosition: pick(kv, ["coverImagePosition"], "center center"),
 
     languages,
     languageDefault: (pick(kv, ["languageDefault"], "en") as LangKey) as any,
@@ -114,9 +115,6 @@ export async function buildHotelConfigFromSheets(): Promise<HotelConfig> {
       : [],
 
     i18n,
-
-    // @ts-expect-error keep menus available for later wiring
-    menus,
   };
 
   return cfg;

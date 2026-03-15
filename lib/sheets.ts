@@ -107,8 +107,6 @@ export async function loadI18N(url: string): Promise<Record<string, Record<strin
   return out;
 }
 
-export async function loadMenus(url: string): Promise<any[]> {
-  // Keep generic for now. Expected headers can be whatever you defined.
-  // We'll just return rows and wire them later into UI/AI when you say how MENUS is structured.
+export async function loadVenues(url: string): Promise<any[]> {
   return await fetchSheetRows(url, { noStore: true });
 }

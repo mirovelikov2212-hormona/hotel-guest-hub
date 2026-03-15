@@ -1,27 +1,29 @@
-// lib/types.ts
-export type LangKey = "bg" | "de" | "en" | string;
+export type LangKey = "bg" | "en" | "de" | "tr" | string;
 
 export type DepartmentKey =
   | "reception"
   | "housekeeping"
+  | "maintenance"
   | "restaurant"
-  | "events"
-  | "maintenance";
+  | "events";
 
 export type HubItem =
   | {
+      label: string;
       kind: "info";
-      label?: string;
       info: string;
     }
   | {
-      kind: "link";
       label: string;
+      kind: "link";
       href?: string;
-      // optional: allow custom behavior (prompt, routing, etc.)
-      onClick?: () => void;
-      // open in new tab for http(s) links
       newTab?: boolean;
+      onClick?: () => void;
+    }
+  | {
+      label: string;
+      kind: "custom";
+      onClick?: () => void;
     };
 
 export type HubSection = {
@@ -31,44 +33,108 @@ export type HubSection = {
   items: HubItem[];
 };
 
+export type ContactInfo = {
+  phone?: string;
+  whatsapp?: string;
+};
+
+export type DepartmentHours = Partial<
+  Record<
+    DepartmentKey,
+    {
+      open: string;
+      close: string;
+    }
+  >
+>;
+
+export type TaxiProvider = {
+  name: string;
+  url?: string;
+  phone?: string;
+};
+
+export type ReviewLinks = {
+  google?: string;
+  tripadvisor?: string;
+};
+
+export type VenueRow = {
+  category?: string;
+  type?: string;
+  name: string;
+  active?: boolean;
+  sortOrder?: number | string;
+
+  shortDescription?: string;
+  description?: string;
+  cuisine?: string;
+  hours?: string;
+  open?: string;
+  close?: string;
+  menuUrl?: string;
+  location?: string;
+
+  requiresReservation?: boolean;
+
+  reservationType?: "whatsapp" | "phone" | "url" | "email" | "none";
+  reservationUrl?: string;
+  reservationPhone?: string;
+  reservationWhatsapp?: string;
+  reservationEmail?: string;
+  reservationLabel?: string;
+  reservationMessage?: string;
+
+  programUrl?: string;
+  programText?: string;
+  ageGroup?: string;
+
+  whatsapp?: string;
+  phone?: string;
+};
+
 export type HotelConfig = {
-  hotelSlug: string;
+  hotelSlug?: string;
   hotelName: string;
   coverImage: string;
+  coverImagePosition?: string;
 
-  languages: LangKey[];
   languageDefault?: LangKey;
-
-  // NEW: language of operational WhatsApp messages (to staff)
+  languages: LangKey[];
   opsLanguage?: LangKey;
-
-  // NEW: optional helper line (e.g. English) to support multicultural staff
   staffHelperEnabled?: boolean;
   staffHelperLanguage?: LangKey;
 
-  // NEW: per-department hours; if department closed → route to reception
-  departmentHours?: Partial<
-    Record<DepartmentKey, { open: string; close: string }>
-  >;
+  i18n?: Record<string, Record<string, string>>;
 
-  // legacy fallback (still supported)
-  housekeepingCutoff?: string;
-
-  wifi: { ssid: string; password: string };
-
-  contacts: {
-    reception: { phone: string; whatsapp: string };
-    housekeeping: { whatsapp: string };
-    restaurant: { whatsapp: string };
-    events: { whatsapp: string };
-    maintenance: { whatsapp: string };
+  wifi: {
+    ssid: string;
+    password: string;
   };
 
-  location: { query: string };
+  location: {
+    query: string;
+  };
 
-  reviews: { google: string; tripadvisor: string };
+  contacts: {
+    reception: ContactInfo;
+    housekeeping: ContactInfo;
+    maintenance: ContactInfo;
+    restaurant: ContactInfo;
+    events: ContactInfo;
+  };
 
-  taxiProviders?: Array<{ name: string; phone?: string; url?: string }>;
+  departmentHours?: DepartmentHours;
+  housekeepingCutoff?: string;
 
-  i18n?: Record<string, Record<string, string>>;
+  housekeepingExtras?: Array<{
+    key: string;
+    labelKey: string;
+    messageKey: string;
+  }>;
+
+  taxiProviders?: TaxiProvider[];
+  reviews: ReviewLinks;
+
+  venueRows?: VenueRow[];
 };

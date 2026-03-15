@@ -2,79 +2,68 @@
 
 import { useEffect, useState } from "react";
 
-type BIPEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
-
-function clsx(...xs: Array<string | false | undefined | null>) {
-  return xs.filter(Boolean).join(" ");
-}
-
-function isIOS() {
-  if (typeof window === "undefined") return false;
-  return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-}
-
-function isStandalone() {
-  if (typeof window === "undefined") return false;
-  // @ts-ignore
-  const iosStandalone = window.navigator.standalone === true;
-  const mql = window.matchMedia?.("(display-mode: standalone)").matches;
-  return Boolean(iosStandalone || mql);
-}
-
 export default function InstallAppButton({
-  label = "Инсталирай като App",
-  className,
+  label = "Install App",
 }: {
   label?: string;
-  className?: string;
 }) {
-  const [bip, setBip] = useState<BIPEvent | null>(null);
-  const [showIOSHint, setShowIOSHint] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
-    if (isStandalone()) return;
+    const ua = window.navigator.userAgent.toLowerCase();
+    const ios = /iphone|ipad|ipod/.test(ua);
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true;
 
-    const handler = (e: Event) => {
+    setIsIOS(ios);
+    setIsStandalone(standalone);
+
+    const handler = (e: any) => {
       e.preventDefault();
-      setBip(e as BIPEvent);
+      setDeferredPrompt(e);
     };
 
     window.addEventListener("beforeinstallprompt", handler);
-
-    if (isIOS()) setShowIOSHint(true);
-
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  const onInstall = async () => {
-    if (!bip) return;
-    await bip.prompt();
-    await bip.userChoice.catch(() => null);
-    setBip(null);
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      setDeferredPrompt(null);
+    }
   };
 
-  if (isStandalone()) return null;
+  if (isStandalone) return null;
 
-  return (
-    <div className={clsx("space-y-2", className)}>
-      {bip ? (
-        <button
-          type="button"
-          onClick={onInstall}
-          className="w-full rounded-xl px-3 py-3 text-sm font-semibold bg-[#9B86BD]/14 ring-1 ring-[#9B86BD]/25 text-white hover:bg-[#9B86BD]/20 transition"
-        >
-          {label}
-        </button>
-      ) : null}
+  // iPhone / iPad
+  if (isIOS) {
+    return (
+      <div className="w-full rounded-2xl bg-neutral-900/80 ring-1 ring-white/10 px-4 py-4 text-center text-sm leading-6 text-white shadow-[0_8px_30px_rgba(0,0,0,0.25)]">
+        <span className="font-semibold">iPhone:</span> натисни{" "}
+        <span className="font-semibold">Share</span> →{" "}
+        <span className="font-semibold">Add to Home Screen</span>, за да го
+        ползваш като app.
+      </div>
+    );
+  }
 
-      {showIOSHint ? (
-        <div className="rounded-xl bg-[#9B86BD]/10 ring-1 ring-[#9B86BD]/20 p-3 text-xs text-white/90">
-          iPhone: натисни <b>Share</b> → <b>Add to Home Screen</b>, за да го ползваш като app.
-        </div>
-      ) : null}
-    </div>
-  );
+  // Android / Chrome etc.
+  if (deferredPrompt) {
+    return (
+      <button
+        type="button"
+        onClick={handleInstall}
+        className="w-full rounded-2xl bg-neutral-900/80 ring-1 ring-white/10 px-4 py-4 text-center text-lg font-semibold text-white shadow-[0_8px_30px_rgba(0,0,0,0.25)] hover:bg-neutral-900/90 active:scale-[0.99] transition"
+      >
+        {label}
+      </button>
+    );
+  }
+
+  return null;
 }
