@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
@@ -8,14 +8,74 @@ import {
   getRequestSummary,
   sortStaffRequests,
 } from "@/lib/staff/mock-data";
+import type { StaffRequestStatus } from "@/lib/staff/types";
+
+const HOUSEKEEPING_SUPERVISOR_PIN = "2580";
+const HOUSEKEEPING_SUPERVISOR_SESSION_KEY =
+  "guesthub_housekeeping_supervisor_ok";
 
 export default function HousekeepingPage() {
-  const { getRequestsByDepartment, updateRequestStatus } = useStaffStore();
+  const { getOperationalRequestsByDepartment, updateRequestStatus } = useStaffStore();
+  const [supervisorUnlocked, setSupervisorUnlocked] = useState(false);
 
-  const requests = getRequestsByDepartment("housekeeping");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const unlocked =
+      window.sessionStorage.getItem(
+        HOUSEKEEPING_SUPERVISOR_SESSION_KEY
+      ) === "1";
+
+    setSupervisorUnlocked(unlocked);
+  }, []);
+
+  const requests = getOperationalRequestsByDepartment("housekeeping");
 
   const sortedRequests = useMemo(() => sortStaffRequests(requests), [requests]);
   const summary = useMemo(() => getRequestSummary(requests), [requests]);
+
+  const requestSupervisorPin = () => {
+    if (typeof window === "undefined") return false;
+
+    const entered = window.prompt(
+      "Supervisor PIN required to update housekeeping requests."
+    );
+
+    if (!entered) return false;
+
+    if (entered !== HOUSEKEEPING_SUPERVISOR_PIN) {
+      window.alert("Incorrect PIN.");
+      return false;
+    }
+
+    window.sessionStorage.setItem(
+      HOUSEKEEPING_SUPERVISOR_SESSION_KEY,
+      "1"
+    );
+    setSupervisorUnlocked(true);
+    return true;
+  };
+
+  const ensureSupervisorAccess = () => {
+    if (supervisorUnlocked) return true;
+    return requestSupervisorPin();
+  };
+
+  const handleStatusChange = (
+    id: string,
+    status: StaffRequestStatus
+  ) => {
+    if (!ensureSupervisorAccess()) return;
+    void updateRequestStatus(id, status);
+  };
+
+  const lockSupervisorMode = () => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.removeItem(
+      HOUSEKEEPING_SUPERVISOR_SESSION_KEY
+    );
+    setSupervisorUnlocked(false);
+  };
 
   return (
     <main className="space-y-6 pb-safe">
@@ -35,8 +95,28 @@ export default function HousekeepingPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
-            Shared housekeeping board
+          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+              Shared housekeeping board
+            </div>
+
+            {supervisorUnlocked ? (
+              <button
+                type="button"
+                onClick={lockSupervisorMode}
+                className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-400/15"
+              >
+                Lock supervisor mode
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={requestSupervisorPin}
+                className="rounded-2xl border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-sm font-semibold text-sky-100 transition hover:bg-sky-400/15"
+              >
+                Unlock supervisor actions
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -56,6 +136,13 @@ export default function HousekeepingPage() {
         />
       </section>
 
+      {!supervisorUnlocked ? (
+        <section className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-4 text-sm leading-6 text-amber-100">
+          All housekeeping staff can monitor incoming requests. Status changes
+          require supervisor PIN.
+        </section>
+      ) : null}
+
       <section className="space-y-4">
         {sortedRequests.map((request) => (
           <StaffRequestCard
@@ -63,9 +150,9 @@ export default function HousekeepingPage() {
             request={request}
             mode="department"
             canAct
-            onStart={(id) => updateRequestStatus(id, "in_progress")}
-            onDone={(id) => updateRequestStatus(id, "completed")}
-            onReturn={(id) => updateRequestStatus(id, "returned")}
+            onStart={(id) => handleStatusChange(id, "in_progress")}
+            onDone={(id) => handleStatusChange(id, "completed")}
+            onReturn={(id) => handleStatusChange(id, "returned")}
           />
         ))}
       </section>

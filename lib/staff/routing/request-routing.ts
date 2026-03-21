@@ -8,6 +8,8 @@ const requestDepartmentMap: Record<StaffRequestType, StaffDepartment> = {
   bathrobe: "housekeeping",
   slippers: "housekeeping",
   baby_cot: "housekeeping",
+  iron: "housekeeping",
+  minibar: "housekeeping",
 
   air_conditioning: "maintenance",
   light_not_working: "maintenance",

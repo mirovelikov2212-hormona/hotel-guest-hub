@@ -138,3 +138,60 @@ export type HotelConfig = {
 
   venueRows?: VenueRow[];
 };
+
+export type StaffRequestType =
+  | "towels"
+  | "toilet_paper"
+  | "extra_pillow"
+  | "extra_blanket"
+  | "bathrobe"
+  | "slippers"
+  | "baby_cot"
+  | "air_conditioning"
+  | "light_not_working"
+  | "no_hot_water"
+  | "tv_issue"
+  | "bathroom_issue"
+  | "other_technical_issue"
+  | "taxi"
+  | "late_checkout"
+  | "wake_up_call"
+  | "information"
+  | "restaurant_reservation"
+  | "iron"
+  | "minibar";
+
+  export type StaffDepartment =
+  | "housekeeping"
+  | "maintenance"
+  | "reception"
+  | "restaurant";
+
+export type StaffRequestStatus =
+  | "new"
+  | "in_progress"
+  | "completed"
+  | "returned";
+
+export type StaffServiceTime = "now" | "today" | "tomorrow";
+
+export type StaffRequest = {
+  id: string;
+  room: string;
+  department: StaffDepartment;
+  type: StaffRequestType;
+  typeLabel: string;
+  status: StaffRequestStatus;
+  serviceTime: StaffServiceTime;
+  createdAt: string;
+  createdAtIso: string;
+  createdDateKey: string;
+  note?: string;
+};
+
+export const staffDepartmentLabels: Record<StaffDepartment, string> = {
+  housekeeping: "Housekeeping",
+  maintenance: "Maintenance",
+  reception: "Reception",
+  restaurant: "Restaurant",
+};

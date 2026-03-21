@@ -16,6 +16,37 @@ type StaffRequestCardProps = {
   onReturn?: (id: string) => void;
 };
 
+function getStaffRequestIcon(type: string): string {
+  switch (type) {
+    case "towels":
+      return "🧺";
+    case "toilet_paper":
+      return "🧻";
+    case "extra_pillow":
+      return "🛏️";
+    case "extra_blanket":
+      return "🧣";
+    case "iron":
+      return "🧼";
+    case "minibar":
+      return "🥤";
+    case "late_checkout":
+      return "🕒";
+    case "taxi":
+      return "🚕";
+    case "wake_up_call":
+      return "⏰";
+    case "air_conditioning":
+      return "❄️";
+    case "no_hot_water":
+      return "🚿";
+    case "other_technical_issue":
+      return "🛠️";
+    default:
+      return "•";
+  }
+}
+
 export default function StaffRequestCard({
   request,
   mode,
@@ -56,9 +87,14 @@ export default function StaffRequestCard({
           </div>
 
           <div>
-            <h3 className="text-2xl font-semibold tracking-tight">
-              {request.typeLabel}
-            </h3>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl leading-none">
+                {getStaffRequestIcon(request.type)}
+              </span>
+              <h3 className="text-2xl font-semibold tracking-tight">
+                {request.typeLabel.replace(/^[^\p{L}\p{N}]+/u, "").trim()}
+              </h3>
+            </div>
             <p className="mt-1 text-sm text-white/50">
               Requested at {request.createdAt}
             </p>

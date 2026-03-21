@@ -43,6 +43,7 @@ function getHotelId() {
 
 function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
   const metadata = row.metadata_json ?? {};
+  const created = new Date(row.created_at);
 
   return {
     id: row.id,
@@ -52,10 +53,12 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
     typeLabel: metadata.typeLabel ?? row.title,
     status: row.status,
     serviceTime: metadata.serviceTime ?? "now",
-    createdAt: new Date(row.created_at).toLocaleTimeString([], {
+    createdAt: created.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
     }),
+    createdAtIso: row.created_at,
+    createdDateKey: created.toLocaleDateString("sv-SE"),
     note: metadata.note ?? row.message ?? undefined,
   };
 }

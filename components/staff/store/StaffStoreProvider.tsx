@@ -35,11 +35,26 @@ type StaffStoreContextValue = {
   updateRequestStatus: (id: string, status: StaffRequestStatus) => Promise<void>;
   addRequest: (input: AddRequestInput) => Promise<void>;
   getRequestsByDepartment: (department: StaffDepartment) => StaffRequest[];
+  getOperationalRequestsByDepartment: (
+    department: StaffDepartment
+  ) => StaffRequest[];
   getAllRequests: () => StaffRequest[];
+  getOperationalAllRequests: () => StaffRequest[];
   resetRequests: () => Promise<void>;
 };
 
 const StaffStoreContext = createContext<StaffStoreContextValue | null>(null);
+
+function getTodayDateKey() {
+  return new Date().toLocaleDateString("sv-SE");
+}
+
+function isOperationalRequest(request: StaffRequest) {
+  return (
+    request.createdDateKey === getTodayDateKey() ||
+    request.status !== "completed"
+  );
+}
 
 export function StaffStoreProvider({ children }: { children: ReactNode }) {
   const [requests, setRequests] = useState<StaffRequest[]>([]);
@@ -61,7 +76,10 @@ export function StaffStoreProvider({ children }: { children: ReactNode }) {
 
     const safeLoad = async () => {
       if (cancelled) return;
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState === "hidden"
+      ) {
         return;
       }
 
@@ -82,7 +100,7 @@ export function StaffStoreProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [loadRequests]);
 
   const updateRequestStatus = useCallback(
     async (id: string, status: StaffRequestStatus) => {
@@ -115,7 +133,23 @@ export function StaffStoreProvider({ children }: { children: ReactNode }) {
     [requests]
   );
 
-  const getAllRequests = useCallback(() => requests, [requests]);
+  const getOperationalRequestsByDepartment = useCallback(
+    (department: StaffDepartment) => {
+      return requests.filter(
+        (request) =>
+          request.department === department && isOperationalRequest(request)
+      );
+    },
+    [requests]
+  );
+
+  const getAllRequests = useCallback(() => {
+    return requests;
+  }, [requests]);
+
+  const getOperationalAllRequests = useCallback(() => {
+    return requests.filter(isOperationalRequest);
+  }, [requests]);
 
   const resetRequests = useCallback(async () => {
     await loadRequests();
@@ -127,7 +161,9 @@ export function StaffStoreProvider({ children }: { children: ReactNode }) {
       updateRequestStatus,
       addRequest,
       getRequestsByDepartment,
+      getOperationalRequestsByDepartment,
       getAllRequests,
+      getOperationalAllRequests,
       resetRequests,
     }),
     [
@@ -135,7 +171,9 @@ export function StaffStoreProvider({ children }: { children: ReactNode }) {
       updateRequestStatus,
       addRequest,
       getRequestsByDepartment,
+      getOperationalRequestsByDepartment,
       getAllRequests,
+      getOperationalAllRequests,
       resetRequests,
     ]
   );

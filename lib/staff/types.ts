@@ -30,7 +30,9 @@ export type StaffRequestType =
   | "late_checkout"
   | "wake_up_call"
   | "information"
-  | "restaurant_reservation";
+  | "restaurant_reservation"
+  | "iron"
+  | "minibar";
 
 export type StaffRequest = {
   id: string;
@@ -41,6 +43,8 @@ export type StaffRequest = {
   status: StaffRequestStatus;
   serviceTime: StaffServiceTime;
   createdAt: string;
+  createdAtIso: string;
+  createdDateKey: string;
   note?: string;
 };
 

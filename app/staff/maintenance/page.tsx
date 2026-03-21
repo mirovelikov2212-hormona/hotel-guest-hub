@@ -7,9 +7,9 @@ import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
 import { getRequestSummary, sortStaffRequests } from "@/lib/staff/mock-data";
 
 export default function MaintenancePage() {
-  const { getRequestsByDepartment, updateRequestStatus } = useStaffStore();
+  const { getOperationalRequestsByDepartment, updateRequestStatus } = useStaffStore();
 
-  const requests = getRequestsByDepartment("maintenance");
+  const requests = getOperationalRequestsByDepartment("maintenance");
 
   const sortedRequests = useMemo(() => sortStaffRequests(requests), [requests]);
   const summary = useMemo(() => getRequestSummary(requests), [requests]);
