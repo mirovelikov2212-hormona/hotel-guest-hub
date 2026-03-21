@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createSupabaseRequest } from "@/lib/staff/supabase-requests";
+import type { StaffRequestType, StaffServiceTime } from "@/lib/staff/types";
 import { useSearchParams } from "next/navigation";
 import type { HotelConfig, LangKey, HubSection, DepartmentKey } from "@/lib/types";
 import InstallAppButton from "@/components/InstallAppButton";
@@ -81,7 +83,6 @@ function normalizeCategory(v: VenueRow) {
 
   if (allowed.has(raw)) return raw;
 
-  // backward compatibility / migration aliases
   const aliasMap: Record<string, string> = {
     restaurant: "restaurants",
     bar: "bars",
@@ -93,7 +94,6 @@ function normalizeCategory(v: VenueRow) {
 
   if (aliasMap[raw]) return aliasMap[raw];
 
-  // production-safe fallback
   return "restaurants";
 }
 
@@ -134,7 +134,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const [aiLoading, setAiLoading] = useState(false);
 
   const sp = useSearchParams();
-  const room = sp.get("room") || "";
+  const qrRoom = (sp.get("room") || "").trim();
+
+  const [manualRoomInput, setManualRoomInput] = useState(qrRoom);
+  const [room, setRoom] = useState(qrRoom);
+  const [roomConfirmed, setRoomConfirmed] = useState(Boolean(qrRoom));
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -149,6 +153,13 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       window.removeEventListener("beforeinstallprompt", handler);
     };
   }, []);
+
+  useEffect(() => {
+    if (!qrRoom) return;
+    setManualRoomInput(qrRoom);
+    setRoom(qrRoom);
+    setRoomConfirmed(true);
+  }, [qrRoom]);
 
   const installApp = async () => {
     if (!deferredPrompt) return;
@@ -175,10 +186,130 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const helperLang = (config.staffHelperLanguage ?? "en") as LangKey;
   const tHELP = (key: string) => config.i18n?.[String(helperLang)]?.[key] ?? key;
 
-  const roomPrefix = room ? `Room ${room} - ` : "";
+  const roomCopy = useMemo(() => {
+    const copy = {
+      bg: {
+        roomBadge: "Стая {room}",
+        cardTitle: "Потвърдете номера на стаята",
+        cardText:
+          "За да се отключат функциите на отделите, въведете и потвърдете номера на стаята си.",
+        inputLabel: "Номер на стая",
+        inputPlaceholder: "Напр. 204",
+        confirmButton: "Потвърди стаята",
+        confirmMessage: "Сигурни ли сте, че това е вашата стая?\nСтая {room}",
+        confirmedState: "Потвърдена стая: {room}",
+        changeRoom: "Смени стаята",
+        lockedNotice: "Секциите ще се отворят, когато въведете номера на стаята.",
+        lockedSectionMessage:
+          "Потвърдете номера на стаята, за да отключите тази секция.",
+        missingRoomAlert: "Моля, въведете номер на стая.",
+        missingRoomQrAlert:
+          "Липсва номер на стая. Моля, сканирайте QR кода на стаята отново или въведете стаята ръчно.",
+        requestSent: "Заявката е изпратена: {typeLabel}",
+        requestFailed: "Неуспешно изпращане на заявката. Опитайте отново.",
+        lockedActionAlert:
+          "Първо потвърдете номера на стаята, за да отключите функциите.",
+      },
+      en: {
+        roomBadge: "Room {room}",
+        cardTitle: "Confirm your room number",
+        cardText:
+          "To unlock the department functions, enter and confirm your room number.",
+        inputLabel: "Room number",
+        inputPlaceholder: "Example: 204",
+        confirmButton: "Confirm room",
+        confirmMessage: "Are you sure this is your room?\nRoom {room}",
+        confirmedState: "Confirmed room: {room}",
+        changeRoom: "Change room",
+        lockedNotice: "The sections will open when you enter your room number.",
+        lockedSectionMessage:
+          "Confirm your room number to unlock this section.",
+        missingRoomAlert: "Please enter a room number.",
+        missingRoomQrAlert:
+          "Missing room number. Please rescan the room QR code or enter the room manually.",
+        requestSent: "Request sent: {typeLabel}",
+        requestFailed: "Failed to send request. Please try again.",
+        lockedActionAlert:
+          "Please confirm your room number first to unlock the functions.",
+      },
+      de: {
+        roomBadge: "Zimmer {room}",
+        cardTitle: "Bitte Zimmernummer bestätigen",
+        cardText:
+          "Um die Funktionen der Abteilungen freizuschalten, geben Sie Ihre Zimmernummer ein und bestätigen Sie sie.",
+        inputLabel: "Zimmernummer",
+        inputPlaceholder: "Zum Beispiel: 204",
+        confirmButton: "Zimmer bestätigen",
+        confirmMessage: "Sind Sie sicher, dass dies Ihr Zimmer ist?\nZimmer {room}",
+        confirmedState: "Bestätigtes Zimmer: {room}",
+        changeRoom: "Zimmer ändern",
+        lockedNotice: "Die Bereiche werden geöffnet, wenn Sie Ihre Zimmernummer eingeben.",
+        lockedSectionMessage:
+          "Bestätigen Sie Ihre Zimmernummer, um diesen Bereich freizuschalten.",
+        missingRoomAlert: "Bitte geben Sie eine Zimmernummer ein.",
+        missingRoomQrAlert:
+          "Zimmernummer fehlt. Bitte scannen Sie den QR-Code des Zimmers erneut oder geben Sie die Zimmernummer manuell ein.",
+        requestSent: "Anfrage gesendet: {typeLabel}",
+        requestFailed: "Anfrage konnte nicht gesendet werden. Bitte erneut versuchen.",
+        lockedActionAlert:
+          "Bitte bestätigen Sie zuerst Ihre Zimmernummer, um die Funktionen freizuschalten.",
+      },
+    } as const;
+
+    if (lang === "bg" || lang === "en" || lang === "de") {
+      return copy[lang];
+    }
+
+    return copy.en;
+  }, [lang]);
+
+  const roomPrefix = room ? `${roomCopy.roomBadge.replace("{room}", room)} - ` : "";
 
   const contact = config.contacts;
   const deptHours = config.departmentHours ?? {};
+
+  const roomRequiredSectionIds = new Set([
+    "reception",
+    "housekeeping",
+    "maintenance",
+    "outlets",
+    "activities",
+    "ai",
+  ]);
+
+  const ensureConfirmedRoom = () => {
+    if (roomConfirmed && room.trim()) return true;
+    window.alert(roomCopy.lockedActionAlert);
+    return false;
+  };
+
+  const confirmManualRoom = () => {
+    const candidate = manualRoomInput.trim();
+
+    if (!candidate) {
+      window.alert(roomCopy.missingRoomAlert);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      roomCopy.confirmMessage.replace("{room}", candidate)
+    );
+
+    if (!confirmed) {
+      setRoomConfirmed(false);
+      setRoom("");
+      return;
+    }
+
+    setRoom(candidate);
+    setRoomConfirmed(true);
+  };
+
+  const resetManualRoom = () => {
+    setRoom("");
+    setRoomConfirmed(false);
+    setManualRoomInput("");
+  };
 
   const isDeptOpen = (dept: DepartmentKey) => {
     const h = deptHours?.[dept];
@@ -205,7 +336,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       : afterCutoffLegacy;
 
   const hkExtras =
-    (config.housekeepingExtras as Array<{ key: string; labelKey: string; messageKey: string }> | undefined) ??
+    (config.housekeepingExtras as Array<{
+      key: string;
+      labelKey: string;
+      messageKey: string;
+    }> | undefined) ??
     [
       { key: "laundry", labelKey: "laundry", messageKey: "msg_laundry" },
       { key: "iron", labelKey: "iron", messageKey: "msg_iron" },
@@ -215,7 +350,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const taxiProviders = config.taxiProviders ?? [];
   const uberUrl =
-    taxiProviders.find((p: { name?: string; url?: string }) => (p.name || "").toLowerCase() === "uber")?.url
+    taxiProviders.find(
+      (p: { name?: string; url?: string }) => (p.name || "").toLowerCase() === "uber"
+    )?.url;
+
+  void uberUrl;
 
   const rawVenueRows = (((config as any).venueRows ?? []) as Array<VenueRow>).filter(
     (v) => v && v.name && (v.type || v.category) && v.active !== false
@@ -247,10 +386,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const outletsSection =
     groupedOutlets.length > 0
       ? {
-          id: "outlets",
-          title: `🍴 ${String(tUI("outlets_title") || "Outlets")}`,
-          items: [],
-        }
+        id: "outlets",
+        title: `🍴 ${String(tUI("outlets_title") || "Outlets")}`,
+        items: [],
+      }
       : null;
 
   const buildStaffMessage = (msgKey: string, filledOPS?: string, filledHELP?: string) => {
@@ -282,8 +421,43 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const getDeptPhone = (dept: DepartmentKey | "reception") =>
     String(contact?.[dept]?.phone || contact?.reception?.phone || "").trim();
 
+  const submitGuestRequest = async ({
+    type,
+    typeLabel,
+    note,
+    serviceTime = "now",
+  }: {
+    type: StaffRequestType;
+    typeLabel: string;
+    note?: string;
+    serviceTime?: StaffServiceTime;
+  }) => {
+    if (!room.trim()) {
+      window.alert(roomCopy.missingRoomQrAlert);
+      return;
+    }
+
+    if (!ensureConfirmedRoom()) return;
+
+    try {
+      await createSupabaseRequest({
+        room,
+        type,
+        typeLabel,
+        serviceTime,
+        note,
+      });
+
+      window.alert(roomCopy.requestSent.replace("{typeLabel}", typeLabel));
+    } catch (error) {
+      console.error("submitGuestRequest failed", error);
+      window.alert(roomCopy.requestFailed);
+    }
+  };
+
   const askAI = async () => {
     if (!aiQ.trim()) return;
+    if (!ensureConfirmedRoom()) return;
 
     try {
       setAiLoading(true);
@@ -332,31 +506,48 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   };
 
   const sendReception = (msgKey: string) => {
+    if (!ensureConfirmedRoom()) return;
     const routed = warnAndRouteIfClosed("reception");
     openWhatsApp(getDeptWhatsapp("reception"), buildStaffMessage(msgKey), routed.warned);
   };
 
   const sendHousekeeping = (msgKey: string) => {
+    if (!ensureConfirmedRoom()) return;
     const routed = warnAndRouteIfClosed("housekeeping");
-    const to = routed.dept === "reception" ? getDeptWhatsapp("reception") : getDeptWhatsapp("housekeeping");
+    const to =
+      routed.dept === "reception"
+        ? getDeptWhatsapp("reception")
+        : getDeptWhatsapp("housekeeping");
     openWhatsApp(to, buildStaffMessage(msgKey), routed.warned);
   };
 
   const sendMaintenance = (msgKey: string) => {
+    if (!ensureConfirmedRoom()) return;
     const routed = warnAndRouteIfClosed("maintenance");
-    const to = routed.dept === "reception" ? getDeptWhatsapp("reception") : getDeptWhatsapp("maintenance");
+    const to =
+      routed.dept === "reception"
+        ? getDeptWhatsapp("reception")
+        : getDeptWhatsapp("maintenance");
     openWhatsApp(to, buildStaffMessage(msgKey), routed.warned);
   };
 
   const sendEvents = (msgKey: string) => {
+    if (!ensureConfirmedRoom()) return;
     const routed = warnAndRouteIfClosed("events");
-    const to = routed.dept === "reception" ? getDeptWhatsapp("reception") : getDeptWhatsapp("events");
+    const to =
+      routed.dept === "reception"
+        ? getDeptWhatsapp("reception")
+        : getDeptWhatsapp("events");
     openWhatsApp(to, buildStaffMessage(msgKey), routed.warned);
   };
 
   const sendRestaurant = (msgKey: string) => {
+    if (!ensureConfirmedRoom()) return;
     const routed = warnAndRouteIfClosed("restaurant");
-    const to = routed.dept === "reception" ? getDeptWhatsapp("reception") : getDeptWhatsapp("restaurant");
+    const to =
+      routed.dept === "reception"
+        ? getDeptWhatsapp("reception")
+        : getDeptWhatsapp("restaurant");
     openWhatsApp(to, buildStaffMessage(msgKey), routed.warned);
   };
 
@@ -380,6 +571,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   };
 
   const sendAIRequest = async (q: string) => {
+    if (!ensureConfirmedRoom()) return "";
+
     const res = await fetch("/api/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -417,193 +610,194 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   void sendAIRequest;
 
   const sendVenueReservation = (venue: VenueRow) => {
-  const venueName = venue?.name || "";
+    if (!ensureConfirmedRoom()) return;
 
-  const people = (window.prompt(String(tUI("prompt_people") || "Брой хора:"), "4") || "").trim();
-  if (!people) return;
+    const venueName = venue?.name || "";
 
-  let date: string | null = null;
+    const people = (window.prompt(String(tUI("prompt_people") || "Брой хора:"), "4") || "").trim();
+    if (!people) return;
 
-  while (!date) {
-    date = askRequired(
-      String(tUI("prompt_date")),
-      String(tUI("example_date")),
-      reDate,
-      String(tUI("invalid_date"))
+    let date: string | null = null;
+
+    while (!date) {
+      date = askRequired(
+        String(tUI("prompt_date")),
+        String(tUI("example_date")),
+        reDate,
+        String(tUI("invalid_date"))
+      );
+      if (date === null) return;
+    }
+
+    const m = reDate.exec(date);
+    if (!m) return;
+
+    const dd = Number(m[1]);
+    const mm = Number(m[2]);
+    const yyyy = Number(m[3]);
+
+    const picked = new Date(yyyy, mm - 1, dd, 0, 0, 0, 0);
+    const today = new Date();
+    const today0 = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+
+    if (
+      picked.getFullYear() !== yyyy ||
+      picked.getMonth() !== mm - 1 ||
+      picked.getDate() !== dd
+    ) {
+      alert(String(tUI("invalid_date")));
+      return;
+    }
+
+    if (picked < today0) {
+      alert(String(tUI("invalid_date")));
+      return;
+    }
+
+    const isTimeWithinVenueHours = (value: string, open?: string, close?: string) => {
+      if (!open || !close) return true;
+
+      const toMinutes = (t: string) => {
+        const [h, m] = t.split(":").map(Number);
+        return h * 60 + m;
+      };
+
+      const current = toMinutes(value);
+      const start = toMinutes(open);
+      const end = toMinutes(close);
+
+      return current >= start && current <= end;
+    };
+
+    let time: string | null = null;
+
+    while (!time) {
+      const pickedTime = askRequired(
+        String(tUI("prompt_time")),
+        String(tUI("example_time")),
+        reTime,
+        String(tUI("invalid_time"))
+      );
+
+      if (!pickedTime) return;
+
+      if (venue?.open && venue?.close) {
+        const ok = isTimeWithinVenueHours(pickedTime, venue.open, venue.close);
+
+        if (!ok) {
+          const hoursLabel = venue.hours || `${venue.open} - ${venue.close}`;
+
+          alert(
+            `${String(tUI("invalid_reservation_time") || "Избраният час е извън работното време.")}\n` +
+            `${String(tUI("reservation_outside_hours") || "Работното време е: {hours}").replace(
+              "{hours}",
+              hoursLabel
+            )}`
+          );
+          continue;
+        }
+      }
+
+      time = pickedTime;
+    }
+
+    const noOccasion = window.confirm(
+      String(
+        tUI("confirm_no_occasion") ||
+        "Има ли повод?\nOK = Без повод\nCancel = Ще напиша повод"
+      )
     );
-    if (date === null) return;
-  }
 
-  const m = reDate.exec(date);
-  if (!m) return;
+    let occasion = "";
+    if (noOccasion) {
+      occasion = String(tUI("no_occasion") || "Без повод");
+    } else {
+      occasion = (
+        window.prompt(
+          String(tUI("prompt_occasion") || "Повод (напр. рожден ден):"),
+          "Birthday"
+        ) || ""
+      ).trim();
 
-  const dd = Number(m[1]);
-  const mm = Number(m[2]);
-  const yyyy = Number(m[3]);
+      if (!occasion) occasion = String(tUI("no_occasion") || "Без повод");
+    }
 
-  const picked = new Date(yyyy, mm - 1, dd, 0, 0, 0, 0);
-  const today = new Date();
-  const today0 = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+    const opsMsg =
+      `${String(tOPS("restaurant_label") || "Outlet")}: ${venueName}\n` +
+      `${String(tOPS("label_people") || "Брой хора")}: ${people}\n` +
+      `${String(tOPS("label_date") || "Дата")}: ${date}\n` +
+      `${String(tOPS("label_time") || "Час")}: ${time}\n` +
+      `${String(tOPS("label_occasion") || "Повод")}: ${occasion}`;
 
-  if (
-    picked.getFullYear() !== yyyy ||
-    picked.getMonth() !== mm - 1 ||
-    picked.getDate() !== dd
-  ) {
-    alert(String(tUI("invalid_date")));
-    return;
-  }
+    const helpMsg =
+      `Outlet: ${venueName}\n` +
+      `People: ${people}\n` +
+      `Date: ${date}\n` +
+      `Time: ${time}\n` +
+      `Occasion: ${occasion}`;
 
-  if (picked < today0) {
-    alert(String(tUI("invalid_date")));
-    return;
-  }
+    const msg = helperEnabled
+      ? `${roomPrefix}${opsMsg}\n\nEN: ${roomPrefix}${helpMsg}`
+      : `${roomPrefix}${opsMsg}`;
 
-  const isTimeWithinVenueHours = (value: string, open?: string, close?: string) => {
-  if (!open || !close) return true;
+    const type = String(venue.reservationType || "").trim().toLowerCase();
 
-  const toMinutes = (t: string) => {
-    const [h, m] = t.split(":").map(Number);
-    return h * 60 + m;
+    if (type === "url" && venue.reservationUrl) {
+      window.open(String(venue.reservationUrl), "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (type === "phone" && venue.reservationPhone) {
+      const phone = String(venue.reservationPhone || "").trim();
+      if (!phone) return;
+      window.location.href = safeTelLink(phone);
+      return;
+    }
+
+    if (type === "email" && venue.reservationEmail) {
+      const subject = encodeURIComponent(`${config.hotelName} - ${venueName} reservation`);
+      const body = encodeURIComponent(msg);
+      window.location.href = `mailto:${venue.reservationEmail}?subject=${subject}&body=${body}`;
+      return;
+    }
+
+    if (type === "whatsapp" && venue.reservationWhatsapp) {
+      const wa = String(venue.reservationWhatsapp || "").trim();
+      if (!wa) return;
+      window.location.href = buildWhatsAppLink(wa, msg);
+      return;
+    }
+
+    const routed = warnAndRouteIfClosed("restaurant");
+    const to =
+      routed.dept === "reception"
+        ? getDeptWhatsapp("reception")
+        : getDeptWhatsapp("restaurant");
+
+    openWhatsApp(to, msg, routed.warned);
   };
 
-  const current = toMinutes(value);
-  const start = toMinutes(open);
-  const end = toMinutes(close);
-
-  return current >= start && current <= end;
-};
-
-let time: string | null = null;
-
-while (!time) {
-  const pickedTime = askRequired(
-    String(tUI("prompt_time")),
-    String(tUI("example_time")),
-    reTime,
-    String(tUI("invalid_time"))
-  );
-
-  if (!pickedTime) return;
-
-  if (venue?.open && venue?.close) {
-    const ok = isTimeWithinVenueHours(pickedTime, venue.open, venue.close);
-
-    if (!ok) {
-      const hoursLabel = venue.hours || `${venue.open} - ${venue.close}`;
-
-      alert(
-        `${String(tUI("invalid_reservation_time") || "Избраният час е извън работното време.")}\n` +
-        `${String(tUI("reservation_outside_hours") || "Работното време е: {hours}").replace("{hours}", hoursLabel)}`
-      );
-      continue;
-    }
-  }
-
-  time = pickedTime;
-}
-
-  const noOccasion = window.confirm(
-    String(
-      tUI("confirm_no_occasion") ||
-        "Има ли повод?\nOK = Без повод\nCancel = Ще напиша повод"
-    )
-  );
-
-  let occasion = "";
-  if (noOccasion) {
-    occasion = String(tUI("no_occasion") || "Без повод");
-  } else {
-    occasion = (
-      window.prompt(
-        String(tUI("prompt_occasion") || "Повод (напр. рожден ден):"),
-        "Birthday"
-      ) || ""
-    ).trim();
-
-    if (!occasion) occasion = String(tUI("no_occasion") || "Без повод");
-  }
-
-  const opsMsg =
-    `${String(tOPS("restaurant_label") || "Outlet")}: ${venueName}\n` +
-    `${String(tOPS("label_people") || "Брой хора")}: ${people}\n` +
-    `${String(tOPS("label_date") || "Дата")}: ${date}\n` +
-    `${String(tOPS("label_time") || "Час")}: ${time}\n` +
-    `${String(tOPS("label_occasion") || "Повод")}: ${occasion}`;
-
-  const helpMsg =
-    `Outlet: ${venueName}\n` +
-    `People: ${people}\n` +
-    `Date: ${date}\n` +
-    `Time: ${time}\n` +
-    `Occasion: ${occasion}`;
-
-  const msg = helperEnabled
-    ? `${roomPrefix}${opsMsg}\n\nEN: ${roomPrefix}${helpMsg}`
-    : `${roomPrefix}${opsMsg}`;
-
-  const type = String(venue.reservationType || "").trim().toLowerCase();
-
-  if (type === "url" && venue.reservationUrl) {
-    window.open(String(venue.reservationUrl), "_blank", "noopener,noreferrer");
-    return;
-  }
-
-  if (type === "phone" && venue.reservationPhone) {
-    const phone = String(venue.reservationPhone || "").trim();
-    if (!phone) return;
-    window.location.href = safeTelLink(phone);
-    return;
-  }
-
-  if (type === "email" && venue.reservationEmail) {
-    const subject = encodeURIComponent(`${config.hotelName} - ${venueName} reservation`);
-    const body = encodeURIComponent(msg);
-    window.location.href = `mailto:${venue.reservationEmail}?subject=${subject}&body=${body}`;
-    return;
-  }
-
-  if (type === "whatsapp" && venue.reservationWhatsapp) {
-    const wa = String(venue.reservationWhatsapp || "").trim();
-    if (!wa) return;
-    window.location.href = buildWhatsAppLink(wa, msg);
-    return;
-  }
-
-  // fallback към restaurant department
-  const routed = warnAndRouteIfClosed("restaurant");
-  const to =
-    routed.dept === "reception"
-      ? getDeptWhatsapp("reception")
-      : getDeptWhatsapp("restaurant");
-
-  openWhatsApp(to, msg, routed.warned);
-};
-
   const openVenueReservation = (venue: VenueRow) => {
-  const type = String(venue.reservationType || "").trim().toLowerCase();
+    if (!ensureConfirmedRoom()) return;
 
-  if (type === "none") return;
+    const type = String(venue.reservationType || "").trim().toLowerCase();
 
-  // outlets, които минават през формата
-  const usesReservationForm =
-    type === "whatsapp" ||
-    type === "email" ||
-    type === "phone";
+    if (type === "none") return;
 
-  if (usesReservationForm) {
+    const usesReservationForm = type === "whatsapp" || type === "email" || type === "phone";
+
+    if (usesReservationForm) {
+      sendVenueReservation(venue);
+      return;
+    }
+
+    if (type === "url" && venue.reservationUrl) {
+      window.open(String(venue.reservationUrl), "_blank", "noopener,noreferrer");
+      return;
+    }
+
     sendVenueReservation(venue);
-    return;
-  }
-
-  if (type === "url" && venue.reservationUrl) {
-    window.open(String(venue.reservationUrl), "_blank", "noopener,noreferrer");
-    return;
-  }
-
-  // fallback
-  sendVenueReservation(venue);
-};
+  };
 
   const housekeepingTitle = tUI("housekeeping_title");
   const housekeepingTitleAfter = tUI("housekeeping_title_after");
@@ -625,10 +819,33 @@ while (!time) {
       id: "reception",
       title: tUI("reception_title"),
       items: [
-        { label: tUI("late_checkout"), kind: "link", onClick: () => sendReception("msg_late_checkout") },
-        { label: tUI("taxi"), kind: "link", onClick: () => sendReception("msg_taxi") },
-        { label: tUI("wake_up"), kind: "link", onClick: () => sendReception("msg_wakeup") },
-        { label: "🚗 Uber", kind: "link", href: uberUrl, newTab: true },
+        {
+          label: tUI("late_checkout"),
+          kind: "link",
+          onClick: () =>
+            submitGuestRequest({
+              type: "late_checkout",
+              typeLabel: "Late checkout",
+            }),
+        },
+        {
+          label: tUI("taxi"),
+          kind: "link",
+          onClick: () =>
+            submitGuestRequest({
+              type: "taxi",
+              typeLabel: "Taxi",
+            }),
+        },
+        {
+          label: tUI("wake_up"),
+          kind: "link",
+          onClick: () =>
+            submitGuestRequest({
+              type: "wake_up_call",
+              typeLabel: "Wake-up call",
+            }),
+        },
       ],
     },
     {
@@ -636,10 +853,33 @@ while (!time) {
       title: housekeepingRoutedToReception ? housekeepingTitleAfter : housekeepingTitle,
       subtitle: housekeepingRoutedToReception ? housekeepingAfterNote : undefined,
       items: [
-        { label: tUI("towels"), kind: "link", onClick: () => sendHousekeeping("msg_towels") },
-        { label: tUI("toilet_paper"), kind: "link", onClick: () => sendHousekeeping("msg_toilet_paper") },
-        { label: tUI("room_cleaning"), kind: "link", onClick: () => sendHousekeeping("msg_room_cleaning") },
-        { label: tUI("extra_pillows"), kind: "link", onClick: () => sendHousekeeping("msg_extra_pillows") },
+        {
+          label: tUI("towels"),
+          kind: "link",
+          onClick: () =>
+            submitGuestRequest({
+              type: "towels",
+              typeLabel: "Towels",
+            }),
+        },
+        {
+          label: tUI("toilet_paper"),
+          kind: "link",
+          onClick: () =>
+            submitGuestRequest({
+              type: "toilet_paper",
+              typeLabel: "Toilet paper",
+            }),
+        },
+        {
+          label: tUI("extra_pillows"),
+          kind: "link",
+          onClick: () =>
+            submitGuestRequest({
+              type: "extra_pillow",
+              typeLabel: "Extra pillow",
+            }),
+        },
         ...hkExtras.map((x) => ({
           label: tUI(x.labelKey),
           kind: "link" as const,
@@ -651,24 +891,58 @@ while (!time) {
       id: "maintenance",
       title: tUI("maintenance_title"),
       items: [
-        { label: tUI("ac_issue"), kind: "link", onClick: () => sendMaintenance("msg_ac_issue") },
-        { label: tUI("water_issue"), kind: "link", onClick: () => sendMaintenance("msg_water_issue") },
-        { label: tUI("coffee_machine"), kind: "link", onClick: () => sendMaintenance("msg_coffee_machine") },
-        { label: tUI("something_broken"), kind: "link", onClick: () => sendMaintenance("msg_something_broken") },
+        {
+          label: tUI("ac_issue"),
+          kind: "link",
+          onClick: () =>
+            submitGuestRequest({
+              type: "air_conditioning",
+              typeLabel: "Air conditioning issue",
+            }),
+        },
+        {
+          label: tUI("water_issue"),
+          kind: "link",
+          onClick: () =>
+            submitGuestRequest({
+              type: "no_hot_water",
+              typeLabel: "No hot water",
+            }),
+        },
+        {
+          label: tUI("coffee_machine"),
+          kind: "link",
+          onClick: () =>
+            submitGuestRequest({
+              type: "other_technical_issue",
+              typeLabel: "Coffee machine issue",
+              note: "Guest reported a coffee machine issue.",
+            }),
+        },
+        {
+          label: tUI("something_broken"),
+          kind: "link",
+          onClick: () =>
+            submitGuestRequest({
+              type: "other_technical_issue",
+              typeLabel: "Something broken",
+              note: "Guest reported that something is broken.",
+            }),
+        },
       ],
     },
     ...(outletsSection ? [outletsSection] : []),
     ...(!outletsSection
       ? [
-          {
-            id: "activities",
-            title: tUI("activities_title"),
-            items: [
-              { label: tUI("hotel_events"), kind: "link" as const, onClick: () => sendEvents("msg_events") },
-              { label: tUI("kids_program"), kind: "link" as const, onClick: () => sendEvents("msg_kids") },
-            ],
-          },
-        ]
+        {
+          id: "activities",
+          title: tUI("activities_title"),
+          items: [
+            { label: tUI("hotel_events"), kind: "link" as const, onClick: () => sendEvents("msg_events") },
+            { label: tUI("kids_program"), kind: "link" as const, onClick: () => sendEvents("msg_kids") },
+          ],
+        },
+      ]
       : []),
     {
       id: "explore",
@@ -677,19 +951,25 @@ while (!time) {
         {
           label: tUI("attractions_nearby"),
           kind: "link",
-          href: `https://www.google.com/maps/search/${encodeURIComponent("attractions near " + config.location.query)}`,
+          href: `https://www.google.com/maps/search/${encodeURIComponent(
+            "attractions near " + config.location.query
+          )}`,
           newTab: true,
         },
         {
           label: tUI("restaurants_nearby"),
           kind: "link",
-          href: `https://www.google.com/maps/search/${encodeURIComponent("restaurants near " + config.location.query)}`,
+          href: `https://www.google.com/maps/search/${encodeURIComponent(
+            "restaurants near " + config.location.query
+          )}`,
           newTab: true,
         },
         {
           label: tUI("pharmacy"),
           kind: "link",
-          href: `https://www.google.com/maps/search/${encodeURIComponent("pharmacy near " + config.location.query)}`,
+          href: `https://www.google.com/maps/search/${encodeURIComponent(
+            "pharmacy near " + config.location.query
+          )}`,
           newTab: true,
         },
       ],
@@ -699,10 +979,24 @@ while (!time) {
       title: tUI("reviews_title"),
       items: [
         ...(config.reviews.google
-          ? [{ label: tUI("leave_google_review"), kind: "link" as const, href: config.reviews.google, newTab: true }]
+          ? [
+            {
+              label: tUI("leave_google_review"),
+              kind: "link" as const,
+              href: config.reviews.google,
+              newTab: true,
+            },
+          ]
           : []),
         ...(config.reviews.tripadvisor
-          ? [{ label: tUI("leave_tripadvisor_review"), kind: "link" as const, href: config.reviews.tripadvisor, newTab: true }]
+          ? [
+            {
+              label: tUI("leave_tripadvisor_review"),
+              kind: "link" as const,
+              href: config.reviews.tripadvisor,
+              newTab: true,
+            },
+          ]
           : []),
       ],
     },
@@ -751,7 +1045,7 @@ while (!time) {
 
               {room ? (
                 <div className="mt-2 inline-flex rounded-full bg-neutral-900/70 px-3 py-1 text-xs font-semibold text-neutral-100 ring-1 ring-neutral-700">
-                  Room {room}
+                  {roomCopy.roomBadge.replace("{room}", room)}
                 </div>
               ) : null}
             </div>
@@ -772,14 +1066,63 @@ while (!time) {
         </div>
       </div>
 
-      <div className="px-4 mt-3">
+      <div className="mt-3 px-4">
         <InstallAppButton label={String(tUI("install_app") || "Инсталирай приложението")} />
       </div>
 
+      {!qrRoom && !roomConfirmed ? (
+        <div className="mt-3 px-4">
+          <div className="rounded-2xl bg-neutral-900/60 p-4 ring-1 ring-neutral-800">
+            <h2 className="text-base font-semibold text-white">{roomCopy.cardTitle}</h2>
+            <p className="mt-2 text-sm leading-6 text-neutral-300">{roomCopy.cardText}</p>
+
+            <div className="mt-4">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
+                {roomCopy.inputLabel}
+              </label>
+              <input
+                value={manualRoomInput}
+                onChange={(e) => {
+                  setManualRoomInput(e.target.value);
+                  setRoomConfirmed(false);
+                  setRoom("");
+                }}
+                placeholder={roomCopy.inputPlaceholder}
+                className="w-full rounded-xl bg-neutral-950/70 px-4 py-3 text-sm text-white outline-none ring-1 ring-neutral-800 placeholder:text-neutral-500"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={confirmManualRoom}
+              className="mt-3 w-full rounded-xl bg-[#9B86BD] px-4 py-3 text-sm font-semibold text-[#0D1B2A] transition hover:opacity-95 active:scale-[0.99]"
+            >
+              {roomCopy.confirmButton}
+            </button>
+
+            <div className="mt-3 rounded-xl bg-neutral-950/60 px-3 py-3 text-sm text-neutral-300 ring-1 ring-neutral-800">
+              {roomCopy.lockedNotice}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="p-4 pb-10">
         <div className="space-y-3">
-          {sections.map((sec) =>
-            sec.id === "outlets" ? (
+          {sections.map((sec) => {
+            const isLocked = !roomConfirmed && roomRequiredSectionIds.has(sec.id);
+
+            if (isLocked) {
+              return (
+                <LockedSectionCard
+                  key={sec.id}
+                  title={String(sec.title)}
+                  message={roomCopy.lockedSectionMessage}
+                />
+              );
+            }
+
+            return sec.id === "outlets" ? (
               <OutletsAccordion
                 key={sec.id}
                 section={sec}
@@ -798,8 +1141,8 @@ while (!time) {
                 aiLoading={aiLoading}
                 askAI={askAI}
               />
-            )
-          )}
+            );
+          })}
         </div>
 
         <p className="mt-6 text-center text-xs text-neutral-400">{tUI("notice")}</p>
@@ -807,9 +1150,6 @@ while (!time) {
     </div>
   );
 }
-
-// REPLACE FROM: function Accordion({ ... }) { ... }
-// AND PUT THIS WHOLE BLOCK AT THE END OF GuestHub.tsx
 
 function Accordion({
   section,
@@ -859,7 +1199,7 @@ function Accordion({
       </button>
 
       {open ? (
-        <div className="px-4 py-4 bg-neutral-950/40">
+        <div className="bg-neutral-950/40 px-4 py-4">
           <div className="grid grid-cols-1 gap-2">
             {section.id === "ai" ? (
               <div className="grid grid-cols-1 gap-2">
@@ -950,6 +1290,22 @@ function Accordion({
   );
 }
 
+function LockedSectionCard({
+  title,
+}: {
+  title: string;
+  message?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-neutral-800/80 bg-neutral-950/20 px-4 py-4 opacity-70">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-base font-semibold text-neutral-300">{title}</div>
+        <div className="text-sm text-neutral-500">🔒</div>
+      </div>
+    </div>
+  );
+}
+
 function OutletsAccordion({
   section,
   groups,
@@ -981,7 +1337,7 @@ function OutletsAccordion({
       </button>
 
       {open ? (
-        <div className="px-4 py-4 bg-neutral-950/40">
+        <div className="bg-neutral-950/40 px-4 py-4">
           <div className="space-y-3">
             {groups.map((group) => {
               const catKey = group.category;
@@ -1007,7 +1363,7 @@ function OutletsAccordion({
                   </button>
 
                   {catOpen ? (
-                    <div className="p-3 space-y-2">
+                    <div className="space-y-2 p-3">
                       {group.venues.map((venue, idx) => {
                         const venueKey = `${catKey}-${venue.name}-${idx}`;
                         const venueOpen = openVenue === venueKey;
@@ -1039,7 +1395,7 @@ function OutletsAccordion({
                             </button>
 
                             {venueOpen ? (
-                              <div className="px-3 pb-3 space-y-2">
+                              <div className="space-y-2 px-3 pb-3">
                                 {venue.description ? (
                                   <div className="rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800">
                                     {venue.description}
@@ -1115,12 +1471,12 @@ function OutletsAccordion({
                                   ) : null}
 
                                   {String(venue.reservationType || "").toLowerCase() !== "none" &&
-                                  (venue.reservationType ||
-                                    venue.reservationUrl ||
-                                    venue.reservationPhone ||
-                                    venue.reservationWhatsapp ||
-                                    venue.reservationEmail ||
-                                    venue.requiresReservation) ? (
+                                    (venue.reservationType ||
+                                      venue.reservationUrl ||
+                                      venue.reservationPhone ||
+                                      venue.reservationWhatsapp ||
+                                      venue.reservationEmail ||
+                                      venue.requiresReservation) ? (
                                     <button
                                       type="button"
                                       onClick={() => onReserve(venue)}

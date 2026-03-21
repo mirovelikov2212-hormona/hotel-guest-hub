@@ -9,8 +9,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { mockStaffRequests } from "@/lib/staff/mock-data";
-import { createStaffRequest } from "@/lib/staff/create-staff-request";
+import {
+  createSupabaseRequest,
+  fetchSupabaseRequests,
+  updateSupabaseRequestStatus,
+} from "@/lib/staff/supabase-requests";
 import type {
   StaffDepartment,
   StaffRequest,
@@ -29,69 +32,81 @@ type AddRequestInput = {
 
 type StaffStoreContextValue = {
   requests: StaffRequest[];
-  updateRequestStatus: (id: string, status: StaffRequestStatus) => void;
-  addRequest: (input: AddRequestInput) => void;
+  updateRequestStatus: (id: string, status: StaffRequestStatus) => Promise<void>;
+  addRequest: (input: AddRequestInput) => Promise<void>;
   getRequestsByDepartment: (department: StaffDepartment) => StaffRequest[];
   getAllRequests: () => StaffRequest[];
-  resetRequests: () => void;
+  resetRequests: () => Promise<void>;
 };
 
 const StaffStoreContext = createContext<StaffStoreContextValue | null>(null);
-
-const STORAGE_KEY = "guesthub_staff_requests_v1";
 
 export function StaffStoreProvider({ children }: { children: ReactNode }) {
   const [requests, setRequests] = useState<StaffRequest[]>([]);
   const [isReady, setIsReady] = useState(false);
 
-  useEffect(() => {
+  const loadRequests = useCallback(async () => {
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-
-      if (raw) {
-        const parsed = JSON.parse(raw) as StaffRequest[];
-        setRequests(parsed);
-      } else {
-        setRequests(mockStaffRequests);
-        window.localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify(mockStaffRequests)
-        );
-      }
+      const data = await fetchSupabaseRequests();
+      setRequests(data);
     } catch (error) {
-      console.error("Failed to load staff requests from localStorage", error);
-      setRequests(mockStaffRequests);
+      console.error("Failed to load staff requests from Supabase", error);
     } finally {
       setIsReady(true);
     }
   }, []);
 
   useEffect(() => {
-    if (!isReady) return;
+    let cancelled = false;
 
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(requests));
-    } catch (error) {
-      console.error("Failed to save staff requests to localStorage", error);
-    }
-  }, [requests, isReady]);
+    const safeLoad = async () => {
+      if (cancelled) return;
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
+
+      try {
+        await loadRequests();
+      } catch (error) {
+        console.error("auto refresh failed", error);
+      }
+    };
+
+    void safeLoad();
+
+    const interval = window.setInterval(() => {
+      void safeLoad();
+    }, 10000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   const updateRequestStatus = useCallback(
-    (id: string, status: StaffRequestStatus) => {
-      setRequests((current) =>
-        current.map((request) =>
-          request.id === id ? { ...request, status } : request
-        )
-      );
+    async (id: string, status: StaffRequestStatus) => {
+      try {
+        await updateSupabaseRequestStatus(id, status);
+        await loadRequests();
+      } catch (error) {
+        console.error("Failed to update staff request status", error);
+      }
     },
-    []
+    [loadRequests]
   );
 
-  const addRequest = useCallback((input: AddRequestInput) => {
-    const nextRequest = createStaffRequest(input);
-
-    setRequests((current) => [nextRequest, ...current]);
-  }, []);
+  const addRequest = useCallback(
+    async (input: AddRequestInput) => {
+      try {
+        await createSupabaseRequest(input);
+        await loadRequests();
+      } catch (error) {
+        console.error("Failed to create staff request", error);
+      }
+    },
+    [loadRequests]
+  );
 
   const getRequestsByDepartment = useCallback(
     (department: StaffDepartment) => {
@@ -102,14 +117,9 @@ export function StaffStoreProvider({ children }: { children: ReactNode }) {
 
   const getAllRequests = useCallback(() => requests, [requests]);
 
-  const resetRequests = useCallback(() => {
-    setRequests(mockStaffRequests);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(mockStaffRequests));
-    } catch (error) {
-      console.error("Failed to reset staff requests", error);
-    }
-  }, []);
+  const resetRequests = useCallback(async () => {
+    await loadRequests();
+  }, [loadRequests]);
 
   const value = useMemo<StaffStoreContextValue>(
     () => ({
@@ -120,7 +130,14 @@ export function StaffStoreProvider({ children }: { children: ReactNode }) {
       getAllRequests,
       resetRequests,
     }),
-    [requests, updateRequestStatus, addRequest, getRequestsByDepartment, getAllRequests, resetRequests]
+    [
+      requests,
+      updateRequestStatus,
+      addRequest,
+      getRequestsByDepartment,
+      getAllRequests,
+      resetRequests,
+    ]
   );
 
   if (!isReady) {
