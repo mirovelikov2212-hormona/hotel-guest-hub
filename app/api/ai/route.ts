@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Lang = "bg" | "de" | "en";
 

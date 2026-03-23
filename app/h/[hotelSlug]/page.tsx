@@ -6,9 +6,12 @@ import { notFound } from "next/navigation";
 import GuestHub from "@/components/GuestHub";
 import { getHotelConfig } from "@/lib/config";
 
-export default async function HotelHubPage({ params }: { params: unknown }) {
-  const p: any = await Promise.resolve(params);
-  const hotelSlug = p?.hotelSlug as string | undefined;
+type PageProps = {
+  params: Promise<{ hotelSlug: string }>;
+};
+
+export default async function HotelHubPage({ params }: PageProps) {
+  const { hotelSlug } = await params;
 
   if (!hotelSlug) return notFound();
 
