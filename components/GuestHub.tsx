@@ -764,22 +764,67 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   }, [config, wakeUpDef]);
 
   const requestDefAiServices = useMemo(() => {
+    const sectionLabels = {
+      housekeeping: String(tUI("housekeeping_title") || "Housekeeping"),
+      reception: String(tUI("reception_title") || "Reception"),
+      maintenance: String(tUI("maintenance_title") || "Maintenance"),
+    };
+
+    const routeLabelByLang = {
+      bg: (section: string) => `Изпратете заявката от секцията ${section} в хъба.`,
+      en: (section: string) => `Send the request from the ${section} section in the hub.`,
+      de: (section: string) => `Senden Sie die Anfrage über den Bereich ${section} im Hub.`,
+    } as const;
+
+    const slotLabelByLang = {
+      bg: (slots: string) => `Налични часове: ${slots}.`,
+      en: (slots: string) => `Available times: ${slots}.`,
+      de: (slots: string) => `Verfügbare Zeiten: ${slots}.`,
+    } as const;
+
+    const currentLang = (lang === "bg" || lang === "en" || lang === "de") ? lang : "en";
+
     return requestDefs
       .filter((def) => def.aiVisible !== false && def.guestVisible !== false)
-      .map((def) => ({
-        key: def.id,
-        label: getRequestDefField(def, "title") || def.id.replace(/_/g, " "),
-        description: getRequestDefMessage(def),
-        active: def.enabled !== false,
-        category: def.category,
-        keywords: [
-          def.id,
-          def.id.replace(/_/g, " "),
-          ...def.keywords,
-          ...def.options,
-        ].filter(Boolean),
-      }));
-  }, [getRequestDefField, getRequestDefMessage, requestDefs]);
+      .map((def) => {
+        const label = getRequestDefField(def, "title") || def.id.replace(/_/g, " ");
+        const baseMessage = getRequestDefMessage(def);
+        const dept = String(def.targetDepartment || def.category || "").trim().toLowerCase();
+        const section = (
+          dept === "housekeeping"
+            ? sectionLabels.housekeeping
+            : dept === "reception"
+              ? sectionLabels.reception
+              : dept === "maintenance"
+                ? sectionLabels.maintenance
+                : ""
+        );
+
+        const extras: string[] = [];
+
+        if (def.type === "request" && section) {
+          extras.push(routeLabelByLang[currentLang](section));
+        }
+
+        if ((def.requestKind === "time_slot" || (def.requiresTime && def.timeMode === "slots")) && def.options.length) {
+          extras.push(slotLabelByLang[currentLang](def.options.join(", ")));
+        }
+
+        return {
+          key: def.id,
+          label,
+          description: [baseMessage, ...extras].map((item) => String(item || "").trim()).filter(Boolean).join("\n\n"),
+          active: def.enabled !== false,
+          category: def.category,
+          keywords: [
+            def.id,
+            def.id.replace(/_/g, " "),
+            ...def.keywords,
+            ...def.options,
+          ].filter(Boolean),
+        };
+      });
+  }, [getRequestDefField, getRequestDefMessage, lang, requestDefs, tUI]);
 
   const aiServices = useMemo(() => {
     const sectionLabels = {
@@ -1029,21 +1074,49 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   function buildRequestDefNote(def: RequestDef, infoMessage: string) {
     const noteParts: string[] = [];
+    const shouldAskLateCheckoutTime = def.id === "late_checkout" && !def.requiresTime;
 
     if ((def.requestKind === "time_slot" || (def.requiresTime && def.timeMode === "slots")) && def.options.length) {
       const slot = chooseWakeUpSlot(def.options);
       if (!slot) return null;
       noteParts.push(`${String(tUI("wake_up_selected") || "Selected time")}: ${slot}`);
-    } else if (def.requiresTime && def.timeMode === "free") {
+    } else if ((def.requiresTime && def.timeMode === "free") || shouldAskLateCheckoutTime) {
+      const timeLabel = def.id === "late_checkout"
+        ? (
+            tUI("late_checkout_time_prompt") ||
+            (lang === "bg"
+              ? "Желан час за късен чек-аут:"
+              : lang === "de"
+                ? "Gewünschte Uhrzeit für den späten Check-out:"
+                : "Desired late checkout time:")
+          )
+        : String(tUI("prompt_time") || "Time:");
+
+      const timeExample = def.id === "late_checkout"
+        ? (lang === "bg" ? "13:00" : lang === "de" ? "13:00" : "13:00")
+        : String(tUI("example_time") || "07:00");
+
       const pickedTime = askRequired(
-        String(tUI("prompt_time") || "Time:"),
-        String(tUI("example_time") || "07:00"),
+        String(timeLabel),
+        String(timeExample),
         reTime,
         String(tUI("invalid_time") || "Invalid time")
       );
 
       if (!pickedTime) return null;
-      noteParts.push(`${String(tUI("label_time") || "Time")}: ${pickedTime}`);
+
+      const selectedLabel = def.id === "late_checkout"
+        ? (
+            tUI("late_checkout_selected_time") ||
+            (lang === "bg"
+              ? "Желан час за напускане"
+              : lang === "de"
+                ? "Gewünschte Check-out-Zeit"
+                : "Desired checkout time")
+          )
+        : String(tUI("label_time") || "Time");
+
+      noteParts.push(`${String(selectedLabel)}: ${pickedTime}`);
     }
 
     if (def.requiresQuantity) {

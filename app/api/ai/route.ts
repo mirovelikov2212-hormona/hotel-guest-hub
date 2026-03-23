@@ -276,6 +276,30 @@ function clean(text: string) {
   return String(text || "").toLowerCase().trim();
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function hasTerm(text: string, term: string) {
+  const source = clean(text);
+  const needle = clean(term);
+  if (!source || !needle) return false;
+
+  if (needle === "wo") {
+    return /(^|\W)wo(\W|$)/i.test(source);
+  }
+
+  if (/^[a-z]{1,3}$/i.test(needle)) {
+    return new RegExp(`(^|\\W)${escapeRegExp(needle)}(\\W|$)`, "i").test(source);
+  }
+
+  return source.includes(needle);
+}
+
+function hasAnyTerm(text: string, terms: string[]) {
+  return terms.some((term) => hasTerm(text, term));
+}
+
 function normalizeCategory(value?: string) {
   const raw = clean(String(value ?? ""))
     .replace(/\s+/g, "_")
@@ -306,7 +330,7 @@ function detectCategories(question: string) {
   const result = new Set<string>();
 
   Object.entries(CATEGORY_KEYWORDS).forEach(([category, keywords]) => {
-    if (keywords.some((keyword) => q.includes(keyword))) {
+    if (hasAnyTerm(q, keywords)) {
       result.add(category);
     }
   });
@@ -316,7 +340,7 @@ function detectCategories(question: string) {
 
 function isGenericServiceQuestion(question: string) {
   const q = clean(question);
-  return GENERIC_SERVICE_KEYWORDS.some((keyword) => q.includes(keyword));
+  return hasAnyTerm(q, GENERIC_SERVICE_KEYWORDS);
 }
 
 function findMatchingServices(question: string, hotel: HotelPayload) {
@@ -331,20 +355,20 @@ function findMatchingServices(question: string, hotel: HotelPayload) {
       ...(SERVICE_KEYWORDS[service.key] ?? []),
     ].filter(Boolean);
 
-    return tokens.some((token) => q.includes(token));
+    return tokens.some((token) => hasTerm(q, token));
   });
 }
 
 function isHotelQuestion(question: string, hotel: HotelPayload) {
   const q = clean(question);
   if (!q) return true;
-  if (HOTEL_KEYWORDS.some((keyword) => q.includes(keyword))) return true;
+  if (hasAnyTerm(q, HOTEL_KEYWORDS)) return true;
 
   const venues = getActiveVenues(hotel);
   const venueMatch = venues.some((venue) => {
     const name = clean(venue.name ?? "");
     const category = normalizeCategory(venue.category || venue.type);
-    return (name && q.includes(name)) || (category && q.includes(category));
+    return (name && hasTerm(q, name)) || (category && hasTerm(q, category));
   });
 
   if (venueMatch) return true;
@@ -359,7 +383,7 @@ function isHotelQuestion(question: string, hotel: HotelPayload) {
       ...(SERVICE_KEYWORDS[service.key] ?? []),
     ].filter(Boolean);
 
-    return tokens.some((token) => q.includes(token));
+    return tokens.some((token) => hasTerm(q, token));
   });
 }
 
@@ -392,11 +416,7 @@ function buildVenueCategoryAnswer(question: string, lang: Lang, hotel: HotelPayl
   const categories = detectCategories(question);
   if (!categories.length) return null;
 
-  const wantsReservation =
-    question.includes("reserv") ||
-    question.includes("book") ||
-    question.includes("резерв") ||
-    question.includes("buch");
+  const wantsReservation = hasAnyTerm(question, ["reserv", "book", "резерв", "buch"]);
 
   const venues = getActiveVenues(hotel).filter((venue) => {
     const category = normalizeCategory(venue.category || venue.type);
@@ -417,15 +437,11 @@ function buildVenueCategoryAnswer(question: string, lang: Lang, hotel: HotelPayl
 }
 
 function buildSpecificVenueAnswer(question: string, lang: Lang, hotel: HotelPayload) {
-  const wantsReservation =
-    question.includes("reserv") ||
-    question.includes("book") ||
-    question.includes("резерв") ||
-    question.includes("buch");
+  const wantsReservation = hasAnyTerm(question, ["reserv", "book", "резерв", "buch"]);
 
   const venues = getActiveVenues(hotel).filter((venue) => {
     const name = clean(venue.name ?? "");
-    return name && question.includes(name);
+    return name && hasTerm(question, name);
   });
 
   if (!venues.length) return null;
@@ -469,49 +485,25 @@ function buildHotelAnswer(question: string, lang: Lang, hotel: HotelPayload) {
   if (!q) return t.intro;
   if (!isHotelQuestion(q, hotel)) return t.outOfScope;
 
-  if (
-    q.includes("wifi") ||
-    q.includes("wi-fi") ||
-    q.includes("internet") ||
-    q.includes("парол") ||
-    q.includes("парола") ||
-    q.includes("passwort") ||
-    q.includes("password")
-  ) {
+  if (hasAnyTerm(q, ["wifi", "wi-fi", "internet", "парол", "парола", "passwort", "password"])) {
     return t.wifi(hotel.wifi?.ssid, hotel.wifi?.password);
   }
 
-  if (q.includes("reception") || q.includes("rezeption") || q.includes("рецепц")) {
+  if (hasAnyTerm(q, ["reception", "rezeption", "рецепц"])) {
     const reception = hotel.departmentHours?.reception ?? {};
     return t.receptionHours(reception.open, reception.close);
   }
 
-  if (
-    q.includes("where") ||
-    q.includes("wo") ||
-    q.includes("location") ||
-    q.includes("address") ||
-    q.includes("къде") ||
-    q.includes("адрес")
-  ) {
+  if (hasAnyTerm(q, ["where", "wo", "location", "address", "къде", "адрес"])) {
     return t.location(hotel.locationQuery);
   }
 
-  if (
-    q.includes("housekeeping") ||
-    q.includes("камер") ||
-    q.includes("clean")
-  ) {
+  if (hasAnyTerm(q, ["housekeeping", "камер", "clean"])) {
     const housekeeping = hotel.departmentHours?.housekeeping ?? {};
     return t.housekeepingHours(housekeeping.open, housekeeping.close);
   }
 
-  if (
-    q.includes("maintenance") ||
-    q.includes("technik") ||
-    q.includes("поддр") ||
-    q.includes("repair")
-  ) {
+  if (hasAnyTerm(q, ["maintenance", "technik", "поддр", "repair"])) {
     const maintenance = hotel.departmentHours?.maintenance ?? {};
     return t.maintenanceHours(maintenance.open, maintenance.close);
   }
