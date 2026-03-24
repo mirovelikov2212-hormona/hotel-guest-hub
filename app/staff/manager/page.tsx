@@ -35,17 +35,34 @@ type RequestTypeStat = {
   type: StaffRequestType;
   label: string;
   total: number;
-  active: number;
+  open: number;
   returned: number;
+  completed: number;
+};
+
+type RoomIssueStat = {
+  type: StaffRequestType;
+  label: string;
+  count: number;
 };
 
 type RoomStat = {
   room: string;
   total: number;
-  active: number;
+  open: number;
   returned: number;
-  issues: { label: string; count: number }[];
+  completed: number;
+  issues: RoomIssueStat[];
 };
+
+type DrilldownSelection =
+  | { kind: "request_type"; type: StaffRequestType }
+  | { kind: "request_room"; room: string }
+  | { kind: "issue_type"; type: StaffRequestType }
+  | { kind: "issue_room"; room: string }
+  | { kind: "room_issue_pair"; room: string; type: StaffRequestType }
+  | { kind: "request_status"; status: "open" | "returned" }
+  | { kind: "issue_status"; status: "open" | "returned" };
 
 const departmentOrder: StaffDepartment[] = [
   "housekeeping",
@@ -65,6 +82,10 @@ const technicalTypes = new Set<StaffRequestType>([
 
 function isActiveStatus(status: StaffRequestStatus) {
   return status !== "completed";
+}
+
+function isOpenStatus(status: StaffRequestStatus) {
+  return status === "new" || status === "in_progress";
 }
 
 function isTechnicalProblem(request: StaffRequest) {
@@ -102,19 +123,22 @@ function buildRequestTypeStats(
       type: request.type,
       label: translateRequestType(request.type, lang, request.typeLabel),
       total: 0,
-      active: 0,
+      open: 0,
       returned: 0,
+      completed: 0,
     };
 
     existing.total += 1;
-    if (isActiveStatus(request.status)) existing.active += 1;
+    if (isOpenStatus(request.status)) existing.open += 1;
     if (request.status === "returned") existing.returned += 1;
+    if (request.status === "completed") existing.completed += 1;
 
     map.set(request.type, existing);
   }
 
   return [...map.values()].sort((a, b) => {
     if (b.total !== a.total) return b.total - a.total;
+    if (b.open !== a.open) return b.open - a.open;
     if (b.returned !== a.returned) return b.returned - a.returned;
     return a.label.localeCompare(b.label);
   });
@@ -129,9 +153,10 @@ function buildRoomStats(
     {
       room: string;
       total: number;
-      active: number;
+      open: number;
       returned: number;
-      issueMap: Map<string, number>;
+      completed: number;
+      issueMap: Map<StaffRequestType, RoomIssueStat>;
     }
   >();
 
@@ -139,17 +164,24 @@ function buildRoomStats(
     const existing = map.get(request.room) ?? {
       room: request.room,
       total: 0,
-      active: 0,
+      open: 0,
       returned: 0,
-      issueMap: new Map<string, number>(),
+      completed: 0,
+      issueMap: new Map<StaffRequestType, RoomIssueStat>(),
     };
 
     existing.total += 1;
-    if (isActiveStatus(request.status)) existing.active += 1;
+    if (isOpenStatus(request.status)) existing.open += 1;
     if (request.status === "returned") existing.returned += 1;
+    if (request.status === "completed") existing.completed += 1;
 
-    const label = translateRequestType(request.type, lang, request.typeLabel);
-    existing.issueMap.set(label, (existing.issueMap.get(label) ?? 0) + 1);
+    const issue = existing.issueMap.get(request.type) ?? {
+      type: request.type,
+      label: translateRequestType(request.type, lang, request.typeLabel),
+      count: 0,
+    };
+    issue.count += 1;
+    existing.issueMap.set(request.type, issue);
     map.set(request.room, existing);
   }
 
@@ -157,19 +189,19 @@ function buildRoomStats(
     .map((entry) => ({
       room: entry.room,
       total: entry.total,
-      active: entry.active,
+      open: entry.open,
       returned: entry.returned,
-      issues: [...entry.issueMap.entries()]
-        .map(([label, count]) => ({ label, count }))
+      completed: entry.completed,
+      issues: [...entry.issueMap.values()]
         .sort((a, b) =>
           b.count !== a.count ? b.count - a.count : a.label.localeCompare(b.label)
         )
         .slice(0, 3),
     }))
     .sort((a, b) => {
-      if (b.returned !== a.returned) return b.returned - a.returned;
-      if (b.active !== a.active) return b.active - a.active;
       if (b.total !== a.total) return b.total - a.total;
+      if (b.open !== a.open) return b.open - a.open;
+      if (b.returned !== a.returned) return b.returned - a.returned;
       return a.room.localeCompare(b.room, undefined, { numeric: true });
     });
 }
@@ -305,13 +337,15 @@ export default function ManagerPage() {
   );
   const topIssueRooms = issueRoomStats.slice(0, 8);
 
+  const [selectedDrilldown, setSelectedDrilldown] = useState<DrilldownSelection | null>(null);
+
   const topRequest = requestTypeStats[0];
   const busiestRoom = topRequestRooms[0];
-  const roomsWithOpenRequests = requestRoomStats.filter((room) => room.active > 0).length;
+  const roomsWithOpenRequests = requestRoomStats.filter((room) => room.open > 0).length;
 
   const topIssue = issueTypeStats[0];
   const topIssueRoom = topIssueRooms[0];
-  const roomsWithOpenProblems = issueRoomStats.filter((room) => room.active > 0).length;
+  const roomsWithOpenProblems = issueRoomStats.filter((room) => room.open > 0).length;
 
   const reportTabs = [
     { id: "requests_snapshot" as const, label: t.requestsSnapshot },
@@ -332,22 +366,24 @@ export default function ManagerPage() {
           [t.requestCount, topRequest ? topRequest.total : 0],
           [t.requestHeavyRoom, busiestRoom ? `${t.room} ${busiestRoom.room}` : "—"],
           [t.requestHeavyRoomCount, busiestRoom ? busiestRoom.total : 0],
+          [t.openRequests, summary.newCount + summary.inProgressCount],
           [t.returnedRequests, summary.returnedCount],
           [t.roomsWithOpenRequests, roomsWithOpenRequests],
         ];
       case "top_requests":
         return [
-          [t.requestType, t.requestCount, t.openRequests, t.returnedRequests],
-          ...requestTypeStats.map((item) => [item.label, item.total, item.active, item.returned]),
+          [t.requestType, t.totalRequests, t.openRequests, t.returnedRequests, t.completedRequests],
+          ...requestTypeStats.map((item) => [item.label, item.total, item.open, item.returned, item.completed]),
         ];
       case "request_rooms":
         return [
-          [t.room, t.requestCount, t.openRequests, t.returnedRequests],
+          [t.room, t.totalRequests, t.openRequests, t.returnedRequests, t.completedRequests],
           ...topRequestRooms.map((room) => [
             `${t.room} ${room.room}`,
             room.total,
-            room.active,
+            room.open,
             room.returned,
+            room.completed,
           ]),
         ];
       case "issues_snapshot":
@@ -357,27 +393,29 @@ export default function ManagerPage() {
           [t.topIssueCount, topIssue ? topIssue.total : 0],
           [t.problemRoom, topIssueRoom ? `${t.room} ${topIssueRoom.room}` : "—"],
           [t.problemRoomCount, topIssueRoom ? topIssueRoom.total : 0],
+          [t.openIssues, problemSummary.newCount + problemSummary.inProgressCount],
           [t.returnedIssues, problemSummary.returnedCount],
           [t.activeRooms, roomsWithOpenProblems],
         ];
       case "top_issues":
         return [
-          [t.problemType, t.requestCount, t.openIssues, t.returnedIssues],
-          ...issueTypeStats.map((item) => [item.label, item.total, item.active, item.returned]),
+          [t.problemType, t.totalIssues, t.openIssues, t.returnedIssues, t.completedIssues],
+          ...issueTypeStats.map((item) => [item.label, item.total, item.open, item.returned, item.completed]),
         ];
       case "problem_rooms":
         return [
-          [t.room, t.requestCount, t.openIssues, t.returnedIssues],
+          [t.room, t.totalIssues, t.openIssues, t.returnedIssues, t.completedIssues],
           ...topIssueRooms.map((room) => [
             `${t.room} ${room.room}`,
             room.total,
-            room.active,
+            room.open,
             room.returned,
+            room.completed,
           ]),
         ];
       case "room_issue_breakdown":
         return [
-          [t.room, t.problemType, t.requestCount],
+          [t.room, t.problemType, t.totalIssues],
           ...topIssueRooms.flatMap((room) =>
             room.issues.map((issue) => [`${t.room} ${room.room}`, issue.label, issue.count])
           ),
@@ -387,10 +425,14 @@ export default function ManagerPage() {
     activeReport,
     busiestRoom,
     issueTypeStats,
+    problemSummary.inProgressCount,
+    problemSummary.newCount,
     problemSummary.returnedCount,
     requestTypeStats,
     roomsWithOpenProblems,
     roomsWithOpenRequests,
+    summary.inProgressCount,
+    summary.newCount,
     summary.returnedCount,
     t,
     topIssue,
@@ -418,6 +460,107 @@ export default function ManagerPage() {
         return "manager-report-room-problem-breakdown";
     }
   }, [activeReport]);
+
+  const drilldownData = useMemo(() => {
+    if (!selectedDrilldown) return null;
+
+    switch (selectedDrilldown.kind) {
+      case "request_type": {
+        const matching = sortByTime(
+          requests.filter((request) => request.type === selectedDrilldown.type),
+          "newest"
+        );
+        return {
+          title: translateRequestType(selectedDrilldown.type, lang),
+          subtitle: t.topRequestTypesText,
+          requests: matching,
+        };
+      }
+      case "request_room": {
+        const matching = sortByTime(
+          requests.filter((request) => request.room === selectedDrilldown.room),
+          "newest"
+        );
+        return {
+          title: `${t.room} ${selectedDrilldown.room}`,
+          subtitle: t.requestRoomsText,
+          requests: matching,
+        };
+      }
+      case "issue_type": {
+        const matching = sortByTime(
+          problemRequests.filter((request) => request.type === selectedDrilldown.type),
+          "newest"
+        );
+        return {
+          title: translateRequestType(selectedDrilldown.type, lang),
+          subtitle: t.problemTypesText,
+          requests: matching,
+        };
+      }
+      case "issue_room": {
+        const matching = sortByTime(
+          problemRequests.filter((request) => request.room === selectedDrilldown.room),
+          "newest"
+        );
+        return {
+          title: `${t.room} ${selectedDrilldown.room}`,
+          subtitle: t.problemRoomText,
+          requests: matching,
+        };
+      }
+      case "room_issue_pair": {
+        const matching = sortByTime(
+          problemRequests.filter(
+            (request) =>
+              request.room === selectedDrilldown.room && request.type === selectedDrilldown.type
+          ),
+          "newest"
+        );
+        return {
+          title: `${t.room} ${selectedDrilldown.room} · ${translateRequestType(selectedDrilldown.type, lang)}`,
+          subtitle: t.roomIssueBreakdownText,
+          requests: matching,
+        };
+      }
+      case "request_status": {
+        const matching = sortByTime(
+          requests.filter((request) =>
+            selectedDrilldown.status === "returned"
+              ? request.status === "returned"
+              : isOpenStatus(request.status)
+          ),
+          "newest"
+        );
+        return {
+          title: selectedDrilldown.status === "returned" ? t.returnedRequests : t.openRequests,
+          subtitle:
+            selectedDrilldown.status === "returned"
+              ? t.returnedRequestsText
+              : t.openRequestsText,
+          requests: matching,
+        };
+      }
+      case "issue_status": {
+        const matching = sortByTime(
+          problemRequests.filter((request) =>
+            selectedDrilldown.status === "returned"
+              ? request.status === "returned"
+              : isOpenStatus(request.status)
+          ),
+          "newest"
+        );
+        return {
+          title: selectedDrilldown.status === "returned" ? t.returnedIssues : t.openIssues,
+          subtitle:
+            selectedDrilldown.status === "returned"
+              ? t.returnedIssuesText
+              : t.openIssuesText,
+          requests: matching,
+        };
+      }
+    }
+  }, [lang, problemRequests, requests, selectedDrilldown, t]);
 
   function exportCsv() {
     downloadFile(`${reportFileBase}.csv`, rowsToCsv(reportRows), "text/csv;charset=utf-8;");
@@ -486,7 +629,10 @@ export default function ManagerPage() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveReport(tab.id)}
+              onClick={() => {
+                setActiveReport(tab.id);
+                setSelectedDrilldown(null);
+              }}
               className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                 activeReport === tab.id
                   ? "border-violet-300/40 bg-violet-300/15 text-violet-100"
@@ -498,38 +644,50 @@ export default function ManagerPage() {
           ))}
         </div>
 
+        <p className="mt-4 text-xs uppercase tracking-[0.18em] text-white/40">{t.reportDetailsIntro}</p>
+
         <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-5">
           {activeReport === "requests_snapshot" ? (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <button
+                type="button"
+                onClick={() => topRequest && setSelectedDrilldown({ kind: "request_type", type: topRequest.type })}
+                className="rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30"
+              >
                 <p className="text-xs uppercase tracking-[0.18em] text-white/45">{t.topRequest}</p>
                 <p className="mt-3 text-lg font-semibold text-white">{topRequest ? topRequest.label : "—"}</p>
-                <p className="mt-2 text-sm text-white/60">
-                  {topRequest ? `${t.requestCount}: ${topRequest.total}` : t.noReportData}
-                </p>
-              </div>
+                <p className="mt-2 text-sm text-white/60">{topRequest ? `${t.totalRequests}: ${topRequest.total}` : t.noRequestData}</p>
+              </button>
 
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <button
+                type="button"
+                onClick={() => busiestRoom && setSelectedDrilldown({ kind: "request_room", room: busiestRoom.room })}
+                className="rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30"
+              >
                 <p className="text-xs uppercase tracking-[0.18em] text-white/45">{t.requestHeavyRoom}</p>
-                <p className="mt-3 text-lg font-semibold text-white">
-                  {busiestRoom ? `${t.room} ${busiestRoom.room}` : "—"}
-                </p>
-                <p className="mt-2 text-sm text-white/60">
-                  {busiestRoom ? `${t.requestCount}: ${busiestRoom.total}` : t.noReportData}
-                </p>
-              </div>
+                <p className="mt-3 text-lg font-semibold text-white">{busiestRoom ? `${t.room} ${busiestRoom.room}` : "—"}</p>
+                <p className="mt-2 text-sm text-white/60">{busiestRoom ? `${t.totalRequests}: ${busiestRoom.total}` : t.noRequestData}</p>
+              </button>
 
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <button
+                type="button"
+                onClick={() => setSelectedDrilldown({ kind: "request_status", status: "returned" })}
+                className="rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30"
+              >
                 <p className="text-xs uppercase tracking-[0.18em] text-white/45">{t.returnedRequests}</p>
                 <p className="mt-3 text-2xl font-semibold text-white">{summary.returnedCount}</p>
                 <p className="mt-2 text-sm text-white/60">{t.returnedRequestsText}</p>
-              </div>
+              </button>
 
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <button
+                type="button"
+                onClick={() => setSelectedDrilldown({ kind: "request_status", status: "open" })}
+                className="rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30"
+              >
                 <p className="text-xs uppercase tracking-[0.18em] text-white/45">{t.roomsWithOpenRequests}</p>
                 <p className="mt-3 text-2xl font-semibold text-white">{roomsWithOpenRequests}</p>
                 <p className="mt-2 text-sm text-white/60">{t.openRequestsText}</p>
-              </div>
+              </button>
             </div>
           ) : null}
 
@@ -537,88 +695,89 @@ export default function ManagerPage() {
             requestTypeStats.length ? (
               <div className="space-y-3">
                 {requestTypeStats.map((item) => (
-                  <div
+                  <button
+                    type="button"
                     key={item.type}
-                    className="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center"
+                    onClick={() => setSelectedDrilldown({ kind: "request_type", type: item.type })}
+                    className="grid w-full gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] sm:items-center"
                   >
-                    <div>
-                      <p className="font-medium text-white">{item.label}</p>
-                    </div>
-                    <div className="text-sm text-white/60">
-                      {t.requestCount}: <span className="font-semibold text-white">{item.total}</span>
-                    </div>
-                    <div className="text-sm text-white/60">
-                      {t.openRequests}: <span className="font-semibold text-white">{item.active}</span>
-                    </div>
-                    <div className="text-sm text-rose-200/90">
-                      {t.returnedRequests}: <span className="font-semibold text-white">{item.returned}</span>
-                    </div>
-                  </div>
+                    <div><p className="font-medium text-white">{item.label}</p></div>
+                    <div className="text-sm text-white/60">{t.totalRequests}: <span className="font-semibold text-white">{item.total}</span></div>
+                    <div className="text-sm text-white/60">{t.openRequests}: <span className="font-semibold text-white">{item.open}</span></div>
+                    <div className="text-sm text-white/60">{t.returnedRequests}: <span className="font-semibold text-white">{item.returned}</span></div>
+                    <div className="text-sm text-white/60">{t.completedRequests}: <span className="font-semibold text-white">{item.completed}</span></div>
+                  </button>
                 ))}
               </div>
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">
-                {t.noReportData}
-              </div>
-            )
+            ) : <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">{t.noRequestData}</div>
           ) : null}
 
           {activeReport === "request_rooms" ? (
             topRequestRooms.length ? (
               <div className="space-y-3">
                 {topRequestRooms.map((room) => (
-                  <div key={room.room} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <button
+                    type="button"
+                    key={room.room}
+                    onClick={() => setSelectedDrilldown({ kind: "request_room", room: room.room })}
+                    className="w-full rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30"
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-semibold text-white">{t.room} {room.room}</p>
-                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70">
-                        {t.requestCount} {room.total}
-                      </span>
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70">{t.totalRequests} {room.total}</span>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-3 text-sm text-white/65">
-                      <span>{t.openRequests}: <span className="font-semibold text-white">{room.active}</span></span>
+                      <span>{t.openRequests}: <span className="font-semibold text-white">{room.open}</span></span>
                       <span>{t.returnedRequests}: <span className="font-semibold text-white">{room.returned}</span></span>
+                      <span>{t.completedRequests}: <span className="font-semibold text-white">{room.completed}</span></span>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">
-                {t.noReportData}
-              </div>
-            )
+            ) : <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">{t.noRequestData}</div>
           ) : null}
 
           {activeReport === "issues_snapshot" ? (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <button
+                type="button"
+                onClick={() => topIssue && setSelectedDrilldown({ kind: "issue_type", type: topIssue.type })}
+                className="rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30"
+              >
                 <p className="text-xs uppercase tracking-[0.18em] text-white/45">{t.topIssue}</p>
                 <p className="mt-3 text-lg font-semibold text-white">{topIssue ? topIssue.label : "—"}</p>
-                <p className="mt-2 text-sm text-white/60">
-                  {topIssue ? `${t.requestCount}: ${topIssue.total}` : t.noReportData}
-                </p>
-              </div>
+                <p className="mt-2 text-sm text-white/60">{topIssue ? `${t.totalIssues}: ${topIssue.total}` : t.noProblemData}</p>
+              </button>
 
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <button
+                type="button"
+                onClick={() => topIssueRoom && setSelectedDrilldown({ kind: "issue_room", room: topIssueRoom.room })}
+                className="rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30"
+              >
                 <p className="text-xs uppercase tracking-[0.18em] text-white/45">{t.problemRoom}</p>
-                <p className="mt-3 text-lg font-semibold text-white">
-                  {topIssueRoom ? `${t.room} ${topIssueRoom.room}` : "—"}
-                </p>
-                <p className="mt-2 text-sm text-white/60">
-                  {topIssueRoom ? `${t.requestCount}: ${topIssueRoom.total}` : t.noReportData}
-                </p>
-              </div>
+                <p className="mt-3 text-lg font-semibold text-white">{topIssueRoom ? `${t.room} ${topIssueRoom.room}` : "—"}</p>
+                <p className="mt-2 text-sm text-white/60">{topIssueRoom ? `${t.totalIssues}: ${topIssueRoom.total}` : t.noProblemData}</p>
+              </button>
 
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <button
+                type="button"
+                onClick={() => setSelectedDrilldown({ kind: "issue_status", status: "returned" })}
+                className="rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30"
+              >
                 <p className="text-xs uppercase tracking-[0.18em] text-white/45">{t.returnedIssues}</p>
                 <p className="mt-3 text-2xl font-semibold text-white">{problemSummary.returnedCount}</p>
                 <p className="mt-2 text-sm text-white/60">{t.returnedIssuesText}</p>
-              </div>
+              </button>
 
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <button
+                type="button"
+                onClick={() => setSelectedDrilldown({ kind: "issue_status", status: "open" })}
+                className="rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30"
+              >
                 <p className="text-xs uppercase tracking-[0.18em] text-white/45">{t.activeRooms}</p>
                 <p className="mt-3 text-2xl font-semibold text-white">{roomsWithOpenProblems}</p>
                 <p className="mt-2 text-sm text-white/60">{t.openIssuesText}</p>
-              </div>
+              </button>
             </div>
           ) : null}
 
@@ -626,55 +785,46 @@ export default function ManagerPage() {
             issueTypeStats.length ? (
               <div className="space-y-3">
                 {issueTypeStats.map((item) => (
-                  <div
+                  <button
+                    type="button"
                     key={item.type}
-                    className="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center"
+                    onClick={() => setSelectedDrilldown({ kind: "issue_type", type: item.type })}
+                    className="grid w-full gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] sm:items-center"
                   >
-                    <div>
-                      <p className="font-medium text-white">{item.label}</p>
-                    </div>
-                    <div className="text-sm text-white/60">
-                      {t.requestCount}: <span className="font-semibold text-white">{item.total}</span>
-                    </div>
-                    <div className="text-sm text-white/60">
-                      {t.openIssues}: <span className="font-semibold text-white">{item.active}</span>
-                    </div>
-                    <div className="text-sm text-rose-200/90">
-                      {t.returnedIssues}: <span className="font-semibold text-white">{item.returned}</span>
-                    </div>
-                  </div>
+                    <div><p className="font-medium text-white">{item.label}</p></div>
+                    <div className="text-sm text-white/60">{t.totalIssues}: <span className="font-semibold text-white">{item.total}</span></div>
+                    <div className="text-sm text-white/60">{t.openIssues}: <span className="font-semibold text-white">{item.open}</span></div>
+                    <div className="text-sm text-white/60">{t.returnedIssues}: <span className="font-semibold text-white">{item.returned}</span></div>
+                    <div className="text-sm text-white/60">{t.completedIssues}: <span className="font-semibold text-white">{item.completed}</span></div>
+                  </button>
                 ))}
               </div>
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">
-                {t.noProblemData}
-              </div>
-            )
+            ) : <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">{t.noProblemData}</div>
           ) : null}
 
           {activeReport === "problem_rooms" ? (
             topIssueRooms.length ? (
               <div className="space-y-3">
                 {topIssueRooms.map((room) => (
-                  <div key={room.room} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <button
+                    type="button"
+                    key={room.room}
+                    onClick={() => setSelectedDrilldown({ kind: "issue_room", room: room.room })}
+                    className="w-full rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30"
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-semibold text-white">{t.room} {room.room}</p>
-                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70">
-                        {t.requestCount} {room.total}
-                      </span>
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70">{t.totalIssues} {room.total}</span>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-3 text-sm text-white/65">
-                      <span>{t.openIssues}: <span className="font-semibold text-white">{room.active}</span></span>
+                      <span>{t.openIssues}: <span className="font-semibold text-white">{room.open}</span></span>
                       <span>{t.returnedIssues}: <span className="font-semibold text-white">{room.returned}</span></span>
+                      <span>{t.completedIssues}: <span className="font-semibold text-white">{room.completed}</span></span>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">
-                {t.noProblemData}
-              </div>
-            )
+            ) : <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">{t.noProblemData}</div>
           ) : null}
 
           {activeReport === "room_issue_breakdown" ? (
@@ -684,32 +834,68 @@ export default function ManagerPage() {
                   <div key={room.room} className="rounded-2xl border border-white/10 bg-black/20 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-lg font-semibold text-white">{t.room} {room.room}</p>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDrilldown({ kind: "issue_room", room: room.room })}
+                          className="text-left"
+                        >
+                          <p className="text-lg font-semibold text-white hover:text-violet-100">{t.room} {room.room}</p>
+                        </button>
                         <p className="mt-1 text-sm text-white/60">{t.issueMix}</p>
                       </div>
-                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70">
-                        {t.requestCount} {room.total}
-                      </span>
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/70">{t.totalIssues} {room.total}</span>
                     </div>
 
                     <div className="mt-4 space-y-2">
                       {room.issues.map((issue) => (
-                        <div key={`${room.room}-${issue.label}`} className="flex items-center justify-between gap-3 text-sm text-white/75">
+                        <button
+                          type="button"
+                          key={`${room.room}-${issue.type}`}
+                          onClick={() => setSelectedDrilldown({ kind: "room_issue_pair", room: room.room, type: issue.type })}
+                          className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/5 px-3 py-2 text-left text-sm text-white/75 transition hover:border-violet-300/30 hover:bg-black/20"
+                        >
                           <span>{issue.label}</span>
                           <span className="font-semibold text-white">{issue.count}</span>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">
-                {t.noProblemData}
-              </div>
-            )
+            ) : <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">{t.noProblemData}</div>
           ) : null}
         </div>
+
+        {selectedDrilldown && drilldownData ? (
+          <div className="mt-5 rounded-2xl border border-violet-300/25 bg-violet-300/5 p-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-violet-100/70">{t.reportDetails}</p>
+                <h4 className="mt-1 text-xl font-semibold text-white">{drilldownData.title}</h4>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">{drilldownData.subtitle}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedDrilldown(null)}
+                className="rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm font-medium text-white/85 transition hover:border-white/20 hover:bg-black/30"
+              >
+                {t.closeDetails}
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              {drilldownData.requests.length ? (
+                drilldownData.requests.map((request) => (
+                  <StaffRequestCard key={`${selectedDrilldown.kind}-${request.id}`} request={request} mode="manager" />
+                ))
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">
+                  {t.reportDetailsEmpty}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
