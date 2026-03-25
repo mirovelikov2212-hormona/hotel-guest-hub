@@ -1311,6 +1311,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       setSubmittingRequestLabel(safeTypeLabel);
 
       const created = await createSupabaseRequest({
+        hotelSlug: String(config.hotelSlug || "demo"),
         room: roomValue,
         type,
         typeLabel: safeTypeLabel,

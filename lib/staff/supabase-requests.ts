@@ -7,7 +7,12 @@ import type {
   StaffServiceTime,
 } from "@/lib/staff/types";
 
-type CreateSupabaseRequestInput = {
+type HotelScopeInput = {
+  hotelId?: string;
+  hotelSlug?: string;
+};
+
+type CreateSupabaseRequestInput = HotelScopeInput & {
   room: string;
   type: StaffRequestType;
   typeLabel: string;
@@ -31,14 +36,53 @@ type GuestRequestRow = {
   } | null;
 };
 
-function getHotelId() {
-  const hotelId = process.env.NEXT_PUBLIC_GUESTHUB_HOTEL_ID;
+type HotelRow = {
+  id: string;
+  slug: string;
+  name?: string | null;
+};
 
-  if (!hotelId) {
-    throw new Error("Missing NEXT_PUBLIC_GUESTHUB_HOTEL_ID in .env.local");
+function getFallbackHotelId() {
+  return process.env.NEXT_PUBLIC_GUESTHUB_HOTEL_ID || "";
+}
+
+export async function getHotelBySlug(slug: string): Promise<HotelRow | null> {
+  const safeSlug = String(slug || "").trim().toLowerCase();
+  if (!safeSlug) return null;
+
+  const { data, error } = await supabase
+    .from("hotels")
+    .select("id, slug, name")
+    .eq("slug", safeSlug)
+    .single();
+
+  if (error || !data) {
+    console.error("getHotelBySlug failed", { slug: safeSlug, error });
+    return null;
   }
 
-  return hotelId;
+  return data as HotelRow;
+}
+
+async function resolveHotelScope(input?: HotelScopeInput): Promise<{ hotelId: string; hotelSlug?: string }> {
+  if (input?.hotelId) {
+    return { hotelId: input.hotelId, hotelSlug: input.hotelSlug };
+  }
+
+  if (input?.hotelSlug) {
+    const hotel = await getHotelBySlug(input.hotelSlug);
+    if (!hotel?.id) {
+      throw new Error(`Unknown hotel slug: ${input.hotelSlug}`);
+    }
+    return { hotelId: hotel.id, hotelSlug: hotel.slug };
+  }
+
+  const fallbackHotelId = getFallbackHotelId();
+  if (!fallbackHotelId) {
+    throw new Error("Missing hotel scope. Provide hotelSlug or configure NEXT_PUBLIC_GUESTHUB_HOTEL_ID.");
+  }
+
+  return { hotelId: fallbackHotelId };
 }
 
 function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
@@ -73,7 +117,7 @@ export async function createSupabaseRequest(
   input: CreateSupabaseRequestInput
 ): Promise<StaffRequest> {
   const department = getDepartmentForRequestType(input.type);
-  const hotelId = getHotelId();
+  const { hotelId } = await resolveHotelScope(input);
 
   const { data, error } = await supabase
     .from("guest_requests")
@@ -112,8 +156,8 @@ export async function createSupabaseRequest(
   return mapRowToStaffRequest(data as GuestRequestRow);
 }
 
-export async function fetchSupabaseRequests(): Promise<StaffRequest[]> {
-  const hotelId = getHotelId();
+export async function fetchSupabaseRequests(scope?: HotelScopeInput): Promise<StaffRequest[]> {
+  const { hotelId } = await resolveHotelScope(scope);
 
   const { data, error } = await supabase
     .from("guest_requests")
@@ -124,7 +168,7 @@ export async function fetchSupabaseRequests(): Promise<StaffRequest[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("fetchSupabaseRequests failed", { error });
+    console.error("fetchSupabaseRequests failed", { error, hotelId });
     throw new Error(`Failed to fetch requests: ${error.message}`);
   }
 
@@ -133,7 +177,8 @@ export async function fetchSupabaseRequests(): Promise<StaffRequest[]> {
 
 export async function updateSupabaseRequestStatus(
   id: string,
-  status: StaffRequestStatus
+  status: StaffRequestStatus,
+  scope?: HotelScopeInput
 ): Promise<void> {
   const payload: Record<string, string> = { status };
 
@@ -146,10 +191,14 @@ export async function updateSupabaseRequestStatus(
     payload.closed_at = new Date().toISOString();
   }
 
-  const { error } = await supabase
-    .from("guest_requests")
-    .update(payload)
-    .eq("id", id);
+  const query = supabase.from("guest_requests").update(payload).eq("id", id);
+
+  if (scope?.hotelId || scope?.hotelSlug || getFallbackHotelId()) {
+    const { hotelId } = await resolveHotelScope(scope);
+    query.eq("hotel_id", hotelId);
+  }
+
+  const { error } = await query;
 
   if (error) {
     console.error("updateSupabaseRequestStatus failed", {
