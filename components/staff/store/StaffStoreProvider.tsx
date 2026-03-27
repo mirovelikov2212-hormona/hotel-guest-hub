@@ -56,7 +56,14 @@ function isOperationalRequest(request: StaffRequest) {
   );
 }
 
-export function StaffStoreProvider({ children }: { children: ReactNode }) {
+export function StaffStoreProvider({
+  children,
+  hotelSlug,
+}: {
+  children: ReactNode;
+  hotelSlug?: string;
+}) {
+  void hotelSlug;
   const [requests, setRequests] = useState<StaffRequest[]>([]);
   const [isReady, setIsReady] = useState(false);
 
