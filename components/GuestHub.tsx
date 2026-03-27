@@ -215,8 +215,8 @@ function mapGuestStatusRow(row: GuestStatusRow): GuestStatusItem {
   };
 }
 
-function getGuestRequestIcon(type: StaffRequestType): string {
-  switch (type) {
+function getGuestRequestIcon(type: StaffRequestType | string): string {
+  switch (String(type || "").trim().toLowerCase()) {
     case "towels":
       return "🧺";
     case "toilet_paper":
@@ -225,20 +225,59 @@ function getGuestRequestIcon(type: StaffRequestType): string {
       return "🛏️";
     case "extra_blanket":
       return "🧣";
+    case "bathrobe":
+      return "🧥";
+    case "slippers":
+      return "🥿";
+    case "baby_cot":
+      return "👶";
     case "iron":
       return "🧼";
+    case "laundry":
+      return "🧺";
+    case "room_cleaning_request":
+    case "extra_cleaning":
+      return "🧹";
     case "minibar":
+    case "minibar_refill":
       return "🥤";
     case "late_checkout":
       return "🕒";
-    case "taxi":
-      return "🚕";
     case "wake_up_call":
       return "⏰";
+    case "taxi":
+      return "🚕";
+    case "information":
+    case "information_request":
+      return "ℹ️";
+    case "reservation_help":
+    case "restaurant_reservation":
+      return "🍽️";
+    case "luggage_help":
+      return "🧳";
     case "air_conditioning":
       return "❄️";
     case "no_hot_water":
       return "🚿";
+    case "tv_issue":
+      return "📺";
+    case "light_issue":
+    case "light_not_working":
+      return "💡";
+    case "bathroom_issue":
+      return "🚽";
+    case "door_lock_issue":
+      return "🚪";
+    case "wifi_issue":
+      return "📶";
+    case "power_outlet_issue":
+      return "🔌";
+    case "safe_issue":
+      return "🔒";
+    case "balcony_door_issue":
+      return "🚪";
+    case "minibar_not_cooling":
+      return "🧊";
     case "other_technical_issue":
       return "🛠️";
     default:
@@ -248,6 +287,105 @@ function getGuestRequestIcon(type: StaffRequestType): string {
 
 function cleanRequestTitle(value: string) {
   return value.replace(/^[^\p{L}\p{N}]+/u, "").trim();
+}
+
+function getRequestDefButtonIcon(def: RequestDef): string {
+  const raw = String(def.icon || def.requestType || def.id || "").trim().toLowerCase();
+
+  switch (raw) {
+    case "towel":
+    case "towels":
+      return "🧺";
+    case "toilet-paper":
+    case "toilet_paper":
+      return "🧻";
+    case "pillow":
+    case "extra_pillow":
+      return "🛏️";
+    case "blanket":
+    case "extra_blanket":
+      return "🧣";
+    case "bath":
+    case "bathrobe":
+      return "🧥";
+    case "shoe":
+    case "slippers":
+      return "🥿";
+    case "baby":
+    case "baby_cot":
+      return "👶";
+    case "iron":
+      return "🧼";
+    case "laundry":
+      return "🧺";
+    case "cleaning":
+    case "room_cleaning_request":
+    case "extra_cleaning":
+    case "sparkles":
+      return "🧹";
+    case "minibar":
+    case "minibar_refill":
+      return "🥤";
+    case "clock":
+    case "late_checkout":
+      return "🕒";
+    case "alarm-clock":
+    case "wake_up_call":
+      return "⏰";
+    case "taxi":
+      return "🚕";
+    case "info":
+    case "information":
+    case "information_request":
+      return "ℹ️";
+    case "reservation":
+    case "reservation_help":
+    case "restaurant":
+    case "restaurant_reservation":
+      return "🍽️";
+    case "luggage":
+    case "luggage_help":
+      return "🧳";
+    case "air":
+    case "air_conditioning":
+      return "❄️";
+    case "hot-water":
+    case "no_hot_water":
+      return "🚿";
+    case "tv":
+    case "tv_issue":
+      return "📺";
+    case "light":
+    case "light_issue":
+      return "💡";
+    case "bathroom":
+    case "bathroom_issue":
+      return "🚽";
+    case "lock":
+    case "door_lock_issue":
+      return "🚪";
+    case "wifi":
+    case "wifi_issue":
+      return "📶";
+    case "power":
+    case "power_outlet_issue":
+      return "🔌";
+    case "safe":
+    case "safe_issue":
+      return "🔒";
+    case "door":
+    case "balcony_door_issue":
+      return "🚪";
+    case "tools":
+    case "other_technical_issue":
+      return "🛠️";
+    case "alert":
+      return "🚨";
+    default: {
+      const fallback = getGuestRequestIcon(String(def.requestType || def.id));
+      return fallback === "•" ? "" : fallback;
+    }
+  }
 }
 
 export default function GuestHub({ config }: { config: HotelConfig }) {
@@ -719,13 +857,16 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   }, [requestDefs]);
 
   const requestDefIds = useMemo(() => new Set(requestDefs.map((def) => def.id)), [requestDefs]);
+  const hasReceptionDefs = (requestDefsByCategory["reception"] ?? []).length > 0;
+  const hasHousekeepingDefs = (requestDefsByCategory["housekeeping"] ?? []).length > 0;
+  const hasMaintenanceDefs = (requestDefsByCategory["maintenance"] ?? []).length > 0;
 
   const lateCheckoutDef = useMemo(
     () => requestDefs.find((def) => def.id === "late_checkout"),
     [requestDefs]
   );
   const minibarDef = useMemo(
-    () => requestDefs.find((def) => def.id === "minibar"),
+    () => requestDefs.find((def) => def.id === "minibar_refill" || def.id === "minibar"),
     [requestDefs]
   );
   const minibarInfoDef = useMemo(
@@ -1169,11 +1310,16 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
     return defs
       .filter((def) => def.guestVisible !== false)
-      .map((def) => ({
-        label: getRequestDefField(def, "title") || def.id.replace(/_/g, " "),
-        kind: "link" as const,
-        onClick: () => handleRequestDefClick(def),
-      }));
+      .map((def) => {
+        const title = getRequestDefField(def, "title") || def.id.replace(/_/g, " ");
+        const icon = getRequestDefButtonIcon(def);
+
+        return {
+          label: icon ? `${icon} ${title}` : title,
+          kind: "link" as const,
+          onClick: () => handleRequestDefClick(def),
+        };
+      });
   }
   const taxiProviders = config.taxiProviders ?? [];
 
@@ -1311,7 +1457,6 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       setSubmittingRequestLabel(safeTypeLabel);
 
       const created = await createSupabaseRequest({
-        hotelSlug: String(config.hotelSlug || "demo"),
         room: roomValue,
         type,
         typeLabel: safeTypeLabel,
@@ -1600,7 +1745,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       title: tUI("reception_title") || "Reception",
       items: [
         ...buildRequestDefItems("reception"),
-        ...(!requestDefIds.has("late_checkout")
+        ...(!hasReceptionDefs && !requestDefIds.has("late_checkout")
           ? [
               {
                 label: tUI("late_checkout") || "Late checkout",
@@ -1618,7 +1763,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
               },
             ]
           : []),
-        ...(!requestDefIds.has("taxi")
+        ...(!hasReceptionDefs && !requestDefIds.has("taxi")
           ? [
               {
                 label: tUI("taxi") || "Taxi",
@@ -1631,7 +1776,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
               },
             ]
           : []),
-        ...(!requestDefIds.has("wake_up_call")
+        ...(!hasReceptionDefs && !requestDefIds.has("wake_up_call")
           ? [
               {
                 label: tUI("wake_up") || "Wake-up call",
@@ -1659,7 +1804,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       subtitle: housekeepingRoutedToReception ? housekeepingAfterNote : undefined,
       items: [
         ...buildRequestDefItems("housekeeping"),
-        ...(!requestDefIds.has("towels")
+        ...(!hasHousekeepingDefs && !requestDefIds.has("towels")
           ? [
               {
                 label: tUI("towels") || "Towels",
@@ -1672,7 +1817,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
               },
             ]
           : []),
-        ...(!requestDefIds.has("toilet_paper")
+        ...(!hasHousekeepingDefs && !requestDefIds.has("toilet_paper")
           ? [
               {
                 label: tUI("toilet_paper") || "Toilet paper",
@@ -1685,7 +1830,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
               },
             ]
           : []),
-        ...(!requestDefIds.has("extra_pillow")
+        ...(!hasHousekeepingDefs && !requestDefIds.has("extra_pillow")
           ? [
               {
                 label: tUI("extra_pillows") || "Extra pillows",
@@ -1699,7 +1844,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             ]
           : []),
         ...hkExtras
-          .filter((x) => !requestDefIds.has(x.key === "blanket" ? "extra_blanket" : x.key))
+          .filter((x) => !hasHousekeepingDefs && !requestDefIds.has(x.key === "blanket" ? "extra_blanket" : x.key === "minibar" ? "minibar_refill" : x.key))
           .map((x) => {
             const action = housekeepingExtraActions[x.key];
 
@@ -1750,7 +1895,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       title: tUI("maintenance_title") || "Maintenance",
       items: [
         ...buildRequestDefItems("maintenance"),
-        ...(!requestDefIds.has("air_conditioning")
+        ...(!hasMaintenanceDefs && !requestDefIds.has("air_conditioning")
           ? [
               {
                 label: tUI("ac_issue") || "Air conditioning issue",
@@ -1763,7 +1908,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
               },
             ]
           : []),
-        ...(!requestDefIds.has("no_hot_water")
+        ...(!hasMaintenanceDefs && !requestDefIds.has("no_hot_water")
           ? [
               {
                 label: tUI("water_issue") || "No hot water",
@@ -1776,7 +1921,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
               },
             ]
           : []),
-        ...(!requestDefIds.has("coffee_machine")
+        ...(!hasMaintenanceDefs && !requestDefIds.has("coffee_machine")
           ? [
               {
                 label: tUI("coffee_machine") || "Coffee machine",
@@ -1790,7 +1935,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
               },
             ]
           : []),
-        ...(!requestDefIds.has("other_technical_issue")
+        ...(!hasMaintenanceDefs && !requestDefIds.has("other_technical_issue")
           ? [
               {
                 label: tUI("something_broken") || "Something broken",

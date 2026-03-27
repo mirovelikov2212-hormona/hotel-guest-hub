@@ -56,26 +56,20 @@ function isOperationalRequest(request: StaffRequest) {
   );
 }
 
-export function StaffStoreProvider({
-  children,
-  hotelSlug,
-}: {
-  children: ReactNode;
-  hotelSlug?: string;
-}) {
+export function StaffStoreProvider({ children }: { children: ReactNode }) {
   const [requests, setRequests] = useState<StaffRequest[]>([]);
   const [isReady, setIsReady] = useState(false);
 
   const loadRequests = useCallback(async () => {
     try {
-      const data = await fetchSupabaseRequests(hotelSlug ? { hotelSlug } : undefined);
+      const data = await fetchSupabaseRequests();
       setRequests(data);
     } catch (error) {
       console.error("Failed to load staff requests from Supabase", error);
     } finally {
       setIsReady(true);
     }
-  }, [hotelSlug]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,25 +105,25 @@ export function StaffStoreProvider({
   const updateRequestStatus = useCallback(
     async (id: string, status: StaffRequestStatus) => {
       try {
-        await updateSupabaseRequestStatus(id, status, hotelSlug ? { hotelSlug } : undefined);
+        await updateSupabaseRequestStatus(id, status);
         await loadRequests();
       } catch (error) {
         console.error("Failed to update staff request status", error);
       }
     },
-    [hotelSlug, loadRequests]
+    [loadRequests]
   );
 
   const addRequest = useCallback(
     async (input: AddRequestInput) => {
       try {
-        await createSupabaseRequest({ ...input, ...(hotelSlug ? { hotelSlug } : {}) });
+        await createSupabaseRequest(input);
         await loadRequests();
       } catch (error) {
         console.error("Failed to create staff request", error);
       }
     },
-    [hotelSlug, loadRequests]
+    [loadRequests]
   );
 
   const getRequestsByDepartment = useCallback(

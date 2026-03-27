@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { StaffStoreProvider } from "@/components/staff/store/StaffStoreProvider";
 import { StaffUiProvider } from "@/components/staff/StaffUiProvider";
 import StaffShellClient from "@/components/staff/StaffShellClient";
 
@@ -10,7 +11,9 @@ export const metadata = {
 export default function StaffLayout({ children }: { children: ReactNode }) {
   return (
     <StaffUiProvider>
-      <StaffShellClient>{children}</StaffShellClient>
+      <StaffStoreProvider>
+        <StaffShellClient>{children}</StaffShellClient>
+      </StaffStoreProvider>
     </StaffUiProvider>
   );
 }

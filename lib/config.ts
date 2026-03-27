@@ -235,6 +235,7 @@ function toI18n(rows: Record<string, string>[]): Record<string, Record<string, s
 }
 
 export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | null> {
+  if (hotelSlug !== "demo") return null;
 
   const configUrl = process.env.GOOGLE_CONFIG_CSV;
   const venuesUrl = process.env.GOOGLE_VENUES_CSV || process.env.GOOGLE_MENU_CSV;
