@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getHotelIdBySlug } from "@/lib/hotels/getHotelIdBySlug";
 import { supabase } from "@/lib/supabase";
 import { createSupabaseRequest } from "@/lib/staff/supabase-requests";
 import type { StaffRequestType, StaffServiceTime, StaffRequestStatus } from "@/lib/staff/types";
@@ -417,6 +418,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const [showRequestSuccess, setShowRequestSuccess] = useState(false);
   const [submittingRequest, setSubmittingRequest] = useState(false);
   const [submittingRequestLabel, setSubmittingRequestLabel] = useState("");
+  const [hotelId, setHotelId] = useState("");
+  const [hotelScopeReady, setHotelScopeReady] = useState(false);
   const submittingRequestRef = useRef(false);
   const recentSubmissionRef = useRef<Record<string, number>>({});
 
@@ -431,6 +434,40 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       window.clearTimeout(timeout);
     };
   }, [showRequestSuccess]);
+
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveHotelScope = async () => {
+      setHotelScopeReady(false);
+
+      try {
+        const resolvedHotelId = await getHotelIdBySlug(config.hotelSlug);
+        if (!cancelled) {
+          setHotelId(resolvedHotelId);
+        }
+      } catch (error) {
+        console.error("Failed to resolve hotel scope for guest hub", {
+          hotelSlug: config.hotelSlug,
+          error,
+        });
+        if (!cancelled) {
+          setHotelId("");
+        }
+      } finally {
+        if (!cancelled) {
+          setHotelScopeReady(true);
+        }
+      }
+    };
+
+    void resolveHotelScope();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [config.hotelSlug]);
 
 
   const fallbackLangs = useMemo(() => {
@@ -640,7 +677,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       const refs = refsOverride ?? guestRequestRefs;
       const ids = [...new Set(refs.map((item) => item.id).filter(Boolean))];
 
-      if (!ids.length || !roomConfirmed || !room.trim()) {
+      if (!ids.length || !roomConfirmed || !room.trim() || !hotelScopeReady || !hotelId) {
         setGuestRequests([]);
         return;
       }
@@ -651,6 +688,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         const { data, error } = await supabase
           .from("guest_requests")
           .select("id, room_number_snapshot, title, request_type, status, created_at")
+          .eq("hotel_id", hotelId)
           .in("id", ids)
           .order("created_at", { ascending: false });
 
@@ -685,13 +723,13 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         setGuestRequestsLoading(false);
       }
     },
-    [guestRequestRefs, room, roomConfirmed]
+    [guestRequestRefs, hotelId, hotelScopeReady, room, roomConfirmed]
   );
 
   useEffect(() => {
     const roomRefs = guestRequestRefs.filter((item) => item.room === room);
 
-    if (!roomConfirmed || !room.trim() || !roomRefs.length) {
+    if (!roomConfirmed || !room.trim() || !roomRefs.length || !hotelScopeReady || !hotelId) {
       setGuestRequests([]);
       return;
     }
@@ -721,7 +759,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [guestRequestRefs, loadGuestRequests, room, roomConfirmed]);
+  }, [guestRequestRefs, hotelId, hotelScopeReady, loadGuestRequests, room, roomConfirmed]);
 
   const ensureConfirmedRoom = () => {
     if (roomConfirmed && room.trim()) return true;
@@ -1434,6 +1472,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
     if (!ensureConfirmedRoom()) return;
 
+    if (!hotelScopeReady || !hotelId) {
+      window.alert(roomCopy.requestFailed);
+      return;
+    }
+
     const hasSameActiveRequest = guestRequests.some(
       (item) =>
         item.room === roomValue &&
@@ -1457,6 +1500,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       setSubmittingRequestLabel(safeTypeLabel);
 
       const created = await createSupabaseRequest({
+        hotelId,
+        hotelSlug: config.hotelSlug,
         room: roomValue,
         type,
         typeLabel: safeTypeLabel,

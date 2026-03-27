@@ -1,21 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getHotelConfig } from "@/lib/config";
+import { getHotelSheetSources } from "@/lib/hotels/getHotelSheetSources";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const cfg = await getHotelConfig("demo");
+    const slug = String(request.nextUrl.searchParams.get("slug") || "demo").trim().toLowerCase() || "demo";
+    const [cfg, sources] = await Promise.all([
+      getHotelConfig(slug),
+      getHotelSheetSources(slug),
+    ]);
 
     return NextResponse.json({
       ok: true,
-      env: {
-        GOOGLE_CONFIG_CSV: Boolean(process.env.GOOGLE_CONFIG_CSV),
-        GOOGLE_MENU_CSV: Boolean(process.env.GOOGLE_MENU_CSV),
-        GOOGLE_I18N_CSV: Boolean(process.env.GOOGLE_I18N_CSV),
-      },
-      wifi: cfg?.wifi,
+      hotelSlug: slug,
+      sources,
       hotelName: cfg?.hotelName,
+      requestDefsCount: cfg?.requestDefs?.length ?? 0,
+      venueCount: cfg?.venueRows?.length ?? 0,
+      wifi: cfg?.wifi,
       coverImage: cfg?.coverImage,
       locationQuery: cfg?.location?.query,
       receptionWhatsapp: cfg?.contacts?.reception?.whatsapp,

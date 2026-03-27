@@ -1,3 +1,4 @@
+import { getHotelIdBySlug } from "@/lib/hotels/getHotelIdBySlug";
 import { supabase } from "@/lib/supabase";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import type {
@@ -7,7 +8,12 @@ import type {
   StaffServiceTime,
 } from "@/lib/staff/types";
 
-type CreateSupabaseRequestInput = {
+export type HotelScopeInput = {
+  hotelId?: string;
+  hotelSlug?: string;
+};
+
+type CreateSupabaseRequestInput = HotelScopeInput & {
   room: string;
   type: StaffRequestType;
   typeLabel: string;
@@ -31,14 +37,21 @@ type GuestRequestRow = {
   } | null;
 };
 
-function getHotelId() {
-  const hotelId = process.env.NEXT_PUBLIC_GUESTHUB_HOTEL_ID;
-
-  if (!hotelId) {
-    throw new Error("Missing NEXT_PUBLIC_GUESTHUB_HOTEL_ID in .env.local");
+async function resolveHotelScope(input?: HotelScopeInput): Promise<{ hotelId: string; hotelSlug?: string }> {
+  if (input?.hotelId) {
+    return {
+      hotelId: String(input.hotelId).trim(),
+      hotelSlug: input.hotelSlug ? String(input.hotelSlug).trim().toLowerCase() : undefined,
+    };
   }
 
-  return hotelId;
+  const normalizedSlug = String(input?.hotelSlug ?? "").trim().toLowerCase();
+  const hotelId = await getHotelIdBySlug(normalizedSlug || undefined);
+
+  return {
+    hotelId,
+    hotelSlug: normalizedSlug || undefined,
+  };
 }
 
 function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
@@ -73,7 +86,7 @@ export async function createSupabaseRequest(
   input: CreateSupabaseRequestInput
 ): Promise<StaffRequest> {
   const department = getDepartmentForRequestType(input.type);
-  const hotelId = getHotelId();
+  const { hotelId } = await resolveHotelScope(input);
 
   const { data, error } = await supabase
     .from("guest_requests")
@@ -104,6 +117,7 @@ export async function createSupabaseRequest(
   if (error) {
     console.error("createSupabaseRequest failed", {
       input,
+      hotelId,
       error,
     });
     throw new Error(`Failed to create request: ${error.message}`);
@@ -112,8 +126,8 @@ export async function createSupabaseRequest(
   return mapRowToStaffRequest(data as GuestRequestRow);
 }
 
-export async function fetchSupabaseRequests(): Promise<StaffRequest[]> {
-  const hotelId = getHotelId();
+export async function fetchSupabaseRequests(scope?: HotelScopeInput): Promise<StaffRequest[]> {
+  const { hotelId } = await resolveHotelScope(scope);
 
   const { data, error } = await supabase
     .from("guest_requests")
@@ -124,7 +138,7 @@ export async function fetchSupabaseRequests(): Promise<StaffRequest[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("fetchSupabaseRequests failed", { error });
+    console.error("fetchSupabaseRequests failed", { error, hotelId, scope });
     throw new Error(`Failed to fetch requests: ${error.message}`);
   }
 
@@ -133,8 +147,10 @@ export async function fetchSupabaseRequests(): Promise<StaffRequest[]> {
 
 export async function updateSupabaseRequestStatus(
   id: string,
-  status: StaffRequestStatus
+  status: StaffRequestStatus,
+  scope?: HotelScopeInput
 ): Promise<void> {
+  const { hotelId } = await resolveHotelScope(scope);
   const payload: Record<string, string> = { status };
 
   if (status === "in_progress") {
@@ -149,12 +165,14 @@ export async function updateSupabaseRequestStatus(
   const { error } = await supabase
     .from("guest_requests")
     .update(payload)
-    .eq("id", id);
+    .eq("id", id)
+    .eq("hotel_id", hotelId);
 
   if (error) {
     console.error("updateSupabaseRequestStatus failed", {
       id,
       status,
+      hotelId,
       error,
     });
     throw new Error(`Failed to update request status: ${error.message}`);

@@ -1,5 +1,47 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { HotelConfig, LangKey } from "./types";
 import { parseRequestDefs } from "@/lib/request-defs";
+import { getHotelSheetSources } from "@/lib/hotels/getHotelSheetSources";
+
+
+function titleFromSlug(slug: string) {
+  return String(slug || "hotel")
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+async function loadLocalHotelConfig(hotelSlug: string): Promise<HotelConfig | null> {
+  const safeSlug = String(hotelSlug || "").trim().toLowerCase();
+  if (!safeSlug) return null;
+
+  const localPath = path.join(process.cwd(), "data", "hotels", `${safeSlug}.json`);
+  const demoPath = path.join(process.cwd(), "data", "hotels", "demo.json");
+
+  for (const candidate of [localPath, demoPath]) {
+    try {
+      const raw = await fs.readFile(candidate, "utf8");
+      const parsed = JSON.parse(raw) as HotelConfig;
+
+      return {
+        ...parsed,
+        hotelSlug: safeSlug,
+        hotelName:
+          candidate === localPath
+            ? parsed.hotelName
+            : safeSlug === "demo"
+              ? parsed.hotelName
+              : titleFromSlug(safeSlug),
+      };
+    } catch {
+      // continue to next candidate
+    }
+  }
+
+  return null;
+}
 
 /** Simple CSV parser that supports quotes */
 function parseCsv(text: string): string[][] {
@@ -184,14 +226,6 @@ function pick(map: Record<string, string>, key: string, fallback = ""): string {
   return value == null || value === "" ? fallback : value;
 }
 
-function swapPublishedSheetGid(url: string, gid: string): string {
-  if (!url) return "";
-  if (/[?&]gid=\d+/.test(url)) {
-    return url.replace(/([?&]gid=)\d+/, `$1${gid}`);
-  }
-  const separator = url.includes("?") ? "&" : "?";
-  return `${url}${separator}gid=${gid}`;
-}
 
 /**
  * i18n sheet -> { bg: {...}, en: {...}, de: {...} }
@@ -235,19 +269,24 @@ function toI18n(rows: Record<string, string>[]): Record<string, Record<string, s
 }
 
 export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | null> {
-  if (hotelSlug !== "demo") return null;
+  const safeHotelSlug = String(hotelSlug || "").trim().toLowerCase() || "demo";
 
-  const configUrl = process.env.GOOGLE_CONFIG_CSV;
-  const venuesUrl = process.env.GOOGLE_VENUES_CSV || process.env.GOOGLE_MENU_CSV;
-  const i18nUrl = process.env.GOOGLE_I18N_CSV;
-  const hotelSetupUrl =
-    process.env.GOOGLE_HOTEL_SETUP_CSV ||
-    process.env.SHEET_HOTEL_SETUP_URL ||
-    (configUrl ? swapPublishedSheetGid(configUrl, "1285221364") : "");
-  const requestDefsUrl = process.env.GOOGLE_REQUEST_DEFS_CSV || process.env.SHEET_REQUEST_DEFS_URL || "";
+  const sheetSources = await getHotelSheetSources(safeHotelSlug).catch(async (error) => {
+    console.error("Failed to resolve hotel sheet sources", {
+      hotelSlug: safeHotelSlug,
+      error,
+    });
 
-  if (!configUrl) throw new Error("Missing env GOOGLE_CONFIG_CSV");
-  if (!i18nUrl) throw new Error("Missing env GOOGLE_I18N_CSV");
+    const localFallback = await loadLocalHotelConfig(safeHotelSlug);
+    if (localFallback) return null;
+    throw error;
+  });
+
+  if (!sheetSources) {
+    return loadLocalHotelConfig(safeHotelSlug);
+  }
+
+  const { configUrl, venuesUrl, i18nUrl, hotelSetupUrl, requestDefsUrl } = sheetSources;
 
   const [cfgRows, venueRowsRaw, i18nRows, hotelSetupRows, requestDefRows] = await Promise.all([
     fetchCsv(configUrl),
@@ -270,7 +309,7 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
   const requestDefs = parseRequestDefs(requestDefRows, languages.length ? languages : ["bg", "en", "de"]);
 
   const cfg: HotelConfig = {
-    hotelSlug,
+    hotelSlug: safeHotelSlug,
     hotelName: pick(mergedConfig, "hotelName", "Hotel"),
     coverImage: pick(mergedConfig, "coverImage", "/cover.jpg"),
     coverImagePosition: pick(mergedConfig, "coverImagePosition", "center center"),

@@ -44,6 +44,7 @@ const statusOptions: { value: StaffRequestStatus | "all"; label: string }[] = [
 ];
 
 export default function StaffTestCreatePage() {
+  const [hotelSlug, setHotelSlug] = useState("demo");
   const [room, setRoom] = useState("204");
   const [type, setType] = useState<StaffRequestType>("towels");
   const [serviceTime, setServiceTime] = useState<StaffServiceTime>("now");
@@ -71,7 +72,7 @@ export default function StaffTestCreatePage() {
     setError(null);
 
     try {
-      const data = await fetchSupabaseRequests();
+      const data = await fetchSupabaseRequests({ hotelSlug });
       setRequests(data);
     } catch (loadError) {
       console.error(loadError);
@@ -83,7 +84,7 @@ export default function StaffTestCreatePage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [hotelSlug]);
 
   useEffect(() => {
     void loadRequests();
@@ -105,6 +106,7 @@ export default function StaffTestCreatePage() {
 
     try {
       const created = await createSupabaseRequest({
+        hotelSlug,
         room: trimmedRoom,
         type,
         typeLabel: selectedOption.label,
@@ -133,8 +135,8 @@ export default function StaffTestCreatePage() {
     setSuccess(null);
 
     try {
-      await updateSupabaseRequestStatus(id, status);
-      const updated = await fetchSupabaseRequests();
+      await updateSupabaseRequestStatus(id, status, { hotelSlug });
+      const updated = await fetchSupabaseRequests({ hotelSlug });
       setRequests(updated);
       setSuccess(`Updated request status to ${status.replace("_", " ")}.`);
     } catch (updateError) {
@@ -156,14 +158,24 @@ export default function StaffTestCreatePage() {
           Supabase Request Test
         </h2>
         <p className="mt-2 text-sm leading-6 text-white/70">
-          Real database test page for create, fetch and status update. No mock
-          store. This is the safe checkpoint before we bridge Guest Hub to the
-          staff engine.
+          Real database test page for create, fetch and status update. Switch the hotel slug to verify that demo and aquamarin are isolated.
         </p>
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <div className="grid gap-4 md:grid-cols-2">
+          <label className="space-y-2">
+            <span className="text-sm text-white/70">Hotel slug</span>
+            <select
+              value={hotelSlug}
+              onChange={(e) => setHotelSlug(e.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none"
+            >
+              <option value="demo" className="bg-neutral-900 text-white">demo</option>
+              <option value="aquamarin" className="bg-neutral-900 text-white">aquamarin</option>
+            </select>
+          </label>
+
           <label className="space-y-2">
             <span className="text-sm text-white/70">Room</span>
             <input

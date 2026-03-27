@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { getHotelIdBySlug } from "@/lib/hotels/getHotelIdBySlug";
 import {
   createSupabaseRequest,
   fetchSupabaseRequests,
@@ -32,6 +33,8 @@ type AddRequestInput = {
 
 type StaffStoreContextValue = {
   requests: StaffRequest[];
+  hotelId?: string;
+  hotelSlug?: string;
   updateRequestStatus: (id: string, status: StaffRequestStatus) => Promise<void>;
   addRequest: (input: AddRequestInput) => Promise<void>;
   getRequestsByDepartment: (department: StaffDepartment) => StaffRequest[];
@@ -63,22 +66,73 @@ export function StaffStoreProvider({
   children: ReactNode;
   hotelSlug?: string;
 }) {
-  void hotelSlug;
+  const normalizedHotelSlug = useMemo(
+    () => String(hotelSlug ?? "").trim().toLowerCase() || undefined,
+    [hotelSlug]
+  );
   const [requests, setRequests] = useState<StaffRequest[]>([]);
+  const [resolvedHotelId, setResolvedHotelId] = useState<string | undefined>(undefined);
+  const [scopeReady, setScopeReady] = useState(false);
   const [isReady, setIsReady] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveScope = async () => {
+      setScopeReady(false);
+      setIsReady(false);
+
+      try {
+        const hotelId = await getHotelIdBySlug(normalizedHotelSlug);
+        if (!cancelled) {
+          setResolvedHotelId(hotelId);
+        }
+      } catch (error) {
+        console.error("Failed to resolve hotel scope for staff hub", {
+          hotelSlug: normalizedHotelSlug,
+          error,
+        });
+        if (!cancelled) {
+          setResolvedHotelId(undefined);
+          setRequests([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setScopeReady(true);
+        }
+      }
+    };
+
+    void resolveScope();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [normalizedHotelSlug]);
+
   const loadRequests = useCallback(async () => {
+    if (!scopeReady) return;
+
     try {
-      const data = await fetchSupabaseRequests();
+      const data = await fetchSupabaseRequests(
+        resolvedHotelId
+          ? { hotelId: resolvedHotelId, hotelSlug: normalizedHotelSlug }
+          : normalizedHotelSlug
+            ? { hotelSlug: normalizedHotelSlug }
+            : undefined
+      );
       setRequests(data);
     } catch (error) {
       console.error("Failed to load staff requests from Supabase", error);
+      setRequests([]);
     } finally {
       setIsReady(true);
     }
-  }, []);
+  }, [normalizedHotelSlug, resolvedHotelId, scopeReady]);
 
   useEffect(() => {
+    if (!scopeReady) return;
+
     let cancelled = false;
 
     const safeLoad = async () => {
@@ -107,30 +161,45 @@ export function StaffStoreProvider({
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [loadRequests]);
+  }, [loadRequests, scopeReady]);
 
   const updateRequestStatus = useCallback(
     async (id: string, status: StaffRequestStatus) => {
       try {
-        await updateSupabaseRequestStatus(id, status);
+        await updateSupabaseRequestStatus(
+          id,
+          status,
+          resolvedHotelId
+            ? { hotelId: resolvedHotelId, hotelSlug: normalizedHotelSlug }
+            : normalizedHotelSlug
+              ? { hotelSlug: normalizedHotelSlug }
+              : undefined
+        );
         await loadRequests();
       } catch (error) {
         console.error("Failed to update staff request status", error);
       }
     },
-    [loadRequests]
+    [loadRequests, normalizedHotelSlug, resolvedHotelId]
   );
 
   const addRequest = useCallback(
     async (input: AddRequestInput) => {
       try {
-        await createSupabaseRequest(input);
+        await createSupabaseRequest({
+          ...input,
+          ...(resolvedHotelId
+            ? { hotelId: resolvedHotelId, hotelSlug: normalizedHotelSlug }
+            : normalizedHotelSlug
+              ? { hotelSlug: normalizedHotelSlug }
+              : {}),
+        });
         await loadRequests();
       } catch (error) {
         console.error("Failed to create staff request", error);
       }
     },
-    [loadRequests]
+    [loadRequests, normalizedHotelSlug, resolvedHotelId]
   );
 
   const getRequestsByDepartment = useCallback(
@@ -165,6 +234,8 @@ export function StaffStoreProvider({
   const value = useMemo<StaffStoreContextValue>(
     () => ({
       requests,
+      hotelId: resolvedHotelId,
+      hotelSlug: normalizedHotelSlug,
       updateRequestStatus,
       addRequest,
       getRequestsByDepartment,
@@ -175,6 +246,8 @@ export function StaffStoreProvider({
     }),
     [
       requests,
+      resolvedHotelId,
+      normalizedHotelSlug,
       updateRequestStatus,
       addRequest,
       getRequestsByDepartment,
@@ -185,7 +258,7 @@ export function StaffStoreProvider({
     ]
   );
 
-  if (!isReady) {
+  if (!scopeReady || !isReady) {
     return (
       <div className="min-h-screen bg-neutral-950 text-white">
         <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
