@@ -475,6 +475,7 @@ const requestTypeCopy: Record<StaffUiLang, Record<StaffRequestType, string>> = {
     restaurant_reservation: "Резервация за ресторант",
     iron: "Ютия",
     minibar: "Минибар",
+    luggage_help: "Помощ с багаж",
   },
   en: {
     towels: "Towels",
@@ -497,6 +498,7 @@ const requestTypeCopy: Record<StaffUiLang, Record<StaffRequestType, string>> = {
     restaurant_reservation: "Restaurant reservation",
     iron: "Iron",
     minibar: "Minibar",
+    luggage_help: "Luggage help",
   },
   de: {
     towels: "Handtücher",
@@ -519,6 +521,7 @@ const requestTypeCopy: Record<StaffUiLang, Record<StaffRequestType, string>> = {
     restaurant_reservation: "Restaurantreservierung",
     iron: "Bügeleisen",
     minibar: "Minibar",
+    luggage_help: "Gepäckhilfe",
   },
 };
 
