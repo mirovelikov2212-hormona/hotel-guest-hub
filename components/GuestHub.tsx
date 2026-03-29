@@ -149,6 +149,14 @@ type GuestStatusItem = {
   createdAt: string;
 };
 
+type RequestDialogState = {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm?: () => void;
+} | null;
+
 const GUEST_REQUEST_REFS_STORAGE_KEY = "guesthub_guest_request_refs";
 
 function readStoredGuestRequestRefs(): StoredGuestRequestRef[] {
@@ -413,6 +421,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const [room, setRoom] = useState("");
   const [roomConfirmed, setRoomConfirmed] = useState(false);
   const [pendingRoomConfirmation, setPendingRoomConfirmation] = useState<string | null>(null);
+  const [requestDialog, setRequestDialog] = useState<RequestDialogState>(null);
   const [guestRequestRefs, setGuestRequestRefs] = useState<StoredGuestRequestRef[]>([]);
 
   useEffect(() => {
@@ -801,6 +810,38 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     setRoom("");
     setRoomConfirmed(false);
     setPendingRoomConfirmation(null);
+  };
+
+  const openRequestDialog = ({
+    title,
+    message,
+    confirmLabel,
+    cancelLabel,
+    onConfirm,
+  }: {
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm?: () => void;
+  }) => {
+    setRequestDialog({
+      title,
+      message,
+      confirmLabel,
+      cancelLabel,
+      onConfirm,
+    });
+  };
+
+  const closeRequestDialog = () => {
+    setRequestDialog(null);
+  };
+
+  const confirmRequestDialog = () => {
+    const action = requestDialog?.onConfirm;
+    setRequestDialog(null);
+    action?.();
   };
 
   const isDeptOpen = (dept: DepartmentKey) => {
@@ -1207,13 +1248,24 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     };
   }, [clearAiState]);
 
-  function confirmInfoBlock(message: string) {
-    if (!message) return true;
-    return window.confirm(
-      `${message}\n\n${String(
-        tUI("continue_request") || "Продължи със заявката?"
-      )}`
-    );
+  function confirmInfoBlock(message: string, onConfirm: () => void) {
+    if (!message) {
+      onConfirm();
+      return;
+    }
+
+    openRequestDialog({
+      title:
+        String(tUI("info_title") || "").trim() ||
+        (lang === "bg" ? "Информация" : lang === "de" ? "Information" : "Information"),
+      message,
+      confirmLabel:
+        String(tUI("continue_request") || "").trim() ||
+        (lang === "bg" ? "Продължи" : lang === "de" ? "Weiter" : "Continue"),
+      cancelLabel:
+        lang === "bg" ? "Отказ" : lang === "de" ? "Abbrechen" : "Cancel",
+      onConfirm,
+    });
   }
 
   function chooseWakeUpSlot(options = wakeUpSlots) {
@@ -1349,24 +1401,35 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     if (!ensureConfirmedRoom()) return;
 
     const infoMessage = getRequestDefMessage(def);
+    const title = getRequestDefField(def, "title") || def.id.replace(/_/g, " ");
+
+    const continueSubmit = () => {
+      const note = buildRequestDefNote(def, infoMessage);
+      if (note === null) return;
+
+      submitGuestRequest({
+        type: String(def.requestType || def.id) as StaffRequestType,
+        typeLabel: title,
+        note: note || undefined,
+      });
+    };
 
     if (def.type !== "request" || def.requestKind === "info_only") {
-      window.alert(infoMessage || getRequestDefField(def, "title") || def.id);
+      openRequestDialog({
+        title,
+        message: infoMessage || title,
+        confirmLabel:
+          lang === "bg" ? "Затвори" : lang === "de" ? "Schließen" : "Close",
+      });
       return;
     }
 
     if (infoMessage && def.confirmationMode !== "instant") {
-      if (!confirmInfoBlock(infoMessage)) return;
+      confirmInfoBlock(infoMessage, continueSubmit);
+      return;
     }
 
-    const note = buildRequestDefNote(def, infoMessage);
-    if (note === null) return;
-
-    submitGuestRequest({
-      type: String(def.requestType || def.id) as StaffRequestType,
-      typeLabel: getRequestDefField(def, "title") || def.id.replace(/_/g, " "),
-      note: note || undefined,
-    });
+    continueSubmit();
   }
 
   function buildRequestDefItems(category: string): HubItem[] {
@@ -1823,12 +1886,13 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
               kind: "link" as const,
               onClick: () => {
                 if (!ensureConfirmedRoom()) return;
-                if (!confirmInfoBlock(lateCheckoutInfo)) return;
 
-                submitGuestRequest({
-                  type: "late_checkout",
-                  typeLabel: String(tUI("late_checkout") || "Late checkout"),
-                  note: lateCheckoutInfo || undefined,
+                confirmInfoBlock(lateCheckoutInfo, () => {
+                  submitGuestRequest({
+                    type: "late_checkout",
+                    typeLabel: String(tUI("late_checkout") || "Late checkout"),
+                    note: lateCheckoutInfo || undefined,
+                  });
                 });
               },
             },
@@ -1925,7 +1989,13 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
                 kind: "link" as const,
                 onClick: () => {
                   if (!ensureConfirmedRoom()) return;
-                  window.alert(action.getMessage(lang));
+
+                  openRequestDialog({
+                    title: String(tUI(x.labelKey) || x.labelKey),
+                    message: action.getMessage(lang),
+                    confirmLabel:
+                      lang === "bg" ? "Затвори" : lang === "de" ? "Schließen" : "Close",
+                  });
                 },
               };
             }
@@ -1937,18 +2007,23 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
                 onClick: () => {
                   if (!ensureConfirmedRoom()) return;
 
+                  const submitAction = () => {
+                    submitGuestRequest({
+                      type: action.type,
+                      typeLabel: String(tUI(x.labelKey) || action.typeLabel),
+                      note:
+                        x.key === "minibar"
+                          ? minibarNotice || undefined
+                          : action.note,
+                    });
+                  };
+
                   if (x.key === "minibar" && minibarNotice) {
-                    if (!confirmInfoBlock(minibarNotice)) return;
+                    confirmInfoBlock(minibarNotice, submitAction);
+                    return;
                   }
 
-                  submitGuestRequest({
-                    type: action.type,
-                    typeLabel: String(tUI(x.labelKey) || action.typeLabel),
-                    note:
-                      x.key === "minibar"
-                        ? minibarNotice || undefined
-                        : action.note,
-                  });
+                  submitAction();
                 },
               };
             }
@@ -2255,52 +2330,89 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         </div>
       ) : null}
 
-        { roomConfirmed && (guestRequestsLoading || activeGuestRequests.length > 0) ? (
-          <div className="mt-3 px-4">
-            <div className="rounded-2xl bg-neutral-900/50 p-4 ring-1 ring-neutral-800">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base font-semibold text-white">{roomCopy.myRequestsTitle}</h2>
+      {requestDialog ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
+            <div className="text-lg font-semibold text-white">
+              {requestDialog.title}
+            </div>
+
+            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-neutral-200">
+              {requestDialog.message}
+            </p>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              {requestDialog.cancelLabel ? (
                 <button
                   type="button"
-                  onClick={() => void loadGuestRequests()}
-                  disabled={guestRequestsLoading}
-                  className="rounded-xl px-3 py-2 text-xs font-semibold text-white ring-1 ring-neutral-700 transition hover:bg-neutral-800/70 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={closeRequestDialog}
+                  className="rounded-xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white"
                 >
-                  {roomCopy.refreshRequests}
+                  {requestDialog.cancelLabel}
                 </button>
-              </div>
-
-              {guestRequestsLoading ? (
-                <div className="mt-3 rounded-xl bg-neutral-950/60 px-3 py-3 text-sm text-neutral-300 ring-1 ring-neutral-800">
-                  {roomCopy.myRequestsLoading}
-                </div>
               ) : (
-                <div className="mt-3 space-y-2">
-                  {activeGuestRequests.map((item) => (
-                    <div
-                      key={item.id}
-                      className="rounded-xl bg-neutral-950/60 px-3 py-3 ring-1 ring-neutral-800"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                            <span className="text-base leading-none">{getGuestRequestIcon(item.type)}</span>
-                            <span>{item.title.replace(/^[^\p{L}\p{N}]+/u, "").trim()}</span>
-                          </div>
-                          <div className="mt-1 text-xs text-neutral-400">
-                            {roomCopy.roomBadge.replace("{room}", item.room)} • {item.createdAt}
-                          </div>
-                        </div>
-
-                        <StatusBadge label={guestStatusLabel(item.status)} status={item.status} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <div />
               )}
+
+              <button
+                type="button"
+                onClick={requestDialog.onConfirm ? confirmRequestDialog : closeRequestDialog}
+                className="rounded-xl bg-[#9B86BD] px-4 py-3 text-sm font-semibold text-[#0D1B2A]"
+              >
+                {requestDialog.confirmLabel ||
+                  (lang === "bg" ? "Добре" : lang === "de" ? "OK" : "OK")}
+              </button>
             </div>
           </div>
-        ) : null}
+        </div>
+      ) : null}
+
+      {roomConfirmed && (guestRequestsLoading || activeGuestRequests.length > 0) ? (
+        <div className="mt-3 px-4">
+          <div className="rounded-2xl bg-neutral-900/50 p-4 ring-1 ring-neutral-800">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-semibold text-white">{roomCopy.myRequestsTitle}</h2>
+              <button
+                type="button"
+                onClick={() => void loadGuestRequests()}
+                disabled={guestRequestsLoading}
+                className="rounded-xl px-3 py-2 text-xs font-semibold text-white ring-1 ring-neutral-700 transition hover:bg-neutral-800/70 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {roomCopy.refreshRequests}
+              </button>
+            </div>
+
+            {guestRequestsLoading ? (
+              <div className="mt-3 rounded-xl bg-neutral-950/60 px-3 py-3 text-sm text-neutral-300 ring-1 ring-neutral-800">
+                {roomCopy.myRequestsLoading}
+              </div>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {activeGuestRequests.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-xl bg-neutral-950/60 px-3 py-3 ring-1 ring-neutral-800"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                          <span className="text-base leading-none">{getGuestRequestIcon(item.type)}</span>
+                          <span>{item.title.replace(/^[^\p{L}\p{N}]+/u, "").trim()}</span>
+                        </div>
+                        <div className="mt-1 text-xs text-neutral-400">
+                          {roomCopy.roomBadge.replace("{room}", item.room)} • {item.createdAt}
+                        </div>
+                      </div>
+
+                      <StatusBadge label={guestStatusLabel(item.status)} status={item.status} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       <div className="p-4 pb-10">
         <div className="space-y-3">
