@@ -410,9 +410,20 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const qrRoom = (sp.get("room") || "").trim();
 
   const [manualRoomInput, setManualRoomInput] = useState(qrRoom);
-  const [room, setRoom] = useState(qrRoom);
-  const [roomConfirmed, setRoomConfirmed] = useState(Boolean(qrRoom));
+  const [room, setRoom] = useState("");
+  const [roomConfirmed, setRoomConfirmed] = useState(false);
+  const [pendingRoomConfirmation, setPendingRoomConfirmation] = useState<string | null>(null);
   const [guestRequestRefs, setGuestRequestRefs] = useState<StoredGuestRequestRef[]>([]);
+
+  useEffect(() => {
+    if (!qrRoom) return;
+
+    setManualRoomInput(qrRoom);
+    setRoom("");
+    setRoomConfirmed(false);
+    setPendingRoomConfirmation(null);
+  }, [qrRoom]);
+
   const [guestRequests, setGuestRequests] = useState<GuestStatusItem[]>([]);
   const [guestRequestsLoading, setGuestRequestsLoading] = useState(false);
   const [showRequestSuccess, setShowRequestSuccess] = useState(false);
@@ -775,18 +786,21 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       return;
     }
 
-    const confirmed = window.confirm(
-      roomCopy.confirmMessage.replace("{room}", candidate)
-    );
+    setPendingRoomConfirmation(candidate);
+  };
 
-    if (!confirmed) {
-      setRoomConfirmed(false);
-      setRoom("");
-      return;
-    }
+  const acceptRoomConfirmation = () => {
+    if (!pendingRoomConfirmation) return;
 
-    setRoom(candidate);
+    setRoom(pendingRoomConfirmation);
     setRoomConfirmed(true);
+    setPendingRoomConfirmation(null);
+  };
+
+  const cancelRoomConfirmation = () => {
+    setRoom("");
+    setRoomConfirmed(false);
+    setPendingRoomConfirmation(null);
   };
 
   const isDeptOpen = (dept: DepartmentKey) => {
@@ -2147,7 +2161,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         <InstallAppButton label={String(tUI("install_app") || "Инсталирай приложението")} />
       </div>
 
-      {!qrRoom && !roomConfirmed ? (
+      {!roomConfirmed ? (
         <div className="mt-3 px-4">
           <div className="rounded-2xl bg-neutral-900/60 p-4 ring-1 ring-neutral-800">
             <h2 className="text-base font-semibold text-white">{roomCopy.cardTitle}</h2>
@@ -2163,6 +2177,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
                   setManualRoomInput(e.target.value);
                   setRoomConfirmed(false);
                   setRoom("");
+                  setPendingRoomConfirmation(null);
                 }}
                 placeholder={roomCopy.inputPlaceholder}
                 className="w-full rounded-xl bg-neutral-950/70 px-4 py-3 text-sm text-white outline-none ring-1 ring-neutral-800 placeholder:text-neutral-500"
@@ -2204,52 +2219,88 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         </div>
       ) : null}
 
-      {roomConfirmed && (guestRequestsLoading || activeGuestRequests.length > 0) ? (
-        <div className="mt-3 px-4">
-          <div className="rounded-2xl bg-neutral-900/50 p-4 ring-1 ring-neutral-800">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base font-semibold text-white">{roomCopy.myRequestsTitle}</h2>
-              <button
-                type="button"
-                onClick={() => void loadGuestRequests()}
-                disabled={guestRequestsLoading}
-                className="rounded-xl px-3 py-2 text-xs font-semibold text-white ring-1 ring-neutral-700 transition hover:bg-neutral-800/70 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {roomCopy.refreshRequests}
-              </button>
+      {pendingRoomConfirmation ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
+            <div className="text-lg font-semibold text-white">
+              {lang === "bg"
+                ? "Потвърждение на стая"
+                : lang === "de"
+                  ? "Zimmer bestätigen"
+                  : "Confirm room"}
             </div>
 
-            {guestRequestsLoading ? (
-              <div className="mt-3 rounded-xl bg-neutral-950/60 px-3 py-3 text-sm text-neutral-300 ring-1 ring-neutral-800">
-                {roomCopy.myRequestsLoading}
-              </div>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {activeGuestRequests.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-xl bg-neutral-950/60 px-3 py-3 ring-1 ring-neutral-800"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                          <span className="text-base leading-none">{getGuestRequestIcon(item.type)}</span>
-                          <span>{item.title.replace(/^[^\p{L}\p{N}]+/u, "").trim()}</span>
-                        </div>
-                        <div className="mt-1 text-xs text-neutral-400">
-                          {roomCopy.roomBadge.replace("{room}", item.room)} • {item.createdAt}
-                        </div>
-                      </div>
+            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-neutral-200">
+              {roomCopy.confirmMessage.replace("{room}", pendingRoomConfirmation)}
+            </p>
 
-                      <StatusBadge label={guestStatusLabel(item.status)} status={item.status} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={cancelRoomConfirmation}
+                className="rounded-xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white"
+              >
+                {lang === "bg" ? "Отказ" : lang === "de" ? "Abbrechen" : "Cancel"}
+              </button>
+
+              <button
+                type="button"
+                onClick={acceptRoomConfirmation}
+                className="rounded-xl bg-[#9B86BD] px-4 py-3 text-sm font-semibold text-[#0D1B2A]"
+              >
+                {lang === "bg" ? "Потвърди" : lang === "de" ? "Bestätigen" : "Confirm"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
+
+        { roomConfirmed && (guestRequestsLoading || activeGuestRequests.length > 0) ? (
+          <div className="mt-3 px-4">
+            <div className="rounded-2xl bg-neutral-900/50 p-4 ring-1 ring-neutral-800">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-semibold text-white">{roomCopy.myRequestsTitle}</h2>
+                <button
+                  type="button"
+                  onClick={() => void loadGuestRequests()}
+                  disabled={guestRequestsLoading}
+                  className="rounded-xl px-3 py-2 text-xs font-semibold text-white ring-1 ring-neutral-700 transition hover:bg-neutral-800/70 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {roomCopy.refreshRequests}
+                </button>
+              </div>
+
+              {guestRequestsLoading ? (
+                <div className="mt-3 rounded-xl bg-neutral-950/60 px-3 py-3 text-sm text-neutral-300 ring-1 ring-neutral-800">
+                  {roomCopy.myRequestsLoading}
+                </div>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {activeGuestRequests.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-xl bg-neutral-950/60 px-3 py-3 ring-1 ring-neutral-800"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                            <span className="text-base leading-none">{getGuestRequestIcon(item.type)}</span>
+                            <span>{item.title.replace(/^[^\p{L}\p{N}]+/u, "").trim()}</span>
+                          </div>
+                          <div className="mt-1 text-xs text-neutral-400">
+                            {roomCopy.roomBadge.replace("{room}", item.room)} • {item.createdAt}
+                          </div>
+                        </div>
+
+                        <StatusBadge label={guestStatusLabel(item.status)} status={item.status} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
 
       <div className="p-4 pb-10">
         <div className="space-y-3">
