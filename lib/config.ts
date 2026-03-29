@@ -288,12 +288,36 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
 
   const { configUrl, venuesUrl, i18nUrl, hotelSetupUrl, requestDefsUrl } = sheetSources;
 
+  if (!configUrl) {
+    throw new Error(`Missing config CSV URL for hotel slug: ${safeHotelSlug}`);
+  }
+
+  if (!i18nUrl) {
+    throw new Error(`Missing i18n CSV URL for hotel slug: ${safeHotelSlug}`);
+  }
+
+  if (!requestDefsUrl) {
+    throw new Error(`Missing request defs CSV URL for hotel slug: ${safeHotelSlug}`);
+  }
+
+  if (!configUrl) {
+    throw new Error(`Missing config CSV URL for hotel slug: ${safeHotelSlug}`);
+  }
+
+  if (!i18nUrl) {
+    throw new Error(`Missing i18n CSV URL for hotel slug: ${safeHotelSlug}`);
+  }
+
+  if (!requestDefsUrl) {
+    throw new Error(`Missing request defs CSV URL for hotel slug: ${safeHotelSlug}`);
+  }
+
   const [cfgRows, venueRowsRaw, i18nRows, hotelSetupRows, requestDefRows] = await Promise.all([
     fetchCsv(configUrl),
     venuesUrl ? fetchCsvOrEmpty(venuesUrl) : Promise.resolve([]),
     fetchCsv(i18nUrl),
-    fetchCsvOrEmpty(hotelSetupUrl),
-    fetchCsvOrEmpty(requestDefsUrl),
+    hotelSetupUrl ? fetchCsvOrEmpty(hotelSetupUrl) : Promise.resolve([]),
+    fetchCsv(requestDefsUrl),
   ]);
 
   const explicitConfig = toKV(cfgRows);
