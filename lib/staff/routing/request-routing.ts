@@ -22,6 +22,7 @@ const requestDepartmentMap: Record<StaffRequestType, StaffDepartment> = {
   late_checkout: "reception",
   wake_up_call: "reception",
   information: "reception",
+  luggage_help: "reception",
 
   restaurant_reservation: "restaurant",
 };
@@ -29,5 +30,5 @@ const requestDepartmentMap: Record<StaffRequestType, StaffDepartment> = {
 export function getDepartmentForRequestType(
   requestType: StaffRequestType
 ): StaffDepartment {
-  return requestDepartmentMap[requestType];
+  return requestDepartmentMap[requestType] ?? "reception";
 }

@@ -32,7 +32,8 @@ export type StaffRequestType =
   | "information"
   | "restaurant_reservation"
   | "iron"
-  | "minibar";
+  | "minibar"
+  | "luggage_help";
 
 export type StaffRequest = {
   id: string;

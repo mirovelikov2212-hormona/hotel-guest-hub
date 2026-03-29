@@ -1,17 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import { getRequestSummary, sortStaffRequests } from "@/lib/staff/mock-data";
 import { staffText } from "@/lib/staff/ui-copy";
-import type { StaffRequestStatus } from "@/lib/staff/types";
-
-const HOUSEKEEPING_SUPERVISOR_PIN = "2580";
-const HOUSEKEEPING_SUPERVISOR_SESSION_KEY =
-  "guesthub_housekeeping_supervisor_ok";
 
 type SummaryFilter = "active" | "new" | "in_progress" | "returned";
 
@@ -19,17 +14,7 @@ export default function HousekeepingPage() {
   const { lang } = useStaffUi();
   const t = staffText(lang);
   const { getOperationalRequestsByDepartment, updateRequestStatus } = useStaffStore();
-  const [supervisorUnlocked, setSupervisorUnlocked] = useState(false);
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>("active");
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const unlocked =
-      window.sessionStorage.getItem(HOUSEKEEPING_SUPERVISOR_SESSION_KEY) === "1";
-
-    setSupervisorUnlocked(unlocked);
-  }, []);
 
   const requests = getOperationalRequestsByDepartment("housekeeping");
   const activeRequests = useMemo(
@@ -47,39 +32,6 @@ export default function HousekeepingPage() {
     return sortStaffRequests(base);
   }, [activeRequests, summaryFilter]);
 
-  const requestSupervisorPin = () => {
-    if (typeof window === "undefined") return false;
-
-    const entered = window.prompt(t.supervisorPinRequired);
-
-    if (!entered) return false;
-
-    if (entered !== HOUSEKEEPING_SUPERVISOR_PIN) {
-      window.alert(t.incorrectPin);
-      return false;
-    }
-
-    window.sessionStorage.setItem(HOUSEKEEPING_SUPERVISOR_SESSION_KEY, "1");
-    setSupervisorUnlocked(true);
-    return true;
-  };
-
-  const ensureSupervisorAccess = () => {
-    if (supervisorUnlocked) return true;
-    return requestSupervisorPin();
-  };
-
-  const handleStatusChange = (id: string, status: StaffRequestStatus) => {
-    if (!ensureSupervisorAccess()) return;
-    void updateRequestStatus(id, status);
-  };
-
-  const lockSupervisorMode = () => {
-    if (typeof window === "undefined") return;
-    window.sessionStorage.removeItem(HOUSEKEEPING_SUPERVISOR_SESSION_KEY);
-    setSupervisorUnlocked(false);
-  };
-
   return (
     <main className="space-y-6 pb-safe">
       <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -96,28 +48,8 @@ export default function HousekeepingPage() {
             </p>
           </div>
 
-          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
-              {t.sharedHousekeepingBoard}
-            </div>
-
-            {supervisorUnlocked ? (
-              <button
-                type="button"
-                onClick={lockSupervisorMode}
-                className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-400/15"
-              >
-                {t.lockSupervisorMode}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={requestSupervisorPin}
-                className="rounded-2xl border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-sm font-semibold text-sky-100 transition hover:bg-sky-400/15"
-              >
-                {t.unlockSupervisorActions}
-              </button>
-            )}
+          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+            {t.sharedHousekeepingBoard}
           </div>
         </div>
       </section>
@@ -154,12 +86,6 @@ export default function HousekeepingPage() {
         {t.activeSummaryOnly}
       </section>
 
-      {!supervisorUnlocked ? (
-        <section className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-4 text-sm leading-6 text-amber-100">
-          {t.allStaffCanMonitor}
-        </section>
-      ) : null}
-
       <section className="space-y-4">
         {visibleRequests.length ? (
           visibleRequests.map((request) => (
@@ -168,9 +94,9 @@ export default function HousekeepingPage() {
               request={request}
               mode="department"
               canAct
-              onStart={(id) => handleStatusChange(id, "in_progress")}
-              onDone={(id) => handleStatusChange(id, "completed")}
-              onReturn={(id) => handleStatusChange(id, "returned")}
+              onStart={(id) => void updateRequestStatus(id, "in_progress")}
+              onDone={(id) => void updateRequestStatus(id, "completed")}
+              onReturn={(id) => void updateRequestStatus(id, "returned")}
             />
           ))
         ) : (

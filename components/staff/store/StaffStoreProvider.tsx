@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import { getHotelIdBySlug } from "@/lib/hotels/getHotelIdBySlug";
 import {
   createSupabaseRequest,
@@ -22,6 +23,8 @@ import type {
   StaffRequestType,
   StaffServiceTime,
 } from "@/lib/staff/types";
+
+type StaffRole = "reception" | "housekeeping" | "maintenance" | "manager";
 
 type AddRequestInput = {
   room: string;
@@ -59,6 +62,25 @@ function isOperationalRequest(request: StaffRequest) {
   );
 }
 
+function getRoleFromPath(pathname: string | null): StaffRole | undefined {
+  if (!pathname) return undefined;
+
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length < 3 || parts[0] !== "staff") return undefined;
+
+  const role = parts[2]?.toLowerCase();
+  if (
+    role === "reception" ||
+    role === "housekeeping" ||
+    role === "maintenance" ||
+    role === "manager"
+  ) {
+    return role;
+  }
+
+  return undefined;
+}
+
 export function StaffStoreProvider({
   children,
   hotelSlug,
@@ -66,10 +88,16 @@ export function StaffStoreProvider({
   children: ReactNode;
   hotelSlug?: string;
 }) {
+  const pathname = usePathname();
+  const currentRole = useMemo(() => getRoleFromPath(pathname), [pathname]);
+
   const normalizedHotelSlug = useMemo(
     () => String(hotelSlug ?? "").trim().toLowerCase() || undefined,
     [hotelSlug]
   );
+
+  const shouldLoadStaffData = Boolean(normalizedHotelSlug && currentRole);
+
   const [requests, setRequests] = useState<StaffRequest[]>([]);
   const [resolvedHotelId, setResolvedHotelId] = useState<string | undefined>(undefined);
   const [scopeReady, setScopeReady] = useState(false);
@@ -79,6 +107,16 @@ export function StaffStoreProvider({
     let cancelled = false;
 
     const resolveScope = async () => {
+      if (!shouldLoadStaffData) {
+        if (!cancelled) {
+          setResolvedHotelId(undefined);
+          setRequests([]);
+          setScopeReady(true);
+          setIsReady(true);
+        }
+        return;
+      }
+
       setScopeReady(false);
       setIsReady(false);
 
@@ -108,30 +146,27 @@ export function StaffStoreProvider({
     return () => {
       cancelled = true;
     };
-  }, [normalizedHotelSlug]);
+  }, [normalizedHotelSlug, shouldLoadStaffData]);
 
   const loadRequests = useCallback(async () => {
-    if (!scopeReady) return;
+    if (!scopeReady || !normalizedHotelSlug || !currentRole) return;
 
     try {
-      const data = await fetchSupabaseRequests(
-        resolvedHotelId
-          ? { hotelId: resolvedHotelId, hotelSlug: normalizedHotelSlug }
-          : normalizedHotelSlug
-            ? { hotelSlug: normalizedHotelSlug }
-            : undefined
-      );
+      const data = await fetchSupabaseRequests({
+        hotelSlug: normalizedHotelSlug,
+        role: currentRole,
+      });
       setRequests(data);
     } catch (error) {
-      console.error("Failed to load staff requests from Supabase", error);
+      console.error("Failed to load staff requests from API", error);
       setRequests([]);
     } finally {
       setIsReady(true);
     }
-  }, [normalizedHotelSlug, resolvedHotelId, scopeReady]);
+  }, [currentRole, normalizedHotelSlug, scopeReady]);
 
   useEffect(() => {
-    if (!scopeReady) return;
+    if (!shouldLoadStaffData || !scopeReady) return;
 
     let cancelled = false;
 
@@ -161,26 +196,23 @@ export function StaffStoreProvider({
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [loadRequests, scopeReady]);
+  }, [loadRequests, scopeReady, shouldLoadStaffData]);
 
   const updateRequestStatus = useCallback(
     async (id: string, status: StaffRequestStatus) => {
+      if (!normalizedHotelSlug || !currentRole) return;
+
       try {
-        await updateSupabaseRequestStatus(
-          id,
-          status,
-          resolvedHotelId
-            ? { hotelId: resolvedHotelId, hotelSlug: normalizedHotelSlug }
-            : normalizedHotelSlug
-              ? { hotelSlug: normalizedHotelSlug }
-              : undefined
-        );
+        await updateSupabaseRequestStatus(id, status, {
+          hotelSlug: normalizedHotelSlug,
+          role: currentRole,
+        });
         await loadRequests();
       } catch (error) {
         console.error("Failed to update staff request status", error);
       }
     },
-    [loadRequests, normalizedHotelSlug, resolvedHotelId]
+    [currentRole, loadRequests, normalizedHotelSlug]
   );
 
   const addRequest = useCallback(
@@ -258,7 +290,7 @@ export function StaffStoreProvider({
     ]
   );
 
-  if (!scopeReady || !isReady) {
+  if (shouldLoadStaffData && (!scopeReady || !isReady)) {
     return (
       <div className="min-h-screen bg-neutral-950 text-white">
         <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">

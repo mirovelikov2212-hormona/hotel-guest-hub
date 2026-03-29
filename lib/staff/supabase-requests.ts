@@ -11,6 +11,7 @@ import type {
 export type HotelScopeInput = {
   hotelId?: string;
   hotelSlug?: string;
+  role?: "reception" | "housekeeping" | "maintenance" | "manager";
 };
 
 type CreateSupabaseRequestInput = HotelScopeInput & {
@@ -21,20 +22,15 @@ type CreateSupabaseRequestInput = HotelScopeInput & {
   note?: string;
 };
 
-type GuestRequestRow = {
-  id: string;
-  room_number_snapshot: string | null;
-  request_type: string;
-  title: string;
-  message: string | null;
-  status: StaffRequestStatus;
-  created_at: string;
-  metadata_json: {
-    department?: StaffRequest["department"];
-    serviceTime?: StaffServiceTime;
-    typeLabel?: string;
-    note?: string;
-  } | null;
+type FetchRequestsApiResponse = {
+  ok: boolean;
+  requests?: StaffRequest[];
+  error?: string;
+};
+
+type StaffActionApiResponse = {
+  ok: boolean;
+  error?: string;
 };
 
 async function resolveHotelScope(input?: HotelScopeInput): Promise<{ hotelId: string; hotelSlug?: string }> {
@@ -51,28 +47,6 @@ async function resolveHotelScope(input?: HotelScopeInput): Promise<{ hotelId: st
   return {
     hotelId,
     hotelSlug: normalizedSlug || undefined,
-  };
-}
-
-function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
-  const metadata = row.metadata_json ?? {};
-  const created = new Date(row.created_at);
-
-  return {
-    id: row.id,
-    room: row.room_number_snapshot ?? "Unknown",
-    department: metadata.department ?? "reception",
-    type: row.request_type as StaffRequestType,
-    typeLabel: metadata.typeLabel ?? row.title,
-    status: row.status,
-    serviceTime: metadata.serviceTime ?? "now",
-    createdAt: created.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-    createdAtIso: row.created_at,
-    createdDateKey: created.toLocaleDateString("sv-SE"),
-    note: metadata.note ?? row.message ?? undefined,
   };
 }
 
@@ -123,26 +97,50 @@ export async function createSupabaseRequest(
     throw new Error(`Failed to create request: ${error.message}`);
   }
 
-  return mapRowToStaffRequest(data as GuestRequestRow);
+  const created = new Date(data.created_at);
+
+  return {
+    id: data.id,
+    room: data.room_number_snapshot ?? "Unknown",
+    department: data.metadata_json?.department ?? "reception",
+    type: data.request_type as StaffRequestType,
+    typeLabel: data.metadata_json?.typeLabel ?? data.title,
+    status: data.status as StaffRequestStatus,
+    serviceTime: data.metadata_json?.serviceTime ?? "now",
+    createdAt: created.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    createdAtIso: data.created_at,
+    createdDateKey: created.toLocaleDateString("sv-SE"),
+    note: data.metadata_json?.note ?? data.message ?? undefined,
+  };
 }
 
 export async function fetchSupabaseRequests(scope?: HotelScopeInput): Promise<StaffRequest[]> {
-  const { hotelId } = await resolveHotelScope(scope);
+  const hotelSlug = String(scope?.hotelSlug ?? "").trim().toLowerCase();
+  const role = scope?.role;
 
-  const { data, error } = await supabase
-    .from("guest_requests")
-    .select(
-      "id, room_number_snapshot, request_type, title, message, status, created_at, metadata_json"
-    )
-    .eq("hotel_id", hotelId)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("fetchSupabaseRequests failed", { error, hotelId, scope });
-    throw new Error(`Failed to fetch requests: ${error.message}`);
+  if (!hotelSlug || !role) {
+    throw new Error("fetchSupabaseRequests requires hotelSlug and role");
   }
 
-  return (data as GuestRequestRow[]).map(mapRowToStaffRequest);
+  const res = await fetch(
+    `/api/staff/requests?hotelSlug=${encodeURIComponent(hotelSlug)}&role=${encodeURIComponent(role)}`,
+    {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store",
+    }
+  );
+
+  const data = (await res.json().catch(() => null)) as FetchRequestsApiResponse | null;
+
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.error || "Failed to fetch staff requests");
+  }
+
+  return data.requests ?? [];
 }
 
 export async function updateSupabaseRequestStatus(
@@ -150,31 +148,30 @@ export async function updateSupabaseRequestStatus(
   status: StaffRequestStatus,
   scope?: HotelScopeInput
 ): Promise<void> {
-  const { hotelId } = await resolveHotelScope(scope);
-  const payload: Record<string, string> = { status };
+  const hotelSlug = String(scope?.hotelSlug ?? "").trim().toLowerCase();
+  const role = scope?.role;
 
-  if (status === "in_progress") {
-    payload.started_at = new Date().toISOString();
+  if (!hotelSlug || !role) {
+    throw new Error("updateSupabaseRequestStatus requires hotelSlug and role");
   }
 
-  if (status === "completed") {
-    payload.resolved_at = new Date().toISOString();
-    payload.closed_at = new Date().toISOString();
-  }
-
-  const { error } = await supabase
-    .from("guest_requests")
-    .update(payload)
-    .eq("id", id)
-    .eq("hotel_id", hotelId);
-
-  if (error) {
-    console.error("updateSupabaseRequestStatus failed", {
-      id,
+  const res = await fetch("/api/staff/request-status", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      hotelSlug,
+      role,
+      requestId: id,
       status,
-      hotelId,
-      error,
-    });
-    throw new Error(`Failed to update request status: ${error.message}`);
+    }),
+  });
+
+  const data = (await res.json().catch(() => null)) as StaffActionApiResponse | null;
+
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.error || "Failed to update staff request status");
   }
 }
