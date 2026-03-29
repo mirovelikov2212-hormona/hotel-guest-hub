@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type StaffRole = "reception" | "housekeeping" | "maintenance" | "manager";
@@ -11,11 +11,39 @@ type Props = {
   nextPath: string;
 };
 
+function getHotelDisplayName(slug: string) {
+  const value = String(slug || "").trim().toLowerCase();
+
+  if (value === "aquamarin" || value === "aquamarine") return "Aquamarine";
+  if (value === "demo") return "Hotel";
+
+  if (!value) return "Hotel";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function getRoleDisplayName(role: StaffRole) {
+  switch (role) {
+    case "reception":
+      return "Reception";
+    case "housekeeping":
+      return "Housekeeping";
+    case "maintenance":
+      return "Maintenance";
+    case "manager":
+      return "Manager";
+    default:
+      return role;
+  }
+}
+
 export default function StaffPinGate({ hotelSlug, role, nextPath }: Props) {
   const router = useRouter();
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const hotelLabel = useMemo(() => getHotelDisplayName(hotelSlug), [hotelSlug]);
+  const roleLabel = useMemo(() => getRoleDisplayName(role), [role]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -56,7 +84,9 @@ export default function StaffPinGate({ hotelSlug, role, nextPath }: Props) {
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 shadow-2xl">
         <div className="mb-6">
           <div className="text-sm uppercase tracking-[0.2em] text-white/50">StayHub Staff Access</div>
-          <h1 className="mt-2 text-2xl font-semibold">{hotelSlug} / {role}</h1>
+          <h1 className="mt-2 text-2xl font-semibold">
+            {hotelLabel} / {roleLabel}
+          </h1>
           <p className="mt-2 text-sm text-white/60">
             Enter the department PIN to continue.
           </p>

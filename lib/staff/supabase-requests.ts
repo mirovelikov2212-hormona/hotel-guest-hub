@@ -2,6 +2,7 @@ import { getHotelIdBySlug } from "@/lib/hotels/getHotelIdBySlug";
 import { supabase } from "@/lib/supabase";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import type {
+  StaffDepartment,
   StaffRequest,
   StaffRequestStatus,
   StaffRequestType,
@@ -20,6 +21,7 @@ type CreateSupabaseRequestInput = HotelScopeInput & {
   typeLabel: string;
   serviceTime: StaffServiceTime;
   note?: string;
+  departmentOverride?: StaffDepartment;
 };
 
 type FetchRequestsApiResponse = {
@@ -59,7 +61,7 @@ function getCategoryForRequestType(type: StaffRequestType) {
 export async function createSupabaseRequest(
   input: CreateSupabaseRequestInput
 ): Promise<StaffRequest> {
-  const department = getDepartmentForRequestType(input.type);
+  const department = input.departmentOverride ?? getDepartmentForRequestType(input.type);
   const { hotelId } = await resolveHotelScope(input);
 
   const { data, error } = await supabase

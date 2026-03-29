@@ -856,11 +856,23 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       typeLabel: "Extra blanket",
     },
   };
+  const hiddenGuestRequestIds = new Set([
+    "room_cleaning_request",
+    "extra_cleaning",
+    "cleaning",
+  ]);
+
   const requestDefs = useMemo(
     () =>
-      (((config.requestDefs ?? []) as RequestDef[])
-        .filter((def) => def && def.id && def.enabled !== false)
-        .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))),
+    (((config.requestDefs ?? []) as RequestDef[])
+      .filter(
+        (def) =>
+          def &&
+          def.id &&
+          def.enabled !== false &&
+          !hiddenGuestRequestIds.has(String(def.id).trim().toLowerCase())
+      )
+      .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))),
     [config.requestDefs]
   );
 
@@ -918,16 +930,16 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const lateCheckoutInfo = String(
     getRequestDefMessage(lateCheckoutDef) ||
-      (config as any).lateCheckoutInfo ||
-      tUI("late_checkout_info") ||
-      ""
+    (config as any).lateCheckoutInfo ||
+    tUI("late_checkout_info") ||
+    ""
   ).trim();
 
   const minibarNotice = String(
     getRequestDefMessage(minibarInfoDef || minibarDef) ||
-      (config as any).minibarNotice ||
-      tUI("minibar_notice") ||
-      ""
+    (config as any).minibarNotice ||
+    tUI("minibar_notice") ||
+    ""
   ).trim();
 
   const wakeUpSlots = useMemo(() => {
@@ -1262,13 +1274,13 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     } else if ((def.requiresTime && def.timeMode === "free") || shouldAskLateCheckoutTime) {
       const timeLabel = def.id === "late_checkout"
         ? (
-            tUI("late_checkout_time_prompt") ||
-            (lang === "bg"
-              ? "Желан час за късен чек-аут:"
-              : lang === "de"
-                ? "Gewünschte Uhrzeit für den späten Check-out:"
-                : "Desired late checkout time:")
-          )
+          tUI("late_checkout_time_prompt") ||
+          (lang === "bg"
+            ? "Желан час за късен чек-аут:"
+            : lang === "de"
+              ? "Gewünschte Uhrzeit für den späten Check-out:"
+              : "Desired late checkout time:")
+        )
         : String(tUI("prompt_time") || "Time:");
 
       const timeExample = def.id === "late_checkout"
@@ -1286,13 +1298,13 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
       const selectedLabel = def.id === "late_checkout"
         ? (
-            tUI("late_checkout_selected_time") ||
-            (lang === "bg"
-              ? "Желан час за напускане"
-              : lang === "de"
-                ? "Gewünschte Check-out-Zeit"
-                : "Desired checkout time")
-          )
+          tUI("late_checkout_selected_time") ||
+          (lang === "bg"
+            ? "Желан час за напускане"
+            : lang === "de"
+              ? "Gewünschte Check-out-Zeit"
+              : "Desired checkout time")
+        )
         : String(tUI("label_time") || "Time");
 
       noteParts.push(`${String(selectedLabel)}: ${pickedTime}`);
@@ -1792,54 +1804,54 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         ...buildRequestDefItems("reception"),
         ...(!hasReceptionDefs && !requestDefIds.has("late_checkout")
           ? [
-              {
-                label: tUI("late_checkout") || "Late checkout",
-                kind: "link" as const,
-                onClick: () => {
-                  if (!ensureConfirmedRoom()) return;
-                  if (!confirmInfoBlock(lateCheckoutInfo)) return;
+            {
+              label: tUI("late_checkout") || "Late checkout",
+              kind: "link" as const,
+              onClick: () => {
+                if (!ensureConfirmedRoom()) return;
+                if (!confirmInfoBlock(lateCheckoutInfo)) return;
 
-                  submitGuestRequest({
-                    type: "late_checkout",
-                    typeLabel: String(tUI("late_checkout") || "Late checkout"),
-                    note: lateCheckoutInfo || undefined,
-                  });
-                },
+                submitGuestRequest({
+                  type: "late_checkout",
+                  typeLabel: String(tUI("late_checkout") || "Late checkout"),
+                  note: lateCheckoutInfo || undefined,
+                });
               },
-            ]
+            },
+          ]
           : []),
         ...(!hasReceptionDefs && !requestDefIds.has("taxi")
           ? [
-              {
-                label: tUI("taxi") || "Taxi",
-                kind: "link" as const,
-                onClick: () =>
-                  submitGuestRequest({
-                    type: "taxi",
-                    typeLabel: "Taxi",
-                  }),
-              },
-            ]
+            {
+              label: tUI("taxi") || "Taxi",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "taxi",
+                  typeLabel: "Taxi",
+                }),
+            },
+          ]
           : []),
         ...(!hasReceptionDefs && !requestDefIds.has("wake_up_call")
           ? [
-              {
-                label: tUI("wake_up") || "Wake-up call",
-                kind: "link" as const,
-                onClick: () => {
-                  if (!ensureConfirmedRoom()) return;
+            {
+              label: tUI("wake_up") || "Wake-up call",
+              kind: "link" as const,
+              onClick: () => {
+                if (!ensureConfirmedRoom()) return;
 
-                  const slot = chooseWakeUpSlot();
-                  if (!slot) return;
+                const slot = chooseWakeUpSlot();
+                if (!slot) return;
 
-                  submitGuestRequest({
-                    type: "wake_up_call",
-                    typeLabel: String(tUI("wake_up") || "Wake-up call"),
-                    note: `${String(tUI("wake_up_selected") || "Selected time")}: ${slot}`,
-                  });
-                },
+                submitGuestRequest({
+                  type: "wake_up_call",
+                  typeLabel: String(tUI("wake_up") || "Wake-up call"),
+                  note: `${String(tUI("wake_up_selected") || "Selected time")}: ${slot}`,
+                });
               },
-            ]
+            },
+          ]
           : []),
       ],
     },
@@ -1851,42 +1863,42 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         ...buildRequestDefItems("housekeeping"),
         ...(!hasHousekeepingDefs && !requestDefIds.has("towels")
           ? [
-              {
-                label: tUI("towels") || "Towels",
-                kind: "link" as const,
-                onClick: () =>
-                  submitGuestRequest({
-                    type: "towels",
-                    typeLabel: "Towels",
-                  }),
-              },
-            ]
+            {
+              label: tUI("towels") || "Towels",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "towels",
+                  typeLabel: "Towels",
+                }),
+            },
+          ]
           : []),
         ...(!hasHousekeepingDefs && !requestDefIds.has("toilet_paper")
           ? [
-              {
-                label: tUI("toilet_paper") || "Toilet paper",
-                kind: "link" as const,
-                onClick: () =>
-                  submitGuestRequest({
-                    type: "toilet_paper",
-                    typeLabel: "Toilet paper",
-                  }),
-              },
-            ]
+            {
+              label: tUI("toilet_paper") || "Toilet paper",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "toilet_paper",
+                  typeLabel: "Toilet paper",
+                }),
+            },
+          ]
           : []),
         ...(!hasHousekeepingDefs && !requestDefIds.has("extra_pillow")
           ? [
-              {
-                label: tUI("extra_pillows") || "Extra pillows",
-                kind: "link" as const,
-                onClick: () =>
-                  submitGuestRequest({
-                    type: "extra_pillow",
-                    typeLabel: "Extra pillow",
-                  }),
-              },
-            ]
+            {
+              label: tUI("extra_pillows") || "Extra pillows",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "extra_pillow",
+                  typeLabel: "Extra pillow",
+                }),
+            },
+          ]
           : []),
         ...hkExtras
           .filter((x) => !hasHousekeepingDefs && !requestDefIds.has(x.key === "blanket" ? "extra_blanket" : x.key === "minibar" ? "minibar_refill" : x.key))
@@ -1942,57 +1954,57 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         ...buildRequestDefItems("maintenance"),
         ...(!hasMaintenanceDefs && !requestDefIds.has("air_conditioning")
           ? [
-              {
-                label: tUI("ac_issue") || "Air conditioning issue",
-                kind: "link" as const,
-                onClick: () =>
-                  submitGuestRequest({
-                    type: "air_conditioning",
-                    typeLabel: "Air conditioning issue",
-                  }),
-              },
-            ]
+            {
+              label: tUI("ac_issue") || "Air conditioning issue",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "air_conditioning",
+                  typeLabel: "Air conditioning issue",
+                }),
+            },
+          ]
           : []),
         ...(!hasMaintenanceDefs && !requestDefIds.has("no_hot_water")
           ? [
-              {
-                label: tUI("water_issue") || "No hot water",
-                kind: "link" as const,
-                onClick: () =>
-                  submitGuestRequest({
-                    type: "no_hot_water",
-                    typeLabel: "No hot water",
-                  }),
-              },
-            ]
+            {
+              label: tUI("water_issue") || "No hot water",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "no_hot_water",
+                  typeLabel: "No hot water",
+                }),
+            },
+          ]
           : []),
         ...(!hasMaintenanceDefs && !requestDefIds.has("coffee_machine")
           ? [
-              {
-                label: tUI("coffee_machine") || "Coffee machine",
-                kind: "link" as const,
-                onClick: () =>
-                  submitGuestRequest({
-                    type: "other_technical_issue",
-                    typeLabel: "Coffee machine issue",
-                    note: "Guest reported a coffee machine issue.",
-                  }),
-              },
-            ]
+            {
+              label: tUI("coffee_machine") || "Coffee machine",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "other_technical_issue",
+                  typeLabel: "Coffee machine issue",
+                  note: "Guest reported a coffee machine issue.",
+                }),
+            },
+          ]
           : []),
         ...(!hasMaintenanceDefs && !requestDefIds.has("other_technical_issue")
           ? [
-              {
-                label: tUI("something_broken") || "Something broken",
-                kind: "link" as const,
-                onClick: () =>
-                  submitGuestRequest({
-                    type: "other_technical_issue",
-                    typeLabel: "Something broken",
-                    note: "Guest reported that something is broken.",
-                  }),
-              },
-            ]
+            {
+              label: tUI("something_broken") || "Something broken",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "other_technical_issue",
+                  typeLabel: "Something broken",
+                  note: "Guest reported that something is broken.",
+                }),
+            },
+          ]
           : []),
       ],
     },
