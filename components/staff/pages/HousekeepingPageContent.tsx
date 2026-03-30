@@ -8,7 +8,7 @@ import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import { getRequestSummary, sortStaffRequests } from "@/lib/staff/mock-data";
 import { staffText } from "@/lib/staff/ui-copy";
 
-type SummaryFilter = "active" | "new" | "in_progress" | "returned";
+type SummaryFilter = "active" | "new" | "in_progress" | "returned" | "completed_today";
 
 export default function HousekeepingPage() {
   const { lang } = useStaffUi();
@@ -16,21 +16,41 @@ export default function HousekeepingPage() {
   const { getOperationalRequestsByDepartment, updateRequestStatus } = useStaffStore();
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>("active");
 
-  const requests = getOperationalRequestsByDepartment("housekeeping");
+  const requests = useMemo(
+    () => sortStaffRequests(getOperationalRequestsByDepartment("housekeeping")),
+    [getOperationalRequestsByDepartment]
+  );
+
+  const todayKey = useMemo(() => new Date().toLocaleDateString("sv-SE"), []);
+
   const activeRequests = useMemo(
     () => requests.filter((request) => request.status !== "completed"),
     [requests]
   );
+
+  const completedTodayRequests = useMemo(
+    () =>
+      requests.filter(
+        (request) =>
+          request.status === "completed" && request.createdDateKey === todayKey
+      ),
+    [requests, todayKey]
+  );
+
   const summary = useMemo(() => getRequestSummary(requests), [requests]);
 
   const visibleRequests = useMemo(() => {
+    if (summaryFilter === "completed_today") {
+      return sortStaffRequests(completedTodayRequests);
+    }
+
     const base = activeRequests.filter((request) => {
       if (summaryFilter === "active") return true;
       return request.status === summaryFilter;
     });
 
     return sortStaffRequests(base);
-  }, [activeRequests, summaryFilter]);
+  }, [activeRequests, completedTodayRequests, summaryFilter]);
 
   return (
     <main className="space-y-6 pb-safe">
@@ -54,7 +74,7 @@ export default function HousekeepingPage() {
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <StaffSummaryCard
           label={t.active}
           value={summary.newCount + summary.inProgressCount + summary.returnedCount}
@@ -79,6 +99,12 @@ export default function HousekeepingPage() {
           danger
           active={summaryFilter === "returned"}
           onClick={() => setSummaryFilter("returned")}
+        />
+        <StaffSummaryCard
+          label={lang === "bg" ? "Приключени" : lang === "de" ? "Erledigt" : "Completed"}
+          value={completedTodayRequests.length}
+          active={summaryFilter === "completed_today"}
+          onClick={() => setSummaryFilter("completed_today")}
         />
       </section>
 
