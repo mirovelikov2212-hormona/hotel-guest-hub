@@ -859,14 +859,18 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     (tUI("dept_closed_to_reception") as string) ||
     "Отделът не работи в момента. Заявката ще бъде изпратена към рецепция.";
 
-  const afterCutoffLegacy = useMemo(() => {
-    return isAfterCutoffLocal(config.housekeepingCutoff ?? "17:00");
-  }, [config.housekeepingCutoff]);
+  const operationsProcessingWindowOpen = "08:00";
+  const operationsProcessingWindowClose = config.housekeepingCutoff ?? "17:00";
 
-  const housekeepingRoutedToReception =
-    deptHours.housekeeping?.open && deptHours.housekeeping?.close
-      ? !isDeptOpen("housekeeping")
-      : afterCutoffLegacy;
+  const afterOperationsCutoff = useMemo(() => {
+    return !isWithinHoursLocal(
+      operationsProcessingWindowOpen,
+      operationsProcessingWindowClose
+    );
+  }, [operationsProcessingWindowClose]);
+
+  const housekeepingRoutedToReception = afterOperationsCutoff;
+  const maintenanceRoutedToReception = afterOperationsCutoff;
 
   const hkExtras =
     (config.housekeepingExtras as Array<{
@@ -1536,6 +1540,35 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     openWhatsApp(to, buildStaffMessage(msgKey), routed.warned);
   };
 
+  const housekeepingRequestTypes = new Set<string>([
+    "towels",
+    "toilet_paper",
+    "extra_pillow",
+    "extra_blanket",
+    "bathrobe",
+    "slippers",
+    "baby_cot",
+    "iron",
+    "minibar",
+    "laundry",
+    "other_housekeeping",
+  ]);
+
+  const maintenanceRequestTypes = new Set<string>([
+    "air_conditioning",
+    "no_hot_water",
+    "tv_issue",
+    "light_not_working",
+    "bathroom_issue",
+    "door_lock_issue",
+    "wifi_issue",
+    "power_outlet_issue",
+    "safe_issue",
+    "balcony_door_issue",
+    "minibar_not_cooling",
+    "other_technical_issue",
+  ]);
+
   const submitGuestRequest = async ({
     type,
     typeLabel,
@@ -1588,6 +1621,17 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       setSubmittingRequest(true);
       setSubmittingRequestLabel(safeTypeLabel);
 
+      const normalizedType = String(type);
+
+      const departmentOverride =
+        serviceTime !== "tomorrow" &&
+          (
+            (housekeepingRequestTypes.has(normalizedType) && housekeepingRoutedToReception) ||
+            (maintenanceRequestTypes.has(normalizedType) && maintenanceRoutedToReception)
+          )
+          ? "reception"
+          : undefined;
+
       const created = await createSupabaseRequest({
         hotelId,
         hotelSlug: config.hotelSlug,
@@ -1596,6 +1640,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         typeLabel: safeTypeLabel,
         serviceTime,
         note,
+        departmentOverride,
       });
 
       const nextRefs = pushStoredGuestRequestRef({
