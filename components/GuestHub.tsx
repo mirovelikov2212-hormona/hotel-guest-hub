@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { StaffRequestType, StaffServiceTime, StaffRequestStatus } from "@/lib/staff/types";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { HotelConfig, LangKey, HubSection, DepartmentKey, HubItem, RequestDef } from "@/lib/types";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import InstallAppButton from "@/components/InstallAppButton";
@@ -2396,23 +2396,23 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         </div>
       ) : null}
 
-      {submittingRequest ? (
-        <div className="mt-3 px-4">
-          <div className="rounded-2xl border border-sky-400/25 bg-sky-400/10 px-4 py-4 text-sky-50">
-            <div className="text-sm font-semibold">{roomCopy.requestSendingTitle}</div>
-            <p className="mt-1 text-sm leading-6 text-sky-100/90">
-              {roomCopy.requestSendingText.replace("{typeLabel}", submittingRequestLabel || "...")}
-            </p>
-          </div>
-        </div>
-      ) : showRequestSuccess ? (
-        <div className="mt-3 px-4">
-          <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-4 text-emerald-50">
-            <div className="text-sm font-semibold">{roomCopy.requestAcceptedTitle}</div>
-            <p className="mt-1 text-sm leading-6 text-emerald-100/90">
-              {roomCopy.requestAcceptedText}
-            </p>
-          </div>
+      {submittingRequest || showRequestSuccess ? (
+        <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 w-[min(92vw,560px)] -translate-x-1/2 px-4">
+          {submittingRequest ? (
+            <div className="rounded-2xl border border-sky-400/25 bg-sky-400/10 px-4 py-4 text-sky-50 shadow-2xl backdrop-blur">
+              <div className="text-sm font-semibold">{roomCopy.requestSendingTitle}</div>
+              <p className="mt-1 text-sm leading-6 text-sky-100/90">
+                {roomCopy.requestSendingText.replace("{typeLabel}", submittingRequestLabel || "...")}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-4 text-emerald-50 shadow-2xl backdrop-blur">
+              <div className="text-sm font-semibold">{roomCopy.requestAcceptedTitle}</div>
+              <p className="mt-1 text-sm leading-6 text-emerald-100/90">
+                {roomCopy.requestAcceptedText}
+              </p>
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -2489,7 +2489,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         </div>
       ) : null}
 
-      {roomConfirmed && (guestRequestsLoading || activeGuestRequests.length > 0) ? (
+      {roomConfirmed ? (
         <div className="mt-3 px-4">
           <div className="rounded-2xl bg-neutral-900/50 p-4 ring-1 ring-neutral-800">
             <div className="flex items-center justify-between gap-3">
@@ -2500,15 +2500,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
                 disabled={guestRequestsLoading}
                 className="rounded-xl px-3 py-2 text-xs font-semibold text-white ring-1 ring-neutral-700 transition hover:bg-neutral-800/70 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {roomCopy.refreshRequests}
+                {guestRequestsLoading ? roomCopy.myRequestsLoading : roomCopy.refreshRequests}
               </button>
             </div>
 
-            {guestRequestsLoading ? (
-              <div className="mt-3 rounded-xl bg-neutral-950/60 px-3 py-3 text-sm text-neutral-300 ring-1 ring-neutral-800">
-                {roomCopy.myRequestsLoading}
-              </div>
-            ) : (
+            {activeGuestRequests.length > 0 ? (
               <div className="mt-3 space-y-2">
                 {activeGuestRequests.map((item) => (
                   <div
@@ -2530,6 +2526,14 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
                     </div>
                   </div>
                 ))}
+              </div>
+            ) : (
+              <div className="mt-3 rounded-xl bg-neutral-950/40 px-3 py-3 text-sm text-neutral-400 ring-1 ring-neutral-800">
+                {lang === "bg"
+                  ? "Няма активни заявки."
+                  : lang === "de"
+                    ? "Keine aktiven Anfragen."
+                    : "No active requests."}
               </div>
             )}
           </div>
@@ -2813,6 +2817,42 @@ function OutletsAccordion({
   const [open, setOpen] = useState(false);
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [openVenue, setOpenVenue] = useState<string | null>(null);
+  const pathname = usePathname();
+
+  const guestUiStateKey = useMemo(
+    () => `guesthub-ui:${pathname}`,
+    [pathname]
+  );
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(guestUiStateKey);
+      if (!raw) return;
+
+      const saved = JSON.parse(raw);
+
+      if (typeof saved.open === "boolean") setOpen(saved.open);
+      if (typeof saved.openCategory === "string" || saved.openCategory === null) {
+        setOpenCategory(saved.openCategory);
+      }
+      if (typeof saved.openVenue === "string" || saved.openVenue === null) {
+        setOpenVenue(saved.openVenue);
+      }
+    } catch { }
+  }, [guestUiStateKey]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        guestUiStateKey,
+        JSON.stringify({
+          open,
+          openCategory,
+          openVenue,
+        })
+      );
+    } catch { }
+  }, [guestUiStateKey, open, openCategory, openVenue]);
 
   return (
     <div className="rounded-2xl overflow-hidden ring-1 ring-neutral-800 bg-neutral-900/40">
