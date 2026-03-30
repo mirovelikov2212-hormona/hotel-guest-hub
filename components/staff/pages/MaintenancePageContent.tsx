@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
@@ -21,7 +21,32 @@ export default function MaintenancePage() {
     [getOperationalRequestsByDepartment]
   );
 
-  const todayKey = useMemo(() => new Date().toLocaleDateString("sv-SE"), []);
+  const [todayKey, setTodayKey] = useState(() =>
+    new Date().toLocaleDateString("sv-SE")
+  );
+
+  useEffect(() => {
+    const updateDay = () => {
+      setTodayKey(new Date().toLocaleDateString("sv-SE"));
+      setSummaryFilter("active");
+    };
+
+    const now = new Date();
+    const nextReset = new Date(now);
+    nextReset.setHours(24, 0, 10, 0);
+
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+
+    const timeoutId = setTimeout(() => {
+      updateDay();
+      intervalId = setInterval(updateDay, 24 * 60 * 60 * 1000);
+    }, nextReset.getTime() - now.getTime());
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, []);
 
   const activeRequests = useMemo(
     () => requests.filter((request) => request.status !== "completed"),
@@ -30,10 +55,19 @@ export default function MaintenancePage() {
 
   const completedTodayRequests = useMemo(
     () =>
-      requests.filter(
-        (request) =>
-          request.status === "completed" && request.createdDateKey === todayKey
-      ),
+      requests.filter((request) => {
+        if (request.status !== "completed") return false;
+
+        const completedIso =
+          (request as any).completedAtIso ??
+          (request as any).updatedAtIso ??
+          (request as any).createdAtIso ??
+          null;
+
+        if (!completedIso) return false;
+
+        return new Date(completedIso).toLocaleDateString("sv-SE") === todayKey;
+      }),
     [requests, todayKey]
   );
 
