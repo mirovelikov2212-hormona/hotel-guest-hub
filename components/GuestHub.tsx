@@ -470,13 +470,16 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   useEffect(() => {
     if (qrRoom) return;
 
-    const storedRoomState = readStoredGuestRoomState(String(config.hotelSlug ?? ""));
-    if (!storedRoomState) return;
-
-    setManualRoomInput(storedRoomState.manualRoomInput || storedRoomState.room || "");
-    setRoom(storedRoomState.room || "");
-    setRoomConfirmed(Boolean(storedRoomState.roomConfirmed && storedRoomState.room));
+    setManualRoomInput("");
+    setRoom("");
+    setRoomConfirmed(false);
     setPendingRoomConfirmation(null);
+
+    writeStoredGuestRoomState(String(config.hotelSlug ?? ""), {
+      manualRoomInput: "",
+      room: "",
+      roomConfirmed: false,
+    });
   }, [config.hotelSlug, qrRoom]);
 
   useEffect(() => {
