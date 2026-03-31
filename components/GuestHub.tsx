@@ -2489,7 +2489,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         </div>
       ) : null}
 
-      {roomConfirmed ? (
+      {roomConfirmed && (guestRequestsLoading || activeGuestRequests.length > 0) ? (
         <div className="mt-3 px-4">
           <div className="rounded-2xl bg-neutral-900/50 p-4 ring-1 ring-neutral-800">
             <div className="flex items-center justify-between gap-3">
@@ -2527,15 +2527,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="mt-3 rounded-xl bg-neutral-950/40 px-3 py-3 text-sm text-neutral-400 ring-1 ring-neutral-800">
-                {lang === "bg"
-                  ? "Няма активни заявки."
-                  : lang === "de"
-                    ? "Keine aktiven Anfragen."
-                    : "No active requests."}
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -2715,11 +2707,11 @@ function Accordion({
                       className={clsx(
                         "rounded-xl px-3 py-3 text-left text-sm font-semibold ring-1 transition",
                         submittingRequest
-                          ? "cursor-not-allowed bg-neutral-800/60 text-neutral-400 ring-neutral-700 opacity-70"
+                          ? "cursor-not-allowed bg-[#9B86BD]/14 text-white ring-[#9B86BD]/25 opacity-70"
                           : "bg-[#9B86BD]/14 ring-[#9B86BD]/25 text-white hover:bg-[#9B86BD]/20 active:scale-[0.99]"
                       )}
                     >
-                      {submittingRequest ? String(tUI("request_sending_short") || "Изпращане...") : it.label}
+                      {it.label}
                     </button>
                   );
                 }
