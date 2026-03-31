@@ -440,6 +440,29 @@ function getRequestDefButtonIcon(def: RequestDef): string {
   }
 }
 
+function haversineMeters(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+) {
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const R = 6371000;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export default function GuestHub({ config }: { config: HotelConfig }) {
   const [lang, setLang] = useState<LangKey>(config.languageDefault ?? "bg");
 
@@ -504,9 +527,94 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const [showRequestSuccess, setShowRequestSuccess] = useState(false);
   const [submittingRequest, setSubmittingRequest] = useState(false);
   const [submittingRequestLabel, setSubmittingRequestLabel] = useState("");
+  const [geoMessage, setGeoMessage] = useState<string | null>(null);
   const [hotelScopeReady] = useState(true);
   const submittingRequestRef = useRef(false);
   const recentSubmissionRef = useRef<Record<string, number>>({});
+
+  const hotelLatitude = Number(
+    (config as any).hotelLatitude ??
+    (config as any).location?.lat ??
+    (config as any).location?.latitude ??
+    ""
+  );
+
+  const hotelLongitude = Number(
+    (config as any).hotelLongitude ??
+    (config as any).location?.lng ??
+    (config as any).location?.longitude ??
+    (config as any).location?.lon ??
+    ""
+  );
+
+  const geoRadiusMeters = 350;
+
+  const canUseGeoGuard =
+    Number.isFinite(hotelLatitude) && Number.isFinite(hotelLongitude);
+
+  const ensureGuestIsNearHotel = useCallback(async () => {
+    if (!canUseGeoGuard) {
+      setGeoMessage(null);
+      return true;
+    }
+
+    const getGeoErrorMessage = () =>
+      lang === "bg"
+        ? "Това действие е позволено само в рамките на хотела. Разрешете достъп до местоположението и опитайте отново."
+        : lang === "de"
+          ? "Diese Funktion ist nur innerhalb des Hotelbereichs erlaubt. Bitte Standortfreigabe erlauben und erneut versuchen."
+          : "This action is allowed only within the hotel area. Please allow location access and try again.";
+
+    if (!("geolocation" in navigator)) {
+      const msg = getGeoErrorMessage();
+      setGeoMessage(msg);
+      window.alert(msg);
+      return false;
+    }
+
+    return await new Promise<boolean>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const distance = haversineMeters(
+            hotelLatitude,
+            hotelLongitude,
+            position.coords.latitude,
+            position.coords.longitude
+          );
+
+          const allowed = distance <= geoRadiusMeters;
+
+          if (!allowed) {
+            const msg =
+              lang === "bg"
+                ? "Това действие е позволено само в рамките на хотела."
+                : lang === "de"
+                  ? "Diese Funktion ist nur innerhalb des Hotelbereichs erlaubt."
+                  : "This action is allowed only within the hotel area.";
+
+            setGeoMessage(msg);
+            window.alert(msg);
+            resolve(false);
+            return;
+          }
+
+          setGeoMessage(null);
+          resolve(true);
+        },
+        () => {
+          const msg = getGeoErrorMessage();
+          setGeoMessage(msg);
+          window.alert(msg);
+          resolve(false);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 8000,
+          maximumAge: 30000,
+        }
+      );
+    });
+  }, [canUseGeoGuard, hotelLatitude, hotelLongitude, lang]);
 
   useEffect(() => {
     if (!showRequestSuccess) return;
@@ -848,13 +956,16 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     return false;
   };
 
-  const confirmManualRoom = () => {
+  const confirmManualRoom = async () => {
     const candidate = manualRoomInput.trim();
 
     if (!candidate) {
       window.alert(roomCopy.missingRoomAlert);
       return;
     }
+
+    const nearHotel = await ensureGuestIsNearHotel();
+    if (!nearHotel) return;
 
     setPendingRoomConfirmation(candidate);
   };
@@ -1660,6 +1771,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
     if (!ensureConfirmedRoom()) return;
 
+    const nearHotel = await ensureGuestIsNearHotel();
+    if (!nearHotel) return;
+
     if (!hotelScopeReady) {
       window.alert(roomCopy.requestFailed);
       return;
@@ -2391,6 +2505,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             >
               {roomCopy.confirmButton}
             </button>
+
+            {geoMessage ? (
+              <div className="mt-3 rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-3 text-sm text-amber-100">
+                {geoMessage}
+              </div>
+            ) : null}
 
             <div className="mt-3 rounded-xl bg-neutral-950/60 px-3 py-3 text-sm text-neutral-300 ring-1 ring-neutral-800">
               {roomCopy.lockedNotice}
