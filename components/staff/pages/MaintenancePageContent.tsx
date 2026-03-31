@@ -13,12 +13,17 @@ type SummaryFilter = "active" | "new" | "in_progress" | "returned" | "completed_
 export default function MaintenancePage() {
   const { lang } = useStaffUi();
   const t = staffText(lang);
-  const { getOperationalRequestsByDepartment, updateRequestStatus } = useStaffStore();
+  const { getOperationalRequestsByDepartment, getRequestsByDepartment, updateRequestStatus } = useStaffStore();
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>("active");
 
   const requests = useMemo(
     () => sortStaffRequests(getOperationalRequestsByDepartment("maintenance")),
     [getOperationalRequestsByDepartment]
+  );
+
+  const departmentRequests = useMemo(
+    () => sortStaffRequests(getRequestsByDepartment("maintenance")),
+    [getRequestsByDepartment]
   );
 
   const [todayKey, setTodayKey] = useState(() =>
@@ -55,7 +60,7 @@ export default function MaintenancePage() {
 
   const completedTodayRequests = useMemo(
     () =>
-      requests.filter((request) => {
+      departmentRequests.filter((request) => {
         if (request.status !== "completed") return false;
 
         const completedIso =
@@ -68,7 +73,7 @@ export default function MaintenancePage() {
 
         return new Date(completedIso).toLocaleDateString("sv-SE") === todayKey;
       }),
-    [requests, todayKey]
+    [departmentRequests, todayKey]
   );
 
   const summary = useMemo(() => getRequestSummary(requests), [requests]);

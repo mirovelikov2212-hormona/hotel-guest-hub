@@ -280,19 +280,19 @@ export function StaffStoreProvider({
     [loadRequests, normalizedHotelSlug, resolvedHotelId]
   );
 
-  const getRequestsByDepartment = useCallback(
-    (department: StaffDepartment) => {
-      return requests.filter((request) => request.department === department);
-    },
-    [requests]
-  );
-
   const getOperationalRequestsByDepartment = useCallback(
     (department: StaffDepartment) => {
       return requests.filter(
         (request) =>
           request.department === department && isOperationalRequest(request)
       );
+    },
+    [requests]
+  );
+
+  const getRequestsByDepartment = useCallback(
+    (department: StaffDepartment) => {
+      return requests.filter((request) => request.department === department);
     },
     [requests]
   );
