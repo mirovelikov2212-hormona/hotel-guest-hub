@@ -38,12 +38,16 @@ function getSlugFromHost(host: string) {
 }
 
 export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+  }
+  
   try {
     const slugFromQuery = normalizeHotelSlug(
       String(
         request.nextUrl.searchParams.get("hotelSlug") ||
-          request.nextUrl.searchParams.get("slug") ||
-          ""
+        request.nextUrl.searchParams.get("slug") ||
+        ""
       )
     );
 
