@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 type HotelSheetSources = {
   hotelSlug: string;
@@ -17,6 +17,8 @@ export async function getHotelSheetSources(inputSlug?: string): Promise<HotelShe
   if (!slug) {
     throw new Error("Missing hotel slug");
   }
+
+  const supabase = getSupabaseAdmin();
 
   const { data, error } = await supabase
     .from("hotels")
