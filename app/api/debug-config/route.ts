@@ -4,9 +4,64 @@ import { getHotelSheetSources } from "@/lib/hotels/getHotelSheetSources";
 
 export const runtime = "nodejs";
 
+const HOTEL_SLUG_ALIASES: Record<string, string> = {
+  aquamarine: "aquamarin",
+};
+
+function normalizeHotelSlug(value: string) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "";
+  return HOTEL_SLUG_ALIASES[raw] ?? raw;
+}
+
+function getSlugFromHost(host: string) {
+  const cleanHost = String(host || "")
+    .trim()
+    .toLowerCase()
+    .replace(/:\d+$/, "");
+
+  if (!cleanHost) return "";
+
+  const parts = cleanHost.split(".");
+  const subdomain = parts[0] || "";
+
+  if (
+    !subdomain ||
+    subdomain === "www" ||
+    subdomain === "stayhub" ||
+    subdomain === "localhost"
+  ) {
+    return "";
+  }
+
+  return normalizeHotelSlug(subdomain);
+}
+
 export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+  }
+  
   try {
-    const slug = String(request.nextUrl.searchParams.get("slug") || "demo").trim().toLowerCase() || "demo";
+    const slugFromQuery = normalizeHotelSlug(
+      String(
+        request.nextUrl.searchParams.get("hotelSlug") ||
+        request.nextUrl.searchParams.get("slug") ||
+        ""
+      )
+    );
+
+    const slugFromHost = getSlugFromHost(request.headers.get("host") || "");
+
+    const slug = slugFromQuery || slugFromHost;
+
+    if (!slug) {
+      return NextResponse.json(
+        { ok: false, error: "Missing hotel slug" },
+        { status: 400 }
+      );
+    }
+
     const [cfg, sources] = await Promise.all([
       getHotelConfig(slug),
       getHotelSheetSources(slug),

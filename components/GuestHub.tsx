@@ -483,44 +483,114 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const sp = useSearchParams();
   const qrRoom = (sp.get("room") || "").trim();
 
+  const roomStateKey = useMemo(() => {
+    if (typeof window === "undefined") return "";
+
+    const pathMatch = window.location.pathname.match(/^\/h\/([^/]+)/i);
+    if (pathMatch?.[1]) {
+      return String(pathMatch[1]).trim().toLowerCase();
+    }
+
+    const host = window.location.hostname.toLowerCase();
+    if (host.endsWith(".stayhub.app")) {
+      const sub = host.split(".")[0];
+      if (sub && sub !== "www") {
+        return sub;
+      }
+    }
+
+    return String(config.hotelSlug || "").trim().toLowerCase();
+  }, [config.hotelSlug]);
+
   const [manualRoomInput, setManualRoomInput] = useState(qrRoom);
   const [room, setRoom] = useState("");
   const [roomConfirmed, setRoomConfirmed] = useState(false);
-  const [pendingRoomConfirmation, setPendingRoomConfirmation] = useState<string | null>(null);
+  const [ignoredQrRoom, setIgnoredQrRoom] = useState<string | null>(null);
+  const [roomModal, setRoomModal] = useState<{
+    mode: "confirm" | "switch";
+    nextRoom: string;
+    currentRoom?: string;
+  } | null>(null);
+  const [roomStateHydrated, setRoomStateHydrated] = useState(false);
+
   const [requestDialog, setRequestDialog] = useState<RequestDialogState>(null);
   const [guestRequestRefs, setGuestRequestRefs] = useState<StoredGuestRequestRef[]>(() => readStoredGuestRequestRefs());
 
   useEffect(() => {
-    if (qrRoom) return;
+    if (!roomStateKey) return;
 
-    setManualRoomInput("");
-    setRoom("");
-    setRoomConfirmed(false);
-    setPendingRoomConfirmation(null);
+    const storedRoomState = readStoredGuestRoomState(roomStateKey);
+    const storedRoom = String(storedRoomState?.room || "").trim();
+    const storedConfirmed = Boolean(storedRoomState?.roomConfirmed);
 
-    writeStoredGuestRoomState(String(config.hotelSlug ?? ""), {
-      manualRoomInput: "",
-      room: "",
-      roomConfirmed: false,
-    });
-  }, [config.hotelSlug, qrRoom]);
+    if (!qrRoom) {
+      if (storedConfirmed && storedRoom) {
+        setManualRoomInput(storedRoom);
+        setRoom(storedRoom);
+        setRoomConfirmed(true);
+      } else {
+        setManualRoomInput("");
+        setRoom("");
+        setRoomConfirmed(false);
+      }
 
-  useEffect(() => {
-    if (!qrRoom) return;
+      setIgnoredQrRoom(null);
+      setRoomModal(null);
+      setRoomStateHydrated(true);
+      return;
+    }
+
+    if (storedConfirmed && storedRoom && storedRoom !== qrRoom) {
+      setManualRoomInput(storedRoom);
+      setRoom(storedRoom);
+      setRoomConfirmed(true);
+
+      if (ignoredQrRoom === qrRoom) {
+        setRoomModal(null);
+      } else {
+        setRoomModal({
+          mode: "switch",
+          currentRoom: storedRoom,
+          nextRoom: qrRoom,
+        });
+      }
+
+      setRoomStateHydrated(true);
+      return;
+    }
+
+    if (storedConfirmed && storedRoom === qrRoom) {
+      setManualRoomInput(qrRoom);
+      setRoom(qrRoom);
+      setRoomConfirmed(true);
+      setIgnoredQrRoom(null);
+      setRoomModal(null);
+      setRoomStateHydrated(true);
+      return;
+    }
 
     setManualRoomInput(qrRoom);
     setRoom("");
     setRoomConfirmed(false);
-    setPendingRoomConfirmation(null);
-  }, [qrRoom]);
+    setIgnoredQrRoom(null);
+    setRoomModal({
+      mode: "confirm",
+      nextRoom: qrRoom,
+    });
+    setRoomStateHydrated(true);
+  }, [roomStateKey, qrRoom, ignoredQrRoom]);
 
   useEffect(() => {
-    writeStoredGuestRoomState(String(config.hotelSlug ?? ""), {
+    if (!roomStateKey) return;
+    if (!roomStateHydrated) return;
+    if (roomModal?.mode === "switch") return;
+
+    writeStoredGuestRoomState(roomStateKey, {
       manualRoomInput,
       room,
       roomConfirmed,
     });
-  }, [config.hotelSlug, manualRoomInput, room, roomConfirmed]);
+  }, [roomStateKey, roomStateHydrated, manualRoomInput, room, roomConfirmed, roomModal]);
 
   const [guestRequests, setGuestRequests] = useState<GuestStatusItem[]>([]);
   const [guestRequestsLoading, setGuestRequestsLoading] = useState(false);
@@ -964,25 +1034,72 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       return;
     }
 
-    const nearHotel = await ensureGuestIsNearHotel();
-    if (!nearHotel) return;
+    setGeoMessage(null);
 
-    setPendingRoomConfirmation(candidate);
+    const storedRoomState = readStoredGuestRoomState(roomStateKey);
+    const storedRoom = String(storedRoomState?.room || "").trim();
+    const storedConfirmed = Boolean(storedRoomState?.roomConfirmed);
+
+    const activeRoom = String(room || storedRoom || "").trim();
+    const hasConfirmedActiveRoom = Boolean((roomConfirmed || storedConfirmed) && activeRoom);
+
+    if (hasConfirmedActiveRoom && activeRoom !== candidate) {
+      setManualRoomInput(activeRoom);
+      setRoom(activeRoom);
+      setRoomConfirmed(true);
+      setIgnoredQrRoom(null);
+      setRoomModal({
+        mode: "switch",
+        currentRoom: activeRoom,
+        nextRoom: candidate,
+      });
+      return;
+    }
+
+    setIgnoredQrRoom(null);
+    setRoomModal({
+      mode: "confirm",
+      nextRoom: candidate,
+    });
   };
 
-  const acceptRoomConfirmation = () => {
-    if (!pendingRoomConfirmation) return;
+  const isRoomSwitchConfirmation = roomModal?.mode === "switch";
 
-    setManualRoomInput(pendingRoomConfirmation);
-    setRoom(pendingRoomConfirmation);
+  const acceptRoomConfirmation = () => {
+    if (!roomModal?.nextRoom) return;
+
+    setIgnoredQrRoom(null);
+    setManualRoomInput(roomModal.nextRoom);
+    setRoom(roomModal.nextRoom);
     setRoomConfirmed(true);
-    setPendingRoomConfirmation(null);
+    setRoomModal(null);
   };
 
   const cancelRoomConfirmation = () => {
-    setRoom("");
-    setRoomConfirmed(false);
-    setPendingRoomConfirmation(null);
+    if (roomModal?.mode === "switch" && roomModal.currentRoom) {
+      setIgnoredQrRoom(roomModal.nextRoom);
+      setManualRoomInput(roomModal.currentRoom);
+      setRoom(roomModal.currentRoom);
+      setRoomConfirmed(true);
+      setRoomModal(null);
+      return;
+    }
+
+    const storedRoomState = readStoredGuestRoomState(roomStateKey);
+    const storedRoom = String(storedRoomState?.room || "").trim();
+    const storedConfirmed = Boolean(storedRoomState?.roomConfirmed);
+
+    if (storedConfirmed && storedRoom) {
+      setManualRoomInput(storedRoom);
+      setRoom(storedRoom);
+      setRoomConfirmed(true);
+    } else {
+      setManualRoomInput(qrRoom || "");
+      setRoom("");
+      setRoomConfirmed(false);
+    }
+
+    setRoomModal(null);
   };
 
   const openRequestDialog = ({
@@ -2475,6 +2592,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         <InstallAppButton label={String(tUI("install_app") || "Инсталирай приложението")} />
       </div>
 
+      {/* room switch banner removed - handled only by modal */}
+
       {!roomConfirmed ? (
         <div className="mt-3 px-4">
           <div className="rounded-2xl bg-neutral-900/60 p-4 ring-1 ring-neutral-800">
@@ -2491,7 +2610,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
                   setManualRoomInput(e.target.value);
                   setRoomConfirmed(false);
                   setRoom("");
-                  setPendingRoomConfirmation(null);
+                  setIgnoredQrRoom(null);
+                  setRoomModal(null);
                 }}
                 placeholder={roomCopy.inputPlaceholder}
                 className="w-full rounded-xl bg-neutral-950/70 px-4 py-3 text-sm text-white outline-none ring-1 ring-neutral-800 placeholder:text-neutral-500"
@@ -2539,19 +2659,31 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         </div>
       ) : null}
 
-      {pendingRoomConfirmation ? (
+      {roomModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
             <div className="text-lg font-semibold text-white">
-              {lang === "bg"
-                ? "Потвърждение на стая"
-                : lang === "de"
-                  ? "Zimmer bestätigen"
-                  : "Confirm room"}
+              {isRoomSwitchConfirmation
+                ? lang === "bg"
+                  ? "Смяна на стая"
+                  : lang === "de"
+                    ? "Zimmer wechseln"
+                    : "Switch room"
+                : lang === "bg"
+                  ? "Потвърждение на стая"
+                  : lang === "de"
+                    ? "Zimmer bestätigen"
+                    : "Confirm room"}
             </div>
 
             <p className="mt-3 whitespace-pre-line text-sm leading-6 text-neutral-200">
-              {roomCopy.confirmMessage.replace("{room}", pendingRoomConfirmation)}
+              {isRoomSwitchConfirmation && roomModal.currentRoom
+                ? lang === "bg"
+                  ? `В момента устройството е активно за стая ${roomModal.currentRoom}. Сигурни ли сте, че искате да преминете към стая ${roomModal.nextRoom}?`
+                  : lang === "de"
+                    ? `Dieses Gerät ist aktuell für Zimmer ${roomModal.currentRoom} aktiv. Sind Sie sicher, dass Sie zu Zimmer ${roomModal.nextRoom} wechseln möchten?`
+                    : `This device is currently active for room ${roomModal.currentRoom}. Are you sure you want to switch to room ${roomModal.nextRoom}?`
+                : roomCopy.confirmMessage.replace("{room}", roomModal.nextRoom)}
             </p>
 
             <div className="mt-5 grid grid-cols-2 gap-3">
@@ -2568,7 +2700,17 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
                 onClick={acceptRoomConfirmation}
                 className="rounded-xl bg-[#9B86BD] px-4 py-3 text-sm font-semibold text-[#0D1B2A]"
               >
-                {lang === "bg" ? "Потвърди" : lang === "de" ? "Bestätigen" : "Confirm"}
+                {isRoomSwitchConfirmation
+                  ? lang === "bg"
+                    ? "Смени стаята"
+                    : lang === "de"
+                      ? "Zimmer wechseln"
+                      : "Switch room"
+                  : lang === "bg"
+                    ? "Потвърди"
+                    : lang === "de"
+                      ? "Bestätigen"
+                      : "Confirm"}
               </button>
             </div>
           </div>
