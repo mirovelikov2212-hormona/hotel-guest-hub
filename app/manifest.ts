@@ -2,12 +2,14 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Guest Hub",
-    short_name: "Guest Hub",
+    name: "StayHub",
+    short_name: "StayHub",
+    description: "Digital guest hub for hotels",
     id: "/",
-    start_url: "/h/demo?room=101&source=pwa",
+    start_url: "/?source=pwa",
     scope: "/",
     display: "standalone",
+    orientation: "portrait",
     background_color: "#0b0b0f",
     theme_color: "#9B86BD",
     icons: [

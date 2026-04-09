@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
+import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import { getRequestSummary, sortStaffRequests } from "@/lib/staff/mock-data";
@@ -13,13 +15,24 @@ type SummaryFilter = "active" | "new" | "in_progress" | "returned" | "completed_
 export default function MaintenancePage() {
   const { lang } = useStaffUi();
   const t = staffText(lang);
-  const { getOperationalRequestsByDepartment, getRequestsByDepartment, updateRequestStatus } = useStaffStore();
+  const {
+    hotelSlug,
+    getOperationalRequestsByDepartment,
+    getRequestsByDepartment,
+    updateRequestStatus,
+  } = useStaffStore();
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>("active");
 
   const requests = useMemo(
     () => sortStaffRequests(getOperationalRequestsByDepartment("maintenance")),
     [getOperationalRequestsByDepartment]
   );
+
+  const { soundEnabled, toggleSound } = useStaffAlertSound({
+    hotelSlug,
+    department: "maintenance",
+    requests,
+  });
 
   const departmentRequests = useMemo(
     () => sortStaffRequests(getRequestsByDepartment("maintenance")),
@@ -107,8 +120,11 @@ export default function MaintenancePage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-sm text-sky-100">
-            {t.technicalQueue}
+          <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+            <div className="rounded-2xl border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-sm text-sky-100">
+              {t.technicalQueue}
+            </div>
+            <StaffAlertSoundButton soundEnabled={soundEnabled} onToggle={toggleSound} />
           </div>
         </div>
       </section>
@@ -159,9 +175,9 @@ export default function MaintenancePage() {
               request={request}
               mode="department"
               canAct
-              onStart={(id) => updateRequestStatus(id, "in_progress")}
-              onDone={(id) => updateRequestStatus(id, "completed")}
-              onReturn={(id) => updateRequestStatus(id, "returned")}
+              onStart={(id) => void updateRequestStatus(id, "in_progress")}
+              onDone={(id) => void updateRequestStatus(id, "completed")}
+              onReturn={(id) => void updateRequestStatus(id, "returned")}
             />
           ))
         ) : (

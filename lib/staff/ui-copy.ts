@@ -157,6 +157,9 @@ const copy = {
     reportDetailsIntro: "Кликни върху карта, ред или показател, за да се отвори подробният списък отдолу.",
     reportDetailsEmpty: "Няма елементи за този детайл по отчета.",
     closeDetails: "Затвори детайла",
+    soundAlertsLabel: "Звук за нови заявки",
+    alertSoundOn: "Звукът е включен",
+    alertSoundOff: "Звукът е изключен",
   },
   en: {
     guestHub: "GuestHub",
@@ -308,6 +311,9 @@ const copy = {
     reportDetailsIntro: "Click any card, row or metric to open the detailed list below.",
     reportDetailsEmpty: "No items for this report detail.",
     closeDetails: "Close details",
+    soundAlertsLabel: "New request sound",
+    alertSoundOn: "Sound is on",
+    alertSoundOff: "Sound is off",
   },
   de: {
     guestHub: "GuestHub",
@@ -456,6 +462,9 @@ const copy = {
     reportDetailsIntro: "Klicke auf Karte, Zeile oder Kennzahl, um unten die detaillierte Liste zu öffnen.",
     reportDetailsEmpty: "Keine Einträge für dieses Berichtsdetail.",
     closeDetails: "Details schließen",
+    soundAlertsLabel: "Ton für neue Anfragen",
+    alertSoundOn: "Ton ist an",
+    alertSoundOff: "Ton ist aus",
   },
 } as const;
 

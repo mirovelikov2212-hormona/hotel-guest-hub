@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import PWARegister from "@/components/PWARegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,23 +14,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hotel Guest Hub",
-  description: "Digital hotel guest services.",
+  title: "StayHub",
+  description: "Digital guest hub for hotels.",
+  applicationName: "StayHub",
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Guest Hub",
+    title: "StayHub",
   },
   icons: {
     icon: [
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: [{ url: "/favicon.ico" }],
   },
 };
-
-import PWARegister from "@/components/PWARegister";
 
 export default function RootLayout({
   children,
