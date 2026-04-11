@@ -514,6 +514,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     currentRoom?: string;
   } | null>(null);
   const [roomStateHydrated, setRoomStateHydrated] = useState(false);
+  const [pendingRoomChangeFrom, setPendingRoomChangeFrom] = useState<string | null>(null);
 
   const [requestDialog, setRequestDialog] = useState<RequestDialogState>(null);
   const [guestRequestRefs, setGuestRequestRefs] = useState<StoredGuestRequestRef[]>(() => readStoredGuestRequestRefs());
@@ -766,6 +767,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmMessage: "Сигурни ли сте, че това е вашата стая?\nСтая {room}",
         confirmedState: "Потвърдена стая: {room}",
         changeRoom: "Смени стаята",
+        changeRoomWarningTitle: "Смяна на стая",
+        changeRoomWarningText:
+          "Сменяйте активната стая само ако наистина сте преместени в друга стая. След това въведете и потвърдете новата стая.",
+        changeRoomContinue: "Продължи",
         lockedNotice: "Секциите ще се отворят, когато въведете номера на стаята.",
         lockedSectionMessage:
           "Потвърдете номера на стаята, за да отключите тази секция.",
@@ -801,6 +806,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmMessage: "Are you sure this is your room?\nRoom {room}",
         confirmedState: "Confirmed room: {room}",
         changeRoom: "Change room",
+        changeRoomWarningTitle: "Change room",
+        changeRoomWarningText:
+          "Change the active room only if you have actually been moved to another room. Then enter and confirm the new room.",
+        changeRoomContinue: "Continue",
         lockedNotice: "The sections will open when you enter your room number.",
         lockedSectionMessage:
           "Confirm your room number to unlock this section.",
@@ -836,6 +845,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmMessage: "Sind Sie sicher, dass dies Ihr Zimmer ist?\nZimmer {room}",
         confirmedState: "Bestätigtes Zimmer: {room}",
         changeRoom: "Zimmer ändern",
+        changeRoomWarningTitle: "Zimmer ändern",
+        changeRoomWarningText:
+          "Ändern Sie das aktive Zimmer nur, wenn Sie tatsächlich in ein anderes Zimmer umgezogen sind. Geben Sie danach das neue Zimmer ein und bestätigen Sie es.",
+        changeRoomContinue: "Weiter",
         lockedNotice: "Die Bereiche werden geöffnet, wenn Sie Ihre Zimmernummer eingeben.",
         lockedSectionMessage:
           "Bestätigen Sie Ihre Zimmernummer, um diesen Bereich freizuschalten.",
@@ -1083,21 +1096,33 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const acceptRoomConfirmation = () => {
     if (!roomModal?.nextRoom) return;
 
+    const nextRoom = roomModal.nextRoom;
+    const previousRoom = roomModal.currentRoom || pendingRoomChangeFrom;
+    const isRoomChange = Boolean(previousRoom && previousRoom !== nextRoom);
+
     setIgnoredQrRoom(null);
-    setManualRoomInput(roomModal.nextRoom);
-    setRoom(roomModal.nextRoom);
+    setManualRoomInput(nextRoom);
+    setRoom(nextRoom);
     setRoomConfirmed(true);
     setRoomModal(null);
+    setPendingRoomChangeFrom(null);
 
     window.history.replaceState(
       {},
       "",
-      `${window.location.pathname}?room=${encodeURIComponent(roomModal.nextRoom)}`
+      `${window.location.pathname}?room=${encodeURIComponent(nextRoom)}`
     );
+
     trackHubEvent({
-      eventName: "room_confirmed",
-      roomNumber: roomModal.nextRoom,
+      eventName: isRoomChange ? "room_changed" : "room_confirmed",
+      roomNumber: nextRoom,
       page: window.location.pathname,
+      extra: isRoomChange
+        ? {
+            fromRoom: previousRoom,
+            toRoom: nextRoom,
+          }
+        : {},
     });
   };
 
@@ -1108,6 +1133,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       setRoom(roomModal.currentRoom);
       setRoomConfirmed(true);
       setRoomModal(null);
+      setPendingRoomChangeFrom(null);
       return;
     }
 
@@ -1125,6 +1151,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       setRoomConfirmed(false);
     }
 
+    setPendingRoomChangeFrom(null);
     setRoomModal(null);
   };
 
@@ -1158,6 +1185,36 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     const action = requestDialog?.onConfirm;
     setRequestDialog(null);
     action?.();
+  };
+
+  const startRoomChangeFlow = () => {
+    if (!roomConfirmed || !room) return;
+
+    openRequestDialog({
+      title: roomCopy.changeRoomWarningTitle,
+      message: roomCopy.changeRoomWarningText,
+      confirmLabel: roomCopy.changeRoomContinue,
+      cancelLabel: lang === "bg" ? "Отказ" : lang === "de" ? "Abbrechen" : "Cancel",
+      onConfirm: () => {
+        trackHubEvent({
+          eventName: "room_change_started",
+          roomNumber: room,
+          page: window.location.pathname,
+          extra: {
+            fromRoom: room,
+          },
+        });
+
+        setPendingRoomChangeFrom(room);
+        setManualRoomInput("");
+        setRoom("");
+        setRoomConfirmed(false);
+        setIgnoredQrRoom(null);
+        setRoomModal(null);
+
+        window.history.replaceState({}, "", window.location.pathname);
+      },
+    });
   };
 
   const isDeptOpen = (dept: DepartmentKey) => {
@@ -2618,8 +2675,17 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
               <p className="mt-1 text-sm text-neutral-200">{tUI("hero_subtitle")}</p>
 
               {room ? (
-                <div className="mt-2 inline-flex rounded-full bg-neutral-900/70 px-3 py-1 text-xs font-semibold text-neutral-100 ring-1 ring-neutral-700">
-                  {roomCopy.roomBadge.replace("{room}", room)}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <div className="inline-flex rounded-full bg-neutral-900/70 px-3 py-1 text-xs font-semibold text-neutral-100 ring-1 ring-neutral-700">
+                    {roomCopy.roomBadge.replace("{room}", room)}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={startRoomChangeFlow}
+                    className="inline-flex rounded-full bg-neutral-900/70 px-3 py-1 text-xs font-semibold text-neutral-100 ring-1 ring-neutral-700 transition hover:bg-neutral-900/90"
+                  >
+                    {roomCopy.changeRoom}
+                  </button>
                 </div>
               ) : null}
             </div>
@@ -2734,10 +2800,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             <p className="mt-3 whitespace-pre-line text-sm leading-6 text-neutral-200">
               {isRoomSwitchConfirmation && roomModal.currentRoom
                 ? lang === "bg"
-                  ? `В момента устройството е активно за стая ${roomModal.currentRoom}. Сигурни ли сте, че искате да преминете към стая ${roomModal.nextRoom}?`
+                  ? `В момента устройството е активно за стая ${roomModal.currentRoom}. Сменяйте стаята само ако наистина сте преместени в друга стая. Сигурни ли сте, че искате да преминете към стая ${roomModal.nextRoom}?`
                   : lang === "de"
-                    ? `Dieses Gerät ist aktuell für Zimmer ${roomModal.currentRoom} aktiv. Sind Sie sicher, dass Sie zu Zimmer ${roomModal.nextRoom} wechseln möchten?`
-                    : `This device is currently active for room ${roomModal.currentRoom}. Are you sure you want to switch to room ${roomModal.nextRoom}?`
+                    ? `Dieses Gerät ist aktuell für Zimmer ${roomModal.currentRoom} aktiv. Wechseln Sie das Zimmer nur, wenn Sie tatsächlich in ein anderes Zimmer umgezogen sind. Sind Sie sicher, dass Sie zu Zimmer ${roomModal.nextRoom} wechseln möchten?`
+                    : `This device is currently active for room ${roomModal.currentRoom}. Change the room only if you have actually been moved to another room. Are you sure you want to switch to room ${roomModal.nextRoom}?`
                 : roomCopy.confirmMessage.replace("{room}", roomModal.nextRoom)}
             </p>
 

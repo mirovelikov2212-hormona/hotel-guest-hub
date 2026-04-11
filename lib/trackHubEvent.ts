@@ -100,6 +100,12 @@ export async function trackHubEvent(payload: TrackHubPayload) {
     readCookie("sh_qr_src") ||
     null;
 
+  const qrCode =
+    url.searchParams.get("code") ||
+    getStoredValue("sh_qrcode") ||
+    readCookie("sh_qr_code") ||
+    null;
+
   const body = JSON.stringify({
     hotelId: null,
     hotelSlug,
@@ -112,7 +118,10 @@ export async function trackHubEvent(payload: TrackHubPayload) {
     value: payload.value ?? null,
     src,
     page: payload.page ?? window.location.pathname,
-    extra: payload.extra ?? {},
+    extra: {
+      ...(payload.extra ?? {}),
+      qrCode,
+    },
   });
 
   if (navigator.sendBeacon) {

@@ -98,7 +98,7 @@ export async function GET(
   const ip = forwardedFor.split(",")[0]?.trim() || "0.0.0.0";
   const scanSessionId = crypto.randomUUID();
 
-  await supabase.from("qr_scans").insert({
+  const { error } = await supabase.from("qr_scans").insert({
     hotel_id: target.hotelId,
     hotel_slug: hotelSlug,
     hotel_alias: "aquamarine",
@@ -123,9 +123,21 @@ export async function GET(
     },
   });
 
+  if (error) {
+    console.error("staff qr_scans insert error:", error);
+  }
+
   const response = NextResponse.redirect(target.targetUrl, 307);
 
   response.cookies.set("sh_staff_qr_sid", scanSessionId, {
+    httpOnly: false,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+
+  response.cookies.set("sh_qr_code", target.qrCode, {
     httpOnly: false,
     secure: true,
     sameSite: "lax",

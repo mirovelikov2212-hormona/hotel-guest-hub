@@ -10,11 +10,24 @@ type GuestRequestRow = {
   id: string;
   hotel_id: string;
   status: StaffRequestStatus;
+  room_number_snapshot?: string | null;
   metadata_json: {
     department?: StaffDepartment;
     serviceTime?: string;
+    typeLabel?: string;
   } | null;
 };
+
+function getHotelAliasFromSlug(hotelSlug: string) {
+  return hotelSlug === "aquamarin" ? "aquamarine" : hotelSlug;
+}
+
+function getLifecycleEventName(status: StaffRequestStatus) {
+  if (status === "in_progress") return "request_in_progress";
+  if (status === "completed") return "request_completed";
+  if (status === "returned") return "request_returned";
+  return null;
+}
 
 function isValidStatus(value: string): value is StaffRequestStatus {
   return (
@@ -112,7 +125,7 @@ export async function POST(req: NextRequest) {
 
     const { data: requestRow, error: requestError } = await supabaseAdmin
       .from("guest_requests")
-      .select("id, hotel_id, status, metadata_json, request_type")
+      .select("id, hotel_id, status, metadata_json, request_type, room_number_snapshot")
       .eq("id", requestId)
       .eq("hotel_id", scope.hotelId)
       .maybeSingle();
@@ -125,6 +138,10 @@ export async function POST(req: NextRequest) {
     }
 
     const requestData = requestRow as GuestRequestRow & { request_type: string };
+
+    if (requestData.status === status) {
+      return NextResponse.json({ ok: true, noop: true });
+    }
 
     const normalizedType = normalizeStaffRequestType(requestData.request_type, requestData.metadata_json?.department);
     const department = requestData.metadata_json?.department ?? getDepartmentForRequestType(normalizedType);
@@ -159,6 +176,68 @@ export async function POST(req: NextRequest) {
         { ok: false, error: `Failed to update request: ${updateError.message}` },
         { status: 500 }
       );
+    }
+
+    const lifecycleEvents: Array<Record<string, unknown>> = [];
+    const hotelAlias = getHotelAliasFromSlug(hotelSlug);
+    const roomNumber = requestData.room_number_snapshot ?? null;
+    const typeLabel = requestData.metadata_json?.typeLabel ?? normalizedType;
+
+    if (requestData.status === "new" && status !== "new") {
+      lifecycleEvents.push({
+        hotel_id: scope.hotelId,
+        hotel_slug: hotelSlug,
+        hotel_alias: hotelAlias,
+        scan_session_id: null,
+        room_id: null,
+        room_number: roomNumber,
+        user_session_id: null,
+        event_name: "request_seen_by_staff",
+        section: department ?? role,
+        label: normalizedType,
+        value: typeLabel,
+        extra: {
+          requestId,
+          role,
+          previousStatus: requestData.status,
+          nextStatus: status,
+          serviceTime: serviceTime ?? null,
+        },
+      });
+    }
+
+    const lifecycleEventName = getLifecycleEventName(status);
+    if (lifecycleEventName) {
+      lifecycleEvents.push({
+        hotel_id: scope.hotelId,
+        hotel_slug: hotelSlug,
+        hotel_alias: hotelAlias,
+        scan_session_id: null,
+        room_id: null,
+        room_number: roomNumber,
+        user_session_id: null,
+        event_name: lifecycleEventName,
+        section: department ?? role,
+        label: normalizedType,
+        value: typeLabel,
+        extra: {
+          requestId,
+          role,
+          previousStatus: requestData.status,
+          nextStatus: status,
+          serviceTime: serviceTime ?? null,
+        },
+      });
+    }
+
+    if (lifecycleEvents.length) {
+      const { error: eventsError } = await supabaseAdmin
+        .from("hub_events")
+        .insert(lifecycleEvents);
+
+      if (eventsError) {
+        console.error("staff lifecycle hub_events insert error", eventsError);
+      }
     }
 
     return NextResponse.json({ ok: true });

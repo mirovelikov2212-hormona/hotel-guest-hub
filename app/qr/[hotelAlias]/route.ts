@@ -80,9 +80,9 @@ export async function GET(
   }
 
   const url = new URL(request.url);
-  const src = url.searchParams.get("src") || "roomcard";
+  const src = url.searchParams.get("src") || "main";
   const campaign = url.searchParams.get("campaign");
-  const qrCode = url.searchParams.get("code") || "main";
+  const qrCode = url.searchParams.get("code") || src || "main";
   const roomHint = url.searchParams.get("room");
   const ua = request.headers.get("user-agent") || "";
   const referer = request.headers.get("referer");
@@ -100,7 +100,7 @@ export async function GET(
   if (roomHint) target.searchParams.set("room", roomHint);
 
   // Best effort tracking insert
-  await supabase.from("qr_scans").insert({
+  const { error } = await supabase.from("qr_scans").insert({
     hotel_id: hotel.hotelId,
     hotel_slug: hotel.canonicalSlug,
     hotel_alias: hotel.publicAlias,
@@ -123,6 +123,10 @@ export async function GET(
     },
   });
 
+  if (error) {
+    console.error("qr_scans insert error:", error);
+  }
+
   const response = NextResponse.redirect(target, 307);
 
   response.cookies.set("sh_qr_sid", scanSessionId, {
@@ -134,6 +138,14 @@ export async function GET(
   });
 
   response.cookies.set("sh_qr_src", src, {
+    httpOnly: false,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+
+  response.cookies.set("sh_qr_code", qrCode, {
     httpOnly: false,
     secure: true,
     sameSite: "lax",
