@@ -43,11 +43,11 @@ export default function InstallAppButton({
   // iPhone / iPad
   if (isIOS) {
     return (
-      <div className="w-full rounded-2xl bg-neutral-900/80 ring-1 ring-white/10 px-4 py-4 text-center text-sm leading-6 text-white shadow-[0_8px_30px_rgba(0,0,0,0.25)]">
-        <span className="font-semibold">iPhone:</span> натисни{" "}
-        <span className="font-semibold">Share</span> →{" "}
-        <span className="font-semibold">Add to Home Screen</span>, за да го
-        ползваш като app.
+      <div className="w-full rounded-2xl bg-neutral-900/80 ring-1 ring-white/10 px-4 py-4 text-center text-white shadow-[0_8px_30px_rgba(0,0,0,0.25)]">
+        <div className="text-lg font-semibold">Инсталирай като App</div>
+        <div className="mt-1 text-sm leading-5 text-neutral-300">
+          Share → Add to Home Screen
+        </div>
       </div>
     );
   }
