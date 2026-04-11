@@ -15,6 +15,11 @@ const ALIAS_TO_SLUG: Record<UiAlias, string> = {
   demo: "demo",
 };
 
+const ALIAS_TO_HOTEL_ID: Record<UiAlias, string> = {
+  aquamarine: "843ec551-786a-46c4-989b-9da98956cd19",
+  demo: "243c8e86-af66-455f-b664-ec2185d5f3f3",
+};
+
 function readCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
   const match = document.cookie.match(
@@ -50,6 +55,13 @@ function getHotelSlug(alias: string): string {
   return alias;
 }
 
+function getHotelId(alias: string): string | null {
+  if (alias in ALIAS_TO_HOTEL_ID) {
+    return ALIAS_TO_HOTEL_ID[alias as UiAlias];
+  }
+  return null;
+}
+
 function getStoredValue(key: string): string | null {
   if (typeof window === "undefined") return null;
   try {
@@ -63,7 +75,7 @@ function setStoredValue(key: string, value: string) {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(key, value);
-  } catch {}
+  } catch { }
 }
 
 export function persistQrContextFromUrl() {
@@ -87,6 +99,7 @@ export async function trackHubEvent(payload: TrackHubPayload) {
 
   const hotelAlias = getHotelAlias();
   const hotelSlug = getHotelSlug(hotelAlias);
+  const hotelId = getHotelId(hotelAlias);
 
   const scanSessionId =
     url.searchParams.get("qsid") ||
@@ -107,7 +120,7 @@ export async function trackHubEvent(payload: TrackHubPayload) {
     null;
 
   const body = JSON.stringify({
-    hotelId: null,
+    hotelId,
     hotelSlug,
     hotelAlias,
     scanSessionId,
