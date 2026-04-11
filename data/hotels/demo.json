@@ -26,7 +26,7 @@
   "reviews": { "google": "", "tripadvisor": "" },
   "i18n": {
     "bg": {
-      "hero_subtitle": "Всичко необходимо за престоя ви — на едно място.",
+      "hero_subtitle": "Всичко за вашия престой на едно място.",
       "wifi_title": "📶 WiFi",
       "wifi_show": "Покажи WiFi данни",
       "wifi_network": "Мрежа",
@@ -129,7 +129,7 @@
     },
 
     "de": {
-      "hero_subtitle": "Alles, was Sie während Ihres Aufenthalts brauchen — an einem Ort.",
+      "hero_subtitle": "Alles für Ihren Aufenthalt an einem Ort.",
       "wifi_title": "📶 WLAN",
       "wifi_show": "WLAN anzeigen",
       "wifi_network": "Netzwerk",
@@ -232,7 +232,7 @@
     },
 
     "en": {
-      "hero_subtitle": "Everything you need during your stay — in one place.",
+      "hero_subtitle": "Everything for your stay in one place.",
       "wifi_title": "📶 WiFi",
       "wifi_show": "Show WiFi details",
       "wifi_network": "Network",
