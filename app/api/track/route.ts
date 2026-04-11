@@ -33,9 +33,25 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    await supabase.from("hub_events").insert(payload);
-    return NextResponse.json({ ok: true });
+    const { data, error } = await supabase
+      .from("hub_events")
+      .insert(payload)
+      .select("id, created_at, event_name, room_number");
+
+    if (error) {
+      console.error("hub_events insert error:", error);
+      console.error("hub_events payload:", payload);
+      return NextResponse.json(
+        { ok: false, error: error.message },
+        { status: 500 }
+      );
+    }
+
+    console.log("hub_events inserted:", data);
+
+    return NextResponse.json({ ok: true, data });
   } catch (error) {
+    console.error("track route fatal error:", error);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 }
