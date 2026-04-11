@@ -1119,9 +1119,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       page: window.location.pathname,
       extra: isRoomChange
         ? {
-            fromRoom: previousRoom,
-            toRoom: nextRoom,
-          }
+          fromRoom: previousRoom,
+          toRoom: nextRoom,
+        }
         : {},
     });
   };
@@ -1681,6 +1681,32 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     );
     return null;
   }
+
+  const chooseLateCheckoutSlot = () => {
+    const answer = window.prompt(
+      lang === "bg"
+        ? "Изберете час за късен check-out: 13:00 или 14:00"
+        : lang === "de"
+          ? "Wählen Sie die Uhrzeit für Late Check-out: 13:00 oder 14:00"
+          : "Choose late check-out time: 13:00 or 14:00",
+      "13:00"
+    );
+
+    if (!answer) return null;
+
+    const normalized = answer.trim();
+    if (normalized === "13:00" || normalized === "14:00") return normalized;
+
+    window.alert(
+      lang === "bg"
+        ? "Моля, въведете само 13:00 или 14:00."
+        : lang === "de"
+          ? "Bitte geben Sie nur 13:00 oder 14:00 ein."
+          : "Please enter only 13:00 or 14:00."
+    );
+
+    return null;
+  };
 
   function promptRequestNote(def: RequestDef) {
     const promptLabel =
@@ -2352,13 +2378,24 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
               onClick: () => {
                 if (!ensureConfirmedRoom()) return;
 
-                confirmInfoBlock(lateCheckoutInfo, () => {
+                const slot = chooseLateCheckoutSlot();
+                if (!slot) return;
+
+                const submitAction = () => {
                   submitGuestRequest({
                     type: "late_checkout",
                     typeLabel: String(tUI("late_checkout") || "Late checkout"),
-                    note: lateCheckoutInfo || undefined,
+                    note: `${String(tUI("late_checkout") || "Late checkout")}: ${slot}${lateCheckoutInfo ? `\n${lateCheckoutInfo}` : ""
+                      }`,
                   });
-                });
+                };
+
+                if (lateCheckoutInfo) {
+                  confirmInfoBlock(lateCheckoutInfo, submitAction);
+                  return;
+                }
+
+                submitAction();
               },
             },
           ]
