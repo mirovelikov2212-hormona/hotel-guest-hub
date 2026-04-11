@@ -2349,6 +2349,47 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     sendVenueReservation(venue);
   };
 
+  const hotelInfoItems = useMemo(
+    () =>
+      ((((config as any).hotelInfoItems ?? []) as Array<any>)
+        .filter((item) => item && item.active !== false)
+        .sort((a, b) => (Number(a?.sortOrder ?? 999) - Number(b?.sortOrder ?? 999)))),
+    [config]
+  );
+
+  const getHotelInfoText = useCallback(
+    (item: any, field: "title" | "text") => {
+      const source = item?.[field] ?? {};
+
+      const preferred = [String(lang || "").trim(), ...fallbackLangs.map((x) => String(x || "").trim())]
+        .filter(Boolean);
+
+      for (const key of preferred) {
+        const value = source?.[key];
+        if (value && String(value).trim()) return String(value).trim();
+      }
+
+      return "";
+    },
+    [fallbackLangs, lang]
+  );
+
+  const hotelInfoSection = useMemo(() => {
+    if (!hotelInfoItems.length) return null;
+
+    return {
+      id: "info",
+      title:
+        String(tUI("hotel_info_title") || "").trim() ||
+        (lang === "bg" ? "Инфо" : lang === "de" ? "Info" : "Info"),
+      items: hotelInfoItems.map((item) => ({
+        label: `${item?.icon ? `${String(item.icon).trim()} ` : ""}${getHotelInfoText(item, "title")}`.trim(),
+        kind: "info" as const,
+        info: getHotelInfoText(item, "text"),
+      })),
+    } satisfies HubSection;
+  }, [getHotelInfoText, hotelInfoItems, lang, tUI]);
+
   const housekeepingTitle = tUI("housekeeping_title");
   const housekeepingTitleAfter = tUI("housekeeping_title_after");
   const housekeepingAfterNote = tUI("housekeeping_after_note");
@@ -2365,6 +2406,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         },
       ],
     },
+    ...(hotelInfoSection ? [hotelInfoSection] : []),
     {
       id: "reception",
       title: tUI("reception_title") || "Reception",
@@ -3111,12 +3153,17 @@ function Accordion({
               section.items.map((it, idx) => {
                 if (it.kind === "info") {
                   return (
-                    <pre
+                    <div
                       key={idx}
-                      className="whitespace-pre-wrap rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800"
+                      className="rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800"
                     >
-                      {it.info}
-                    </pre>
+                      {it.label ? (
+                        <div className="font-semibold text-white">{it.label}</div>
+                      ) : null}
+                      <div className={clsx("whitespace-pre-wrap", it.label ? "mt-1 text-neutral-300" : "text-neutral-100")}>
+                        {it.info}
+                      </div>
+                    </div>
                   );
                 }
 

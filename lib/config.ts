@@ -169,6 +169,7 @@ function toConfigKey(field: string): string {
     "Google Review URL": "googleReviewUrl",
     "Tripadvisor URL": "tripadvisorUrl",
     "Booking URL": "bookingUrl",
+    "Hotel Info CSV URL": "hotelInfoCsvUrl",
     lateCheckoutInfo: "lateCheckoutInfo",
     wakeUpSlots: "wakeUpSlots",
     minibarNotice: "minibarNotice",
@@ -268,6 +269,49 @@ function toI18n(rows: Record<string, string>[]): Record<string, Record<string, s
   return out;
 }
 
+function parseHotelInfoRows(rows: Record<string, string>[]): Array<{
+  key: string;
+  category?: string;
+  sortOrder?: number;
+  icon?: string;
+  active?: boolean;
+  title: Record<string, string>;
+  text: Record<string, string>;
+}> {
+  return rows
+    .map((row) => {
+      const key = readCell(row, ["Key", "key", "KEY", "Id", "id"]);
+      const category = readCell(row, ["Category", "category"]);
+      const sortValue = readCell(row, ["Sort", "sort", "Sort Order", "sort_order", "sortOrder"]);
+      const icon = readCell(row, ["Icon", "icon"]);
+      const activeRaw = readCell(row, ["Active", "active"]);
+
+      const title = {
+        bg: readCell(row, ["Title BG", "title_bg", "titleBg"]),
+        en: readCell(row, ["Title EN", "title_en", "titleEn"]),
+        de: readCell(row, ["Title DE", "title_de", "titleDe"]),
+      };
+
+      const text = {
+        bg: readCell(row, ["Text BG", "text_bg", "textBg"]),
+        en: readCell(row, ["Text EN", "text_en", "textEn"]),
+        de: readCell(row, ["Text DE", "text_de", "textDe"]),
+      };
+
+      return {
+        key,
+        category,
+        sortOrder: Number(sortValue || "999"),
+        icon,
+        active: !["false", "0", "no"].includes(String(activeRaw || "TRUE").trim().toLowerCase()),
+        title,
+        text,
+      };
+    })
+    .filter((item) => item.key && item.active && (item.title.bg || item.title.en || item.title.de || item.text.bg || item.text.en || item.text.de))
+    .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
+}
+
 export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | null> {
   const safeHotelSlug = String(hotelSlug || "").trim().toLowerCase() || "demo";
 
@@ -324,6 +368,9 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
   const hotelSetupConfig = parseHotelSetupRows(hotelSetupRows);
   const mergedConfig = mergeConfig(hotelSetupConfig, explicitConfig);
   const i18n = toI18n(i18nRows);
+
+  const hotelInfoUrl = pick(mergedConfig, "hotelInfoCsvUrl", process.env.GOOGLE_HOTEL_INFO_CSV ?? "");
+  const hotelInfoRows = hotelInfoUrl ? await fetchCsvOrEmpty(hotelInfoUrl) : [];
 
   const languages = pick(mergedConfig, "languages", "bg,en,de")
     .split(",")
@@ -387,6 +434,7 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     opsLanguage: (pick(mergedConfig, "opsLanguage", "bg") as LangKey) as LangKey,
     staffHelperEnabled: pick(mergedConfig, "staffHelperEnabled", "true").toLowerCase() !== "false",
     staffHelperLanguage: (pick(mergedConfig, "staffHelperLanguage", "en") as LangKey) as LangKey,
+    hotelInfoItems: parseHotelInfoRows(hotelInfoRows),
     requestDefs,
   };
 

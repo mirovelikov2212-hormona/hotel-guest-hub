@@ -142,6 +142,16 @@ export type VenueRow = {
   phone?: string;
 };
 
+export type HotelInfoItem = {
+  key: string;
+  category?: string;
+  sortOrder?: number;
+  icon?: string;
+  active?: boolean;
+  title: RequestDefTextMap;
+  text: RequestDefTextMap;
+};
+
 export type HotelConfig = {
   hotelSlug?: string;
   hotelName: string;
@@ -186,6 +196,7 @@ export type HotelConfig = {
   reviews: ReviewLinks;
 
   venueRows?: VenueRow[];
+  hotelInfoItems?: HotelInfoItem[];
   requestDefs?: RequestDef[];
 };
 
