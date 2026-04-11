@@ -6,13 +6,14 @@ type UiLang = "bg" | "en" | "de";
 
 export default function InstallAppButton({
   label,
+  lang = "bg",
 }: {
   label?: string;
+  lang?: string;
 }) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
-  const [lang, setLang] = useState<UiLang>("bg");
 
   useEffect(() => {
     const ua = window.navigator.userAgent.toLowerCase();
@@ -23,21 +24,6 @@ export default function InstallAppButton({
 
     setIsIOS(ios);
     setIsStandalone(standalone);
-
-    const rawLang =
-      document.documentElement.lang ||
-      window.navigator.language ||
-      "bg";
-
-    const normalized = rawLang.toLowerCase();
-
-    if (normalized.startsWith("de")) {
-      setLang("de");
-    } else if (normalized.startsWith("en")) {
-      setLang("en");
-    } else {
-      setLang("bg");
-    }
 
     const handler = (e: any) => {
       e.preventDefault();
@@ -58,29 +44,31 @@ export default function InstallAppButton({
 
   if (isStandalone) return null;
 
+  const resolvedLang: UiLang =
+    lang === "de" ? "de" : lang === "en" ? "en" : "bg";
+
   const iosInstallTitle =
-    lang === "de"
+    resolvedLang === "de"
       ? "Als App installieren"
-      : lang === "en"
+      : resolvedLang === "en"
         ? "Install as App"
         : "Инсталирай като App";
 
   const iosInstallHint =
-    lang === "de"
+    resolvedLang === "de"
       ? "Teilen → Zum Home-Bildschirm"
-      : lang === "en"
+      : resolvedLang === "en"
         ? "Share → Add to Home Screen"
         : "Споделяне → Добавяне към началния екран";
 
   const androidLabel =
     label ??
-    (lang === "de"
+    (resolvedLang === "de"
       ? "Als App installieren"
-      : lang === "en"
+      : resolvedLang === "en"
         ? "Install App"
         : "Инсталирай като App");
 
-  // iPhone / iPad
   if (isIOS) {
     return (
       <div className="w-full rounded-2xl bg-neutral-900/80 ring-1 ring-white/10 px-4 py-4 text-center text-white shadow-[0_8px_30px_rgba(0,0,0,0.25)]">
@@ -92,7 +80,6 @@ export default function InstallAppButton({
     );
   }
 
-  // Android / Chrome etc.
   if (deferredPrompt) {
     return (
       <button

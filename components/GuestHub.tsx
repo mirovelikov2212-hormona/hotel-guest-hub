@@ -2589,7 +2589,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       </div>
 
       <div className="mt-3 px-4">
-        <InstallAppButton label={String(tUI("install_app") || "Инсталирай приложението")} />
+        <InstallAppButton
+          lang={lang}
+          label={String(tUI("install_app") || "Инсталирай приложението")}
+        />
       </div>
 
       {/* room switch banner removed - handled only by modal */}
