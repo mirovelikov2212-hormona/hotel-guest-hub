@@ -1940,6 +1940,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     try {
       submittingRequestRef.current = true;
       recentSubmissionRef.current[signature] = now;
+
       const safeTypeLabel = cleanRequestTitle(typeLabel);
       setSubmittingRequest(true);
       setSubmittingRequestLabel(safeTypeLabel);
@@ -1968,10 +1969,13 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           departmentOverride,
         }),
       });
+
       const payload = await res.json().catch(() => null);
+
       if (!res.ok || !payload?.ok || !payload?.request) {
         throw new Error(payload?.error || "Failed to create request");
       }
+
       const created = payload.request as {
         id: string;
         room: string;
@@ -1986,6 +1990,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       });
 
       setGuestRequestRefs(nextRefs);
+
       setGuestRequests((prev) => [
         {
           id: created.id,
@@ -1997,6 +2002,27 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         },
         ...prev.filter((item) => item.id !== created.id),
       ]);
+
+      const trackedSection =
+        departmentOverride ??
+        (housekeepingRequestTypes.has(normalizedType)
+          ? "housekeeping"
+          : maintenanceRequestTypes.has(normalizedType)
+            ? "maintenance"
+            : "reception");
+
+      trackHubEvent({
+        eventName: "request_submitted",
+        roomNumber: roomValue,
+        section: trackedSection,
+        label: normalizedType,
+        value: safeTypeLabel,
+        page: window.location.pathname,
+        extra: {
+          requestId: created.id,
+          serviceTime,
+        },
+      });
 
       setShowRequestSuccess(true);
     } catch (error) {
