@@ -5,6 +5,7 @@ import type { StaffRequestType, StaffServiceTime, StaffRequestStatus } from "@/l
 import { usePathname, useSearchParams } from "next/navigation";
 import type { HotelConfig, LangKey, HubSection, DepartmentKey, HubItem, RequestDef } from "@/lib/types";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
+import { persistQrContextFromUrl, trackHubEvent } from "@/lib/trackHubEvent";
 import InstallAppButton from "@/components/InstallAppButton";
 import {
   buildWhatsAppLink,
@@ -465,6 +466,7 @@ function haversineMeters(
 
 export default function GuestHub({ config }: { config: HotelConfig }) {
   const [lang, setLang] = useState<LangKey>(config.languageDefault ?? "bg");
+  const hubOpenTrackedRef = useRef(false);
 
   const [aiQ, setAiQ] = useState("");
   const [aiAnswer, setAiAnswer] = useState("");
@@ -579,6 +581,19 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     });
     setRoomStateHydrated(true);
   }, [roomStateKey, qrRoom, ignoredQrRoom]);
+
+  useEffect(() => {
+    persistQrContextFromUrl();
+
+    if (hubOpenTrackedRef.current) return;
+    hubOpenTrackedRef.current = true;
+
+    trackHubEvent({
+      eventName: "hub_open",
+      roomNumber: null,
+      page: window.location.pathname,
+    });
+  }, []);
 
   useEffect(() => {
     if (!roomStateKey) return;
@@ -1073,6 +1088,17 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     setRoom(roomModal.nextRoom);
     setRoomConfirmed(true);
     setRoomModal(null);
+
+    window.history.replaceState(
+      {},
+      "",
+      `${window.location.pathname}?room=${encodeURIComponent(roomModal.nextRoom)}`
+    );
+    trackHubEvent({
+      eventName: "room_confirmed",
+      roomNumber: roomModal.nextRoom,
+      page: window.location.pathname,
+    });
   };
 
   const cancelRoomConfirmation = () => {
