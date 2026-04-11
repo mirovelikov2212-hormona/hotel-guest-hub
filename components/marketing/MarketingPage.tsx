@@ -1,4 +1,3 @@
-// components/marketing/MarketingPage.tsx
 "use client";
 
 import React from "react";
@@ -99,7 +98,7 @@ function BulletList({
 
 export default function MarketingPage({
   lang,
-  hubUrlExample = "/h/demo?room=101",
+  hubUrlExample = "/qr/demo?src=roomcard&code=roomcard",
   contactEmail = "sales@yourdomain.com",
   brandName = "Digital Concierge",
 }: {
@@ -113,7 +112,6 @@ export default function MarketingPage({
   const mailto = (subject: string) =>
     `mailto:${contactEmail}?subject=${encodeURIComponent(subject)}`;
 
-  // --- Theme (Modern Reliable Boutique + Lavender) ---
   const theme = {
     topbar: "bg-[#0D1B2A]/70",
     panel: "bg-white/[0.05]",
@@ -123,14 +121,11 @@ export default function MarketingPage({
     text: "text-white",
     muted: "text-slate-300",
     muted2: "text-slate-400",
-
-    // Lavender (primary accent now)
     accentBg: "bg-[#9B86BD]",
     accentText: "text-[#0D1B2A]",
     accentRing: "ring-1 ring-[#9B86BD]/35",
     accentSoft: "bg-[#9B86BD]/14",
     accentSoftRing: "ring-1 ring-[#9B86BD]/25",
-
     lavender: "text-[#9B86BD]",
   };
 
@@ -148,7 +143,6 @@ export default function MarketingPage({
         `,
       }}
     >
-      {/* ✅ FULL-PAGE VIGNETTE / EDGE FADE EFFECT */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 z-0"
@@ -160,7 +154,6 @@ export default function MarketingPage({
         }}
       />
 
-      {/* Top bar */}
       <div
         className={clsx(
           "sticky top-0 z-30 backdrop-blur relative",
@@ -181,12 +174,11 @@ export default function MarketingPage({
             </div>
             <div className="leading-tight">
               <div className="font-semibold">{brandName}</div>
-              <div className={clsx("text-xs", theme.muted2)}>QR • WhatsApp • No App</div>
+              <div className={clsx("text-xs", theme.muted2)}>QR • Guest Hub • No App</div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* ✅ FIX: Demo link */}
             <a
               href={hubUrlExample}
               className={clsx(
@@ -216,11 +208,9 @@ export default function MarketingPage({
         </div>
       </div>
 
-      {/* Hero */}
       <section className="mx-auto max-w-5xl px-4 pt-12 pb-6 relative z-10">
         <div className="grid gap-6 md:grid-cols-2 md:items-center">
           <div>
-            {/* ✅ FIX: controlled line break */}
             <h1 className="text-3xl font-semibold leading-tight md:text-4xl tracking-tight">
               {c.heroTitle.split("\n").map((line, i) => (
                 <span key={i} className="block">
@@ -229,7 +219,6 @@ export default function MarketingPage({
               ))}
             </h1>
 
-            {/* 4 lines, one under another */}
             <div className={clsx("mt-3 space-y-1.5 leading-relaxed", theme.muted)}>
               {c.heroLines.map((line, idx) => (
                 <p
@@ -274,7 +263,6 @@ export default function MarketingPage({
                 {c.navCta}
               </a>
 
-              {/* ✅ FIX: Demo link */}
               <a
                 href={hubUrlExample}
                 className={clsx(
@@ -294,7 +282,6 @@ export default function MarketingPage({
             ) : null}
           </div>
 
-          {/* Visual preview card */}
           <div className="flex md:justify-end">
             <div
               className={clsx("rounded-3xl overflow-hidden", theme.panel, theme.ringStrong)}
@@ -304,7 +291,7 @@ export default function MarketingPage({
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-white">{brandName} — Demo</div>
-                    <div className={clsx("mt-1 text-xs", theme.muted2)} />
+                    <div className={clsx("mt-1 text-xs", theme.muted2)}>Guest Hub Preview</div>
                   </div>
                   <div
                     className={clsx(
@@ -313,18 +300,18 @@ export default function MarketingPage({
                       theme.accentSoftRing
                     )}
                   >
-                    Room 101
+                    Room confirmed
                   </div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-2">
                   {[
-                    "📶 WiFi",
+                    "📶 Wi-Fi",
+                    "ℹ️ Info",
                     "🧺 Housekeeping",
                     "🛎 Reception",
                     "🛠 Maintenance",
-                    "🍽 Restaurant",
-                    "🎟 Events",
+                    "🍽 Outlets",
                   ].map((x) => (
                     <div
                       key={x}
@@ -345,7 +332,6 @@ export default function MarketingPage({
         </div>
       </section>
 
-      {/* Challenges */}
       <Section title={c.challengeTitle}>
         <div className="grid gap-3 md:grid-cols-2">
           {c.challenges.map((p) => (
@@ -365,7 +351,6 @@ export default function MarketingPage({
         </div>
       </Section>
 
-      {/* Solution */}
       <Section title={c.solutionTitle}>
         <div className="grid gap-3 md:grid-cols-2">
           {[solutionLeft, solutionRight].map((col, idx) => (
@@ -376,9 +361,8 @@ export default function MarketingPage({
         </div>
       </Section>
 
-      {/* How it works */}
       <Section title={c.howTitle} subtitle={c.howSubtitle}>
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-4">
           {c.howSteps.map((s, i) => (
             <div
               key={`${s.title}-${i}`}
@@ -391,7 +375,6 @@ export default function MarketingPage({
             >
               <div className={clsx("text-xs font-semibold", theme.muted2)}>Step {i + 1}</div>
 
-              {/* ✅ FIX: controlled line break for step titles */}
               <div className="mt-2 text-base font-semibold text-white">
                 {s.title.split("\n").map((line, idx) => (
                   <span key={idx} className="block">
@@ -406,14 +389,12 @@ export default function MarketingPage({
         </div>
       </Section>
 
-      {/* Trust */}
       <Section title={c.trustTitle} subtitle={c.trustSubtitle}>
         <div className={clsx("rounded-3xl p-5", theme.panel, theme.ring)}>
           <BulletList items={c.trustBullets} theme={theme} columns={2} />
         </div>
       </Section>
 
-      {/* Key Features */}
       <Section title={c.featuresTitle} subtitle={c.featuresSubtitle}>
         <div className="grid gap-3 md:grid-cols-3">
           {c.features.map((f) => (
@@ -433,21 +414,12 @@ export default function MarketingPage({
         </div>
       </Section>
 
-      {/* Pricing (clean layout, bottoms aligned, real separation) */}
       <Section title={c.pricingTitle} subtitle={c.pricingSubtitle}>
         <div className={clsx("rounded-3xl p-6", theme.panel, theme.ringStrong)}>
-          {/* TOP: left big card + right stacked cards */}
           <div className="grid grid-cols-12 gap-6 items-stretch">
-            {/* LEFT BIG CARD */}
             <div className="col-span-12 md:col-span-7">
               <div className={clsx("h-full rounded-2xl p-5", "bg-white/[0.06] ring-1 ring-white/10")}>
-                <div className={clsx("text-xs font-semibold", theme.muted2)}>
-                  {lang === "bg"
-                    ? ""
-                    : lang === "de"
-                      ? ""
-                      : ""}
-                </div>
+                <div className={clsx("text-xs font-semibold", theme.muted2)}></div>
 
                 <div className="mt-2 text-3xl font-semibold text-white">{c.pricingCard.price}</div>
 
@@ -462,9 +434,7 @@ export default function MarketingPage({
               </div>
             </div>
 
-            {/* RIGHT COLUMN */}
             <div className="col-span-12 md:col-span-5 flex flex-col h-full md:border-l md:border-white/10 md:pl-6">
-              {/* top right card */}
               <div className={clsx("rounded-2xl p-5 pb-9", "bg-white/[0.06] ring-1 ring-white/10")}>
                 <div className="text-sm font-semibold text-white">{c.pricingSide.title}</div>
                 <div className="mt-3">
@@ -472,13 +442,9 @@ export default function MarketingPage({
                 </div>
               </div>
 
-              {/* real gap between cards */}
               <div className="h-6 md:h-10" />
-
-              {/* push bottom card down ONLY on desktop to align bottoms */}
               <div className="hidden md:block flex-1" />
 
-              {/* bottom right card */}
               <div className={clsx("rounded-2xl p-5 pt-9", "bg-white/[0.06] ring-1 ring-white/10")}>
                 <div className="text-sm font-semibold text-white">{c.pricingImpl.title}</div>
                 <div className={clsx("mt-1 text-sm", theme.muted)}>{c.pricingImpl.text}</div>
@@ -486,7 +452,6 @@ export default function MarketingPage({
             </div>
           </div>
 
-          {/* FULL WIDTH text block under both columns */}
           <div className={clsx("mt-5 text-sm leading-relaxed", theme.muted)}>
             <div className="text-white font-semibold">{c.pricingCard.setup}</div>
 
@@ -502,7 +467,6 @@ export default function MarketingPage({
             </div>
           </div>
 
-          {/* Buttons */}
           <div className="mt-5 flex flex-wrap gap-2">
             <a
               href={mailto(`${brandName} — Pricing & demo`)}
@@ -517,7 +481,6 @@ export default function MarketingPage({
               {c.pricingCard.cta}
             </a>
 
-            {/* ✅ FIX: Demo link */}
             <a
               href={hubUrlExample}
               className={clsx(
@@ -534,12 +497,10 @@ export default function MarketingPage({
         </div>
       </Section>
 
-      {/* FAQ */}
       <Section title={c.faqTitle}>
         <Faq items={c.faqs} />
       </Section>
 
-      {/* Footer */}
       <footer className="border-t border-white/10">
         <div className="mx-auto max-w-5xl px-4 py-10 text-sm">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -554,15 +515,14 @@ export default function MarketingPage({
             </div>
           </div>
 
-          {/* ✅ Legal links */}
           <div className="mt-6 flex flex-wrap gap-6 text-sm text-slate-400">
             <a href="/impressum" className="underline hover:text-white transition">Impressum</a>
             <a href="/datenschutz" className="underline hover:text-white transition">Datenschutz</a>
             <a href="/agb" className="underline hover:text-white transition">AGB</a>
           </div>
         </div>
-    </footer>
-  </main>
+      </footer>
+    </main>
   );
 }
 
@@ -572,113 +532,120 @@ function getCopy(lang: Lang): Copy {
       navDemo: "Виж демо",
       navCta: "Искам оферта",
 
-      heroTitle: "Дигитален консиерж,\nкойто решава проблеми.",
+      heroTitle: "Дигитален консиерж,\nкойто решава реални хотелски проблеми.",
       heroLines: [
-        "Гостът сканира QR кода от картата и избира услуга.",
-        "Заявката отива към съответния отдел през WhatsApp.",
-        "Гостът остава доволен и оставя положителна рецензия.",
-        "No app. No training. Works with WhatsApp.",
+        "Гостът сканира един общ QR код и потвърждава стаята си.",
+        "Заявката отива директно към правилния отдел в системата.",
+        "Персоналът работи в отделни staff екрани, а мениджърът вижда всичко.",
+        "No app. Един ясен flow. Реални KPI за хотела.",
       ],
-      heroBadges: ["No App", "WhatsApp", "Multi-language", "Department routing"],
+      heroBadges: ["One Shared QR", "No App", "Multi-language", "Department Routing"],
 
       challengeTitle: "Ежедневни предизвикателства в хотела",
       challenges: [
         {
           title: "Претоварена рецепция",
-          text: "Дребни заявки прекъсват работата по резервации, отчети и контрол - а заетостта в хотела зависи от скоростта на реакция.",
+          text: "Малки заявки прекъсват резервации, продажби, отчети и контрол. Това бави целия хотел.",
         },
         {
-          title: "Хиляди въпроси от гостите",
-          text: "„Само една хавлия“ е малка заявка, но забавянето води до оплакване. Скоростта е част от преживяването.",
+          title: "Бавна вътрешна координация",
+          text: "Когато една заявка минава през няколко човека, губят се време, приоритет и яснота.",
         },
         {
-          title: "Затруднена комуникация между отделите",
-          text: "Когато заявката мине през няколко човека — губи се време, приоритети и концентрация.",
+          title: "Липса на видимост",
+          text: "Мениджърът често не вижда навреме колко заявки има, къде се бавят и кой отдел е претоварен.",
         },
         {
-          title: "Мултиезикови различия",
-          text: "Има езикови и културни бариери между интернационален персонал, местен мениджмънт и гости на хотела.",
+          title: "Разнородни гости и екипи",
+          text: "Гостите очакват бързина и удобство, а персоналът има нужда от ясен и прост работен поток.",
         },
       ],
 
       solutionTitle: "Как помага дигиталният консиерж?",
       solutionBullets: [
-        "Намалява натовареността на рецепцията през деня.",
-        "Заявките на гостите се изпращат директно към съответния отдел.",
-        "Съкращава времето за обработка на заявките на гостите.",
-        "Говори на езика на гостите чрез мултиезично меню + оперативен език за персонала.",
-        "Лесен за използване - всички секции са ясни и разбираеми.",
-        "WhatsApp се отваря с готов текст + номер на стая — без свободен чат и без объркване.",
-        "Извън работно време за определен отдел, заявката се пренасочва към рецепция + гостът получава уведомление.",
-        "Ресторантски резервации: няма изпращане без дата, час, брой хора и повод.",
-        "Показва всички възможни атракции в района на хотела.",
-        "Дава информация за всички мероприятия за деня или седмицата.",
-        "Дава възможност за незабавна рецензия в големите платформи - Google, Booking, Tripadvisor.",
+        "Намалява натоварването на рецепцията в ежедневната работа.",
+        "Изпраща гостовите заявки към правилния отдел в структуриран формат.",
+        "Съкращава времето за реакция и изпълнение.",
+        "Позволява на госта да използва хъба на своя език.",
+        "Дава на staff екипа прост и ясен работен flow.",
+        "Мениджърът вижда всички заявки и техните статуси на едно място.",
+        "Работи с един общ QR код за всички стаи.",
+        "Гостът потвърждава стаята си в самия хъб — без нужда от отделен QR за всяка стая.",
+        "Поддържа хотелска информация, Wi-Fi, аутлети и резервационни точки.",
+        "Позволява събиране на KPI: сканирания, потвърдени стаи, заявки, завършени заявки.",
+        "Работи без app download — директно от браузъра.",
       ],
 
-      howTitle: "Как работи дигиталния консиерж?",
-      howSubtitle: "Дигиталния консиерж е връзката между оперативните процеси и обслужването на гостите.",
+      howTitle: "Как работи StayHub?",
+      howSubtitle: "Един ясен гостов flow и отделни работни екрани за персонала.",
       howSteps: [
         {
-          title: "Гостът сканира QR кода \nна картата с номера на стаята си",
-          text: "Показват се ясни и точни отдели, контакти, работни часове, услуги, езици.",
+          title: "Гостът сканира \nедин общ QR код",
+          text: "Не е нужен отделен QR код за всяка стая. Гостът отваря хъба от общия код.",
         },
         {
-          title: "Гостът избира секция \nи услугата, от която има нужда",
-          text: "Във всяка секция са описани услугите и допълнителна информация за всеки отдел",
+          title: "Гостът потвърждава \nсвоята стая",
+          text: "Стаята се записва за устройството и всички следващи действия се отчитат към нея.",
         },
         {
-          title: "Информацията се изпраща през WhatsApp към точния отдел",
-          text: "Съобщението е ясно и точно според услугата и езика на персонала",
+          title: "Гостът подава \nструктурирана заявка",
+          text: "Хавлии, поддръжка, рецепция, минибар, късен check-out и други — според логиката на хотела.",
+        },
+        {
+          title: "Правилният отдел \nобработва заявката",
+          text: "Housekeeping, maintenance, reception и manager виждат точните заявки и работят по статуси.",
         },
       ],
 
       trustTitle: "Защо работи в реален хотел",
       trustSubtitle:
-        "Не добавяме „още един софтуер“. Даваме прост процес и ясни заявки, които стигат навреме.",
+        "Не добавяме хаос. Даваме прост guest flow, ясен staff flow и реална видимост за мениджмънта.",
       trustBullets: [
-        "Познато за екипа: WhatsApp Messenger вместо нова система за обучение.",
-        "Стандартизирани заявки → по-малко грешки и по-малко повторения.",
-        "Отделите не се „гонят“ по телефона — получават точна заявка с номер на стая.",
-        "Може да се настройва по хотел: услуги, езици, работни часове, секции.",
+        "Един общ QR код вместо печат и поддръжка на код за всяка стая.",
+        "Структурирани заявки вместо свободен чат и устни предавания.",
+        "Всеки отдел вижда само своята работа, а мениджърът вижда цялата картина.",
+        "Подходящо за сезонни и целогодишни хотели.",
       ],
 
       featuresTitle: "Ключови функции",
       featuresSubtitle:
-        "Функции, които влияят на скоростта на обслужване и на качеството на комуникацията в хотела.",
+        "Функции, които влияят директно на скоростта на обслужване и на вътрешната организация.",
       features: [
         {
-          title: "Routing по отдели и работно време",
-          text: "Настройваме часовете. Ако отделът е затворен, системата прехвърля към рецепция и информира госта веднага.",
+          title: "Guest Hub",
+          text: "QR отваряне, потвърждение на стая, Wi-Fi, инфо секция, отдели, аутлети и заявки от телефона на госта.",
         },
         {
-          title: "Мултиезичност + оперативен език",
-          text: "Гостът ползва хъба на своя език. Съобщението към персонала пристига на езика на хотела.",
+          title: "Staff Hub",
+          text: "Отделни PIN защитени екрани за reception, housekeeping и maintenance със статуси и известия.",
         },
         {
-          title: "Контрол на заявки",
-          text: "Бутоните държат процеса чист и предвидим както за госта, така и за персонала.",
+          title: "Manager Visibility",
+          text: "Мениджърски екран с видимост върху всички заявки, натоварване по отдели и KPI база за отчети.",
         },
       ],
 
       pricingTitle: "Цена",
-      pricingSubtitle: "Финалната оферта се напасва само според броя стаи и физическите QR карти.",
+      pricingSubtitle: "Офертата зависи от мащаба на хотела и нивото на внедряване.",
+
       pricingCard: {
-        price: "€99 / месец",
-        setup: "Setup: €299 (еднократно) — настройка, демо, внедряване.",
+        price: "от €99 / месец",
+        setup: "Setup: според хотел, данни, конфигурация, секции и внедряване.",
         includesTitle: "Какво включва",
         includes: [
-          "Хъб за хотела (мултиезичен) + ваш брандинг",
-          "QR линкове с номер на стая в URL",
-          "Персонално настройване на отдели, работно време, автоматично пренасочване към рецепция",
-          "Поддръжка на текстове по отдели според стандартите на хотела",
-          "Седмичен отчет за клиентско взаимодействие ",
+          "Guest hub с брандинг на хотела",
+          "One shared QR flow с потвърждение на стая",
+          "Staff hubs за reception, housekeeping и maintenance",
+          "Manager view",
+          "Мултиезичен интерфейс",
+          "Routing по отдели и статуси",
+          "KPI tracking основа",
         ],
-        variableLabel: "Физически QR карти:",
-        variableText: "цената се определя според броя стаи/карти (минимум 3 карти на стая).",
+        variableLabel: "Офертата се влияе от:",
+        variableText: "обхват, секции, брой outlets, request logic и ниво на настройка.",
         seasonalLines: [
-          "Сезонни хотели: има опция за пауза в месеците, когато хотелът е затворен.",
-          "Преди новия сезон — подновяване и обновяване на съдържанието по стандартна такса.",
+          "Сезонни хотели могат да работят с подходящ operational модел.",
+          "Допълнителни секции, KPI и custom логика могат да се надграждат.",
         ],
         cta: "Искам оферта",
       },
@@ -686,38 +653,56 @@ function getCopy(lang: Lang): Copy {
       pricingSide: {
         title: "Подходящо за:",
         items: [
-          "Сезонни хотели (с опция за пауза)",
-          "Спа и балнео хотели",
+          "Сезонни хотели",
+          "Спа хотели",
           "All inclusive хотели",
+          "Бутикови хотели",
           "Градски и бизнес хотели",
         ],
       },
 
       pricingImpl: {
         title: "Внедряване",
-        text: "Обичайно 10–15 работни дни след onboarding формата + материали.",
+        text: "След onboarding формата и материалите StayHub се настройва според реалната оперативна логика на хотела.",
       },
 
       faqTitle: "FAQ",
       faqs: [
         {
-          q: "За кого е продуктът?",
-          a: "За хотели, които искат по-бърза реакция към гостите, по-малко прекъсвания на рецепция и по-ясна комуникация между отделите.",
+          q: "Трябва ли отделен QR код за всяка стая?",
+          a: "Не. StayHub работи с един общ QR код. Гостът потвърждава стаята си вътре в хъба.",
         },
-        { q: "Гостът трябва ли да инсталира приложение?", a: "Не. Сканира QR кода и използва браузър + WhatsApp." },
         {
-          q: "Как се гарантира, че заявките отиват към правилния отдел?",
-          a: "Всеки бутон е обвързан с отдел. Ако отделът не работи, заявката се прехвърля към рецепция и гостът вижда уведомление веднага.",
+          q: "Трябва ли гостът да инсталира приложение?",
+          a: "Не. StayHub работи директно в браузъра и може да се добави като app shortcut.",
         },
-        { q: "Ресторантските резервации как се контролират?", a: "Не позволява изпращане без час и брой хора — събираме ги като задължителни полета." },
-        { q: "Може ли още езици освен BG/DE/EN?", a: "Да. Добавяме допълнителни езици при нужда. Оперативният език към персонала остава този, който хотелът избере." },
-        { q: "Какво включва цената €99/месец?", a: "Хостнат хъб, поддръжка, конфигурация на отдели/часове/шаблони, мултиезичност и структурирани заявки към WhatsApp." },
-        { q: "Какво е еднократният setup?", a: "Настройка на хотела, демо, структуриране на секции, правила, работни часове и подготовка за go-live." },
-        { q: "Сезонен хотел сме — може ли пауза?", a: "Да. Пауза в месеците без работа. Преди сезон правим подновяване и обновяване на съдържание по стандартна такса." },
-        { q: "Колко време отнема внедряването?", a: "Обичайно 3–5 работни дни след onboarding формата и получени материали (лого, контакти, часове, услуги)." },
+        {
+          q: "Как заявките стигат до правилния отдел?",
+          a: "Всяка заявка е свързана с конкретен отдел и влиза в базата данни. Staff hub-овете показват правилните заявки по отдел.",
+        },
+        {
+          q: "Какво вижда мениджърът?",
+          a: "Мениджърът вижда всички заявки, статусите им и KPI база за натоварване и реакция.",
+        },
+        {
+          q: "Работи ли с един общ телефонен номер?",
+          a: "Да. StayHub не разчита на телефонните номера за routing на заявките. Routing-ът е database-driven.",
+        },
+        {
+          q: "Може ли хотелът да има собствена инфо секция?",
+          a: "Да. Могат да се показват закуска, басейн, СПА, паркинг, Wi-Fi, emergency информация и други важни guest info блокове.",
+        },
+        {
+          q: "Какви KPI се отчитат?",
+          a: "Могат да се отчитат QR scans, hub open, room confirmed, request submitted, staff status updates и други събития.",
+        },
+        {
+          q: "Може ли да се надгражда?",
+          a: "Да. Могат да се добавят нови секции, нови request logic сценарии, нови KPI и допълнителни integrations.",
+        },
       ],
-      
-      footerTagline: "дигитална система за по-бързо обслужване на гостите в хотела.",
+
+      footerTagline: "дигитална система за по-бърз и ясен хотелски guest flow.",
       footerNote: "",
     };
   }
@@ -727,332 +712,356 @@ function getCopy(lang: Lang): Copy {
       navDemo: "Demo ansehen",
       navCta: "Angebot anfragen",
 
-      heroTitle: "Digitaler Concierge,\nder Probleme löst.",
+      heroTitle: "Ein digitaler Concierge,\nder echte Hotelprobleme löst.",
       heroLines: [
-        "Der Gast scannt den QR-Code auf der Karte und wählt eine Leistung.",
-        "Die Anfrage geht per WhatsApp direkt an die richtige Abteilung.",
-        "Der Gast ist zufrieden und hinterlässt eine positive Bewertung.",
-        "No app. No training. Works with WhatsApp.",
+        "Der Gast scannt einen gemeinsamen QR-Code und bestätigt sein Zimmer.",
+        "Die Anfrage geht direkt an die richtige Abteilung im System.",
+        "Das Team arbeitet in getrennten Staff-Screens und das Management sieht alles.",
+        "Keine App. Ein klarer Flow. Reale KPI für das Hotel.",
       ],
-      heroBadges: ["Keine App", "WhatsApp", "Mehrsprachig", "Abteilungs-Routing"],
+      heroBadges: ["One Shared QR", "Keine App", "Mehrsprachig", "Department Routing"],
 
       challengeTitle: "Tägliche Herausforderungen im Hotel",
       challenges: [
         {
           title: "Überlastete Rezeption",
-          text: "Kleinanfragen unterbrechen Reservierungen, Reporting und Kontrolle – dabei hängt die Auslastung stark von der Reaktionsgeschwindigkeit ab.",
+          text: "Kleine Gästeanfragen unterbrechen Reservierungen, Verkauf, Reporting und operative Kontrolle.",
         },
         {
-          title: "Tausende Fragen von Gästen",
-          text: "„Nur ein Handtuch“ ist klein – aber Verzögerungen werden schnell zu Beschwerden. Geschwindigkeit ist Teil der Guest Experience.",
+          title: "Langsame interne Koordination",
+          text: "Wenn eine Anfrage durch mehrere Personen geht, gehen Zeit, Priorität und Klarheit verloren.",
         },
         {
-          title: "Schwierige Kommunikation zwischen Abteilungen",
-          text: "Wenn eine Anfrage durch mehrere Personen läuft, geht Zeit verloren – und oft auch Priorität und Fokus.",
+          title: "Fehlende Sichtbarkeit",
+          text: "Das Management sieht oft zu spät, wie viele Anfragen offen sind, wo sich etwas staut und welche Abteilung überlastet ist.",
         },
         {
-          title: "Mehrsprachigkeit & Kulturunterschiede",
-          text: "Sprach- und Kulturbarrieren zwischen internationalem Team, lokalem Management und Hotelgästen sorgen für Reibung.",
+          title: "Unterschiedliche Gäste und Teams",
+          text: "Gäste erwarten Schnelligkeit und Einfachheit, während das Team einen klaren und einfachen Arbeitsfluss braucht.",
         },
       ],
 
       solutionTitle: "Wie hilft der digitale Concierge?",
       solutionBullets: [
         "Entlastet die Rezeption im Tagesgeschäft.",
-        "Gästeanfragen gehen direkt an die zuständige Abteilung.",
-        "Verkürzt die Bearbeitungszeit von Requests spürbar.",
-        "Spricht die Sprache der Gäste (mehrsprachiges Menü) + operative Sprache fürs Team.",
-        "Einfach zu nutzen – alle Bereiche sind klar und verständlich.",
-        "WhatsApp öffnet sich mit fertigem Text + Zimmernummer – kein freier Chat, kein Chaos.",
-        "Außerhalb der Arbeitszeit einer Abteilung: Weiterleitung zur Rezeption + Hinweis an den Gast.",
-        "Restaurant-Reservierungen: kein Senden ohne Datum, Uhrzeit, Personenzahl und Anlass.",
-        "Zeigt mögliche Attraktionen in der Umgebung des Hotels.",
-        "Informiert über Events für den Tag oder die Woche.",
-        "Ermöglicht sofortige Bewertungen auf großen Plattformen: Google, Booking, Tripadvisor.",
+        "Leitet Gästeanfragen strukturiert an die richtige Abteilung weiter.",
+        "Verkürzt Reaktions- und Bearbeitungszeiten.",
+        "Erlaubt dem Gast die Nutzung in seiner Sprache.",
+        "Gibt dem Team einen klaren Staff-Flow.",
+        "Das Management sieht alle Anfragen und Status an einem Ort.",
+        "Arbeitet mit einem gemeinsamen QR-Code für alle Zimmer.",
+        "Der Gast bestätigt sein Zimmer direkt im Hub — kein eigener QR-Code pro Zimmer nötig.",
+        "Unterstützt Hotelinformationen, Wi-Fi, Outlets und Reservierungspunkte.",
+        "Ermöglicht KPI-Erfassung: Scans, bestätigte Zimmer, Requests, erledigte Requests.",
+        "Funktioniert direkt im Browser — ohne App-Download.",
       ],
 
-      howTitle: "Wie funktioniert der digitale Concierge?",
-      howSubtitle: "Der digitale Concierge verbindet operative Abläufe mit dem Gästeservice – simpel und messbar.",
+      howTitle: "Wie funktioniert StayHub?",
+      howSubtitle: "Ein klarer Gästefluss und getrennte Arbeitsoberflächen für das Hotelteam.",
       howSteps: [
         {
-          title: "Der Gast scannt den QR-Code \nauf der Karte mit seiner Zimmernummer",
-          text: "Er sieht klare Bereiche, Kontakte, Öffnungszeiten, Services, Sprachen.",
+          title: "Der Gast scannt \neinen gemeinsamen QR-Code",
+          text: "Es ist kein separater QR-Code pro Zimmer nötig. Der Gast öffnet den Hub über einen gemeinsamen Code.",
         },
         {
-          title: "Der Gast wählt den Bereich \nund die gewünschte Leistung",
-          text: "Jeder Bereich enthält passende Optionen und zusätzliche Infos pro Abteilung.",
+          title: "Der Gast bestätigt \nsein Zimmer",
+          text: "Das Zimmer wird für dieses Gerät gespeichert und alle weiteren Aktionen werden diesem Zimmer zugeordnet.",
         },
         {
-          title: "Die Information wird per WhatsApp \nan die richtige Abteilung gesendet",
-          text: "Die Nachricht ist standardisiert – klar, vollständig und in der operativen Hotelsprache.",
+          title: "Der Gast sendet \neine strukturierte Anfrage",
+          text: "Handtücher, Wartung, Rezeption, Minibar, Late Check-out und weitere Services — abhängig von der Hotellogik.",
+        },
+        {
+          title: "Die richtige Abteilung \nbearbeitet die Anfrage",
+          text: "Housekeeping, Maintenance, Reception und Manager sehen die passenden Anfragen und Statusänderungen.",
         },
       ],
 
-      trustTitle: "Warum es im echten Hotel funktioniert",
+      trustTitle: "Warum es in echten Hotels funktioniert",
       trustSubtitle:
-        "Wir fügen nicht „noch eine Software“ hinzu. Wir liefern einen einfachen Prozess und klare Requests, die pünktlich ankommen.",
+        "Wir bringen keinen neuen Chaos-Kanal. Wir liefern einen klaren Gäste-Flow, einen klaren Staff-Flow und echte Management-Sichtbarkeit.",
       trustBullets: [
-        "Vertraut fürs Team: WhatsApp statt neues System mit Schulungsaufwand.",
-        "Standardisierte Requests → weniger Fehler, weniger Rückfragen.",
-        "Abteilungen bekommen klare Requests mit Zimmernummer – kein Telefon-Ping-Pong.",
-        "Pro Hotel konfigurierbar: Services, Sprachen, Arbeitszeiten, Sektionen.",
+        "Ein gemeinsamer QR-Code statt Druck und Pflege eines Codes pro Zimmer.",
+        "Strukturierte Anfragen statt freiem Chat und mündlicher Weitergabe.",
+        "Jede Abteilung sieht ihre Arbeit, das Management sieht das Gesamtbild.",
+        "Geeignet für saisonale und ganzjährig geöffnete Hotels.",
       ],
 
       featuresTitle: "Schlüsselfunktionen",
       featuresSubtitle:
-        "Funktionen, die Reaktionszeit verbessern und die Qualität der internen Kommunikation im Hotel erhöhen.",
+        "Funktionen, die Reaktionsgeschwindigkeit und interne Organisation direkt verbessern.",
       features: [
         {
-          title: "Routing nach Abteilung & Arbeitszeiten",
-          text: "Wir setzen Zeiten. Wenn eine Abteilung geschlossen ist, wird automatisch zur Rezeption geroutet und der Gast sofort informiert.",
+          title: "Guest Hub",
+          text: "QR-Öffnung, Zimmerbestätigung, Wi-Fi, Info-Bereich, Abteilungen, Outlets und Gästeanfragen direkt vom Telefon des Gastes.",
         },
         {
-          title: "Mehrsprachig + operative Sprache",
-          text: "Der Gast nutzt den Hub in seiner Sprache. Die Nachricht ans Team kommt in der Hotelsprache an.",
+          title: "Staff Hub",
+          text: "Getrennte PIN-geschützte Screens für Reception, Housekeeping und Maintenance mit Statuslogik und Benachrichtigungen.",
         },
         {
-          title: "Kontrollierte Requests",
-          text: "Buttons und Pflichtfelder halten den Prozess sauber und vorhersehbar – für Gast und Team.",
+          title: "Manager Visibility",
+          text: "Manager-Screen mit Sicht auf alle Anfragen, Abteilungsbelastung und KPI-Basis für Auswertung.",
         },
       ],
 
       pricingTitle: "Preis",
-      pricingSubtitle: "Das finale Angebot richtet sich nur nach Zimmeranzahl und physischen QR-Karten.",
+      pricingSubtitle: "Das Angebot hängt von Hotelgröße und Umsetzungsumfang ab.",
+
       pricingCard: {
-        price: "€99 / Monat",
-        setup: "Setup: €299 (einmalig) — Einrichtung, Demo, Implementierung.",
-        includesTitle: "Enthalten",
+        price: "ab €99 / Monat",
+        setup: "Setup: je nach Hotel, Daten, Konfiguration, Sektionen und Implementierung.",
+        includesTitle: "Was enthalten ist",
         includes: [
-          "Hotel-Hub (mehrsprachig) + Ihr Branding",
-          "QR-Links mit Zimmernummer in der URL",
-          "Individuelle Einrichtung von Abteilungen, Arbeitszeiten, automatischem Routing zur Rezeption",
-          "Pflege der Abteilungstexte nach Ihren Hotel-Standards",
-          "Wöchentlicher Report zur Guest-Interaktion",
+          "Guest Hub mit Hotel-Branding",
+          "One shared QR Flow mit Zimmerbestätigung",
+          "Staff Hubs für Reception, Housekeeping und Maintenance",
+          "Manager View",
+          "Mehrsprachige Oberfläche",
+          "Abteilungsrouting und Status-Flow",
+          "KPI-Tracking-Basis",
         ],
-        variableLabel: "Physische QR-Karten:",
-        variableText: "Preis nach Zimmern/Karten (mind. 3 Karten pro Zimmer).",
+        variableLabel: "Das Angebot hängt ab von:",
+        variableText: "Umfang, Sektionen, Anzahl der Outlets, Request-Logik und Grad der Individualisierung.",
         seasonalLines: [
-          "Saisonhotels: Pause in Monaten möglich, in denen das Hotel geschlossen ist.",
-          "Vor Saisonstart: Reaktivierung + Content-Update gegen Standardgebühr.",
+          "Saisonhotels können mit passendem Betriebsmodell arbeiten.",
+          "Zusätzliche Sektionen, KPI und Custom-Logik können später erweitert werden.",
         ],
         cta: "Angebot anfragen",
       },
 
       pricingSide: {
         title: "Geeignet für:",
-        items: ["Saisonhotels (mit Pause-Option)", "Spa- & Wellnesshotels", "All-Inclusive-Hotels", "City- & Businesshotels"],
+        items: [
+          "Saisonhotels",
+          "Spa-Hotels",
+          "All-Inclusive-Hotels",
+          "Boutique-Hotels",
+          "Stadt- und Businesshotels",
+        ],
       },
 
       pricingImpl: {
         title: "Implementierung",
-        text: "Üblich: 10–15 Werktage nach Onboarding-Formular + Materialien.",
+        text: "Nach Onboarding und gelieferten Materialien wird StayHub an die reale operative Logik des Hotels angepasst.",
       },
 
       faqTitle: "FAQ",
       faqs: [
         {
-          q: "Für wen ist das Produkt?",
-          a: "Für Hotels, die schneller reagieren wollen, weniger Unterbrechungen an der Rezeption brauchen und eine klare Abteilungs-Kommunikation möchten.",
-        },
-        { q: "Muss der Gast eine App installieren?", a: "Nein. QR scannen → Browser → WhatsApp." },
-        {
-          q: "Wie wird sichergestellt, dass Requests zur richtigen Abteilung gehen?",
-          a: "Jeder Button ist einer Abteilung zugeordnet. Wenn die Abteilung nicht arbeitet, wird automatisch zur Rezeption geroutet und der Gast sieht sofort einen Hinweis.",
+          q: "Braucht jedes Zimmer einen eigenen QR-Code?",
+          a: "Nein. StayHub arbeitet mit einem gemeinsamen QR-Code. Der Gast bestätigt sein Zimmer direkt im Hub.",
         },
         {
-          q: "Wie werden Restaurant-Reservierungen kontrolliert?",
-          a: "Kein Senden ohne Uhrzeit und Personenzahl – wir erfassen sie als Pflichtfelder.",
+          q: "Muss der Gast eine App installieren?",
+          a: "Nein. StayHub läuft direkt im Browser und kann als App-Shortcut hinzugefügt werden.",
         },
         {
-          q: "Sind weitere Sprachen außer BG/DE/EN möglich?",
-          a: "Ja. Wir fügen weitere Sprachen hinzu. Die operative Sprache für das Team bleibt die, die das Hotel festlegt.",
+          q: "Wie gelangen Anfragen zur richtigen Abteilung?",
+          a: "Jede Anfrage ist mit einer Abteilung verbunden und wird in der Datenbank gespeichert. Die Staff-Hubs zeigen die richtigen Anfragen pro Abteilung.",
         },
         {
-          q: "Was ist in €99/Monat enthalten?",
-          a: "Gehosteter Hub, Support, Konfiguration von Abteilungen/Zeiten/Templates, Mehrsprachigkeit und strukturierte WhatsApp-Requests.",
+          q: "Was sieht das Management?",
+          a: "Das Management sieht alle Anfragen, ihre Status und eine KPI-Basis für Auslastung und Reaktionsfluss.",
         },
         {
-          q: "Was ist das einmalige Setup?",
-          a: "Einrichtung des Hotels, Demo, Strukturierung der Sektionen, Regeln, Arbeitszeiten und Vorbereitung für Go-Live.",
+          q: "Funktioniert es auch mit einer gemeinsamen Telefonnummer?",
+          a: "Ja. StayHub nutzt keine Telefonnummern für das eigentliche Routing der Requests. Das Routing ist datenbankgesteuert.",
         },
         {
-          q: "Wir sind ein Saisonhotel – ist eine Pause möglich?",
-          a: "Ja. Pause in Monaten ohne Betrieb. Vor Saisonstart machen wir Reaktivierung und Content-Update gegen Standardgebühr.",
+          q: "Kann das Hotel einen eigenen Info-Bereich haben?",
+          a: "Ja. Frühstück, Pool, Spa, Parken, Wi-Fi, Notfallinformationen und andere Gastinfos können angezeigt werden.",
         },
         {
-          q: "Wie lange dauert die Implementierung?",
-          a: "Üblich: 10–15 Werktage nach Onboarding-Formular und Materialien (Logo, Kontakte, Zeiten, Services).",
+          q: "Welche KPI können erfasst werden?",
+          a: "Zum Beispiel QR-Scans, Hub Open, Room Confirmed, Request Submitted, Staff-Statuswechsel und weitere Ereignisse.",
+        },
+        {
+          q: "Kann das System später erweitert werden?",
+          a: "Ja. Neue Sektionen, neue Request-Logik, neue KPI und weitere Integrationen können ergänzt werden.",
         },
       ],
 
-      footerTagline: "schneller digitaler Gästeservice.",
+      footerTagline: "digitale Lösung für einen schnelleren und klareren Hotel-Gästefluss.",
       footerNote: "",
     };
   }
 
-  // EN
   return {
     navDemo: "View demo",
     navCta: "Request quote",
 
-    heroTitle: "A digital concierge\nthat solves problems.",
+    heroTitle: "A digital concierge\nthat solves real hotel problems.",
     heroLines: [
-      "Guests scan the QR code on the card and choose a service.",
-      "The request goes to the right department via WhatsApp.",
-      "Guests stay happy and leave a positive review.",
-      "No app. No training. Works with WhatsApp.",
+      "Guests scan one shared QR code and confirm their room.",
+      "Requests go directly to the right department inside the system.",
+      "Staff works in separate role-based screens and management sees everything.",
+      "No app. One clear flow. Real KPI for the hotel.",
     ],
-    heroBadges: ["No App", "WhatsApp", "Multi-language", "Department routing"],
+    heroBadges: ["One Shared QR", "No App", "Multi-language", "Department Routing"],
 
-    challengeTitle: "Everyday challenges in a hotel",
+    challengeTitle: "Everyday hotel challenges",
     challenges: [
       {
         title: "Overloaded reception",
-        text: "Small requests interrupt reservations, reporting and control — and occupancy depends on response speed.",
+        text: "Small guest requests interrupt reservations, sales, reporting and operational control.",
       },
       {
-        title: "Thousands of guest questions",
-        text: "“Just one towel” is small, but delays turn into complaints. Speed is part of the experience.",
+        title: "Slow internal coordination",
+        text: "When one request moves through several people, time, priority and clarity are lost.",
       },
       {
-        title: "Hard communication between departments",
-        text: "When a request passes through multiple people, you lose time, priority and focus.",
+        title: "Lack of visibility",
+        text: "Management often sees too late how many requests are open, where delays happen and which department is overloaded.",
       },
       {
-        title: "Language & cultural differences",
-        text: "Language and cultural barriers between international staff, local management and hotel guests create friction.",
+        title: "Different guest and staff needs",
+        text: "Guests expect speed and simplicity, while staff needs a clear and easy operational flow.",
       },
     ],
 
     solutionTitle: "How does the digital concierge help?",
     solutionBullets: [
-      "Reduces reception workload during the day.",
-      "Guest requests go directly to the correct department.",
-      "Cuts down request handling time significantly.",
-      "Speaks the guest’s language (multi-language menu) + an operating language for staff.",
-      "Easy to use — all sections are clear and understandable.",
-      "WhatsApp opens with ready text + room number — no free chat and no confusion.",
-      "Outside a department’s working hours, requests route to reception and the guest gets notified.",
-      "Restaurant reservations: no sending without date, time, party size and occasion.",
-      "Shows available attractions in the hotel area.",
-      "Provides information about events for the day or the week.",
-      "Enables instant reviews on major platforms: Google, Booking, Tripadvisor.",
+      "Reduces daily reception workload.",
+      "Routes guest requests to the correct department in a structured format.",
+      "Shortens response and handling time.",
+      "Lets guests use the hub in their own language.",
+      "Gives staff a clear and simple operational flow.",
+      "Manager sees all requests and statuses in one place.",
+      "Works with one shared QR code for all rooms.",
+      "Guest confirms the room inside the hub — no need for a separate QR per room.",
+      "Supports hotel info, Wi-Fi, outlets and reservation points.",
+      "Allows KPI tracking for scans, confirmed rooms, requests and completed requests.",
+      "Works directly in the browser with no app download.",
     ],
 
-    howTitle: "How does the digital concierge work?",
-    howSubtitle: "The digital concierge links operations with guest service — simple, structured, and fast.",
+    howTitle: "How does StayHub work?",
+    howSubtitle: "One clear guest flow and dedicated working screens for the hotel team.",
     howSteps: [
       {
-        title: "Guest scans the QR code \non the card with their room number",
-        text: "They see clear departments, contacts, opening hours, services, and languages.",
+        title: "Guest scans \none shared QR code",
+        text: "There is no need for a separate QR per room. The guest opens the hub from a shared code.",
       },
       {
-        title: "Guest selects a section \nand the service they need",
-        text: "Each section contains the right options and extra information for that department.",
+        title: "Guest confirms \nthe room",
+        text: "The room is stored for that device and all next actions are linked to it.",
       },
       {
-        title: "Info is sent via WhatsApp \nto the correct department",
-        text: "The message is standardized — clear, complete, and in the hotel’s operating language.",
+        title: "Guest submits \na structured request",
+        text: "Towels, maintenance, reception, minibar, late checkout and more — based on the hotel’s own logic.",
+      },
+      {
+        title: "The right department \nhandles the request",
+        text: "Housekeeping, maintenance, reception and manager all see the right requests and status flow.",
       },
     ],
 
     trustTitle: "Why it works in a real hotel",
     trustSubtitle:
-      "We don’t add “another software”. We deliver a simple process and clear requests that arrive on time.",
+      "We do not add more chaos. We deliver a clear guest flow, a clear staff flow and real management visibility.",
     trustBullets: [
-      "Familiar for teams: WhatsApp instead of a new system to learn.",
-      "Standardized requests → fewer mistakes and fewer follow-up questions.",
-      "Departments get a clear request with room number — no phone ping-pong.",
-      "Configurable per hotel: services, languages, working hours, sections.",
+      "One shared QR code instead of printing and managing one code per room.",
+      "Structured requests instead of free chat and verbal handover.",
+      "Each department sees its own work, while management sees the full picture.",
+      "Suitable for both seasonal and year-round hotels.",
     ],
 
-    featuresTitle: "Key functions",
-    featuresSubtitle: "Functions that improve response speed and the quality of communication inside the hotel.",
+    featuresTitle: "Key features",
+    featuresSubtitle:
+      "Features that directly improve response speed and internal hotel organisation.",
     features: [
       {
-        title: "Routing by department and working hours",
-        text: "We set schedules. If a department is closed, the system routes to reception and informs the guest instantly.",
+        title: "Guest Hub",
+        text: "QR opening, room confirmation, Wi-Fi, info section, departments, outlets and guest requests from the guest’s phone.",
       },
       {
-        title: "Multi-language + operating language",
-        text: "Guests use the hub in their language. Staff receives messages in the hotel’s operating language.",
+        title: "Staff Hub",
+        text: "Separate PIN-protected screens for reception, housekeeping and maintenance with status handling and alerts.",
       },
       {
-        title: "Controlled requests",
-        text: "Buttons and required fields keep the process clean and predictable — for guests and staff.",
+        title: "Manager Visibility",
+        text: "Manager screen with visibility across all requests, department workload and KPI base for reporting.",
       },
     ],
 
-    pricingTitle: "Price",
-    pricingSubtitle: "The final quote depends only on room count and physical QR cards.",
+    pricingTitle: "Pricing",
+    pricingSubtitle: "The final offer depends on hotel scope and implementation level.",
+
     pricingCard: {
-      price: "€99 / month",
-      setup: "Setup: €299 (one-time) — setup, demo, implementation.",
-      includesTitle: "What’s included",
+      price: "from €99 / month",
+      setup: "Setup: depends on hotel scope, data, configuration, sections and implementation.",
+      includesTitle: "What is included",
       includes: [
-        "Hotel hub (multi-language) + your branding",
-        "QR links with room number in the URL",
-        "Custom setup of departments, working hours, automatic routing to reception",
-        "Text/content support per department based on your hotel standards",
-        "Weekly guest interaction report",
+        "Guest hub with hotel branding",
+        "One shared QR flow with room confirmation",
+        "Staff hubs for reception, housekeeping and maintenance",
+        "Manager view",
+        "Multi-language interface",
+        "Department routing and status flow",
+        "KPI tracking base",
       ],
-      variableLabel: "Physical QR cards:",
-      variableText: "priced by rooms/cards (minimum 3 cards per room).",
+      variableLabel: "The offer depends on:",
+      variableText: "scope, sections, number of outlets, request logic and customisation level.",
       seasonalLines: [
-        "Seasonal hotels: pause option during months when the hotel is closed.",
-        "Before the new season: reactivation and content updates for a standard fee.",
+        "Seasonal hotels can work with an appropriate operational model.",
+        "Additional sections, KPI and custom logic can be expanded later.",
       ],
       cta: "Request quote",
     },
 
     pricingSide: {
       title: "Best for:",
-      items: ["Seasonal hotels (pause option)", "Spa & wellness hotels", "All-inclusive hotels", "City & business hotels"],
+      items: [
+        "Seasonal hotels",
+        "Spa hotels",
+        "All-inclusive hotels",
+        "Boutique hotels",
+        "City and business hotels",
+      ],
     },
 
     pricingImpl: {
       title: "Implementation",
-      text: "Usually 10–15 business days after onboarding form + materials.",
+      text: "After onboarding and materials, StayHub is configured around the real operational logic of the hotel.",
     },
 
     faqTitle: "FAQ",
     faqs: [
       {
-        q: "Who is this for?",
-        a: "Hotels that want faster guest response, fewer reception interruptions, and clearer communication between departments.",
-      },
-      { q: "Does the guest need to install an app?", a: "No. Scan QR → browser → WhatsApp." },
-      {
-        q: "How do you ensure requests go to the right department?",
-        a: "Each button is mapped to a department. If it’s outside working hours, the request routes to reception and the guest sees a notification immediately.",
+        q: "Does each room need its own QR code?",
+        a: "No. StayHub works with one shared QR code. The guest confirms the room inside the hub.",
       },
       {
-        q: "How are restaurant reservations controlled?",
-        a: "Guests can’t send without time and number of guests — those are required fields.",
+        q: "Does the guest need to install an app?",
+        a: "No. StayHub runs directly in the browser and can be added as an app shortcut.",
       },
       {
-        q: "Can we add more languages than BG/DE/EN?",
-        a: "Yes. We can add more languages. The operating language for staff stays what the hotel chooses.",
+        q: "How do requests reach the correct department?",
+        a: "Each request is linked to a department and stored in the database. Staff hubs show the correct requests for each team.",
       },
       {
-        q: "What’s included in €99/month?",
-        a: "Hosted hub, support, department/hours/templates setup, multi-language UI, and structured WhatsApp requests.",
+        q: "What does management see?",
+        a: "Management sees all requests, their statuses and a KPI base for workload and response flow.",
       },
       {
-        q: "What is the one-time setup?",
-        a: "Hotel setup, demo, section structure, rules, working hours, and go-live preparation.",
+        q: "Can it work with one shared phone number?",
+        a: "Yes. StayHub does not depend on phone numbers for the actual routing. Routing is database-driven.",
       },
       {
-        q: "We are seasonal — can we pause?",
-        a: "Yes. Pause during off-season months. Before the season we reactivate and update content for a standard fee.",
+        q: "Can the hotel have its own info section?",
+        a: "Yes. Breakfast, pool, spa, parking, Wi-Fi, emergency and other guest info blocks can be shown.",
       },
       {
-        q: "How long does implementation take?",
-        a: "Typically 10–15 business days after the onboarding form and assets (logo, contacts, hours, services).",
+        q: "What KPI can be tracked?",
+        a: "For example QR scans, hub open, room confirmed, request submitted, staff status updates and more.",
+      },
+      {
+        q: "Can the system be expanded later?",
+        a: "Yes. New sections, new request logic, new KPI and additional integrations can be added.",
       },
     ],
 
-    footerTagline: "smart technology for faster hotel services.",
+    footerTagline: "a digital system for a faster and clearer hotel guest flow.",
     footerNote: "",
   };
 }
