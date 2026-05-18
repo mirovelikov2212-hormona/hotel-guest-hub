@@ -79,6 +79,7 @@ const COPY = {
       pool: "басейни",
       gym: "фитнес зали",
       lounge: "лаундж зони",
+      entertainment: "стая за игри",
       room_service: "room service услуги",
     },
   },
@@ -123,6 +124,7 @@ const COPY = {
       pool: "pool facilities",
       gym: "fitness facilities",
       lounge: "lounge areas",
+      entertainment: "games room",
       room_service: "room service options",
     },
   },
@@ -167,6 +169,7 @@ const COPY = {
       pool: "Poolbereiche",
       gym: "Fitnessbereiche",
       lounge: "Lounge-Bereiche",
+      entertainment: "Spielzimmer",
       room_service: "Room-Service-Angebote",
     },
   },
@@ -180,6 +183,7 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   pool: ["pool", "басейн", "басейни"],
   gym: ["gym", "fitness", "фитнес"],
   lounge: ["lounge", "лаундж"],
+  entertainment: ["entertainment", "games", "game", "games room", "игри", "игрална", "игрална зала"],
   room_service: ["room service", "roomservice", "room-service"],
 };
 
@@ -230,6 +234,7 @@ const HOTEL_KEYWORDS = [
   "spa",
   "pool",
   "kids",
+  "entertainment",
   "дет",
   "ресторан",
   "ресторанти",
@@ -311,6 +316,7 @@ function normalizeCategory(value?: string) {
   if (raw.includes("pool")) return "pool";
   if (raw.includes("gym") || raw.includes("fitness")) return "gym";
   if (raw.includes("lounge")) return "lounge";
+  if (raw.includes("entertainment") || raw.includes("games")) return "entertainment";
   if (raw.includes("room_service") || raw.includes("roomservice")) return "room_service";
 
   return raw;
