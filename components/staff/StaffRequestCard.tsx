@@ -2,10 +2,7 @@
 
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import type { StaffRequest } from "@/lib/staff/types";
-import {
-  staffDepartmentClasses,
-  staffStatusClasses,
-} from "@/lib/staff/types";
+import { staffDepartmentClasses, staffStatusClasses } from "@/lib/staff/types";
 import {
   staffText,
   translateDepartment,
@@ -19,6 +16,8 @@ type StaffRequestCardProps = {
   onStart?: (id: string) => void;
   onDone?: (id: string) => void;
   onReturn?: (id: string) => void;
+  isOverdue?: boolean;
+  overdueMinutes?: number;
 };
 
 function getStaffRequestIcon(type: string): string {
@@ -102,6 +101,15 @@ function formatRequestDateTime(iso: string, locale: string) {
   });
 }
 
+function formatOverdueText(minutes: number | undefined, locale: string) {
+  const safeMinutes = Math.max(10, Math.floor(minutes || 10));
+
+  if (locale === "bg") return `Чака ${safeMinutes} мин.`;
+  if (locale === "de") return `Wartet ${safeMinutes} Min.`;
+
+  return `Waiting ${safeMinutes} min.`;
+}
+
 export default function StaffRequestCard({
   request,
   mode,
@@ -109,14 +117,19 @@ export default function StaffRequestCard({
   onStart,
   onDone,
   onReturn,
+  isOverdue = false,
+  overdueMinutes,
 }: StaffRequestCardProps) {
   const { lang } = useStaffUi();
   const t = staffText(lang);
   const isNew = request.status === "new";
   const isInProgress = request.status === "in_progress";
+  const cardClassName = isOverdue
+    ? "rounded-3xl border border-rose-500/90 bg-rose-950/35 p-5 shadow-lg shadow-rose-500/20 ring-2 ring-rose-500/30 animate-pulse"
+    : "rounded-3xl border border-white/10 bg-white/5 p-5 shadow-sm";
 
   return (
-    <article className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-sm">
+    <article className={cardClassName}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -137,6 +150,12 @@ export default function StaffRequestCard({
             >
               {translateStaffStatus(request.status, lang)}
             </span>
+
+            {isOverdue ? (
+              <span className="rounded-full border border-rose-300/50 bg-rose-500/25 px-3 py-1 text-xs font-bold uppercase tracking-wide text-rose-50">
+                {formatOverdueText(overdueMinutes, lang)}
+              </span>
+            ) : null}
           </div>
 
           <div>
@@ -149,7 +168,8 @@ export default function StaffRequestCard({
               </h3>
             </div>
             <p className="mt-1 text-sm text-white/50">
-              {t.requestedAt} {formatRequestDateTime(request.createdAtIso, lang)}
+              {t.requestedAt}{" "}
+              {formatRequestDateTime(request.createdAtIso, lang)}
             </p>
           </div>
 

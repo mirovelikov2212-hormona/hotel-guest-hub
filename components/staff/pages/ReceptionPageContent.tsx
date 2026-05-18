@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import StaffFilterButton from "@/components/staff/StaffFilterButton";
@@ -17,6 +17,8 @@ type DepartmentFilter = "all" | StaffDepartment;
 type StatusFilter = "all" | "active" | StaffRequestStatus;
 type SortMode = "priority" | "newest" | "oldest";
 
+const RECEPTION_OVERDUE_AFTER_MINUTES = 10;
+
 const priorityOrder: Record<StaffRequestStatus, number> = {
   new: 0,
   returned: 1,
@@ -28,7 +30,27 @@ function isActiveStatus(status: StaffRequestStatus) {
   return status !== "completed";
 }
 
-function sortRequests(requests: StaffRequest[], sortMode: SortMode) {
+function getRequestAgeMinutes(request: StaffRequest, nowMs: number) {
+  const createdAtMs = new Date(request.createdAtIso).getTime();
+
+  if (!Number.isFinite(createdAtMs)) return 0;
+
+  return Math.max(0, Math.floor((nowMs - createdAtMs) / 60000));
+}
+
+function isOverdueForReception(request: StaffRequest, nowMs: number) {
+  if (request.status !== "new") return false;
+
+  return (
+    getRequestAgeMinutes(request, nowMs) >= RECEPTION_OVERDUE_AFTER_MINUTES
+  );
+}
+
+function sortRequests(
+  requests: StaffRequest[],
+  sortMode: SortMode,
+  nowMs: number,
+) {
   const next = [...requests];
 
   return next.sort((a, b) => {
@@ -41,6 +63,13 @@ function sortRequests(requests: StaffRequest[], sortMode: SortMode) {
 
     if (sortMode === "oldest") {
       return ta - tb;
+    }
+
+    const aOverdue = isOverdueForReception(a, nowMs);
+    const bOverdue = isOverdueForReception(b, nowMs);
+
+    if (aOverdue !== bOverdue) {
+      return aOverdue ? -1 : 1;
     }
 
     if (priorityOrder[a.status] !== priorityOrder[b.status]) {
@@ -60,31 +89,43 @@ function isAfterOperationsHours() {
 export default function ReceptionPage() {
   const { lang } = useStaffUi();
   const t = staffText(lang);
-  const [activeDepartment, setActiveDepartment] = useState<DepartmentFilter>("all");
+  const [activeDepartment, setActiveDepartment] =
+    useState<DepartmentFilter>("all");
   const [activeStatus, setActiveStatus] = useState<StatusFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("priority");
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 30000);
+
+    return () => window.clearInterval(interval);
+  }, []);
 
   const { getOperationalAllRequests, updateRequestStatus } = useStaffStore();
   const requests = getOperationalAllRequests();
 
   const activeRequests = useMemo(
     () => requests.filter((request) => isActiveStatus(request.status)),
-    [requests]
+    [requests],
   );
 
   const receptionActiveRequests = useMemo(
-    () => activeRequests.filter((request) => request.department === "reception"),
-    [activeRequests]
+    () =>
+      activeRequests.filter((request) => request.department === "reception"),
+    [activeRequests],
   );
 
   const otherDepartmentActiveRequests = useMemo(
-    () => activeRequests.filter((request) => request.department !== "reception"),
-    [activeRequests]
+    () =>
+      activeRequests.filter((request) => request.department !== "reception"),
+    [activeRequests],
   );
 
   const returnedRequests = useMemo(
     () => requests.filter((request) => request.status === "returned"),
-    [requests]
+    [requests],
   );
 
   const filteredRequests = useMemo(() => {
@@ -99,8 +140,8 @@ export default function ReceptionPage() {
       base = base.filter((request) => request.status === activeStatus);
     }
 
-    return sortRequests(base, sortMode);
-  }, [requests, activeDepartment, activeStatus, sortMode]);
+    return sortRequests(base, sortMode, nowMs);
+  }, [requests, activeDepartment, activeStatus, sortMode, nowMs]);
 
   const afterHours = useMemo(() => isAfterOperationsHours(), []);
 
@@ -109,21 +150,28 @@ export default function ReceptionPage() {
       filteredRequests.filter((request) => {
         if (request.department === "reception") return true;
         if (!afterHours) return false;
-        return request.department === "housekeeping" || request.department === "maintenance";
+        return (
+          request.department === "housekeeping" ||
+          request.department === "maintenance"
+        );
       }),
-    [afterHours, filteredRequests]
+    [afterHours, filteredRequests],
   );
 
   const monitoringRequests = useMemo(
     () =>
       filteredRequests.filter((request) => {
         if (request.department === "reception") return false;
-        if (afterHours && (request.department === "housekeeping" || request.department === "maintenance")) {
+        if (
+          afterHours &&
+          (request.department === "housekeeping" ||
+            request.department === "maintenance")
+        ) {
           return false;
         }
         return true;
       }),
-    [afterHours, filteredRequests]
+    [afterHours, filteredRequests],
   );
 
   return (
@@ -163,13 +211,18 @@ export default function ReceptionPage() {
         />
         <StaffSummaryCard
           label={t.inProgress}
-          value={requests.filter((request) => request.status === "in_progress").length}
+          value={
+            requests.filter((request) => request.status === "in_progress")
+              .length
+          }
           active={activeStatus === "in_progress"}
           onClick={() => setActiveStatus("in_progress")}
         />
         <StaffSummaryCard
           label={t.completed}
-          value={requests.filter((request) => request.status === "completed").length}
+          value={
+            requests.filter((request) => request.status === "completed").length
+          }
           active={activeStatus === "completed"}
           onClick={() => setActiveStatus("completed")}
         />
@@ -189,11 +242,31 @@ export default function ReceptionPage() {
               {t.departmentFilter}
             </p>
             <div className="flex flex-wrap gap-2">
-              <StaffFilterButton label={t.all} active={activeDepartment === "all"} onClick={() => setActiveDepartment("all")} />
-              <StaffFilterButton label={t.housekeeping} active={activeDepartment === "housekeeping"} onClick={() => setActiveDepartment("housekeeping")} />
-              <StaffFilterButton label={t.maintenance} active={activeDepartment === "maintenance"} onClick={() => setActiveDepartment("maintenance")} />
-              <StaffFilterButton label={t.reception} active={activeDepartment === "reception"} onClick={() => setActiveDepartment("reception")} />
-              <StaffFilterButton label={t.restaurant} active={activeDepartment === "restaurant"} onClick={() => setActiveDepartment("restaurant")} />
+              <StaffFilterButton
+                label={t.all}
+                active={activeDepartment === "all"}
+                onClick={() => setActiveDepartment("all")}
+              />
+              <StaffFilterButton
+                label={t.housekeeping}
+                active={activeDepartment === "housekeeping"}
+                onClick={() => setActiveDepartment("housekeeping")}
+              />
+              <StaffFilterButton
+                label={t.maintenance}
+                active={activeDepartment === "maintenance"}
+                onClick={() => setActiveDepartment("maintenance")}
+              />
+              <StaffFilterButton
+                label={t.reception}
+                active={activeDepartment === "reception"}
+                onClick={() => setActiveDepartment("reception")}
+              />
+              <StaffFilterButton
+                label={t.restaurant}
+                active={activeDepartment === "restaurant"}
+                onClick={() => setActiveDepartment("restaurant")}
+              />
             </div>
           </div>
 
@@ -202,9 +275,21 @@ export default function ReceptionPage() {
               {t.sort}
             </p>
             <div className="flex flex-wrap gap-2">
-              <StaffFilterButton label={t.priority} active={sortMode === "priority"} onClick={() => setSortMode("priority")} />
-              <StaffFilterButton label={t.newest} active={sortMode === "newest"} onClick={() => setSortMode("newest")} />
-              <StaffFilterButton label={t.oldest} active={sortMode === "oldest"} onClick={() => setSortMode("oldest")} />
+              <StaffFilterButton
+                label={t.priority}
+                active={sortMode === "priority"}
+                onClick={() => setSortMode("priority")}
+              />
+              <StaffFilterButton
+                label={t.newest}
+                active={sortMode === "newest"}
+                onClick={() => setSortMode("newest")}
+              />
+              <StaffFilterButton
+                label={t.oldest}
+                active={sortMode === "oldest"}
+                onClick={() => setSortMode("oldest")}
+              />
             </div>
           </div>
         </div>
@@ -215,21 +300,29 @@ export default function ReceptionPage() {
           <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-100">
             {t.receptionActions}
           </h3>
-          <p className="mt-1 text-sm text-amber-50/80">{t.receptionActionsText}</p>
+          <p className="mt-1 text-sm text-amber-50/80">
+            {t.receptionActionsText}
+          </p>
         </div>
 
         {actionableRequests.length ? (
-          actionableRequests.map((request) => (
-            <StaffRequestCard
-              key={request.id}
-              request={request}
-              mode="reception"
-              canAct
-              onStart={(id) => void updateRequestStatus(id, "in_progress")}
-              onDone={(id) => void updateRequestStatus(id, "completed")}
-              onReturn={(id) => void updateRequestStatus(id, "returned")}
-            />
-          ))
+          actionableRequests.map((request) => {
+            const requestAgeMinutes = getRequestAgeMinutes(request, nowMs);
+
+            return (
+              <StaffRequestCard
+                key={request.id}
+                request={request}
+                mode="reception"
+                canAct
+                isOverdue={isOverdueForReception(request, nowMs)}
+                overdueMinutes={requestAgeMinutes}
+                onStart={(id) => void updateRequestStatus(id, "in_progress")}
+                onDone={(id) => void updateRequestStatus(id, "completed")}
+                onReturn={(id) => void updateRequestStatus(id, "returned")}
+              />
+            );
+          })
         ) : (
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/60">
             {t.noReceptionRequests}
@@ -246,14 +339,20 @@ export default function ReceptionPage() {
         </div>
 
         {monitoringRequests.length ? (
-          monitoringRequests.map((request) => (
-            <StaffRequestCard
-              key={request.id}
-              request={request}
-              mode="reception"
-              canAct={false}
-            />
-          ))
+          monitoringRequests.map((request) => {
+            const requestAgeMinutes = getRequestAgeMinutes(request, nowMs);
+
+            return (
+              <StaffRequestCard
+                key={request.id}
+                request={request}
+                mode="reception"
+                canAct={false}
+                isOverdue={isOverdueForReception(request, nowMs)}
+                overdueMinutes={requestAgeMinutes}
+              />
+            );
+          })
         ) : (
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/60">
             {t.noMonitoringRequests}
