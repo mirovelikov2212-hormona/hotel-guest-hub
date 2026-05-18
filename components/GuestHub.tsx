@@ -31,6 +31,50 @@ function askRequired(label: string, example: string, re: RegExp, invalidMsg: str
   }
 }
 
+function timeToMinutes(value?: string) {
+  const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+
+  return hours * 60 + minutes;
+}
+
+function parseTimeRanges(value?: string) {
+  const text = String(value || "")
+    .replace(/[–—]/g, "-")
+    .replace(/\s+to\s+/gi, "-")
+    .replace(/\s+bis\s+/gi, "-")
+    .replace(/\s+до\s+/gi, "-");
+
+  const ranges: Array<{ start: number; end: number; label: string }> = [];
+  const re = /(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(text)) !== null) {
+    const start = timeToMinutes(match[1]);
+    const end = timeToMinutes(match[2]);
+    if (start === null || end === null) continue;
+    ranges.push({ start, end, label: `${match[1]} - ${match[2]}` });
+  }
+
+  return ranges;
+}
+
+function isWithinAnyTimeRange(value: string, ranges: Array<{ start: number; end: number }>) {
+  const current = timeToMinutes(value);
+  if (current === null) return false;
+
+  return ranges.some(({ start, end }) => {
+    if (start <= end) return current >= start && current <= end;
+    return current >= start || current <= end;
+  });
+}
+
 type VenueRow = {
   category?: string;
   type?: string;
@@ -50,13 +94,16 @@ type VenueRow = {
 
   requiresReservation?: boolean;
 
-  reservationType?: "whatsapp" | "phone" | "url" | "email" | "none";
+  reservationType?: "whatsapp" | "phone" | "url" | "email" | "request" | "staff" | "none";
+  reservationDepartment?: "reception" | "restaurant" | string;
   reservationUrl?: string;
   reservationPhone?: string;
   reservationWhatsapp?: string;
   reservationEmail?: string;
   reservationLabel?: string;
   reservationMessage?: string;
+  reservationAskOccasion?: boolean;
+  reservationHours?: string;
 
   programUrl?: string;
   programText?: string;
@@ -2073,14 +2120,17 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     typeLabel,
     note,
     serviceTime = "now",
+    departmentOverride: explicitDepartmentOverride,
   }: {
     type: StaffRequestType;
     typeLabel: string;
     note?: string;
     serviceTime?: StaffServiceTime;
+    departmentOverride?: "reception" | "restaurant";
   }) => {
     const roomValue = room.trim();
-    const signature = `${roomValue}::${type}`;
+    const signatureLabel = cleanRequestTitle(typeLabel).toLowerCase() || String(type || "request");
+    const signature = `${roomValue}::${type}::${signatureLabel}`;
     const now = Date.now();
     const lastAt = recentSubmissionRef.current[signature] ?? 0;
 
@@ -2105,6 +2155,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       (item) =>
         item.room === roomValue &&
         item.type === type &&
+        cleanRequestTitle(item.title).toLowerCase() === signatureLabel &&
         item.status !== "completed"
     );
 
@@ -2126,14 +2177,15 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
       const normalizedType = String(type);
 
-      const departmentOverride =
+      const departmentOverride = explicitDepartmentOverride ?? (
         serviceTime !== "tomorrow" &&
           (
             (housekeepingRequestTypes.has(normalizedType) && housekeepingRoutedToReception) ||
             (maintenanceRequestTypes.has(normalizedType) && maintenanceRoutedToReception)
           )
           ? "reception"
-          : undefined;
+          : undefined
+      );
 
       const res = await fetch("/api/guest/request-create", {
         method: "POST",
@@ -2255,6 +2307,39 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     }
   };
 
+  const getVenueReservationDepartment = (venue: VenueRow): "reception" | "restaurant" => {
+    const explicit = String(venue.reservationDepartment || "").trim().toLowerCase();
+
+    if (explicit === "restaurant") return "restaurant";
+    if (explicit === "reception") return "reception";
+
+    const category = normalizeCategory(venue);
+
+    if (category === "restaurants" || category === "bars") {
+      return "restaurant";
+    }
+
+    return "reception";
+  };
+
+  const shouldCreateStaffVenueRequest = (venue: VenueRow) => {
+    const type = String(venue.reservationType || "").trim().toLowerCase();
+    const category = normalizeCategory(venue);
+
+    if (type === "request" || type === "staff") return true;
+    if (type === "url" || type === "phone" || type === "email" || type === "whatsapp" || type === "none") return false;
+
+    // Spa, kids club, games room and pool reservations are operational requests,
+    // so they should stay inside StayHub and show the guest a confirmation.
+    return ["spa", "kids", "entertainment", "pool"].includes(category);
+  };
+
+  const getVenueReservationTitle = (venueName: string) => {
+    if (lang === "de") return `Reservierung: ${venueName}`;
+    if (lang === "en") return `Reservation: ${venueName}`;
+    return `Резервация: ${venueName}`;
+  };
+
   const sendVenueReservation = (venue: VenueRow) => {
     if (!ensureConfirmedRoom()) return;
 
@@ -2300,20 +2385,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       return;
     }
 
-    const isTimeWithinVenueHours = (value: string, open?: string, close?: string) => {
-      if (!open || !close) return true;
-
-      const toMinutes = (t: string) => {
-        const [h, m] = t.split(":").map(Number);
-        return h * 60 + m;
-      };
-
-      const current = toMinutes(value);
-      const start = toMinutes(open);
-      const end = toMinutes(close);
-
-      return current >= start && current <= end;
-    };
+    const reservationRanges = parseTimeRanges(venue.reservationHours || venue.hours);
 
     let time: string | null = null;
 
@@ -2327,66 +2399,110 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
       if (!pickedTime) return;
 
-      if (venue?.open && venue?.close) {
-        const ok = isTimeWithinVenueHours(pickedTime, venue.open, venue.close);
+      const hasReservationRanges = reservationRanges.length > 0;
+      const hasOpenClose = Boolean(venue?.open && venue?.close);
 
-        if (!ok) {
-          const hoursLabel = venue.hours || `${venue.open} - ${venue.close}`;
+      const ok = hasReservationRanges
+        ? isWithinAnyTimeRange(pickedTime, reservationRanges)
+        : hasOpenClose
+          ? isWithinAnyTimeRange(pickedTime, [
+            {
+              start: timeToMinutes(venue.open) ?? 0,
+              end: timeToMinutes(venue.close) ?? 24 * 60 - 1,
+            },
+          ])
+          : true;
 
-          alert(
-            `${String(tUI("invalid_reservation_time") || "Избраният час е извън работното време.")}\n` +
-            `${String(tUI("reservation_outside_hours") || "Работното време е: {hours}").replace(
-              "{hours}",
-              hoursLabel
-            )}`
-          );
-          continue;
-        }
+      if (!ok) {
+        const hoursLabel =
+          venue.reservationHours ||
+          venue.hours ||
+          (hasOpenClose ? `${venue.open} - ${venue.close}` : "");
+
+        alert(
+          `${String(tUI("invalid_reservation_time") || "Избраният час е извън работното време.")}
+` +
+          `${String(tUI("reservation_outside_hours") || "Работното време е: {hours}").replace(
+            "{hours}",
+            hoursLabel
+          )}`
+        );
+        continue;
       }
 
       time = pickedTime;
     }
 
-    const noOccasion = window.confirm(
-      String(
-        tUI("confirm_no_occasion") ||
-        "Има ли повод?\nOK = Без повод\nCancel = Ще напиша повод"
-      )
-    );
-
     let occasion = "";
-    if (noOccasion) {
-      occasion = String(tUI("no_occasion") || "Без повод");
-    } else {
-      occasion = (
-        window.prompt(
-          String(tUI("prompt_occasion") || "Повод (напр. рожден ден):"),
-          "Birthday"
-        ) || ""
-      ).trim();
+    const shouldAskOccasion = venue.reservationAskOccasion === true;
 
-      if (!occasion) occasion = String(tUI("no_occasion") || "Без повод");
+    if (shouldAskOccasion) {
+      const noOccasion = window.confirm(
+        String(
+          tUI("confirm_no_occasion") ||
+          "Има ли повод?\nOK = Без повод\nCancel = Ще напиша повод"
+        )
+      );
+
+      if (noOccasion) {
+        occasion = String(tUI("no_occasion") || "Без повод");
+      } else {
+        occasion = (
+          window.prompt(
+            String(tUI("prompt_occasion") || "Повод (напр. рожден ден):"),
+            "Birthday"
+          ) || ""
+        ).trim();
+
+        if (!occasion) occasion = String(tUI("no_occasion") || "Без повод");
+      }
     }
 
-    const opsMsg =
-      `${String(tOPS("restaurant_label") || "Outlet")}: ${venueName}\n` +
-      `${String(tOPS("label_people") || "Брой хора")}: ${people}\n` +
-      `${String(tOPS("label_date") || "Дата")}: ${date}\n` +
-      `${String(tOPS("label_time") || "Час")}: ${time}\n` +
-      `${String(tOPS("label_occasion") || "Повод")}: ${occasion}`;
+    const opsParts = [
+      `${String(tOPS("restaurant_label") || "Outlet")}: ${venueName}`,
+      `${String(tOPS("label_people") || "Брой хора")}: ${people}`,
+      `${String(tOPS("label_date") || "Дата")}: ${date}`,
+      `${String(tOPS("label_time") || "Час")}: ${time}`,
+    ];
 
-    const helpMsg =
-      `Outlet: ${venueName}\n` +
-      `People: ${people}\n` +
-      `Date: ${date}\n` +
-      `Time: ${time}\n` +
-      `Occasion: ${occasion}`;
+    const helpParts = [
+      `Outlet: ${venueName}`,
+      `People: ${people}`,
+      `Date: ${date}`,
+      `Time: ${time}`,
+    ];
+
+    if (shouldAskOccasion && occasion) {
+      opsParts.push(`${String(tOPS("label_occasion") || "Повод")}: ${occasion}`);
+      helpParts.push(`Occasion: ${occasion}`);
+    }
+
+    const opsMsg = opsParts.join("\n");
+    const helpMsg = helpParts.join("\n");
 
     const msg = helperEnabled
       ? `${roomPrefix}${opsMsg}\n\nEN: ${roomPrefix}${helpMsg}`
       : `${roomPrefix}${opsMsg}`;
 
     const type = String(venue.reservationType || "").trim().toLowerCase();
+
+    if (shouldCreateStaffVenueRequest(venue)) {
+      const departmentOverride = getVenueReservationDepartment(venue);
+      const requestType: StaffRequestType = departmentOverride === "restaurant"
+        ? "restaurant_reservation"
+        : "reservation_help";
+
+      void submitGuestRequest({
+        type: requestType,
+        typeLabel: getVenueReservationTitle(venueName),
+        note: helperEnabled ? `${opsMsg}
+
+EN: ${helpMsg}` : opsMsg,
+        serviceTime: "today",
+        departmentOverride,
+      });
+      return;
+    }
 
     if (type === "url" && venue.reservationUrl) {
       window.open(String(venue.reservationUrl), "_blank", "noopener,noreferrer");
@@ -2430,7 +2546,13 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
     if (type === "none") return;
 
-    const usesReservationForm = type === "whatsapp" || type === "email" || type === "phone";
+    const usesReservationForm =
+      type === "whatsapp" ||
+      type === "email" ||
+      type === "phone" ||
+      type === "request" ||
+      type === "staff" ||
+      shouldCreateStaffVenueRequest(venue);
 
     if (usesReservationForm) {
       sendVenueReservation(venue);
@@ -3433,7 +3555,7 @@ function OutletsAccordion({
         ) : null}
 
         {hoursText ? (
-          <div className="rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800">
+          <div className="rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800 whitespace-pre-line">
             <span className="font-semibold">{String(tUI("hours") || "Hours")}:</span>{" "}
             {hoursText}
           </div>

@@ -127,13 +127,16 @@ export type VenueRow = {
 
   requiresReservation?: boolean;
 
-  reservationType?: "whatsapp" | "phone" | "url" | "email" | "none";
+  reservationType?: "whatsapp" | "phone" | "url" | "email" | "request" | "staff" | "none";
+  reservationDepartment?: "reception" | "restaurant" | string;
   reservationUrl?: string;
   reservationPhone?: string;
   reservationWhatsapp?: string;
   reservationEmail?: string;
   reservationLabel?: string;
   reservationMessage?: string;
+  reservationAskOccasion?: boolean;
+  reservationHours?: string;
 
   programUrl?: string;
   programText?: string;

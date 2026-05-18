@@ -463,6 +463,8 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
         | "phone"
         | "url"
         | "email"
+        | "request"
+        | "staff"
         | "none"
         | undefined,
       reservationUrl: readCell(row, ["Reservation URL", "reservationUrl", "reservation_url"]),
@@ -471,6 +473,23 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
       reservationEmail: readCell(row, ["Reservation Email", "reservationEmail", "reservation_email"]),
       reservationLabel: readCell(row, ["Reservation Label", "reservationLabel", "reservation_label"]),
       reservationMessage: readCell(row, ["Reservation Message", "reservationMessage", "reservation_message"]),
+      reservationDepartment: readCell(row, [
+        "Reservation Department",
+        "reservationDepartment",
+        "reservation_department",
+        "Department",
+        "department",
+      ]).toLowerCase(),
+      reservationAskOccasion: ["yes", "true", "1"].includes(
+        readCell(row, [
+          "Reservation Ask Occasion",
+          "Ask Occasion",
+          "reservationAskOccasion",
+          "reservation_ask_occasion",
+          "ask_occasion",
+        ]).toLowerCase()
+      ),
+      reservationHours: readCell(row, ["Reservation Hours", "reservationHours", "reservation_hours"]),
       location: readCell(row, ["Location", "location"]),
       programUrl: readCell(row, ["Program URL", "programUrl", "program_url"]),
       programText: readCell(row, ["Program Text", "programText", "program_text"]),
