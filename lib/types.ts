@@ -177,7 +177,19 @@ export type HotelConfig = {
 
   location: {
     query: string;
+    lat?: number;
+    lng?: number;
+    latitude?: number;
+    longitude?: number;
+    lon?: number;
   };
+
+  hotelLatitude?: number;
+  hotelLongitude?: number;
+  geoGuardEnabled?: boolean;
+  geoGuardRadiusMeters?: number;
+  testModeEnabled?: boolean;
+  rawConfig?: Record<string, string>;
 
   contacts: {
     reception: ContactInfo;

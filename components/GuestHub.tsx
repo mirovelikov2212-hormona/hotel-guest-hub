@@ -581,6 +581,25 @@ function getRequestDefButtonIcon(def: RequestDef): string {
   }
 }
 
+
+function readBooleanConfigValue(value: unknown, fallback = false) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) return fallback;
+
+  if (["yes", "true", "1", "on", "enabled", "ja", "да"].includes(text)) return true;
+  if (["no", "false", "0", "off", "disabled", "nein", "не"].includes(text)) return false;
+
+  return fallback;
+}
+
+function readNumberConfigValue(value: unknown, fallback: number) {
+  const parsed = Number(String(value ?? "").trim().replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 function haversineMeters(
   lat1: number,
   lon1: number,
@@ -758,25 +777,45 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const submittingRequestRef = useRef(false);
   const recentSubmissionRef = useRef<Record<string, number>>({});
 
-  const hotelLatitude = Number(
+  const rawConfig = ((config as any).rawConfig ?? {}) as Record<string, unknown>;
+
+  const geoGuardEnabled = readBooleanConfigValue(
+    (config as any).geoGuardEnabled ?? rawConfig.geoGuardEnabled,
+    true
+  );
+
+  const testModeEnabled = readBooleanConfigValue(
+    (config as any).testModeEnabled ?? rawConfig.testModeEnabled,
+    false
+  );
+
+  const hotelLatitude = readNumberConfigValue(
     (config as any).hotelLatitude ??
-    (config as any).location?.lat ??
-    (config as any).location?.latitude ??
-    ""
+      rawConfig.hotelLatitude ??
+      (config as any).location?.lat ??
+      (config as any).location?.latitude,
+    Number.NaN
   );
 
-  const hotelLongitude = Number(
+  const hotelLongitude = readNumberConfigValue(
     (config as any).hotelLongitude ??
-    (config as any).location?.lng ??
-    (config as any).location?.longitude ??
-    (config as any).location?.lon ??
-    ""
+      rawConfig.hotelLongitude ??
+      (config as any).location?.lng ??
+      (config as any).location?.longitude ??
+      (config as any).location?.lon,
+    Number.NaN
   );
 
-  const geoRadiusMeters = 350;
+  const geoRadiusMeters = readNumberConfigValue(
+    (config as any).geoGuardRadiusMeters ?? rawConfig.geoGuardRadiusMeters,
+    350
+  );
 
   const canUseGeoGuard =
-    Number.isFinite(hotelLatitude) && Number.isFinite(hotelLongitude);
+    geoGuardEnabled &&
+    !testModeEnabled &&
+    Number.isFinite(hotelLatitude) &&
+    Number.isFinite(hotelLongitude);
 
   const ensureGuestIsNearHotel = useCallback(async () => {
     if (!canUseGeoGuard) {
@@ -840,7 +879,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         }
       );
     });
-  }, [canUseGeoGuard, hotelLatitude, hotelLongitude, lang]);
+  }, [canUseGeoGuard, geoRadiusMeters, hotelLatitude, hotelLongitude, lang]);
 
   useEffect(() => {
     if (!showRequestSuccess) return;

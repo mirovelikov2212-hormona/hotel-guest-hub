@@ -145,6 +145,14 @@ function toConfigKey(field: string): string {
     "Cover Image": "coverImage",
     "Cover Image Position": "coverImagePosition",
     "Location": "locationQuery",
+    "Hotel Location Query": "locationQuery",
+    "Hotel Latitude": "hotelLatitude",
+    "Latitude": "hotelLatitude",
+    "Hotel Longitude": "hotelLongitude",
+    "Longitude": "hotelLongitude",
+    "Geo Guard Enabled": "geoGuardEnabled",
+    "Geo Guard Radius Meters": "geoGuardRadiusMeters",
+    "Test Mode Enabled": "testModeEnabled",
     "WiFi Name": "wifiSsid",
     "WiFi Password": "wifiPassword",
     "Reception Phone": "receptionPhone",
@@ -225,6 +233,28 @@ function mergeConfig(base: Record<string, string>, overrides: Record<string, str
 function pick(map: Record<string, string>, key: string, fallback = ""): string {
   const value = map[key];
   return value == null || value === "" ? fallback : value;
+}
+
+function pickBoolean(map: Record<string, string>, key: string, fallback = false): boolean {
+  const value = pick(map, key, fallback ? "yes" : "no").trim().toLowerCase();
+
+  if (["yes", "true", "1", "on", "enabled", "ja", "да"].includes(value)) return true;
+  if (["no", "false", "0", "off", "disabled", "nein", "не"].includes(value)) return false;
+
+  return fallback;
+}
+
+function pickNumber(map: Record<string, string>, key: string, fallback: number): number {
+  const parsed = Number(pick(map, key, "").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function pickOptionalNumber(map: Record<string, string>, key: string): number | undefined {
+  const raw = pick(map, key, "").trim();
+  if (!raw) return undefined;
+
+  const parsed = Number(raw.replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 
@@ -379,12 +409,24 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
 
   const requestDefs = parseRequestDefs(requestDefRows, languages.length ? languages : ["bg", "en", "de"]);
 
+  const hotelLatitude = pickOptionalNumber(mergedConfig, "hotelLatitude");
+  const hotelLongitude = pickOptionalNumber(mergedConfig, "hotelLongitude");
+
   const cfg: HotelConfig = {
     hotelSlug: safeHotelSlug,
     hotelName: pick(mergedConfig, "hotelName", "Hotel"),
     coverImage: pick(mergedConfig, "coverImage", "/cover.jpg"),
     coverImagePosition: pick(mergedConfig, "coverImagePosition", "center center"),
-    location: { query: pick(mergedConfig, "locationQuery", "") },
+    location: {
+      query: pick(mergedConfig, "locationQuery", ""),
+      ...(hotelLatitude !== undefined ? { lat: hotelLatitude, latitude: hotelLatitude } : {}),
+      ...(hotelLongitude !== undefined ? { lng: hotelLongitude, longitude: hotelLongitude, lon: hotelLongitude } : {}),
+    },
+    ...(hotelLatitude !== undefined ? { hotelLatitude } : {}),
+    ...(hotelLongitude !== undefined ? { hotelLongitude } : {}),
+    geoGuardEnabled: pickBoolean(mergedConfig, "geoGuardEnabled", true),
+    geoGuardRadiusMeters: pickNumber(mergedConfig, "geoGuardRadiusMeters", 350),
+    testModeEnabled: pickBoolean(mergedConfig, "testModeEnabled", false),
     wifi: {
       ssid: pick(mergedConfig, "wifiSsid", ""),
       password: pick(mergedConfig, "wifiPassword", ""),
