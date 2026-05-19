@@ -26,6 +26,15 @@ type GuestRequestRow = {
     serviceTime?: StaffServiceTime;
     typeLabel?: string;
     note?: string;
+    rawType?: string | null;
+    sourceRequestDef?: string | null;
+    requiresBilling?: boolean;
+    price?: string | null;
+    currency?: string | null;
+    notifyDepartments?: string[];
+    guestLanguage?: string;
+    staffTitleBg?: string | null;
+    staffNoteBg?: string | null;
   } | null;
 };
 

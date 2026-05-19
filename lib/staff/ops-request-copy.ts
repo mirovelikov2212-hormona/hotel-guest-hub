@@ -12,6 +12,8 @@ type RequestMetadata = {
   price?: string | null;
   currency?: string | null;
   notifyDepartments?: string[];
+  staffTitleBg?: string | null;
+  staffNoteBg?: string | null;
 };
 
 type OperationalCopyInput = {
@@ -30,6 +32,10 @@ function normalizeText(value: unknown) {
     .replace(/[\s\-]+/g, "_");
 }
 
+function cleanText(value: unknown) {
+  return String(value ?? "").trim();
+}
+
 function collectSignals(input: OperationalCopyInput) {
   const metadata = input.metadata ?? {};
   return [
@@ -40,6 +46,8 @@ function collectSignals(input: OperationalCopyInput) {
     metadata.note,
     metadata.rawType,
     metadata.sourceRequestDef,
+    metadata.staffTitleBg,
+    metadata.staffNoteBg,
   ]
     .map(normalizeText)
     .filter(Boolean)
@@ -56,7 +64,7 @@ function detectSpecificKey(
     return "coffee_capsules";
   }
 
-  if (/pillow_menu|menu_vazglav|меню_възглавници|perne|polstar/.test(signals)) {
+  if (/pillow_menu|menu_vazglav|меню_възглавници|perne|polstar|polstare|vazglav/.test(signals)) {
     return "pillow_menu";
   }
 
@@ -68,7 +76,7 @@ function detectSpecificKey(
     return "coffee_machine";
   }
 
-  if (/minibar_not_cooling|minibar.*cool|minibar.*race|охлажда|не_охлажда/.test(signals)) {
+  if (/minibar_not_cooling|minibar.*cool|minibar.*race|minibar.*chlad|minibar.*охлажда|охлажда|не_охлажда/.test(signals)) {
     return "minibar_not_cooling";
   }
 
@@ -147,16 +155,111 @@ function looksSystemGenerated(value: string) {
 
   return (
     normalized.includes("guest_reported") ||
-    normalized.includes("paid_service") ||
+    normalized.includes("selected_wake") ||
+    normalized.includes("wake_up") ||
+    normalized.includes("ora_de_trezire") ||
+    normalized.includes("vybrany_cas_buzeni") ||
+    normalized.includes("gewaehlte_weckzeit") ||
+    normalized.includes("late_checkout") ||
+    normalized.includes("pozdni_check") ||
     normalized.includes("serviciu_contra_cost") ||
     normalized.includes("placena_sluzba") ||
     normalized.includes("kostenpflichtiger_service") ||
+    normalized.includes("paid_service") ||
     normalized.includes("услугата") ||
     normalized.includes("платена_услуга") ||
     normalized.includes("charged_to_the_room") ||
     normalized.includes("room_account") ||
     normalized.includes("сметката_на_стаята")
   );
+}
+
+function hasBulgarianLetters(value: string) {
+  return /[А-Яа-я]/.test(value);
+}
+
+function extractTime(value: string) {
+  const match = value.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+  return match ? `${match[1].padStart(2, "0")}:${match[2]}` : "";
+}
+
+function extractDateLike(value: string) {
+  const match = value.match(/\b(\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?)\b/);
+  return match?.[1] ?? "";
+}
+
+function extractPeopleCount(value: string) {
+  const match = value.match(/(?:for|pentru|pro|für|за)\s+(\d+)\s+(?:people|persoane|osob|personen|човека?)/i);
+  return match?.[1] ?? "";
+}
+
+function formatBillingNotice(metadata: RequestMetadata) {
+  if (!metadata.requiresBilling) return "";
+
+  const price = cleanText(metadata.price);
+  const currency = cleanText(metadata.currency);
+  const amount = [price, currency].filter(Boolean).join(" ");
+
+  return amount
+    ? `Платена услуга. Цена: ${amount}. Рецепцията трябва да начисли услугата към сметката на стаята.`
+    : "Платена услуга. Рецепцията трябва да начисли услугата към сметката на стаята.";
+}
+
+function translateGeneratedNoteToBg(key: string, originalNote: string, metadata: RequestMetadata) {
+  const note = cleanText(originalNote);
+  const time = extractTime(note);
+  const date = extractDateLike(note);
+  const people = extractPeopleCount(note);
+  const billingNotice = formatBillingNotice(metadata);
+
+  switch (key) {
+    case "wake_up_call":
+      return time ? `Избран час за събуждане: ${time}` : "Гостът заяви събуждане.";
+
+    case "late_checkout": {
+      const base = time ? `Желан късен check-out: ${time}.` : "Гостът иска късен check-out.";
+      return `${base} Късният check-out е платена услуга. Финалните условия и цена се потвърждават от рецепцията.`;
+    }
+
+    case "taxi":
+      return time ? `Гостът иска такси за: ${time}` : "Гостът иска такси.";
+
+    case "restaurant_reservation": {
+      const parts = [
+        people ? `Хора: ${people}` : "",
+        date ? `Дата: ${date}` : "",
+        time ? `Час: ${time}` : "",
+      ].filter(Boolean);
+      return parts.length > 0 ? `Резервация: ${parts.join(" · ")}` : "Гостът иска резервация.";
+    }
+
+    case "coffee_capsules":
+    case "pillow_menu":
+    case "minibar":
+    case "minibar_refill":
+    case "laundry":
+      return [STAFF_NOTES_BG[key], billingNotice].filter(Boolean).join(" ") || undefined;
+
+    case "coffee_machine":
+    case "minibar_not_cooling":
+      return STAFF_NOTES_BG[key];
+
+    case "other_technical_issue":
+      return note && !looksSystemGenerated(note)
+        ? `Описание от госта: ${note}`
+        : "Гостът съобщи за повреда. Вижте детайлите при проверка на стаята.";
+
+    case "special_occasion":
+      return note && !looksSystemGenerated(note)
+        ? `Описание от госта: ${note}`
+        : "Гостът изпрати заявка за специален повод.";
+
+    default:
+      break;
+  }
+
+  if (billingNotice) return billingNotice;
+  return undefined;
 }
 
 export function getOperationalRequestTitleBg(input: OperationalCopyInput): string {
@@ -166,6 +269,9 @@ export function getOperationalRequestTitleBg(input: OperationalCopyInput): strin
     metadata.department
   );
   const key = detectSpecificKey(normalizedType, input);
+  const storedTitle = cleanText(metadata.staffTitleBg);
+
+  if (storedTitle && hasBulgarianLetters(storedTitle)) return storedTitle;
 
   return STAFF_TITLES_BG[key] ?? STAFF_TITLES_BG[normalizedType] ?? "Заявка";
 }
@@ -178,12 +284,22 @@ export function getOperationalRequestNoteBg(input: OperationalCopyInput): string
   );
   const key = detectSpecificKey(normalizedType, input);
 
-  const originalNote = String(metadata.note ?? input.message ?? "").trim();
-  const billingNotice = metadata.requiresBilling
-    ? "Платена услуга. Рецепцията трябва да начисли услугата към сметката на стаята."
-    : "";
-
+  const originalNote = cleanText(metadata.note ?? input.message ?? "");
+  const storedNote = cleanText(metadata.staffNoteBg);
+  const billingNotice = formatBillingNotice(metadata);
   const mappedNote = STAFF_NOTES_BG[key] ?? STAFF_NOTES_BG[normalizedType] ?? "";
+  const translatedGeneratedNote = translateGeneratedNoteToBg(key, originalNote || storedNote, metadata);
+
+  // If the saved staff note is already Bulgarian and not just a copied foreign system phrase, use it.
+  if (storedNote && hasBulgarianLetters(storedNote) && !looksSystemGenerated(storedNote)) {
+    if (billingNotice && !storedNote.includes(billingNotice)) {
+      return `${storedNote}\n\n${billingNotice}`;
+    }
+    return storedNote;
+  }
+
+  // Generated UI phrases from EN/DE/RO/CS are normalized to Bulgarian here.
+  if (translatedGeneratedNote) return translatedGeneratedNote;
 
   if (!originalNote) {
     return mappedNote || billingNotice || undefined;
@@ -193,11 +309,12 @@ export function getOperationalRequestNoteBg(input: OperationalCopyInput): string
     return [mappedNote, billingNotice].filter(Boolean).join(" ") || undefined;
   }
 
-  if (billingNotice && !originalNote.includes(billingNotice)) {
-    return `${originalNote}\n\n${billingNotice}`;
+  if (billingNotice) {
+    return `Описание от госта: ${originalNote}\n\n${billingNotice}`;
   }
 
-  return originalNote;
+  // Free text cannot be safely translated without an AI step, but the staff still gets a Bulgarian label.
+  return `Описание от госта: ${originalNote}`;
 }
 
 export function getOperationalRequestDebugKey(input: OperationalCopyInput): string {
