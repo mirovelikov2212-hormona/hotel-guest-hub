@@ -1642,16 +1642,64 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const getRequestDefMessage = useCallback(
     (def?: RequestDef | null) => {
       if (!def) return "";
+
+      const junkValues = new Set(["true", "false", "yes", "no", "eur", "bgn", "usd", "none"]);
+
       return [
         getRequestDefField(def, "description"),
         getRequestDefField(def, "policy"),
         getRequestDefField(def, "subtitle"),
       ]
         .map((item) => String(item || "").trim())
-        .filter(Boolean)
+        .filter((item) => item && !junkValues.has(item.toLowerCase()))
         .join("\n\n");
     },
     [getRequestDefField]
+  );
+
+  const getRequestDefTitle = useCallback(
+    (def?: RequestDef | null) => {
+      if (!def) return "";
+      const title = String(getRequestDefField(def, "title") || "").trim();
+      const junkValues = new Set(["true", "false", "yes", "no", "eur", "bgn", "usd", "none"]);
+      if (!title || junkValues.has(title.toLowerCase())) return "";
+      return title;
+    },
+    [getRequestDefField]
+  );
+
+  const getRequestDefHref = useCallback(
+    (def?: RequestDef | null) => {
+      if (!def) return "";
+
+      const direct = String(def.pdfUrl || def.externalUrl || def.linkUrl || "").trim();
+      if (direct) return direct;
+
+      // Repair protection: if a Google Sheets row was shifted, the URL may have landed in description/policy.
+      const text = getRequestDefMessage(def);
+      const match = text.match(/https?:\/\/\S+/i);
+      return match ? match[0] : "";
+    },
+    [getRequestDefMessage]
+  );
+
+  const isRenderableRequestDef = useCallback(
+    (def?: RequestDef | null) => {
+      if (!def || def.enabled === false || def.guestVisible === false) return false;
+
+      const title = getRequestDefTitle(def);
+      const message = getRequestDefMessage(def);
+      const href = getRequestDefHref(def);
+      const type = String(def.type || "").trim().toLowerCase();
+
+      if (!title && !message && !href) return false;
+
+      // Link/PDF/external sections should not be shown until they have a real link.
+      if ((type === "pdf" || type === "external_link" || type === "link") && !href) return false;
+
+      return true;
+    },
+    [getRequestDefHref, getRequestDefMessage, getRequestDefTitle]
   );
 
   const requestDefsByCategory = useMemo(() => {
@@ -2167,7 +2215,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   function handleRequestDefClick(def: RequestDef) {
     const infoMessage = getRequestDefMessage(def);
-    const title = getRequestDefField(def, "title") || def.id.replace(/_/g, " ");
+    const title = getRequestDefTitle(def) || def.id.replace(/_/g, " ");
 
     if (def.type !== "request" || def.requestKind === "info_only") {
       openRequestDialog({
@@ -2210,18 +2258,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     const defs = requestDefsByCategory[String(category || "").trim().toLowerCase()] ?? [];
 
     return defs
-      .filter((def) => def.guestVisible !== false)
+      .filter((def) => isRenderableRequestDef(def))
       .map((def) => {
-        const title = getRequestDefField(def, "title") || def.id.replace(/_/g, " ");
+        const title = getRequestDefTitle(def) || def.id.replace(/_/g, " ");
         const icon = getRequestDefButtonIcon(def);
-        const subsectionLabel = def.subsection
-          ? String(tUI(`subsection_${def.subsection}`) || humanizeCategory(def.subsection)).trim()
-          : "";
-        const visibleTitle = subsectionLabel && String(category).toLowerCase() === "info"
-          ? `${subsectionLabel} · ${title}`
-          : title;
-        const label = icon ? `${icon} ${visibleTitle}` : visibleTitle;
-        const href = String(def.pdfUrl || def.externalUrl || def.linkUrl || "").trim();
+        const label = icon ? `${icon} ${title}` : title;
+        const href = getRequestDefHref(def);
 
         if (href && (def.type === "pdf" || def.type === "external_link" || def.type === "link")) {
           return {
@@ -2850,13 +2892,75 @@ EN: ${helpMsg}` : opsMsg,
 
   const hotelInfoSection = useMemo(() => {
     const infoRequestDefItems = buildRequestDefItems("info");
-    const infoItems = hotelInfoItems.map((item) => ({
-      label: `${item?.icon ? `${String(item.icon).trim()} ` : ""}${getHotelInfoText(item, "title")}`.trim(),
-      kind: "info" as const,
-      info: getHotelInfoText(item, "text"),
-    }));
+    const infoItems = hotelInfoItems
+      .map((item) => ({
+        label: `${item?.icon ? `${String(item.icon).trim()} ` : ""}${getHotelInfoText(item, "title")}`.trim(),
+        kind: "info" as const,
+        info: getHotelInfoText(item, "text"),
+      }))
+      .filter((item) => item.label || item.info);
 
-    const items = [...infoItems, ...infoRequestDefItems];
+    const systemInfoItems: HubItem[] = [];
+
+    if (config.wifi?.ssid || config.wifi?.password) {
+      systemInfoItems.push({
+        label: String(tUI("wifi_title") || "WiFi"),
+        kind: "info",
+        info: `${tUI("wifi_network")}: ${config.wifi.ssid || "-"}\n${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
+      });
+    }
+
+    if (config.location?.query) {
+      systemInfoItems.push(
+        {
+          label: String(tUI("attractions_nearby") || "Attractions nearby"),
+          kind: "link",
+          href: `https://www.google.com/maps/search/${encodeURIComponent("attractions near " + config.location.query)}`,
+          newTab: true,
+        },
+        {
+          label: String(tUI("restaurants_nearby") || "Restaurants nearby"),
+          kind: "link",
+          href: `https://www.google.com/maps/search/${encodeURIComponent("restaurants near " + config.location.query)}`,
+          newTab: true,
+        },
+        {
+          label: String(tUI("pharmacy") || "Pharmacy"),
+          kind: "link",
+          href: `https://www.google.com/maps/search/${encodeURIComponent("pharmacy near " + config.location.query)}`,
+          newTab: true,
+        }
+      );
+    }
+
+    if (config.reviews?.google) {
+      systemInfoItems.push({
+        label: String(tUI("leave_google_review") || "Google Review"),
+        kind: "link",
+        href: config.reviews.google,
+        newTab: true,
+      });
+    }
+
+    if (config.reviews?.tripadvisor) {
+      systemInfoItems.push({
+        label: String(tUI("leave_tripadvisor_review") || "TripAdvisor Review"),
+        kind: "link",
+        href: config.reviews.tripadvisor,
+        newTab: true,
+      });
+    }
+
+    const receptionPhone = getDeptPhone("reception");
+    if (receptionPhone) {
+      systemInfoItems.push({
+        label: String(tUI("emergency_call") || "Call reception"),
+        kind: "link",
+        href: safeTelLink(receptionPhone),
+      });
+    }
+
+    const items = [...infoItems, ...infoRequestDefItems, ...systemInfoItems];
 
     if (!items.length) return null;
 
@@ -2867,18 +2971,18 @@ EN: ${helpMsg}` : opsMsg,
         (lang === "bg" ? "Инфо" : lang === "de" ? "Info" : lang === "ro" ? "Informații" : lang === "cs" ? "Informace" : "Info"),
       items,
     } satisfies HubSection;
-  }, [buildRequestDefItems, getHotelInfoText, hotelInfoItems, lang, tUI]);
+  }, [buildRequestDefItems, config, getHotelInfoText, hotelInfoItems, lang, tUI]);
 
   const dynamicRequestDefSections = useMemo(() => {
-    const reservedCategories = new Set(["reception", "housekeeping", "maintenance", "info"]);
+    // Keep the guest hub compact. Only true campaign/program sections become top-level.
+    // Everything else is merged into Info, Reception, Housekeeping or Maintenance.
+    const topLevelCategories = new Set(["animation", "world_cup"]);
 
     return Object.entries(requestDefsByCategory)
-      .filter(([category, defs]) =>
-        !reservedCategories.has(category) &&
-        defs.some((def) => def.guestVisible !== false)
-      )
+      .filter(([category]) => topLevelCategories.has(category))
       .map(([category, defs]) => {
-        const firstDef = defs.find((def) => def.guestVisible !== false) ?? defs[0];
+        const visibleDefs = defs.filter((def) => isRenderableRequestDef(def));
+        const firstDef = visibleDefs[0] ?? defs[0];
         const sectionTitle =
           getTextMapValue(firstDef?.sectionTitle) ||
           String(tUI(`section_${category}_title`) || "").trim() ||
@@ -2891,7 +2995,7 @@ EN: ${helpMsg}` : opsMsg,
         } satisfies HubSection;
       })
       .filter((section) => section.items.length > 0);
-  }, [buildRequestDefItems, getTextMapValue, requestDefsByCategory, tUI]);
+  }, [buildRequestDefItems, getTextMapValue, isRenderableRequestDef, requestDefsByCategory, tUI]);
 
   const housekeepingTitle = tUI("housekeeping_title");
   const housekeepingTitleAfter = tUI("housekeeping_title_after");
@@ -2905,19 +3009,8 @@ EN: ${helpMsg}` : opsMsg,
   } as any;
 
   const sections: HubSection[] = [
-    {
-      id: "wifi",
-      title: tUI("wifi_title"),
-      items: [
-        {
-          label: tUI("wifi_show"),
-          kind: "info",
-          info: `${tUI("wifi_network")}: ${config.wifi.ssid}\n${tUI("wifi_password")}: ${config.wifi.password}`,
-        },
-      ],
-    },
+    ...(outletsSection ? [outletsSection] : []),
     ...(hotelInfoSection ? [hotelInfoSection] : []),
-    ...dynamicRequestDefSections,
     {
       id: "reception",
       title: tUI("reception_title") || "Reception",
@@ -2938,8 +3031,7 @@ EN: ${helpMsg}` : opsMsg,
                   submitGuestRequest({
                     type: "late_checkout",
                     typeLabel: String(tUI("late_checkout") || "Late checkout"),
-                    note: `${String(tUI("late_checkout") || "Late checkout")}: ${slot}${lateCheckoutInfo ? `\n${lateCheckoutInfo}` : ""
-                      }`,
+                    note: `${String(tUI("late_checkout") || "Late checkout")}: ${slot}${lateCheckoutInfo ? `\n${lateCheckoutInfo}` : ""}`,
                   });
                 };
 
@@ -3049,7 +3141,7 @@ EN: ${helpMsg}` : opsMsg,
                     title: String(tUI(x.labelKey) || x.labelKey),
                     message: action.getMessage(lang),
                     confirmLabel:
-                      lang === "bg" ? "Затвори" : lang === "de" ? "Schließen" : "Close",
+                      lang === "bg" ? "Затвори" : lang === "de" ? "Schließen" : lang === "ro" ? "Închide" : lang === "cs" ? "Zavřít" : "Close",
                   });
                 },
               };
@@ -3152,75 +3244,7 @@ EN: ${helpMsg}` : opsMsg,
           : []),
       ],
     },
-    ...(outletsSection ? [outletsSection] : []),
-    ...(!outletsSection
-      ? [
-        {
-          id: "activities",
-          title: tUI("activities_title"),
-          items: [
-            { label: tUI("hotel_events"), kind: "link" as const, onClick: () => sendEvents("msg_events") },
-            { label: tUI("kids_program"), kind: "link" as const, onClick: () => sendEvents("msg_kids") },
-          ],
-        },
-      ]
-      : []),
-    {
-      id: "explore",
-      title: tUI("explore_title"),
-      items: [
-        {
-          label: tUI("attractions_nearby"),
-          kind: "link",
-          href: `https://www.google.com/maps/search/${encodeURIComponent(
-            "attractions near " + config.location.query
-          )}`,
-          newTab: true,
-        },
-        {
-          label: tUI("restaurants_nearby"),
-          kind: "link",
-          href: `https://www.google.com/maps/search/${encodeURIComponent(
-            "restaurants near " + config.location.query
-          )}`,
-          newTab: true,
-        },
-        {
-          label: tUI("pharmacy"),
-          kind: "link",
-          href: `https://www.google.com/maps/search/${encodeURIComponent(
-            "pharmacy near " + config.location.query
-          )}`,
-          newTab: true,
-        },
-      ],
-    },
-    {
-      id: "reviews",
-      title: tUI("reviews_title"),
-      items: [
-        ...(config.reviews.google
-          ? [
-            {
-              label: tUI("leave_google_review"),
-              kind: "link" as const,
-              href: config.reviews.google,
-              newTab: true,
-            },
-          ]
-          : []),
-        ...(config.reviews.tripadvisor
-          ? [
-            {
-              label: tUI("leave_tripadvisor_review"),
-              kind: "link" as const,
-              href: config.reviews.tripadvisor,
-              newTab: true,
-            },
-          ]
-          : []),
-      ],
-    },
+    ...dynamicRequestDefSections,
     {
       id: "ai",
       title: "🤖 " + tUI("ai_title"),
@@ -3231,18 +3255,7 @@ EN: ${helpMsg}` : opsMsg,
         } as any,
       ],
     },
-    {
-      id: "emergency",
-      title: "🚨 " + tUI("emergency_title"),
-      items: [
-        {
-          label: tUI("emergency_call"),
-          kind: "link",
-          href: safeTelLink(getDeptPhone("reception")),
-        },
-      ],
-    },
-  ];
+  ].filter((section) => section.items && section.items.length > 0);
 
   return (
     <div className="mx-auto max-w-md" style={themeStyle}>

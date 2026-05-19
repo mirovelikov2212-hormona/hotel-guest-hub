@@ -169,7 +169,7 @@ function toConfigKey(field: string): string {
     "Reception WhatsApp": "receptionWhatsapp",
     "Housekeeping WhatsApp": "housekeepingWhatsapp",
     "Restaurant WhatsApp": "restaurantWhatsapp",
-    "Bar WhatsApp": "barWhatsApp",
+    "Bar WhatsApp": "barWhatsapp",
     "Events WhatsApp": "eventsWhatsapp",
     "Maintenance WhatsApp": "maintenanceWhatsapp",
     "Reception Open": "receptionOpen",
@@ -216,8 +216,8 @@ function parseHotelSetupRows(rows: Record<string, string>[]): Record<string, str
   const map: Record<string, string> = {};
 
   for (const row of rows) {
-    const field = readCell(row, ["Field", "field", "key", "Key", "KEY"]);
-    const value = readCell(row, ["Value", "value", "VALUE"]);
+    const field = readCell(row, ["Setting", "setting", "Field", "field", "key", "Key", "KEY"]);
+    const value = readCell(row, ["Value", "value", "VALUE", "Setting Value", "setting_value"]);
     if (!field) continue;
 
     const key = toConfigKey(field);
@@ -457,28 +457,14 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     throw new Error(`Missing i18n CSV URL for hotel slug: ${safeHotelSlug}`);
   }
 
-  if (!requestDefsUrl) {
-    throw new Error(`Missing request defs CSV URL for hotel slug: ${safeHotelSlug}`);
-  }
-
-  if (!configUrl) {
-    throw new Error(`Missing config CSV URL for hotel slug: ${safeHotelSlug}`);
-  }
-
-  if (!i18nUrl) {
-    throw new Error(`Missing i18n CSV URL for hotel slug: ${safeHotelSlug}`);
-  }
-
-  if (!requestDefsUrl) {
-    throw new Error(`Missing request defs CSV URL for hotel slug: ${safeHotelSlug}`);
-  }
+  // REQUEST_DEFS is optional. If it is missing, the hub falls back to the built-in core sections.
 
   const [cfgRows, venueRowsRaw, i18nRows, hotelSetupRows, requestDefRows] = await Promise.all([
     fetchCsv(configUrl),
     venuesUrl ? fetchCsvOrEmpty(venuesUrl) : Promise.resolve([]),
     fetchCsv(i18nUrl),
     hotelSetupUrl ? fetchCsvOrEmpty(hotelSetupUrl) : Promise.resolve([]),
-    fetchCsv(requestDefsUrl),
+    requestDefsUrl ? fetchCsvOrEmpty(requestDefsUrl) : Promise.resolve([]),
   ]);
 
   const explicitConfig = toKV(cfgRows);
