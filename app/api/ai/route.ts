@@ -60,9 +60,9 @@ const SUPPORTED_LANGS: Lang[] = ["bg", "de", "en", "ro", "cs"];
 const COPY = {
   bg: {
     intro:
-      "Мога да помагам с актуална информация за хотела – ресторанти, барове, работно време, Wi‑Fi, паркинг, анимация, политики, услуги и заявки в хъба.",
+      "Мога да помагам с актуална информация за хотела – ресторанти, барове, работно време, Wi‑Fi, паркинг, анимация, политики, услуги, заявки в хъба и времето около хотела.",
     outOfScope:
-      "Мога да помагам само с информация за хотела и неговите услуги. Попитайте ме за ресторанти, барове, работно време, Wi‑Fi, паркинг, спа, анимация, услуги или правила в хотела.",
+      "Мога да помагам с информация за хотела, неговите услуги и времето около хотела. Попитайте ме за ресторанти, барове, работно време, Wi‑Fi, паркинг, спа, анимация, услуги, правила или прогноза за времето.",
     noData:
       "Все още нямам тази информация за хотела. Моля, обърнете се към рецепция.",
     lead: "Разбира се — ето какво мога да Ви кажа по темата:",
@@ -111,9 +111,9 @@ const COPY = {
   },
   en: {
     intro:
-      "I can help with current hotel information – restaurants, bars, opening hours, Wi‑Fi, parking, animation, policies, services and hub requests.",
+      "I can help with current hotel information – restaurants, bars, opening hours, Wi‑Fi, parking, animation, policies, services, hub requests and the weather around the hotel.",
     outOfScope:
-      "I can only help with information about the hotel and its services. Ask me about restaurants, bars, opening hours, Wi‑Fi, parking, spa, animation, services or hotel rules.",
+      "I can help with information about the hotel, its services and the weather around the hotel. Ask me about restaurants, bars, opening hours, Wi‑Fi, parking, spa, animation, services, hotel rules or today’s weather.",
     noData:
       "I do not have that hotel information yet. Please contact reception.",
     lead: "Of course — here is the most relevant information:",
@@ -158,9 +158,9 @@ const COPY = {
   },
   de: {
     intro:
-      "Ich kann mit aktuellen Hotelinformationen helfen – Restaurants, Bars, Öffnungszeiten, WLAN, Parkplatz, Animation, Regeln, Services und Anfragen im Hub.",
+      "Ich kann mit aktuellen Hotelinformationen helfen – Restaurants, Bars, Öffnungszeiten, WLAN, Parkplatz, Animation, Regeln, Services, Anfragen im Hub und dem Wetter rund um das Hotel.",
     outOfScope:
-      "Ich kann nur mit Informationen über das Hotel und seine Leistungen helfen. Fragen Sie mich nach Restaurants, Bars, Öffnungszeiten, WLAN, Parkplatz, Spa, Animation, Services oder Hotelregeln.",
+      "Ich kann mit Informationen über das Hotel, seine Leistungen und das Wetter rund um das Hotel helfen. Fragen Sie mich nach Restaurants, Bars, Öffnungszeiten, WLAN, Parkplatz, Spa, Animation, Services, Hotelregeln oder dem Wetter.",
     noData:
       "Ich habe diese Hotelinformation noch nicht. Bitte wenden Sie sich an die Rezeption.",
     lead: "Sehr gern — hier ist die passende Information:",
@@ -205,9 +205,9 @@ const COPY = {
   },
   ro: {
     intro:
-      "Pot ajuta cu informații actuale despre hotel – restaurante, baruri, program, Wi‑Fi, parcare, animație, politici, servicii și solicitări în hub.",
+      "Pot ajuta cu informații actuale despre hotel – restaurante, baruri, program, Wi‑Fi, parcare, animație, politici, servicii, solicitări în hub și vremea din zona hotelului.",
     outOfScope:
-      "Pot ajuta doar cu informații despre hotel și serviciile sale. Întrebați-mă despre restaurante, baruri, program, Wi‑Fi, parcare, spa, animație, servicii sau regulile hotelului.",
+      "Pot ajuta cu informații despre hotel, serviciile sale și vremea din zona hotelului. Întrebați-mă despre restaurante, baruri, program, Wi‑Fi, parcare, spa, animație, servicii, reguli sau vremea de azi.",
     noData:
       "Nu am încă această informație despre hotel. Vă rugăm să contactați recepția.",
     lead: "Sigur — iată informația relevantă:",
@@ -252,9 +252,9 @@ const COPY = {
   },
   cs: {
     intro:
-      "Mohu pomoci s aktuálními informacemi o hotelu – restaurace, bary, otevírací doba, Wi‑Fi, parkování, animace, pravidla, služby a požadavky v hubu.",
+      "Mohu pomoci s aktuálními informacemi o hotelu – restaurace, bary, otevírací doba, Wi‑Fi, parkování, animace, pravidla, služby, požadavky v hubu a počasí v okolí hotelu.",
     outOfScope:
-      "Mohu pomoci pouze s informacemi o hotelu a jeho službách. Zeptejte se na restaurace, bary, otevírací dobu, Wi‑Fi, parkování, spa, animaci, služby nebo pravidla hotelu.",
+      "Mohu pomoci s informacemi o hotelu, jeho službách a počasí v okolí hotelu. Zeptejte se na restaurace, bary, otevírací dobu, Wi‑Fi, parkování, spa, animaci, služby, pravidla nebo dnešní počasí.",
     noData:
       "Tuto informaci o hotelu zatím nemám. Kontaktujte prosím recepci.",
     lead: "Samozřejmě — zde jsou nejdůležitější informace:",
@@ -297,7 +297,167 @@ const COPY = {
       room_service: "pokojová služba",
     },
   },
+
 } as const;
+
+const CONVERSATION_COPY: Record<Lang, { greeting: string; thanks: string }> = {
+  bg: {
+    greeting: "Здравейте! Радвам се да помогна. Можете да ме попитате за ресторанти, барове, Wi‑Fi, паркинг, работно време, услуги в хъба или времето около хотела.",
+    thanks: "Моля, с удоволствие. Ако имате нужда от още нещо, насреща съм.",
+  },
+  en: {
+    greeting: "Hello! I’ll be happy to help. You can ask me about restaurants, bars, Wi‑Fi, parking, opening hours, hub services or the weather around the hotel.",
+    thanks: "You’re very welcome. If you need anything else, I’m here to help.",
+  },
+  de: {
+    greeting: "Guten Tag! Sehr gern helfe ich weiter. Sie können mich nach Restaurants, Bars, WLAN, Parkplatz, Öffnungszeiten, Services im Hub oder dem Wetter rund um das Hotel fragen.",
+    thanks: "Sehr gern. Wenn Sie noch etwas benötigen, helfe ich Ihnen gerne weiter.",
+  },
+  ro: {
+    greeting: "Bună ziua! Vă ajut cu plăcere. Mă puteți întreba despre restaurante, baruri, Wi‑Fi, parcare, program, servicii în hub sau vremea din zona hotelului.",
+    thanks: "Cu plăcere. Dacă mai aveți nevoie de ceva, sunt aici să vă ajut.",
+  },
+  cs: {
+    greeting: "Dobrý den! Rád vám pomohu. Můžete se zeptat na restaurace, bary, Wi‑Fi, parkování, otevírací dobu, služby v hubu nebo počasí v okolí hotelu.",
+    thanks: "Rádo se stalo. Pokud budete potřebovat ještě něco, jsem tu pro vás.",
+  },
+};
+
+const WEATHER_COPY: Record<Lang, {
+  noLocation: string;
+  unavailable: string;
+  lead: (place: string) => string;
+  now: string;
+  today: string;
+  temperature: string;
+  feelsLike: string;
+  minMax: (min?: number, max?: number) => string;
+  clouds: string;
+  wind: string;
+  rainChance: string;
+  humidity: string;
+  adviceRain: string;
+  adviceHot: string;
+  adviceCold: string;
+  adviceWind: string;
+  adviceGood: string;
+}> = {
+  bg: {
+    noLocation: "За да кажа времето точно, трябва да имам зададена локация на хотела. Моля, проверете настройката Hotel Location Query.",
+    unavailable: "В момента не успявам да заредя прогнозата. Рецепцията ще Ви ориентира най-точно за времето днес.",
+    lead: (place) => `Разбира се — ето актуалното време за района на ${place}:`,
+    now: "Сега",
+    today: "Днес",
+    temperature: "Температура",
+    feelsLike: "усеща се като",
+    minMax: (min, max) => min != null && max != null ? `Минимална / максимална: ${Math.round(min)}°C / ${Math.round(max)}°C` : "",
+    clouds: "Облачност",
+    wind: "Вятър",
+    rainChance: "Вероятност за валеж",
+    humidity: "Влажност",
+    adviceRain: "Добра идея е да вземете чадър — времето може да направи малък хотелски номер.",
+    adviceHot: "Вземете вода и слънцезащита, особено ако планирате разходка или басейн.",
+    adviceCold: "По-добре вземете лека връхна дреха — комфортът е част от ваканцията.",
+    adviceWind: "Изглежда ветровито, така че край басейна може да е по-свежо от очакваното.",
+    adviceGood: "Изглежда приятно за разходка или време край басейна.",
+  },
+  en: {
+    noLocation: "To give accurate weather, I need the hotel location to be set. Please check the Hotel Location Query setting.",
+    unavailable: "I can’t load the weather forecast right now. Reception can guide you best for today’s conditions.",
+    lead: (place) => `Of course — here is the current weather for the ${place} area:`,
+    now: "Now",
+    today: "Today",
+    temperature: "Temperature",
+    feelsLike: "feels like",
+    minMax: (min, max) => min != null && max != null ? `Min / max: ${Math.round(min)}°C / ${Math.round(max)}°C` : "",
+    clouds: "Cloud cover",
+    wind: "Wind",
+    rainChance: "Chance of rain",
+    humidity: "Humidity",
+    adviceRain: "It may be worth taking an umbrella — the weather likes a little drama sometimes.",
+    adviceHot: "Take water and sun protection, especially if you plan a walk or pool time.",
+    adviceCold: "A light jacket would be a good idea — comfort is part of the holiday.",
+    adviceWind: "It looks breezy, so the pool area may feel cooler than expected.",
+    adviceGood: "It looks pleasant for a walk or some time by the pool.",
+  },
+  de: {
+    noLocation: "Für eine genaue Wetterauskunft muss die Hotellocation hinterlegt sein. Bitte prüfen Sie die Einstellung Hotel Location Query.",
+    unavailable: "Ich kann die Wetterdaten gerade nicht laden. Die Rezeption hilft Ihnen für heute am besten weiter.",
+    lead: (place) => `Sehr gern — hier ist das aktuelle Wetter für die Umgebung von ${place}:`,
+    now: "Aktuell",
+    today: "Heute",
+    temperature: "Temperatur",
+    feelsLike: "gefühlt",
+    minMax: (min, max) => min != null && max != null ? `Min. / max.: ${Math.round(min)}°C / ${Math.round(max)}°C` : "",
+    clouds: "Bewölkung",
+    wind: "Wind",
+    rainChance: "Regenwahrscheinlichkeit",
+    humidity: "Luftfeuchtigkeit",
+    adviceRain: "Ein Regenschirm wäre keine schlechte Idee — das Wetter hat manchmal seinen eigenen Plan.",
+    adviceHot: "Nehmen Sie Wasser und Sonnenschutz mit, besonders für Spaziergänge oder Poolzeit.",
+    adviceCold: "Eine leichte Jacke ist empfehlenswert — Komfort gehört zum Urlaub dazu.",
+    adviceWind: "Es sieht windig aus, am Pool kann es daher frischer wirken.",
+    adviceGood: "Das Wetter wirkt angenehm für einen Spaziergang oder Zeit am Pool.",
+  },
+  ro: {
+    noLocation: "Pentru a oferi vremea exactă, locația hotelului trebuie să fie setată. Verificați setarea Hotel Location Query.",
+    unavailable: "Momentan nu pot încărca prognoza meteo. Recepția vă poate ghida cel mai bine pentru condițiile de azi.",
+    lead: (place) => `Sigur — iată vremea actuală pentru zona ${place}:`,
+    now: "Acum",
+    today: "Astăzi",
+    temperature: "Temperatură",
+    feelsLike: "se simte ca",
+    minMax: (min, max) => min != null && max != null ? `Minimă / maximă: ${Math.round(min)}°C / ${Math.round(max)}°C` : "",
+    clouds: "Nebulozitate",
+    wind: "Vânt",
+    rainChance: "Probabilitate de ploaie",
+    humidity: "Umiditate",
+    adviceRain: "Ar fi bine să luați o umbrelă — vremea mai face uneori mici surprize.",
+    adviceHot: "Luați apă și protecție solară, mai ales dacă plănuiți o plimbare sau timp la piscină.",
+    adviceCold: "O jachetă ușoară ar fi o idee bună — confortul face parte din vacanță.",
+    adviceWind: "Pare vânt, deci zona piscinei poate părea mai răcoroasă.",
+    adviceGood: "Vremea pare plăcută pentru o plimbare sau timp la piscină.",
+  },
+  cs: {
+    noLocation: "Pro přesnou předpověď počasí musí být nastavena poloha hotelu. Zkontrolujte prosím nastavení Hotel Location Query.",
+    unavailable: "Momentálně se mi nedaří načíst předpověď počasí. Recepce vám pro dnešek poradí nejlépe.",
+    lead: (place) => `Samozřejmě — zde je aktuální počasí pro oblast ${place}:`,
+    now: "Nyní",
+    today: "Dnes",
+    temperature: "Teplota",
+    feelsLike: "pocitově",
+    minMax: (min, max) => min != null && max != null ? `Min. / max.: ${Math.round(min)}°C / ${Math.round(max)}°C` : "",
+    clouds: "Oblačnost",
+    wind: "Vítr",
+    rainChance: "Pravděpodobnost deště",
+    humidity: "Vlhkost",
+    adviceRain: "Deštník se může hodit — počasí umí občas překvapit.",
+    adviceHot: "Vezměte si vodu a ochranu proti slunci, hlavně na procházku nebo k bazénu.",
+    adviceCold: "Lehká bunda bude dobrý nápad — pohodlí patří k dovolené.",
+    adviceWind: "Vypadá to na vítr, u bazénu může být chladněji, než se zdá.",
+    adviceGood: "Počasí vypadá příjemně na procházku nebo chvíli u bazénu.",
+  },
+};
+
+const GREETING_TERMS = [
+  "hi", "hello", "hey", "good morning", "good afternoon", "good evening",
+  "здравей", "здравейте", "добър ден", "добро утро", "добър вечер", "хей",
+  "hallo", "guten tag", "guten morgen", "guten abend",
+  "bună", "buna", "salut", "bună ziua", "buna ziua", "bună dimineața", "buna dimineata",
+  "ahoj", "dobrý den", "dobry den", "dobré ráno", "dobry rano", "dobrý večer", "dobry vecer",
+];
+
+const THANKS_TERMS = [
+  "thanks", "thank you", "благодаря", "мерси", "danke", "vielen dank", "mulțumesc", "multumesc", "děkuji", "dekuji", "díky", "diky",
+];
+
+const WEATHER_TERMS = [
+  "weather", "forecast", "temperature", "rain", "cloud", "wind", "sunny", "storm", "umbrella",
+  "време", "времето", "прогноза", "температура", "дъжд", "вали", "облаци", "облачно", "вятър", "слънце", "буря", "чадър",
+  "wetter", "vorhersage", "temperatur", "regen", "wolken", "bewölkt", "wind", "sonne", "sturm", "schirm",
+  "vreme", "vremea", "prognoza", "temperatură", "temperatura", "ploaie", "plouă", "ploua", "nori", "vânt", "vant", "soare", "furtună", "furtuna",
+  "počasí", "pocasi", "předpověď", "predpoved", "teplota", "déšť", "dest", "prší", "prsi", "mraky", "oblačno", "vítr", "vitr", "slunce", "bouřka", "bourka",
+];
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   restaurants: ["restaurant", "restaurants", "ресторант", "ресторанти", "restoran", "restaurante", "restaurace", "mic dejun", "breakfast", "закуска", "frühstück", "snídaně", "lunch", "обяд", "mittag", "prânz", "oběd", "dinner", "вечеря", "abendessen", "cină", "večeře"],
@@ -826,11 +986,181 @@ function buildServiceAnswer(question: string, lang: Lang, hotel: HotelPayload) {
   return null;
 }
 
-function buildHotelAnswer(question: string, lang: Lang, hotel: HotelPayload) {
+
+function compactMessage(question: string) {
+  return clean(question).replace(/[!?.;:,\-–—]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function isGreetingOnly(question: string) {
+  const q = compactMessage(question);
+  if (!q || q.length > 36) return false;
+  return GREETING_TERMS.some((term) => q === clean(term) || q === `${clean(term)} ai` || q === `${clean(term)} concierge` || q === `${clean(term)} консиерж`);
+}
+
+function isThanksOnly(question: string) {
+  const q = compactMessage(question);
+  if (!q || q.length > 42) return false;
+  return THANKS_TERMS.some((term) => q === clean(term) || q.startsWith(`${clean(term)} `));
+}
+
+function isWeatherQuestion(question: string) {
+  return hasAnyTerm(question, WEATHER_TERMS);
+}
+
+function toNumber(value: unknown): number | undefined {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function degreeToCompass(deg?: number, lang: Lang = "en") {
+  if (deg == null || !Number.isFinite(deg)) return "";
+  const labels: Record<Lang, string[]> = {
+    bg: ["С", "СИ", "И", "ЮИ", "Ю", "ЮЗ", "З", "СЗ"],
+    en: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"],
+    de: ["N", "NO", "O", "SO", "S", "SW", "W", "NW"],
+    ro: ["N", "NE", "E", "SE", "S", "SV", "V", "NV"],
+    cs: ["S", "SV", "V", "JV", "J", "JZ", "Z", "SZ"],
+  };
+  return labels[lang][Math.round(deg / 45) % 8];
+}
+
+function weatherCodeText(code: number | undefined, lang: Lang) {
+  const c = code ?? -1;
+  const key = c === 0
+    ? "clear"
+    : [1, 2].includes(c)
+      ? "partly"
+      : c === 3
+        ? "cloudy"
+        : [45, 48].includes(c)
+          ? "fog"
+          : [51, 53, 55, 56, 57].includes(c)
+            ? "drizzle"
+            : [61, 63, 65, 66, 67, 80, 81, 82].includes(c)
+              ? "rain"
+              : [71, 73, 75, 77, 85, 86].includes(c)
+                ? "snow"
+                : [95, 96, 99].includes(c)
+                  ? "storm"
+                  : "unknown";
+
+  const map: Record<string, Record<Lang, string>> = {
+    clear: { bg: "ясно", en: "clear", de: "klar", ro: "senin", cs: "jasno" },
+    partly: { bg: "частично облачно", en: "partly cloudy", de: "teilweise bewölkt", ro: "parțial noros", cs: "polojasno" },
+    cloudy: { bg: "облачно", en: "cloudy", de: "bewölkt", ro: "noros", cs: "zataženo" },
+    fog: { bg: "мъгла", en: "foggy", de: "neblig", ro: "ceață", cs: "mlha" },
+    drizzle: { bg: "слаб дъжд", en: "light rain", de: "leichter Regen", ro: "ploaie slabă", cs: "slabý déšť" },
+    rain: { bg: "дъжд", en: "rain", de: "Regen", ro: "ploaie", cs: "déšť" },
+    snow: { bg: "сняг", en: "snow", de: "Schnee", ro: "zăpadă", cs: "sníh" },
+    storm: { bg: "гръмотевична буря", en: "thunderstorm", de: "Gewitter", ro: "furtună", cs: "bouřka" },
+    unknown: { bg: "променливо", en: "variable", de: "wechselhaft", ro: "variabil", cs: "proměnlivo" },
+  };
+
+  return map[key][lang];
+}
+
+function buildLocationCandidates(locationQuery?: string) {
+  const raw = String(locationQuery || "").trim();
+  if (!raw) return [];
+
+  const parts = raw.split(",").map((x) => x.trim()).filter(Boolean);
+  const candidates = [raw];
+
+  if (parts.length >= 2) {
+    candidates.push(parts.slice(-2).join(", "));
+    candidates.push(`${parts[parts.length - 2]} ${parts[parts.length - 1]}`);
+    candidates.push(parts[parts.length - 2]);
+  }
+
+  const withoutHotelWord = raw.replace(/\bhotel\b/gi, "").replace(/\s+/g, " ").trim();
+  if (withoutHotelWord && withoutHotelWord !== raw) candidates.push(withoutHotelWord);
+
+  return [...new Set(candidates.filter(Boolean))];
+}
+
+async function fetchJsonWithTimeout(url: string, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal, cache: "no-store" });
+    if (!res.ok) return null;
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function geocodeHotelLocation(locationQuery?: string) {
+  for (const query of buildLocationCandidates(locationQuery)) {
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`;
+    const data = await fetchJsonWithTimeout(url).catch(() => null);
+    const first = data?.results?.[0];
+    const latitude = toNumber(first?.latitude);
+    const longitude = toNumber(first?.longitude);
+    if (latitude != null && longitude != null) {
+      const place = [first?.name, first?.country].filter(Boolean).join(", ") || query;
+      return { latitude, longitude, place };
+    }
+  }
+  return null;
+}
+
+function weatherAdvice(lang: Lang, precipitation: number | undefined, rainChance: number | undefined, temp: number | undefined, wind: number | undefined) {
+  const t = WEATHER_COPY[lang];
+  if ((rainChance ?? 0) >= 45 || (precipitation ?? 0) > 0) return t.adviceRain;
+  if ((wind ?? 0) >= 32) return t.adviceWind;
+  if ((temp ?? 0) >= 29) return t.adviceHot;
+  if (temp != null && temp <= 10) return t.adviceCold;
+  return t.adviceGood;
+}
+
+async function buildWeatherAnswer(lang: Lang, hotel: HotelPayload) {
+  const t = WEATHER_COPY[lang];
+  if (!hotel.locationQuery) return t.noLocation;
+
+  const geo = await geocodeHotelLocation(hotel.locationQuery).catch(() => null);
+  if (!geo) return t.noLocation;
+
+  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${geo.latitude}&longitude=${geo.longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,precipitation&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&timezone=auto&forecast_days=2`;
+  const data = await fetchJsonWithTimeout(forecastUrl).catch(() => null);
+  if (!data?.current) return t.unavailable;
+
+  const current = data.current || {};
+  const daily = data.daily || {};
+  const temp = toNumber(current.temperature_2m);
+  const apparent = toNumber(current.apparent_temperature);
+  const humidity = toNumber(current.relative_humidity_2m);
+  const clouds = toNumber(current.cloud_cover);
+  const wind = toNumber(current.wind_speed_10m);
+  const windDir = toNumber(current.wind_direction_10m);
+  const precipitation = toNumber(current.precipitation);
+  const rainChance = toNumber(daily.precipitation_probability_max?.[0]);
+  const min = toNumber(daily.temperature_2m_min?.[0]);
+  const max = toNumber(daily.temperature_2m_max?.[0]);
+  const code = toNumber(current.weather_code) ?? toNumber(daily.weather_code?.[0]);
+
+  const lines = [
+    t.lead(geo.place),
+    `• ${t.now}: ${weatherCodeText(code, lang)}${temp != null ? `, ${t.temperature}: ${Math.round(temp)}°C` : ""}${apparent != null ? ` (${t.feelsLike}: ${Math.round(apparent)}°C)` : ""}`,
+    t.minMax(min, max) ? `• ${t.today}: ${t.minMax(min, max)}` : "",
+    clouds != null ? `• ${t.clouds}: ${Math.round(clouds)}%` : "",
+    humidity != null ? `• ${t.humidity}: ${Math.round(humidity)}%` : "",
+    wind != null ? `• ${t.wind}: ${Math.round(wind)} km/h${degreeToCompass(windDir, lang) ? ` ${degreeToCompass(windDir, lang)}` : ""}` : "",
+    rainChance != null ? `• ${t.rainChance}: ${Math.round(rainChance)}%` : "",
+    weatherAdvice(lang, precipitation, rainChance, temp, wind),
+  ].filter(Boolean);
+
+  return lines.join("\n");
+}
+
+async function buildHotelAnswer(question: string, lang: Lang, hotel: HotelPayload) {
   const t = COPY[lang];
   const q = clean(question);
 
   if (!q) return t.intro;
+  if (isGreetingOnly(q)) return CONVERSATION_COPY[lang].greeting;
+  if (isThanksOnly(q)) return CONVERSATION_COPY[lang].thanks;
+  if (isWeatherQuestion(q)) return await buildWeatherAnswer(lang, hotel);
   if (!isHotelQuestion(q, hotel)) return t.outOfScope;
 
   if (hasAnyTerm(q, ["wifi", "wi-fi", "wlan", "internet", "парол", "парола", "passwort", "password", "parolă", "parola", "heslo"])) {
@@ -890,7 +1220,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      answer: buildHotelAnswer(question, lang, hotel),
+      answer: await buildHotelAnswer(question, lang, hotel),
       hotelOnly: true,
     });
   } catch (error: any) {
