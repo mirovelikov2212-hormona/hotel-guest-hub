@@ -65,6 +65,12 @@ const COPY = {
       "Мога да помагам само с информация за хотела и неговите услуги. Попитайте ме за ресторанти, барове, работно време, Wi‑Fi, паркинг, спа, анимация, услуги или правила в хотела.",
     noData:
       "Все още нямам тази информация за хотела. Моля, обърнете се към рецепция.",
+    lead: "Разбира се — ето какво мога да Ви кажа по темата:",
+    nearbyLead: "Разбира се — за района около хотела имаме следната информация:",
+    actionLead: "Можете да го направите директно през хъба:",
+    paidNotice: "Имайте предвид, че това е платена услуга и може да бъде начислена към сметката на стаята.",
+    askReception: "Ако желаете нещо по-специфично, рецепцията ще Ви помогне най-точно.",
+    nearbyNoData: "За обекти около хотела проверете секцията „Около хотела“ в хъба. Ако търсите конкретна препоръка, рецепцията ще Ви насочи най-добре.",
     servicesIntro: "В момента в хъба са активни следните услуги:",
     hotelInfoIntro: "Ето актуалната информация:",
     wifi: (ssid?: string, password?: string) =>
@@ -110,6 +116,12 @@ const COPY = {
       "I can only help with information about the hotel and its services. Ask me about restaurants, bars, opening hours, Wi‑Fi, parking, spa, animation, services or hotel rules.",
     noData:
       "I do not have that hotel information yet. Please contact reception.",
+    lead: "Of course — here is the most relevant information:",
+    nearbyLead: "Of course — for the area around the hotel, we have the following information:",
+    actionLead: "You can do this directly in the hub:",
+    paidNotice: "Please note that this is a paid service and may be charged to your room account.",
+    askReception: "For anything more specific, reception will be happy to guide you.",
+    nearbyNoData: "For places around the hotel, please check the Explore nearby section in the hub. For a specific recommendation, reception can guide you best.",
     servicesIntro: "These services are currently active in the hub:",
     hotelInfoIntro: "Here is the current information:",
     wifi: (ssid?: string, password?: string) =>
@@ -151,6 +163,12 @@ const COPY = {
       "Ich kann nur mit Informationen über das Hotel und seine Leistungen helfen. Fragen Sie mich nach Restaurants, Bars, Öffnungszeiten, WLAN, Parkplatz, Spa, Animation, Services oder Hotelregeln.",
     noData:
       "Ich habe diese Hotelinformation noch nicht. Bitte wenden Sie sich an die Rezeption.",
+    lead: "Sehr gern — hier ist die passende Information:",
+    nearbyLead: "Sehr gern — für die Umgebung des Hotels haben wir folgende Informationen:",
+    actionLead: "Sie können das direkt im Hub erledigen:",
+    paidNotice: "Bitte beachten Sie, dass dies eine kostenpflichtige Leistung ist und dem Zimmerkonto belastet werden kann.",
+    askReception: "Für spezielle Wünsche hilft Ihnen die Rezeption gern weiter.",
+    nearbyNoData: "Für Orte in der Umgebung nutzen Sie bitte den Bereich „Umgebung“ im Hub. Für eine konkrete Empfehlung hilft Ihnen die Rezeption am besten weiter.",
     servicesIntro: "Diese Dienstleistungen sind aktuell im Hub aktiv:",
     hotelInfoIntro: "Hier ist die aktuelle Information:",
     wifi: (ssid?: string, password?: string) =>
@@ -192,6 +210,12 @@ const COPY = {
       "Pot ajuta doar cu informații despre hotel și serviciile sale. Întrebați-mă despre restaurante, baruri, program, Wi‑Fi, parcare, spa, animație, servicii sau regulile hotelului.",
     noData:
       "Nu am încă această informație despre hotel. Vă rugăm să contactați recepția.",
+    lead: "Sigur — iată informația relevantă:",
+    nearbyLead: "Sigur — pentru zona din jurul hotelului avem următoarele informații:",
+    actionLead: "Puteți face acest lucru direct din hub:",
+    paidNotice: "Vă rugăm să rețineți că acesta este un serviciu contra cost și poate fi adăugat la contul camerei.",
+    askReception: "Pentru ceva mai specific, recepția vă poate ajuta cel mai bine.",
+    nearbyNoData: "Pentru locuri din apropierea hotelului, verificați secțiunea „Atracții / În apropiere” din hub. Pentru o recomandare concretă, recepția vă poate ghida cel mai bine.",
     servicesIntro: "Următoarele servicii sunt active în hub:",
     hotelInfoIntro: "Iată informația actuală:",
     wifi: (ssid?: string, password?: string) =>
@@ -233,6 +257,12 @@ const COPY = {
       "Mohu pomoci pouze s informacemi o hotelu a jeho službách. Zeptejte se na restaurace, bary, otevírací dobu, Wi‑Fi, parkování, spa, animaci, služby nebo pravidla hotelu.",
     noData:
       "Tuto informaci o hotelu zatím nemám. Kontaktujte prosím recepci.",
+    lead: "Samozřejmě — zde jsou nejdůležitější informace:",
+    nearbyLead: "Samozřejmě — pro okolí hotelu máme tyto informace:",
+    actionLead: "Můžete to vyřídit přímo v hubu:",
+    paidNotice: "Upozorňujeme, že se jedná o placenou službu a může být připsána na účet pokoje.",
+    askReception: "Pro konkrétnější přání vám nejlépe pomůže recepce.",
+    nearbyNoData: "Místa v okolí hotelu najdete v sekci „Okolí“ v hubu. Pro konkrétní doporučení vám nejlépe poradí recepce.",
     servicesIntro: "V hubu jsou aktuálně aktivní tyto služby:",
     hotelInfoIntro: "Zde jsou aktuální informace:",
     wifi: (ssid?: string, password?: string) =>
@@ -313,7 +343,7 @@ const HOTEL_KEYWORDS = [
   "хотел", "рецепц", "ресторан", "бар", "спа", "басейн", "дет", "анимац", "паркинг", "правила", "политик", "хавли", "шезлонг", "благотвор",
   "parcare", "prosoape", "șezlong", "sezlong", "caritate", "politica", "reguli", "animație", "animatie",
   "parkování", "ručníky", "lehátka", "charita", "pravidla", "animace",
-  "check", "location", "address", "hours", "opening", "program", "работ", "час", "къде", "where", "wo", "unde", "kde", "otevírací", "program",
+  "check", "location", "address", "hours", "opening", "program", "nearby", "around", "area", "работ", "час", "къде", "район", "района", "около", "наблизо", "близо", "where", "wo", "umgebung", "nähe", "unde", "apropiere", "împrejurimi", "kde", "okolí", "blízko", "otevírací", "program",
   "minibar", "минибар", "laundry", "пране", "wake", "събуж", "taxi", "такси",
 ];
 
@@ -328,6 +358,54 @@ const INFO_GROUP_KEYWORDS: Record<string, string[]> = {
   emergency: ["emergency", "urgent", "спеш", "notfall", "urgență", "nouz"],
   attractions: ["attraction", "nearby", "around", "забележ", "наблизо", "atrac", "împrejurimi", "zajímav", "okolí"],
   pharmacy: ["pharmacy", "аптека", "farmacie", "lékárna"],
+};
+
+
+const NEARBY_TERMS = [
+  "nearby", "around", "area", "near the hotel", "outside the hotel", "surroundings",
+  "наблизо", "близо", "около", "район", "района", "в района", "извън хотела",
+  "umgebung", "in der nähe", "nähe", "rund um das hotel",
+  "apropiere", "în apropiere", "imprejurimi", "împrejurimi", "zona hotelului",
+  "okolí", "v okolí", "blízko", "u hotelu",
+];
+
+const OUTSIDE_CATEGORY_TERMS: Record<string, string[]> = {
+  restaurants_nearby: ["restaurant", "restaurants", "ресторант", "ресторанти", "restaurante", "restaurace"],
+  bars_nearby: ["bar", "bars", "бар", "барове", "baruri", "bary"],
+  pharmacy: ["pharmacy", "аптека", "farmacie", "lékárna", "apotheke"],
+  attractions: ["attraction", "attractions", "sightseeing", "places", "забележ", "какво да видя", "atrac", "zajímav", "památky"],
+};
+
+const PAID_SERVICE_KEYS = new Set(["minibar", "laundry", "coffee_capsules", "pillow_menu", "late_checkout"]);
+
+const SERVICE_SECTION_LABELS = {
+  bg: { housekeeping: "Housekeeping", reception: "Рецепция", support: "Поддръжка" },
+  en: { housekeeping: "Housekeeping", reception: "Reception", support: "Support / Maintenance" },
+  de: { housekeeping: "Housekeeping", reception: "Rezeption", support: "Technik / Support" },
+  ro: { housekeeping: "Housekeeping", reception: "Recepție", support: "Suport / Întreținere" },
+  cs: { housekeeping: "Housekeeping", reception: "Recepce", support: "Podpora / Údržba" },
+} as const;
+
+const SERVICE_SECTION_BY_KEY: Record<string, keyof typeof SERVICE_SECTION_LABELS.bg> = {
+  towels: "housekeeping",
+  toilet_paper: "housekeeping",
+  extra_pillow: "housekeeping",
+  extra_blanket: "housekeeping",
+  bathrobe: "housekeeping",
+  slippers: "housekeeping",
+  baby_cot: "housekeeping",
+  iron: "housekeeping",
+  minibar: "housekeeping",
+  laundry: "housekeeping",
+  coffee_capsules: "housekeeping",
+  pillow_menu: "housekeeping",
+  late_checkout: "reception",
+  wake_up_call: "reception",
+  taxi: "reception",
+  special_occasion: "reception",
+  air_conditioning: "support",
+  no_hot_water: "support",
+  other_technical_issue: "support",
 };
 
 function normalizeLang(value: string): Lang {
@@ -474,6 +552,12 @@ function findMatchingHotelInfo(question: string, lang: Lang, hotel: HotelPayload
     const identity = itemIdentity(item, lang);
     if (!identity) continue;
 
+    const nearbyIdentityTerms = [
+      ...NEARBY_TERMS,
+      "nearby", "around", "наблизо", "около", "район", "района", "umgebung", "nähe", "apropiere", "împrejurimi", "okolí", "blízko",
+    ];
+    if (hasAnyTerm(identity, nearbyIdentityTerms) && !isNearbyOutsideQuestion(q)) continue;
+
     const groupHit = Object.values(INFO_GROUP_KEYWORDS).some((terms) => hasAnyTerm(q, terms) && hasAnyTerm(identity, terms));
     const title = getMapValue(item.title, lang) || getMapValue(item.title, "en") || getMapValue(item.title, "bg");
     const titleTokens = stripIcon(title).split(/[\s,/·|()-]+/).filter((token) => token.length >= 4);
@@ -553,7 +637,7 @@ function buildVenueCategoryAnswer(question: string, lang: Lang, hotel: HotelPayl
     .join(lang === "bg" ? " и " : lang === "de" ? " und " : lang === "ro" ? " și " : lang === "cs" ? " a " : " and ");
 
   const lines = venues.slice(0, 8).map((venue) => formatVenueLine(venue, lang, wantsReservation, question));
-  return [t.venueListIntro(labels), ...lines].join("\n");
+  return [t.lead, t.venueListIntro(labels), ...lines].join("\n");
 }
 
 function buildSpecificVenueAnswer(question: string, lang: Lang, hotel: HotelPayload) {
@@ -563,7 +647,7 @@ function buildSpecificVenueAnswer(question: string, lang: Lang, hotel: HotelPayl
     return name && hasTerm(question, name);
   });
   if (!venues.length) return null;
-  return venues.slice(0, 5).map((venue) => formatVenueLine(venue, lang, wantsReservation, question)).join("\n");
+  return [COPY[lang].lead, ...venues.slice(0, 5).map((venue) => formatVenueLine(venue, lang, wantsReservation, question))].join("\n");
 }
 
 function buildHotelInfoAnswer(question: string, lang: Lang, hotel: HotelPayload) {
@@ -609,12 +693,17 @@ function formatInfoForSmartAnswer(item: HotelInfoItem, lang: Lang) {
   return "";
 }
 
-function formatServiceForSmartAnswer(service: ServiceItem) {
+function formatServiceForSmartAnswer(service: ServiceItem, lang: Lang) {
   const label = stripIcon(service.label);
   const description = normalizeDisplayText(service.description || "");
+  const sectionKey = SERVICE_SECTION_BY_KEY[service.key];
+  const section = sectionKey ? SERVICE_SECTION_LABELS[lang][sectionKey] : "";
+  const action = section ? `${COPY[lang].actionLead} ${section}.` : "";
+  const paid = PAID_SERVICE_KEYS.has(service.key) ? COPY[lang].paidNotice : "";
 
-  if (label && description) return `• ${label}\n${description}`;
-  if (description) return `• ${description}`;
+  const details = [description, paid, action].filter(Boolean).join("\n");
+  if (label && details) return `• ${label}\n${details}`;
+  if (details) return `• ${details}`;
   if (label) return `• ${label}`;
   return "";
 }
@@ -635,6 +724,55 @@ function findMatchingVenues(question: string, hotel: HotelPayload) {
     seen.add(key);
     return true;
   });
+}
+
+
+function isNearbyOutsideQuestion(question: string) {
+  return hasAnyTerm(question, NEARBY_TERMS);
+}
+
+function identityHasAny(item: HotelInfoItem, lang: Lang, terms: string[]) {
+  return hasAnyTerm(itemIdentity(item, lang), terms);
+}
+
+function findNearbyHotelInfo(question: string, lang: Lang, hotel: HotelPayload) {
+  const q = clean(question);
+  if (!isNearbyOutsideQuestion(q)) return [];
+
+  const items = getActiveHotelInfo(hotel);
+  const requestedGroups = Object.entries(OUTSIDE_CATEGORY_TERMS)
+    .filter(([, terms]) => hasAnyTerm(q, terms))
+    .map(([group]) => group);
+
+  const nearbyIdentityTerms = [
+    ...NEARBY_TERMS,
+    "nearby", "around", "атракции", "забележ", "наблизо", "около", "район",
+    "restaurants nearby", "ресторанти наблизо", "аптека", "pharmacy", "atracții", "atractii", "restaurante", "okolí", "zajímav", "restaurace",
+  ];
+
+  return items.filter((item) => {
+    const identity = itemIdentity(item, lang);
+    if (!identity) return false;
+    const isNearbyItem = hasAnyTerm(identity, nearbyIdentityTerms);
+    if (!isNearbyItem) return false;
+
+    if (!requestedGroups.length) return true;
+
+    return requestedGroups.some((group) => {
+      const terms = OUTSIDE_CATEGORY_TERMS[group] || [];
+      return hasAnyTerm(identity, terms) || clean(item.key || item.id || "").includes(group);
+    });
+  });
+}
+
+function buildNearbyAnswer(question: string, lang: Lang, hotel: HotelPayload) {
+  const matches = findNearbyHotelInfo(question, lang, hotel);
+  if (!isNearbyOutsideQuestion(question)) return null;
+
+  if (!matches.length) return COPY[lang].nearbyNoData;
+
+  const lines = matches.slice(0, 5).map((item) => formatInfoForSmartAnswer(item, lang)).filter(Boolean);
+  return lines.length ? [COPY[lang].nearbyLead, ...lines, COPY[lang].askReception].join("\n\n") : COPY[lang].nearbyNoData;
 }
 
 function buildSmartTopicAnswer(question: string, lang: Lang, hotel: HotelPayload) {
@@ -663,12 +801,12 @@ function buildSmartTopicAnswer(question: string, lang: Lang, hotel: HotelPayload
 
   if (serviceMatches.length) {
     lines.push(
-      ...serviceMatches.slice(0, 5).map((service) => formatServiceForSmartAnswer(service))
+      ...serviceMatches.slice(0, 5).map((service) => formatServiceForSmartAnswer(service, lang))
     );
   }
 
   const cleaned = uniqueNonEmpty(lines);
-  return cleaned.length ? cleaned.join("\n\n") : null;
+  return cleaned.length ? [COPY[lang].lead, ...cleaned].join("\n\n") : null;
 }
 
 function buildServiceAnswer(question: string, lang: Lang, hotel: HotelPayload) {
@@ -678,11 +816,11 @@ function buildServiceAnswer(question: string, lang: Lang, hotel: HotelPayload) {
 
   const matches = findMatchingServices(question, hotel);
   if (matches.length) {
-    return matches.slice(0, 5).map((service) => `• ${stripIcon(service.label)}${service.description ? ` — ${normalizeDisplayText(service.description)}` : ""}`).join("\n");
+    return [t.lead, ...matches.slice(0, 5).map((service) => formatServiceForSmartAnswer(service, lang))].join("\n\n");
   }
 
   if (isGenericServiceQuestion(question)) {
-    return [t.servicesIntro, ...activeServices.slice(0, 15).map((service) => `• ${stripIcon(service.label)}`)].join("\n");
+    return [t.servicesIntro, ...activeServices.slice(0, 15).map((service) => `• ${stripIcon(service.label)}`), t.askReception].join("\n");
   }
 
   return null;
@@ -698,6 +836,9 @@ function buildHotelAnswer(question: string, lang: Lang, hotel: HotelPayload) {
   if (hasAnyTerm(q, ["wifi", "wi-fi", "wlan", "internet", "парол", "парола", "passwort", "password", "parolă", "parola", "heslo"])) {
     return t.wifi(hotel.wifi?.ssid, hotel.wifi?.password);
   }
+
+  const nearbyAnswer = buildNearbyAnswer(q, lang, hotel);
+  if (nearbyAnswer) return nearbyAnswer;
 
   const smartTopicAnswer = buildSmartTopicAnswer(q, lang, hotel);
   if (smartTopicAnswer) return smartTopicAnswer;
