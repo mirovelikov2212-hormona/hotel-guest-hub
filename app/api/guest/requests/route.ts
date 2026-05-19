@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
       room: row.room_number_snapshot ?? room,
       title: row.title,
       type: normalizeStaffRequestType(row.request_type),
+      rawType: row.request_type,
       status: row.status as StaffRequestStatus,
       createdAt: new Date(row.created_at).toLocaleString([], {
         year: "numeric",

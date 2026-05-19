@@ -207,6 +207,16 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       outlet_type_room_service: "Room Service",
       outlet_type_entertainment: "Развлечения",
       room_cleaning: "Почистване на стаята",
+      extra_pillows: "Допълнителни възглавници",
+      wake_up: "Събуждане",
+      coffee_capsules: "Кафе капсули",
+      pillow_menu: "Меню възглавници",
+      special_occasion: "Специален повод",
+      minibar: "Зареждане минибар",
+      coffee_machine: "Кафе машина",
+      ac_issue: "Климатик / отопление",
+      water_issue: "Проблем с водата",
+      something_broken: "Нещо е счупено",
       bathrobe: "Халат",
       slippers: "Чехли",
       baby_cot: "Бебешко легло",
@@ -249,6 +259,16 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       outlet_type_room_service: "Zimmerservice",
       outlet_type_entertainment: "Unterhaltung",
       room_cleaning: "Zimmerreinigung",
+      extra_pillows: "Extra Kissen",
+      wake_up: "Weckruf",
+      coffee_capsules: "Kaffeekapseln",
+      pillow_menu: "Kissenmenü",
+      special_occasion: "Besonderer Anlass",
+      minibar: "Minibar auffüllen",
+      coffee_machine: "Kaffeemaschine",
+      ac_issue: "Klima / Heizung",
+      water_issue: "Wasserproblem",
+      something_broken: "Etwas ist kaputt",
       bathrobe: "Bademantel",
       slippers: "Hausschuhe",
       baby_cot: "Babybett",
@@ -296,6 +316,16 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       outlet_type_room_service: "Room Service",
       outlet_type_entertainment: "Entertainment",
       room_cleaning: "Room cleaning",
+      extra_pillows: "Extra pillows",
+      wake_up: "Wake-up call",
+      coffee_capsules: "Coffee capsules",
+      pillow_menu: "Pillow menu",
+      special_occasion: "Special occasion",
+      minibar: "Refill minibar",
+      coffee_machine: "Coffee machine",
+      ac_issue: "AC / heating",
+      water_issue: "Water issue",
+      something_broken: "Something broken",
       bathrobe: "Bathrobe",
       slippers: "Slippers",
       baby_cot: "Baby cot",
@@ -343,6 +373,16 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       outlet_type_room_service: "Room Service",
       outlet_type_entertainment: "Divertisment",
       room_cleaning: "Curățenie cameră",
+      extra_pillows: "Perne suplimentare",
+      wake_up: "Apel de trezire",
+      coffee_capsules: "Capsule de cafea",
+      pillow_menu: "Meniu perne",
+      special_occasion: "Ocazie specială",
+      minibar: "Reumplere minibar",
+      coffee_machine: "Aparat de cafea",
+      ac_issue: "Aer condiționat / încălzire",
+      water_issue: "Problemă cu apa",
+      something_broken: "Ceva este stricat",
       bathrobe: "Halat de baie",
       slippers: "Papuci",
       baby_cot: "Pătuț pentru bebeluș",
@@ -390,6 +430,16 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       outlet_type_room_service: "Room Service",
       outlet_type_entertainment: "Zábava",
       room_cleaning: "Úklid pokoje",
+      extra_pillows: "Polštáře navíc",
+      wake_up: "Buzení",
+      coffee_capsules: "Kávové kapsle",
+      pillow_menu: "Menu polštářů",
+      special_occasion: "Zvláštní příležitost",
+      minibar: "Doplnit minibar",
+      coffee_machine: "Kávovar",
+      ac_issue: "Klimatizace / topení",
+      water_issue: "Problém s vodou",
+      something_broken: "Něco je rozbité",
       bathrobe: "Župan",
       slippers: "Pantofle",
       baby_cot: "Dětská postýlka",
@@ -446,6 +496,7 @@ type GuestStatusItem = {
   room: string;
   title: string;
   type: StaffRequestType;
+  rawType?: string;
   status: StaffRequestStatus;
   createdAt: string;
 };
@@ -559,6 +610,7 @@ function mapGuestStatusRow(row: GuestStatusRow): GuestStatusItem {
     room: row.room_number_snapshot ?? "",
     title: row.title,
     type: row.request_type,
+    rawType: row.request_type,
     status: row.status,
     createdAt: new Date(row.created_at).toLocaleString([], {
       year: "numeric",
@@ -642,6 +694,88 @@ function getGuestRequestIcon(type: StaffRequestType | string): string {
 
 function cleanRequestTitle(value: string) {
   return value.replace(/^[^\p{L}\p{N}]+/u, "").trim();
+}
+
+function normalizeGuestRequestTitleForLookup(value: string) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9а-яё]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getGuestRequestLabelKey(type: StaffRequestType | string, storedTitle?: string) {
+  const rawType = String(type || "").trim().toLowerCase();
+  const normalizedTitle = normalizeGuestRequestTitleForLookup(storedTitle || "");
+  const source = `${rawType} ${normalizedTitle}`.trim();
+
+  if (!source) return "";
+
+  const directTypeKeys: Record<string, string> = {
+    towels: "towels",
+    toilet_paper: "toilet_paper",
+    extra_pillow: "extra_pillows",
+    extra_pillows: "extra_pillows",
+    extra_blanket: "blanket",
+    bathrobe: "bathrobe",
+    slippers: "slippers",
+    baby_cot: "baby_cot",
+    iron: "iron",
+    minibar: "minibar",
+    minibar_refill: "minibar",
+    laundry: "laundry",
+    late_checkout: "late_checkout",
+    wake_up_call: "wake_up",
+    taxi: "taxi",
+    luggage_help: "luggage_help",
+    reservation_help: "reserve_table",
+    restaurant_reservation: "reserve_table",
+    air_conditioning: "ac_issue",
+    no_hot_water: "water_issue",
+    tv_issue: "tv_issue",
+    light_not_working: "light_not_working",
+    bathroom_issue: "bathroom_issue",
+    door_lock_issue: "door_lock_issue",
+    wifi_issue: "wifi_issue",
+    power_outlet_issue: "power_outlet_issue",
+    safe_issue: "safe_issue",
+    balcony_door_issue: "balcony_door_issue",
+    minibar_not_cooling: "minibar_not_cooling",
+    other_technical_issue: "something_broken",
+  };
+
+  if (directTypeKeys[rawType]) return directTypeKeys[rawType];
+
+  const titlePatterns: Array<[RegExp, string]> = [
+    [/(extra pillow|perna suplimentara|polstar navic|extra kissen|доп.*възглав|възглав)/i, "extra_pillows"],
+    [/(wake up|trezire|buzeni|weckruf|събуждан)/i, "wake_up"],
+    [/(bathrobe|halat|zupan|bademantel|халат)/i, "bathrobe"],
+    [/(slippers|papuci|pantofle|hausschuhe|чехли)/i, "slippers"],
+    [/(baby cot|patut|postyl|babybett|бебешко)/i, "baby_cot"],
+    [/(toilet paper|hartie igienica|toaletni papir|toilettenpapier|тоалетна)/i, "toilet_paper"],
+    [/(towels|prosoape|rucnik|handtuch|хавли)/i, "towels"],
+    [/(blanket|patura|prikryvka|decke|одеял)/i, "blanket"],
+    [/(laundry|spalatorie|pradelna|wasche|пране)/i, "laundry"],
+    [/(minibar|минибар)/i, "minibar"],
+    [/(coffee capsule|capsule|capsule cafea|kapsle|кафе капсул)/i, "coffee_capsules"],
+    [/(pillow menu|meniu perne|menu polstaru|меню възглав)/i, "pillow_menu"],
+    [/(late check|checkout|check out|check-out|късен)/i, "late_checkout"],
+    [/(taxi|такси)/i, "taxi"],
+    [/(special occasion|ocazie|prilezitost|специален повод)/i, "special_occasion"],
+    [/(coffee machine|aparat de cafea|kavovar|kaffeemaschine|кафе машина)/i, "coffee_machine"],
+    [/(water|apa|voda|wasser|водата)/i, "water_issue"],
+    [/(air condition|climat|klima|климатик|отопление)/i, "ac_issue"],
+    [/(broken|stricat|rozbite|kaputt|счупено|повредено)/i, "something_broken"],
+  ];
+
+  for (const [pattern, key] of titlePatterns) {
+    if (pattern.test(source)) return key;
+  }
+
+  return "";
 }
 
 function getRequestDefButtonIcon(def: RequestDef): string {
@@ -1325,6 +1459,17 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     [roomCopy]
   );
 
+  const getGuestVisibleRequestTitle = useCallback(
+    (item: GuestStatusItem) => {
+      const labelKey = getGuestRequestLabelKey(item.rawType || item.type, item.title);
+      const translated = labelKey ? String(tUI(labelKey) || "").trim() : "";
+      if (translated && translated !== labelKey) return cleanRequestTitle(translated);
+
+      return cleanRequestTitle(String(item.title || item.type || ""));
+    },
+    [tUI]
+  );
+
   const activeGuestRequests = useMemo(
     () => guestRequests.filter((item) => item.status !== "completed"),
     [guestRequests]
@@ -1373,7 +1518,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           throw new Error(payload?.error || "Failed to load guest requests");
         }
 
-        const rows = ((payload.requests as Array<{ id: string; room: string; title: string; type: StaffRequestType | string; status: StaffRequestStatus; createdAt: string; }> | undefined) ?? []).filter(
+        const rows = ((payload.requests as Array<{ id: string; room: string; title: string; type: StaffRequestType | string; rawType?: string; status: StaffRequestStatus; createdAt: string; }> | undefined) ?? []).filter(
           (row) => row.room === room
         );
 
@@ -1383,6 +1528,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           room: row.room,
           title: row.title,
           type: row.type,
+          rawType: row.rawType,
           status: row.status,
           createdAt: row.createdAt,
         }));
@@ -1393,6 +1539,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             room: String(item.room),
             title: String(item.title),
             type: normalizeStaffRequestType(String(item.type || "")),
+            rawType: String(item.rawType || item.type || ""),
             status: item.status,
             createdAt: String(item.createdAt),
           }))
@@ -3345,19 +3492,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       title: tUI("reception_title") || "Reception",
       items: [
         ...buildRequestDefItems("reception"),
-        ...(!requestDefIds.has("information_request")
-          ? [
-            {
-              label: tUI("reception_general") || tUI("information") || "Information",
-              kind: "link" as const,
-              onClick: () =>
-                submitGuestRequest({
-                  type: "information_request",
-                  typeLabel: String(tUI("reception_general") || tUI("information") || "Information"),
-                }),
-            },
-          ]
-          : []),
         ...(!requestDefIds.has("luggage_help")
           ? [
             {
@@ -3764,7 +3898,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         <div className="absolute bottom-0 left-0 right-0 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h1 className="text-xl font-semibold leading-tight">{config.hotelName}</h1>
+              <h1 className="text-xl font-semibold leading-tight text-white drop-shadow-md">{config.hotelName}</h1>
               <p className="mt-1 text-sm text-neutral-200">{tUI("hero_subtitle")}</p>
 
               {room ? (
@@ -3996,8 +4130,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                          <span className="text-base leading-none">{getGuestRequestIcon(item.type)}</span>
-                          <span>{item.title.replace(/^[^\p{L}\p{N}]+/u, "").trim()}</span>
+                          <span className="text-base leading-none">{getGuestRequestIcon(item.rawType || item.type)}</span>
+                          <span>{getGuestVisibleRequestTitle(item)}</span>
                         </div>
                         <div className="mt-1 text-xs text-neutral-400">
                           {roomCopy.roomBadge.replace("{room}", item.room)} • {item.createdAt}
