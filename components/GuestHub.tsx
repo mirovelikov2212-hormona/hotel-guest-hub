@@ -206,6 +206,22 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       outlet_type_gym: "Fitness",
       outlet_type_room_service: "Room Service",
       outlet_type_entertainment: "Развлечения",
+      room_cleaning: "Почистване на стаята",
+      bathrobe: "Халат",
+      slippers: "Чехли",
+      baby_cot: "Бебешко легло",
+      tv_issue: "Проблем с телевизора",
+      light_not_working: "Проблем с осветлението",
+      bathroom_issue: "Проблем в банята",
+      door_lock_issue: "Проблем с вратата / ключалката",
+      wifi_issue: "Проблем с Wi‑Fi",
+      power_outlet_issue: "Проблем с контакт",
+      safe_issue: "Проблем със сейфа",
+      balcony_door_issue: "Проблем с балконската врата",
+      minibar_not_cooling: "Минибарът не охлажда",
+      reception_general: "Въпрос към рецепция",
+      information: "Информация",
+      luggage_help: "Помощ с багаж",
     },
     de: {
       install_app: "App installieren",
@@ -227,6 +243,22 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       outlet_type_gym: "Fitness",
       outlet_type_room_service: "Zimmerservice",
       outlet_type_entertainment: "Unterhaltung",
+      room_cleaning: "Zimmerreinigung",
+      bathrobe: "Bademantel",
+      slippers: "Hausschuhe",
+      baby_cot: "Babybett",
+      tv_issue: "TV-Problem",
+      light_not_working: "Problem mit der Beleuchtung",
+      bathroom_issue: "Problem im Badezimmer",
+      door_lock_issue: "Problem mit Tür / Schloss",
+      wifi_issue: "WLAN-Problem",
+      power_outlet_issue: "Problem mit Steckdose",
+      safe_issue: "Problem mit Safe",
+      balcony_door_issue: "Problem mit Balkontür",
+      minibar_not_cooling: "Minibar kühlt nicht",
+      reception_general: "Frage an die Rezeption",
+      information: "Information",
+      luggage_help: "Hilfe mit Gepäck",
     },
     en: {
       install_app: "Install the app",
@@ -253,6 +285,22 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       outlet_type_gym: "Fitness",
       outlet_type_room_service: "Room Service",
       outlet_type_entertainment: "Entertainment",
+      room_cleaning: "Room cleaning",
+      bathrobe: "Bathrobe",
+      slippers: "Slippers",
+      baby_cot: "Baby cot",
+      tv_issue: "TV issue",
+      light_not_working: "Light issue",
+      bathroom_issue: "Bathroom issue",
+      door_lock_issue: "Door / lock issue",
+      wifi_issue: "Wi‑Fi issue",
+      power_outlet_issue: "Power outlet issue",
+      safe_issue: "Safe issue",
+      balcony_door_issue: "Balcony door issue",
+      minibar_not_cooling: "Minibar not cooling",
+      reception_general: "Question for reception",
+      information: "Information",
+      luggage_help: "Luggage assistance",
     },
     ro: {
       install_app: "Instalează aplicația",
@@ -279,6 +327,22 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       outlet_type_gym: "Fitness",
       outlet_type_room_service: "Room Service",
       outlet_type_entertainment: "Divertisment",
+      room_cleaning: "Curățenie cameră",
+      bathrobe: "Halat de baie",
+      slippers: "Papuci",
+      baby_cot: "Pătuț pentru bebeluș",
+      tv_issue: "Problemă cu televizorul",
+      light_not_working: "Problemă cu lumina",
+      bathroom_issue: "Problemă la baie",
+      door_lock_issue: "Problemă cu ușa / încuietoarea",
+      wifi_issue: "Problemă cu Wi‑Fi",
+      power_outlet_issue: "Problemă cu priza",
+      safe_issue: "Problemă cu seiful",
+      balcony_door_issue: "Problemă cu ușa balconului",
+      minibar_not_cooling: "Minibarul nu răcește",
+      reception_general: "Întrebare pentru recepție",
+      information: "Informații",
+      luggage_help: "Asistență pentru bagaje",
     },
     cs: {
       install_app: "Nainstalovat aplikaci",
@@ -305,6 +369,22 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       outlet_type_gym: "Fitness",
       outlet_type_room_service: "Room Service",
       outlet_type_entertainment: "Zábava",
+      room_cleaning: "Úklid pokoje",
+      bathrobe: "Župan",
+      slippers: "Pantofle",
+      baby_cot: "Dětská postýlka",
+      tv_issue: "Problém s TV",
+      light_not_working: "Problém s osvětlením",
+      bathroom_issue: "Problém v koupelně",
+      door_lock_issue: "Problém se dveřmi / zámkem",
+      wifi_issue: "Problém s Wi‑Fi",
+      power_outlet_issue: "Problém se zásuvkou",
+      safe_issue: "Problém s trezorem",
+      balcony_door_issue: "Problém s balkonovými dveřmi",
+      minibar_not_cooling: "Minibar nechladí",
+      reception_general: "Dotaz na recepci",
+      information: "Informace",
+      luggage_help: "Pomoc se zavazadly",
     },
   };
 
@@ -1563,17 +1643,59 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       messageKey: string;
     }> | undefined) ??
     [
-      { key: "laundry", labelKey: "laundry", messageKey: "msg_laundry" },
+      { key: "room_cleaning", labelKey: "room_cleaning", messageKey: "msg_room_cleaning" },
+      { key: "towels", labelKey: "towels", messageKey: "msg_towels" },
+      { key: "toilet_paper", labelKey: "toilet_paper", messageKey: "msg_toilet_paper" },
+      { key: "extra_pillow", labelKey: "extra_pillows", messageKey: "msg_extra_pillows" },
+      { key: "blanket", labelKey: "blanket", messageKey: "msg_blanket" },
+      { key: "bathrobe", labelKey: "bathrobe", messageKey: "msg_bathrobe" },
+      { key: "slippers", labelKey: "slippers", messageKey: "msg_slippers" },
+      { key: "baby_cot", labelKey: "baby_cot", messageKey: "msg_baby_cot" },
       { key: "iron", labelKey: "iron", messageKey: "msg_iron" },
       { key: "minibar", labelKey: "minibar", messageKey: "msg_minibar" },
-      { key: "blanket", labelKey: "blanket", messageKey: "msg_blanket" },
+      { key: "laundry", labelKey: "laundry", messageKey: "msg_laundry" },
     ];
 
   const housekeepingExtraActions: Record<
     string,
     | { mode: "info"; getMessage: (lang: LangKey) => string }
-    | { mode: "request"; type: StaffRequestType; typeLabel: string; note?: string }
+    | { mode: "request"; type: StaffRequestType | string; typeLabel: string; note?: string }
   > = {
+    room_cleaning: {
+      mode: "request",
+      type: "room_cleaning_request",
+      typeLabel: "Room cleaning",
+    },
+    towels: {
+      mode: "request",
+      type: "towels",
+      typeLabel: "Towels",
+    },
+    toilet_paper: {
+      mode: "request",
+      type: "toilet_paper",
+      typeLabel: "Toilet paper",
+    },
+    extra_pillow: {
+      mode: "request",
+      type: "extra_pillow",
+      typeLabel: "Extra pillows",
+    },
+    bathrobe: {
+      mode: "request",
+      type: "bathrobe",
+      typeLabel: "Bathrobe",
+    },
+    slippers: {
+      mode: "request",
+      type: "slippers",
+      typeLabel: "Slippers",
+    },
+    baby_cot: {
+      mode: "request",
+      type: "baby_cot",
+      typeLabel: "Baby cot",
+    },
     laundry: {
       mode: "info",
       getMessage: (lang: LangKey) =>
@@ -1600,10 +1722,54 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     },
   };
   const hiddenGuestRequestIds = new Set([
-    "room_cleaning_request",
     "extra_cleaning",
     "cleaning",
   ]);
+
+  const builtInRequestDefIds = useMemo(
+    () =>
+      new Set<string>([
+        "late_checkout",
+        "taxi",
+        "wake_up_call",
+        "information",
+        "information_request",
+        "luggage_help",
+        "towels",
+        "toilet_paper",
+        "extra_pillow",
+        "extra_pillows",
+        "extra_blanket",
+        "blanket",
+        "bathrobe",
+        "slippers",
+        "baby_cot",
+        "room_cleaning",
+        "room_cleaning_request",
+        "iron",
+        "minibar",
+        "minibar_refill",
+        "laundry",
+        "air_conditioning",
+        "ac_issue",
+        "no_hot_water",
+        "water_issue",
+        "tv_issue",
+        "light_not_working",
+        "light_issue",
+        "bathroom_issue",
+        "door_lock_issue",
+        "wifi_issue",
+        "power_outlet_issue",
+        "safe_issue",
+        "balcony_door_issue",
+        "minibar_not_cooling",
+        "coffee_machine",
+        "other_technical_issue",
+        "something_broken",
+      ]),
+    []
+  );
 
   const requestDefs = useMemo(
     () =>
@@ -1715,7 +1881,15 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     }, {});
   }, [requestDefs]);
 
-  const requestDefIds = useMemo(() => new Set(requestDefs.map((def) => def.id)), [requestDefs]);
+  const requestDefIds = useMemo(
+    () =>
+      new Set(
+        requestDefs
+          .map((def) => String(def.id || def.requestType || "").trim().toLowerCase())
+          .filter((id) => id && !builtInRequestDefIds.has(id))
+      ),
+    [builtInRequestDefIds, requestDefs]
+  );
   const hasReceptionDefs = (requestDefsByCategory["reception"] ?? []).length > 0;
   const hasHousekeepingDefs = (requestDefsByCategory["housekeeping"] ?? []).length > 0;
   const hasMaintenanceDefs = (requestDefsByCategory["maintenance"] ?? []).length > 0;
@@ -2262,7 +2436,19 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     const defs = requestDefsByCategory[String(category || "").trim().toLowerCase()] ?? [];
 
     return defs
-      .filter((def) => isRenderableRequestDef(def))
+      .filter((def) => {
+        const defId = String(def.id || "").trim().toLowerCase();
+        const requestType = String(def.requestType || "").trim().toLowerCase();
+
+        // Core hotel operations are rendered below as stable built-in actions.
+        // Google Sheets may still contain old rows for them, but they must not hide
+        // the full standard department menus or create duplicates.
+        if (builtInRequestDefIds.has(defId) || builtInRequestDefIds.has(requestType)) {
+          return false;
+        }
+
+        return isRenderableRequestDef(def);
+      })
       .map((def) => {
         const title = getRequestDefTitle(def) || def.id.replace(/_/g, " ");
         const icon = getRequestDefButtonIcon(def);
@@ -3127,6 +3313,32 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       title: tUI("reception_title") || "Reception",
       items: [
         ...buildRequestDefItems("reception"),
+        ...(!requestDefIds.has("information_request")
+          ? [
+            {
+              label: tUI("reception_general") || tUI("information") || "Information",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "information_request",
+                  typeLabel: String(tUI("reception_general") || tUI("information") || "Information"),
+                }),
+            },
+          ]
+          : []),
+        ...(!requestDefIds.has("luggage_help")
+          ? [
+            {
+              label: tUI("luggage_help") || "Luggage assistance",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "luggage_help",
+                  typeLabel: String(tUI("luggage_help") || "Luggage assistance"),
+                }),
+            },
+          ]
+          : []),
         ...(!requestDefIds.has("late_checkout")
           ? [
             {
@@ -3237,6 +3449,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           ]
           : []),
         ...hkExtras
+          .filter((x) => !["towels", "toilet_paper", "extra_pillow"].includes(String(x.key || "").trim().toLowerCase()))
           .filter((x) => !requestDefIds.has(x.key === "blanket" ? "extra_blanket" : x.key === "minibar" ? "minibar_refill" : x.key))
           .map((x) => {
             const action = housekeepingExtraActions[x.key];
@@ -3321,6 +3534,123 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 submitGuestRequest({
                   type: "no_hot_water",
                   typeLabel: "No hot water",
+                }),
+            },
+          ]
+          : []),
+        ...(!requestDefIds.has("tv_issue")
+          ? [
+            {
+              label: tUI("tv_issue") || "TV issue",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "tv_issue",
+                  typeLabel: String(tUI("tv_issue") || "TV issue"),
+                }),
+            },
+          ]
+          : []),
+        ...(!requestDefIds.has("light_not_working")
+          ? [
+            {
+              label: tUI("light_not_working") || tUI("light_issue") || "Light issue",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "light_not_working",
+                  typeLabel: String(tUI("light_not_working") || tUI("light_issue") || "Light issue"),
+                }),
+            },
+          ]
+          : []),
+        ...(!requestDefIds.has("bathroom_issue")
+          ? [
+            {
+              label: tUI("bathroom_issue") || "Bathroom issue",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "bathroom_issue",
+                  typeLabel: String(tUI("bathroom_issue") || "Bathroom issue"),
+                }),
+            },
+          ]
+          : []),
+        ...(!requestDefIds.has("door_lock_issue")
+          ? [
+            {
+              label: tUI("door_lock_issue") || "Door / lock issue",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "door_lock_issue",
+                  typeLabel: String(tUI("door_lock_issue") || "Door / lock issue"),
+                }),
+            },
+          ]
+          : []),
+        ...(!requestDefIds.has("wifi_issue")
+          ? [
+            {
+              label: tUI("wifi_issue") || "Wi-Fi issue",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "wifi_issue",
+                  typeLabel: String(tUI("wifi_issue") || "Wi-Fi issue"),
+                }),
+            },
+          ]
+          : []),
+        ...(!requestDefIds.has("power_outlet_issue")
+          ? [
+            {
+              label: tUI("power_outlet_issue") || "Power outlet issue",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "power_outlet_issue",
+                  typeLabel: String(tUI("power_outlet_issue") || "Power outlet issue"),
+                }),
+            },
+          ]
+          : []),
+        ...(!requestDefIds.has("safe_issue")
+          ? [
+            {
+              label: tUI("safe_issue") || "Safe issue",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "safe_issue",
+                  typeLabel: String(tUI("safe_issue") || "Safe issue"),
+                }),
+            },
+          ]
+          : []),
+        ...(!requestDefIds.has("balcony_door_issue")
+          ? [
+            {
+              label: tUI("balcony_door_issue") || "Balcony door issue",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "balcony_door_issue",
+                  typeLabel: String(tUI("balcony_door_issue") || "Balcony door issue"),
+                }),
+            },
+          ]
+          : []),
+        ...(!requestDefIds.has("minibar_not_cooling")
+          ? [
+            {
+              label: tUI("minibar_not_cooling") || "Minibar not cooling",
+              kind: "link" as const,
+              onClick: () =>
+                submitGuestRequest({
+                  type: "minibar_not_cooling",
+                  typeLabel: String(tUI("minibar_not_cooling") || "Minibar not cooling"),
                 }),
             },
           ]
