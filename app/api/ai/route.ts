@@ -1091,26 +1091,52 @@ function isTomorrowWeatherQuestion(question: string) {
   return TOMORROW_TERMS.some((term) => q.includes(normalizePlace(term)));
 }
 
+function cleanExplicitWeatherPlaceCandidate(value: string) {
+  let place = normalizePlace(value);
+
+  // Remove date/time words that are often next to the city name.
+  place = place
+    .replace(/(^|\s)(utre|tomorrow|morgen|maine|mâine|zitra|zítra|today|dnes|днес|днеска|утре|следобед|вечерта|сутринта)(\s|$)/g, " ")
+    .replace(/(^|\s)(weather|forecast|wetter|meteo|времето|прогноза|vremea|počasí|pocasi)(\s|$)/g, " ")
+    .replace(/(^|\s)(today|tomorrow|утре|днес|morgen|heute|mâine|maine|astăzi|astazi|zítra|zitra|dnes)(\s|$)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Stop at common connector words, so "Offenbach tomorrow" does not become a fake long place.
+  place = place
+    .split(/\s+(?:tomorrow|today|morgen|heute|utre|maine|mâine|zitra|zítra|dnes|утре|днес|ще|ли|please|моля)\s+/)[0]
+    .trim();
+
+  // Ignore very vague words. These are handled by isHotelAreaPlace().
+  if (["the", "der", "die", "das", "на", "за", "в", "във", "in", "for"].includes(place)) return "";
+  return place;
+}
+
 function extractExplicitWeatherPlace(question: string) {
   const q = normalizePlace(question);
+  const candidates: string[] = [];
+
+  // Do not use JS word boundaries for Bulgarian/Czech/Romanian text here.
+  //  is ASCII-centric and missed cases like "в Офенбах".
   const patterns = [
-    /(?:\bвъв?\b|\bза\b|\bin\b|\bfor\b|\bfuer\b|\bfur\b|\bfür\b|\bin der naehe von\b|\bîn\b|\bin\b|\bv\b|\bve\b)\s+([a-zа-я0-9\- ]{2,45})/i,
+    /(?:^|\s)(?:във|в|за|около|край|при)\s+([a-zа-я0-9][a-zа-я0-9\- ]{1,55})/gi,
+    /(?:^|\s)(?:in|for|near|around|at)\s+([a-zа-я0-9][a-zа-я0-9\- ]{1,55})/gi,
+    /(?:^|\s)(?:fuer|fur|für|bei|in|umgebung von|naehe von|nähe von)\s+([a-zа-я0-9][a-zа-я0-9\- ]{1,55})/gi,
+    /(?:^|\s)(?:în|in|la|langa|lângă|pentru)\s+([a-zа-я0-9][a-zа-я0-9\- ]{1,55})/gi,
+    /(?:^|\s)(?:v|ve|pro|u)\s+([a-zа-я0-9][a-zа-я0-9\- ]{1,55})/gi,
   ];
 
   for (const pattern of patterns) {
-    const match = q.match(pattern);
-    const place = match?.[1]?.trim();
-    if (!place) continue;
-
-    const cleanedPlace = place
-      .replace(/\b(utre|tomorrow|morgen|maine|mâine|zitra|zítra|today|dnes|днес)\b/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    if (cleanedPlace) return cleanedPlace;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(q)) !== null) {
+      const candidate = cleanExplicitWeatherPlaceCandidate(match[1] || "");
+      if (candidate) candidates.push(candidate);
+    }
   }
 
-  return "";
+  // Prefer the last explicit place, because questions usually end with the city:
+  // "Какво ще е времето утре в Офенбах?"
+  return candidates.at(-1) || "";
 }
 
 function isHotelAreaPlace(place: string, hotel: HotelPayload) {
@@ -1124,17 +1150,24 @@ function isHotelAreaPlace(place: string, hotel: HotelPayload) {
   if (vagueHotelAreaTerms.some((term) => normalizedPlace.includes(normalizePlace(term)))) return true;
 
   const location = normalizePlace(hotel.locationQuery || "");
-  if (!location) return false;
-  if (location.includes(normalizedPlace) || normalizedPlace.includes(location)) return true;
+  const hotelName = normalizePlace(hotel.hotelName || "");
+  const reference = [location, hotelName].filter(Boolean).join(" ");
+  if (!reference) return false;
+
+  if (reference.includes(normalizedPlace) || normalizedPlace.includes(reference)) return true;
+
+  const blockedGenericTokens = new Set([
+    "hotel", "resort", "bulgaria", "germany", "deutschland", "bългария", "balgaria", "блгария"
+  ]);
 
   const tokens = new Set(
-    location
+    reference
       .split(/\s+|,/)
       .map((x) => x.trim())
-      .filter((x) => x.length >= 4 && !["hotel", "resort", "bulgaria", "germany", "deutschland"].includes(x))
+      .filter((x) => x.length >= 4 && !["hotel", "resort", "bulgaria", "germany", "deutschland", "bългария", "balgaria"].includes(x))
   );
 
-  return normalizedPlace.split(/\s+/).some((token) => tokens.has(token));
+  return normalizedPlace.split(/\s+/).some((token) => tokens.has(token) && !blockedGenericTokens.has(token));
 }
 
 function isWeatherForOutsideArea(question: string, hotel: HotelPayload) {
