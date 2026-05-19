@@ -1047,8 +1047,56 @@ function haversineMeters(
   return R * c;
 }
 
+const GUEST_LANGUAGE_STORAGE_KEY = "stayhub_guest_language";
+
+function normalizeGuestLang(value: unknown, fallback: LangKey = "bg"): LangKey {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (
+    normalized === "bg" ||
+    normalized === "de" ||
+    normalized === "en" ||
+    normalized === "ro" ||
+    normalized === "cs"
+  ) {
+    return normalized as LangKey;
+  }
+
+  return fallback;
+}
+
+function getInitialGuestLang(defaultLang?: string): LangKey {
+  if (typeof window !== "undefined") {
+    const savedLang = window.localStorage.getItem(GUEST_LANGUAGE_STORAGE_KEY);
+
+    if (savedLang) {
+      return normalizeGuestLang(savedLang);
+    }
+  }
+
+  return normalizeGuestLang(defaultLang || "bg");
+}
+
+function writeGuestLang(nextLang: LangKey) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(GUEST_LANGUAGE_STORAGE_KEY, nextLang);
+  } catch (error) {
+    console.error("writeGuestLang failed", error);
+  }
+}
+
 export default function GuestHub({ config }: { config: HotelConfig }) {
-  const [lang, setLang] = useState<LangKey>(config.languageDefault ?? "bg");
+  const [lang, setLangState] = useState<LangKey>(() =>
+    getInitialGuestLang(config.languageDefault)
+  );
+
+  const setLang = useCallback((nextLang: LangKey | string) => {
+    const safeLang = normalizeGuestLang(nextLang);
+    setLangState(safeLang);
+    writeGuestLang(safeLang);
+  }, []);
   const hubOpenTrackedRef = useRef(false);
 
   const [aiQ, setAiQ] = useState("");
@@ -1319,18 +1367,18 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const fallbackLangs = useMemo(() => {
     // Do not use the hotel's default language as a content fallback.
-    // Example: Aquamarine default is RO, but when the guest chooses BG,
+    // Example: Aquamarine default may be RO, but when the guest chooses BG,
     // missing BG text must not suddenly fall back to Romanian.
-    const preferred = [
-      String(lang || "").trim(),
-      "en",
-      "bg",
-      "de",
-      "ro",
-      "cs",
-    ].filter(Boolean) as LangKey[];
+    const currentLang = normalizeGuestLang(lang);
 
-    return Array.from(new Set(preferred));
+    const preferred =
+      currentLang === "ro"
+        ? ["ro", "en", "bg", "de", "cs"]
+        : currentLang === "cs"
+          ? ["cs", "en", "bg", "de", "ro"]
+          : [currentLang, "en", "bg", "de"];
+
+    return Array.from(new Set(preferred)) as LangKey[];
   }, [lang]);
 
   const translateFromI18n = useCallback(
