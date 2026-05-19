@@ -951,18 +951,20 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   }, [showRequestSuccess]);
 
   const fallbackLangs = useMemo(() => {
+    // Do not use the hotel's default language as a content fallback.
+    // Example: Aquamarine default is RO, but when the guest chooses BG,
+    // missing BG text must not suddenly fall back to Romanian.
     const preferred = [
       String(lang || "").trim(),
-      String(config.languageDefault || "").trim(),
-      "bg",
       "en",
+      "bg",
       "de",
       "ro",
       "cs",
     ].filter(Boolean) as LangKey[];
 
     return Array.from(new Set(preferred));
-  }, [config.languageDefault, lang]);
+  }, [lang]);
 
   const translateFromI18n = useCallback(
     (targetLang: LangKey, key: string) => {
@@ -2890,77 +2892,80 @@ EN: ${helpMsg}` : opsMsg,
     [fallbackLangs, lang]
   );
 
+  const getHotelInfoIdentity = useCallback(
+    (item: any) => {
+      return [
+        item?.key,
+        item?.id,
+        item?.category,
+        item?.section,
+        getHotelInfoText(item, "title"),
+      ]
+        .map((value) => String(value || "").trim().toLowerCase())
+        .filter(Boolean)
+        .join(" ");
+    },
+    [getHotelInfoText]
+  );
+
+  const isHotelInfoGroup = useCallback(
+    (item: any, group: "wifi" | "emergency" | "explore" | "reviews" | "animation" | "world_cup") => {
+      const identity = getHotelInfoIdentity(item);
+
+      if (group === "wifi") {
+        return /\bwi[-\s]?fi\b|wifi|wlan/.test(identity);
+      }
+
+      if (group === "emergency") {
+        return /emergency|urgent|спеш|notfall|urgență|nouz/.test(identity);
+      }
+
+      if (group === "explore") {
+        return /attraction|nearby|restaurant.+near|pharmacy|аптек|забележ|umgebung|atrac|zajímav/.test(identity);
+      }
+
+      if (group === "reviews") {
+        return /review|google|tripadvisor|отзив|bewertung|recenzie|recenze/.test(identity);
+      }
+
+      if (group === "animation") {
+        return /animation|анимац|animație|animace|animations/.test(identity);
+      }
+
+      if (group === "world_cup") {
+        return /world.?cup|fifa|световно|mondial|ms ve fotbale|wm 2026/.test(identity);
+      }
+
+      return false;
+    },
+    [getHotelInfoIdentity]
+  );
+
+  const toHotelInfoHubItem = useCallback(
+    (item: any): HubItem => ({
+      label: `${item?.icon ? `${String(item.icon).trim()} ` : ""}${getHotelInfoText(item, "title")}`.trim(),
+      kind: "info" as const,
+      info: getHotelInfoText(item, "text"),
+    }),
+    [getHotelInfoText]
+  );
+
   const hotelInfoSection = useMemo(() => {
     const infoRequestDefItems = buildRequestDefItems("info");
     const infoItems = hotelInfoItems
-      .map((item) => ({
-        label: `${item?.icon ? `${String(item.icon).trim()} ` : ""}${getHotelInfoText(item, "title")}`.trim(),
-        kind: "info" as const,
-        info: getHotelInfoText(item, "text"),
-      }))
+      .filter(
+        (item) =>
+          !isHotelInfoGroup(item, "wifi") &&
+          !isHotelInfoGroup(item, "emergency") &&
+          !isHotelInfoGroup(item, "explore") &&
+          !isHotelInfoGroup(item, "reviews") &&
+          !isHotelInfoGroup(item, "animation") &&
+          !isHotelInfoGroup(item, "world_cup")
+      )
+      .map(toHotelInfoHubItem)
       .filter((item) => item.label || item.info);
 
-    const systemInfoItems: HubItem[] = [];
-
-    if (config.wifi?.ssid || config.wifi?.password) {
-      systemInfoItems.push({
-        label: String(tUI("wifi_title") || "WiFi"),
-        kind: "info",
-        info: `${tUI("wifi_network")}: ${config.wifi.ssid || "-"}\n${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
-      });
-    }
-
-    if (config.location?.query) {
-      systemInfoItems.push(
-        {
-          label: String(tUI("attractions_nearby") || "Attractions nearby"),
-          kind: "link",
-          href: `https://www.google.com/maps/search/${encodeURIComponent("attractions near " + config.location.query)}`,
-          newTab: true,
-        },
-        {
-          label: String(tUI("restaurants_nearby") || "Restaurants nearby"),
-          kind: "link",
-          href: `https://www.google.com/maps/search/${encodeURIComponent("restaurants near " + config.location.query)}`,
-          newTab: true,
-        },
-        {
-          label: String(tUI("pharmacy") || "Pharmacy"),
-          kind: "link",
-          href: `https://www.google.com/maps/search/${encodeURIComponent("pharmacy near " + config.location.query)}`,
-          newTab: true,
-        }
-      );
-    }
-
-    if (config.reviews?.google) {
-      systemInfoItems.push({
-        label: String(tUI("leave_google_review") || "Google Review"),
-        kind: "link",
-        href: config.reviews.google,
-        newTab: true,
-      });
-    }
-
-    if (config.reviews?.tripadvisor) {
-      systemInfoItems.push({
-        label: String(tUI("leave_tripadvisor_review") || "TripAdvisor Review"),
-        kind: "link",
-        href: config.reviews.tripadvisor,
-        newTab: true,
-      });
-    }
-
-    const receptionPhone = getDeptPhone("reception");
-    if (receptionPhone) {
-      systemInfoItems.push({
-        label: String(tUI("emergency_call") || "Call reception"),
-        kind: "link",
-        href: safeTelLink(receptionPhone),
-      });
-    }
-
-    const items = [...infoItems, ...infoRequestDefItems, ...systemInfoItems];
+    const items = [...infoItems, ...infoRequestDefItems];
 
     if (!items.length) return null;
 
@@ -2971,12 +2976,31 @@ EN: ${helpMsg}` : opsMsg,
         (lang === "bg" ? "Инфо" : lang === "de" ? "Info" : lang === "ro" ? "Informații" : lang === "cs" ? "Informace" : "Info"),
       items,
     } satisfies HubSection;
-  }, [buildRequestDefItems, config, getHotelInfoText, hotelInfoItems, lang, tUI]);
+  }, [buildRequestDefItems, hotelInfoItems, isHotelInfoGroup, lang, tUI, toHotelInfoHubItem]);
+
+  const animationSection = useMemo(() => {
+    const hotelAnimationItems = hotelInfoItems
+      .filter((item) => isHotelInfoGroup(item, "animation"))
+      .map(toHotelInfoHubItem)
+      .filter((item) => item.label || item.info);
+
+    const requestAnimationItems = buildRequestDefItems("animation");
+    const items = [...hotelAnimationItems, ...requestAnimationItems];
+
+    if (!items.length) return null;
+
+    return {
+      id: "animation",
+      title: String(tUI("section_animation_title") || "").trim() ||
+        (lang === "bg" ? "Анимация" : lang === "de" ? "Animation" : lang === "ro" ? "Animație" : lang === "cs" ? "Animace" : "Animation"),
+      items,
+    } satisfies HubSection;
+  }, [buildRequestDefItems, hotelInfoItems, isHotelInfoGroup, lang, tUI, toHotelInfoHubItem]);
 
   const dynamicRequestDefSections = useMemo(() => {
-    // Keep the guest hub compact. Only true campaign/program sections become top-level.
-    // Everything else is merged into Info, Reception, Housekeeping or Maintenance.
-    const topLevelCategories = new Set(["animation", "world_cup"]);
+    // Keep the guest hub compact. Only temporary campaign/program sections become top-level.
+    // Info/reception/housekeeping/maintenance items are rendered inside their core sections.
+    const topLevelCategories = new Set(["world_cup"]);
 
     return Object.entries(requestDefsByCategory)
       .filter(([category]) => topLevelCategories.has(category))
@@ -3008,8 +3032,94 @@ EN: ${helpMsg}` : opsMsg,
     ...(config.theme?.text ? { color: String(config.theme.text) } : {}),
   } as any;
 
+  const wifiSection = (config.wifi?.ssid || config.wifi?.password)
+    ? ({
+      id: "wifi",
+      title: String(tUI("wifi_title") || "WiFi"),
+      items: [
+        {
+          label: String(tUI("wifi_show") || tUI("wifi_title") || "WiFi"),
+          kind: "info" as const,
+          info: `${tUI("wifi_network")}: ${config.wifi.ssid || "-"}
+${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
+        },
+      ],
+    } satisfies HubSection)
+    : null;
+
+  const exploreSection = config.location?.query
+    ? ({
+      id: "explore",
+      title: String(tUI("explore_title") || "Explore nearby"),
+      items: [
+        {
+          label: String(tUI("attractions_nearby") || "Attractions nearby"),
+          kind: "link" as const,
+          href: `https://www.google.com/maps/search/${encodeURIComponent("attractions near " + config.location.query)}`,
+          newTab: true,
+        },
+        {
+          label: String(tUI("restaurants_nearby") || "Restaurants nearby"),
+          kind: "link" as const,
+          href: `https://www.google.com/maps/search/${encodeURIComponent("restaurants near " + config.location.query)}`,
+          newTab: true,
+        },
+        {
+          label: String(tUI("pharmacy") || "Pharmacy"),
+          kind: "link" as const,
+          href: `https://www.google.com/maps/search/${encodeURIComponent("pharmacy near " + config.location.query)}`,
+          newTab: true,
+        },
+      ],
+    } satisfies HubSection)
+    : null;
+
+  const reviewsSection = (config.reviews?.google || config.reviews?.tripadvisor)
+    ? ({
+      id: "reviews",
+      title: String(tUI("reviews_title") || "Reviews"),
+      items: [
+        ...(config.reviews?.google
+          ? [
+            {
+              label: String(tUI("leave_google_review") || "Google Review"),
+              kind: "link" as const,
+              href: config.reviews.google,
+              newTab: true,
+            },
+          ]
+          : []),
+        ...(config.reviews?.tripadvisor
+          ? [
+            {
+              label: String(tUI("leave_tripadvisor_review") || "TripAdvisor Review"),
+              kind: "link" as const,
+              href: config.reviews.tripadvisor,
+              newTab: true,
+            },
+          ]
+          : []),
+      ],
+    } satisfies HubSection)
+    : null;
+
+  const emergencySection = getDeptPhone("reception")
+    ? ({
+      id: "emergency",
+      title: `🚨 ${String(tUI("emergency_title") || "Emergency")}`,
+      items: [
+        {
+          label: String(tUI("emergency_call") || "Call reception"),
+          kind: "link" as const,
+          href: safeTelLink(getDeptPhone("reception")),
+        },
+      ],
+    } satisfies HubSection)
+    : null;
+
   const sections: HubSection[] = [
-    ...(outletsSection ? [outletsSection] : []),
+    ...(wifiSection ? [wifiSection] : []),
+    ...(emergencySection ? [emergencySection] : []),
     ...(hotelInfoSection ? [hotelInfoSection] : []),
     {
       id: "reception",
@@ -3244,7 +3354,11 @@ EN: ${helpMsg}` : opsMsg,
           : []),
       ],
     },
+    ...(outletsSection ? [outletsSection] : []),
+    ...(animationSection ? [animationSection] : []),
     ...dynamicRequestDefSections,
+    ...(exploreSection ? [exploreSection] : []),
+    ...(reviewsSection ? [reviewsSection] : []),
     {
       id: "ai",
       title: "🤖 " + tUI("ai_title"),
