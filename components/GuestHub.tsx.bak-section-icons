@@ -1,60 +1,5 @@
 "use client";
 
-// STAYHUB_SECTION_ICON_HELPERS
-const SECTION_ICON_PREFIXES: Record<string, string> = {
-  info: "ℹ️",
-  information: "ℹ️",
-  hotel_info: "ℹ️",
-  animation: "🎭",
-  activities: "🎭",
-  ai: "🤖",
-  concierge: "🤖",
-  ai_concierge: "🤖",
-  reception: "🏨",
-  housekeeping: "🧺",
-  maintenance: "🛠️",
-  emergency: "🚨",
-  outlets: "🍽️",
-  facilities: "🏨",
-  venues: "🏨",
-  wifi: "📶",
-  reviews: "⭐",
-  explore: "🗺️",
-  nearby: "🗺️",
-};
-
-function withSectionIcon(title: string, sectionKey?: string): string {
-  const raw = String(title || "").trim();
-  if (!raw) return raw;
-
-  // Already starts with emoji/symbol icon.
-  if (/^[\p{Extended_Pictographic}⭐ℹ️⚠️☎️🏨🧺🛠️🎭🤖📶🍽️🗺️🚨]/u.test(raw)) {
-    return raw;
-  }
-
-  const key = String(sectionKey || "").toLowerCase().trim();
-  const text = raw.toLowerCase();
-
-  const icon =
-    SECTION_ICON_PREFIXES[key] ||
-    (text.includes("инфо") ||
-    text.includes("info") ||
-    text.includes("information") ||
-    text.includes("informace")
-      ? "ℹ️"
-      : text.includes("анима") ||
-        text.includes("animation") ||
-        text.includes("animație") ||
-        text.includes("animace") ||
-        text.includes("animationen")
-      ? "🎭"
-      : "");
-
-  return icon ? `${icon} ${raw}` : raw;
-}
-// END_STAYHUB_SECTION_ICON_HELPERS
-
-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { StaffDepartment, StaffRequestType, StaffServiceTime, StaffRequestStatus } from "@/lib/staff/types";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -338,7 +283,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       balcony_door_issue: "Problem mit Balkontür",
       minibar_not_cooling: "Minibar kühlt nicht",
       reception_general: "Frage an die Rezeption",
-      information: "ℹ️ Information",
+      information: "Information",
       luggage_help: "Hilfe mit Gepäck",
       paid_service_notice: "Kostenpflichtiger Service. Der Betrag wird auf die Zimmerrechnung gebucht.",
       laundry_paid_notice: "Der Wäscheservice ist kostenpflichtig. Nach Bestätigung wird die Anfrage an Housekeeping gesendet und von der Rezeption auf die Zimmerrechnung gebucht.",
@@ -358,9 +303,9 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       view_menu_pdf: "View menu",
       view_program: "View program",
       reserve_now: "Reserve",
-      hotel_info_title: "ℹ️ Info",
-      section_info_title: "ℹ️ Info",
-      section_animation_title: "🎭 Animation",
+      hotel_info_title: "Info",
+      section_info_title: "Info",
+      section_animation_title: "Animation",
       section_world_cup_title: "World Cup 2026",
       subsection_policies: "Policies",
       outlet_type_restaurants: "Restaurants",
@@ -396,7 +341,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       balcony_door_issue: "Balcony door issue",
       minibar_not_cooling: "Minibar not cooling",
       reception_general: "Question for reception",
-      information: "ℹ️ Information",
+      information: "Information",
       luggage_help: "Luggage assistance",
       paid_service_notice: "Paid service. The amount will be charged to the room account.",
       laundry_paid_notice: "Laundry service is a paid service. After confirmation, the request will be sent to housekeeping and charged to the room account by reception.",
@@ -418,7 +363,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       reserve_now: "Rezervă",
       hotel_info_title: "Informații",
       section_info_title: "Informații",
-      section_animation_title: "🎭 Animație",
+      section_animation_title: "Animație",
       section_world_cup_title: "Cupa Mondială 2026",
       subsection_policies: "Politici",
       outlet_type_restaurants: "Restaurante",
@@ -476,7 +421,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       reserve_now: "Rezervovat",
       hotel_info_title: "Informace",
       section_info_title: "Informace",
-      section_animation_title: "🎭 Animace",
+      section_animation_title: "Animace",
       section_world_cup_title: "Mistrovství světa 2026",
       subsection_policies: "Zásady",
       outlet_type_restaurants: "Restaurace",
@@ -2515,7 +2460,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     openRequestDialog({
       title:
         String(tUI("info_title") || "").trim() ||
-        (lang === "bg" ? "Информация" : lang === "de" ? "ℹ️ Information" : "ℹ️ Information"),
+        (lang === "bg" ? "Информация" : lang === "de" ? "Information" : "Information"),
       message,
       confirmLabel:
         String(tUI("continue_request") || "").trim() ||
@@ -3486,7 +3431,7 @@ EN: ${helpMsg}` : opsMsg,
       const currentLang = (["bg", "de", "en", "ro", "cs"].includes(String(lang || "")) ? lang : "en") as LangKey;
       const defaults: Record<LangKey, { title: string; text: string }> = {
         bg: {
-          title: "🎭 Анимация",
+          title: "Анимация",
           text: "Информация от нашия аниматорски екип.",
         },
         de: {
@@ -3545,7 +3490,7 @@ EN: ${helpMsg}` : opsMsg,
       id: "info",
       title:
         String(tUI("hotel_info_title") || tUI("section_info_title") || "").trim() ||
-        (lang === "bg" ? "ℹ️ Инфо" : lang === "de" ? "ℹ️ Info" : lang === "ro" ? "Informații" : lang === "cs" ? "Informace" : "ℹ️ Info"),
+        (lang === "bg" ? "Инфо" : lang === "de" ? "Info" : lang === "ro" ? "Informații" : lang === "cs" ? "Informace" : "Info"),
       items,
     } satisfies HubSection;
   }, [buildRequestDefItems, hotelInfoItems, isHotelInfoGroup, lang, tUI, toAnimationHubItem]);
@@ -3564,7 +3509,7 @@ EN: ${helpMsg}` : opsMsg,
     return {
       id: "animation",
       title: String(tUI("section_animation_title") || "").trim() ||
-        (lang === "bg" ? "🎭 Анимация" : lang === "de" ? "🎭 Animation" : lang === "ro" ? "🎭 Animație" : lang === "cs" ? "🎭 Animace" : "🎭 Animation"),
+        (lang === "bg" ? "Анимация" : lang === "de" ? "Animation" : lang === "ro" ? "Animație" : lang === "cs" ? "Animace" : "Animation"),
       items,
     } satisfies HubSection;
   }, [buildRequestDefItems, hotelInfoItems, isHotelInfoGroup, lang, tUI, toHotelInfoHubItem]);
@@ -4451,7 +4396,7 @@ function Accordion({
         style={{ backgroundColor: "var(--stayhub-primary)", color: "var(--stayhub-on-primary)" }}
       >
         <div>
-          <div className="text-base font-semibold">{withSectionIcon(section.title, (section as any).id || (section as any).key || (section as any).type || (section as any).section)}</div>
+          <div className="text-base font-semibold">{section.title}</div>
           {section.subtitle ? (
             <div className="mt-1 text-xs font-medium opacity-80">
               {section.subtitle}
@@ -4772,7 +4717,7 @@ function OutletsAccordion({
         className="w-full px-4 py-4 text-left ring-1 ring-white/10 flex items-center justify-between gap-3"
         style={{ backgroundColor: "var(--stayhub-primary)", color: "var(--stayhub-on-primary)" }}
       >
-        <div className="text-base font-semibold">{withSectionIcon(section.title, (section as any).id || (section as any).key || (section as any).type || (section as any).section)}</div>
+        <div className="text-base font-semibold">{section.title}</div>
         <div className="text-lg">▾</div>
       </button>
 
