@@ -3879,7 +3879,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       ],
     },
     ...(emergencySection ? [emergencySection] : []),
-  ].filter((section) => section.items && section.items.length > 0);
+  ].filter((section) => section.id === "outlets" || (section.items && section.items.length > 0));
 
   return (
     <div className="mx-auto max-w-md" style={themeStyle}>
