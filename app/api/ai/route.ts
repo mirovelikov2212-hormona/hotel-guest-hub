@@ -326,9 +326,11 @@ const CONVERSATION_COPY: Record<Lang, { greeting: string; thanks: string }> = {
 const WEATHER_COPY: Record<Lang, {
   noLocation: string;
   unavailable: string;
+  outsideArea: string;
   lead: (place: string) => string;
   now: string;
   today: string;
+  tomorrow: string;
   temperature: string;
   feelsLike: string;
   minMax: (min?: number, max?: number) => string;
@@ -345,9 +347,11 @@ const WEATHER_COPY: Record<Lang, {
   bg: {
     noLocation: "За да кажа времето точно, трябва да имам зададена локация на хотела. Моля, проверете настройката Hotel Location Query.",
     unavailable: "В момента не успявам да заредя прогнозата. Рецепцията ще Ви ориентира най-точно за времето днес.",
+    outsideArea: "Мога да дам прогноза само за района на хотела. За други градове или държави, моля, проверете специализирано приложение за времето.",
     lead: (place) => `Разбира се — ето актуалното време за района на ${place}:`,
     now: "Сега",
     today: "Днес",
+    tomorrow: "Утре",
     temperature: "Температура",
     feelsLike: "усеща се като",
     minMax: (min, max) => min != null && max != null ? `Минимална / максимална: ${Math.round(min)}°C / ${Math.round(max)}°C` : "",
@@ -364,9 +368,11 @@ const WEATHER_COPY: Record<Lang, {
   en: {
     noLocation: "To give accurate weather, I need the hotel location to be set. Please check the Hotel Location Query setting.",
     unavailable: "I can’t load the weather forecast right now. Reception can guide you best for today’s conditions.",
+    outsideArea: "I can provide weather only for the hotel area. For other cities or countries, please check a dedicated weather app.",
     lead: (place) => `Of course — here is the current weather for the ${place} area:`,
     now: "Now",
     today: "Today",
+    tomorrow: "Tomorrow",
     temperature: "Temperature",
     feelsLike: "feels like",
     minMax: (min, max) => min != null && max != null ? `Min / max: ${Math.round(min)}°C / ${Math.round(max)}°C` : "",
@@ -383,9 +389,11 @@ const WEATHER_COPY: Record<Lang, {
   de: {
     noLocation: "Für eine genaue Wetterauskunft muss die Hotellocation hinterlegt sein. Bitte prüfen Sie die Einstellung Hotel Location Query.",
     unavailable: "Ich kann die Wetterdaten gerade nicht laden. Die Rezeption hilft Ihnen für heute am besten weiter.",
+    outsideArea: "Ich kann das Wetter nur für die Umgebung des Hotels anzeigen. Für andere Städte oder Länder nutzen Sie bitte eine Wetter-App.",
     lead: (place) => `Sehr gern — hier ist das aktuelle Wetter für die Umgebung von ${place}:`,
     now: "Aktuell",
     today: "Heute",
+    tomorrow: "Morgen",
     temperature: "Temperatur",
     feelsLike: "gefühlt",
     minMax: (min, max) => min != null && max != null ? `Min. / max.: ${Math.round(min)}°C / ${Math.round(max)}°C` : "",
@@ -402,9 +410,11 @@ const WEATHER_COPY: Record<Lang, {
   ro: {
     noLocation: "Pentru a oferi vremea exactă, locația hotelului trebuie să fie setată. Verificați setarea Hotel Location Query.",
     unavailable: "Momentan nu pot încărca prognoza meteo. Recepția vă poate ghida cel mai bine pentru condițiile de azi.",
+    outsideArea: "Pot oferi vremea doar pentru zona hotelului. Pentru alte orașe sau țări, vă rugăm să verificați o aplicație meteo dedicată.",
     lead: (place) => `Sigur — iată vremea actuală pentru zona ${place}:`,
     now: "Acum",
     today: "Astăzi",
+    tomorrow: "Mâine",
     temperature: "Temperatură",
     feelsLike: "se simte ca",
     minMax: (min, max) => min != null && max != null ? `Minimă / maximă: ${Math.round(min)}°C / ${Math.round(max)}°C` : "",
@@ -421,9 +431,11 @@ const WEATHER_COPY: Record<Lang, {
   cs: {
     noLocation: "Pro přesnou předpověď počasí musí být nastavena poloha hotelu. Zkontrolujte prosím nastavení Hotel Location Query.",
     unavailable: "Momentálně se mi nedaří načíst předpověď počasí. Recepce vám pro dnešek poradí nejlépe.",
+    outsideArea: "Mohu zobrazit počasí pouze pro oblast hotelu. Pro jiná města nebo země prosím použijte specializovanou aplikaci pro počasí.",
     lead: (place) => `Samozřejmě — zde je aktuální počasí pro oblast ${place}:`,
     now: "Nyní",
     today: "Dnes",
+    tomorrow: "Zítra",
     temperature: "Teplota",
     feelsLike: "pocitově",
     minMax: (min, max) => min != null && max != null ? `Min. / max.: ${Math.round(min)}°C / ${Math.round(max)}°C` : "",
@@ -458,6 +470,11 @@ const WEATHER_TERMS = [
   "vreme", "vremea", "prognoza", "temperatură", "temperatura", "ploaie", "plouă", "ploua", "nori", "vânt", "vant", "soare", "furtună", "furtuna",
   "počasí", "pocasi", "předpověď", "predpoved", "teplota", "déšť", "dest", "prší", "prsi", "mraky", "oblačno", "vítr", "vitr", "slunce", "bouřka", "bourka",
 ];
+
+const TOMORROW_TERMS = [
+  "tomorrow", "утре", "morgen", "mâine", "maine", "zítra", "zitra",
+];
+
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   restaurants: ["restaurant", "restaurants", "ресторант", "ресторанти", "restoran", "restaurante", "restaurace", "mic dejun", "breakfast", "закуска", "frühstück", "snídaně", "lunch", "обяд", "mittag", "prânz", "oběd", "dinner", "вечеря", "abendessen", "cină", "večeře"],
@@ -1059,13 +1076,82 @@ function weatherCodeText(code: number | undefined, lang: Lang) {
   return map[key][lang];
 }
 
+function normalizePlace(value: string) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[.,!?;:()\[\]{}"'`´’“”]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isTomorrowWeatherQuestion(question: string) {
+  const q = normalizePlace(question);
+  return TOMORROW_TERMS.some((term) => q.includes(normalizePlace(term)));
+}
+
+function extractExplicitWeatherPlace(question: string) {
+  const q = normalizePlace(question);
+  const patterns = [
+    /(?:\bвъв?\b|\bза\b|\bin\b|\bfor\b|\bfuer\b|\bfur\b|\bfür\b|\bin der naehe von\b|\bîn\b|\bin\b|\bv\b|\bve\b)\s+([a-zа-я0-9\- ]{2,45})/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = q.match(pattern);
+    const place = match?.[1]?.trim();
+    if (!place) continue;
+
+    const cleanedPlace = place
+      .replace(/\b(utre|tomorrow|morgen|maine|mâine|zitra|zítra|today|dnes|днес)\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (cleanedPlace) return cleanedPlace;
+  }
+
+  return "";
+}
+
+function isHotelAreaPlace(place: string, hotel: HotelPayload) {
+  const normalizedPlace = normalizePlace(place);
+  if (!normalizedPlace) return true;
+
+  const vagueHotelAreaTerms = [
+    "hotela", "hotel", "hotelului", "hotelu", "хотела", "района на хотела", "около хотела",
+    "around the hotel", "hotel area", "zona hotelului", "okolí hotelu", "umgebung des hotels",
+  ];
+  if (vagueHotelAreaTerms.some((term) => normalizedPlace.includes(normalizePlace(term)))) return true;
+
+  const location = normalizePlace(hotel.locationQuery || "");
+  if (!location) return false;
+  if (location.includes(normalizedPlace) || normalizedPlace.includes(location)) return true;
+
+  const tokens = new Set(
+    location
+      .split(/\s+|,/)
+      .map((x) => x.trim())
+      .filter((x) => x.length >= 4 && !["hotel", "resort", "bulgaria", "germany", "deutschland"].includes(x))
+  );
+
+  return normalizedPlace.split(/\s+/).some((token) => tokens.has(token));
+}
+
+function isWeatherForOutsideArea(question: string, hotel: HotelPayload) {
+  const place = extractExplicitWeatherPlace(question);
+  if (!place) return false;
+  return !isHotelAreaPlace(place, hotel);
+}
+
 function buildLocationCandidates(locationQuery?: string) {
   const raw = String(locationQuery || "").trim();
   if (!raw) return [];
 
   const parts = raw.split(",").map((x) => x.trim()).filter(Boolean);
-  const candidates = [raw];
+  const candidates: string[] = [];
 
+  // Prefer the concrete city/resort over the full hotel name.
+  // Example: "Hotel Aquamarine Kranevo, Kranevo, Bulgaria" should resolve to Kranevo, not only Bulgaria.
   if (parts.length >= 2) {
     candidates.push(parts.slice(-2).join(", "));
     candidates.push(`${parts[parts.length - 2]} ${parts[parts.length - 1]}`);
@@ -1074,6 +1160,8 @@ function buildLocationCandidates(locationQuery?: string) {
 
   const withoutHotelWord = raw.replace(/\bhotel\b/gi, "").replace(/\s+/g, " ").trim();
   if (withoutHotelWord && withoutHotelWord !== raw) candidates.push(withoutHotelWord);
+
+  candidates.push(raw);
 
   return [...new Set(candidates.filter(Boolean))];
 }
@@ -1114,19 +1202,43 @@ function weatherAdvice(lang: Lang, precipitation: number | undefined, rainChance
   return t.adviceGood;
 }
 
-async function buildWeatherAnswer(lang: Lang, hotel: HotelPayload) {
+async function buildWeatherAnswer(question: string, lang: Lang, hotel: HotelPayload) {
   const t = WEATHER_COPY[lang];
+
+  if (isWeatherForOutsideArea(question, hotel)) return t.outsideArea;
+
   if (!hotel.locationQuery) return t.noLocation;
 
   const geo = await geocodeHotelLocation(hotel.locationQuery).catch(() => null);
   if (!geo) return t.noLocation;
 
-  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${geo.latitude}&longitude=${geo.longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,precipitation&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&timezone=auto&forecast_days=2`;
+  const wantsTomorrow = isTomorrowWeatherQuestion(question);
+  const dayIndex = wantsTomorrow ? 1 : 0;
+
+  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${geo.latitude}&longitude=${geo.longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,precipitation&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&timezone=auto&forecast_days=3`;
   const data = await fetchJsonWithTimeout(forecastUrl).catch(() => null);
-  if (!data?.current) return t.unavailable;
+  if (!data?.current && !data?.daily) return t.unavailable;
 
   const current = data.current || {};
   const daily = data.daily || {};
+
+  if (wantsTomorrow) {
+    const min = toNumber(daily.temperature_2m_min?.[dayIndex]);
+    const max = toNumber(daily.temperature_2m_max?.[dayIndex]);
+    const rainChance = toNumber(daily.precipitation_probability_max?.[dayIndex]);
+    const code = toNumber(daily.weather_code?.[dayIndex]);
+
+    const lines = [
+      t.lead(geo.place),
+      `• ${t.tomorrow}: ${weatherCodeText(code, lang)}`,
+      t.minMax(min, max) ? `• ${t.tomorrow}: ${t.minMax(min, max)}` : "",
+      rainChance != null ? `• ${t.rainChance}: ${Math.round(rainChance)}%` : "",
+      weatherAdvice(lang, undefined, rainChance, max, undefined),
+    ].filter(Boolean);
+
+    return lines.join("\n");
+  }
+
   const temp = toNumber(current.temperature_2m);
   const apparent = toNumber(current.apparent_temperature);
   const humidity = toNumber(current.relative_humidity_2m);
@@ -1160,7 +1272,7 @@ async function buildHotelAnswer(question: string, lang: Lang, hotel: HotelPayloa
   if (!q) return t.intro;
   if (isGreetingOnly(q)) return CONVERSATION_COPY[lang].greeting;
   if (isThanksOnly(q)) return CONVERSATION_COPY[lang].thanks;
-  if (isWeatherQuestion(q)) return await buildWeatherAnswer(lang, hotel);
+  if (isWeatherQuestion(q)) return await buildWeatherAnswer(question, lang, hotel);
   if (!isHotelQuestion(q, hotel)) return t.outOfScope;
 
   if (hasAnyTerm(q, ["wifi", "wi-fi", "wlan", "internet", "парол", "парола", "passwort", "password", "parolă", "parola", "heslo"])) {
