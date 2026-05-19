@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { StaffRequestType, StaffServiceTime, StaffRequestStatus } from "@/lib/staff/types";
+import type { StaffDepartment, StaffRequestType, StaffServiceTime, StaffRequestStatus } from "@/lib/staff/types";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { HotelConfig, LangKey, HubSection, DepartmentKey, HubItem, RequestDef } from "@/lib/types";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
@@ -87,6 +87,7 @@ type VenueRow = {
   description?: string;
   cuisine?: string;
   hours?: string;
+  hoursByLang?: Partial<Record<LangKey, string>>;
   open?: string;
   close?: string;
   menuUrl?: string;
@@ -179,11 +180,10 @@ function categoryMeta(category: string) {
 }
 
 function getBuiltinUiText(lang: LangKey | string, key: string) {
-  const targetLang = String(lang || "").toLowerCase() === "de"
-    ? "de"
-    : String(lang || "").toLowerCase() === "en"
-      ? "en"
-      : "bg";
+  const normalizedLang = String(lang || "").trim().toLowerCase();
+  const targetLang = ["bg", "de", "en", "ro", "cs"].includes(normalizedLang)
+    ? normalizedLang
+    : "en";
 
   const copy: Record<string, Record<string, string>> = {
     bg: {
@@ -239,6 +239,11 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       view_menu_pdf: "View menu",
       view_program: "View program",
       reserve_now: "Reserve",
+      hotel_info_title: "Info",
+      section_info_title: "Info",
+      section_animation_title: "Animation",
+      section_world_cup_title: "World Cup 2026",
+      subsection_policies: "Policies",
       outlet_type_restaurants: "Restaurants",
       outlet_type_bars: "Bars",
       outlet_type_spa: "Spa",
@@ -248,6 +253,58 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       outlet_type_gym: "Fitness",
       outlet_type_room_service: "Room Service",
       outlet_type_entertainment: "Entertainment",
+    },
+    ro: {
+      install_app: "Instalează aplicația",
+      outlets_title: "Facilități",
+      hours: "Program",
+      cuisine: "Bucătărie",
+      location: "Locație",
+      age_group: "Vârstă",
+      program: "Program",
+      view_menu_pdf: "Vezi meniul",
+      view_program: "Vezi programul",
+      reserve_now: "Rezervă",
+      hotel_info_title: "Informații",
+      section_info_title: "Informații",
+      section_animation_title: "Animație",
+      section_world_cup_title: "Cupa Mondială 2026",
+      subsection_policies: "Politici",
+      outlet_type_restaurants: "Restaurante",
+      outlet_type_bars: "Baruri",
+      outlet_type_spa: "Spa",
+      outlet_type_lounge: "Lounge",
+      outlet_type_kids: "Kids Club",
+      outlet_type_pool: "Piscină",
+      outlet_type_gym: "Fitness",
+      outlet_type_room_service: "Room Service",
+      outlet_type_entertainment: "Divertisment",
+    },
+    cs: {
+      install_app: "Nainstalovat aplikaci",
+      outlets_title: "Zařízení",
+      hours: "Otevírací doba",
+      cuisine: "Kuchyně",
+      location: "Místo",
+      age_group: "Věk",
+      program: "Program",
+      view_menu_pdf: "Zobrazit menu",
+      view_program: "Zobrazit program",
+      reserve_now: "Rezervovat",
+      hotel_info_title: "Informace",
+      section_info_title: "Informace",
+      section_animation_title: "Animace",
+      section_world_cup_title: "Mistrovství světa 2026",
+      subsection_policies: "Zásady",
+      outlet_type_restaurants: "Restaurace",
+      outlet_type_bars: "Bary",
+      outlet_type_spa: "Spa",
+      outlet_type_lounge: "Lounge",
+      outlet_type_kids: "Kids Club",
+      outlet_type_pool: "Bazén",
+      outlet_type_gym: "Fitness",
+      outlet_type_room_service: "Room Service",
+      outlet_type_entertainment: "Zábava",
     },
   };
 
@@ -900,6 +957,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       "bg",
       "en",
       "de",
+      "ro",
+      "cs",
     ].filter(Boolean) as LangKey[];
 
     return Array.from(new Set(preferred));
@@ -1055,9 +1114,75 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         lockedActionAlert:
           "Bitte bestätigen Sie zuerst Ihre Zimmernummer, um die Funktionen freizuschalten.",
       },
+      ro: {
+        roomBadge: "Camera {room}",
+        cardTitle: "Confirmați numărul camerei",
+        cardText: "Pentru a debloca funcțiile hotelului, introduceți și confirmați numărul camerei.",
+        inputLabel: "Numărul camerei",
+        inputPlaceholder: "Exemplu: 204",
+        confirmButton: "Confirmă camera",
+        confirmMessage: "Sunteți sigur că aceasta este camera dvs.?\nCamera {room}",
+        confirmedState: "Cameră confirmată: {room}",
+        changeRoom: "Schimbă camera",
+        changeRoomWarningTitle: "Schimbare cameră",
+        changeRoomWarningText: "Schimbați camera activă doar dacă ați fost mutat efectiv într-o altă cameră. Apoi introduceți și confirmați noua cameră.",
+        changeRoomContinue: "Continuă",
+        lockedNotice: "Secțiunile se vor deschide după introducerea numărului camerei.",
+        lockedSectionMessage: "Confirmați numărul camerei pentru a debloca această secțiune.",
+        missingRoomAlert: "Vă rugăm să introduceți numărul camerei.",
+        missingRoomQrAlert: "Lipsește numărul camerei. Scanați din nou codul QR al camerei sau introduceți camera manual.",
+        requestSent: "Solicitare trimisă: {typeLabel}",
+        requestAcceptedTitle: "Solicitare primită",
+        requestAcceptedText: "Solicitarea dvs. a fost primită și va fi procesată cât mai curând posibil.",
+        requestSendingTitle: "Se trimite solicitarea",
+        requestSendingText: "Vă rugăm să așteptați. Se trimite: {typeLabel}",
+        requestFailed: "Solicitarea nu a putut fi trimisă. Încercați din nou.",
+        myRequestsTitle: "Solicitările mele",
+        myRequestsEmpty: "Nu au fost trimise solicitări de pe acest dispozitiv.",
+        myRequestsLoading: "Se încarcă statusurile...",
+        refreshRequests: "Reîmprospătează",
+        status_new: "Primită",
+        status_in_progress: "În procesare",
+        status_completed: "Finalizată",
+        status_returned: "Returnată",
+        lockedActionAlert: "Vă rugăm să confirmați mai întâi numărul camerei pentru a debloca funcțiile.",
+      },
+      cs: {
+        roomBadge: "Pokoj {room}",
+        cardTitle: "Potvrďte číslo pokoje",
+        cardText: "Pro odemknutí funkcí hotelu zadejte a potvrďte číslo svého pokoje.",
+        inputLabel: "Číslo pokoje",
+        inputPlaceholder: "Např. 204",
+        confirmButton: "Potvrdit pokoj",
+        confirmMessage: "Jste si jistí, že je to váš pokoj?\nPokoj {room}",
+        confirmedState: "Potvrzený pokoj: {room}",
+        changeRoom: "Změnit pokoj",
+        changeRoomWarningTitle: "Změna pokoje",
+        changeRoomWarningText: "Aktivní pokoj měňte pouze tehdy, pokud jste byli skutečně přesunuti do jiného pokoje. Poté zadejte a potvrďte nový pokoj.",
+        changeRoomContinue: "Pokračovat",
+        lockedNotice: "Sekce se otevřou po zadání čísla pokoje.",
+        lockedSectionMessage: "Potvrďte číslo pokoje pro odemknutí této sekce.",
+        missingRoomAlert: "Zadejte prosím číslo pokoje.",
+        missingRoomQrAlert: "Chybí číslo pokoje. Naskenujte znovu QR kód pokoje nebo zadejte pokoj ručně.",
+        requestSent: "Požadavek odeslán: {typeLabel}",
+        requestAcceptedTitle: "Požadavek přijat",
+        requestAcceptedText: "Váš požadavek byl přijat a bude zpracován co nejdříve.",
+        requestSendingTitle: "Odesílání požadavku",
+        requestSendingText: "Čekejte prosím. Odesílá se: {typeLabel}",
+        requestFailed: "Požadavek se nepodařilo odeslat. Zkuste to znovu.",
+        myRequestsTitle: "Moje požadavky",
+        myRequestsEmpty: "Z tohoto zařízení zatím nebyly odeslány žádné požadavky.",
+        myRequestsLoading: "Načítání stavů...",
+        refreshRequests: "Obnovit",
+        status_new: "Přijato",
+        status_in_progress: "Zpracovává se",
+        status_completed: "Dokončeno",
+        status_returned: "Vráceno",
+        lockedActionAlert: "Nejprve potvrďte číslo pokoje, abyste odemkli funkce.",
+      },
     } as const;
 
-    if (lang === "bg" || lang === "en" || lang === "de") {
+    if (lang === "bg" || lang === "en" || lang === "de" || lang === "ro" || lang === "cs") {
       return copy[lang];
     }
 
@@ -1493,6 +1618,24 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const getRequestDefField = useCallback(
     (def: RequestDef, field: "title" | "subtitle" | "description" | "policy" | "success" | "staffLabel") =>
       getRequestDefText(def, lang, field, fallbackLangs),
+    [fallbackLangs, lang]
+  );
+
+  const getTextMapValue = useCallback(
+    (map?: Partial<Record<LangKey, string>>) => {
+      if (!map) return "";
+
+      const preferred = [String(lang || "").trim(), ...fallbackLangs.map((x) => String(x || "").trim())]
+        .filter(Boolean);
+
+      for (const key of preferred) {
+        const value = map[key];
+        if (value && String(value).trim()) return String(value).trim();
+      }
+
+      const first = Object.values(map).find((value) => String(value || "").trim());
+      return first ? String(first).trim() : "";
+    },
     [fallbackLangs, lang]
   );
 
@@ -1965,10 +2108,36 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       noteParts.push(`${String(selectedLabel)}: ${pickedTime}`);
     }
 
-    if (def.requiresQuantity) {
+    if (def.requestKind === "selection" && def.options.length) {
+      const list = def.options.map((option, index) => `${index + 1}. ${option}`).join("\n");
+      const picked = (window.prompt(
+        `${String(tUI("request_option_prompt") || "Choose an option:")}\n\n${list}`,
+        def.options[0]
+      ) || "").trim();
+
+      if (!picked) return null;
+
+      const numericIndex = Number(picked);
+      const selected = Number.isInteger(numericIndex) && numericIndex >= 1 && numericIndex <= def.options.length
+        ? def.options[numericIndex - 1]
+        : def.options.find((option) => option.toLowerCase() === picked.toLowerCase()) || picked;
+
+      noteParts.push(`${String(tUI("label_option") || "Option")}: ${selected}`);
+    }
+
+    if (def.requiresQuantity || def.requestKind === "quantity") {
       const qty = promptRequestQuantity(def);
       if (qty == null) return null;
-      noteParts.push(`${String(tUI("label_people") || "Quantity")}: ${qty}`);
+      noteParts.push(`${String(tUI("label_quantity") || tUI("label_people") || "Quantity")}: ${qty}`);
+    }
+
+    if (def.requiresBilling || def.price) {
+      const priceText = [def.price, def.currency].map((item) => String(item || "").trim()).filter(Boolean).join(" ");
+      noteParts.push(
+        priceText
+          ? `${String(tUI("billing_note") || "Paid service / charge to room")}: ${priceText}`
+          : String(tUI("billing_note") || "Paid service / charge to room")
+      );
     }
 
     if (def.requiresNote) {
@@ -1986,32 +2155,48 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     return undefined;
   }
 
-  function handleRequestDefClick(def: RequestDef) {
-    if (!ensureConfirmedRoom()) return;
+  function getRequestDefDepartmentOverride(def: RequestDef): StaffDepartment | undefined {
+    const department = String(def.targetDepartment || "").trim().toLowerCase();
 
+    if (department === "reception" || department === "housekeeping" || department === "maintenance" || department === "restaurant") {
+      return department as StaffDepartment;
+    }
+
+    return undefined;
+  }
+
+  function handleRequestDefClick(def: RequestDef) {
     const infoMessage = getRequestDefMessage(def);
     const title = getRequestDefField(def, "title") || def.id.replace(/_/g, " ");
-
-    const continueSubmit = () => {
-      const note = buildRequestDefNote(def, infoMessage);
-      if (note === null) return;
-
-      submitGuestRequest({
-        type: String(def.requestType || def.id) as StaffRequestType,
-        typeLabel: title,
-        note: note || undefined,
-      });
-    };
 
     if (def.type !== "request" || def.requestKind === "info_only") {
       openRequestDialog({
         title,
         message: infoMessage || title,
         confirmLabel:
-          lang === "bg" ? "Затвори" : lang === "de" ? "Schließen" : "Close",
+          lang === "bg" ? "Затвори" : lang === "de" ? "Schließen" : lang === "ro" ? "Închide" : lang === "cs" ? "Zavřít" : "Close",
       });
       return;
     }
+
+    if (!ensureConfirmedRoom()) return;
+
+    const continueSubmit = () => {
+      const note = buildRequestDefNote(def, infoMessage);
+      if (note === null) return;
+
+      submitGuestRequest({
+        type: String(def.requestType || def.id),
+        typeLabel: title,
+        note: note || undefined,
+        departmentOverride: getRequestDefDepartmentOverride(def),
+        notifyDepartments: def.notifyDepartments,
+        requiresBilling: def.requiresBilling,
+        price: def.price,
+        currency: def.currency,
+        sourceRequestDef: def.id,
+      });
+    };
 
     if (infoMessage && def.confirmationMode !== "instant") {
       confirmInfoBlock(infoMessage, continueSubmit);
@@ -2029,9 +2214,26 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       .map((def) => {
         const title = getRequestDefField(def, "title") || def.id.replace(/_/g, " ");
         const icon = getRequestDefButtonIcon(def);
+        const subsectionLabel = def.subsection
+          ? String(tUI(`subsection_${def.subsection}`) || humanizeCategory(def.subsection)).trim()
+          : "";
+        const visibleTitle = subsectionLabel && String(category).toLowerCase() === "info"
+          ? `${subsectionLabel} · ${title}`
+          : title;
+        const label = icon ? `${icon} ${visibleTitle}` : visibleTitle;
+        const href = String(def.pdfUrl || def.externalUrl || def.linkUrl || "").trim();
+
+        if (href && (def.type === "pdf" || def.type === "external_link" || def.type === "link")) {
+          return {
+            label,
+            kind: "link" as const,
+            href,
+            newTab: true,
+          };
+        }
 
         return {
-          label: icon ? `${icon} ${title}` : title,
+          label,
           kind: "link" as const,
           onClick: () => handleRequestDefClick(def),
         };
@@ -2160,12 +2362,22 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     note,
     serviceTime = "now",
     departmentOverride: explicitDepartmentOverride,
+    notifyDepartments,
+    requiresBilling,
+    price,
+    currency,
+    sourceRequestDef,
   }: {
-    type: StaffRequestType;
+    type: StaffRequestType | string;
     typeLabel: string;
     note?: string;
     serviceTime?: StaffServiceTime;
-    departmentOverride?: "reception" | "restaurant";
+    departmentOverride?: StaffDepartment;
+    notifyDepartments?: string[];
+    requiresBilling?: boolean;
+    price?: string;
+    currency?: string;
+    sourceRequestDef?: string;
   }) => {
     const roomValue = room.trim();
     const signatureLabel = cleanRequestTitle(typeLabel).toLowerCase() || String(type || "request");
@@ -2237,6 +2449,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           serviceTime,
           note,
           departmentOverride,
+          notifyDepartments,
+          requiresBilling,
+          price,
+          currency,
+          sourceRequestDef,
         }),
       });
 
@@ -2632,24 +2849,60 @@ EN: ${helpMsg}` : opsMsg,
   );
 
   const hotelInfoSection = useMemo(() => {
-    if (!hotelInfoItems.length) return null;
+    const infoRequestDefItems = buildRequestDefItems("info");
+    const infoItems = hotelInfoItems.map((item) => ({
+      label: `${item?.icon ? `${String(item.icon).trim()} ` : ""}${getHotelInfoText(item, "title")}`.trim(),
+      kind: "info" as const,
+      info: getHotelInfoText(item, "text"),
+    }));
+
+    const items = [...infoItems, ...infoRequestDefItems];
+
+    if (!items.length) return null;
 
     return {
       id: "info",
       title:
-        String(tUI("hotel_info_title") || "").trim() ||
-        (lang === "bg" ? "Инфо" : lang === "de" ? "Info" : "Info"),
-      items: hotelInfoItems.map((item) => ({
-        label: `${item?.icon ? `${String(item.icon).trim()} ` : ""}${getHotelInfoText(item, "title")}`.trim(),
-        kind: "info" as const,
-        info: getHotelInfoText(item, "text"),
-      })),
+        String(tUI("hotel_info_title") || tUI("section_info_title") || "").trim() ||
+        (lang === "bg" ? "Инфо" : lang === "de" ? "Info" : lang === "ro" ? "Informații" : lang === "cs" ? "Informace" : "Info"),
+      items,
     } satisfies HubSection;
-  }, [getHotelInfoText, hotelInfoItems, lang, tUI]);
+  }, [buildRequestDefItems, getHotelInfoText, hotelInfoItems, lang, tUI]);
+
+  const dynamicRequestDefSections = useMemo(() => {
+    const reservedCategories = new Set(["reception", "housekeeping", "maintenance", "info"]);
+
+    return Object.entries(requestDefsByCategory)
+      .filter(([category, defs]) =>
+        !reservedCategories.has(category) &&
+        defs.some((def) => def.guestVisible !== false)
+      )
+      .map(([category, defs]) => {
+        const firstDef = defs.find((def) => def.guestVisible !== false) ?? defs[0];
+        const sectionTitle =
+          getTextMapValue(firstDef?.sectionTitle) ||
+          String(tUI(`section_${category}_title`) || "").trim() ||
+          humanizeCategory(category);
+
+        return {
+          id: category,
+          title: sectionTitle,
+          items: buildRequestDefItems(category),
+        } satisfies HubSection;
+      })
+      .filter((section) => section.items.length > 0);
+  }, [buildRequestDefItems, getTextMapValue, requestDefsByCategory, tUI]);
 
   const housekeepingTitle = tUI("housekeeping_title");
   const housekeepingTitleAfter = tUI("housekeeping_title_after");
   const housekeepingAfterNote = tUI("housekeeping_after_note");
+
+  const themeStyle = {
+    "--stayhub-primary": String(config.theme?.primary || config.theme?.accent || "#9B86BD"),
+    "--stayhub-on-primary": String(config.theme?.text || "#0D1B2A"),
+    ...(config.theme?.background ? { backgroundColor: String(config.theme.background) } : {}),
+    ...(config.theme?.text ? { color: String(config.theme.text) } : {}),
+  } as any;
 
   const sections: HubSection[] = [
     {
@@ -2664,6 +2917,7 @@ EN: ${helpMsg}` : opsMsg,
       ],
     },
     ...(hotelInfoSection ? [hotelInfoSection] : []),
+    ...dynamicRequestDefSections,
     {
       id: "reception",
       title: tUI("reception_title") || "Reception",
@@ -2991,7 +3245,7 @@ EN: ${helpMsg}` : opsMsg,
   ];
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto max-w-md" style={themeStyle}>
       <div className="relative">
         <div className="relative h-[220px] sm:h-[260px] md:h-[300px] w-full overflow-hidden bg-neutral-800">
           <img
@@ -3078,7 +3332,8 @@ EN: ${helpMsg}` : opsMsg,
             <button
               type="button"
               onClick={confirmManualRoom}
-              className="mt-3 w-full rounded-xl bg-[#9B86BD] px-4 py-3 text-sm font-semibold text-[#0D1B2A] transition hover:opacity-95 active:scale-[0.99]"
+              className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition hover:opacity-95 active:scale-[0.99]"
+              style={{ backgroundColor: "var(--stayhub-primary)", color: "var(--stayhub-on-primary)" }}
             >
               {roomCopy.confirmButton}
             </button>
@@ -3155,7 +3410,8 @@ EN: ${helpMsg}` : opsMsg,
               <button
                 type="button"
                 onClick={acceptRoomConfirmation}
-                className="rounded-xl bg-[#9B86BD] px-4 py-3 text-sm font-semibold text-[#0D1B2A]"
+                className="rounded-xl px-4 py-3 text-sm font-semibold"
+                style={{ backgroundColor: "var(--stayhub-primary)", color: "var(--stayhub-on-primary)" }}
               >
                 {isRoomSwitchConfirmation
                   ? lang === "bg"
@@ -3201,7 +3457,8 @@ EN: ${helpMsg}` : opsMsg,
               <button
                 type="button"
                 onClick={requestDialog.onConfirm ? confirmRequestDialog : closeRequestDialog}
-                className="rounded-xl bg-[#9B86BD] px-4 py-3 text-sm font-semibold text-[#0D1B2A]"
+                className="rounded-xl px-4 py-3 text-sm font-semibold"
+                style={{ backgroundColor: "var(--stayhub-primary)", color: "var(--stayhub-on-primary)" }}
               >
                 {requestDialog.confirmLabel ||
                   (lang === "bg" ? "Добре" : lang === "de" ? "OK" : "OK")}
@@ -3275,6 +3532,7 @@ EN: ${helpMsg}` : opsMsg,
                 section={sec}
                 groups={groupedOutlets}
                 tUI={tUI}
+                lang={lang}
                 onReserve={openVenueReservation}
               />
             ) : (
@@ -3326,9 +3584,7 @@ function Accordion({
 }) {
   const [open, setOpen] = useState(false);
 
-  const accentBg = "bg-[#9B86BD]";
-  const accentText = "text-[#0D1B2A]";
-  const accentRing = "ring-1 ring-[#9B86BD]/35";
+  const accentRing = "ring-1 ring-white/10";
 
   return (
     <div className="rounded-2xl overflow-hidden ring-1 ring-neutral-800 bg-neutral-900/40">
@@ -3347,16 +3603,15 @@ function Accordion({
         }
         className={clsx(
           "w-full px-4 py-4 text-left",
-          accentBg,
-          accentText,
           accentRing,
           "flex items-center justify-between gap-3"
         )}
+        style={{ backgroundColor: "var(--stayhub-primary)", color: "var(--stayhub-on-primary)" }}
       >
         <div>
           <div className="text-base font-semibold">{section.title}</div>
           {section.subtitle ? (
-            <div className="mt-1 text-xs font-medium text-[#0D1B2A]/80">
+            <div className="mt-1 text-xs font-medium opacity-80">
               {section.subtitle}
             </div>
           ) : null}
@@ -3522,9 +3777,11 @@ function OutletsAccordion({
   section,
   groups,
   tUI,
+  lang,
   onReserve,
 }: {
   section: HubSection;
+  lang: LangKey;
   groups: Array<{
     category: string;
     meta: { title: string; icon: string };
@@ -3575,6 +3832,7 @@ function OutletsAccordion({
 
   const renderVenueDetails = (venue: VenueRow) => {
     const hoursText =
+      String(venue.hoursByLang?.[String(lang)] || "").trim() ||
       venue.hours ||
       (venue.open || venue.close ? `${venue.open || "?"} - ${venue.close || "?"}` : "");
 
@@ -3669,7 +3927,8 @@ function OutletsAccordion({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full px-4 py-4 text-left bg-[#9B86BD] text-[#0D1B2A] ring-1 ring-[#9B86BD]/35 flex items-center justify-between gap-3"
+        className="w-full px-4 py-4 text-left ring-1 ring-white/10 flex items-center justify-between gap-3"
+        style={{ backgroundColor: "var(--stayhub-primary)", color: "var(--stayhub-on-primary)" }}
       >
         <div className="text-base font-semibold">{section.title}</div>
         <div className="text-lg">▾</div>

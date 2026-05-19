@@ -31,6 +31,13 @@ export async function POST(req: NextRequest) {
     const note = body?.note ? String(body.note).trim() : null;
     const serviceTime = String(body?.serviceTime || "now").trim().toLowerCase() as StaffServiceTime;
     const departmentOverride = body?.departmentOverride ? String(body.departmentOverride).trim().toLowerCase() as StaffDepartment : undefined;
+    const notifyDepartments = Array.isArray(body?.notifyDepartments)
+      ? body.notifyDepartments.map((item: unknown) => String(item || "").trim().toLowerCase()).filter(Boolean)
+      : String(body?.notifyDepartments || "").split(/[|,]/).map((item) => item.trim().toLowerCase()).filter(Boolean);
+    const requiresBilling = Boolean(body?.requiresBilling);
+    const price = body?.price ? String(body.price).trim() : null;
+    const currency = body?.currency ? String(body.currency).trim() : null;
+    const sourceRequestDef = body?.sourceRequestDef ? String(body.sourceRequestDef).trim() : null;
 
     if (!hotelSlug || !room || !rawType) {
       return NextResponse.json({ ok: false, error: "Missing required fields" }, { status: 400 });
@@ -56,6 +63,11 @@ export async function POST(req: NextRequest) {
         status: "new",
         metadata_json: {
           department,
+          notifyDepartments,
+          requiresBilling,
+          price,
+          currency,
+          sourceRequestDef,
           serviceTime,
           typeLabel,
           note,
@@ -81,6 +93,11 @@ export async function POST(req: NextRequest) {
         typeLabel: data.metadata_json?.typeLabel ?? data.title,
         status: data.status as StaffRequestStatus,
         serviceTime: data.metadata_json?.serviceTime ?? serviceTime,
+        notifyDepartments: data.metadata_json?.notifyDepartments ?? notifyDepartments,
+        requiresBilling: data.metadata_json?.requiresBilling ?? requiresBilling,
+        price: data.metadata_json?.price ?? price ?? undefined,
+        currency: data.metadata_json?.currency ?? currency ?? undefined,
+        sourceRequestDef: data.metadata_json?.sourceRequestDef ?? sourceRequestDef ?? undefined,
         createdAt: created.toLocaleString([], {
           year: "numeric",
           month: "2-digit",

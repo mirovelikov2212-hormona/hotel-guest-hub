@@ -146,6 +146,16 @@ function toConfigKey(field: string): string {
     "Cover Image Position": "coverImagePosition",
     "Location": "locationQuery",
     "Hotel Location Query": "locationQuery",
+    "Languages": "languages",
+    "Default Language": "languageDefault",
+    "Ops Language": "opsLanguage",
+    "Staff Helper Enabled": "staffHelperEnabled",
+    "Staff Helper Language": "staffHelperLanguage",
+    "Brand Primary Color": "brandPrimaryColor",
+    "Brand Secondary Color": "brandSecondaryColor",
+    "Brand Accent Color": "brandAccentColor",
+    "Brand Background Color": "brandBackgroundColor",
+    "Brand Text Color": "brandTextColor",
     "Hotel Latitude": "hotelLatitude",
     "Latitude": "hotelLatitude",
     "Hotel Longitude": "hotelLongitude",
@@ -320,12 +330,16 @@ function parseHotelInfoRows(rows: Record<string, string>[]): Array<{
         bg: readCell(row, ["Title BG", "title_bg", "titleBg"]),
         en: readCell(row, ["Title EN", "title_en", "titleEn"]),
         de: readCell(row, ["Title DE", "title_de", "titleDe"]),
+        ro: readCell(row, ["Title RO", "title_ro", "titleRo"]),
+        cs: readCell(row, ["Title CS", "title_cs", "titleCs"]),
       };
 
       const text = {
-        bg: readCell(row, ["Text BG", "text_bg", "textBg"]),
-        en: readCell(row, ["Text EN", "text_en", "textEn"]),
-        de: readCell(row, ["Text DE", "text_de", "textDe"]),
+        bg: readCell(row, ["Text BG", "Body BG", "text_bg", "body_bg", "textBg"]),
+        en: readCell(row, ["Text EN", "Body EN", "text_en", "body_en", "textEn"]),
+        de: readCell(row, ["Text DE", "Body DE", "text_de", "body_de", "textDe"]),
+        ro: readCell(row, ["Text RO", "Body RO", "text_ro", "body_ro", "textRo"]),
+        cs: readCell(row, ["Text CS", "Body CS", "text_cs", "body_cs", "textCs"]),
       };
 
       return {
@@ -338,8 +352,81 @@ function parseHotelInfoRows(rows: Record<string, string>[]): Array<{
         text,
       };
     })
-    .filter((item) => item.key && item.active && (item.title.bg || item.title.en || item.title.de || item.text.bg || item.text.en || item.text.de))
+    .filter((item) => item.key && item.active && Object.values(item.title).concat(Object.values(item.text)).some((value) => String(value || "").trim()))
     .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
+}
+
+
+function readMultilingualField(row: Record<string, string>, baseNames: string[], lang: string): string {
+  const upper = String(lang || "").trim().toUpperCase();
+  const lower = String(lang || "").trim().toLowerCase();
+
+  for (const base of baseNames) {
+    const value = readCell(row, [
+      `${base} ${upper}`,
+      `${base} ${lower}`,
+      `${base}_${lower}`,
+      `${base}_${upper}`,
+      `${base}${upper}`,
+      `${base}${upper.charAt(0)}${upper.slice(1).toLowerCase()}`,
+    ]);
+
+    if (value) return value;
+  }
+
+  return "";
+}
+
+function normalizeDisplayHours(value: string): string {
+  return String(value || "")
+    .replace(/\s*\|\s*/g, "\n")
+    .replace(/\\n/g, "\n")
+    .trim();
+}
+
+function buildVenueHours(row: Record<string, string>, languages: LangKey[]) {
+  const defaultParts = [
+    readCell(row, ["Breakfast Hours", "Breakfast", "breakfastHours"]),
+    readCell(row, ["Lunch Hours", "Lunch", "lunchHours"]),
+    readCell(row, ["Afternoon Snack Hours", "Snack Hours", "Snack", "afternoonSnackHours"]),
+    readCell(row, ["Dinner Hours", "Dinner", "dinnerHours"]),
+    readCell(row, ["Hours 1", "hours1"]),
+    readCell(row, ["Hours 2", "hours2"]),
+    readCell(row, ["Hours 3", "hours3"]),
+    readCell(row, ["Hours 4", "hours4"]),
+  ].map(normalizeDisplayHours).filter(Boolean);
+
+  const generic = normalizeDisplayHours(
+    defaultParts.length ? defaultParts.join("\n") : readCell(row, ["Hours", "hours"])
+  );
+
+  const hoursByLang: Record<string, string> = {};
+
+  for (const lang of languages) {
+    const langParts = [
+      readMultilingualField(row, ["Breakfast Hours", "Breakfast"], String(lang)),
+      readMultilingualField(row, ["Lunch Hours", "Lunch"], String(lang)),
+      readMultilingualField(row, ["Afternoon Snack Hours", "Snack Hours", "Snack"], String(lang)),
+      readMultilingualField(row, ["Dinner Hours", "Dinner"], String(lang)),
+      readMultilingualField(row, ["Hours 1"], String(lang)),
+      readMultilingualField(row, ["Hours 2"], String(lang)),
+      readMultilingualField(row, ["Hours 3"], String(lang)),
+      readMultilingualField(row, ["Hours 4"], String(lang)),
+    ].map(normalizeDisplayHours).filter(Boolean);
+
+    const combined = normalizeDisplayHours(
+      langParts.length
+        ? langParts.join("\n")
+        : readMultilingualField(row, ["Hours"], String(lang))
+    );
+
+    if (combined) hoursByLang[String(lang)] = combined;
+  }
+
+  return {
+    hours: generic,
+    hoursByLang,
+  };
 }
 
 export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | null> {
@@ -427,6 +514,13 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     geoGuardEnabled: pickBoolean(mergedConfig, "geoGuardEnabled", true),
     geoGuardRadiusMeters: pickNumber(mergedConfig, "geoGuardRadiusMeters", 350),
     testModeEnabled: pickBoolean(mergedConfig, "testModeEnabled", false),
+    theme: {
+      primary: pick(mergedConfig, "brandPrimaryColor", ""),
+      secondary: pick(mergedConfig, "brandSecondaryColor", ""),
+      accent: pick(mergedConfig, "brandAccentColor", ""),
+      background: pick(mergedConfig, "brandBackgroundColor", ""),
+      text: pick(mergedConfig, "brandTextColor", ""),
+    },
     wifi: {
       ssid: pick(mergedConfig, "wifiSsid", ""),
       password: pick(mergedConfig, "wifiPassword", ""),
@@ -481,7 +575,10 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
   };
 
   const venueRows = venueRowsRaw
-    .map((row) => ({
+    .map((row) => {
+      const venueHours = buildVenueHours(row, languages.length ? languages : ["bg", "en", "de"]);
+
+      return {
       category: readCell(row, ["Category", "category"]),
       type: readCell(row, ["Type", "type"]).toLowerCase(),
       name: readCell(row, ["Name", "name"]),
@@ -489,7 +586,8 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
       icon: readCell(row, ["Icon", "icon", "Emoji", "emoji"]),
       description: readCell(row, ["Description", "description"]),
       cuisine: readCell(row, ["Cuisine", "cuisine"]),
-      hours: readCell(row, ["Hours", "hours"]),
+      hours: venueHours.hours,
+      hoursByLang: venueHours.hoursByLang,
       menuUrl: readCell(row, ["Menu URL", "menuUrl", "menu_url"]),
       whatsapp: readCell(row, ["WhatsApp", "whatsapp"]),
       phone: readCell(row, ["Phone", "phone"]),
@@ -536,7 +634,8 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
       programUrl: readCell(row, ["Program URL", "programUrl", "program_url"]),
       programText: readCell(row, ["Program Text", "programText", "program_text"]),
       ageGroup: readCell(row, ["Age Group", "ageGroup", "age_group"]),
-    }))
+    };
+    })
     .filter((venue) => venue.name && (venue.type || venue.category) && venue.active)
     .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
 

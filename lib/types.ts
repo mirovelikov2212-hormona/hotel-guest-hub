@@ -29,7 +29,7 @@ export type HubItem =
 
 export type RequestDefTextMap = Partial<Record<LangKey, string>>;
 
-export type RequestDefType = "request" | "info" | "policy";
+export type RequestDefType = "request" | "info" | "policy" | "pdf" | "external_link" | "link";
 
 export type RequestDefKind =
   | "standard"
@@ -72,6 +72,16 @@ export type RequestDef = {
   policy: RequestDefTextMap;
   success: RequestDefTextMap;
   staffLabel: RequestDefTextMap;
+  section?: string;
+  subsection?: string;
+  sectionTitle?: RequestDefTextMap;
+  pdfUrl?: string;
+  externalUrl?: string;
+  linkUrl?: string;
+  price?: string;
+  currency?: string;
+  requiresBilling?: boolean;
+  notifyDepartments?: string[];
   keywords: string[];
 };
 
@@ -120,6 +130,7 @@ export type VenueRow = {
   description?: string;
   cuisine?: string;
   hours?: string;
+  hoursByLang?: Partial<Record<LangKey, string>>;
   open?: string;
   close?: string;
   menuUrl?: string;
@@ -190,6 +201,14 @@ export type HotelConfig = {
   geoGuardRadiusMeters?: number;
   testModeEnabled?: boolean;
   rawConfig?: Record<string, string>;
+
+  theme?: {
+    primary?: string;
+    secondary?: string;
+    accent?: string;
+    background?: string;
+    text?: string;
+  };
 
   contacts: {
     reception: ContactInfo;
