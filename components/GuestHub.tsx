@@ -631,15 +631,15 @@ function getGuestRequestIcon(type: StaffRequestType | string): string {
     case "extra_pillow":
       return "🛏️";
     case "extra_blanket":
-      return "🧣";
+      return "🛌";
     case "bathrobe":
-      return "🧥";
+      return "🥼";
     case "slippers":
-      return "🥿";
+      return "🩴";
     case "baby_cot":
       return "👶";
     case "iron":
-      return "🧼";
+      return "👔";
     case "laundry":
       return "🧺";
     case "room_cleaning_request":
@@ -648,6 +648,13 @@ function getGuestRequestIcon(type: StaffRequestType | string): string {
     case "minibar":
     case "minibar_refill":
       return "🥤";
+    case "coffee_capsules":
+    case "coffee-capsules":
+    case "capsules":
+      return "☕";
+    case "pillow_menu":
+    case "pillow-menu":
+      return "🛏️";
     case "late_checkout":
       return "🕒";
     case "wake_up_call":
@@ -662,6 +669,8 @@ function getGuestRequestIcon(type: StaffRequestType | string): string {
       return "🍽️";
     case "luggage_help":
       return "🧳";
+    case "special_occasion":
+      return "🎉";
     case "air_conditioning":
       return "❄️";
     case "no_hot_water":
@@ -682,14 +691,29 @@ function getGuestRequestIcon(type: StaffRequestType | string): string {
     case "safe_issue":
       return "🔒";
     case "balcony_door_issue":
-      return "🚪";
+      return "🪟";
     case "minibar_not_cooling":
       return "🧊";
+    case "coffee_machine":
+      return "☕";
     case "other_technical_issue":
       return "🛠️";
     default:
       return "•";
   }
+}
+
+function formatGuestRequestLabel(type: StaffRequestType | string, label: string) {
+  const text = String(label || "").trim();
+  const icon = getGuestRequestIcon(type);
+
+  if (!text) return icon === "•" ? "" : icon;
+  if (!icon || icon === "•") return text;
+
+  // Avoid duplicating icons when the label already starts with an emoji/symbol.
+  if (/^[^\p{L}\p{N}]/u.test(text)) return text;
+
+  return `${icon} ${text}`;
 }
 
 function cleanRequestTitle(value: string) {
@@ -793,18 +817,18 @@ function getRequestDefButtonIcon(def: RequestDef): string {
       return "🛏️";
     case "blanket":
     case "extra_blanket":
-      return "🧣";
+      return "🛌";
     case "bath":
     case "bathrobe":
-      return "🧥";
+      return "🥼";
     case "shoe":
     case "slippers":
-      return "🥿";
+      return "🩴";
     case "baby":
     case "baby_cot":
       return "👶";
     case "iron":
-      return "🧼";
+      return "👔";
     case "laundry":
       return "🧺";
     case "cleaning":
@@ -815,6 +839,13 @@ function getRequestDefButtonIcon(def: RequestDef): string {
     case "minibar":
     case "minibar_refill":
       return "🥤";
+    case "coffee-capsules":
+    case "coffee_capsules":
+    case "capsules":
+      return "☕";
+    case "pillow-menu":
+    case "pillow_menu":
+      return "🛏️";
     case "clock":
     case "late_checkout":
       return "🕒";
@@ -835,6 +866,8 @@ function getRequestDefButtonIcon(def: RequestDef): string {
     case "luggage":
     case "luggage_help":
       return "🧳";
+    case "special_occasion":
+      return "🎉";
     case "air":
     case "air_conditioning":
       return "❄️";
@@ -846,6 +879,7 @@ function getRequestDefButtonIcon(def: RequestDef): string {
       return "📺";
     case "light":
     case "light_issue":
+    case "light_not_working":
       return "💡";
     case "bathroom":
     case "bathroom_issue":
@@ -863,8 +897,12 @@ function getRequestDefButtonIcon(def: RequestDef): string {
     case "safe_issue":
       return "🔒";
     case "door":
+    case "balcony-door":
     case "balcony_door_issue":
-      return "🚪";
+      return "🪟";
+    case "coffee":
+    case "coffee_machine":
+      return "☕";
     case "tools":
     case "other_technical_issue":
       return "🛠️";
@@ -3495,7 +3533,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("luggage_help")
           ? [
             {
-              label: tUI("luggage_help") || "Luggage assistance",
+              label: formatGuestRequestLabel("luggage_help", String(tUI("luggage_help") || "Luggage assistance")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3508,7 +3546,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("late_checkout")
           ? [
             {
-              label: tUI("late_checkout") || "Late checkout",
+              label: formatGuestRequestLabel("late_checkout", String(tUI("late_checkout") || "Late checkout")),
               kind: "link" as const,
               onClick: () => {
                 if (!ensureConfirmedRoom()) return;
@@ -3537,7 +3575,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("taxi")
           ? [
             {
-              label: tUI("taxi") || "Taxi",
+              label: formatGuestRequestLabel("taxi", String(tUI("taxi") || "Taxi")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3550,7 +3588,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("wake_up_call")
           ? [
             {
-              label: tUI("wake_up") || "Wake-up call",
+              label: formatGuestRequestLabel("wake_up_call", String(tUI("wake_up") || "Wake-up call")),
               kind: "link" as const,
               onClick: () => {
                 if (!ensureConfirmedRoom()) return;
@@ -3578,7 +3616,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("towels")
           ? [
             {
-              label: tUI("towels") || "Towels",
+              label: formatGuestRequestLabel("towels", String(tUI("towels") || "Towels")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3591,7 +3629,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("toilet_paper")
           ? [
             {
-              label: tUI("toilet_paper") || "Toilet paper",
+              label: formatGuestRequestLabel("toilet_paper", String(tUI("toilet_paper") || "Toilet paper")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3604,7 +3642,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("extra_pillow")
           ? [
             {
-              label: tUI("extra_pillows") || "Extra pillows",
+              label: formatGuestRequestLabel("extra_pillow", String(tUI("extra_pillows") || "Extra pillows")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3622,7 +3660,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
             if (action?.mode === "info") {
               return {
-                label: tUI(x.labelKey) || x.labelKey,
+                label: formatGuestRequestLabel(x.key, String(tUI(x.labelKey) || x.labelKey)),
                 kind: "link" as const,
                 onClick: () => {
                   if (!ensureConfirmedRoom()) return;
@@ -3639,7 +3677,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
             if (action?.mode === "request") {
               return {
-                label: tUI(x.labelKey) || action.typeLabel,
+                label: formatGuestRequestLabel(action.type, String(tUI(x.labelKey) || action.typeLabel)),
                 kind: "link" as const,
                 onClick: () => {
                   if (!ensureConfirmedRoom()) return;
@@ -3672,7 +3710,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             }
 
             return {
-              label: tUI(x.labelKey) || x.labelKey,
+              label: formatGuestRequestLabel(x.key, String(tUI(x.labelKey) || x.labelKey)),
               kind: "link" as const,
               onClick: () => sendHousekeeping(x.messageKey),
             };
@@ -3687,7 +3725,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("air_conditioning")
           ? [
             {
-              label: tUI("ac_issue") || "Air conditioning issue",
+              label: formatGuestRequestLabel("air_conditioning", String(tUI("ac_issue") || "Air conditioning issue")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3700,7 +3738,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("no_hot_water")
           ? [
             {
-              label: tUI("water_issue") || "No hot water",
+              label: formatGuestRequestLabel("no_hot_water", String(tUI("water_issue") || "No hot water")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3713,7 +3751,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("tv_issue")
           ? [
             {
-              label: tUI("tv_issue") || "TV issue",
+              label: formatGuestRequestLabel("tv_issue", String(tUI("tv_issue") || "TV issue")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3726,7 +3764,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("light_not_working")
           ? [
             {
-              label: tUI("light_not_working") || tUI("light_issue") || "Light issue",
+              label: formatGuestRequestLabel("light_not_working", String(tUI("light_not_working") || tUI("light_issue") || "Light issue")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3739,7 +3777,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("bathroom_issue")
           ? [
             {
-              label: tUI("bathroom_issue") || "Bathroom issue",
+              label: formatGuestRequestLabel("bathroom_issue", String(tUI("bathroom_issue") || "Bathroom issue")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3752,7 +3790,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("door_lock_issue")
           ? [
             {
-              label: tUI("door_lock_issue") || "Door / lock issue",
+              label: formatGuestRequestLabel("door_lock_issue", String(tUI("door_lock_issue") || "Door / lock issue")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3765,7 +3803,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("wifi_issue")
           ? [
             {
-              label: tUI("wifi_issue") || "Wi-Fi issue",
+              label: formatGuestRequestLabel("wifi_issue", String(tUI("wifi_issue") || "Wi-Fi issue")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3778,7 +3816,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("power_outlet_issue")
           ? [
             {
-              label: tUI("power_outlet_issue") || "Power outlet issue",
+              label: formatGuestRequestLabel("power_outlet_issue", String(tUI("power_outlet_issue") || "Power outlet issue")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3791,7 +3829,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("safe_issue")
           ? [
             {
-              label: tUI("safe_issue") || "Safe issue",
+              label: formatGuestRequestLabel("safe_issue", String(tUI("safe_issue") || "Safe issue")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3804,7 +3842,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("balcony_door_issue")
           ? [
             {
-              label: tUI("balcony_door_issue") || "Balcony door issue",
+              label: formatGuestRequestLabel("balcony_door_issue", String(tUI("balcony_door_issue") || "Balcony door issue")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3817,7 +3855,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("minibar_not_cooling")
           ? [
             {
-              label: tUI("minibar_not_cooling") || "Minibar not cooling",
+              label: formatGuestRequestLabel("minibar_not_cooling", String(tUI("minibar_not_cooling") || "Minibar not cooling")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3830,7 +3868,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("coffee_machine")
           ? [
             {
-              label: tUI("coffee_machine") || "Coffee machine",
+              label: formatGuestRequestLabel("coffee_machine", String(tUI("coffee_machine") || "Coffee machine")),
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
@@ -3844,7 +3882,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("other_technical_issue")
           ? [
             {
-              label: tUI("something_broken") || "Something broken",
+              label: formatGuestRequestLabel("other_technical_issue", String(tUI("something_broken") || "Something broken")),
               kind: "link" as const,
               onClick: () => {
                 if (!ensureConfirmedRoom()) return;
