@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { notFound } from "next/navigation";
 import { StaffStoreProvider } from "@/components/staff/store/StaffStoreProvider";
+import { getHotelIdBySlug } from "@/lib/hotels/getHotelIdBySlug";
 
 export default async function StaffHotelScopedLayout({
   children,
@@ -10,5 +12,15 @@ export default async function StaffHotelScopedLayout({
 }) {
   const { hotelSlug } = await params;
 
-  return <StaffStoreProvider hotelSlug={hotelSlug}>{children}</StaffStoreProvider>;
+  const hotelId = await getHotelIdBySlug(hotelSlug);
+
+  if (!hotelId) {
+    notFound();
+  }
+
+  return (
+    <StaffStoreProvider hotelSlug={hotelSlug} hotelId={hotelId}>
+      {children}
+    </StaffStoreProvider>
+  );
 }

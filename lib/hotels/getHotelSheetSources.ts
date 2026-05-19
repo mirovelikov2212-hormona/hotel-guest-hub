@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/server/supabase-admin";
 
 type HotelSheetSources = {
   hotelSlug: string;

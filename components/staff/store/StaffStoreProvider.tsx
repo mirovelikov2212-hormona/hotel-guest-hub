@@ -10,12 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
-import { getHotelIdBySlug } from "@/lib/hotels/getHotelIdBySlug";
-import {
-  createSupabaseRequest,
-  fetchSupabaseRequests,
-  updateSupabaseRequestStatus,
-} from "@/lib/staff/supabase-requests";
 import type {
   StaffDepartment,
   StaffRequest,
@@ -75,7 +69,11 @@ function writeStaffCache(key: string | undefined, requests: StaffRequest[]) {
 }
 
 function isOperationalRequest(request: StaffRequest) {
-  return request.status === "new" || request.status === "in_progress" || request.status === "returned";
+  return (
+    request.status === "new" ||
+    request.status === "in_progress" ||
+    request.status === "returned"
+  );
 }
 
 function getRoleFromPath(pathname: string | null): StaffRole | undefined {
@@ -97,12 +95,101 @@ function getRoleFromPath(pathname: string | null): StaffRole | undefined {
   return undefined;
 }
 
+function extractRequests(payload: unknown): StaffRequest[] {
+  if (Array.isArray(payload)) {
+    return payload as StaffRequest[];
+  }
+
+  if (payload && typeof payload === "object") {
+    const record = payload as {
+      requests?: unknown;
+      data?: unknown;
+      items?: unknown;
+    };
+
+    if (Array.isArray(record.requests)) return record.requests as StaffRequest[];
+    if (Array.isArray(record.data)) return record.data as StaffRequest[];
+    if (Array.isArray(record.items)) return record.items as StaffRequest[];
+  }
+
+  return [];
+}
+
+async function fetchStaffRequests(input: {
+  hotelSlug: string;
+  role: StaffRole;
+}): Promise<StaffRequest[]> {
+  const params = new URLSearchParams({
+    hotelSlug: input.hotelSlug,
+    role: input.role,
+  });
+
+  const response = await fetch(`/api/staff/requests?${params.toString()}`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch staff requests: ${response.status}`);
+  }
+
+  const payload = await response.json();
+  return extractRequests(payload);
+}
+
+async function updateStaffRequestStatus(input: {
+  id: string;
+  status: StaffRequestStatus;
+  hotelSlug: string;
+  role: StaffRole;
+}) {
+  const response = await fetch("/api/staff/request-status", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      id: input.id,
+      requestId: input.id,
+      status: input.status,
+      hotelSlug: input.hotelSlug,
+      role: input.role,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update request status: ${response.status}`);
+  }
+}
+
+async function createStaffRequest(input: AddRequestInput & {
+  hotelId?: string;
+  hotelSlug?: string;
+}) {
+  const response = await fetch("/api/guest/request-create", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to create staff request: ${response.status}`);
+  }
+}
+
 export function StaffStoreProvider({
   children,
   hotelSlug,
+  hotelId,
 }: {
   children: ReactNode;
   hotelSlug?: string;
+  hotelId?: string;
 }) {
   const pathname = usePathname();
   const currentRole = useMemo(() => getRoleFromPath(pathname), [pathname]);
@@ -112,16 +199,22 @@ export function StaffStoreProvider({
     [hotelSlug]
   );
 
+  const normalizedHotelId = useMemo(
+    () => String(hotelId ?? "").trim() || undefined,
+    [hotelId]
+  );
+
   const shouldLoadStaffData = Boolean(normalizedHotelSlug && currentRole);
 
   const staffCacheKey = useMemo(
-    () => (normalizedHotelSlug && currentRole ? `stayhub_staff_cache:${normalizedHotelSlug}:${currentRole}` : undefined),
+    () =>
+      normalizedHotelSlug && currentRole
+        ? `stayhub_staff_cache:${normalizedHotelSlug}:${currentRole}`
+        : undefined,
     [currentRole, normalizedHotelSlug]
   );
 
   const [requests, setRequests] = useState<StaffRequest[]>([]);
-  const [resolvedHotelId, setResolvedHotelId] = useState<string | undefined>(undefined);
-  const [scopeReady, setScopeReady] = useState(false);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -129,64 +222,25 @@ export function StaffStoreProvider({
 
     const cached = readStaffCache(staffCacheKey);
     setRequests(cached);
+
     if (cached.length) {
       setIsReady(true);
     }
   }, [staffCacheKey]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const resolveScope = async () => {
-      if (!shouldLoadStaffData) {
-        if (!cancelled) {
-          setResolvedHotelId(undefined);
-          setRequests([]);
-          setScopeReady(true);
-          setIsReady(true);
-        }
-        return;
-      }
-
-      setScopeReady(false);
-      setIsReady(false);
-
-      try {
-        const hotelId = await getHotelIdBySlug(normalizedHotelSlug);
-        if (!cancelled) {
-          setResolvedHotelId(hotelId);
-        }
-      } catch (error) {
-        console.error("Failed to resolve hotel scope for staff hub", {
-          hotelSlug: normalizedHotelSlug,
-          error,
-        });
-        if (!cancelled) {
-          setResolvedHotelId(undefined);
-          setRequests([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setScopeReady(true);
-        }
-      }
-    };
-
-    void resolveScope();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [normalizedHotelSlug, shouldLoadStaffData]);
-
   const loadRequests = useCallback(async () => {
-    if (!scopeReady || !normalizedHotelSlug || !currentRole) return;
+    if (!normalizedHotelSlug || !currentRole) {
+      setRequests([]);
+      setIsReady(true);
+      return;
+    }
 
     try {
-      const data = await fetchSupabaseRequests({
+      const data = await fetchStaffRequests({
         hotelSlug: normalizedHotelSlug,
         role: currentRole,
       });
+
       setRequests(data);
       writeStaffCache(staffCacheKey, data);
     } catch (error) {
@@ -194,15 +248,20 @@ export function StaffStoreProvider({
     } finally {
       setIsReady(true);
     }
-  }, [currentRole, normalizedHotelSlug, scopeReady, staffCacheKey]);
+  }, [currentRole, normalizedHotelSlug, staffCacheKey]);
 
   useEffect(() => {
-    if (!shouldLoadStaffData || !scopeReady) return;
+    if (!shouldLoadStaffData) {
+      setRequests([]);
+      setIsReady(true);
+      return;
+    }
 
     let cancelled = false;
 
     const safeLoad = async () => {
       if (cancelled) return;
+
       if (
         typeof document !== "undefined" &&
         document.visibilityState === "hidden"
@@ -242,17 +301,20 @@ export function StaffStoreProvider({
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [loadRequests, scopeReady, shouldLoadStaffData]);
+  }, [loadRequests, shouldLoadStaffData]);
 
   const updateRequestStatus = useCallback(
     async (id: string, status: StaffRequestStatus) => {
       if (!normalizedHotelSlug || !currentRole) return;
 
       try {
-        await updateSupabaseRequestStatus(id, status, {
+        await updateStaffRequestStatus({
+          id,
+          status,
           hotelSlug: normalizedHotelSlug,
           role: currentRole,
         });
+
         await loadRequests();
       } catch (error) {
         console.error("Failed to update staff request status", error);
@@ -264,20 +326,18 @@ export function StaffStoreProvider({
   const addRequest = useCallback(
     async (input: AddRequestInput) => {
       try {
-        await createSupabaseRequest({
+        await createStaffRequest({
           ...input,
-          ...(resolvedHotelId
-            ? { hotelId: resolvedHotelId, hotelSlug: normalizedHotelSlug }
-            : normalizedHotelSlug
-              ? { hotelSlug: normalizedHotelSlug }
-              : {}),
+          ...(normalizedHotelId ? { hotelId: normalizedHotelId } : {}),
+          ...(normalizedHotelSlug ? { hotelSlug: normalizedHotelSlug } : {}),
         });
+
         await loadRequests();
       } catch (error) {
         console.error("Failed to create staff request", error);
       }
     },
-    [loadRequests, normalizedHotelSlug, resolvedHotelId]
+    [loadRequests, normalizedHotelId, normalizedHotelSlug]
   );
 
   const getOperationalRequestsByDepartment = useCallback(
@@ -312,7 +372,7 @@ export function StaffStoreProvider({
   const value = useMemo<StaffStoreContextValue>(
     () => ({
       requests,
-      hotelId: resolvedHotelId,
+      hotelId: normalizedHotelId,
       hotelSlug: normalizedHotelSlug,
       updateRequestStatus,
       addRequest,
@@ -324,7 +384,7 @@ export function StaffStoreProvider({
     }),
     [
       requests,
-      resolvedHotelId,
+      normalizedHotelId,
       normalizedHotelSlug,
       updateRequestStatus,
       addRequest,
@@ -336,7 +396,7 @@ export function StaffStoreProvider({
     ]
   );
 
-  if (shouldLoadStaffData && (!scopeReady || !isReady)) {
+  if (shouldLoadStaffData && !isReady) {
     return (
       <div className="min-h-screen bg-neutral-950 text-white">
         <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">

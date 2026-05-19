@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/server/supabase-admin";
 
 export async function getHotelByAnySlug(inputSlug?: string) {
   const slug = String(inputSlug ?? "").trim().toLowerCase();
