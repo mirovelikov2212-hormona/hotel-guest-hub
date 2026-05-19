@@ -2300,9 +2300,43 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         hotWater: `Sie können fehlendes Warmwasser über den Bereich ${sectionLabels.maintenance} melden.`,
         broken: `Sie können ein technisches Problem über den Bereich ${sectionLabels.maintenance} melden.`,
       },
+      ro: {
+        requestFrom: (label: string, section: string) =>
+          `Da, puteți solicita ${label.toLowerCase()} din secțiunea ${section} din hub.`,
+        laundry:
+          "Serviciul de spălătorie este contra cost. Pentru detalii, vă rugăm să contactați recepția.",
+        lateCheckout:
+          lateCheckoutInfo ||
+          "Late check-out este disponibil contra cost. Condițiile finale și prețul sunt confirmate de recepție.",
+        wakeUp: `Puteți solicita un apel de trezire din secțiunea ${sectionLabels.reception}. Ore disponibile: ${wakeUpSlots.join(", ")}.`,
+        minibar: minibarNotice
+          ? `${minibarNotice} Puteți solicita reumplerea minibarului din secțiunea ${sectionLabels.housekeeping}.`
+          : `Puteți solicita reumplerea minibarului din secțiunea ${sectionLabels.housekeeping}.`,
+        taxi: `Puteți solicita un taxi din secțiunea ${sectionLabels.reception}.`,
+        ac: `Puteți raporta o problemă cu aerul condiționat din secțiunea ${sectionLabels.maintenance}.`,
+        hotWater: `Puteți raporta o problemă cu apa caldă din secțiunea ${sectionLabels.maintenance}.`,
+        broken: `Puteți raporta o problemă tehnică din secțiunea ${sectionLabels.maintenance}.`,
+      },
+      cs: {
+        requestFrom: (label: string, section: string) =>
+          `Ano, ${label.toLowerCase()} můžete požádat v sekci ${section} v hubu.`,
+        laundry:
+          "Prádelna je placená služba. Pro podrobnosti kontaktujte recepci.",
+        lateCheckout:
+          lateCheckoutInfo ||
+          "Pozdní check-out je k dispozici za příplatek. Konečné podmínky a cenu potvrdí recepce.",
+        wakeUp: `Buzení si můžete vyžádat v sekci ${sectionLabels.reception}. Dostupné časy: ${wakeUpSlots.join(", ")}.`,
+        minibar: minibarNotice
+          ? `${minibarNotice} Doplnění minibaru můžete požádat v sekci ${sectionLabels.housekeeping}.`
+          : `Doplnění minibaru můžete požádat v sekci ${sectionLabels.housekeeping}.`,
+        taxi: `Taxi si můžete objednat v sekci ${sectionLabels.reception}.`,
+        ac: `Problém s klimatizací můžete nahlásit v sekci ${sectionLabels.maintenance}.`,
+        hotWater: `Problém s teplou vodou můžete nahlásit v sekci ${sectionLabels.maintenance}.`,
+        broken: `Technický problém můžete nahlásit v sekci ${sectionLabels.maintenance}.`,
+      },
     } as const;
 
-    const c = copy[(lang === "bg" || lang === "en" || lang === "de") ? lang : "en"];
+    const c = copy[(lang === "bg" || lang === "en" || lang === "de" || lang === "ro" || lang === "cs") ? lang : "en"];
 
     const legacyServices = [
       {
@@ -3026,7 +3060,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             locationQuery: config.location?.query,
             wifi: config.wifi,
             departmentHours: config.departmentHours,
+            reviews: config.reviews,
             venueRows: (config as any).venueRows ?? [],
+            hotelInfoItems: (config as any).hotelInfoItems ?? [],
             services: aiServices,
           },
         }),
