@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
+import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
 import type { StaffDepartment, StaffRequestStatus, StaffServiceTime } from "@/lib/staff/types";
 
 async function getHotelByAnySlugAdmin(inputSlug: string) {
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
     const price = body?.price ? String(body.price).trim() : null;
     const currency = body?.currency ? String(body.currency).trim() : null;
     const sourceRequestDef = body?.sourceRequestDef ? String(body.sourceRequestDef).trim() : null;
+    const guestLanguage = body?.guestLanguage ? String(body.guestLanguage).trim().toLowerCase() : "en";
 
     if (!hotelSlug || !room || !rawType) {
       return NextResponse.json({ ok: false, error: "Missing required fields" }, { status: 400 });
@@ -46,6 +48,30 @@ export async function POST(req: NextRequest) {
     const hotel = await getHotelByAnySlugAdmin(hotelSlug);
     const normalizedType = normalizeStaffRequestType(rawType, departmentOverride);
     const department = departmentOverride ?? getDepartmentForRequestType(normalizedType);
+    const operationalMetadata = {
+      department,
+      notifyDepartments,
+      requiresBilling,
+      price,
+      currency,
+      sourceRequestDef,
+      serviceTime,
+      typeLabel,
+      note,
+      rawType,
+    };
+    const staffTitleBg = getOperationalRequestTitleBg({
+      requestType: normalizedType,
+      title: typeLabel,
+      message: note,
+      metadata: operationalMetadata,
+    });
+    const staffNoteBg = getOperationalRequestNoteBg({
+      requestType: normalizedType,
+      title: typeLabel,
+      message: note,
+      metadata: operationalMetadata,
+    });
 
     const { data, error } = await supabaseAdmin
       .from("guest_requests")
@@ -54,7 +80,7 @@ export async function POST(req: NextRequest) {
         room_number_snapshot: room,
         source: "guest_hub",
         channel: "pwa",
-        guest_language: "en",
+        guest_language: guestLanguage,
         request_type: normalizedType,
         category: normalizedType === "restaurant_reservation" ? "reservation" : normalizedType === "information" || normalizedType === "information_request" ? "info" : "service",
         priority: "normal",
@@ -62,16 +88,10 @@ export async function POST(req: NextRequest) {
         message: note,
         status: "new",
         metadata_json: {
-          department,
-          notifyDepartments,
-          requiresBilling,
-          price,
-          currency,
-          sourceRequestDef,
-          serviceTime,
-          typeLabel,
-          note,
-          rawType,
+          ...operationalMetadata,
+          guestLanguage,
+          staffTitleBg,
+          staffNoteBg,
         },
       })
       .select("id, room_number_snapshot, request_type, title, message, status, created_at, metadata_json")

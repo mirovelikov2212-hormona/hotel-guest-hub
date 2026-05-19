@@ -4,6 +4,7 @@ import type { StaffRole } from "@/lib/staff-auth/cookie-name";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
+import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
 import type {
   StaffDepartment,
   StaffRequest,
@@ -47,7 +48,12 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
     room: row.room_number_snapshot ?? "Unknown",
     department: metadata.department ?? getDepartmentForRequestType(normalizedType),
     type: normalizedType,
-    typeLabel: metadata.typeLabel ?? row.title,
+    typeLabel: getOperationalRequestTitleBg({
+      requestType: row.request_type,
+      title: row.title,
+      message: row.message,
+      metadata,
+    }),
     status: row.status,
     serviceTime: metadata.serviceTime ?? "now",
     createdAt: created.toLocaleString([], {
@@ -59,7 +65,12 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
     }),
     createdAtIso: row.created_at,
     createdDateKey: created.toLocaleDateString("sv-SE"),
-    note: metadata.note ?? row.message ?? undefined,
+    note: getOperationalRequestNoteBg({
+      requestType: row.request_type,
+      title: row.title,
+      message: row.message,
+      metadata,
+    }),
   };
 }
 
