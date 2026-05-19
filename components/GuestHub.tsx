@@ -1238,7 +1238,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   ]);
 
   const loadGuestRequests = useCallback(
-    async (refsOverride?: StoredGuestRequestRef[]) => {
+    async (refsOverride?: StoredGuestRequestRef[], options?: { silent?: boolean }) => {
       const refs = refsOverride ?? guestRequestRefs;
       const ids = [...new Set(refs.map((item) => item.id).filter(Boolean))];
 
@@ -1247,8 +1247,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         return;
       }
 
+      const silent = Boolean(options?.silent);
+
       try {
-        setGuestRequestsLoading(true);
+        if (!silent) setGuestRequestsLoading(true);
 
         const query = new URLSearchParams({
           hotelSlug: String(config.hotelSlug ?? ""),
@@ -1301,7 +1303,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       } catch (error) {
         console.error("loadGuestRequests failed", error);
       } finally {
-        setGuestRequestsLoading(false);
+        if (!silent) setGuestRequestsLoading(false);
       }
     },
     [config.hotelSlug, guestRequestRefs, hotelScopeReady, room, roomConfirmed]
@@ -1317,32 +1319,32 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
     let cancelled = false;
 
-    const safeLoad = async () => {
+    const safeLoad = async (silent = true) => {
       if (cancelled) return;
       if (typeof document !== "undefined" && document.visibilityState === "hidden") {
         return;
       }
 
       try {
-        await loadGuestRequests(roomRefs);
+        await loadGuestRequests(roomRefs, { silent });
       } catch (error) {
         console.error("guest request refresh failed", error);
       }
     };
 
-    void safeLoad();
+    void safeLoad(false);
 
     const interval = window.setInterval(() => {
-      void safeLoad();
-    }, 5000);
+      void safeLoad(true);
+    }, 30000);
 
     const handleFocus = () => {
-      void safeLoad();
+      void safeLoad(true);
     };
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
-        void safeLoad();
+        void safeLoad(true);
       }
     };
 
@@ -3119,14 +3121,13 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
   const sections: HubSection[] = [
     ...(wifiSection ? [wifiSection] : []),
-    ...(emergencySection ? [emergencySection] : []),
     ...(hotelInfoSection ? [hotelInfoSection] : []),
     {
       id: "reception",
       title: tUI("reception_title") || "Reception",
       items: [
         ...buildRequestDefItems("reception"),
-        ...(!hasReceptionDefs && !requestDefIds.has("late_checkout")
+        ...(!requestDefIds.has("late_checkout")
           ? [
             {
               label: tUI("late_checkout") || "Late checkout",
@@ -3155,7 +3156,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!hasReceptionDefs && !requestDefIds.has("taxi")
+        ...(!requestDefIds.has("taxi")
           ? [
             {
               label: tUI("taxi") || "Taxi",
@@ -3168,7 +3169,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!hasReceptionDefs && !requestDefIds.has("wake_up_call")
+        ...(!requestDefIds.has("wake_up_call")
           ? [
             {
               label: tUI("wake_up") || "Wake-up call",
@@ -3196,7 +3197,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       subtitle: housekeepingRoutedToReception ? housekeepingAfterNote : undefined,
       items: [
         ...buildRequestDefItems("housekeeping"),
-        ...(!hasHousekeepingDefs && !requestDefIds.has("towels")
+        ...(!requestDefIds.has("towels")
           ? [
             {
               label: tUI("towels") || "Towels",
@@ -3209,7 +3210,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!hasHousekeepingDefs && !requestDefIds.has("toilet_paper")
+        ...(!requestDefIds.has("toilet_paper")
           ? [
             {
               label: tUI("toilet_paper") || "Toilet paper",
@@ -3222,7 +3223,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!hasHousekeepingDefs && !requestDefIds.has("extra_pillow")
+        ...(!requestDefIds.has("extra_pillow")
           ? [
             {
               label: tUI("extra_pillows") || "Extra pillows",
@@ -3236,7 +3237,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           ]
           : []),
         ...hkExtras
-          .filter((x) => !hasHousekeepingDefs && !requestDefIds.has(x.key === "blanket" ? "extra_blanket" : x.key === "minibar" ? "minibar_refill" : x.key))
+          .filter((x) => !requestDefIds.has(x.key === "blanket" ? "extra_blanket" : x.key === "minibar" ? "minibar_refill" : x.key))
           .map((x) => {
             const action = housekeepingExtraActions[x.key];
 
@@ -3298,7 +3299,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       title: tUI("maintenance_title") || "Maintenance",
       items: [
         ...buildRequestDefItems("maintenance"),
-        ...(!hasMaintenanceDefs && !requestDefIds.has("air_conditioning")
+        ...(!requestDefIds.has("air_conditioning")
           ? [
             {
               label: tUI("ac_issue") || "Air conditioning issue",
@@ -3311,7 +3312,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!hasMaintenanceDefs && !requestDefIds.has("no_hot_water")
+        ...(!requestDefIds.has("no_hot_water")
           ? [
             {
               label: tUI("water_issue") || "No hot water",
@@ -3324,7 +3325,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!hasMaintenanceDefs && !requestDefIds.has("coffee_machine")
+        ...(!requestDefIds.has("coffee_machine")
           ? [
             {
               label: tUI("coffee_machine") || "Coffee machine",
@@ -3338,7 +3339,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!hasMaintenanceDefs && !requestDefIds.has("other_technical_issue")
+        ...(!requestDefIds.has("other_technical_issue")
           ? [
             {
               label: tUI("something_broken") || "Something broken",
@@ -3369,6 +3370,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         } as any,
       ],
     },
+    ...(emergencySection ? [emergencySection] : []),
   ].filter((section) => section.items && section.items.length > 0);
 
   return (
@@ -3595,7 +3597,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         </div>
       ) : null}
 
-      {roomConfirmed && (guestRequestsLoading || activeGuestRequests.length > 0) ? (
+      {roomConfirmed && activeGuestRequests.length > 0 ? (
         <div className="mt-3 px-4">
           <div className="rounded-2xl bg-neutral-900/50 p-4 ring-1 ring-neutral-800">
             <div className="flex items-center justify-between gap-3">
