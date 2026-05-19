@@ -2963,7 +2963,7 @@ EN: ${helpMsg}` : opsMsg,
           !isHotelInfoGroup(item, "world_cup")
       )
       .map(toHotelInfoHubItem)
-      .filter((item) => item.label || item.info);
+      .filter((item) => item.label || (item.kind === "info" && Boolean(item.info)));
 
     const items = [...infoItems, ...infoRequestDefItems];
 
@@ -2982,7 +2982,7 @@ EN: ${helpMsg}` : opsMsg,
     const hotelAnimationItems = hotelInfoItems
       .filter((item) => isHotelInfoGroup(item, "animation"))
       .map(toHotelInfoHubItem)
-      .filter((item) => item.label || item.info);
+      .filter((item) => item.label || (item.kind === "info" && Boolean(item.info)));
 
     const requestAnimationItems = buildRequestDefItems("animation");
     const items = [...hotelAnimationItems, ...requestAnimationItems];
