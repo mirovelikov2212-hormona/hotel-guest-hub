@@ -237,6 +237,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       minibar_paid_notice: "Зареждането на минибар е платена услуга. След потвърждение заявката ще бъде изпратена към housekeeping и начислена към сметката на стаята от рецепция.",
       something_broken_prompt: "Опишете какво е счупено или повредено:",
       something_broken_required: "Моля, опишете какво е счупено, за да може поддръжката да реагира правилно.",
+      ai_intro: "Мога да помагам само с информация за хотела – ресторанти, барове, работно време, спа, детски кът, стая за игри, удобства и услуги в хотела.",
     },
     de: {
       install_app: "App installieren",
@@ -289,6 +290,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       minibar_paid_notice: "Das Auffüllen der Minibar ist kostenpflichtig. Nach Bestätigung wird die Anfrage an Housekeeping gesendet und von der Rezeption auf die Zimmerrechnung gebucht.",
       something_broken_prompt: "Bitte beschreiben Sie, was kaputt oder beschädigt ist:",
       something_broken_required: "Bitte beschreiben Sie, was kaputt ist, damit die Technik richtig reagieren kann.",
+      ai_intro: "Ich kann nur mit Hotelinformationen helfen – Restaurants, Bars, Öffnungszeiten, Spa, Kinderclub, Spielzimmer, Einrichtungen und Hoteldienstleistungen.",
     },
     en: {
       install_app: "Install the app",
@@ -346,6 +348,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       minibar_paid_notice: "Minibar refill is a paid service. After confirmation, the request will be sent to housekeeping and charged to the room account by reception.",
       something_broken_prompt: "Please describe what is broken or damaged:",
       something_broken_required: "Please describe what is broken so maintenance can respond properly.",
+      ai_intro: "I can help only with hotel information – restaurants, bars, opening hours, spa, kids club, games room, facilities and hotel services.",
     },
     ro: {
       install_app: "Instalează aplicația",
@@ -403,6 +406,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       minibar_paid_notice: "Reumplerea minibarului este un serviciu contra cost. După confirmare, solicitarea va fi trimisă la housekeeping și va fi adăugată la contul camerei de către recepție.",
       something_broken_prompt: "Descrieți ce este stricat sau deteriorat:",
       something_broken_required: "Vă rugăm să descrieți ce este stricat, pentru ca echipa de întreținere să poată interveni corect.",
+      ai_intro: "Pot ajuta doar cu informații despre hotel – restaurante, baruri, program de lucru, spa, club pentru copii, sală de jocuri, facilități și servicii ale hotelului.",
     },
     cs: {
       install_app: "Nainstalovat aplikaci",
@@ -460,6 +464,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       minibar_paid_notice: "Doplnění minibaru je placená služba. Po potvrzení bude požadavek odeslán úklidu pokojů a recepce částku připíše na účet pokoje.",
       something_broken_prompt: "Popište, co je rozbité nebo poškozené:",
       something_broken_required: "Popište prosím, co je rozbité, aby údržba mohla správně reagovat.",
+      ai_intro: "Mohu pomoci pouze s informacemi o hotelu – restaurace, bary, otevírací doba, spa, dětský klub, herna, vybavení a hotelové služby.",
     },
   };
 
@@ -803,7 +808,37 @@ function getGuestRequestLabelKey(type: StaffRequestType | string, storedTitle?: 
 }
 
 function getRequestDefButtonIcon(def: RequestDef): string {
+  const explicitIcon = String(def.icon || "").trim();
+  if (explicitIcon && explicitIcon.length <= 6 && !/[a-z0-9_-]/i.test(explicitIcon)) {
+    return explicitIcon;
+  }
+
   const raw = String(def.icon || def.requestType || def.id || "").trim().toLowerCase();
+  const identity = [
+    def.icon,
+    def.requestType,
+    def.id,
+    ...Object.values(def.title ?? {}),
+    ...Object.values(def.subtitle ?? {}),
+    ...Object.values(def.description ?? {}),
+    ...Object.values(def.policy ?? {}),
+  ]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean)
+    .join(" ");
+
+  // Robust fallbacks for dynamic rows from Google Sheets where the icon/request key
+  // may not exactly match the built-in IDs.
+  if (/coffee|cafea|café|кафе|káv|kaffee|capsule|capsul|капсул|kapsl/.test(identity)) return "☕";
+  if (/pillow|pern|kissen|polštář|възглав/.test(identity)) return "🛏️";
+  if (/occasion|ocazie|příležitost|anlass|повод|birthday|anniversary|рожден|годишни/.test(identity)) return "🎉";
+  if (/laundry|spălător|prádel|wäsche|пране/.test(identity)) return "🧺";
+  if (/minibar|минибар/.test(identity)) return "🥤";
+  if (/animation|animație|animace|анимац/.test(identity)) return "🎭";
+  if (/world.?cup|fifa|cupa mondială|mistrovství světa|световно/.test(identity)) return "⚽";
+  if (/charity|caritate|благотвор|wohltät|dobročin/.test(identity)) return "🤝";
+  if (/towel|prosop|ručník|handtuch|хавли/.test(identity)) return "🧺";
+  if (/sunbed|șezlong|lehát|liege|шезлонг/.test(identity)) return "🏖️";
 
   switch (raw) {
     case "towel":
@@ -3355,6 +3390,47 @@ EN: ${helpMsg}` : opsMsg,
     [getHotelInfoText]
   );
 
+  const toAnimationHubItem = useCallback(
+    (item: any): HubItem => {
+      const currentLang = (["bg", "de", "en", "ro", "cs"].includes(String(lang || "")) ? lang : "en") as LangKey;
+      const defaults: Record<LangKey, { title: string; text: string }> = {
+        bg: {
+          title: "Анимация",
+          text: "Информация от нашия аниматорски екип.",
+        },
+        de: {
+          title: "Animationsprogramm",
+          text: "Informationen von unserem Animationsteam.",
+        },
+        en: {
+          title: "Animation program",
+          text: "Information from our animation team.",
+        },
+        ro: {
+          title: "Program de animație",
+          text: "Informații de la echipa noastră de animație.",
+        },
+        cs: {
+          title: "Animační program",
+          text: "Informace od našeho animačního týmu.",
+        },
+      };
+
+      const titleMap = item?.title ?? {};
+      const textMap = item?.text ?? {};
+      const title = String(titleMap?.[currentLang] || "").trim() || defaults[currentLang].title;
+      const info = String(textMap?.[currentLang] || "").trim() || defaults[currentLang].text;
+      const icon = String(item?.icon || "🎭").trim();
+
+      return {
+        label: `${icon ? `${icon} ` : ""}${title}`.trim(),
+        kind: "info" as const,
+        info,
+      };
+    },
+    [lang]
+  );
+
   const hotelInfoSection = useMemo(() => {
     const infoRequestDefItems = buildRequestDefItems("info");
     const infoItems = hotelInfoItems
@@ -3381,12 +3457,12 @@ EN: ${helpMsg}` : opsMsg,
         (lang === "bg" ? "Инфо" : lang === "de" ? "Info" : lang === "ro" ? "Informații" : lang === "cs" ? "Informace" : "Info"),
       items,
     } satisfies HubSection;
-  }, [buildRequestDefItems, hotelInfoItems, isHotelInfoGroup, lang, tUI, toHotelInfoHubItem]);
+  }, [buildRequestDefItems, hotelInfoItems, isHotelInfoGroup, lang, tUI, toAnimationHubItem]);
 
   const animationSection = useMemo(() => {
     const hotelAnimationItems = hotelInfoItems
       .filter((item) => isHotelInfoGroup(item, "animation"))
-      .map(toHotelInfoHubItem)
+      .map(toAnimationHubItem)
       .filter((item) => item.label || (item.kind === "info" && Boolean(item.info)));
 
     const requestAnimationItems = buildRequestDefItems("animation");
