@@ -222,6 +222,11 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       reception_general: "Въпрос към рецепция",
       information: "Информация",
       luggage_help: "Помощ с багаж",
+      paid_service_notice: "Платена услуга. Сумата ще бъде начислена към сметката на стаята.",
+      laundry_paid_notice: "Услугата пране е платена. След потвърждение заявката ще бъде изпратена към housekeeping и начислена към сметката на стаята от рецепция.",
+      minibar_paid_notice: "Зареждането на минибар е платена услуга. След потвърждение заявката ще бъде изпратена към housekeeping и начислена към сметката на стаята от рецепция.",
+      something_broken_prompt: "Опишете какво е счупено или повредено:",
+      something_broken_required: "Моля, опишете какво е счупено, за да може поддръжката да реагира правилно.",
     },
     de: {
       install_app: "App installieren",
@@ -259,6 +264,11 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       reception_general: "Frage an die Rezeption",
       information: "Information",
       luggage_help: "Hilfe mit Gepäck",
+      paid_service_notice: "Kostenpflichtiger Service. Der Betrag wird auf die Zimmerrechnung gebucht.",
+      laundry_paid_notice: "Der Wäscheservice ist kostenpflichtig. Nach Bestätigung wird die Anfrage an Housekeeping gesendet und von der Rezeption auf die Zimmerrechnung gebucht.",
+      minibar_paid_notice: "Das Auffüllen der Minibar ist kostenpflichtig. Nach Bestätigung wird die Anfrage an Housekeeping gesendet und von der Rezeption auf die Zimmerrechnung gebucht.",
+      something_broken_prompt: "Bitte beschreiben Sie, was kaputt oder beschädigt ist:",
+      something_broken_required: "Bitte beschreiben Sie, was kaputt ist, damit die Technik richtig reagieren kann.",
     },
     en: {
       install_app: "Install the app",
@@ -301,6 +311,11 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       reception_general: "Question for reception",
       information: "Information",
       luggage_help: "Luggage assistance",
+      paid_service_notice: "Paid service. The amount will be charged to the room account.",
+      laundry_paid_notice: "Laundry service is a paid service. After confirmation, the request will be sent to housekeeping and charged to the room account by reception.",
+      minibar_paid_notice: "Minibar refill is a paid service. After confirmation, the request will be sent to housekeeping and charged to the room account by reception.",
+      something_broken_prompt: "Please describe what is broken or damaged:",
+      something_broken_required: "Please describe what is broken so maintenance can respond properly.",
     },
     ro: {
       install_app: "Instalează aplicația",
@@ -343,6 +358,11 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       reception_general: "Întrebare pentru recepție",
       information: "Informații",
       luggage_help: "Asistență pentru bagaje",
+      paid_service_notice: "Serviciu contra cost. Suma va fi adăugată la contul camerei.",
+      laundry_paid_notice: "Serviciul de spălătorie este contra cost. După confirmare, solicitarea va fi trimisă la housekeeping și va fi adăugată la contul camerei de către recepție.",
+      minibar_paid_notice: "Reumplerea minibarului este un serviciu contra cost. După confirmare, solicitarea va fi trimisă la housekeeping și va fi adăugată la contul camerei de către recepție.",
+      something_broken_prompt: "Descrieți ce este stricat sau deteriorat:",
+      something_broken_required: "Vă rugăm să descrieți ce este stricat, pentru ca echipa de întreținere să poată interveni corect.",
     },
     cs: {
       install_app: "Nainstalovat aplikaci",
@@ -385,6 +405,11 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       reception_general: "Dotaz na recepci",
       information: "Informace",
       luggage_help: "Pomoc se zavazadly",
+      paid_service_notice: "Placená služba. Částka bude připsána na účet pokoje.",
+      laundry_paid_notice: "Prádelna je placená služba. Po potvrzení bude požadavek odeslán úklidu pokojů a recepce částku připíše na účet pokoje.",
+      minibar_paid_notice: "Doplnění minibaru je placená služba. Po potvrzení bude požadavek odeslán úklidu pokojů a recepce částku připíše na účet pokoje.",
+      something_broken_prompt: "Popište, co je rozbité nebo poškozené:",
+      something_broken_required: "Popište prosím, co je rozbité, aby údržba mohla správně reagovat.",
     },
   };
 
@@ -1643,7 +1668,6 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       messageKey: string;
     }> | undefined) ??
     [
-      { key: "room_cleaning", labelKey: "room_cleaning", messageKey: "msg_room_cleaning" },
       { key: "towels", labelKey: "towels", messageKey: "msg_towels" },
       { key: "toilet_paper", labelKey: "toilet_paper", messageKey: "msg_toilet_paper" },
       { key: "extra_pillow", labelKey: "extra_pillows", messageKey: "msg_extra_pillows" },
@@ -1661,11 +1685,6 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     | { mode: "info"; getMessage: (lang: LangKey) => string }
     | { mode: "request"; type: StaffRequestType | string; typeLabel: string; note?: string }
   > = {
-    room_cleaning: {
-      mode: "request",
-      type: "room_cleaning_request",
-      typeLabel: "Room cleaning",
-    },
     towels: {
       mode: "request",
       type: "towels",
@@ -1697,13 +1716,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       typeLabel: "Baby cot",
     },
     laundry: {
-      mode: "info",
-      getMessage: (lang: LangKey) =>
-      ({
-        bg: "За услугата пране, моля, обърнете се към рецепция.",
-        en: "For laundry service, please contact reception.",
-        de: "Für den Wäscheservice wenden Sie sich bitte an die Rezeption.",
-      }[lang] || "For laundry service, please contact reception."),
+      mode: "request",
+      type: "laundry",
+      typeLabel: "Laundry",
     },
     iron: {
       mode: "request",
@@ -1724,6 +1739,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const hiddenGuestRequestIds = new Set([
     "extra_cleaning",
     "cleaning",
+    "room_cleaning",
+    "room_cleaning_request",
   ]);
 
   const builtInRequestDefIds = useMemo(
@@ -2430,6 +2447,21 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     }
 
     continueSubmit();
+  }
+
+
+  function askBrokenItemDescription() {
+    const promptLabel = String(tUI("something_broken_prompt") || "Please describe what is broken or damaged:");
+    const requiredMessage = String(tUI("something_broken_required") || "Please describe what is broken so maintenance can respond properly.");
+
+    while (true) {
+      const value = (window.prompt(promptLabel, "") || "").trim();
+      if (!value) {
+        window.alert(requiredMessage);
+        return null;
+      }
+      return value;
+    }
   }
 
   function buildRequestDefItems(category: string): HubItem[] {
@@ -3478,19 +3510,25 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 onClick: () => {
                   if (!ensureConfirmedRoom()) return;
 
+                  const paidNotice =
+                    x.key === "minibar"
+                      ? String(minibarNotice || tUI("minibar_paid_notice") || "Paid service. The amount will be charged to the room account.")
+                      : x.key === "laundry"
+                        ? String(tUI("laundry_paid_notice") || "Paid service. The amount will be charged to the room account.")
+                        : "";
+
                   const submitAction = () => {
                     submitGuestRequest({
                       type: action.type,
                       typeLabel: String(tUI(x.labelKey) || action.typeLabel),
-                      note:
-                        x.key === "minibar"
-                          ? minibarNotice || undefined
-                          : action.note,
+                      note: paidNotice || action.note,
+                      notifyDepartments: x.key === "minibar" || x.key === "laundry" ? ["reception"] : undefined,
+                      requiresBilling: x.key === "minibar" || x.key === "laundry" ? true : undefined,
                     });
                   };
 
-                  if (x.key === "minibar" && minibarNotice) {
-                    confirmInfoBlock(minibarNotice, submitAction);
+                  if (paidNotice) {
+                    confirmInfoBlock(paidNotice, submitAction);
                     return;
                   }
 
@@ -3674,12 +3712,18 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             {
               label: tUI("something_broken") || "Something broken",
               kind: "link" as const,
-              onClick: () =>
+              onClick: () => {
+                if (!ensureConfirmedRoom()) return;
+
+                const description = askBrokenItemDescription();
+                if (!description) return;
+
                 submitGuestRequest({
                   type: "other_technical_issue",
-                  typeLabel: "Something broken",
-                  note: "Guest reported that something is broken.",
-                }),
+                  typeLabel: String(tUI("something_broken") || "Something broken"),
+                  note: description,
+                });
+              },
             },
           ]
           : []),
