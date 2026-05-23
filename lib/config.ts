@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { HotelConfig, LangKey } from "./types";
+import type { HotelConfig, HotelRoom, LangKey } from "./types";
 import { parseRequestDefs } from "@/lib/request-defs";
 import { getHotelSheetSources } from "@/lib/hotels/getHotelSheetSources";
 
@@ -87,7 +87,7 @@ function parseCsv(text: string): string[][] {
 
 function rowsToObjects(rows: string[][]): Record<string, string>[] {
   if (!rows.length) return [];
-  const header = rows[0].map((h) => h.trim());
+  const header = rows[0].map((h) => h.replace(/^\uFEFF/, "").trim());
   return rows.slice(1).map((r) => {
     const obj: Record<string, string> = {};
     header.forEach((h, idx) => {
@@ -188,6 +188,9 @@ function toConfigKey(field: string): string {
     "Tripadvisor URL": "tripadvisorUrl",
     "Booking URL": "bookingUrl",
     "Hotel Info CSV URL": "hotelInfoCsvUrl",
+    "Rooms CSV URL": "roomsCsvUrl",
+    "Room CSV URL": "roomsCsvUrl",
+    "Hotel Rooms CSV URL": "roomsCsvUrl",
     lateCheckoutInfo: "lateCheckoutInfo",
     wakeUpSlots: "wakeUpSlots",
     minibarNotice: "minibarNotice",
@@ -357,6 +360,41 @@ function parseHotelInfoRows(rows: Record<string, string>[]): Array<{
 }
 
 
+
+function isNegativeValue(value: string): boolean {
+  return ["no", "false", "0", "off", "inactive", "disabled", "не", "nein"].includes(
+    String(value || "").trim().toLowerCase()
+  );
+}
+
+function parseHotelRoomRows(rows: Record<string, string>[]): HotelRoom[] {
+  return rows
+    .map((row) => {
+      const roomNumber = readCell(row, [
+        "Room Number",
+        "Room",
+        "room",
+        "roomNumber",
+        "room_number",
+        "Number",
+        "number",
+      ]).replace(/\s+/g, "");
+
+      const activeRaw = readCell(row, ["Active", "active", "Enabled", "enabled"]);
+      const active = !isNegativeValue(activeRaw || "yes");
+
+      return {
+        roomNumber,
+        floor: readCell(row, ["Floor", "floor"]),
+        building: readCell(row, ["Building", "building"]),
+        roomType: readCell(row, ["Room Type", "roomType", "room_type", "Type", "type"]),
+        active,
+      } satisfies HotelRoom;
+    })
+    .filter((room) => room.roomNumber && room.active)
+    .sort((a, b) => a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true }));
+}
+
 function readMultilingualField(row: Record<string, string>, baseNames: string[], lang: string): string {
   const upper = String(lang || "").trim().toUpperCase();
   const lower = String(lang || "").trim().toLowerCase();
@@ -475,6 +513,15 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
   const hotelInfoUrl = pick(mergedConfig, "hotelInfoCsvUrl", process.env.GOOGLE_HOTEL_INFO_CSV ?? "");
   const hotelInfoRows = hotelInfoUrl ? await fetchCsvOrEmpty(hotelInfoUrl) : [];
 
+  const roomsCsvUrl = pick(
+    mergedConfig,
+    "roomsCsvUrl",
+    process.env.GOOGLE_ROOMS_CSV ?? process.env.GOOGLE_HOTEL_ROOMS_CSV ?? ""
+  );
+  const hotelRoomRows = roomsCsvUrl ? await fetchCsvOrEmpty(roomsCsvUrl) : [];
+  const hotelRooms = parseHotelRoomRows(hotelRoomRows);
+  const validRoomNumbers = Array.from(new Set(hotelRooms.map((room) => room.roomNumber)));
+
   const languages = pick(mergedConfig, "languages", "bg,en,de")
     .split(",")
     .map((item) => item.trim())
@@ -558,6 +605,8 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     staffHelperLanguage: (pick(mergedConfig, "staffHelperLanguage", "en") as LangKey) as LangKey,
     hotelInfoItems: parseHotelInfoRows(hotelInfoRows),
     requestDefs,
+    hotelRooms,
+    validRoomNumbers,
   };
 
   const venueRows = venueRowsRaw
@@ -631,6 +680,7 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     lateCheckoutInfo: pick(mergedConfig, "lateCheckoutInfo", ""),
     minibarNotice: pick(mergedConfig, "minibarNotice", ""),
     wakeUpSlots: pick(mergedConfig, "wakeUpSlots", ""),
+    roomsCsvUrl,
     rawConfig: mergedConfig,
   });
 

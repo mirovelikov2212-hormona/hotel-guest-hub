@@ -4,6 +4,11 @@ import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
 import type { StaffDepartment, StaffRequestStatus, StaffServiceTime } from "@/lib/staff/types";
+import { getHotelConfig } from "@/lib/config";
+
+function normalizeRoomNumber(value: unknown) {
+  return String(value || "").trim().replace(/\s+/g, "");
+}
 
 async function getHotelByAnySlugAdmin(inputSlug: string) {
   const slug = String(inputSlug || "").trim().toLowerCase();
@@ -26,7 +31,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
     const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();
-    const room = String(body?.room || "").trim();
+    const room = normalizeRoomNumber(body?.room);
     const rawType = String(body?.type || "").trim();
     const typeLabel = String(body?.typeLabel || rawType || "Request").trim();
     const note = body?.note ? String(body.note).trim() : null;
@@ -46,6 +51,23 @@ export async function POST(req: NextRequest) {
     }
 
     const hotel = await getHotelByAnySlugAdmin(hotelSlug);
+
+    const hotelConfig = await getHotelConfig(hotelSlug).catch((error) => {
+      console.error("Failed to load hotel config for room validation", { hotelSlug, error });
+      return null;
+    });
+
+    const validRoomNumbers = Array.isArray(hotelConfig?.validRoomNumbers)
+      ? hotelConfig.validRoomNumbers.map((item) => normalizeRoomNumber(item)).filter(Boolean)
+      : [];
+
+    if (validRoomNumbers.length > 0 && !validRoomNumbers.includes(room)) {
+      return NextResponse.json(
+        { ok: false, error: "Invalid room number", code: "INVALID_ROOM" },
+        { status: 400 }
+      );
+    }
+
     const normalizedType = normalizeStaffRequestType(rawType, departmentOverride);
     const department = departmentOverride ?? getDepartmentForRequestType(normalizedType);
     const operationalMetadata = {

@@ -118,6 +118,14 @@ export type ReviewLinks = {
   tripadvisor?: string;
 };
 
+export type HotelRoom = {
+  roomNumber: string;
+  floor?: string;
+  building?: string;
+  roomType?: string;
+  active?: boolean;
+};
+
 export type VenueRow = {
   category?: string;
   type?: string;
@@ -233,6 +241,11 @@ export type HotelConfig = {
   venueRows?: VenueRow[];
   hotelInfoItems?: HotelInfoItem[];
   requestDefs?: RequestDef[];
+
+  /** Active hotel rooms loaded from the optional ROOMS Google Sheet tab. */
+  hotelRooms?: HotelRoom[];
+  /** Convenience list for fast validation in GuestHub and API routes. */
+  validRoomNumbers?: string[];
 };
 
 export type StaffRequestType =

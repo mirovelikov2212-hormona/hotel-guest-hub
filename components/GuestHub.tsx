@@ -21,6 +21,9 @@ const SECTION_ICON_PREFIXES: Record<string, string> = {
   reviews: "⭐",
   explore: "🗺️",
   nearby: "🗺️",
+  world_cup: "🏆",
+  worldcup: "🏆",
+  fifa: "🏆",
 };
 
 function withSectionIcon(title: string, sectionKey?: string): string {
@@ -48,6 +51,12 @@ function withSectionIcon(title: string, sectionKey?: string): string {
         text.includes("animace") ||
         text.includes("animationen")
       ? "🎭"
+      : text.includes("world cup") ||
+        text.includes("световно") ||
+        text.includes("weltmeisterschaft") ||
+        text.includes("cupa mondial") ||
+        text.includes("mistrovství světa")
+      ? "🏆"
       : "");
 
   return icon ? `${icon} ${raw}` : raw;
@@ -361,7 +370,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       hotel_info_title: "ℹ️ Info",
       section_info_title: "ℹ️ Info",
       section_animation_title: "🎭 Animation",
-      section_world_cup_title: "World Cup 2026",
+      section_world_cup_title: "🏆 World Cup 2026",
       subsection_policies: "Policies",
       outlet_type_restaurants: "Restaurants",
       outlet_type_bars: "Bars",
@@ -419,7 +428,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       hotel_info_title: "Informații",
       section_info_title: "Informații",
       section_animation_title: "🎭 Animație",
-      section_world_cup_title: "Cupa Mondială 2026",
+      section_world_cup_title: "🏆 Cupa Mondială 2026",
       subsection_policies: "Politici",
       outlet_type_restaurants: "Restaurante",
       outlet_type_bars: "Baruri",
@@ -477,7 +486,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       hotel_info_title: "Informace",
       section_info_title: "Informace",
       section_animation_title: "🎭 Animace",
-      section_world_cup_title: "Mistrovství světa 2026",
+      section_world_cup_title: "🏆 Mistrovství světa 2026",
       subsection_policies: "Zásady",
       outlet_type_restaurants: "Restaurace",
       outlet_type_bars: "Bary",
@@ -1047,6 +1056,10 @@ function haversineMeters(
   return R * c;
 }
 
+function normalizeRoomNumber(value: unknown) {
+  return String(value || "").trim().replace(/\s+/g, "");
+}
+
 const GUEST_LANGUAGE_STORAGE_KEY = "stayhub_guest_language";
 
 function normalizeGuestLang(value: unknown, fallback: LangKey = "bg"): LangKey {
@@ -1114,7 +1127,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   }, [setAiQ, setAiAnswer, setAiLoading]);
 
   const sp = useSearchParams();
-  const qrRoom = (sp.get("room") || "").trim();
+  const qrRoom = normalizeRoomNumber(sp.get("room"));
 
   const roomStateKey = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -1150,12 +1163,48 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const [requestDialog, setRequestDialog] = useState<RequestDialogState>(null);
   const [guestRequestRefs, setGuestRequestRefs] = useState<StoredGuestRequestRef[]>(() => readStoredGuestRequestRefs());
 
+  const validRoomNumbers = useMemo(() => {
+    const direct = Array.isArray((config as any).validRoomNumbers)
+      ? (config as any).validRoomNumbers
+      : [];
+    const fromRooms = Array.isArray((config as any).hotelRooms)
+      ? (config as any).hotelRooms.map((item: any) => item?.roomNumber)
+      : [];
+
+    return Array.from(
+      new Set([...direct, ...fromRooms].map(normalizeRoomNumber).filter(Boolean))
+    );
+  }, [config]);
+
+  const validRoomSet = useMemo(() => new Set(validRoomNumbers), [validRoomNumbers]);
+  const hasStrictRoomList = validRoomSet.size > 0;
+
+  const isKnownHotelRoom = useCallback(
+    (candidate: unknown) => {
+      const normalized = normalizeRoomNumber(candidate);
+      if (!normalized) return false;
+      if (!hasStrictRoomList) return true;
+      return validRoomSet.has(normalized);
+    },
+    [hasStrictRoomList, validRoomSet]
+  );
+
   useEffect(() => {
     if (!roomStateKey) return;
 
     const storedRoomState = readStoredGuestRoomState(roomStateKey);
-    const storedRoom = String(storedRoomState?.room || "").trim();
+    const storedRoom = normalizeRoomNumber(storedRoomState?.room);
     const storedConfirmed = Boolean(storedRoomState?.roomConfirmed);
+
+    if (storedConfirmed && storedRoom && !isKnownHotelRoom(storedRoom)) {
+      setManualRoomInput("");
+      setRoom("");
+      setRoomConfirmed(false);
+      setIgnoredQrRoom(null);
+      setRoomModal(null);
+      setRoomStateHydrated(true);
+      return;
+    }
 
     if (!qrRoom) {
       if (storedConfirmed && storedRoom) {
@@ -1212,7 +1261,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       nextRoom: qrRoom,
     });
     setRoomStateHydrated(true);
-  }, [roomStateKey, qrRoom, ignoredQrRoom]);
+  }, [roomStateKey, qrRoom, ignoredQrRoom, isKnownHotelRoom]);
 
   useEffect(() => {
     persistQrContextFromUrl();
@@ -1433,6 +1482,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         lockedSectionMessage:
           "Потвърдете номера на стаята, за да отключите тази секция.",
         missingRoomAlert: "Моля, въведете номер на стая.",
+        invalidRoomAlert: "Моля, въведете валиден номер на стая от хотела.",
         missingRoomQrAlert:
           "Липсва номер на стая. Моля, сканирайте QR кода на стаята отново или въведете стаята ръчно.",
         requestSent: "Заявката е изпратена: {typeLabel}",
@@ -1472,6 +1522,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         lockedSectionMessage:
           "Confirm your room number to unlock this section.",
         missingRoomAlert: "Please enter a room number.",
+        invalidRoomAlert: "Please enter a valid hotel room number.",
         missingRoomQrAlert:
           "Missing room number. Please rescan the room QR code or enter the room manually.",
         requestSent: "Request sent: {typeLabel}",
@@ -1511,6 +1562,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         lockedSectionMessage:
           "Bestätigen Sie Ihre Zimmernummer, um diesen Bereich freizuschalten.",
         missingRoomAlert: "Bitte geben Sie eine Zimmernummer ein.",
+        invalidRoomAlert: "Bitte geben Sie eine gültige Hotelzimmernummer ein.",
         missingRoomQrAlert:
           "Zimmernummer fehlt. Bitte scannen Sie den QR-Code des Zimmers erneut oder geben Sie die Zimmernummer manuell ein.",
         requestSent: "Anfrage gesendet: {typeLabel}",
@@ -1547,6 +1599,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         lockedNotice: "Secțiunile se vor deschide după introducerea numărului camerei.",
         lockedSectionMessage: "Confirmați numărul camerei pentru a debloca această secțiune.",
         missingRoomAlert: "Vă rugăm să introduceți numărul camerei.",
+        invalidRoomAlert: "Vă rugăm să introduceți un număr de cameră valid al hotelului.",
         missingRoomQrAlert: "Lipsește numărul camerei. Scanați din nou codul QR al camerei sau introduceți camera manual.",
         requestSent: "Solicitare trimisă: {typeLabel}",
         requestAcceptedTitle: "Solicitare primită",
@@ -1580,6 +1633,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         lockedNotice: "Sekce se otevřou po zadání čísla pokoje.",
         lockedSectionMessage: "Potvrďte číslo pokoje pro odemknutí této sekce.",
         missingRoomAlert: "Zadejte prosím číslo pokoje.",
+        invalidRoomAlert: "Zadejte prosím platné číslo hotelového pokoje.",
         missingRoomQrAlert: "Chybí číslo pokoje. Naskenujte znovu QR kód pokoje nebo zadejte pokoj ručně.",
         requestSent: "Požadavek odeslán: {typeLabel}",
         requestAcceptedTitle: "Požadavek přijat",
@@ -1794,20 +1848,30 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   };
 
   const confirmManualRoom = async () => {
-    const candidate = manualRoomInput.trim();
+    const candidate = normalizeRoomNumber(manualRoomInput);
 
     if (!candidate) {
       window.alert(roomCopy.missingRoomAlert);
       return;
     }
 
+    if (!isKnownHotelRoom(candidate)) {
+      window.alert(roomCopy.invalidRoomAlert);
+      setManualRoomInput(candidate);
+      setRoom("");
+      setRoomConfirmed(false);
+      setRoomModal(null);
+      return;
+    }
+
+    setManualRoomInput(candidate);
     setGeoMessage(null);
 
     const storedRoomState = readStoredGuestRoomState(roomStateKey);
-    const storedRoom = String(storedRoomState?.room || "").trim();
+    const storedRoom = normalizeRoomNumber(storedRoomState?.room);
     const storedConfirmed = Boolean(storedRoomState?.roomConfirmed);
 
-    const activeRoom = String(room || storedRoom || "").trim();
+    const activeRoom = normalizeRoomNumber(room || storedRoom);
     const hasConfirmedActiveRoom = Boolean((roomConfirmed || storedConfirmed) && activeRoom);
 
     if (hasConfirmedActiveRoom && activeRoom !== candidate) {
@@ -1835,7 +1899,18 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const acceptRoomConfirmation = () => {
     if (!roomModal?.nextRoom) return;
 
-    const nextRoom = roomModal.nextRoom;
+    const nextRoom = normalizeRoomNumber(roomModal.nextRoom);
+
+    if (!isKnownHotelRoom(nextRoom)) {
+      window.alert(roomCopy.invalidRoomAlert);
+      setManualRoomInput(nextRoom);
+      setRoom("");
+      setRoomConfirmed(false);
+      setRoomModal(null);
+      setPendingRoomChangeFrom(null);
+      return;
+    }
+
     const previousRoom = roomModal.currentRoom || pendingRoomChangeFrom;
     const isRoomChange = Boolean(previousRoom && previousRoom !== nextRoom);
 
@@ -1877,7 +1952,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     }
 
     const storedRoomState = readStoredGuestRoomState(roomStateKey);
-    const storedRoom = String(storedRoomState?.room || "").trim();
+    const storedRoom = normalizeRoomNumber(storedRoomState?.room);
     const storedConfirmed = Boolean(storedRoomState?.roomConfirmed);
 
     if (storedConfirmed && storedRoom) {
@@ -4215,6 +4290,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                   setRoomModal(null);
                 }}
                 placeholder={roomCopy.inputPlaceholder}
+                inputMode="numeric"
+                autoComplete="off"
                 className="w-full rounded-xl bg-neutral-950/70 px-4 py-3 text-sm text-white outline-none ring-1 ring-neutral-800 placeholder:text-neutral-500"
               />
             </div>
