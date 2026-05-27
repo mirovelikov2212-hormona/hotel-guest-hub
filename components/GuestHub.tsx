@@ -1061,8 +1061,10 @@ function normalizeRoomNumber(value: unknown) {
 }
 
 const GUEST_LANGUAGE_STORAGE_KEY = "stayhub_guest_language";
+const GUEST_INTRO_STORAGE_PREFIX = "stayhub_guest_intro_seen";
+const SUPPORTED_GUEST_LANGS: LangKey[] = ["bg", "en", "de", "ro", "cs"];
 
-function normalizeGuestLang(value: unknown, fallback: LangKey = "bg"): LangKey {
+function parseGuestLang(value: unknown): LangKey | null {
   const normalized = String(value || "").trim().toLowerCase();
 
   if (
@@ -1075,19 +1077,92 @@ function normalizeGuestLang(value: unknown, fallback: LangKey = "bg"): LangKey {
     return normalized as LangKey;
   }
 
-  return fallback;
+  return null;
+}
+
+function normalizeGuestLang(value: unknown, fallback: LangKey = "bg"): LangKey {
+  return parseGuestLang(value) ?? fallback;
+}
+
+function getBrowserPreferredGuestLang(): LangKey | null {
+  if (typeof navigator === "undefined") return null;
+
+  const candidates = [
+    ...(Array.isArray(navigator.languages) ? navigator.languages : []),
+    navigator.language,
+  ];
+
+  for (const item of candidates) {
+    const direct = parseGuestLang(item);
+    if (direct) return direct;
+
+    const prefix = String(item || "").split("-")[0];
+    const byPrefix = parseGuestLang(prefix);
+    if (byPrefix) return byPrefix;
+  }
+
+  return null;
 }
 
 function getInitialGuestLang(defaultLang?: string): LangKey {
   if (typeof window !== "undefined") {
-    const savedLang = window.localStorage.getItem(GUEST_LANGUAGE_STORAGE_KEY);
+    const urlLang = parseGuestLang(new URLSearchParams(window.location.search).get("lang"));
+
+    if (urlLang) {
+      try {
+        window.localStorage.setItem(GUEST_LANGUAGE_STORAGE_KEY, urlLang);
+      } catch { }
+      return urlLang;
+    }
+
+    const savedLang = parseGuestLang(window.localStorage.getItem(GUEST_LANGUAGE_STORAGE_KEY));
 
     if (savedLang) {
-      return normalizeGuestLang(savedLang);
+      return savedLang;
+    }
+
+    const browserLang = getBrowserPreferredGuestLang();
+
+    if (browserLang) {
+      return browserLang;
     }
   }
 
   return normalizeGuestLang(defaultLang || "bg");
+}
+
+function getGuestIntroCopy(lang: LangKey, hotelName?: string) {
+  const name = String(hotelName || "Hotel Aquamarine").trim();
+
+  const copy: Record<LangKey, { title: string; body: string; button: string }> = {
+    bg: {
+      title: "Добре дошли в дигиталния консиерж",
+      body: `Това е Вашият дигитален помощник по време на престоя в ${name}. Тук ще намерите информация за хотела, ресторанта, баровете, Wi-Fi, времето, анимацията и полезни места около хотела. Можете също да изпращате заявки към рецепция, housekeeping и техническа поддръжка. За да свържем услугата с Вашата стая, моля въведете номера на стаята си.`,
+      button: "Разбрах, продължи",
+    },
+    en: {
+      title: "Welcome to your digital concierge",
+      body: `This is your digital assistant during your stay at ${name}. Here you can find hotel information, restaurant and bar details, Wi-Fi, weather, animation and useful places nearby. You can also send requests to reception, housekeeping and maintenance. To connect the service with your room, please enter your room number.`,
+      button: "Got it, continue",
+    },
+    de: {
+      title: "Willkommen bei Ihrem digitalen Concierge",
+      body: `Dies ist Ihr digitaler Assistent während Ihres Aufenthalts im ${name}. Hier finden Sie Informationen zum Hotel, Restaurant, Bars, WLAN, Wetter, Animationsprogramm und hilfreichen Orten in der Umgebung. Außerdem können Sie Anfragen an Rezeption, Housekeeping und Technik senden. Damit wir den Service Ihrem Zimmer zuordnen können, geben Sie bitte Ihre Zimmernummer ein.`,
+      button: "Verstanden, weiter",
+    },
+    ro: {
+      title: "Bine ați venit la concierge-ul digital",
+      body: `Acesta este asistentul digital pentru șederea dvs. la ${name}. Aici găsiți informații despre hotel, restaurant, baruri, Wi-Fi, vreme, animație și locuri utile din apropiere. De asemenea, puteți trimite solicitări către recepție, housekeeping și întreținere. Pentru a conecta serviciul cu camera dvs., vă rugăm să introduceți numărul camerei.`,
+      button: "Am înțeles, continuă",
+    },
+    cs: {
+      title: "Vítejte u svého digitálního concierge",
+      body: `Toto je váš digitální asistent během pobytu v ${name}. Najdete zde informace o hotelu, restauraci, barech, Wi‑Fi, počasí, animaci a užitečných místech v okolí. Můžete také posílat požadavky na recepci, housekeeping a údržbu. Abychom službu přiřadili k vašemu pokoji, zadejte prosím číslo pokoje.`,
+      button: "Rozumím, pokračovat",
+    },
+  };
+
+  return copy[lang] ?? copy.bg;
 }
 
 function writeGuestLang(nextLang: LangKey) {
@@ -1128,6 +1203,16 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const sp = useSearchParams();
   const qrRoom = normalizeRoomNumber(sp.get("room"));
+  const forceGuestIntro = useMemo(() => {
+    const value = String(sp.get("intro") || "").trim().toLowerCase();
+    return ["1", "true", "yes", "show"].includes(value);
+  }, [sp]);
+
+  const guestLanguageOptions = useMemo(() => {
+    const enabled = new Set((config.languages || []).map((item) => String(item).trim().toLowerCase()));
+    const filtered = SUPPORTED_GUEST_LANGS.filter((item) => enabled.size === 0 || enabled.has(item));
+    return filtered.length ? filtered : SUPPORTED_GUEST_LANGS;
+  }, [config.languages]);
 
   const roomStateKey = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -1162,6 +1247,41 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const [requestDialog, setRequestDialog] = useState<RequestDialogState>(null);
   const [guestRequestRefs, setGuestRequestRefs] = useState<StoredGuestRequestRef[]>(() => readStoredGuestRequestRefs());
+  const [showGuestIntro, setShowGuestIntro] = useState(false);
+
+  const guestIntroStorageKey = useMemo(() => {
+    const scope = String(roomStateKey || config.hotelSlug || "default").trim().toLowerCase();
+    return `${GUEST_INTRO_STORAGE_PREFIX}:${scope || "default"}`;
+  }, [roomStateKey, config.hotelSlug]);
+
+  const guestIntroCopy = useMemo(
+    () => getGuestIntroCopy(lang, config.hotelName),
+    [lang, config.hotelName]
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (forceGuestIntro) {
+      setShowGuestIntro(true);
+      return;
+    }
+
+    try {
+      const seen = window.localStorage.getItem(guestIntroStorageKey) === "1";
+      setShowGuestIntro(!seen);
+    } catch {
+      setShowGuestIntro(true);
+    }
+  }, [forceGuestIntro, guestIntroStorageKey]);
+
+  const closeGuestIntro = useCallback(() => {
+    try {
+      window.localStorage.setItem(guestIntroStorageKey, "1");
+    } catch { }
+
+    setShowGuestIntro(false);
+  }, [guestIntroStorageKey]);
 
   const validRoomNumbers = useMemo(() => {
     const direct = Array.isArray((config as any).validRoomNumbers)
@@ -4267,6 +4387,47 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           label={String(tUI("install_app") || "Инсталирай приложението")}
         />
       </div>
+
+      {showGuestIntro ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
+            <div className="text-xl font-semibold leading-tight text-white">
+              {guestIntroCopy.title}
+            </div>
+
+            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-neutral-200">
+              {guestIntroCopy.body}
+            </p>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {guestLanguageOptions.map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => setLang(code)}
+                  className={clsx(
+                    "rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition",
+                    lang === code
+                      ? "bg-white text-neutral-950 ring-white"
+                      : "bg-neutral-900 text-neutral-100 ring-neutral-700 hover:bg-neutral-800"
+                  )}
+                >
+                  {String(code).toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={closeGuestIntro}
+              className="mt-5 w-full rounded-xl px-4 py-3 text-sm font-semibold transition hover:opacity-95 active:scale-[0.99]"
+              style={{ backgroundColor: "var(--stayhub-primary)", color: "var(--stayhub-on-primary)" }}
+            >
+              {guestIntroCopy.button}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* room switch banner removed - handled only by modal */}
 
