@@ -8,24 +8,32 @@ if (!fs.existsSync(file)) {
 }
 
 let src = fs.readFileSync(file, 'utf8');
-
-if (src.includes('STAYHUB_GUEST_INTRO_HELPERS') || src.includes('guestIntroStorageKey')) {
-  console.log('Guest intro modal patch already appears to be applied. Nothing to do.');
-  process.exit(0);
-}
-
-const backup = file + '.bak-guest-intro';
+const backup = file + '.bak-guest-intro-v2';
 if (!fs.existsSync(backup)) fs.writeFileSync(backup, src, 'utf8');
 
-const helper = `
-// STAYHUB_GUEST_INTRO_HELPERS
+function fail(message) {
+  console.error(message);
+  console.error('No changes were written. Backup remains:', path.relative(process.cwd(), backup));
+  process.exit(1);
+}
+
+// 1) Helper copy
+if (!src.includes('STAYHUB_GUEST_INTRO_V2')) {
+  const helper = `
+// STAYHUB_GUEST_INTRO_V2
 const GUEST_INTRO_STORAGE_PREFIX = "stayhub_guest_intro_seen:";
 
-function getGuestIntroCopy(lang: LangKey | string, hotelName?: string) {
+type GuestIntroCopy = {
+  title: string;
+  body: string;
+  button: string;
+};
+
+function getGuestIntroCopy(lang: LangKey | string, hotelName?: string): GuestIntroCopy {
   const safeHotelName = String(hotelName || "Hotel").trim() || "Hotel";
   const normalizedLang = String(lang || "en").trim().toLowerCase();
 
-  const copy: Record<string, { title: string; body: string; button: string }> = {
+  const copy: Record<string, GuestIntroCopy> = {
     bg: {
       title: "Добре дошли в дигиталния консиерж на " + safeHotelName,
       body:
@@ -60,59 +68,35 @@ function getGuestIntroCopy(lang: LangKey | string, hotelName?: string) {
 
   return copy[normalizedLang] || copy.en;
 }
-// END_STAYHUB_GUEST_INTRO_HELPERS
+// END_STAYHUB_GUEST_INTRO_V2
 `;
 
-const helperAnchor = `function writeGuestLang(nextLang: LangKey) {
-  if (typeof window === "undefined") return;
-
-  try {
-    window.localStorage.setItem(GUEST_LANGUAGE_STORAGE_KEY, nextLang);
-  } catch (error) {
-    console.error("writeGuestLang failed", error);
-  }
-}
-`;
-
-if (!src.includes(helperAnchor)) {
-  console.error('Could not find writeGuestLang anchor. Patch not applied.');
-  process.exit(1);
+  const writeGuestLangRegex = /function writeGuestLang\(nextLang: LangKey\) \{[\s\S]*?\n\}\n/;
+  const match = src.match(writeGuestLangRegex);
+  if (!match) fail('Could not find writeGuestLang function.');
+  src = src.replace(writeGuestLangRegex, match[0] + helper);
 }
 
-src = src.replace(helperAnchor, helperAnchor + helper);
-
-const stateAnchor = `  const [roomStateHydrated, setRoomStateHydrated] = useState(false);
-  const [pendingRoomChangeFrom, setPendingRoomChangeFrom] = useState<string | null>(null);
-`;
-
-const stateInsert = `  const [roomStateHydrated, setRoomStateHydrated] = useState(false);
-  const [pendingRoomChangeFrom, setPendingRoomChangeFrom] = useState<string | null>(null);
-  const [showGuestIntro, setShowGuestIntro] = useState(false);
-
-  const guestIntroStorageKey = useMemo(() => {
-    const hotelKey = String(roomStateKey || config.hotelSlug || "default").trim().toLowerCase() || "default";
-    return GUEST_INTRO_STORAGE_PREFIX + hotelKey;
-  }, [roomStateKey, config.hotelSlug]);
-`;
-
-if (!src.includes(stateAnchor)) {
-  console.error('Could not find room state anchor. Patch not applied.');
-  process.exit(1);
+// 2) State and storage key
+if (!src.includes('const [showGuestIntro, setShowGuestIntro]')) {
+  const stateRegex = /(  const \[roomStateHydrated, setRoomStateHydrated\] = useState\(false\);\n  const \[pendingRoomChangeFrom, setPendingRoomChangeFrom\] = useState<string \| null>\(null\);\n)/;
+  if (!stateRegex.test(src)) fail('Could not find room state block.');
+  src = src.replace(
+    stateRegex,
+    `$1  const [showGuestIntro, setShowGuestIntro] = useState(false);\n\n  const guestIntroStorageKey = useMemo(() => {\n    const hotelKey = String(roomStateKey || config.hotelSlug || "default").trim().toLowerCase() || "default";\n    return GUEST_INTRO_STORAGE_PREFIX + hotelKey;\n  }, [roomStateKey, config.hotelSlug]);\n\n  const forceGuestIntro = useMemo(() => {\n    if (typeof window === "undefined") return false;\n    return new URLSearchParams(window.location.search).get("intro") === "1";\n  }, []);\n`
+  );
 }
 
-src = src.replace(stateAnchor, stateInsert);
+// 3) Effect and dismiss action. Insert before room hydration effect.
+if (!src.includes('function dismissGuestIntro') && !src.includes('const dismissGuestIntro = useCallback')) {
+  const effectAnchor = '  useEffect(() => {\n    if (!roomStateKey) return;\n\n    const storedRoomState = readStoredGuestRoomState(roomStateKey);\n';
+  if (!src.includes(effectAnchor)) fail('Could not find room hydration effect anchor.');
 
-const effectAnchor = `  useEffect(() => {
-    if (!roomStateKey) return;
-
-    const storedRoomState = readStoredGuestRoomState(roomStateKey);
-`;
-
-const effectInsert = `  useEffect(() => {
+  const effectBlock = `  useEffect(() => {
     if (!roomStateHydrated) return;
 
-    if (roomConfirmed) {
-      setShowGuestIntro(false);
+    if (forceGuestIntro) {
+      setShowGuestIntro(true);
       return;
     }
 
@@ -123,7 +107,7 @@ const effectInsert = `  useEffect(() => {
       console.error("read guest intro state failed", error);
       setShowGuestIntro(true);
     }
-  }, [guestIntroStorageKey, roomConfirmed, roomStateHydrated]);
+  }, [forceGuestIntro, guestIntroStorageKey, roomStateHydrated]);
 
   const dismissGuestIntro = useCallback(() => {
     try {
@@ -135,37 +119,30 @@ const effectInsert = `  useEffect(() => {
     setShowGuestIntro(false);
   }, [guestIntroStorageKey]);
 
-` + effectAnchor;
-
-if (!src.includes(effectAnchor)) {
-  console.error('Could not find first room hydration useEffect anchor. Patch not applied.');
-  process.exit(1);
+`;
+  src = src.replace(effectAnchor, effectBlock + effectAnchor);
 }
 
-src = src.replace(effectAnchor, effectInsert);
-
-const returnAnchor = `  return (
-    <div className="mx-auto max-w-md" style={themeStyle}>`;
-const beforeReturn = `  const guestIntroCopy = useMemo(
-    () => getGuestIntroCopy(lang, config.hotelName),
-    [lang, config.hotelName]
+// 4) Copy useMemo before main return
+if (!src.includes('const guestIntroCopy = useMemo(')) {
+  const returnAnchor = '  return (\n    <div className="mx-auto max-w-md" style={themeStyle}>';
+  if (!src.includes(returnAnchor)) fail('Could not find main return anchor.');
+  src = src.replace(
+    returnAnchor,
+    `  const guestIntroCopy = useMemo(\n    () => getGuestIntroCopy(lang, config.hotelName),\n    [lang, config.hotelName]\n  );\n\n${returnAnchor}`
   );
-
-` + returnAnchor;
-
-if (!src.includes(returnAnchor)) {
-  console.error('Could not find main return anchor. Patch not applied.');
-  process.exit(1);
 }
 
-src = src.replace(returnAnchor, beforeReturn);
+// 5) Modal UI right after root div opens.
+if (!src.includes('STAYHUB_GUEST_INTRO_MODAL_V2')) {
+  const rootAnchor = '  return (\n    <div className="mx-auto max-w-md" style={themeStyle}>\n';
+  if (!src.includes(rootAnchor)) fail('Could not find root div anchor.');
 
-const modalAnchor = `      {/* room switch banner removed - handled only by modal */}
-
-      {!roomConfirmed ? (`;
-
-const modalBlock = `      {showGuestIntro ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+  const modal = `  return (
+    <div className="mx-auto max-w-md" style={themeStyle}>
+      {/* STAYHUB_GUEST_INTRO_MODAL_V2 */}
+      {showGuestIntro ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
@@ -180,7 +157,7 @@ const modalBlock = `      {showGuestIntro ? (
               <select
                 value={String(lang)}
                 onChange={(e) => setLang(e.target.value as LangKey)}
-                className="rounded-xl bg-neutral-900 px-3 py-2 text-sm text-neutral-100 outline-none ring-1 ring-neutral-700"
+                className="shrink-0 rounded-xl bg-neutral-900 px-3 py-2 text-sm text-neutral-100 outline-none ring-1 ring-neutral-700"
                 aria-label="Language"
               >
                 {config.languages.map((l) => (
@@ -206,15 +183,10 @@ const modalBlock = `      {showGuestIntro ? (
           </div>
         </div>
       ) : null}
-
-` + modalAnchor;
-
-if (!src.includes(modalAnchor)) {
-  console.error('Could not find room banner/modal insertion anchor. Patch not applied.');
-  process.exit(1);
+`;
+  src = src.replace(rootAnchor, modal);
 }
 
-src = src.replace(modalAnchor, modalBlock);
-
 fs.writeFileSync(file, src, 'utf8');
-console.log('Guest intro modal patch applied successfully. Backup:', path.relative(process.cwd(), backup));
+console.log('Guest intro modal v2 patch applied successfully. Backup:', path.relative(process.cwd(), backup));
+console.log('Tip: open the hub with ?intro=1 to force-show the intro for testing.');
