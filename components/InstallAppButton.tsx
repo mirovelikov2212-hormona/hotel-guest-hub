@@ -71,9 +71,9 @@ export default function InstallAppButton({
 
   if (isIOS) {
     return (
-      <div className="w-full rounded-2xl bg-neutral-900/80 ring-1 ring-white/10 px-4 py-4 text-center text-white shadow-[0_8px_30px_rgba(0,0,0,0.25)]">
+      <div className="w-full rounded-2xl px-4 py-4 text-center shadow-[0_8px_30px_rgba(0,0,0,0.25)] stayhub-card">
         <div className="text-lg font-semibold">{iosInstallTitle}</div>
-        <div className="mt-1 text-sm leading-5 text-neutral-300">
+        <div className="mt-1 text-sm leading-5 stayhub-muted-text">
           {iosInstallHint}
         </div>
       </div>
@@ -85,7 +85,7 @@ export default function InstallAppButton({
       <button
         type="button"
         onClick={handleInstall}
-        className="w-full rounded-2xl bg-neutral-900/80 ring-1 ring-white/10 px-4 py-4 text-center text-lg font-semibold text-white shadow-[0_8px_30px_rgba(0,0,0,0.25)] hover:bg-neutral-900/90 active:scale-[0.99] transition"
+        className="w-full rounded-2xl px-4 py-4 text-center text-lg font-semibold shadow-[0_8px_30px_rgba(0,0,0,0.25)] stayhub-card hover:opacity-95 active:scale-[0.99] transition"
       >
         {androidLabel}
       </button>

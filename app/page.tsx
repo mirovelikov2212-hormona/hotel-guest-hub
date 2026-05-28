@@ -3,8 +3,15 @@ import { redirect } from "next/navigation";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-function first(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
+function appendSearchParam(params: URLSearchParams, key: string, value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => {
+      if (item !== undefined && item !== "") params.append(key, item);
+    });
+    return;
+  }
+
+  if (value !== undefined && value !== "") params.set(key, value);
 }
 
 export default async function HomePage({
@@ -16,7 +23,6 @@ export default async function HomePage({
   const host = (hdrs.get("host") || "").split(":")[0].toLowerCase();
 
   const sp = await searchParams;
-  const room = first(sp.room);
 
   const isMainHost =
     host === "www.stayhub.app" ||
@@ -25,8 +31,12 @@ export default async function HomePage({
 
   if (!isMainHost && host.endsWith(".stayhub.app")) {
     const subdomain = host.replace(".stayhub.app", "").trim();
-    const suffix = room ? `?room=${encodeURIComponent(room)}` : "";
-    redirect(`/h/${subdomain}${suffix}`);
+    const params = new URLSearchParams();
+
+    Object.entries(sp || {}).forEach(([key, value]) => appendSearchParam(params, key, value));
+
+    const query = params.toString();
+    redirect(`/h/${subdomain}${query ? `?${query}` : ""}`);
   }
 
   redirect("/h/demo");

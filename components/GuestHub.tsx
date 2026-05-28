@@ -1176,9 +1176,17 @@ function writeGuestLang(nextLang: LangKey) {
 }
 
 export default function GuestHub({ config }: { config: HotelConfig }) {
+  // Keep the first server/client render identical. Browser, URL and localStorage
+  // language detection runs after hydration to avoid React hydration error #418.
   const [lang, setLangState] = useState<LangKey>(() =>
-    getInitialGuestLang(config.languageDefault)
+    normalizeGuestLang(config.languageDefault || "bg")
   );
+
+  useEffect(() => {
+    const nextLang = getInitialGuestLang(config.languageDefault);
+    setLangState(nextLang);
+    writeGuestLang(nextLang);
+  }, [config.languageDefault]);
 
   const setLang = useCallback((nextLang: LangKey | string) => {
     const safeLang = normalizeGuestLang(nextLang);
@@ -3840,11 +3848,29 @@ EN: ${helpMsg}` : opsMsg,
   const housekeepingTitleAfter = tUI("housekeeping_title_after");
   const housekeepingAfterNote = tUI("housekeeping_after_note");
 
+  const brandBackground = String(config.theme?.background || "#202627");
+  const brandPrimary = String(config.theme?.primary || "#3C8476");
+  const brandAction = String(config.theme?.secondary || config.theme?.accent || "#43B5A1");
+  const brandAccent = String(config.theme?.accent || brandAction);
+  const brandSurface = String((config.theme as any)?.surface || "#1D2425");
+  const brandSoft = String((config.theme as any)?.soft || "#E7F3F0");
+  const brandMuted = String((config.theme as any)?.muted || "#707070");
+  const brandText = String(config.theme?.text || "#F5F5F5");
+
   const themeStyle = {
-    "--stayhub-primary": String(config.theme?.primary || config.theme?.accent || "#9B86BD"),
-    "--stayhub-on-primary": String(config.theme?.text || "#0D1B2A"),
-    ...(config.theme?.background ? { backgroundColor: String(config.theme.background) } : {}),
-    ...(config.theme?.text ? { color: String(config.theme.text) } : {}),
+    "--stayhub-bg": brandBackground,
+    "--stayhub-primary": brandPrimary,
+    "--stayhub-action": brandAction,
+    "--stayhub-accent": brandAccent,
+    "--stayhub-surface": brandSurface,
+    "--stayhub-card": brandSurface,
+    "--stayhub-soft": brandSoft,
+    "--stayhub-muted": brandMuted,
+    "--stayhub-text": brandText,
+    "--stayhub-on-primary": brandText,
+    "--stayhub-border": "color-mix(in srgb, var(--stayhub-soft) 16%, transparent)",
+    backgroundColor: brandBackground,
+    color: brandText,
   } as any;
 
   const wifiSection = (config.wifi?.ssid || config.wifi?.password)
@@ -4330,7 +4356,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   ].filter((section) => section.id === "outlets" || (section.items && section.items.length > 0));
 
   return (
-    <div className="mx-auto max-w-md" style={themeStyle}>
+    <div className="mx-auto min-h-screen max-w-md" style={themeStyle}>
       <div className="relative">
         <div className="relative h-[220px] sm:h-[260px] md:h-[300px] w-full overflow-hidden bg-neutral-800">
           <img
@@ -4421,7 +4447,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               type="button"
               onClick={closeGuestIntro}
               className="mt-5 w-full rounded-xl px-4 py-3 text-sm font-semibold transition hover:opacity-95 active:scale-[0.99]"
-              style={{ backgroundColor: "var(--stayhub-primary)", color: "var(--stayhub-on-primary)" }}
+              style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}
             >
               {guestIntroCopy.button}
             </button>
@@ -4433,7 +4459,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
       {!roomConfirmed ? (
         <div className="mt-3 px-4">
-          <div className="rounded-2xl bg-neutral-900/60 p-4 ring-1 ring-neutral-800">
+          <div className="rounded-2xl stayhub-panel p-4">
             <h2 className="text-base font-semibold text-white">{roomCopy.cardTitle}</h2>
             <p className="mt-2 text-sm leading-6 text-neutral-300">{roomCopy.cardText}</p>
 
@@ -4453,7 +4479,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 placeholder={roomCopy.inputPlaceholder}
                 inputMode="numeric"
                 autoComplete="off"
-                className="w-full rounded-xl bg-neutral-950/70 px-4 py-3 text-sm text-white outline-none ring-1 ring-neutral-800 placeholder:text-neutral-500"
+                className="w-full rounded-xl stayhub-card px-4 py-3 text-sm outline-none placeholder:text-[color:var(--stayhub-muted)]"
               />
             </div>
 
@@ -4461,7 +4487,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               type="button"
               onClick={confirmManualRoom}
               className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition hover:opacity-95 active:scale-[0.99]"
-              style={{ backgroundColor: "var(--stayhub-primary)", color: "var(--stayhub-on-primary)" }}
+              style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}
             >
               {roomCopy.confirmButton}
             </button>
@@ -4472,7 +4498,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               </div>
             ) : null}
 
-            <div className="mt-3 rounded-xl bg-neutral-950/60 px-3 py-3 text-sm text-neutral-300 ring-1 ring-neutral-800">
+            <div className="mt-3 rounded-xl stayhub-card px-3 py-3 text-sm text-[color:var(--stayhub-soft)]">
               {roomCopy.lockedNotice}
             </div>
           </div>
@@ -4539,7 +4565,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 type="button"
                 onClick={acceptRoomConfirmation}
                 className="rounded-xl px-4 py-3 text-sm font-semibold"
-                style={{ backgroundColor: "var(--stayhub-primary)", color: "var(--stayhub-on-primary)" }}
+                style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}
               >
                 {isRoomSwitchConfirmation
                   ? lang === "bg"
@@ -4586,7 +4612,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 type="button"
                 onClick={requestDialog.onConfirm ? confirmRequestDialog : closeRequestDialog}
                 className="rounded-xl px-4 py-3 text-sm font-semibold"
-                style={{ backgroundColor: "var(--stayhub-primary)", color: "var(--stayhub-on-primary)" }}
+                style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}
               >
                 {requestDialog.confirmLabel ||
                   (lang === "bg" ? "Добре" : lang === "de" ? "OK" : "OK")}
@@ -4598,7 +4624,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
       {roomConfirmed && activeGuestRequests.length > 0 ? (
         <div className="mt-3 px-4">
-          <div className="rounded-2xl bg-neutral-900/50 p-4 ring-1 ring-neutral-800">
+          <div className="rounded-2xl stayhub-panel p-4">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-base font-semibold text-white">{roomCopy.myRequestsTitle}</h2>
               <button
@@ -4616,7 +4642,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 {activeGuestRequests.map((item) => (
                   <div
                     key={item.id}
-                    className="rounded-xl bg-neutral-950/60 px-3 py-3 ring-1 ring-neutral-800"
+                    className="rounded-xl stayhub-card px-3 py-3"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -4712,10 +4738,9 @@ function Accordion({
 }) {
   const [open, setOpen] = useState(false);
 
-  const accentRing = "ring-1 ring-white/10";
 
   return (
-    <div className="rounded-2xl overflow-hidden ring-1 ring-neutral-800 bg-neutral-900/40">
+    <div className="rounded-2xl overflow-hidden stayhub-section-shell">
       <button
         type="button"
         onClick={() =>
@@ -4729,12 +4754,7 @@ function Accordion({
             return next;
           })
         }
-        className={clsx(
-          "w-full px-4 py-4 text-left",
-          accentRing,
-          "flex items-center justify-between gap-3"
-        )}
-        style={{ backgroundColor: "var(--stayhub-primary)", color: "var(--stayhub-on-primary)" }}
+        className="w-full px-4 py-4 text-left stayhub-section-header flex items-center justify-between gap-3"
       >
         <div>
           <div className="text-base font-semibold">{withSectionIcon(section.title, (section as any).id || (section as any).key || (section as any).type || (section as any).section)}</div>
@@ -4748,12 +4768,12 @@ function Accordion({
       </button>
 
       {open ? (
-        <div className="bg-neutral-950/40 px-4 py-4">
+        <div className="stayhub-section-body px-4 py-4">
           <div className="grid grid-cols-1 gap-2">
             {section.id === "ai" ? (
               <div className="grid grid-cols-1 gap-2">
                 {!aiQ.trim() ? (
-                  <div className="rounded-xl bg-neutral-900/60 p-3 text-sm leading-6 text-neutral-100 ring-1 ring-neutral-800">
+                  <div className="rounded-xl stayhub-card p-3 text-sm leading-6">
                     {aiIntroText}
                   </div>
                 ) : null}
@@ -4764,7 +4784,7 @@ function Accordion({
                   placeholder={String(
                     tUI("ai_placeholder") || "Попитай нещо за хотела..."
                   )}
-                  className="min-h-[90px] w-full rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800 outline-none"
+                  className="min-h-[90px] w-full rounded-xl stayhub-card p-3 text-sm outline-none placeholder:text-[color:var(--stayhub-muted)]"
                 />
 
                 <button
@@ -4773,9 +4793,9 @@ function Accordion({
                   disabled={aiLoading || !aiQ.trim()}
                   className={clsx(
                     "rounded-xl px-3 py-3 text-left text-sm font-semibold",
-                    "bg-[#9B86BD]/14 ring-1 ring-[#9B86BD]/25 text-white",
+                    "stayhub-action-card",
                     "disabled:opacity-50 disabled:cursor-not-allowed",
-                    "hover:bg-[#9B86BD]/20 active:scale-[0.99] transition"
+                    "active:scale-[0.99] transition"
                   )}
                 >
                   {aiLoading
@@ -4784,7 +4804,7 @@ function Accordion({
                 </button>
 
                 {aiA ? (
-                  <div className="whitespace-pre-wrap rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800">
+                  <div className="whitespace-pre-wrap rounded-xl stayhub-card p-3 text-sm">
                     {aiA}
                   </div>
                 ) : null}
@@ -4795,7 +4815,7 @@ function Accordion({
                   return (
                     <div
                       key={idx}
-                      className="rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800"
+                      className="rounded-xl stayhub-card p-3 text-sm"
                     >
                       {it.label ? (
                         <div className="font-semibold text-white">{it.label}</div>
@@ -4817,8 +4837,8 @@ function Accordion({
                       className={clsx(
                         "rounded-xl px-3 py-3 text-left text-sm font-semibold ring-1 transition",
                         submittingRequest
-                          ? "cursor-not-allowed bg-[#9B86BD]/14 text-white ring-[#9B86BD]/25 opacity-70"
-                          : "bg-[#9B86BD]/14 ring-[#9B86BD]/25 text-white hover:bg-[#9B86BD]/20 active:scale-[0.99]"
+                          ? "cursor-not-allowed stayhub-action-card opacity-70"
+                          : "stayhub-action-card active:scale-[0.99]"
                       )}
                     >
                       {it.label}
@@ -4833,7 +4853,7 @@ function Accordion({
                       href={it.href}
                       target={it.newTab || it.href.startsWith("http") ? "_blank" : undefined}
                       rel="noreferrer"
-                      className="rounded-xl px-3 py-3 text-sm font-semibold bg-[#9B86BD]/14 ring-1 ring-[#9B86BD]/25 text-white hover:bg-[#9B86BD]/20 active:scale-[0.99] transition"
+                      className="rounded-xl px-3 py-3 text-sm font-semibold stayhub-action-card active:scale-[0.99] transition"
                     >
                       {it.label}
                     </a>
@@ -4843,7 +4863,7 @@ function Accordion({
                 return (
                   <div
                     key={idx}
-                    className="rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-300 ring-1 ring-neutral-800"
+                    className="rounded-xl stayhub-card p-3 text-sm text-[color:var(--stayhub-muted)]"
                   >
                     {it.label}
                   </div>
@@ -4892,7 +4912,7 @@ function LockedSectionCard({
   message?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-neutral-800/80 bg-neutral-950/20 px-4 py-4 opacity-70">
+    <div className="rounded-2xl stayhub-card px-4 py-4 opacity-70">
       <div className="flex items-center justify-between gap-3">
         <div className="text-base font-semibold text-neutral-300">{title}</div>
         <div className="text-sm text-neutral-500">🔒</div>
@@ -4967,41 +4987,41 @@ function OutletsAccordion({
     return (
       <div className="space-y-2">
         {venue.description ? (
-          <div className="rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800">
+          <div className="rounded-xl stayhub-card p-3 text-sm">
             {venue.description}
           </div>
         ) : null}
 
         {venue.cuisine ? (
-          <div className="rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800">
+          <div className="rounded-xl stayhub-card p-3 text-sm">
             <span className="font-semibold">{String(tUI("cuisine") || "Cuisine")}:</span>{" "}
             {venue.cuisine}
           </div>
         ) : null}
 
         {hoursText ? (
-          <div className="rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800 whitespace-pre-line">
+          <div className="rounded-xl stayhub-card p-3 text-sm whitespace-pre-line">
             <span className="font-semibold">{String(tUI("hours") || "Hours")}:</span>{" "}
             {hoursText}
           </div>
         ) : null}
 
         {venue.location ? (
-          <div className="rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800">
+          <div className="rounded-xl stayhub-card p-3 text-sm">
             <span className="font-semibold">{String(tUI("location") || "Location")}:</span>{" "}
             {venue.location}
           </div>
         ) : null}
 
         {venue.ageGroup ? (
-          <div className="rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800">
+          <div className="rounded-xl stayhub-card p-3 text-sm">
             <span className="font-semibold">{String(tUI("age_group") || "Age group")}:</span>{" "}
             {venue.ageGroup}
           </div>
         ) : null}
 
         {venue.programText ? (
-          <div className="rounded-xl bg-neutral-900/60 p-3 text-sm text-neutral-100 ring-1 ring-neutral-800">
+          <div className="rounded-xl stayhub-card p-3 text-sm">
             <span className="font-semibold">{String(tUI("program") || "Program")}:</span>{" "}
             {venue.programText}
           </div>
@@ -5013,7 +5033,7 @@ function OutletsAccordion({
               href={venue.menuUrl}
               target="_blank"
               rel="noreferrer"
-              className="rounded-xl px-3 py-3 text-sm font-semibold bg-[#9B86BD]/14 ring-1 ring-[#9B86BD]/25 text-white hover:bg-[#9B86BD]/20 transition"
+              className="rounded-xl px-3 py-3 text-sm font-semibold stayhub-action-card transition"
             >
               {String(tUI("view_menu_pdf") || "View menu")}
             </a>
@@ -5024,7 +5044,7 @@ function OutletsAccordion({
               href={venue.programUrl}
               target="_blank"
               rel="noreferrer"
-              className="rounded-xl px-3 py-3 text-sm font-semibold bg-[#9B86BD]/14 ring-1 ring-[#9B86BD]/25 text-white hover:bg-[#9B86BD]/20 transition"
+              className="rounded-xl px-3 py-3 text-sm font-semibold stayhub-action-card transition"
             >
               {String(tUI("view_program") || "View program")}
             </a>
@@ -5040,7 +5060,7 @@ function OutletsAccordion({
             <button
               type="button"
               onClick={() => onReserve(venue)}
-              className="rounded-xl px-3 py-3 text-left text-sm font-semibold bg-[#9B86BD]/14 ring-1 ring-[#9B86BD]/25 text-white hover:bg-[#9B86BD]/20 active:scale-[0.99] transition"
+              className="rounded-xl px-3 py-3 text-left text-sm font-semibold stayhub-action-card active:scale-[0.99] transition"
             >
               {venue.reservationLabel || String(tUI("reserve_now") || "Reserve")}
             </button>
@@ -5051,19 +5071,18 @@ function OutletsAccordion({
   };
 
   return (
-    <div className="rounded-2xl overflow-hidden ring-1 ring-neutral-800 bg-neutral-900/40">
+    <div className="rounded-2xl overflow-hidden stayhub-section-shell">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full px-4 py-4 text-left ring-1 ring-white/10 flex items-center justify-between gap-3"
-        style={{ backgroundColor: "var(--stayhub-primary)", color: "var(--stayhub-on-primary)" }}
+        className="w-full px-4 py-4 text-left stayhub-section-header flex items-center justify-between gap-3"
       >
         <div className="text-base font-semibold">{withSectionIcon(section.title, (section as any).id || (section as any).key || (section as any).type || (section as any).section)}</div>
         <div className="text-lg">▾</div>
       </button>
 
       {open ? (
-        <div className="bg-neutral-950/40 px-4 py-4">
+        <div className="stayhub-section-body px-4 py-4">
           <div className="space-y-3">
             {groups.map((group) => {
               if (!group.venues.length) return null;
@@ -5078,7 +5097,7 @@ function OutletsAccordion({
               return (
                 <div
                   key={catKey}
-                  className="rounded-2xl bg-neutral-900/50 ring-1 ring-neutral-800 overflow-hidden"
+                  className="rounded-2xl stayhub-panel overflow-hidden"
                 >
                   <button
                     type="button"
@@ -5086,7 +5105,7 @@ function OutletsAccordion({
                       setOpenCategory(catOpen ? null : catKey);
                       setOpenVenue(null);
                     }}
-                    className="w-full px-3 py-3 text-left flex items-center justify-between gap-3 bg-neutral-900/70"
+                    className="w-full px-3 py-3 text-left flex items-center justify-between gap-3 stayhub-card-header"
                   >
                     <div>
                       <div className="font-semibold text-white">
@@ -5112,7 +5131,7 @@ function OutletsAccordion({
                           return (
                             <div
                               key={venueKey}
-                              className="rounded-xl overflow-hidden ring-1 ring-neutral-800 bg-neutral-950/50"
+                              className="rounded-xl overflow-hidden stayhub-card"
                             >
                               <button
                                 type="button"

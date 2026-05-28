@@ -211,11 +211,22 @@ export type HotelConfig = {
   rawConfig?: Record<string, string>;
 
   theme?: {
+    /** Section headers / primary brand block color. */
     primary?: string;
+    /** Main action color. */
     secondary?: string;
+    /** Accent / focus color. */
     accent?: string;
+    /** Main app background color. */
     background?: string;
+    /** Main text color. */
     text?: string;
+    /** Muted secondary text color. */
+    muted?: string;
+    /** Soft highlight color, e.g. subtle borders/badges. */
+    soft?: string;
+    /** Dark card/surface color used inside the hub. */
+    surface?: string;
   };
 
   contacts: {
