@@ -4,19 +4,6 @@ import { useEffect } from "react";
 
 export default function PWARegister() {
   useEffect(() => {
-    const STAYHUB_BROWSER_THEME_COLOR = "#F5F5F5";
-    try {
-      let meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
-      if (!meta) {
-        meta = document.createElement("meta");
-        meta.name = "theme-color";
-        document.head.appendChild(meta);
-      }
-      meta.content = STAYHUB_BROWSER_THEME_COLOR;
-      document.documentElement.style.backgroundColor = STAYHUB_BROWSER_THEME_COLOR;
-      document.body.style.backgroundColor = STAYHUB_BROWSER_THEME_COLOR;
-    } catch {}
-
     // ✅ Never register SW in development / localhost
     if (process.env.NODE_ENV !== "production") return;
     if (typeof window === "undefined") return;

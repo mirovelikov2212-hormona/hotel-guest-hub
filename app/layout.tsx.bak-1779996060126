@@ -1,9 +1,8 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import "./globals.css";
 import PWARegister from "@/components/PWARegister";
 
 export const metadata: Metadata = {
-  themeColor: "#F5F5F5",
   title: "StayHub",
   description: "Digital guest hub for hotels.",
   applicationName: "StayHub",
@@ -24,13 +23,6 @@ export const metadata: Metadata = {
     shortcut: [{ url: "/icons/icon-192.png?v=3" }],
   },
 };
-
-
-export const viewport: Viewport = {
-  themeColor: "#F5F5F5",
-  colorScheme: "light",
-};
-
 
 export default function RootLayout({
   children,

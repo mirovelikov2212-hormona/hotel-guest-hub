@@ -1606,7 +1606,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         changeRoomWarningText:
           "Сменяйте активната стая само ако наистина сте преместени в друга стая. След това въведете и потвърдете новата стая.",
         changeRoomContinue: "Продължи",
-        lockedNotice: "Заключените секции ще се отворят, когато въведете номера на стаята.",
+        lockedNotice: "Секциите ще се отворят, когато въведете номера на стаята.",
         lockedSectionMessage:
           "Потвърдете номера на стаята, за да отключите тази секция.",
         missingRoomAlert: "Моля, въведете номер на стая.",
@@ -1646,7 +1646,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         changeRoomWarningText:
           "Change the active room only if you have actually been moved to another room. Then enter and confirm the new room.",
         changeRoomContinue: "Continue",
-        lockedNotice: "Locked sections will open after you enter your room number.",
+        lockedNotice: "The sections will open when you enter your room number.",
         lockedSectionMessage:
           "Confirm your room number to unlock this section.",
         missingRoomAlert: "Please enter a room number.",
@@ -1686,7 +1686,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         changeRoomWarningText:
           "Ändern Sie das aktive Zimmer nur, wenn Sie tatsächlich in ein anderes Zimmer umgezogen sind. Geben Sie danach das neue Zimmer ein und bestätigen Sie es.",
         changeRoomContinue: "Weiter",
-        lockedNotice: "Gesperrte Bereiche werden geöffnet, nachdem Sie Ihre Zimmernummer eingegeben haben.",
+        lockedNotice: "Die Bereiche werden geöffnet, wenn Sie Ihre Zimmernummer eingeben.",
         lockedSectionMessage:
           "Bestätigen Sie Ihre Zimmernummer, um diesen Bereich freizuschalten.",
         missingRoomAlert: "Bitte geben Sie eine Zimmernummer ein.",
@@ -1724,7 +1724,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         changeRoomWarningTitle: "Schimbare cameră",
         changeRoomWarningText: "Schimbați camera activă doar dacă ați fost mutat efectiv într-o altă cameră. Apoi introduceți și confirmați noua cameră.",
         changeRoomContinue: "Continuă",
-        lockedNotice: "Secțiunile blocate se vor deschide după introducerea numărului camerei.",
+        lockedNotice: "Secțiunile se vor deschide după introducerea numărului camerei.",
         lockedSectionMessage: "Confirmați numărul camerei pentru a debloca această secțiune.",
         missingRoomAlert: "Vă rugăm să introduceți numărul camerei.",
         invalidRoomAlert: "Vă rugăm să introduceți un număr de cameră valid al hotelului.",
@@ -1758,7 +1758,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         changeRoomWarningTitle: "Změna pokoje",
         changeRoomWarningText: "Aktivní pokoj měňte pouze tehdy, pokud jste byli skutečně přesunuti do jiného pokoje. Poté zadejte a potvrďte nový pokoj.",
         changeRoomContinue: "Pokračovat",
-        lockedNotice: "Uzamčené sekce se otevřou po zadání čísla pokoje.",
+        lockedNotice: "Sekce se otevřou po zadání čísla pokoje.",
         lockedSectionMessage: "Potvrďte číslo pokoje pro odemknutí této sekce.",
         missingRoomAlert: "Zadejte prosím číslo pokoje.",
         invalidRoomAlert: "Zadejte prosím platné číslo hotelového pokoje.",
@@ -4458,11 +4458,11 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       {!roomConfirmed ? (
         <div className="mt-3 px-4">
           <div className="rounded-2xl stayhub-panel stayhub-room-panel p-4">
-            <h2 className="text-base font-semibold" style={{ color: "#202627" }}>{roomCopy.cardTitle}</h2>
-            <p className="mt-2 text-sm leading-6" style={{ color: "#202627" }}>{roomCopy.cardText}</p>
+            <h2 className="text-base font-semibold text-white">{roomCopy.cardTitle}</h2>
+            <p className="mt-2 text-sm leading-6 text-neutral-300">{roomCopy.cardText}</p>
 
             <div className="mt-4">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: "#202627" }}>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
                 {roomCopy.inputLabel}
               </label>
               <input
@@ -4910,27 +4910,10 @@ function LockedSectionCard({
   message?: string;
 }) {
   return (
-    <div
-      className="rounded-2xl border px-4 py-4 shadow-sm"
-      style={{
-        backgroundColor: "#F5F5F5",
-        borderColor: "#202627",
-        color: "#202627",
-      }}
-      aria-disabled="true"
-    >
+    <div className="rounded-2xl stayhub-card px-4 py-4 opacity-70">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-base font-semibold" style={{ color: "#202627" }}>
-          {title}
-        </div>
-        <div
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-sm"
-          style={{ borderColor: "#202627", color: "#202627" }}
-          aria-label="Locked"
-          title="Locked"
-        >
-          🔒
-        </div>
+        <div className="text-base font-semibold text-neutral-300">{title}</div>
+        <div className="text-sm text-neutral-500">🔒</div>
       </div>
     </div>
   );
