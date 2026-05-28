@@ -127,7 +127,36 @@ input.stayhub-card::placeholder {
   border: 1px solid var(--stayhub-text, #f5f5f5);
 }
 
-.stayhub-language-pill-active {
-  background: var(--stayhub-primary, #3c8476);
+/* Final Aquamarine UX polish: room confirmation text and active language state. */
+.stayhub-room-panel {
+  background: var(--stayhub-soft, #f5f5f5);
+  border: 1px solid var(--stayhub-action, #43b5a1);
+  color: #202627;
+}
+
+.stayhub-room-panel .text-white,
+.stayhub-room-panel .text-neutral-100,
+.stayhub-room-panel .text-neutral-200,
+.stayhub-room-panel .text-neutral-300,
+.stayhub-room-panel .text-neutral-400,
+.stayhub-room-panel .text-neutral-500 {
+  color: #202627 !important;
+}
+
+.stayhub-room-panel .stayhub-card,
+.stayhub-room-panel input.stayhub-card {
+  background: var(--stayhub-action, #43b5a1);
+  border-color: var(--stayhub-text, #f5f5f5);
   color: var(--stayhub-text, #f5f5f5);
+}
+
+.stayhub-room-panel input.stayhub-card::placeholder {
+  color: color-mix(in srgb, var(--stayhub-text, #f5f5f5) 82%, #202627 18%) !important;
+}
+
+.stayhub-language-pill-active {
+  background: var(--stayhub-action, #43b5a1);
+  color: var(--stayhub-text, #f5f5f5);
+  border: 2px solid #202627;
+  box-shadow: 0 0 0 2px var(--stayhub-soft, #f5f5f5);
 }

@@ -4457,7 +4457,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
       {!roomConfirmed ? (
         <div className="mt-3 px-4">
-          <div className="rounded-2xl stayhub-panel p-4">
+          <div className="rounded-2xl stayhub-panel stayhub-room-panel p-4">
             <h2 className="text-base font-semibold text-white">{roomCopy.cardTitle}</h2>
             <p className="mt-2 text-sm leading-6 text-neutral-300">{roomCopy.cardText}</p>
 
