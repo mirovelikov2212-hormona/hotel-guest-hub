@@ -4415,13 +4415,13 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       </div>
 
       {showGuestIntro ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
-            <div className="text-xl font-semibold leading-tight text-white">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4">
+          <div className="w-full max-w-md rounded-2xl stayhub-intro-modal p-5 shadow-2xl">
+            <div className="text-xl font-semibold leading-tight stayhub-intro-title">
               {guestIntroCopy.title}
             </div>
 
-            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-neutral-200">
+            <p className="mt-3 whitespace-pre-line text-sm leading-6 stayhub-intro-body">
               {guestIntroCopy.body}
             </p>
 
@@ -4432,10 +4432,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                   type="button"
                   onClick={() => setLang(code)}
                   className={clsx(
-                    "rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition",
-                    lang === code
-                      ? "bg-white text-neutral-950 ring-white"
-                      : "bg-neutral-900 text-neutral-100 ring-neutral-700 hover:bg-neutral-800"
+                    "rounded-full px-3 py-1.5 text-xs font-semibold transition stayhub-language-pill",
+                    lang === code ? "stayhub-language-pill-active" : ""
                   )}
                 >
                   {String(code).toUpperCase()}

@@ -25,56 +25,109 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* StayHub brand layer mapping
-   Uses hotel-provided CSS variables from GuestHub.tsx.
-   Goal: apply the Aquamarine brand as layers, not as one flat color. */
+/* StayHub Aquamarine light brand mapping
+   Uses only hotel-provided brand variables.
+   Goal: all section bodies, cards and request options follow the same visual system. */
 .stayhub-section-shell {
-  background: color-mix(in srgb, var(--stayhub-surface, #1d2425) 88%, black 12%);
-  border: 1px solid color-mix(in srgb, var(--stayhub-soft, #e7f3f0) 13%, transparent);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  background: var(--stayhub-soft, #f5f5f5);
+  border: 1px solid var(--stayhub-action, #43b5a1);
+  box-shadow: 0 10px 24px rgba(32, 38, 39, 0.10);
 }
 
 .stayhub-section-header {
-  background:
-    linear-gradient(135deg,
-      color-mix(in srgb, var(--stayhub-primary, #3c8476) 92%, black 8%),
-      color-mix(in srgb, var(--stayhub-primary, #3c8476) 72%, var(--stayhub-action, #43b5a1) 28%)
-    );
+  background: var(--stayhub-action, #43b5a1);
   color: var(--stayhub-text, #f5f5f5);
-  border-bottom: 1px solid color-mix(in srgb, var(--stayhub-soft, #e7f3f0) 16%, transparent);
+  border-bottom: 1px solid var(--stayhub-text, #f5f5f5);
 }
 
 .stayhub-section-body {
-  background: color-mix(in srgb, var(--stayhub-bg, #202627) 82%, black 18%);
+  background: var(--stayhub-soft, #f5f5f5);
 }
 
 .stayhub-panel {
-  background: color-mix(in srgb, var(--stayhub-surface, #1d2425) 86%, black 14%);
-  border: 1px solid color-mix(in srgb, var(--stayhub-soft, #e7f3f0) 14%, transparent);
+  background: var(--stayhub-soft, #f5f5f5);
+  border: 1px solid var(--stayhub-action, #43b5a1);
   color: var(--stayhub-text, #f5f5f5);
 }
 
-.stayhub-card {
-  background: color-mix(in srgb, var(--stayhub-surface, #1d2425) 82%, black 18%);
-  border: 1px solid color-mix(in srgb, var(--stayhub-soft, #e7f3f0) 13%, transparent);
+.stayhub-card,
+.stayhub-card-header,
+.stayhub-action-card {
+  background: color-mix(in srgb, var(--stayhub-action, #43b5a1) 86%, var(--stayhub-soft, #f5f5f5) 14%);
+  border: 1px solid var(--stayhub-text, #f5f5f5);
   color: var(--stayhub-text, #f5f5f5);
+  box-shadow: none;
 }
 
 .stayhub-card-header {
-  background: color-mix(in srgb, var(--stayhub-surface, #1d2425) 72%, var(--stayhub-bg, #202627) 28%);
-  color: var(--stayhub-text, #f5f5f5);
-}
-
-.stayhub-action-card {
-  background: color-mix(in srgb, var(--stayhub-action, #43b5a1) 15%, transparent);
-  border: 1px solid color-mix(in srgb, var(--stayhub-action, #43b5a1) 34%, transparent);
-  color: var(--stayhub-text, #f5f5f5);
+  background: color-mix(in srgb, var(--stayhub-action, #43b5a1) 78%, var(--stayhub-soft, #f5f5f5) 22%);
 }
 
 .stayhub-action-card:hover {
-  background: color-mix(in srgb, var(--stayhub-action, #43b5a1) 23%, transparent);
+  background: var(--stayhub-action, #43b5a1);
 }
 
 .stayhub-muted-text {
-  color: color-mix(in srgb, var(--stayhub-soft, #e7f3f0) 74%, var(--stayhub-muted, #707070) 26%);
+  color: color-mix(in srgb, var(--stayhub-text, #f5f5f5) 82%, var(--stayhub-muted, #707070) 18%);
+}
+
+/* Normalize hardcoded Tailwind text colors inside the branded hub cards. */
+.stayhub-section-shell .text-white,
+.stayhub-section-shell .text-neutral-100,
+.stayhub-section-shell .text-neutral-200,
+.stayhub-section-shell .text-neutral-300,
+.stayhub-section-shell .text-neutral-400,
+.stayhub-section-shell .text-neutral-500,
+.stayhub-panel .text-white,
+.stayhub-panel .text-neutral-100,
+.stayhub-panel .text-neutral-200,
+.stayhub-panel .text-neutral-300,
+.stayhub-panel .text-neutral-400,
+.stayhub-panel .text-neutral-500,
+.stayhub-card .text-white,
+.stayhub-card .text-neutral-100,
+.stayhub-card .text-neutral-200,
+.stayhub-card .text-neutral-300,
+.stayhub-card .text-neutral-400,
+.stayhub-card .text-neutral-500,
+.stayhub-card-header .text-white,
+.stayhub-card-header .text-neutral-100,
+.stayhub-card-header .text-neutral-200,
+.stayhub-card-header .text-neutral-300,
+.stayhub-card-header .text-neutral-400,
+.stayhub-card-header .text-neutral-500 {
+  color: var(--stayhub-text, #f5f5f5) !important;
+}
+
+.stayhub-card::placeholder,
+.stayhub-card textarea::placeholder,
+textarea.stayhub-card::placeholder,
+input.stayhub-card::placeholder {
+  color: color-mix(in srgb, var(--stayhub-text, #f5f5f5) 72%, var(--stayhub-muted, #707070) 28%) !important;
+}
+
+/* Intro modal: light card, teal actions, brand-only colors. */
+.stayhub-intro-modal {
+  background: var(--stayhub-soft, #f5f5f5);
+  border: 1px solid var(--stayhub-action, #43b5a1);
+  color: var(--stayhub-primary, #3c8476);
+}
+
+.stayhub-intro-title {
+  color: var(--stayhub-primary, #3c8476);
+}
+
+.stayhub-intro-body {
+  color: var(--stayhub-primary, #3c8476);
+}
+
+.stayhub-language-pill {
+  background: var(--stayhub-action, #43b5a1);
+  color: var(--stayhub-text, #f5f5f5);
+  border: 1px solid var(--stayhub-text, #f5f5f5);
+}
+
+.stayhub-language-pill-active {
+  background: var(--stayhub-primary, #3c8476);
+  color: var(--stayhub-text, #f5f5f5);
 }
