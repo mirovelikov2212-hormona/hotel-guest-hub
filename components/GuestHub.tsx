@@ -1033,6 +1033,18 @@ function getRequestDefButtonIcon(def: RequestDef): string {
 }
 
 
+function getRequestActionLabel(lang: LangKey): string {
+  return lang === "bg"
+    ? "Заяви"
+    : lang === "de"
+      ? "Anfragen"
+      : lang === "ro"
+        ? "Solicită"
+        : lang === "cs"
+          ? "Objednat"
+          : "Request";
+}
+
 function readBooleanConfigValue(value: unknown, fallback = false) {
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value === 1;
@@ -2398,6 +2410,13 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     },
     [fallbackLangs, lang]
   );
+
+  const getRequestDefOptionImages = useCallback((def?: RequestDef | null) => {
+    if (!def) return [] as string[];
+    return (def.optionImageUrls ?? [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+  }, []);
 
   const getRequestDefMessage = useCallback(
     (def?: RequestDef | null) => {
@@ -5136,6 +5155,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 getRequestDefTitle={getRequestDefTitle}
                 getRequestDefMessage={getRequestDefMessage}
                 getRequestDefOptions={getRequestDefOptions}
+                getRequestDefOptionImages={getRequestDefOptionImages}
                 getRequestDefPriceHint={getRequestDefPriceHint}
                 getQuantityChoices={getQuantityChoices}
                 getQuantityButtonLabel={getQuantityButtonLabel}
@@ -5159,6 +5179,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 getRequestDefTitle={getRequestDefTitle}
                 getRequestDefMessage={getRequestDefMessage}
                 getRequestDefOptions={getRequestDefOptions}
+                getRequestDefOptionImages={getRequestDefOptionImages}
                 getRequestDefPriceHint={getRequestDefPriceHint}
                 getQuantityChoices={getQuantityChoices}
                 getQuantityButtonLabel={getQuantityButtonLabel}
@@ -5191,6 +5212,7 @@ function Accordion({
   getRequestDefTitle,
   getRequestDefMessage,
   getRequestDefOptions,
+  getRequestDefOptionImages,
   getRequestDefPriceHint,
   getQuantityChoices,
   getQuantityButtonLabel,
@@ -5212,6 +5234,7 @@ function Accordion({
   getRequestDefTitle: (def?: RequestDef | null) => string;
   getRequestDefMessage: (def?: RequestDef | null) => string;
   getRequestDefOptions: (def?: RequestDef | null, preferredLang?: LangKey) => string[];
+  getRequestDefOptionImages: (def?: RequestDef | null) => string[];
   getRequestDefPriceHint: (def: RequestDef) => string;
   getQuantityChoices: (def: RequestDef) => number[];
   getQuantityButtonLabel: (def: RequestDef, qty: number) => string;
@@ -5318,6 +5341,7 @@ function Accordion({
                   const message = getRequestDefMessage(def);
                   const priceHint = getRequestDefPriceHint(def);
                   const localizedOptions = getRequestDefOptions(def);
+                  const optionImages = getRequestDefOptionImages(def);
                   const isQuantity = def.requestKind === "quantity" || def.requiresQuantity;
                   const quickKey = `${String(def.id || def.requestType || "request")}-${idx}`;
                   const isQuickOpen = openRequestDefId === quickKey;
@@ -5364,19 +5388,50 @@ function Accordion({
                               ))}
                             </div>
                           ) : localizedOptions.length ? (
-                            <div className="mt-3 space-y-2">
-                              {localizedOptions.map((option, optionIndex) => (
-                                <button
-                                  key={`${def.id}-${optionIndex}`}
-                                  type="button"
-                                  disabled={submittingRequest}
-                                  onClick={() => submitRequestDefSelectionOption(def, option, optionIndex)}
-                                  className="w-full rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                  {option}
-                                </button>
-                              ))}
-                            </div>
+                            optionImages.length ? (
+                              <div className="mt-3 grid grid-cols-1 gap-3">
+                                {localizedOptions.map((option, optionIndex) => {
+                                  const imageUrl = optionImages[optionIndex] || "";
+
+                                  return (
+                                    <button
+                                      key={`${def.id}-${optionIndex}`}
+                                      type="button"
+                                      disabled={submittingRequest}
+                                      onClick={() => submitRequestDefSelectionOption(def, option, optionIndex)}
+                                      className="w-full overflow-hidden rounded-2xl p-3 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      {imageUrl ? (
+                                        <img
+                                          src={imageUrl}
+                                          alt={option}
+                                          loading="lazy"
+                                          className="mb-3 h-32 w-full rounded-xl bg-white/90 object-contain p-2"
+                                        />
+                                      ) : null}
+                                      <div className="text-sm font-semibold">{option}</div>
+                                      <div className="mt-1 text-[11px] font-bold uppercase tracking-wide opacity-80">
+                                        {getRequestActionLabel(lang)}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="mt-3 space-y-2">
+                                {localizedOptions.map((option, optionIndex) => (
+                                  <button
+                                    key={`${def.id}-${optionIndex}`}
+                                    type="button"
+                                    disabled={submittingRequest}
+                                    onClick={() => submitRequestDefSelectionOption(def, option, optionIndex)}
+                                    className="w-full rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {option}
+                                  </button>
+                                ))}
+                              </div>
+                            )
                           ) : (
                             <button
                               type="button"
@@ -5516,6 +5571,7 @@ function OutletsAccordion({
   getRequestDefTitle,
   getRequestDefMessage,
   getRequestDefOptions,
+  getRequestDefOptionImages,
   getRequestDefPriceHint,
   getQuantityChoices,
   getQuantityButtonLabel,
@@ -5537,6 +5593,7 @@ function OutletsAccordion({
   getRequestDefTitle: (def?: RequestDef | null) => string;
   getRequestDefMessage: (def?: RequestDef | null) => string;
   getRequestDefOptions: (def?: RequestDef | null, preferredLang?: LangKey) => string[];
+  getRequestDefOptionImages: (def?: RequestDef | null) => string[];
   getRequestDefPriceHint: (def: RequestDef) => string;
   getQuantityChoices: (def: RequestDef) => number[];
   getQuantityButtonLabel: (def: RequestDef, qty: number) => string;
@@ -5594,6 +5651,7 @@ function OutletsAccordion({
     const message = getRequestDefMessage(def);
     const priceHint = getRequestDefPriceHint(def);
     const localizedOptions = getRequestDefOptions(def);
+    const optionImages = getRequestDefOptionImages(def);
     const isQuantity = def.requestKind === "quantity" || def.requiresQuantity;
     const quickKey = `spa-${String(def.id || def.requestType || "request")}-${index}`;
     const isQuickOpen = openSpaRequestDefId === quickKey;
@@ -5638,19 +5696,50 @@ function OutletsAccordion({
                 ))}
               </div>
             ) : localizedOptions.length ? (
-              <div className="mt-3 space-y-2">
-                {localizedOptions.map((option, optionIndex) => (
-                  <button
-                    key={`${def.id}-${optionIndex}`}
-                    type="button"
-                    disabled={submittingRequest}
-                    onClick={() => submitRequestDefSelectionOption(def, option, optionIndex)}
-                    className="w-full rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
+              optionImages.length ? (
+                <div className="mt-3 grid grid-cols-1 gap-3">
+                  {localizedOptions.map((option, optionIndex) => {
+                    const imageUrl = optionImages[optionIndex] || "";
+
+                    return (
+                      <button
+                        key={`${def.id}-${optionIndex}`}
+                        type="button"
+                        disabled={submittingRequest}
+                        onClick={() => submitRequestDefSelectionOption(def, option, optionIndex)}
+                        className="w-full overflow-hidden rounded-2xl p-3 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={option}
+                            loading="lazy"
+                            className="mb-3 h-32 w-full rounded-xl bg-white/90 object-contain p-2"
+                          />
+                        ) : null}
+                        <div className="text-sm font-semibold">{option}</div>
+                        <div className="mt-1 text-[11px] font-bold uppercase tracking-wide opacity-80">
+                          {getRequestActionLabel(lang)}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {localizedOptions.map((option, optionIndex) => (
+                    <button
+                      key={`${def.id}-${optionIndex}`}
+                      type="button"
+                      disabled={submittingRequest}
+                      onClick={() => submitRequestDefSelectionOption(def, option, optionIndex)}
+                      className="w-full rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              )
             ) : (
               <button
                 type="button"

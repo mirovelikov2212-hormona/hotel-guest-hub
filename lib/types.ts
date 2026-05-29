@@ -63,6 +63,8 @@ export type RequestDef = {
   timeMode: RequestDefTimeMode;
   options: string[];
   optionsByLang?: Partial<Record<LangKey, string[]>>;
+  /** Optional image URL per option, matched by position with options/optionsByLang. */
+  optionImageUrls?: string[];
   guestVisible: boolean;
   staffVisible: boolean;
   aiVisible: boolean;
