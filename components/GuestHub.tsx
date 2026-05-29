@@ -3164,6 +3164,82 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     return id === "massage_booking" || requestType === "massage_booking";
   }
 
+
+  function getMassageServiceDurationMinutes(value?: string | null): number {
+    const raw = String(value || "").trim();
+    const match = raw.match(/(\d{1,3})\s*(?:мин\.?|min\.?|Min\.?|minutes?|Minuten?)/i);
+    if (!match) return 0;
+    const minutes = Number(match[1]);
+    return Number.isFinite(minutes) && minutes > 0 ? minutes : 0;
+  }
+
+  function getSpaBookingRanges(): Array<{ start: number; end: number }> {
+    const spaVenue = rawVenueRows.find((venue) => {
+      const category = normalizeCategory(venue);
+      const name = String(venue.name || "").toLowerCase();
+      return category === "spa" || name.includes("spa") || name.includes("спа");
+    });
+
+    const explicitRanges = parseTimeRanges(spaVenue?.reservationHours || spaVenue?.hours || "");
+    if (explicitRanges.length) return explicitRanges;
+
+    const open = timeToMinutes(spaVenue?.open) ?? timeToMinutes("09:00") ?? 9 * 60;
+    const close = timeToMinutes(spaVenue?.close) ?? timeToMinutes("19:00") ?? 19 * 60;
+
+    return [{ start: open, end: close }];
+  }
+
+  function getSpaBookingHoursLabel(): string {
+    const spaVenue = rawVenueRows.find((venue) => {
+      const category = normalizeCategory(venue);
+      const name = String(venue.name || "").toLowerCase();
+      return category === "spa" || name.includes("spa") || name.includes("спа");
+    });
+
+    return (
+      String(spaVenue?.reservationHours || spaVenue?.hours || "").trim() ||
+      [String(spaVenue?.open || "09:00").trim(), String(spaVenue?.close || "19:00").trim()].filter(Boolean).join(" - ") ||
+      "09:00 - 19:00"
+    );
+  }
+
+  function isMassageTimeWithinWorkingHours(time: string, durationMinutes: number): boolean {
+    const start = timeToMinutes(time);
+    if (start === null) return false;
+
+    const end = durationMinutes > 0 ? start + durationMinutes : start;
+    return getSpaBookingRanges().some((range) => start >= range.start && end <= range.end);
+  }
+
+  function getMassageOutsideHoursMessage(durationMinutes: number): string {
+    const hours = getSpaBookingHoursLabel();
+    const base =
+      lang === "de"
+        ? `Massagen können nur während der Spa-Öffnungszeiten gebucht werden: ${hours}.`
+        : lang === "en"
+          ? `Massages can only be booked during Spa opening hours: ${hours}.`
+          : lang === "ro"
+            ? `Masajele pot fi rezervate doar în programul Spa: ${hours}.`
+            : lang === "cs"
+              ? `Masáže lze rezervovat pouze během otevírací doby Spa: ${hours}.`
+              : `Масажите могат да се резервират само в работното време на СПА центъра: ${hours}.`;
+
+    const finish =
+      durationMinutes > 0
+        ? lang === "de"
+          ? " Bitte wählen Sie eine Uhrzeit, damit die Therapie innerhalb der Öffnungszeiten endet."
+          : lang === "en"
+            ? " Please choose a time so the therapy finishes within opening hours."
+            : lang === "ro"
+              ? " Vă rugăm să alegeți o oră astfel încât terapia să se încheie în timpul programului."
+              : lang === "cs"
+                ? " Zvolte prosím čas tak, aby terapie skončila v rámci otevírací doby."
+                : " Моля изберете час, така че терапията да приключи в рамките на работното време."
+        : "";
+
+    return base + finish;
+  }
+
   function submitRequestDefSelectionOption(def: RequestDef, option: string, optionIndex: number) {
     if (!ensureConfirmedRoom()) return;
 
@@ -3217,17 +3293,30 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         }
       }
 
-      const time = askRequired(
-        String(tUI("prompt_time") || "Час:"),
-        String(tUI("example_time") || "15:00"),
-        reTime,
-        String(tUI("invalid_time") || "Невалиден час")
-      );
+      const durationMinutes = getMassageServiceDurationMinutes(selectedForOps || option);
+      let time: string | null = null;
 
-      if (!time) return;
+      while (!time) {
+        const pickedTime = askRequired(
+          String(tUI("prompt_time") || "Час:"),
+          String(tUI("example_time") || "15:00"),
+          reTime,
+          String(tUI("invalid_time") || "Невалиден час")
+        );
+
+        if (!pickedTime) return;
+
+        if (!isMassageTimeWithinWorkingHours(pickedTime, durationMinutes)) {
+          window.alert(getMassageOutsideHoursMessage(durationMinutes));
+          continue;
+        }
+
+        time = pickedTime;
+      }
 
       noteParts.push(`Дата: ${date}`);
       noteParts.push(`Час: ${time}`);
+      noteParts.push(`Работно време на СПА: ${getSpaBookingHoursLabel()}`);
       noteParts.push("Рецепцията трябва да потвърди наличността за избраната дата и час.");
     }
 
