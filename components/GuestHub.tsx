@@ -4264,6 +4264,15 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     "Hotel Aquamarine Kranevo, Kranevo, Bulgaria"
   ).replace(/,\s*Bulgaria,\s*Bulgaria$/i, ", Bulgaria");
 
+  const mapsSearchUrl = (query: string) =>
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+
+  const nearbyAnchorQuery = hotelAreaSearchQuery || "Hotel Aquamarine Kranevo, Kranevo, Bulgaria";
+  const nearbyAttractionsQuery =
+    `landmarks museums historical sites and tourist attractions within 20 km of ${nearbyAnchorQuery}`;
+  const nearbyRestaurantsQuery = `restaurants near ${nearbyAnchorQuery}`;
+  const nearbyPharmacyQuery = `pharmacy near ${nearbyAnchorQuery}`;
+
   const exploreSection = hotelAreaSearchQuery
     ? ({
       id: "explore",
@@ -4272,19 +4281,19 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         {
           label: String(tUI("attractions_nearby") || "Attractions nearby"),
           kind: "link" as const,
-          href: `https://www.google.com/maps/search/${encodeURIComponent("tourist attractions within 20 km of " + hotelAreaSearchQuery)}`,
+          href: mapsSearchUrl(nearbyAttractionsQuery),
           newTab: true,
         },
         {
           label: String(tUI("restaurants_nearby") || "Restaurants nearby"),
           kind: "link" as const,
-          href: `https://www.google.com/maps/search/${encodeURIComponent("restaurants near " + hotelAreaSearchQuery)}`,
+          href: mapsSearchUrl(nearbyRestaurantsQuery),
           newTab: true,
         },
         {
           label: String(tUI("pharmacy") || "Pharmacy"),
           kind: "link" as const,
-          href: `https://www.google.com/maps/search/${encodeURIComponent("pharmacy near " + hotelAreaSearchQuery)}`,
+          href: mapsSearchUrl(nearbyPharmacyQuery),
           newTab: true,
         },
       ],
@@ -4304,6 +4313,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             : "Enjoying your stay? We would be grateful for your review.")
   );
 
+  const reviewIntroText = reviewIntroLabel.replace(/\?\s+/, "?\n");
+
   const reviewsSection = (config.reviews?.google || config.reviews?.tripadvisor || config.reviews?.booking)
     ? ({
       id: "reviews",
@@ -4312,7 +4323,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         {
           label: "",
           kind: "info" as const,
-          info: reviewIntroLabel,
+          info: reviewIntroText,
         },
         ...(config.reviews?.google
           ? [
