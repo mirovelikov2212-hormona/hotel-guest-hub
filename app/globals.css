@@ -160,3 +160,17 @@ input.stayhub-card::placeholder {
   border: 2px solid #202627;
   box-shadow: 0 0 0 2px var(--stayhub-soft, #f5f5f5);
 }
+
+
+/* Refresh button: keep label visible in the light Aquamarine theme. */
+.stayhub-refresh-button {
+  background: var(--stayhub-action, #43b5a1) !important;
+  color: #202627 !important;
+  border: 1px solid #202627 !important;
+  box-shadow: none;
+}
+
+.stayhub-refresh-button:hover {
+  background: color-mix(in srgb, var(--stayhub-action, #43b5a1) 86%, var(--stayhub-soft, #f5f5f5) 14%) !important;
+  color: #202627 !important;
+}

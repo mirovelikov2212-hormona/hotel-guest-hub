@@ -149,10 +149,10 @@ const STAFF_NOTES_BG: Record<string, string> = {
   minibar: "Платена услуга: зареждане на минибар. Рецепцията трябва да начисли услугата към сметката на стаята.",
   minibar_refill: "Платена услуга: зареждане на минибар. Рецепцията трябва да начисли услугата към сметката на стаята.",
   laundry: "Платена услуга: пране. Рецепцията трябва да начисли услугата към сметката на стаята.",
-  coffee_capsules: "Платена услуга: кафе капсули. Housekeeping доставя, рецепцията начислява към сметката на стаята.",
-  pillow_menu: "Платена услуга: меню възглавници. Housekeeping доставя, рецепцията начислява към сметката на стаята.",
-  massage_booking: "Платена услуга: масаж / релакс терапия. Рецепцията трябва да начисли услугата към сметката на стаята.",
-  spa_massage: "Платена услуга: масаж / релакс терапия. Рецепцията трябва да начисли услугата към сметката на стаята.",
+  coffee_capsules: "Housekeeping доставя заявените кафе капсули.",
+  pillow_menu: "Housekeeping доставя избраната възглавница.",
+  massage_booking: "Рецепцията трябва да потвърди часа/наличността на избраната услуга.",
+  spa_massage: "Рецепцията трябва да потвърди часа/наличността на избраната услуга.",
   coffee_machine: "Гостът съобщи за проблем с кафе машината.",
   minibar_not_cooling: "Гостът съобщи, че минибарът не охлажда.",
 };
@@ -222,9 +222,11 @@ function extractLabeledValue(value: string, labelHints: string[]) {
 
 function extractSelectedOption(value: string) {
   return extractLabeledValue(value, [
+    "избрана опция",
+    "избрана възглавница",
+    "избрана услуга",
     "option",
     "опция",
-    "избрана опция",
     "selected option",
     "auswahl",
     "opțiune",
@@ -250,13 +252,51 @@ function extractQuantity(value: string) {
 function formatBillingNotice(metadata: RequestMetadata) {
   if (!metadata.requiresBilling) return "";
 
-  const price = cleanText(metadata.price);
-  const currency = cleanText(metadata.currency);
-  const amount = [price, currency].filter(Boolean).join(" ");
+  const price = cleanText(metadata.price).replace(/\s*€\s*$/, "");
+  const currency = cleanText(metadata.currency) || (cleanText(metadata.price).includes("€") ? "€" : "");
+  const amount = [price, currency].filter(Boolean).join(" ").trim();
 
   return amount
     ? `Платена услуга. Цена: ${amount}. Рецепцията трябва да начисли услугата към сметката на стаята.`
     : "Платена услуга. Рецепцията трябва да начисли услугата към сметката на стаята.";
+}
+
+function hasBillingWords(value: string) {
+  const normalized = normalizeText(value);
+  return (
+    normalized.includes("платена_услуга") ||
+    normalized.includes("kostenpflicht") ||
+    normalized.includes("paid_service") ||
+    normalized.includes("serviciu_contra_cost") ||
+    normalized.includes("placena_sluzba") ||
+    normalized.includes("room_account") ||
+    normalized.includes("сметката_на_стаята")
+  );
+}
+
+function joinUniqueLines(parts: Array<string | undefined | null>) {
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  for (const part of parts) {
+    const text = cleanText(part);
+    if (!text) continue;
+
+    for (const line of text.split(/\r?\n/).map((item) => item.trim()).filter(Boolean)) {
+      const key = normalizeText(line);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(line);
+    }
+  }
+
+  return out.join("\n");
+}
+
+function optionLabelForKey(key: string) {
+  if (key === "pillow_menu") return "Избрана възглавница";
+  if (key === "massage_booking" || key === "spa_massage") return "Избрана услуга";
+  return "Избрана опция";
 }
 
 function translateGeneratedNoteToBg(key: string, originalNote: string, metadata: RequestMetadata) {
@@ -290,26 +330,26 @@ function translateGeneratedNoteToBg(key: string, originalNote: string, metadata:
     case "coffee_capsules": {
       const qty = extractQuantity(note);
       const details = qty ? `Количество: ${qty}` : "";
-      return [details, STAFF_NOTES_BG[key], billingNotice].filter(Boolean).join("\n") || undefined;
+      return joinUniqueLines([details, STAFF_NOTES_BG[key], billingNotice]) || undefined;
     }
 
     case "pillow_menu": {
       const option = extractSelectedOption(note);
-      const details = option ? `Избрана възглавница: ${option}` : "";
-      return [details, STAFF_NOTES_BG[key], billingNotice].filter(Boolean).join("\n") || undefined;
+      const details = option ? `${optionLabelForKey(key)}: ${option}` : "";
+      return joinUniqueLines([details, STAFF_NOTES_BG[key], billingNotice]) || undefined;
     }
 
     case "massage_booking":
     case "spa_massage": {
       const option = extractSelectedOption(note);
-      const details = option ? `Избрана услуга: ${option}` : "";
-      return [details, STAFF_NOTES_BG[key], billingNotice].filter(Boolean).join("\n") || undefined;
+      const details = option ? `${optionLabelForKey(key)}: ${option}` : "";
+      return joinUniqueLines([details, STAFF_NOTES_BG[key], billingNotice]) || undefined;
     }
 
     case "minibar":
     case "minibar_refill":
     case "laundry":
-      return [STAFF_NOTES_BG[key], billingNotice].filter(Boolean).join(" ") || undefined;
+      return joinUniqueLines([STAFF_NOTES_BG[key], billingNotice]) || undefined;
 
     case "coffee_machine":
     case "minibar_not_cooling":
@@ -377,7 +417,7 @@ export function getOperationalRequestNoteBg(input: OperationalCopyInput): string
   }
 
   if (looksSystemGenerated(originalNote)) {
-    return [mappedNote, billingNotice].filter(Boolean).join(" ") || undefined;
+    return joinUniqueLines([mappedNote, billingNotice]) || undefined;
   }
 
   if (billingNotice) {

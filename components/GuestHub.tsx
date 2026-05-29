@@ -3077,6 +3077,140 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     }
   }
 
+
+  function parseMoneyValue(value?: string | null): number | null {
+    const raw = String(value || "").trim();
+    if (!raw) return null;
+    const match = raw.match(/(\d+(?:[,.]\d{1,2})?)/);
+    if (!match) return null;
+    const parsed = Number(match[1].replace(",", "."));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function formatMoneyValue(value: number, currency?: string | null): string {
+    const amount = value.toFixed(2).replace(".", ",");
+    return [amount, String(currency || "€").trim()].filter(Boolean).join(" ");
+  }
+
+  function extractPriceFromText(value?: string | null): { price: string; currency: string } | null {
+    const raw = String(value || "").trim();
+    if (!raw) return null;
+
+    // Prefer amounts next to a currency symbol. If a service contains duration + price
+    // (e.g. "30 min. — 35,00 €"), picking the first number would incorrectly use 30.
+    const currencyMatch = raw.match(/(\d+(?:[,.]\d{1,2})?)\s*(€|EUR)/i);
+    if (currencyMatch) {
+      return {
+        price: currencyMatch[1].replace(".", ","),
+        currency: currencyMatch[2].toUpperCase() === "EUR" ? "€" : currencyMatch[2],
+      };
+    }
+
+    // Fallback: use the last numeric value in the option text. This handles
+    // "Full body massage — 60 min. — 60,00" better than using the duration.
+    const matches = Array.from(raw.matchAll(/\d+(?:[,.]\d{1,2})?/g));
+    const last = matches[matches.length - 1];
+    if (!last) return null;
+
+    return {
+      price: last[0].replace(".", ","),
+      currency: raw.includes("€") ? "€" : "",
+    };
+  }
+
+  function getQtyUnitLabel() {
+    if (lang === "bg") return "бр.";
+    if (lang === "de") return "Stk.";
+    if (lang === "ro") return "buc.";
+    if (lang === "cs") return "ks";
+    return "pcs";
+  }
+
+  function getRequestDefPriceHint(def: RequestDef) {
+    const price = String(def.price || "").trim();
+    const currency = String(def.currency || "").trim();
+    if (!price) return "";
+
+    const suffix = def.requestKind === "quantity" || def.requiresQuantity
+      ? (lang === "bg" ? " / бр." : lang === "de" ? " / Stk." : lang === "ro" ? " / buc." : lang === "cs" ? " / ks" : " each")
+      : "";
+
+    return [price, currency].filter(Boolean).join(" ") + suffix;
+  }
+
+  function getQuantityChoices(def: RequestDef) {
+    const min = Math.max(1, Number(def.minQty ?? 1));
+    const max = Math.max(min, Number(def.maxQty ?? 10));
+    const cappedMax = Math.min(max, 20);
+    return Array.from({ length: cappedMax - min + 1 }, (_, index) => min + index);
+  }
+
+  function getQuantityButtonLabel(def: RequestDef, qty: number) {
+    const unitPrice = parseMoneyValue(def.price);
+    const currency = String(def.currency || "€").trim();
+    const base = `${qty} ${getQtyUnitLabel()}`;
+    if (!unitPrice) return base;
+    return `${base} — ${formatMoneyValue(unitPrice * qty, currency)}`;
+  }
+
+  function submitRequestDefSelectionOption(def: RequestDef, option: string, optionIndex: number) {
+    if (!ensureConfirmedRoom()) return;
+
+    const title = getRequestDefTitle(def) || def.id.replace(/_/g, " ");
+    const bgOptions = getRequestDefOptions(def, "bg");
+    const bgSelected = optionIndex >= 0 ? String(bgOptions[optionIndex] || "").trim() : "";
+    const selectedForOps = bgSelected || String(option || "").trim();
+    const noteParts = selectedForOps ? [`Избрана опция: ${selectedForOps}`] : [];
+
+    // Keep the guest-facing selection only as secondary context when it differs.
+    // Staff Hub will still show the operational Bulgarian option first.
+    if (bgSelected && option && bgSelected !== option) {
+      noteParts.push(`Избор на госта: ${option}`);
+    }
+
+    const extractedPrice = extractPriceFromText(option) || extractPriceFromText(bgSelected);
+    const requestPrice = String(def.price || extractedPrice?.price || "").trim();
+    const requestCurrency = String(def.currency || extractedPrice?.currency || "").trim();
+
+    submitGuestRequest({
+      type: String(def.requestType || def.id),
+      typeLabel: title,
+      note: noteParts.join("\n"),
+      departmentOverride: getRequestDefDepartmentOverride(def),
+      notifyDepartments: def.notifyDepartments,
+      requiresBilling: def.requiresBilling,
+      price: requestPrice,
+      currency: requestCurrency,
+      sourceRequestDef: def.id,
+    });
+  }
+
+  function submitRequestDefQuantityChoice(def: RequestDef, qty: number) {
+    if (!ensureConfirmedRoom()) return;
+
+    const title = getRequestDefTitle(def) || def.id.replace(/_/g, " ");
+    const unitPrice = parseMoneyValue(def.price);
+    const currency = String(def.currency || "€").trim();
+    const total = unitPrice ? unitPrice * qty : null;
+    const noteParts = [`Количество: ${qty}`];
+
+    if (total !== null) {
+      noteParts.push(`Обща цена: ${formatMoneyValue(total, currency)}`);
+    }
+
+    submitGuestRequest({
+      type: String(def.requestType || def.id),
+      typeLabel: title,
+      note: noteParts.join("\n"),
+      departmentOverride: getRequestDefDepartmentOverride(def),
+      notifyDepartments: def.notifyDepartments,
+      requiresBilling: def.requiresBilling,
+      price: total !== null ? total.toFixed(2).replace(".", ",") : def.price,
+      currency,
+      sourceRequestDef: def.id,
+    });
+  }
+
   function buildRequestDefItems(category: string): HubItem[] {
     const defs = requestDefsByCategory[String(category || "").trim().toLowerCase()] ?? [];
 
@@ -3099,6 +3233,14 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         const icon = getRequestDefButtonIcon(def);
         const label = icon ? `${icon} ${title}` : title;
         const href = getRequestDefHref(def);
+
+        if (def.type === "request" && (def.requestKind === "selection" || def.requestKind === "quantity" || def.requiresQuantity)) {
+          return {
+            label,
+            kind: "request_def" as const,
+            requestDef: def,
+          } as any;
+        }
 
         if (href && (def.type === "pdf" || def.type === "external_link" || def.type === "link")) {
           return {
@@ -4741,7 +4883,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 type="button"
                 onClick={() => void loadGuestRequests()}
                 disabled={guestRequestsLoading}
-                className="rounded-xl px-3 py-2 text-xs font-semibold text-white ring-1 ring-neutral-700 transition hover:bg-neutral-800/70 disabled:cursor-not-allowed disabled:opacity-50"
+                className="stayhub-refresh-button rounded-xl px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {guestRequestsLoading ? roomCopy.myRequestsLoading : roomCopy.refreshRequests}
               </button>
@@ -4811,6 +4953,16 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 askAI={askAI}
                 aiIntroText={aiIntroText}
                 submittingRequest={submittingRequest}
+                lang={lang}
+                handleRequestDefClick={handleRequestDefClick}
+                getRequestDefTitle={getRequestDefTitle}
+                getRequestDefMessage={getRequestDefMessage}
+                getRequestDefOptions={getRequestDefOptions}
+                getRequestDefPriceHint={getRequestDefPriceHint}
+                getQuantityChoices={getQuantityChoices}
+                getQuantityButtonLabel={getQuantityButtonLabel}
+                submitRequestDefQuantityChoice={submitRequestDefQuantityChoice}
+                submitRequestDefSelectionOption={submitRequestDefSelectionOption}
                 onCloseAi={clearAiState}
               />
             );
@@ -4833,6 +4985,16 @@ function Accordion({
   askAI,
   aiIntroText,
   submittingRequest,
+  lang,
+  handleRequestDefClick,
+  getRequestDefTitle,
+  getRequestDefMessage,
+  getRequestDefOptions,
+  getRequestDefPriceHint,
+  getQuantityChoices,
+  getQuantityButtonLabel,
+  submitRequestDefQuantityChoice,
+  submitRequestDefSelectionOption,
   onCloseAi,
 }: {
   section: HubSection;
@@ -4844,6 +5006,16 @@ function Accordion({
   askAI: () => void;
   aiIntroText: string;
   submittingRequest: boolean;
+  lang: LangKey;
+  handleRequestDefClick: (def: RequestDef) => void;
+  getRequestDefTitle: (def?: RequestDef | null) => string;
+  getRequestDefMessage: (def?: RequestDef | null) => string;
+  getRequestDefOptions: (def?: RequestDef | null, preferredLang?: LangKey) => string[];
+  getRequestDefPriceHint: (def: RequestDef) => string;
+  getQuantityChoices: (def: RequestDef) => number[];
+  getQuantityButtonLabel: (def: RequestDef, qty: number) => string;
+  submitRequestDefQuantityChoice: (def: RequestDef, qty: number) => void;
+  submitRequestDefSelectionOption: (def: RequestDef, option: string, optionIndex: number) => void;
   onCloseAi?: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -4933,6 +5105,76 @@ function Accordion({
                       <div className={clsx("whitespace-pre-wrap", it.label ? "mt-1 text-neutral-300" : "text-neutral-100")}>
                         {it.info}
                       </div>
+                    </div>
+                  );
+                }
+
+                const requestDefItem = it as any;
+                if (requestDefItem.kind === "request_def" && requestDefItem.requestDef) {
+                  const def = requestDefItem.requestDef as RequestDef;
+                  const title = getRequestDefTitle(def) || String(requestDefItem.label || def.id.replace(/_/g, " "));  
+                  const icon = getRequestDefButtonIcon(def);
+                  const message = getRequestDefMessage(def);
+                  const priceHint = getRequestDefPriceHint(def);
+                  const localizedOptions = getRequestDefOptions(def);
+                  const isQuantity = def.requestKind === "quantity" || def.requiresQuantity;
+
+                  return (
+                    <div key={idx} className="rounded-xl stayhub-card p-3 text-sm">
+                      <div className="font-semibold text-white">
+                        {icon ? `${icon} ` : ""}{title}
+                      </div>
+
+                      {message ? (
+                        <div className="mt-1 whitespace-pre-wrap text-[color:var(--stayhub-text)]/90">
+                          {message}
+                        </div>
+                      ) : null}
+
+                      {priceHint ? (
+                        <div className="mt-2 rounded-lg px-3 py-2 text-xs font-semibold" style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}>
+                          {lang === "bg" ? "Цена" : lang === "de" ? "Preis" : lang === "ro" ? "Preț" : lang === "cs" ? "Cena" : "Price"}: {priceHint}
+                        </div>
+                      ) : null}
+
+                      {isQuantity ? (
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          {getQuantityChoices(def).map((qty) => (
+                            <button
+                              key={qty}
+                              type="button"
+                              disabled={submittingRequest}
+                              onClick={() => submitRequestDefQuantityChoice(def, qty)}
+                              className="rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {getQuantityButtonLabel(def, qty)}
+                            </button>
+                          ))}
+                        </div>
+                      ) : localizedOptions.length ? (
+                        <div className="mt-3 space-y-2">
+                          {localizedOptions.map((option, optionIndex) => (
+                            <button
+                              key={`${def.id}-${optionIndex}`}
+                              type="button"
+                              disabled={submittingRequest}
+                              onClick={() => submitRequestDefSelectionOption(def, option, optionIndex)}
+                              className="w-full rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={submittingRequest}
+                          onClick={() => handleRequestDefClick(def)}
+                          className="mt-3 w-full rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {lang === "bg" ? "Изпрати заявка" : lang === "de" ? "Anfrage senden" : lang === "ro" ? "Trimite solicitarea" : lang === "cs" ? "Odeslat požadavek" : "Send request"}
+                        </button>
+                      )}
                     </div>
                   );
                 }
