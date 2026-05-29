@@ -44,7 +44,8 @@ export type StaffRequestType =
   | "reservation_help"
   | "other_reception"
   | "restaurant_reservation"
-  | "luggage_help";
+  | "luggage_help"
+  | "massage_booking";
 
 export type StaffRequest = {
   id: string;

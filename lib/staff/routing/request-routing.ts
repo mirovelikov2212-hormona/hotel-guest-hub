@@ -43,6 +43,7 @@ export function getDepartmentForRequestType(
     case "information_request":
     case "reservation_help":
     case "luggage_help":
+    case "massage_booking":
     case "other_reception":
       return "reception";
 

@@ -468,7 +468,7 @@ const copy = {
   },
 } as const;
 
-const requestTypeCopy: Record<StaffUiLang, Record<StaffRequestType, string>> = {
+const requestTypeCopy: Record<StaffUiLang, Partial<Record<StaffRequestType, string>>> = {
   bg: {
     towels: "Хавлии",
     toilet_paper: "Тоалетна хартия",
@@ -502,6 +502,7 @@ const requestTypeCopy: Record<StaffUiLang, Record<StaffRequestType, string>> = {
     safe_issue: "Проблем със сейфа",
     balcony_door_issue: "Проблем с балконската врата",
     minibar_not_cooling: "Минибарът не охлажда",
+    massage_booking: "Масаж / релакс терапия",
   },
   en: {
     towels: "Towels",
@@ -536,6 +537,7 @@ const requestTypeCopy: Record<StaffUiLang, Record<StaffRequestType, string>> = {
     safe_issue: "Safe issue",
     balcony_door_issue: "Balcony door issue",
     minibar_not_cooling: "Minibar not cooling",
+    massage_booking: "Massage / relaxation therapy",
   },
   de: {
     towels: "Handtücher",
@@ -570,6 +572,7 @@ const requestTypeCopy: Record<StaffUiLang, Record<StaffRequestType, string>> = {
     safe_issue: "Problem mit Safe",
     balcony_door_issue: "Problem mit Balkontür",
     minibar_not_cooling: "Minibar kühlt nicht",
+    massage_booking: "Massage / Entspannungstherapie",
   },
 };
 

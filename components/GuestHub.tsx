@@ -19,6 +19,8 @@ const SECTION_ICON_PREFIXES: Record<string, string> = {
   venues: "🏨",
   wifi: "📶",
   reviews: "⭐",
+  social: "📱",
+  follow: "📱",
   explore: "🗺️",
   nearby: "🗺️",
   world_cup: "🏆",
@@ -51,6 +53,13 @@ function withSectionIcon(title: string, sectionKey?: string): string {
         text.includes("animace") ||
         text.includes("animationen")
       ? "🎭"
+      : text.includes("social") ||
+        text.includes("последвайте") ||
+        text.includes("follow") ||
+        text.includes("facebook") ||
+        text.includes("instagram") ||
+        text.includes("tiktok")
+      ? "📱"
       : text.includes("world cup") ||
         text.includes("световно") ||
         text.includes("weltmeisterschaft") ||
@@ -740,6 +749,10 @@ function getGuestRequestIcon(type: StaffRequestType | string): string {
       return "🧳";
     case "special_occasion":
       return "🎉";
+    case "massage":
+    case "massage_booking":
+    case "spa_massage":
+      return "💆";
     case "air_conditioning":
       return "❄️";
     case "no_hot_water":
@@ -903,6 +916,7 @@ function getRequestDefButtonIcon(def: RequestDef): string {
   if (/charity|caritate|благотвор|wohltät|dobročin/.test(identity)) return "🤝";
   if (/towel|prosop|ručník|handtuch|хавли/.test(identity)) return "🧺";
   if (/sunbed|șezlong|lehát|liege|шезлонг/.test(identity)) return "🏖️";
+  if (/massage|masaj|masáž|массаж|масаж|relax|релакс|spa/.test(identity)) return "💆";
 
   switch (raw) {
     case "towel":
@@ -967,6 +981,10 @@ function getRequestDefButtonIcon(def: RequestDef): string {
       return "🧳";
     case "special_occasion":
       return "🎉";
+    case "massage":
+    case "massage_booking":
+    case "spa_massage":
+      return "💆";
     case "air":
     case "air_conditioning":
       return "❄️";
@@ -2352,6 +2370,30 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     [fallbackLangs, lang]
   );
 
+  const getRequestDefOptions = useCallback(
+    (def?: RequestDef | null, preferredLang: LangKey = lang) => {
+      if (!def) return [] as string[];
+      const maps = def.optionsByLang ?? {};
+      const preferred = [
+        String(preferredLang || "").trim(),
+        ...fallbackLangs.map((x) => String(x || "").trim()),
+      ].filter(Boolean);
+
+      for (const key of preferred) {
+        const values = maps[key];
+        if (Array.isArray(values) && values.length) return values.map((item) => String(item).trim()).filter(Boolean);
+      }
+
+      const firstLocalized = Object.values(maps).find((values) => Array.isArray(values) && values.length);
+      if (Array.isArray(firstLocalized) && firstLocalized.length) {
+        return firstLocalized.map((item) => String(item).trim()).filter(Boolean);
+      }
+
+      return (def.options ?? []).map((item) => String(item).trim()).filter(Boolean);
+    },
+    [fallbackLangs, lang]
+  );
+
   const getRequestDefMessage = useCallback(
     (def?: RequestDef | null) => {
       if (!def) return "";
@@ -2527,8 +2569,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           extras.push(routeLabelByLang[currentLang](section));
         }
 
-        if ((def.requestKind === "time_slot" || (def.requiresTime && def.timeMode === "slots")) && def.options.length) {
-          extras.push(slotLabelByLang[currentLang](def.options.join(", ")));
+        const localizedOptions = getRequestDefOptions(def);
+
+        if ((def.requestKind === "time_slot" || (def.requiresTime && def.timeMode === "slots")) && localizedOptions.length) {
+          extras.push(slotLabelByLang[currentLang](localizedOptions.join(", ")));
         }
 
         return {
@@ -2541,11 +2585,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             def.id,
             def.id.replace(/_/g, " "),
             ...def.keywords,
-            ...def.options,
+            ...localizedOptions,
           ].filter(Boolean),
         };
       });
-  }, [getRequestDefField, getRequestDefMessage, lang, requestDefs, tUI]);
+  }, [getRequestDefField, getRequestDefMessage, getRequestDefOptions, lang, requestDefs, tUI]);
 
   const aiServices = useMemo(() => {
     const sectionLabels = {
@@ -2868,8 +2912,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     const noteParts: string[] = [];
     const shouldAskLateCheckoutTime = def.id === "late_checkout" && !def.requiresTime;
 
-    if ((def.requestKind === "time_slot" || (def.requiresTime && def.timeMode === "slots")) && def.options.length) {
-      const slot = chooseWakeUpSlot(def.options);
+    const localizedOptions = getRequestDefOptions(def);
+    const bgOptions = getRequestDefOptions(def, "bg");
+
+    if ((def.requestKind === "time_slot" || (def.requiresTime && def.timeMode === "slots")) && localizedOptions.length) {
+      const slot = chooseWakeUpSlot(localizedOptions);
       if (!slot) return null;
       noteParts.push(`${String(tUI("wake_up_selected") || "Selected time")}: ${slot}`);
     } else if ((def.requiresTime && def.timeMode === "free") || shouldAskLateCheckoutTime) {
@@ -2911,21 +2958,27 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       noteParts.push(`${String(selectedLabel)}: ${pickedTime}`);
     }
 
-    if (def.requestKind === "selection" && def.options.length) {
-      const list = def.options.map((option, index) => `${index + 1}. ${option}`).join("\n");
+    if (def.requestKind === "selection" && localizedOptions.length) {
+      const list = localizedOptions.map((option, index) => `${index + 1}. ${option}`).join("\n");
       const picked = (window.prompt(
         `${String(tUI("request_option_prompt") || "Choose an option:")}\n\n${list}`,
-        def.options[0]
+        localizedOptions[0]
       ) || "").trim();
 
       if (!picked) return null;
 
       const numericIndex = Number(picked);
-      const selected = Number.isInteger(numericIndex) && numericIndex >= 1 && numericIndex <= def.options.length
-        ? def.options[numericIndex - 1]
-        : def.options.find((option) => option.toLowerCase() === picked.toLowerCase()) || picked;
+      const selectedIndex = Number.isInteger(numericIndex) && numericIndex >= 1 && numericIndex <= localizedOptions.length
+        ? numericIndex - 1
+        : localizedOptions.findIndex((option) => option.toLowerCase() === picked.toLowerCase());
+
+      const selected = selectedIndex >= 0 ? localizedOptions[selectedIndex] : picked;
+      const bgSelected = selectedIndex >= 0 ? (bgOptions[selectedIndex] || "") : "";
 
       noteParts.push(`${String(tUI("label_option") || "Option")}: ${selected}`);
+      if (bgSelected && bgSelected !== selected) {
+        noteParts.push(`Оперативно BG: ${bgSelected}`);
+      }
     }
 
     if (def.requiresQuantity || def.requestKind === "quantity") {
@@ -3278,6 +3331,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           price,
           currency,
           sourceRequestDef,
+          guestLanguage: String(lang),
         }),
       });
 
@@ -3367,6 +3421,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             wifi: config.wifi,
             departmentHours: config.departmentHours,
             reviews: config.reviews,
+            socialLinks: config.socialLinks,
             venueRows: (config as any).venueRows ?? [],
             hotelInfoItems: (config as any).hotelInfoItems ?? [],
             services: aiServices,
@@ -3915,11 +3970,29 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     } satisfies HubSection)
     : null;
 
-  const reviewsSection = (config.reviews?.google || config.reviews?.tripadvisor)
+  const reviewIntroLabel = String(
+    tUI("reviews_intro") ||
+    (lang === "bg"
+      ? "Харесва ли Ви престоят? Ще се радваме да споделите Вашето мнение."
+      : lang === "de"
+        ? "Gefällt Ihnen Ihr Aufenthalt? Wir freuen uns über Ihre Bewertung."
+        : lang === "ro"
+          ? "Vă place sejurul? Ne-ar bucura să ne lăsați o recenzie."
+          : lang === "cs"
+            ? "Líbí se Vám pobyt? Budeme rádi za Vaše hodnocení."
+            : "Enjoying your stay? We would be grateful for your review.")
+  );
+
+  const reviewsSection = (config.reviews?.google || config.reviews?.tripadvisor || config.reviews?.booking)
     ? ({
       id: "reviews",
-      title: String(tUI("reviews_title") || "Reviews"),
+      title: withSectionIcon(String(tUI("reviews_title") || "Reviews"), "reviews"),
       items: [
+        {
+          label: "",
+          kind: "info" as const,
+          info: reviewIntroLabel,
+        },
         ...(config.reviews?.google
           ? [
             {
@@ -3940,6 +4013,44 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
+        ...(config.reviews?.booking
+          ? [
+            {
+              label: String(tUI("leave_booking_review") || "Booking.com"),
+              kind: "link" as const,
+              href: config.reviews.booking,
+              newTab: true,
+            },
+          ]
+          : []),
+      ],
+    } satisfies HubSection)
+    : null;
+
+  const socialCopy = {
+    bg: { title: "Последвайте ни", intro: "Следете ни в социалните мрежи за новини, снимки и специални предложения." },
+    en: { title: "Follow us", intro: "Follow us on social media for news, photos and special offers." },
+    de: { title: "Folgen Sie uns", intro: "Folgen Sie uns in den sozialen Medien für Neuigkeiten, Fotos und Angebote." },
+    ro: { title: "Urmăriți-ne", intro: "Urmăriți-ne pe rețelele sociale pentru noutăți, fotografii și oferte speciale." },
+    cs: { title: "Sledujte nás", intro: "Sledujte nás na sociálních sítích pro novinky, fotografie a speciální nabídky." },
+  } as const;
+  const socialLang = (lang === "bg" || lang === "en" || lang === "de" || lang === "ro" || lang === "cs") ? lang : "en";
+  const socialLinks = config.socialLinks ?? {};
+  const socialIntro = String(tUI("social_intro") || socialCopy[socialLang].intro);
+  const socialSection = (socialLinks.facebook || socialLinks.instagram || socialLinks.tiktok || socialLinks.youtube)
+    ? ({
+      id: "social",
+      title: withSectionIcon(String(tUI("social_title") || socialCopy[socialLang].title), "social"),
+      items: [
+        {
+          label: "",
+          kind: "info" as const,
+          info: socialIntro,
+        },
+        ...(socialLinks.facebook ? [{ label: "Facebook", kind: "link" as const, href: socialLinks.facebook, newTab: true }] : []),
+        ...(socialLinks.instagram ? [{ label: "Instagram", kind: "link" as const, href: socialLinks.instagram, newTab: true }] : []),
+        ...(socialLinks.tiktok ? [{ label: "TikTok", kind: "link" as const, href: socialLinks.tiktok, newTab: true }] : []),
+        ...(socialLinks.youtube ? [{ label: "YouTube", kind: "link" as const, href: socialLinks.youtube, newTab: true }] : []),
       ],
     } satisfies HubSection)
     : null;
@@ -4342,6 +4453,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     ...dynamicRequestDefSections,
     ...(exploreSection ? [exploreSection] : []),
     ...(reviewsSection ? [reviewsSection] : []),
+    ...(socialSection ? [socialSection] : []),
     {
       id: "ai",
       title: "🤖 " + tUI("ai_title"),

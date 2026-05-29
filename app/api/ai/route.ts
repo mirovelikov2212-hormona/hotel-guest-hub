@@ -52,7 +52,8 @@ type HotelPayload = {
   venueRows?: Venue[];
   hotelInfoItems?: HotelInfoItem[];
   services?: ServiceItem[];
-  reviews?: { google?: string; tripadvisor?: string };
+  reviews?: { google?: string; tripadvisor?: string; booking?: string };
+  socialLinks?: { facebook?: string; instagram?: string; tiktok?: string; youtube?: string };
 };
 
 const SUPPORTED_LANGS: Lang[] = ["bg", "de", "en", "ro", "cs"];
@@ -96,7 +97,8 @@ const COPY = {
       open && close
         ? `Техническата поддръжка работи от ${open} до ${close}.`
         : "Техническата поддръжка е на разположение за съдействие.",
-    reviews: "Можете да оставите отзив през секцията с отзиви в хъба.",
+    reviews: "Можете да оставите отзив през секцията „Отзиви“ в хъба — Google, TripAdvisor или Booking, ако са налични.",
+    social: "Можете да ни последвате от секцията „Последвайте ни“ в хъба.",
     categoryLabel: {
       restaurants: "ресторанти",
       bars: "барове",
@@ -143,7 +145,8 @@ const COPY = {
         : "Housekeeping is available for assistance.",
     maintenanceHours: (open?: string, close?: string) =>
       open && close ? `Maintenance is available from ${open} to ${close}.` : "Maintenance is available for assistance.",
-    reviews: "You can leave a review from the reviews section in the hub.",
+    reviews: "You can leave a review from the Reviews section in the hub — Google, TripAdvisor or Booking, when available.",
+    social: "You can follow us from the Follow us section in the hub.",
     categoryLabel: {
       restaurants: "restaurants",
       bars: "bars",
@@ -190,7 +193,8 @@ const COPY = {
         : "Housekeeping hilft Ihnen gern weiter.",
     maintenanceHours: (open?: string, close?: string) =>
       open && close ? `Die Technik ist von ${open} bis ${close} verfügbar.` : "Die Technik hilft Ihnen gern weiter.",
-    reviews: "Sie können eine Bewertung über den Bewertungsbereich im Hub hinterlassen.",
+    reviews: "Sie können eine Bewertung im Bereich „Bewertungen“ im Hub hinterlassen — Google, TripAdvisor oder Booking, sofern verfügbar.",
+    social: "Sie können uns im Bereich „Folgen Sie uns“ im Hub folgen.",
     categoryLabel: {
       restaurants: "Restaurants",
       bars: "Bars",
@@ -237,7 +241,8 @@ const COPY = {
         : "Housekeeping vă stă la dispoziție.",
     maintenanceHours: (open?: string, close?: string) =>
       open && close ? `Întreținerea este disponibilă între ${open} și ${close}.` : "Întreținerea vă stă la dispoziție.",
-    reviews: "Puteți lăsa o recenzie din secțiunea de recenzii din hub.",
+    reviews: "Puteți lăsa o recenzie din secțiunea Recenzii din hub — Google, TripAdvisor sau Booking, dacă sunt disponibile.",
+    social: "Ne puteți urmări din secțiunea Urmăriți-ne din hub.",
     categoryLabel: {
       restaurants: "restaurante",
       bars: "baruri",
@@ -284,7 +289,8 @@ const COPY = {
         : "Housekeeping vám rád pomůže.",
     maintenanceHours: (open?: string, close?: string) =>
       open && close ? `Údržba je k dispozici od ${open} do ${close}.` : "Údržba vám ráda pomůže.",
-    reviews: "Recenzi můžete zanechat v sekci recenzí v hubu.",
+    reviews: "Recenzi můžete zanechat v sekci Recenze v hubu — Google, TripAdvisor nebo Booking, pokud jsou k dispozici.",
+    social: "Sledovat nás můžete v sekci Sledujte nás v hubu.",
     categoryLabel: {
       restaurants: "restaurace",
       bars: "bary",
@@ -507,6 +513,7 @@ const SERVICE_KEYWORDS: Record<string, string[]> = {
   other_technical_issue: ["broken", "issue", "problem", "счупено", "проблем", "defect", "rozbité", "porucha"],
   coffee_capsules: ["coffee capsules", "coffee", "capsules", "кафе", "кафе капсули", "капсули", "cafea", "capsule", "capsule de cafea", "kávové kapsle", "kava", "káva"],
   pillow_menu: ["pillow menu", "меню възглавници", "meniu perne", "nabídka polštářů"],
+  massage_booking: ["massage", "massages", "масаж", "масажи", "релакс", "masaj", "masaje", "masáž", "masáže", "spa therapy", "relax therapy"],
   special_occasion: ["special occasion", "специален повод", "ocazie specială", "zvláštní příležitost"],
 };
 
@@ -521,7 +528,7 @@ const HOTEL_KEYWORDS = [
   "parcare", "prosoape", "șezlong", "sezlong", "caritate", "politica", "reguli", "animație", "animatie",
   "parkování", "ručníky", "lehátka", "charita", "pravidla", "animace",
   "check", "location", "address", "hours", "opening", "program", "nearby", "around", "area", "работ", "час", "къде", "район", "района", "около", "наблизо", "близо", "where", "wo", "umgebung", "nähe", "unde", "apropiere", "împrejurimi", "kde", "okolí", "blízko", "otevírací", "program",
-  "minibar", "минибар", "laundry", "пране", "wake", "събуж", "taxi", "такси",
+  "minibar", "минибар", "laundry", "пране", "wake", "събуж", "taxi", "такси", "facebook", "instagram", "tiktok", "tik tok", "youtube", "social", "социал", "последвай", "последват", "follow",
 ];
 
 const INFO_GROUP_KEYWORDS: Record<string, string[]> = {
@@ -1321,8 +1328,12 @@ async function buildHotelAnswer(question: string, lang: Lang, hotel: HotelPayloa
   const hotelInfoAnswer = buildHotelInfoAnswer(q, lang, hotel);
   if (hotelInfoAnswer) return hotelInfoAnswer;
 
-  if (hasAnyTerm(q, ["review", "reviews", "отзив", "bewertung", "recenzie", "recenze"])) {
+  if (hasAnyTerm(q, ["review", "reviews", "отзив", "отзиви", "рейтинг", "rating", "bewertung", "recenzie", "recenze", "booking", "tripadvisor", "google review"])) {
     return t.reviews;
+  }
+
+  if (hasAnyTerm(q, ["facebook", "instagram", "tiktok", "tik tok", "youtube", "social", "социал", "последвай", "последват", "follow", "urmări", "sleduj"])) {
+    return t.social;
   }
 
   if (hasAnyTerm(q, ["reception", "rezeption", "рецепц", "recepție", "recepce"])) {

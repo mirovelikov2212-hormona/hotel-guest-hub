@@ -44,6 +44,7 @@ const known = new Set<StaffRequestType>([
   "other_reception",
   "restaurant_reservation",
   "luggage_help",
+  "massage_booking",
 ]);
 
 export function normalizeStaffRequestType(rawType: string, department?: StaffDepartment): StaffRequestType {

@@ -72,6 +72,10 @@ function detectSpecificKey(
     return "special_occasion";
   }
 
+  if (/massage|masaj|masáž|массаж|масаж|spa_relax|relax_therapy|релакс/.test(signals)) {
+    return "massage_booking";
+  }
+
   if (/coffee_machine|kafe_mashina|кафе_машина|kavovar|aparat_de_cafea/.test(signals)) {
     return "coffee_machine";
   }
@@ -104,6 +108,8 @@ const STAFF_TITLES_BG: Record<string, string> = {
 
   coffee_capsules: "Кафе капсули",
   pillow_menu: "Меню възглавници",
+  massage_booking: "Масаж / релакс терапия",
+  spa_massage: "Масаж / релакс терапия",
 
   air_conditioning: "Климатик / отопление",
   light_not_working: "Проблем с осветлението",
@@ -145,6 +151,8 @@ const STAFF_NOTES_BG: Record<string, string> = {
   laundry: "Платена услуга: пране. Рецепцията трябва да начисли услугата към сметката на стаята.",
   coffee_capsules: "Платена услуга: кафе капсули. Housekeeping доставя, рецепцията начислява към сметката на стаята.",
   pillow_menu: "Платена услуга: меню възглавници. Housekeeping доставя, рецепцията начислява към сметката на стаята.",
+  massage_booking: "Платена услуга: масаж / релакс терапия. Рецепцията трябва да начисли услугата към сметката на стаята.",
+  spa_massage: "Платена услуга: масаж / релакс терапия. Рецепцията трябва да начисли услугата към сметката на стаята.",
   coffee_machine: "Гостът съобщи за проблем с кафе машината.",
   minibar_not_cooling: "Гостът съобщи, че минибарът не охлажда.",
 };
@@ -193,6 +201,52 @@ function extractPeopleCount(value: string) {
   return match?.[1] ?? "";
 }
 
+function extractLabeledValue(value: string, labelHints: string[]) {
+  const lines = String(value || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+
+  for (const line of lines) {
+    const parts = line.split(":");
+    if (parts.length < 2) continue;
+
+    const label = normalizeText(parts.shift());
+    const rest = parts.join(":").trim();
+    if (!rest) continue;
+
+    if (labelHints.some((hint) => label.includes(normalizeText(hint)))) {
+      return rest;
+    }
+  }
+
+  return "";
+}
+
+function extractSelectedOption(value: string) {
+  return extractLabeledValue(value, [
+    "option",
+    "опция",
+    "избрана опция",
+    "selected option",
+    "auswahl",
+    "opțiune",
+    "optiune",
+    "možnost",
+    "moznost",
+    "услуга",
+  ]);
+}
+
+function extractQuantity(value: string) {
+  return extractLabeledValue(value, [
+    "quantity",
+    "количество",
+    "брой",
+    "menge",
+    "cantitate",
+    "množství",
+    "mnozstvi",
+  ]);
+}
+
 function formatBillingNotice(metadata: RequestMetadata) {
   if (!metadata.requiresBilling) return "";
 
@@ -233,8 +287,25 @@ function translateGeneratedNoteToBg(key: string, originalNote: string, metadata:
       return parts.length > 0 ? `Резервация: ${parts.join(" · ")}` : "Гостът иска резервация.";
     }
 
-    case "coffee_capsules":
-    case "pillow_menu":
+    case "coffee_capsules": {
+      const qty = extractQuantity(note);
+      const details = qty ? `Количество: ${qty}` : "";
+      return [details, STAFF_NOTES_BG[key], billingNotice].filter(Boolean).join("\n") || undefined;
+    }
+
+    case "pillow_menu": {
+      const option = extractSelectedOption(note);
+      const details = option ? `Избрана възглавница: ${option}` : "";
+      return [details, STAFF_NOTES_BG[key], billingNotice].filter(Boolean).join("\n") || undefined;
+    }
+
+    case "massage_booking":
+    case "spa_massage": {
+      const option = extractSelectedOption(note);
+      const details = option ? `Избрана услуга: ${option}` : "";
+      return [details, STAFF_NOTES_BG[key], billingNotice].filter(Boolean).join("\n") || undefined;
+    }
+
     case "minibar":
     case "minibar_refill":
     case "laundry":

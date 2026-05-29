@@ -85,6 +85,14 @@ export async function buildHotelConfigFromSheets(): Promise<HotelConfig> {
     reviews: {
       google: pick(kv, ["googleReviewUrl", "reviews_google"], ""),
       tripadvisor: pick(kv, ["tripadvisorUrl", "reviews_tripadvisor"], ""),
+      booking: pick(kv, ["bookingUrl", "reviews_booking"], ""),
+    },
+
+    socialLinks: {
+      facebook: pick(kv, ["facebookUrl", "social_facebook"], ""),
+      instagram: pick(kv, ["instagramUrl", "social_instagram"], ""),
+      tiktok: pick(kv, ["tiktokUrl", "social_tiktok"], ""),
+      youtube: pick(kv, ["youtubeUrl", "social_youtube"], ""),
     },
 
     departmentHours: {

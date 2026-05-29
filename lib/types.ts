@@ -62,6 +62,7 @@ export type RequestDef = {
   requiresTime: boolean;
   timeMode: RequestDefTimeMode;
   options: string[];
+  optionsByLang?: Partial<Record<LangKey, string[]>>;
   guestVisible: boolean;
   staffVisible: boolean;
   aiVisible: boolean;
@@ -116,6 +117,14 @@ export type TaxiProvider = {
 export type ReviewLinks = {
   google?: string;
   tripadvisor?: string;
+  booking?: string;
+};
+
+export type SocialLinks = {
+  facebook?: string;
+  instagram?: string;
+  tiktok?: string;
+  youtube?: string;
 };
 
 export type HotelRoom = {
@@ -248,6 +257,7 @@ export type HotelConfig = {
 
   taxiProviders?: TaxiProvider[];
   reviews: ReviewLinks;
+  socialLinks?: SocialLinks;
 
   venueRows?: VenueRow[];
   hotelInfoItems?: HotelInfoItem[];
@@ -278,6 +288,7 @@ export type StaffRequestType =
   | "wake_up_call"
   | "information"
   | "restaurant_reservation"
+  | "massage_booking"
   | "iron"
   | "minibar";
 

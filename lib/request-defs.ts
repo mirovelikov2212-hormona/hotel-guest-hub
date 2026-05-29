@@ -38,8 +38,14 @@ function toNumber(value: string, fallback?: number): number | undefined {
 }
 
 function parseList(value: string): string[] {
-  return String(value ?? "")
-    .split(/[|,]/)
+  const raw = String(value ?? "").trim();
+  if (!raw) return [];
+
+  // Prefer pipe-separated lists. Commas are common in prices such as "60,00 €".
+  const delimiter = raw.includes("|") ? /\|/ : /,/;
+
+  return raw
+    .split(delimiter)
     .map((item) => item.trim())
     .filter(Boolean);
 }
@@ -114,6 +120,29 @@ function buildTextMap(
   return out;
 }
 
+function buildOptionsMap(row: LooseRow, langs: LangKey[]): Partial<Record<LangKey, string[]>> {
+  const out: Partial<Record<LangKey, string[]>> = {};
+  const langList = Array.from(new Set([...DEFAULT_LANGS, ...langs.map((lang) => String(lang).trim()).filter(Boolean)]));
+
+  for (const lang of langList) {
+    const upper = String(lang).toUpperCase();
+    const lower = String(lang).toLowerCase();
+    const raw = readFirst(row, [
+      `options_${lower}`,
+      `options_${upper}`,
+      `Options ${upper}`,
+      `Options ${lower}`,
+      `options${upper}`,
+      `Options${upper}`,
+    ]);
+
+    const parsed = parseList(raw);
+    if (parsed.length) out[lang] = parsed;
+  }
+
+  return out;
+}
+
 function normalizeCategory(value: string): string {
   return String(value ?? "")
     .trim()
@@ -180,6 +209,7 @@ export function parseRequestDefs(rows: LooseRow[], langs: LangKey[]): RequestDef
       requiresTime: toBool(readFirst(row, ["requires_time", "requiresTime", "time_required", "timeRequired"])),
       timeMode: normalizeTimeMode(readFirst(row, ["time_mode", "timeMode", "slots_mode", "slotsMode"]), requestKind),
       options: parseList(readFirst(row, ["options_raw", "optionsRaw", "options", "Options", "slots", "Slots"])),
+      optionsByLang: buildOptionsMap(row, langs),
       guestVisible: toBool(readFirst(row, ["guest_visible", "guestVisible", "visible", "Visible"]), true),
       staffVisible: toBool(readFirst(row, ["staff_visible", "staffVisible"]), true),
       aiVisible: toBool(readFirst(row, ["ai_visible", "aiVisible"]), true),
