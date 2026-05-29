@@ -56,13 +56,6 @@ function patchLayout() {
     });
   }
 
-  // Ensure metadata has themeColor fallback for older Next versions.
-  if (!/themeColor\s*:/.test(s)) {
-    s = s.replace(/export\s+const\s+metadata\s*:\s*Metadata\s*=\s*\{/, `export const metadata: Metadata = {\n  themeColor: "${THEME}",`);
-  } else {
-    s = s.replace(/themeColor\s*:\s*(["'`])[^"'`]+\1/, `themeColor: "${THEME}"`);
-  }
-
   // Add/replace viewport export. This is the current Next.js way to output <meta name="theme-color">.
   const viewportBlock = `export const viewport: Viewport = {\n  themeColor: "${THEME}",\n  colorScheme: "light",\n};\n\n`;
   if (/export\s+const\s+viewport\s*:\s*Viewport\s*=\s*\{[\s\S]*?\};\s*/.test(s)) {

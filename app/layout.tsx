@@ -3,7 +3,6 @@ import "./globals.css";
 import PWARegister from "@/components/PWARegister";
 
 export const metadata: Metadata = {
-  themeColor: "#F5F5F5",
   title: "StayHub",
   description: "Digital guest hub for hotels.",
   applicationName: "StayHub",
