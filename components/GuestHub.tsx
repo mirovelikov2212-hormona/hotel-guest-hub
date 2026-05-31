@@ -2204,7 +2204,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     (tUI("dept_closed_to_reception") as string) ||
     "Отделът не работи в момента. Заявката ще бъде изпратена към рецепция.";
 
-  const operationsProcessingWindowOpen = "08:00";
+  const operationsProcessingWindowOpen = "07:00";
   const operationsProcessingWindowClose = config.housekeepingCutoff ?? "17:00";
 
   const afterOperationsCutoff = useMemo(() => {
@@ -3661,15 +3661,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
       const normalizedType = String(type);
 
-      const departmentOverride = explicitDepartmentOverride ?? (
-        serviceTime !== "tomorrow" &&
-          (
-            (housekeepingRequestTypes.has(normalizedType) && housekeepingRoutedToReception) ||
-            (maintenanceRequestTypes.has(normalizedType) && maintenanceRoutedToReception)
-          )
-          ? "reception"
-          : undefined
-      );
+      // Keep the original operational department in the request.
+      // After-hours handover to reception is calculated dynamically in Staff Hub,
+      // so the request can return to housekeeping/maintenance after 07:00 if still open.
+      const departmentOverride = explicitDepartmentOverride;
 
       const res = await fetch("/api/guest/request-create", {
         method: "POST",
@@ -4616,8 +4611,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                       type: action.type,
                       typeLabel: String(tUI(x.labelKey) || action.typeLabel),
                       note: paidNotice || action.note,
-                      notifyDepartments: x.key === "minibar" || x.key === "laundry" ? ["reception"] : undefined,
-                      requiresBilling: x.key === "minibar" || x.key === "laundry" ? true : undefined,
+                      notifyDepartments: ["minibar", "laundry", "coffee_capsules", "pillow_menu"].includes(String(x.key)) ? ["reception"] : undefined,
+                      requiresBilling: ["minibar", "laundry", "coffee_capsules", "pillow_menu"].includes(String(x.key)) ? true : undefined,
                     });
                   };
 

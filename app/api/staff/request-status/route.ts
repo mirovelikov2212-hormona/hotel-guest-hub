@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import type { StaffDepartment, StaffRequestStatus } from "@/lib/staff/types";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
-import { shouldRouteDepartmentToReceptionAfterHours } from "@/lib/staff/operations-hours";
+import { canRoleProcessOperationalRequest } from "@/lib/staff/request-operations";
 
 type GuestRequestRow = {
   id: string;
@@ -85,29 +85,11 @@ function canRoleUpdateDepartment(input: {
   status: StaffRequestStatus;
   serviceTime?: string;
 }) {
-  const { role, department, status, serviceTime } = input;
-
-  if (role === "manager") return true;
-
-  const isHandledByReception = shouldRouteDepartmentToReceptionAfterHours({
-    department,
-    status,
-    serviceTime,
+  return canRoleProcessOperationalRequest(input.role, {
+    department: input.department,
+    status: input.status,
+    serviceTime: input.serviceTime,
   });
-
-  if (role === "reception") {
-    return department === "reception" || isHandledByReception;
-  }
-
-  if (role === "housekeeping") {
-    return department === "housekeeping" && !isHandledByReception;
-  }
-
-  if (role === "maintenance") {
-    return department === "maintenance" && !isHandledByReception;
-  }
-
-  return false;
 }
 
 export async function POST(req: NextRequest) {
@@ -160,7 +142,7 @@ export async function POST(req: NextRequest) {
       serviceTime,
     })) {
       return NextResponse.json(
-        { ok: false, error: "Заявката вече се обработва от друг отдел според работното време." },
+        { ok: false, error: "Нямате право да обработите оперативния статус на тази заявка. Ако е платена услуга, използвайте бутона за начисляване в рецепция." },
         { status: 403 }
       );
     }

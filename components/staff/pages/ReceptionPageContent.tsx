@@ -12,7 +12,7 @@ import type {
   StaffRequestStatus,
 } from "@/lib/staff/types";
 import { staffText } from "@/lib/staff/ui-copy";
-import { isAfterOperationsHours } from "@/lib/staff/operations-hours";
+import { canRoleChargeRequest, canRoleProcessOperationalRequest } from "@/lib/staff/request-operations";
 
 type DepartmentFilter = "all" | StaffDepartment;
 type StatusFilter = "all" | "active" | StaffRequestStatus;
@@ -100,8 +100,8 @@ export default function ReceptionPage() {
     return () => window.clearInterval(interval);
   }, []);
 
-  const { getOperationalAllRequests, updateRequestStatus } = useStaffStore();
-  const requests = getOperationalAllRequests();
+  const { getAllRequests, updateRequestStatus, updateRequestBilling } = useStaffStore();
+  const requests = getAllRequests();
 
   const activeRequests = useMemo(
     () => requests.filter((request) => isActiveStatus(request.status)),
@@ -140,35 +140,23 @@ export default function ReceptionPage() {
     return sortRequests(base, sortMode, nowMs);
   }, [requests, activeDepartment, activeStatus, sortMode, nowMs]);
 
-  const afterHours = useMemo(() => isAfterOperationsHours(new Date(nowMs)), [nowMs]);
-
   const actionableRequests = useMemo(
     () =>
-      filteredRequests.filter((request) => {
-        if (request.department === "reception") return true;
-        if (!afterHours) return false;
-        return (
-          request.department === "housekeeping" ||
-          request.department === "maintenance"
-        );
-      }),
-    [afterHours, filteredRequests],
+      filteredRequests.filter((request) =>
+        canRoleProcessOperationalRequest("reception", request, new Date(nowMs)) ||
+        canRoleChargeRequest("reception", request)
+      ),
+    [filteredRequests, nowMs],
   );
 
   const monitoringRequests = useMemo(
     () =>
-      filteredRequests.filter((request) => {
-        if (request.department === "reception") return false;
-        if (
-          afterHours &&
-          (request.department === "housekeeping" ||
-            request.department === "maintenance")
-        ) {
-          return false;
-        }
-        return true;
-      }),
-    [afterHours, filteredRequests],
+      filteredRequests.filter(
+        (request) =>
+          !canRoleProcessOperationalRequest("reception", request, new Date(nowMs)) &&
+          !canRoleChargeRequest("reception", request)
+      ),
+    [filteredRequests, nowMs],
   );
 
   return (
@@ -305,18 +293,22 @@ export default function ReceptionPage() {
         {actionableRequests.length ? (
           actionableRequests.map((request) => {
             const requestAgeMinutes = getRequestAgeMinutes(request, nowMs);
+            const canAct = canRoleProcessOperationalRequest("reception", request, new Date(nowMs));
+            const canCharge = canRoleChargeRequest("reception", request);
 
             return (
               <StaffRequestCard
                 key={request.id}
                 request={request}
                 mode="reception"
-                canAct
+                canAct={canAct}
+                canCharge={canCharge}
                 isOverdue={isOverdueForReception(request, nowMs)}
                 overdueMinutes={requestAgeMinutes}
                 onStart={(id) => void updateRequestStatus(id, "in_progress")}
                 onDone={(id) => void updateRequestStatus(id, "completed")}
                 onReturn={(id) => void updateRequestStatus(id, "returned")}
+                onCharge={(id) => void updateRequestBilling(id)}
               />
             );
           })

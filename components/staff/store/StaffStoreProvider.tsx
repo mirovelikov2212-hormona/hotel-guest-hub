@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
-import { shouldRouteDepartmentToReceptionAfterHours } from "@/lib/staff/operations-hours";
+import { canRoleViewRequest } from "@/lib/staff/request-operations";
 import type {
   StaffDepartment,
   StaffRequest,
@@ -34,6 +34,7 @@ type StaffStoreContextValue = {
   hotelId?: string;
   hotelSlug?: string;
   updateRequestStatus: (id: string, status: StaffRequestStatus) => Promise<void>;
+  updateRequestBilling: (id: string) => Promise<void>;
   addRequest: (input: AddRequestInput) => Promise<void>;
   getRequestsByDepartment: (department: StaffDepartment) => StaffRequest[];
   getOperationalRequestsByDepartment: (
@@ -168,6 +169,34 @@ async function updateStaffRequestStatus(input: {
   }
 }
 
+
+async function updateStaffRequestBilling(input: {
+  id: string;
+  hotelSlug: string;
+  role: StaffRole;
+}) {
+  const response = await fetch("/api/staff/request-billing", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      id: input.id,
+      requestId: input.id,
+      hotelSlug: input.hotelSlug,
+      role: input.role,
+    }),
+  });
+
+  const payload = await response.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+
+  if (!response.ok || payload?.ok === false) {
+    const message = payload?.error || `Failed to update billing status: ${response.status}`;
+    throw new Error(message);
+  }
+}
+
 async function createStaffRequest(input: AddRequestInput & {
   hotelId?: string;
   hotelSlug?: string;
@@ -186,14 +215,10 @@ async function createStaffRequest(input: AddRequestInput & {
   }
 }
 
-function isHiddenFromDepartmentAfterHours(request: StaffRequest, department: StaffDepartment) {
+function shouldShowInDepartmentBoard(request: StaffRequest, department: StaffDepartment) {
   if (request.department !== department) return false;
 
-  return shouldRouteDepartmentToReceptionAfterHours({
-    department: request.department,
-    status: request.status,
-    serviceTime: request.serviceTime,
-  });
+  return canRoleViewRequest(department as StaffRole, request);
 }
 
 export function StaffStoreProvider({
@@ -356,6 +381,52 @@ export function StaffStoreProvider({
     [currentRole, loadRequests, normalizedHotelSlug, requests]
   );
 
+  const updateRequestBilling = useCallback(
+    async (id: string) => {
+      if (!normalizedHotelSlug || !currentRole) return;
+
+      const previousRequests = requests;
+      const nowIso = new Date().toISOString();
+
+      setRequests((current) =>
+        current.map((request) =>
+          request.id === id
+            ? {
+                ...request,
+                requiresBilling: true,
+                billingStatus: "charged",
+                billingChargedAt: nowIso,
+              }
+            : request
+        )
+      );
+
+      try {
+        await updateStaffRequestBilling({
+          id,
+          hotelSlug: normalizedHotelSlug,
+          role: currentRole,
+        });
+
+        await loadRequests();
+      } catch (error) {
+        setRequests(previousRequests);
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Неуспешно маркиране на начисляването.";
+
+        console.error("Failed to update staff request billing", error);
+
+        if (typeof window !== "undefined") {
+          window.alert(message);
+        }
+      }
+    },
+    [currentRole, loadRequests, normalizedHotelSlug, requests]
+  );
+
   const addRequest = useCallback(
     async (input: AddRequestInput) => {
       try {
@@ -377,9 +448,8 @@ export function StaffStoreProvider({
     (department: StaffDepartment) => {
       return requests.filter(
         (request) =>
-          request.department === department &&
           isOperationalRequest(request) &&
-          !isHiddenFromDepartmentAfterHours(request, department)
+          shouldShowInDepartmentBoard(request, department)
       );
     },
     [requests]
@@ -410,6 +480,7 @@ export function StaffStoreProvider({
       hotelId: normalizedHotelId,
       hotelSlug: normalizedHotelSlug,
       updateRequestStatus,
+      updateRequestBilling,
       addRequest,
       getRequestsByDepartment,
       getOperationalRequestsByDepartment,
@@ -422,6 +493,7 @@ export function StaffStoreProvider({
       normalizedHotelId,
       normalizedHotelSlug,
       updateRequestStatus,
+      updateRequestBilling,
       addRequest,
       getRequestsByDepartment,
       getOperationalRequestsByDepartment,

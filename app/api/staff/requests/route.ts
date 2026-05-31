@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
-import { shouldRouteDepartmentToReceptionAfterHours } from "@/lib/staff/operations-hours";
+import { canRoleViewRequest } from "@/lib/staff/request-operations";
 import type {
   StaffDepartment,
   StaffRequest,
@@ -33,6 +33,9 @@ type GuestRequestRow = {
     price?: string | null;
     currency?: string | null;
     notifyDepartments?: string[];
+    billingStatus?: "pending" | "charged";
+    billingChargedAt?: string;
+    billingChargedByRole?: string;
     guestLanguage?: string;
     staffTitleBg?: string | null;
     staffNoteBg?: string | null;
@@ -81,6 +84,21 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
       message: row.message,
       metadata,
     }),
+    notifyDepartments: Array.isArray(metadata.notifyDepartments)
+      ? metadata.notifyDepartments.filter((department): department is StaffDepartment =>
+          department === "reception" ||
+          department === "housekeeping" ||
+          department === "maintenance" ||
+          department === "restaurant"
+        )
+      : undefined,
+    requiresBilling: Boolean(metadata.requiresBilling || metadata.price),
+    billingStatus: metadata.billingStatus ?? (metadata.requiresBilling ? "pending" : undefined),
+    billingChargedAt: metadata.billingChargedAt,
+    billingChargedByRole: metadata.billingChargedByRole,
+    price: metadata.price ?? undefined,
+    currency: metadata.currency ?? undefined,
+    sourceRequestDef: metadata.sourceRequestDef ?? undefined,
   };
 }
 
@@ -148,20 +166,21 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const now = new Date();
     const rows = (data as GuestRequestRow[]).filter((row) => {
-      if (role !== "housekeeping" && role !== "maintenance") return true;
-
       const metadata = row.metadata_json ?? {};
       const normalizedType = normalizeStaffRequestType(row.request_type, metadata.department);
       const department = metadata.department ?? getDepartmentForRequestType(normalizedType);
 
-      if (department !== role) return false;
-
-      return !shouldRouteDepartmentToReceptionAfterHours({
+      return canRoleViewRequest(role, {
         department,
         status: row.status,
         serviceTime: metadata.serviceTime,
-      });
+        requiresBilling: Boolean(metadata.requiresBilling || metadata.price),
+        price: metadata.price,
+        notifyDepartments: metadata.notifyDepartments,
+        billingStatus: metadata.billingStatus,
+      }, now);
     });
 
     return NextResponse.json({

@@ -10,6 +10,41 @@ function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
 }
 
+
+const BILLABLE_REQUEST_KEYS = new Set([
+  "coffee_capsules",
+  "pillow_menu",
+  "minibar",
+  "minibar_refill",
+  "laundry",
+  "late_checkout",
+]);
+
+function uniqueLowercaseList(items: unknown[]) {
+  return Array.from(
+    new Set(
+      items
+        .map((item) => String(item || "").trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+}
+
+function isBillableRequest(input: {
+  rawType: string;
+  sourceRequestDef: string | null;
+  requiresBilling: boolean;
+  price: string | null;
+}) {
+  if (input.requiresBilling) return true;
+  if (String(input.price || "").trim()) return true;
+
+  const rawType = String(input.rawType || "").trim().toLowerCase();
+  const sourceRequestDef = String(input.sourceRequestDef || "").trim().toLowerCase();
+
+  return BILLABLE_REQUEST_KEYS.has(rawType) || BILLABLE_REQUEST_KEYS.has(sourceRequestDef);
+}
+
 async function getHotelByAnySlugAdmin(inputSlug: string) {
   const slug = String(inputSlug || "").trim().toLowerCase();
   const { data, error } = await supabaseAdmin
@@ -37,13 +72,22 @@ export async function POST(req: NextRequest) {
     const note = body?.note ? String(body.note).trim() : null;
     const serviceTime = String(body?.serviceTime || "now").trim().toLowerCase() as StaffServiceTime;
     const departmentOverride = body?.departmentOverride ? String(body.departmentOverride).trim().toLowerCase() as StaffDepartment : undefined;
-    const notifyDepartments = Array.isArray(body?.notifyDepartments)
-      ? body.notifyDepartments.map((item: unknown) => String(item || "").trim().toLowerCase()).filter(Boolean)
-      : String(body?.notifyDepartments || "").split(/[|,]/).map((item) => item.trim().toLowerCase()).filter(Boolean);
-    const requiresBilling = Boolean(body?.requiresBilling);
+    const rawNotifyDepartments = Array.isArray(body?.notifyDepartments)
+      ? uniqueLowercaseList(body.notifyDepartments)
+      : uniqueLowercaseList(String(body?.notifyDepartments || "").split(/[|,]/));
+    const requestedRequiresBilling = Boolean(body?.requiresBilling);
     const price = body?.price ? String(body.price).trim() : null;
     const currency = body?.currency ? String(body.currency).trim() : null;
     const sourceRequestDef = body?.sourceRequestDef ? String(body.sourceRequestDef).trim() : null;
+    const requiresBilling = isBillableRequest({
+      rawType,
+      sourceRequestDef,
+      requiresBilling: requestedRequiresBilling,
+      price,
+    });
+    const notifyDepartments = requiresBilling
+      ? uniqueLowercaseList([...rawNotifyDepartments, "reception"])
+      : rawNotifyDepartments;
     const guestLanguage = body?.guestLanguage ? String(body.guestLanguage).trim().toLowerCase() : "en";
 
     if (!hotelSlug || !room || !rawType) {
@@ -81,6 +125,7 @@ export async function POST(req: NextRequest) {
       typeLabel,
       note,
       rawType,
+      billingStatus: requiresBilling ? "pending" : undefined,
     };
     const staffTitleBg = getOperationalRequestTitleBg({
       requestType: normalizedType,
@@ -140,6 +185,7 @@ export async function POST(req: NextRequest) {
         price: data.metadata_json?.price ?? price ?? undefined,
         currency: data.metadata_json?.currency ?? currency ?? undefined,
         sourceRequestDef: data.metadata_json?.sourceRequestDef ?? sourceRequestDef ?? undefined,
+        billingStatus: data.metadata_json?.billingStatus ?? (requiresBilling ? "pending" : undefined),
         createdAt: created.toLocaleString([], {
           year: "numeric",
           month: "2-digit",

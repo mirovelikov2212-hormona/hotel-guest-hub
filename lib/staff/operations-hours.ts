@@ -1,7 +1,7 @@
 import type { StaffDepartment, StaffRequestStatus } from "@/lib/staff/types";
 
 export const HOTEL_OPERATIONS_TIME_ZONE = "Europe/Sofia";
-export const HOTEL_OPERATIONS_OPEN_MINUTES = 8 * 60;
+export const HOTEL_OPERATIONS_OPEN_MINUTES = 7 * 60;
 export const HOTEL_OPERATIONS_CLOSE_MINUTES = 17 * 60;
 
 function getHotelLocalMinutes(date = new Date()) {
