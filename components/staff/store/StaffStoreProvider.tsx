@@ -78,23 +78,24 @@ function isOperationalRequest(request: StaffRequest) {
   );
 }
 
+function isStaffRole(value: string | undefined): value is StaffRole {
+  return (
+    value === "reception" ||
+    value === "housekeeping" ||
+    value === "maintenance" ||
+    value === "manager"
+  );
+}
+
 function getRoleFromPath(pathname: string | null): StaffRole | undefined {
   if (!pathname) return undefined;
 
   const parts = pathname.split("/").filter(Boolean);
-  if (parts.length < 3 || parts[0] !== "staff") return undefined;
+  if (parts[0] !== "staff") return undefined;
 
-  const role = parts[2]?.toLowerCase();
-  if (
-    role === "reception" ||
-    role === "housekeeping" ||
-    role === "maintenance" ||
-    role === "manager"
-  ) {
-    return role;
-  }
-
-  return undefined;
+  // Supports both /staff/reception and /staff/[hotelSlug]/reception.
+  const lastPart = parts[parts.length - 1]?.toLowerCase();
+  return isStaffRole(lastPart) ? lastPart : undefined;
 }
 
 function extractRequests(payload: unknown): StaffRequest[] {

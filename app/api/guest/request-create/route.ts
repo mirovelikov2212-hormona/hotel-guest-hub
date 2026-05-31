@@ -45,17 +45,30 @@ function isBillableRequest(input: {
   return BILLABLE_REQUEST_KEYS.has(rawType) || BILLABLE_REQUEST_KEYS.has(sourceRequestDef);
 }
 
-async function getHotelByAnySlugAdmin(inputSlug: string) {
+function getHotelSlugCandidates(inputSlug: string) {
   const slug = String(inputSlug || "").trim().toLowerCase();
+  const candidates = new Set([slug]);
+
+  // Aquamarine is the public spelling, while the first DB record was created as aquamarin.
+  if (slug === "aquamarine") candidates.add("aquamarin");
+  if (slug === "aquamarin") candidates.add("aquamarine");
+
+  return Array.from(candidates).filter(Boolean);
+}
+
+async function getHotelByAnySlugAdmin(inputSlug: string) {
+  const candidates = getHotelSlugCandidates(inputSlug);
+
   const { data, error } = await supabaseAdmin
     .from("hotels")
-    .select("id, slug, public_slug, name, active")
-    .or(`slug.eq.${slug},public_slug.eq.${slug}`)
+    .select("id, slug, name, active")
+    .in("slug", candidates)
     .eq("active", true)
+    .limit(1)
     .maybeSingle();
 
   if (error || !data) {
-    throw new Error(`Hotel not found for slug: ${slug}`);
+    throw new Error(`Hotel not found for slug: ${candidates.join("|")}`);
   }
 
   return data;
