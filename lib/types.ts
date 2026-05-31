@@ -143,19 +143,24 @@ export type VenueRow = {
   category?: string;
   type?: string;
   name: string;
+  nameByLang?: Partial<Record<LangKey, string>>;
   active?: boolean;
   sortOrder?: number | string;
   icon?: string;
 
   shortDescription?: string;
+  shortDescriptionByLang?: Partial<Record<LangKey, string>>;
   description?: string;
+  descriptionByLang?: Partial<Record<LangKey, string>>;
   cuisine?: string;
+  cuisineByLang?: Partial<Record<LangKey, string>>;
   hours?: string;
   hoursByLang?: Partial<Record<LangKey, string>>;
   open?: string;
   close?: string;
   menuUrl?: string;
   location?: string;
+  locationByLang?: Partial<Record<LangKey, string>>;
 
   requiresReservation?: boolean;
 
@@ -166,13 +171,17 @@ export type VenueRow = {
   reservationWhatsapp?: string;
   reservationEmail?: string;
   reservationLabel?: string;
+  reservationLabelByLang?: Partial<Record<LangKey, string>>;
   reservationMessage?: string;
+  reservationMessageByLang?: Partial<Record<LangKey, string>>;
   reservationAskOccasion?: boolean;
   reservationHours?: string;
 
   programUrl?: string;
   programText?: string;
+  programTextByLang?: Partial<Record<LangKey, string>>;
   ageGroup?: string;
+  ageGroupByLang?: Partial<Record<LangKey, string>>;
 
   whatsapp?: string;
   phone?: string;

@@ -6,19 +6,26 @@ type Venue = {
   category?: string;
   type?: string;
   name?: string;
+  nameByLang?: Record<string, string>;
   shortDescription?: string;
+  shortDescriptionByLang?: Record<string, string>;
   description?: string;
+  descriptionByLang?: Record<string, string>;
   cuisine?: string;
+  cuisineByLang?: Record<string, string>;
   hours?: string;
   hoursByLang?: Record<string, string>;
   open?: string;
   close?: string;
   location?: string;
+  locationByLang?: Record<string, string>;
   menuUrl?: string;
   requiresReservation?: boolean;
   active?: boolean;
   programText?: string;
+  programTextByLang?: Record<string, string>;
   ageGroup?: string;
+  ageGroupByLang?: Record<string, string>;
 };
 
 type ServiceItem = {
@@ -647,6 +654,76 @@ function normalizeDisplayText(value: string) {
     .trim();
 }
 
+function languageFallbackOrder(lang: Lang | string): string[] {
+  const current = String(lang || "").trim().toLowerCase();
+  const alias = current === "cs" ? "cz" : current === "cz" ? "cs" : "";
+  return Array.from(new Set([current, alias, "en", "bg", "de", "ro", "cs"].filter(Boolean)));
+}
+
+function getLocalizedVenueValue(map: Record<string, string> | undefined, lang: Lang | string, fallback = "") {
+  const values = map ?? {};
+
+  for (const candidate of languageFallbackOrder(lang)) {
+    const value = String(values[candidate] || "").trim();
+    if (value) return value;
+  }
+
+  return String(fallback || "").trim();
+}
+
+function getVenueText(venue: Venue, field: keyof Venue, lang: Lang | string): string {
+  const mapKey = `${String(field)}ByLang` as keyof Venue;
+  return getLocalizedVenueValue(
+    venue[mapKey] as Record<string, string> | undefined,
+    lang,
+    String(venue[field] || "")
+  );
+}
+
+function getAllLocalizedVenueValues(venue: Venue, field: keyof Venue): string[] {
+  const direct = String(venue[field] || "").trim();
+  const mapKey = `${String(field)}ByLang` as keyof Venue;
+  const map = venue[mapKey] as Record<string, string> | undefined;
+
+  return Array.from(new Set([
+    direct,
+    ...Object.values(map ?? {}).map((value) => String(value || "").trim()),
+  ].filter(Boolean)));
+}
+
+function venueIdentity(venue: Venue, lang: Lang | string = "en"): string {
+  return [
+    venue.category,
+    venue.type,
+    ...getAllLocalizedVenueValues(venue, "name"),
+    ...getAllLocalizedVenueValues(venue, "shortDescription"),
+    getVenueText(venue, "name", lang),
+    getVenueText(venue, "shortDescription", lang),
+  ]
+    .map((value) => clean(String(value || "")))
+    .filter(Boolean)
+    .join(" ");
+}
+
+function venueSearchTokens(venue: Venue, lang: Lang | string = "en"): string[] {
+  const values = [
+    venue.category,
+    venue.type,
+    ...getAllLocalizedVenueValues(venue, "name"),
+    ...getAllLocalizedVenueValues(venue, "shortDescription"),
+    getVenueText(venue, "name", lang),
+    getVenueText(venue, "shortDescription", lang),
+  ];
+
+  return Array.from(new Set(values.map((value) => clean(String(value || ""))).filter(Boolean)));
+}
+
+function venueMatchesQuestion(venue: Venue, question: string, lang: Lang | string = "en") {
+  const q = clean(question);
+  const category = normalizeCategory(venue.category || venue.type);
+  return venueSearchTokens(venue, lang).some((token) => hasTerm(q, token)) || Boolean(category && hasTerm(q, category));
+}
+
 function normalizeCategory(value?: string) {
   const raw = clean(String(value ?? ""))
     .replace(/\s+/g, "_")
@@ -666,7 +743,7 @@ function normalizeCategory(value?: string) {
 }
 
 function getActiveVenues(hotel: HotelPayload) {
-  return (hotel.venueRows ?? []).filter((venue) => venue.active !== false && venue.name);
+  return (hotel.venueRows ?? []).filter((venue) => venue.active !== false && (venue.name || getVenueText(venue, "name", "en")));
 }
 
 function getActiveServices(hotel: HotelPayload) {
@@ -761,11 +838,7 @@ function isHotelQuestion(question: string, hotel: HotelPayload) {
   const infoMatch = findMatchingHotelInfo(q, "en", hotel).length > 0;
   if (infoMatch) return true;
 
-  const venueMatch = getActiveVenues(hotel).some((venue) => {
-    const name = clean(venue.name ?? "");
-    const category = normalizeCategory(venue.category || venue.type);
-    return (name && hasTerm(q, name)) || (category && hasTerm(q, category));
-  });
+  const venueMatch = getActiveVenues(hotel).some((venue) => venueMatchesQuestion(venue, q, "en"));
   if (venueMatch) return true;
 
   return getActiveServices(hotel).some((service) => {
@@ -797,9 +870,16 @@ function pickMealLines(question: string, hours: string) {
 
 function formatVenueLine(venue: Venue, lang: Lang, wantsReservation: boolean, question = "") {
   const t = COPY[lang];
-  const name = venue.name || "Hotel";
+  const name = getVenueText(venue, "name", lang) || venue.name || "Hotel";
   const hours = getVenueHours(venue, lang);
-  const detail = venue.shortDescription || venue.description || venue.cuisine || venue.location || venue.programText || venue.ageGroup || "";
+  const detail =
+    getVenueText(venue, "shortDescription", lang) ||
+    getVenueText(venue, "description", lang) ||
+    getVenueText(venue, "cuisine", lang) ||
+    getVenueText(venue, "location", lang) ||
+    getVenueText(venue, "programText", lang) ||
+    getVenueText(venue, "ageGroup", lang) ||
+    "";
 
   if (wantsReservation || venue.requiresReservation) return t.venueReservation(name);
   if (hours) return t.venueHours(name, pickMealLines(question, hours));
@@ -826,10 +906,7 @@ function buildVenueCategoryAnswer(question: string, lang: Lang, hotel: HotelPayl
 
 function buildSpecificVenueAnswer(question: string, lang: Lang, hotel: HotelPayload) {
   const wantsReservation = hasAnyTerm(question, ["reserv", "book", "резерв", "buch", "rezerv", "rezervare", "rezervovat"]);
-  const venues = getActiveVenues(hotel).filter((venue) => {
-    const name = clean(venue.name ?? "");
-    return name && hasTerm(question, name);
-  });
+  const venues = getActiveVenues(hotel).filter((venue) => venueMatchesQuestion(venue, question, lang));
   if (!venues.length) return null;
   return [COPY[lang].lead, ...venues.slice(0, 5).map((venue) => formatVenueLine(venue, lang, wantsReservation, question))].join("\n");
 }
@@ -896,14 +973,13 @@ function findMatchingVenues(question: string, hotel: HotelPayload) {
   const q = clean(question);
   const categories = detectCategories(q);
   const venues = getActiveVenues(hotel).filter((venue) => {
-    const name = clean(venue.name ?? "");
     const category = normalizeCategory(venue.category || venue.type);
-    return (name && hasTerm(q, name)) || (category && categories.includes(category));
+    return venueMatchesQuestion(venue, q) || (category && categories.includes(category));
   });
 
   const seen = new Set<string>();
   return venues.filter((venue) => {
-    const key = clean(`${venue.category || venue.type || ""}:${venue.name || ""}`);
+    const key = clean(`${venue.category || venue.type || ""}:${venue.name || getVenueText(venue, "name", "en") || ""}`);
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;

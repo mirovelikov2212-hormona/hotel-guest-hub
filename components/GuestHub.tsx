@@ -152,19 +152,24 @@ type VenueRow = {
   category?: string;
   type?: string;
   name: string;
+  nameByLang?: Partial<Record<LangKey, string>>;
   active?: boolean;
   sortOrder?: number | string;
   icon?: string;
 
   shortDescription?: string;
+  shortDescriptionByLang?: Partial<Record<LangKey, string>>;
   description?: string;
+  descriptionByLang?: Partial<Record<LangKey, string>>;
   cuisine?: string;
+  cuisineByLang?: Partial<Record<LangKey, string>>;
   hours?: string;
   hoursByLang?: Partial<Record<LangKey, string>>;
   open?: string;
   close?: string;
   menuUrl?: string;
   location?: string;
+  locationByLang?: Partial<Record<LangKey, string>>;
 
   requiresReservation?: boolean;
 
@@ -175,13 +180,17 @@ type VenueRow = {
   reservationWhatsapp?: string;
   reservationEmail?: string;
   reservationLabel?: string;
+  reservationLabelByLang?: Partial<Record<LangKey, string>>;
   reservationMessage?: string;
+  reservationMessageByLang?: Partial<Record<LangKey, string>>;
   reservationAskOccasion?: boolean;
   reservationHours?: string;
 
   programUrl?: string;
   programText?: string;
+  programTextByLang?: Partial<Record<LangKey, string>>;
   ageGroup?: string;
+  ageGroupByLang?: Partial<Record<LangKey, string>>;
 
   whatsapp?: string;
   phone?: string;
@@ -217,6 +226,39 @@ function normalizeCategory(v: VenueRow) {
   };
 
   return aliasMap[raw] || raw || "other";
+}
+
+function getLanguageFallbackOrder(lang: LangKey | string): string[] {
+  const current = String(lang || "").trim().toLowerCase();
+  const alias = current === "cs" ? "cz" : current === "cz" ? "cs" : "";
+
+  return Array.from(
+    new Set([current, alias, "en", "bg", "de", "ro", "cs"].filter(Boolean))
+  );
+}
+
+function getLocalizedValue(
+  map: Partial<Record<LangKey, string>> | undefined,
+  lang: LangKey | string,
+  fallback = ""
+): string {
+  const values = map ?? {};
+
+  for (const candidate of getLanguageFallbackOrder(lang)) {
+    const value = String(values[candidate] || "").trim();
+    if (value) return value;
+  }
+
+  return String(fallback || "").trim();
+}
+
+function getVenueText(venue: VenueRow, field: keyof VenueRow, lang: LangKey | string): string {
+  const mapKey = `${String(field)}ByLang` as keyof VenueRow;
+  return getLocalizedValue(
+    venue[mapKey] as Partial<Record<LangKey, string>> | undefined,
+    lang,
+    String(venue[field] || "")
+  );
 }
 
 function humanizeCategory(value: string) {
@@ -3496,7 +3538,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const taxiProviders = config.taxiProviders ?? [];
 
   const rawVenueRows = (((config as any).venueRows ?? []) as Array<VenueRow>).filter(
-    (v) => v && v.name && (v.type || v.category) && v.active !== false
+    (v) => v && (v.name || getVenueText(v, "name", lang)) && (v.type || v.category) && v.active !== false
   );
 
   const groupedOutlets = useMemo(() => {
@@ -5828,19 +5870,25 @@ function OutletsAccordion({
       String(venue.hoursByLang?.[String(lang)] || "").trim() ||
       venue.hours ||
       (venue.open || venue.close ? `${venue.open || "?"} - ${venue.close || "?"}` : "");
+    const description = getVenueText(venue, "description", lang);
+    const cuisine = getVenueText(venue, "cuisine", lang);
+    const location = getVenueText(venue, "location", lang);
+    const ageGroup = getVenueText(venue, "ageGroup", lang);
+    const programText = getVenueText(venue, "programText", lang);
+    const reservationLabel = getVenueText(venue, "reservationLabel", lang) || String(tUI("reserve_now") || "Reserve");
 
     return (
       <div className="space-y-2">
-        {venue.description ? (
+        {description ? (
           <div className="rounded-xl stayhub-card p-3 text-sm">
-            {venue.description}
+            {description}
           </div>
         ) : null}
 
-        {venue.cuisine ? (
+        {cuisine ? (
           <div className="rounded-xl stayhub-card p-3 text-sm">
             <span className="font-semibold">{String(tUI("cuisine") || "Cuisine")}:</span>{" "}
-            {venue.cuisine}
+            {cuisine}
           </div>
         ) : null}
 
@@ -5853,24 +5901,24 @@ function OutletsAccordion({
           </div>
         ) : null}
 
-        {venue.location ? (
+        {location ? (
           <div className="rounded-xl stayhub-card p-3 text-sm">
             <span className="font-semibold">{String(tUI("location") || "Location")}:</span>{" "}
-            {venue.location}
+            {location}
           </div>
         ) : null}
 
-        {venue.ageGroup ? (
+        {ageGroup ? (
           <div className="rounded-xl stayhub-card p-3 text-sm">
             <span className="font-semibold">{String(tUI("age_group") || "Age group")}:</span>{" "}
-            {venue.ageGroup}
+            {ageGroup}
           </div>
         ) : null}
 
-        {venue.programText ? (
+        {programText ? (
           <div className="rounded-xl stayhub-card p-3 text-sm">
             <span className="font-semibold">{String(tUI("program") || "Program")}:</span>{" "}
-            {venue.programText}
+            {programText}
           </div>
         ) : null}
 
@@ -5910,7 +5958,7 @@ function OutletsAccordion({
               onClick={() => onReserve(venue)}
               className="rounded-xl px-3 py-3 text-left text-sm font-semibold stayhub-action-card active:scale-[0.99] transition"
             >
-              {venue.reservationLabel || String(tUI("reserve_now") || "Reserve")}
+              {reservationLabel}
             </button>
           ) : null}
         </div>
@@ -5945,8 +5993,8 @@ function OutletsAccordion({
               const catOpen = openCategory === catKey;
               const singleVenue = group.venues.length === 1 ? group.venues[0] : null;
               const groupIcon = singleVenue?.icon || group.meta.icon;
-              const groupTitle = singleVenue?.name || getCategoryDisplayTitle(catKey, tUI);
-              const groupSubtitle = singleVenue?.shortDescription;
+              const groupTitle = singleVenue ? getVenueText(singleVenue, "name", lang) : getCategoryDisplayTitle(catKey, tUI);
+              const groupSubtitle = singleVenue ? getVenueText(singleVenue, "shortDescription", lang) : "";
 
               return (
                 <div
@@ -5978,9 +6026,11 @@ function OutletsAccordion({
                     ) : (
                       <div className="space-y-2 p-3">
                         {group.venues.map((venue, idx) => {
-                          const venueKey = `${catKey}-${venue.name}-${idx}`;
+                          const venueKey = `${catKey}-${venue.name || getVenueText(venue, "name", lang)}-${idx}`;
                           const venueOpen = openVenue === venueKey;
-                          const venueTitle = venue.icon ? `${venue.icon} ${venue.name}` : venue.name;
+                          const venueName = getVenueText(venue, "name", lang) || venue.name;
+                          const venueTitle = venue.icon ? `${venue.icon} ${venueName}` : venueName;
+                          const venueSubtitle = getVenueText(venue, "shortDescription", lang);
 
                           return (
                             <div
@@ -5994,9 +6044,9 @@ function OutletsAccordion({
                               >
                                 <div>
                                   <div className="font-semibold text-white">{venueTitle}</div>
-                                  {venue.shortDescription ? (
+                                  {venueSubtitle ? (
                                     <div className="mt-1 text-xs text-neutral-300">
-                                      {venue.shortDescription}
+                                      {venueSubtitle}
                                     </div>
                                   ) : null}
                                 </div>

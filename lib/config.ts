@@ -404,24 +404,57 @@ function parseHotelRoomRows(rows: Record<string, string>[]): HotelRoom[] {
     .sort((a, b) => a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true }));
 }
 
-function readMultilingualField(row: Record<string, string>, baseNames: string[], lang: string): string {
-  const upper = String(lang || "").trim().toUpperCase();
+function getLanguageColumnCandidates(lang: string): string[] {
   const lower = String(lang || "").trim().toLowerCase();
+  if (!lower) return [];
 
-  for (const base of baseNames) {
-    const value = readCell(row, [
-      `${base} ${upper}`,
-      `${base} ${lower}`,
-      `${base}_${lower}`,
-      `${base}_${upper}`,
-      `${base}${upper}`,
-      `${base}${upper.charAt(0)}${upper.slice(1).toLowerCase()}`,
-    ]);
+  const aliases =
+    lower === "cs"
+      ? ["cs", "cz"]
+      : lower === "cz"
+        ? ["cz", "cs"]
+        : [lower];
 
-    if (value) return value;
+  return Array.from(new Set(aliases));
+}
+
+function readMultilingualField(row: Record<string, string>, baseNames: string[], lang: string): string {
+  const langCandidates = getLanguageColumnCandidates(lang);
+
+  for (const lower of langCandidates) {
+    const upper = lower.toUpperCase();
+    const pascal = upper.charAt(0) + upper.slice(1).toLowerCase();
+
+    for (const base of baseNames) {
+      const value = readCell(row, [
+        `${base} ${upper}`,
+        `${base} ${lower}`,
+        `${base}_${lower}`,
+        `${base}_${upper}`,
+        `${base}${upper}`,
+        `${base}${pascal}`,
+      ]);
+
+      if (value) return value;
+    }
   }
 
   return "";
+}
+
+function buildMultilingualFieldMap(
+  row: Record<string, string>,
+  baseNames: string[],
+  languages: LangKey[]
+): Partial<Record<LangKey, string>> {
+  const out: Partial<Record<LangKey, string>> = {};
+
+  for (const lang of languages) {
+    const value = readMultilingualField(row, baseNames, String(lang));
+    if (value) out[lang] = value;
+  }
+
+  return out;
 }
 
 function normalizeDisplayHours(value: string): string {
@@ -536,7 +569,9 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     .map((item) => item.trim())
     .filter(Boolean) as LangKey[];
 
-  const requestDefs = parseRequestDefs(requestDefRows, languages.length ? languages : ["bg", "en", "de"]);
+  const effectiveLanguages = (languages.length ? languages : ["bg", "en", "de"]) as LangKey[];
+  const venueLanguages = Array.from(new Set([...effectiveLanguages, "bg", "en", "de", "ro", "cs"])) as LangKey[];
+  const requestDefs = parseRequestDefs(requestDefRows, effectiveLanguages);
 
   const hotelLatitude = pickOptionalNumber(mergedConfig, "hotelLatitude");
   const hotelLongitude = pickOptionalNumber(mergedConfig, "hotelLongitude");
@@ -617,7 +652,7 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
       youtube: pick(mergedConfig, "youtubeUrl", ""),
     },
     i18n,
-    languages: (languages.length ? languages : ["bg", "en", "de"]) as LangKey[],
+    languages: effectiveLanguages,
     languageDefault: (pick(mergedConfig, "languageDefault", "bg") as LangKey) as LangKey,
     opsLanguage: (pick(mergedConfig, "opsLanguage", "bg") as LangKey) as LangKey,
     staffHelperEnabled: pick(mergedConfig, "staffHelperEnabled", "true").toLowerCase() !== "false",
@@ -630,16 +665,29 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
 
   const venueRows = venueRowsRaw
     .map((row) => {
-      const venueHours = buildVenueHours(row, languages.length ? languages : ["bg", "en", "de"]);
+      const venueHours = buildVenueHours(row, venueLanguages);
+      const name = readCell(row, ["Name", "name"]);
+      const shortDescription = readCell(row, ["Short Description", "shortDescription", "short_description"]);
+      const description = readCell(row, ["Description", "description"]);
+      const cuisine = readCell(row, ["Cuisine", "cuisine"]);
+      const location = readCell(row, ["Location", "location"]);
+      const reservationLabel = readCell(row, ["Reservation Label", "reservationLabel", "reservation_label"]);
+      const reservationMessage = readCell(row, ["Reservation Message", "reservationMessage", "reservation_message"]);
+      const programText = readCell(row, ["Program Text", "programText", "program_text"]);
+      const ageGroup = readCell(row, ["Age Group", "ageGroup", "age_group"]);
 
       return {
       category: readCell(row, ["Category", "category"]),
       type: readCell(row, ["Type", "type"]).toLowerCase(),
-      name: readCell(row, ["Name", "name"]),
-      shortDescription: readCell(row, ["Short Description", "shortDescription", "short_description"]),
+      name,
+      nameByLang: buildMultilingualFieldMap(row, ["Name"], venueLanguages),
+      shortDescription,
+      shortDescriptionByLang: buildMultilingualFieldMap(row, ["Short Description", "ShortDescription"], venueLanguages),
       icon: readCell(row, ["Icon", "icon", "Emoji", "emoji"]),
-      description: readCell(row, ["Description", "description"]),
-      cuisine: readCell(row, ["Cuisine", "cuisine"]),
+      description,
+      descriptionByLang: buildMultilingualFieldMap(row, ["Description"], venueLanguages),
+      cuisine,
+      cuisineByLang: buildMultilingualFieldMap(row, ["Cuisine"], venueLanguages),
       hours: venueHours.hours,
       hoursByLang: venueHours.hoursByLang,
       menuUrl: readCell(row, ["Menu URL", "menuUrl", "menu_url"]),
@@ -665,8 +713,10 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
       reservationPhone: readCell(row, ["Reservation Phone", "reservationPhone", "reservation_phone"]),
       reservationWhatsapp: readCell(row, ["Reservation WhatsApp", "reservationWhatsapp", "reservation_whatsapp"]),
       reservationEmail: readCell(row, ["Reservation Email", "reservationEmail", "reservation_email"]),
-      reservationLabel: readCell(row, ["Reservation Label", "reservationLabel", "reservation_label"]),
-      reservationMessage: readCell(row, ["Reservation Message", "reservationMessage", "reservation_message"]),
+      reservationLabel,
+      reservationLabelByLang: buildMultilingualFieldMap(row, ["Reservation Label", "ReservationLabel"], venueLanguages),
+      reservationMessage,
+      reservationMessageByLang: buildMultilingualFieldMap(row, ["Reservation Message", "ReservationMessage"], venueLanguages),
       reservationDepartment: readCell(row, [
         "Reservation Department",
         "reservationDepartment",
@@ -684,13 +734,21 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
         ]).toLowerCase()
       ),
       reservationHours: readCell(row, ["Reservation Hours", "reservationHours", "reservation_hours"]),
-      location: readCell(row, ["Location", "location"]),
+      location,
+      locationByLang: buildMultilingualFieldMap(row, ["Location"], venueLanguages),
       programUrl: readCell(row, ["Program URL", "programUrl", "program_url"]),
-      programText: readCell(row, ["Program Text", "programText", "program_text"]),
-      ageGroup: readCell(row, ["Age Group", "ageGroup", "age_group"]),
+      programText,
+      programTextByLang: buildMultilingualFieldMap(row, ["Program Text", "ProgramText"], venueLanguages),
+      ageGroup,
+      ageGroupByLang: buildMultilingualFieldMap(row, ["Age Group", "AgeGroup"], venueLanguages),
     };
     })
-    .filter((venue) => venue.name && (venue.type || venue.category) && venue.active)
+    .filter(
+      (venue) =>
+        (venue.name || Object.values(venue.nameByLang ?? {}).some((value) => String(value || "").trim())) &&
+        (venue.type || venue.category) &&
+        venue.active
+    )
     .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
 
   cfg.venueRows = venueRows;
