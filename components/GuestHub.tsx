@@ -2418,6 +2418,30 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       .filter(Boolean);
   }, []);
 
+  const getRequestDefOptionInfo = useCallback(
+    (def?: RequestDef | null, preferredLang: LangKey = lang) => {
+      if (!def) return [] as string[];
+      const maps = def.optionInfoByLang ?? {};
+      const preferred = [
+        String(preferredLang || "").trim(),
+        ...fallbackLangs.map((x) => String(x || "").trim()),
+      ].filter(Boolean);
+
+      for (const key of preferred) {
+        const values = maps[key];
+        if (Array.isArray(values) && values.length) return values.map((item) => String(item).trim()).filter(Boolean);
+      }
+
+      const firstLocalized = Object.values(maps).find((values) => Array.isArray(values) && values.length);
+      if (Array.isArray(firstLocalized) && firstLocalized.length) {
+        return firstLocalized.map((item) => String(item).trim()).filter(Boolean);
+      }
+
+      return [] as string[];
+    },
+    [fallbackLangs, lang]
+  );
+
   const getRequestDefMessage = useCallback(
     (def?: RequestDef | null) => {
       if (!def) return "";
@@ -5156,6 +5180,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 getRequestDefMessage={getRequestDefMessage}
                 getRequestDefOptions={getRequestDefOptions}
                 getRequestDefOptionImages={getRequestDefOptionImages}
+                getRequestDefOptionInfo={getRequestDefOptionInfo}
                 getRequestDefPriceHint={getRequestDefPriceHint}
                 getQuantityChoices={getQuantityChoices}
                 getQuantityButtonLabel={getQuantityButtonLabel}
@@ -5180,6 +5205,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 getRequestDefMessage={getRequestDefMessage}
                 getRequestDefOptions={getRequestDefOptions}
                 getRequestDefOptionImages={getRequestDefOptionImages}
+                getRequestDefOptionInfo={getRequestDefOptionInfo}
                 getRequestDefPriceHint={getRequestDefPriceHint}
                 getQuantityChoices={getQuantityChoices}
                 getQuantityButtonLabel={getQuantityButtonLabel}
@@ -5213,6 +5239,7 @@ function Accordion({
   getRequestDefMessage,
   getRequestDefOptions,
   getRequestDefOptionImages,
+  getRequestDefOptionInfo,
   getRequestDefPriceHint,
   getQuantityChoices,
   getQuantityButtonLabel,
@@ -5235,6 +5262,7 @@ function Accordion({
   getRequestDefMessage: (def?: RequestDef | null) => string;
   getRequestDefOptions: (def?: RequestDef | null, preferredLang?: LangKey) => string[];
   getRequestDefOptionImages: (def?: RequestDef | null) => string[];
+  getRequestDefOptionInfo: (def?: RequestDef | null) => string[];
   getRequestDefPriceHint: (def: RequestDef) => string;
   getQuantityChoices: (def: RequestDef) => number[];
   getQuantityButtonLabel: (def: RequestDef, qty: number) => string;
@@ -5342,6 +5370,7 @@ function Accordion({
                   const priceHint = getRequestDefPriceHint(def);
                   const localizedOptions = getRequestDefOptions(def);
                   const optionImages = getRequestDefOptionImages(def);
+                  const optionInfos = getRequestDefOptionInfo(def);
                   const isQuantity = def.requestKind === "quantity" || def.requiresQuantity;
                   const quickKey = `${String(def.id || def.requestType || "request")}-${idx}`;
                   const isQuickOpen = openRequestDefId === quickKey;
@@ -5392,6 +5421,7 @@ function Accordion({
                               <div className="mt-3 grid grid-cols-1 gap-3">
                                 {localizedOptions.map((option, optionIndex) => {
                                   const imageUrl = optionImages[optionIndex] || "";
+                                  const optionInfo = optionInfos[optionIndex] || "";
 
                                   return (
                                     <button
@@ -5410,6 +5440,11 @@ function Accordion({
                                         />
                                       ) : null}
                                       <div className="text-sm font-semibold">{option}</div>
+                                      {optionInfo ? (
+                                        <div className="mt-2 whitespace-pre-wrap text-[12px] font-medium leading-5 opacity-85">
+                                          {optionInfo}
+                                        </div>
+                                      ) : null}
                                       <div className="mt-1 text-[11px] font-bold uppercase tracking-wide opacity-80">
                                         {getRequestActionLabel(lang)}
                                       </div>
@@ -5572,6 +5607,7 @@ function OutletsAccordion({
   getRequestDefMessage,
   getRequestDefOptions,
   getRequestDefOptionImages,
+  getRequestDefOptionInfo,
   getRequestDefPriceHint,
   getQuantityChoices,
   getQuantityButtonLabel,
@@ -5594,6 +5630,7 @@ function OutletsAccordion({
   getRequestDefMessage: (def?: RequestDef | null) => string;
   getRequestDefOptions: (def?: RequestDef | null, preferredLang?: LangKey) => string[];
   getRequestDefOptionImages: (def?: RequestDef | null) => string[];
+  getRequestDefOptionInfo: (def?: RequestDef | null) => string[];
   getRequestDefPriceHint: (def: RequestDef) => string;
   getQuantityChoices: (def: RequestDef) => number[];
   getQuantityButtonLabel: (def: RequestDef, qty: number) => string;
@@ -5652,6 +5689,7 @@ function OutletsAccordion({
     const priceHint = getRequestDefPriceHint(def);
     const localizedOptions = getRequestDefOptions(def);
     const optionImages = getRequestDefOptionImages(def);
+    const optionInfos = getRequestDefOptionInfo(def);
     const isQuantity = def.requestKind === "quantity" || def.requiresQuantity;
     const quickKey = `spa-${String(def.id || def.requestType || "request")}-${index}`;
     const isQuickOpen = openSpaRequestDefId === quickKey;
@@ -5700,6 +5738,7 @@ function OutletsAccordion({
                 <div className="mt-3 grid grid-cols-1 gap-3">
                   {localizedOptions.map((option, optionIndex) => {
                     const imageUrl = optionImages[optionIndex] || "";
+                    const optionInfo = optionInfos[optionIndex] || "";
 
                     return (
                       <button
@@ -5718,6 +5757,11 @@ function OutletsAccordion({
                           />
                         ) : null}
                         <div className="text-sm font-semibold">{option}</div>
+                        {optionInfo ? (
+                          <div className="mt-2 whitespace-pre-wrap text-[12px] font-medium leading-5 opacity-85">
+                            {optionInfo}
+                          </div>
+                        ) : null}
                         <div className="mt-1 text-[11px] font-bold uppercase tracking-wide opacity-80">
                           {getRequestActionLabel(lang)}
                         </div>
