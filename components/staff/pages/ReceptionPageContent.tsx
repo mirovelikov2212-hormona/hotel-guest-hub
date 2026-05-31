@@ -22,8 +22,8 @@ const RECEPTION_OVERDUE_AFTER_MINUTES = 10;
 
 const priorityOrder: Record<StaffRequestStatus, number> = {
   new: 0,
-  returned: 1,
-  in_progress: 2,
+  in_progress: 1,
+  returned: 2,
   completed: 3,
 };
 
@@ -88,8 +88,8 @@ export default function ReceptionPage() {
   const t = staffText(lang);
   const [activeDepartment, setActiveDepartment] =
     useState<DepartmentFilter>("all");
-  const [activeStatus, setActiveStatus] = useState<StatusFilter>("all");
-  const [sortMode, setSortMode] = useState<SortMode>("priority");
+  const [activeStatus, setActiveStatus] = useState<StatusFilter>("active");
+  const [sortMode, setSortMode] = useState<SortMode>("newest");
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {

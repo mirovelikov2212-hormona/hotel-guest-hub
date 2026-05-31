@@ -1657,7 +1657,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         status_new: "Приета",
         status_in_progress: "В обработка",
         status_completed: "Изпълнена",
-        status_returned: "Върната",
+        status_returned: "Приета",
         lockedActionAlert:
           "Първо потвърдете номера на стаята, за да отключите функциите.",
       },
@@ -1697,7 +1697,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         status_new: "Received",
         status_in_progress: "In progress",
         status_completed: "Completed",
-        status_returned: "Returned",
+        status_returned: "Received",
         lockedActionAlert:
           "Please confirm your room number first to unlock the functions.",
       },
@@ -1737,7 +1737,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         status_new: "Erhalten",
         status_in_progress: "In Bearbeitung",
         status_completed: "Erledigt",
-        status_returned: "Zurückgegeben",
+        status_returned: "Erhalten",
         lockedActionAlert:
           "Bitte bestätigen Sie zuerst Ihre Zimmernummer, um die Funktionen freizuschalten.",
       },
@@ -1772,7 +1772,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         status_new: "Primită",
         status_in_progress: "În procesare",
         status_completed: "Finalizată",
-        status_returned: "Returnată",
+        status_returned: "Primită",
         lockedActionAlert: "Vă rugăm să confirmați mai întâi numărul camerei pentru a debloca funcțiile.",
       },
       cs: {
@@ -1806,7 +1806,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         status_new: "Přijato",
         status_in_progress: "Zpracovává se",
         status_completed: "Dokončeno",
-        status_returned: "Vráceno",
+        status_returned: "Přijato",
         lockedActionAlert: "Nejprve potvrďte číslo pokoje, abyste odemkli funkce.",
       },
     } as const;
@@ -1917,7 +1917,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           title: row.title,
           type: row.type,
           rawType: row.rawType,
-          status: row.status,
+          // "returned" is an internal staff routing state. Guests should only see that
+          // the request is still received/pending, not that it was returned between departments.
+          status: row.status === "returned" ? "new" : row.status,
           createdAt: row.createdAt,
         }));
 
@@ -3035,8 +3037,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       noteParts.push(`${String(tUI("label_quantity") || tUI("label_people") || "Quantity")}: ${qty}`);
     }
 
-    if (def.requiresBilling || def.price) {
-      const priceText = [def.price, def.currency].map((item) => String(item || "").trim()).filter(Boolean).join(" ");
+    if (getRequestDefEffectiveRequiresBilling(def)) {
+      const priceText = [getRequestDefEffectivePrice(def), getRequestDefEffectiveCurrency(def)].map((item) => String(item || "").trim()).filter(Boolean).join(" ");
       noteParts.push(
         priceText
           ? `${String(tUI("billing_note") || "Paid service / charge to room")}: ${priceText}`
@@ -3069,6 +3071,27 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     return undefined;
   }
 
+  function getRequestDefEffectivePrice(def: RequestDef) {
+    if (def.id === "late_checkout") return def.price || "25,00";
+    return def.price;
+  }
+
+  function getRequestDefEffectiveCurrency(def: RequestDef) {
+    if (def.id === "late_checkout") return def.currency || "€";
+    return def.currency;
+  }
+
+  function getRequestDefEffectiveRequiresBilling(def: RequestDef) {
+    return Boolean(def.requiresBilling || def.price || def.id === "late_checkout");
+  }
+
+  function getRequestDefEffectiveNotifyDepartments(def: RequestDef) {
+    const departments = Array.isArray(def.notifyDepartments) ? def.notifyDepartments : [];
+    if (def.id !== "late_checkout") return departments;
+
+    return Array.from(new Set([...departments, "reception"]));
+  }
+
   function handleRequestDefClick(def: RequestDef) {
     const infoMessage = getRequestDefMessage(def);
     const title = getRequestDefTitle(def) || def.id.replace(/_/g, " ");
@@ -3094,10 +3117,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         typeLabel: title,
         note: note || undefined,
         departmentOverride: getRequestDefDepartmentOverride(def),
-        notifyDepartments: def.notifyDepartments,
-        requiresBilling: def.requiresBilling,
-        price: def.price,
-        currency: def.currency,
+        notifyDepartments: getRequestDefEffectiveNotifyDepartments(def),
+        requiresBilling: getRequestDefEffectiveRequiresBilling(def),
+        price: getRequestDefEffectivePrice(def),
+        currency: getRequestDefEffectiveCurrency(def),
         sourceRequestDef: def.id,
       });
     };
@@ -4475,7 +4498,12 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                   submitGuestRequest({
                     type: "late_checkout",
                     typeLabel: String(tUI("late_checkout") || "Late checkout"),
-                    note: `${String(tUI("late_checkout") || "Late checkout")}: ${slot}${lateCheckoutInfo ? `\n${lateCheckoutInfo}` : ""}`,
+                    note: `${String(tUI("late_checkout") || "Late checkout")}: ${slot}${lateCheckoutInfo ? `\n${lateCheckoutInfo}` : ""}\n${String(tUI("billing_note") || "Paid service / charge to room")}: 25,00 €`,
+                    notifyDepartments: ["reception"],
+                    requiresBilling: true,
+                    price: "25,00",
+                    currency: "€",
+                    sourceRequestDef: "late_checkout",
                   });
                 };
 

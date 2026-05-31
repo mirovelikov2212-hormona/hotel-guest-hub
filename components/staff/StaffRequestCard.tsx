@@ -151,6 +151,8 @@ export default function StaffRequestCard({
   const { lang } = useStaffUi();
   const t = staffText(lang);
   const isNew = request.status === "new";
+  const isReturned = request.status === "returned";
+  const isWaiting = isNew || isReturned;
   const isInProgress = request.status === "in_progress";
   const billingCopy = getBillingCopy(lang);
   const hasBilling = Boolean(request.requiresBilling || request.price);
@@ -249,7 +251,7 @@ export default function StaffRequestCard({
             </button>
           ) : null}
 
-          {canAct && isNew ? (
+          {canAct && isWaiting ? (
             <>
               <button
                 type="button"
@@ -259,13 +261,15 @@ export default function StaffRequestCard({
                 {t.start}
               </button>
 
-              <button
-                type="button"
-                onClick={() => onReturn?.(request.id)}
-                className="min-h-14 rounded-2xl border border-rose-400/30 bg-rose-400/15 px-4 text-base font-semibold text-rose-100 transition hover:bg-rose-400/25"
-              >
-                {t.return}
-              </button>
+              {isNew ? (
+                <button
+                  type="button"
+                  onClick={() => onReturn?.(request.id)}
+                  className="min-h-14 rounded-2xl border border-rose-400/30 bg-rose-400/15 px-4 text-base font-semibold text-rose-100 transition hover:bg-rose-400/25"
+                >
+                  {t.return}
+                </button>
+              ) : null}
             </>
           ) : null}
 
@@ -279,7 +283,7 @@ export default function StaffRequestCard({
             </button>
           ) : null}
 
-          {canAct && !isNew && !isInProgress ? (
+          {canAct && !isWaiting && !isInProgress ? (
             <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-center text-sm font-medium text-white/50">
               {t.noActionsAvailable}
             </div>
