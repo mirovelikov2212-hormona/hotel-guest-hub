@@ -143,6 +143,33 @@ function buildOptionsMap(row: LooseRow, langs: LangKey[]): Partial<Record<LangKe
   return out;
 }
 
+function buildOptionInfoMap(row: LooseRow, langs: LangKey[]): Partial<Record<LangKey, string[]>> {
+  const out: Partial<Record<LangKey, string[]>> = {};
+  const langList = Array.from(new Set([...DEFAULT_LANGS, ...langs.map((lang) => String(lang).trim()).filter(Boolean)]));
+
+  for (const lang of langList) {
+    const upper = String(lang).toUpperCase();
+    const lower = String(lang).toLowerCase();
+    const raw = readFirst(row, [
+      `option_info_${lower}`,
+      `option_info_${upper}`,
+      `option_infos_${lower}`,
+      `option_infos_${upper}`,
+      `option_description_${lower}`,
+      `option_description_${upper}`,
+      `option_descriptions_${lower}`,
+      `option_descriptions_${upper}`,
+      `Option Info ${upper}`,
+      `Option Description ${upper}`,
+    ]);
+
+    const parsed = parseList(raw);
+    if (parsed.length) out[lang] = parsed;
+  }
+
+  return out;
+}
+
 function normalizeCategory(value: string): string {
   return String(value ?? "")
     .trim()
@@ -220,6 +247,7 @@ export function parseRequestDefs(rows: LooseRow[], langs: LangKey[]): RequestDef
         "Option Image URLs",
         "Option Images",
       ])),
+      optionInfoByLang: buildOptionInfoMap(row, langs),
       guestVisible: toBool(readFirst(row, ["guest_visible", "guestVisible", "visible", "Visible"]), true),
       staffVisible: toBool(readFirst(row, ["staff_visible", "staffVisible"]), true),
       aiVisible: toBool(readFirst(row, ["ai_visible", "aiVisible"]), true),

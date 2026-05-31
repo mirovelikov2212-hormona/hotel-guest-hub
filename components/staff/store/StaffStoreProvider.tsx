@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
+import { shouldRouteDepartmentToReceptionAfterHours } from "@/lib/staff/operations-hours";
 import type {
   StaffDepartment,
   StaffRequest,
@@ -159,8 +160,11 @@ async function updateStaffRequestStatus(input: {
     }),
   });
 
-  if (!response.ok) {
-    throw new Error(`Failed to update request status: ${response.status}`);
+  const payload = await response.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+
+  if (!response.ok || payload?.ok === false) {
+    const message = payload?.error || `Failed to update request status: ${response.status}`;
+    throw new Error(message);
   }
 }
 
@@ -180,6 +184,16 @@ async function createStaffRequest(input: AddRequestInput & {
   if (!response.ok) {
     throw new Error(`Failed to create staff request: ${response.status}`);
   }
+}
+
+function isHiddenFromDepartmentAfterHours(request: StaffRequest, department: StaffDepartment) {
+  if (request.department !== department) return false;
+
+  return shouldRouteDepartmentToReceptionAfterHours({
+    department: request.department,
+    status: request.status,
+    serviceTime: request.serviceTime,
+  });
 }
 
 export function StaffStoreProvider({
@@ -307,6 +321,14 @@ export function StaffStoreProvider({
     async (id: string, status: StaffRequestStatus) => {
       if (!normalizedHotelSlug || !currentRole) return;
 
+      const previousRequests = requests;
+
+      setRequests((current) =>
+        current.map((request) =>
+          request.id === id ? { ...request, status } : request
+        )
+      );
+
       try {
         await updateStaffRequestStatus({
           id,
@@ -317,10 +339,21 @@ export function StaffStoreProvider({
 
         await loadRequests();
       } catch (error) {
+        setRequests(previousRequests);
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Неуспешна обработка на заявката.";
+
         console.error("Failed to update staff request status", error);
+
+        if (typeof window !== "undefined") {
+          window.alert(message);
+        }
       }
     },
-    [currentRole, loadRequests, normalizedHotelSlug]
+    [currentRole, loadRequests, normalizedHotelSlug, requests]
   );
 
   const addRequest = useCallback(
@@ -344,7 +377,9 @@ export function StaffStoreProvider({
     (department: StaffDepartment) => {
       return requests.filter(
         (request) =>
-          request.department === department && isOperationalRequest(request)
+          request.department === department &&
+          isOperationalRequest(request) &&
+          !isHiddenFromDepartmentAfterHours(request, department)
       );
     },
     [requests]

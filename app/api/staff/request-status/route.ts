@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import type { StaffDepartment, StaffRequestStatus } from "@/lib/staff/types";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
+import { shouldRouteDepartmentToReceptionAfterHours } from "@/lib/staff/operations-hours";
 
 type GuestRequestRow = {
   id: string;
@@ -76,31 +77,36 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
   return { hotelId: hotel.id, role };
 }
 
-function isAfterOperationsHours() {
-  const now = new Date();
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  return minutes < 8 * 60 || minutes >= 17 * 60;
-}
 
-function canRoleUpdateDepartment(
-  role: StaffRole,
-  department: StaffDepartment | undefined,
-  serviceTime?: string
-) {
+
+function canRoleUpdateDepartment(input: {
+  role: StaffRole;
+  department: StaffDepartment | undefined;
+  status: StaffRequestStatus;
+  serviceTime?: string;
+}) {
+  const { role, department, status, serviceTime } = input;
+
   if (role === "manager") return true;
+
+  const isHandledByReception = shouldRouteDepartmentToReceptionAfterHours({
+    department,
+    status,
+    serviceTime,
+  });
+
   if (role === "reception") {
-    if (department === "reception") return true;
-    if (
-      (department === "housekeeping" || department === "maintenance") &&
-      serviceTime !== "tomorrow" &&
-      isAfterOperationsHours()
-    ) {
-      return true;
-    }
-    return false;
+    return department === "reception" || isHandledByReception;
   }
-  if (role === "housekeeping") return department === "housekeeping";
-  if (role === "maintenance") return department === "maintenance";
+
+  if (role === "housekeeping") {
+    return department === "housekeeping" && !isHandledByReception;
+  }
+
+  if (role === "maintenance") {
+    return department === "maintenance" && !isHandledByReception;
+  }
+
   return false;
 }
 
@@ -147,9 +153,14 @@ export async function POST(req: NextRequest) {
     const department = requestData.metadata_json?.department ?? getDepartmentForRequestType(normalizedType);
     const serviceTime = requestData.metadata_json?.serviceTime;
 
-    if (!canRoleUpdateDepartment(role, department, serviceTime)) {
+    if (!canRoleUpdateDepartment({
+      role,
+      department,
+      status: requestData.status,
+      serviceTime,
+    })) {
       return NextResponse.json(
-        { ok: false, error: "Role is not allowed to update this request" },
+        { ok: false, error: "Заявката вече се обработва от друг отдел според работното време." },
         { status: 403 }
       );
     }

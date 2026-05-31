@@ -65,6 +65,8 @@ export type RequestDef = {
   optionsByLang?: Partial<Record<LangKey, string[]>>;
   /** Optional image URL per option, matched by position with options/optionsByLang. */
   optionImageUrls?: string[];
+  /** Optional description/info per option, matched by position with options/optionsByLang. */
+  optionInfoByLang?: Partial<Record<LangKey, string[]>>;
   guestVisible: boolean;
   staffVisible: boolean;
   aiVisible: boolean;

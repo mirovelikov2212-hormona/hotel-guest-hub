@@ -2421,7 +2421,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const getRequestDefOptionInfo = useCallback(
     (def?: RequestDef | null, preferredLang: LangKey = lang) => {
       if (!def) return [] as string[];
-      const maps = def.optionInfoByLang ?? {};
+      const maps = (def as RequestDef & { optionInfoByLang?: Partial<Record<LangKey, string[]>> }).optionInfoByLang ?? {};
       const preferred = [
         String(preferredLang || "").trim(),
         ...fallbackLangs.map((x) => String(x || "").trim()),

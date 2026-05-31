@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
+import { shouldRouteDepartmentToReceptionAfterHours } from "@/lib/staff/operations-hours";
 import type {
   StaffDepartment,
   StaffRequest,
@@ -136,10 +137,8 @@ export async function GET(req: NextRequest) {
       .eq("hotel_id", scope.hotelId)
       .order("created_at", { ascending: false });
 
-    if (role === "housekeeping" || role === "maintenance") {
-      query = query.contains("metadata_json", { department: role });
-    }
-
+    // Keep this query broad and do department routing in TypeScript.
+    // Some older requests may not have metadata_json.department, so we derive it from request_type.
     const { data, error } = await query;
 
     if (error) {
@@ -149,9 +148,25 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const rows = (data as GuestRequestRow[]).filter((row) => {
+      if (role !== "housekeeping" && role !== "maintenance") return true;
+
+      const metadata = row.metadata_json ?? {};
+      const normalizedType = normalizeStaffRequestType(row.request_type, metadata.department);
+      const department = metadata.department ?? getDepartmentForRequestType(normalizedType);
+
+      if (department !== role) return false;
+
+      return !shouldRouteDepartmentToReceptionAfterHours({
+        department,
+        status: row.status,
+        serviceTime: metadata.serviceTime,
+      });
+    });
+
     return NextResponse.json({
       ok: true,
-      requests: (data as GuestRequestRow[]).map(mapRowToStaffRequest),
+      requests: rows.map(mapRowToStaffRequest),
     });
   } catch (error) {
     console.error("staff requests GET error", error);

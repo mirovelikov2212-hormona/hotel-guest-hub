@@ -12,6 +12,7 @@ import type {
   StaffRequestStatus,
 } from "@/lib/staff/types";
 import { staffText } from "@/lib/staff/ui-copy";
+import { isAfterOperationsHours } from "@/lib/staff/operations-hours";
 
 type DepartmentFilter = "all" | StaffDepartment;
 type StatusFilter = "all" | "active" | StaffRequestStatus;
@@ -80,11 +81,7 @@ function sortRequests(
   });
 }
 
-function isAfterOperationsHours() {
-  const now = new Date();
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  return minutes < 8 * 60 || minutes >= 17 * 60;
-}
+
 
 export default function ReceptionPage() {
   const { lang } = useStaffUi();
@@ -143,7 +140,7 @@ export default function ReceptionPage() {
     return sortRequests(base, sortMode, nowMs);
   }, [requests, activeDepartment, activeStatus, sortMode, nowMs]);
 
-  const afterHours = useMemo(() => isAfterOperationsHours(), []);
+  const afterHours = useMemo(() => isAfterOperationsHours(new Date(nowMs)), [nowMs]);
 
   const actionableRequests = useMemo(
     () =>
