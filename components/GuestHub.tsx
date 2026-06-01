@@ -28,6 +28,24 @@ const SECTION_ICON_PREFIXES: Record<string, string> = {
   fifa: "🏆",
 };
 
+const LINK_ICON_PREFIXES: Record<string, string> = {
+  google: "⭐",
+  tripadvisor: "⭐",
+  booking: "🛏️",
+  facebook: "📘",
+  instagram: "📸",
+  tiktok: "🎵",
+  youtube: "▶️",
+};
+
+function withLinkIcon(label: string, linkKey: string): string {
+  const raw = String(label || "").trim();
+  if (!raw) return raw;
+  if (/^[\p{Extended_Pictographic}⭐▶️]/u.test(raw)) return raw;
+  const icon = LINK_ICON_PREFIXES[String(linkKey || "").toLowerCase().trim()] || "🔗";
+  return `${icon} ${raw}`.trim();
+}
+
 function withSectionIcon(title: string, sectionKey?: string): string {
   const raw = String(title || "").trim();
   if (!raw) return raw;
@@ -2629,19 +2647,15 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       bg: (section: string) => `Изпратете заявката от секцията ${section} в хъба.`,
       en: (section: string) => `Send the request from the ${section} section in the hub.`,
       de: (section: string) => `Senden Sie die Anfrage über den Bereich ${section} im Hub.`,
-      ro: (section: string) => `Trimiteți solicitarea din secțiunea ${section} din hub.`,
-      cs: (section: string) => `Požadavek odešlete v sekci ${section} v hubu.`,
     } as const;
 
     const slotLabelByLang = {
       bg: (slots: string) => `Налични часове: ${slots}.`,
       en: (slots: string) => `Available times: ${slots}.`,
       de: (slots: string) => `Verfügbare Zeiten: ${slots}.`,
-      ro: (slots: string) => `Ore disponibile: ${slots}.`,
-      cs: (slots: string) => `Dostupné časy: ${slots}.`,
     } as const;
 
-    const currentLang = (lang === "bg" || lang === "en" || lang === "de" || lang === "ro" || lang === "cs") ? lang : "en";
+    const currentLang = (lang === "bg" || lang === "en" || lang === "de") ? lang : "en";
 
     return requestDefs
       .filter((def) => def.aiVisible !== false && def.guestVisible !== false)
@@ -4407,12 +4421,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     } satisfies HubSection)
     : null;
 
-  const ensureLeadingIcon = (label: string, icon: string) => {
-    const value = String(label || "").trim();
-    if (!value) return icon;
-    return value.startsWith(icon) ? value : `${icon} ${value}`;
-  };
-
   const reviewIntroLabel = String(
     tUI("reviews_intro") ||
     (lang === "bg"
@@ -4441,7 +4449,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(config.reviews?.google
           ? [
             {
-              label: ensureLeadingIcon(String(tUI("leave_google_review") || "Google Review"), "⭐"),
+              label: withLinkIcon(String(tUI("leave_google_review") || "Google Review"), "google"),
               kind: "link" as const,
               href: config.reviews.google,
               newTab: true,
@@ -4451,7 +4459,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(config.reviews?.tripadvisor
           ? [
             {
-              label: ensureLeadingIcon(String(tUI("leave_tripadvisor_review") || "TripAdvisor Review"), "⭐"),
+              label: withLinkIcon(String(tUI("leave_tripadvisor_review") || "TripAdvisor Review"), "tripadvisor"),
               kind: "link" as const,
               href: config.reviews.tripadvisor,
               newTab: true,
@@ -4461,7 +4469,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(config.reviews?.booking
           ? [
             {
-              label: ensureLeadingIcon(String(tUI("leave_booking_review") || "Booking.com"), "🛏️"),
+              label: withLinkIcon(String(tUI("leave_booking_review") || "Booking.com"), "booking"),
               kind: "link" as const,
               href: config.reviews.booking,
               newTab: true,
@@ -4492,10 +4500,10 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           kind: "info" as const,
           info: socialIntro,
         },
-        ...(socialLinks.facebook ? [{ label: "📘 Facebook", kind: "link" as const, href: socialLinks.facebook, newTab: true }] : []),
-        ...(socialLinks.instagram ? [{ label: "📸 Instagram", kind: "link" as const, href: socialLinks.instagram, newTab: true }] : []),
-        ...(socialLinks.tiktok ? [{ label: "🎵 TikTok", kind: "link" as const, href: socialLinks.tiktok, newTab: true }] : []),
-        ...(socialLinks.youtube ? [{ label: "▶️ YouTube", kind: "link" as const, href: socialLinks.youtube, newTab: true }] : []),
+        ...(socialLinks.facebook ? [{ label: withLinkIcon("Facebook", "facebook"), kind: "link" as const, href: socialLinks.facebook, newTab: true }] : []),
+        ...(socialLinks.instagram ? [{ label: withLinkIcon("Instagram", "instagram"), kind: "link" as const, href: socialLinks.instagram, newTab: true }] : []),
+        ...(socialLinks.tiktok ? [{ label: withLinkIcon("TikTok", "tiktok"), kind: "link" as const, href: socialLinks.tiktok, newTab: true }] : []),
+        ...(socialLinks.youtube ? [{ label: withLinkIcon("YouTube", "youtube"), kind: "link" as const, href: socialLinks.youtube, newTab: true }] : []),
       ],
     } satisfies HubSection)
     : null;

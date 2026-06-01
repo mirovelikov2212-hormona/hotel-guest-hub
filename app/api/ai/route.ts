@@ -530,10 +530,10 @@ const GENERIC_SERVICE_KEYWORDS = [
 ];
 
 const HOTEL_KEYWORDS = [
-  "hotel", "wifi", "wi-fi", "wlan", "internet", "reception", "rezeption", "recepție", "recepce", "restaurant", "bar", "spa", "pool", "kids", "animation", "parking", "park", "review", "policy", "rules", "gift", "cause", "charity", "gift with a cause",
-  "хотел", "рецепц", "ресторан", "бар", "спа", "басейн", "дет", "анимац", "паркинг", "правила", "политик", "хавли", "шезлонг", "благотвор", "подарък", "кауза", "подарък с кауза",
-  "parcare", "prosoape", "șezlong", "sezlong", "caritate", "politica", "reguli", "animație", "animatie", "cadou", "cauză", "cauza", "cadou cu o cauză", "cadou cu o cauza",
-  "parkování", "ručníky", "lehátka", "charita", "pravidla", "animace", "dárek", "darek", "dobrým účelem", "dobrym ucelem",
+  "hotel", "wifi", "wi-fi", "wlan", "internet", "reception", "rezeption", "recepție", "recepce", "restaurant", "bar", "spa", "pool", "kids", "animation", "parking", "park", "review", "policy", "rules", "gift", "cause", "charity", "booking", "tripadvisor",
+  "хотел", "рецепц", "ресторан", "бар", "спа", "басейн", "дет", "анимац", "паркинг", "правила", "политик", "хавли", "шезлонг", "благотвор", "подарък", "кауза",
+  "parcare", "prosoape", "șezlong", "sezlong", "caritate", "cadou", "cauză", "cauza", "politica", "reguli", "animație", "animatie",
+  "parkování", "ručníky", "lehátka", "charita", "dárek", "darek", "účel", "ucel", "pravidla", "animace",
   "check", "location", "address", "hours", "opening", "program", "nearby", "around", "area", "работ", "час", "къде", "район", "района", "около", "наблизо", "близо", "where", "wo", "umgebung", "nähe", "unde", "apropiere", "împrejurimi", "kde", "okolí", "blízko", "otevírací", "program",
   "minibar", "минибар", "laundry", "пране", "wake", "събуж", "taxi", "такси", "facebook", "instagram", "tiktok", "tik tok", "youtube", "social", "социал", "последвай", "последват", "follow",
 ];
@@ -543,7 +543,7 @@ const INFO_GROUP_KEYWORDS: Record<string, string[]> = {
   checkin: ["check in", "check-in", "checkout", "check-out", "настаняване", "напускане", "cazare", "plecare", "příjezd", "odjezd"],
   towel: ["towel", "towels", "хавли", "кърпи", "prosop", "prosoape", "ručník", "ručníky"],
   sunbed: ["sunbed", "sunbeds", "шезлонг", "шезлонги", "șezlong", "sezlong", "lehátko", "lehátka"],
-  charity: ["charity", "gift", "cause", "gift with a cause", "благотвор", "подарък", "кауза", "подарък с кауза", "caritate", "cadou", "cauză", "cauza", "cadou cu o cauză", "cadou cu o cauza", "charita", "dárek", "darek", "dobrým účelem", "dobrym ucelem"],
+  charity: ["charity", "gift", "cause", "gift with a cause", "благотвор", "подарък", "кауза", "подарък с кауза", "caritate", "cadou", "cauză", "cauza", "cadou cu o cauza", "cadou cu o cauză", "charita", "dárek", "darek", "účel", "ucel", "darek s dobrym ucelem", "dárek s dobrým účelem"],
   animation: ["animation", "анимац", "animație", "animatie", "animace", "program"],
   world_cup: ["world cup", "fifa", "световно", "mondial", "ms ve fotbale", "wm 2026"],
   emergency: ["emergency", "urgent", "спеш", "notfall", "urgență", "nouz"],
@@ -567,7 +567,7 @@ const OUTSIDE_CATEGORY_TERMS: Record<string, string[]> = {
   attractions: ["attraction", "attractions", "sightseeing", "places", "забележ", "какво да видя", "atrac", "zajímav", "památky"],
 };
 
-const PAID_SERVICE_KEYS = new Set(["minibar", "minibar_refill", "laundry", "coffee_capsules", "pillow_menu", "late_checkout", "massage_booking"]);
+const PAID_SERVICE_KEYS = new Set(["minibar", "laundry", "coffee_capsules", "pillow_menu", "late_checkout", "massage_booking"]);
 
 const SERVICE_SECTION_LABELS = {
   bg: { housekeeping: "Housekeeping", reception: "Рецепция", support: "Поддръжка" },
@@ -591,7 +591,6 @@ const SERVICE_SECTION_BY_KEY: Record<string, keyof typeof SERVICE_SECTION_LABELS
   coffee_capsules: "housekeeping",
   pillow_menu: "housekeeping",
   late_checkout: "reception",
-  massage_booking: "reception",
   wake_up_call: "reception",
   taxi: "reception",
   special_occasion: "reception",
@@ -605,8 +604,19 @@ function normalizeLang(value: string): Lang {
   return SUPPORTED_LANGS.includes(lower as Lang) ? (lower as Lang) : "en";
 }
 
+function normalizeSearchText(text: string) {
+  return String(text || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[’‘`´]/g, "'")
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function clean(text: string) {
-  return String(text || "").toLowerCase().trim();
+  return normalizeSearchText(text);
 }
 
 function stripIcon(text: string) {
@@ -647,10 +657,17 @@ function getMapValue(map: TextMap | undefined, lang: Lang) {
   return "";
 }
 
-function getMapValues(map: TextMap | undefined) {
-  return Object.values(map ?? {})
+function getAllMapValues(map: TextMap | undefined): string[] {
+  return Array.from(new Set(Object.values(map ?? {})
     .map((value) => String(value || "").trim())
-    .filter(Boolean);
+    .filter(Boolean)));
+}
+
+function tokenizeForSearch(value: string): string[] {
+  return clean(value)
+    .split(/[\s,/·|()\[\]{}:;.!?"'\-]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 4);
 }
 
 function normalizeDisplayText(value: string) {
@@ -805,43 +822,16 @@ function itemIdentity(item: HotelInfoItem, lang: Lang) {
     item.section,
     getMapValue(item.title, lang),
     getMapValue(item.text, lang),
-    ...getMapValues(item.title),
-    ...getMapValues(item.text),
+    ...getAllMapValues(item.title),
+    ...getAllMapValues(item.text),
   ];
   return allText.map((value) => clean(String(value || ""))).filter(Boolean).join(" ");
-}
-
-const AI_MATCH_STOPWORDS = new Set([
-  "the", "and", "for", "with", "about", "what", "time", "when", "where", "how", "can", "please",
-  "und", "oder", "mit", "über", "uber", "was", "wann", "wo", "wie", "bitte",
-  "și", "si", "sau", "despre", "care", "când", "cand", "unde", "cum",
-  "nebo", "pro", "jak", "kdy", "kde", "prosím", "prosim",
-  "какво", "кога", "къде", "как", "може", "мога", "моля", "има", "за", "на", "от", "до", "със", "с",
-]);
-
-function significantTokens(value: string) {
-  return clean(value)
-    .replace(/[|/·,.;:!?()[\]{}"'`´’“”]+/g, " ")
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter((token) => token.length >= 3 && !AI_MATCH_STOPWORDS.has(token));
-}
-
-function phraseTokenHit(question: string, values: string[]) {
-  const q = clean(question);
-  return values.some((value) => {
-    const tokens = significantTokens(value);
-    if (!tokens.length) return false;
-    const required = tokens.length <= 2 ? tokens : tokens.slice(0, 4);
-    return required.every((token) => hasTerm(q, token));
-  });
 }
 
 function findMatchingHotelInfo(question: string, lang: Lang, hotel: HotelPayload) {
   const q = clean(question);
   const items = getActiveHotelInfo(hotel);
   const matches: HotelInfoItem[] = [];
-  const qTokens = significantTokens(q);
 
   for (const item of items) {
     const identity = itemIdentity(item, lang);
@@ -853,31 +843,30 @@ function findMatchingHotelInfo(question: string, lang: Lang, hotel: HotelPayload
     ];
     if (hasAnyTerm(identity, nearbyIdentityTerms) && !isNearbyOutsideQuestion(q)) continue;
 
-    const titleValues = getMapValues(item.title).map(stripIcon);
-    const textValues = getMapValues(item.text);
-    const searchableValues = [item.key, item.id, item.category, item.section, ...titleValues, ...textValues]
-      .map((value) => String(value || "").trim())
-      .filter(Boolean);
-
     const groupHit = Object.values(INFO_GROUP_KEYWORDS).some((terms) => hasAnyTerm(q, terms) && hasAnyTerm(identity, terms));
-    const phraseHit = phraseTokenHit(q, titleValues) || phraseTokenHit(q, searchableValues.slice(0, 12));
-    const tokenHit = qTokens.some((token) => hasTerm(identity, token));
+    const titleSource = [
+      getMapValue(item.title, lang),
+      ...getAllMapValues(item.title),
+    ].join(" ");
+    const titleTokens = tokenizeForSearch(stripIcon(titleSource));
+    const titleHit = titleTokens.some((token) => hasTerm(q, token));
+    const phraseHit = q.length >= 4 && (hasTerm(identity, q) || titleTokens.some((token) => hasTerm(identity, token) && hasTerm(q, token)));
 
-    if (groupHit || phraseHit || tokenHit) matches.push(item);
+    if (groupHit || titleHit || phraseHit) matches.push(item);
   }
 
   return matches;
 }
 
-function isHotelQuestion(question: string, lang: Lang, hotel: HotelPayload) {
+function isHotelQuestion(question: string, hotel: HotelPayload) {
   const q = clean(question);
   if (!q) return true;
   if (hasAnyTerm(q, HOTEL_KEYWORDS)) return true;
 
-  const infoMatch = findMatchingHotelInfo(q, lang, hotel).length > 0;
+  const infoMatch = findMatchingHotelInfo(q, "en", hotel).length > 0;
   if (infoMatch) return true;
 
-  const venueMatch = getActiveVenues(hotel).some((venue) => venueMatchesQuestion(venue, q, lang));
+  const venueMatch = getActiveVenues(hotel).some((venue) => venueMatchesQuestion(venue, q, "en"));
   if (venueMatch) return true;
 
   return getActiveServices(hotel).some((service) => {
@@ -897,13 +886,23 @@ function pickMealLines(question: string, hours: string) {
   if (!parts.length) return "";
 
   const mealGroups = [
-    ["breakfast", "закуска", "frühstück", "mic dejun", "snídaně"],
-    ["lunch", "обяд", "mittagessen", "prânz", "pranz", "oběd"],
-    ["snack", "следобед", "gustare", "svačina"],
-    ["dinner", "вечеря", "abendessen", "cină", "cina", "večeře"],
+    { key: "breakfast", terms: ["breakfast", "закуска", "frühstück", "fruhstuck", "mic dejun", "snídaně", "snidane"], excludeLineTerms: ["snack", "следобед", "afternoon", "gustare", "svačina", "svacina"] },
+    { key: "lunch", terms: ["lunch", "обяд", "mittagessen", "prânz", "pranz", "oběd", "obed"], excludeLineTerms: [] },
+    { key: "snack", terms: ["snack", "следобед", "следобедна закуска", "afternoon snack", "gustare", "svačina", "svacina"], excludeLineTerms: [] },
+    { key: "dinner", terms: ["dinner", "вечеря", "abendessen", "cină", "cina", "večeře", "vecere"], excludeLineTerms: [] },
   ];
 
-  const selected = parts.filter((line) => mealGroups.some((terms) => hasAnyTerm(question, terms) && hasAnyTerm(line, terms)));
+  const requestedGroups = mealGroups.filter((group) => hasAnyTerm(question, group.terms));
+  if (!requestedGroups.length) return normalizeDisplayText(hours);
+
+  const selected = parts.filter((line) =>
+    requestedGroups.some((group) => {
+      if (!hasAnyTerm(line, group.terms)) return false;
+      if (group.excludeLineTerms.length && hasAnyTerm(line, group.excludeLineTerms)) return false;
+      return true;
+    })
+  );
+
   return selected.length ? selected.join("\n") : normalizeDisplayText(hours);
 }
 
@@ -1428,7 +1427,7 @@ async function buildHotelAnswer(question: string, lang: Lang, hotel: HotelPayloa
   if (isGreetingOnly(q)) return CONVERSATION_COPY[lang].greeting;
   if (isThanksOnly(q)) return CONVERSATION_COPY[lang].thanks;
   if (isWeatherQuestion(q)) return await buildWeatherAnswer(question, lang, hotel);
-  if (!isHotelQuestion(q, lang, hotel)) return t.outOfScope;
+  if (!isHotelQuestion(q, hotel)) return t.outOfScope;
 
   if (hasAnyTerm(q, ["wifi", "wi-fi", "wlan", "internet", "парол", "парола", "passwort", "password", "parolă", "parola", "heslo"])) {
     return t.wifi(hotel.wifi?.ssid, hotel.wifi?.password);
