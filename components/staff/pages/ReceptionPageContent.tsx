@@ -98,7 +98,7 @@ export default function ReceptionPage() {
     return () => window.clearInterval(interval);
   }, []);
 
-  const { getOperationalAllRequests, updateRequestStatus } = useStaffStore();
+  const { getOperationalAllRequests, updateRequestStatus, chargeRequest } = useStaffStore();
   const requests = getOperationalAllRequests();
 
   const activeRequests = useMemo(
@@ -317,6 +317,8 @@ export default function ReceptionPage() {
                 onStart={(id) => void updateRequestStatus(id, "in_progress")}
                 onDone={(id) => void updateRequestStatus(id, "completed")}
                 onReturn={(id) => void updateRequestStatus(id, "returned")}
+                canCharge={Boolean(request.requiresBilling)}
+                onCharge={(id) => void chargeRequest(id)}
               />
             );
           })
@@ -347,6 +349,8 @@ export default function ReceptionPage() {
                 canAct={false}
                 isOverdue={isOverdueForReception(request, nowMs)}
                 overdueMinutes={requestAgeMinutes}
+                canCharge={Boolean(request.requiresBilling)}
+                onCharge={(id) => void chargeRequest(id)}
               />
             );
           })

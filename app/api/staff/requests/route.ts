@@ -36,6 +36,9 @@ type GuestRequestRow = {
     guestLanguage?: string;
     staffTitleBg?: string | null;
     staffNoteBg?: string | null;
+    billingStatus?: "pending" | "charged" | null;
+    billingChargedAt?: string | null;
+    billingChargedByRole?: string | null;
   } | null;
 };
 
@@ -81,6 +84,14 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
       message: row.message,
       metadata,
     }),
+    requiresBilling: Boolean(metadata.requiresBilling),
+    price: metadata.price ?? null,
+    currency: metadata.currency ?? null,
+    billingStatus: metadata.billingStatus ?? (metadata.requiresBilling ? "pending" : null),
+    billingChargedAt: metadata.billingChargedAt ?? null,
+    billingChargedByRole: metadata.billingChargedByRole ?? null,
+    sourceRequestDef: metadata.sourceRequestDef ?? null,
+    notifyDepartments: metadata.notifyDepartments ?? [],
   };
 }
 

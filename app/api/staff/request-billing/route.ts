@@ -1,0 +1,170 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentStaffSession } from "@/lib/staff-auth/session";
+import type { StaffRole } from "@/lib/staff-auth/cookie-name";
+import { supabaseAdmin } from "@/lib/server/supabase-admin";
+
+function isValidRole(value: string): value is StaffRole {
+  return (
+    value === "reception" ||
+    value === "housekeeping" ||
+    value === "maintenance" ||
+    value === "manager"
+  );
+}
+
+function getHotelAliasFromSlug(hotelSlug: string) {
+  return hotelSlug === "aquamarin" ? "aquamarine" : hotelSlug;
+}
+
+async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
+  const session = await getCurrentStaffSession(hotelSlug, role);
+  if (!session) {
+    return {
+      error: NextResponse.json(
+        { ok: false, error: "No active staff session" },
+        { status: 401 },
+      ),
+    };
+  }
+
+  const { data: hotel, error: hotelError } = await supabaseAdmin
+    .from("hotels")
+    .select("id, slug, active")
+    .eq("id", session.hotel_id)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (hotelError || !hotel) {
+    return {
+      error: NextResponse.json(
+        { ok: false, error: "Hotel not found for session" },
+        { status: 401 },
+      ),
+    };
+  }
+
+  if (hotel.slug !== hotelSlug || session.role !== role) {
+    return {
+      error: NextResponse.json(
+        { ok: false, error: "Session does not match requested hotel/role" },
+        { status: 403 },
+      ),
+    };
+  }
+
+  return { hotelId: hotel.id, role };
+}
+
+function isBillableMetadata(metadata: Record<string, unknown>) {
+  if (metadata.requiresBilling === true) return true;
+  if (String(metadata.price ?? "").trim()) return true;
+  return false;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json().catch(() => null);
+
+    const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();
+    const role = String(body?.role || "").trim().toLowerCase();
+    const requestId = String(body?.requestId || body?.id || "").trim();
+
+    if (!hotelSlug || !isValidRole(role) || !requestId) {
+      return NextResponse.json(
+        { ok: false, error: "Missing or invalid payload" },
+        { status: 400 },
+      );
+    }
+
+    if (role !== "reception") {
+      return NextResponse.json(
+        { ok: false, error: "Only reception can charge paid services" },
+        { status: 403 },
+      );
+    }
+
+    const scope = await resolveAuthorizedScope(hotelSlug, role);
+    if ("error" in scope) return scope.error;
+
+    const { data: requestRow, error: requestError } = await supabaseAdmin
+      .from("guest_requests")
+      .select("id, hotel_id, request_type, room_number_snapshot, title, metadata_json")
+      .eq("id", requestId)
+      .eq("hotel_id", scope.hotelId)
+      .maybeSingle();
+
+    if (requestError || !requestRow) {
+      return NextResponse.json(
+        { ok: false, error: "Request not found" },
+        { status: 404 },
+      );
+    }
+
+    const currentMetadata =
+      requestRow.metadata_json && typeof requestRow.metadata_json === "object"
+        ? (requestRow.metadata_json as Record<string, unknown>)
+        : {};
+
+    if (!isBillableMetadata(currentMetadata)) {
+      return NextResponse.json(
+        { ok: false, error: "Request does not require billing" },
+        { status: 400 },
+      );
+    }
+
+    const chargedAt = new Date().toISOString();
+    const nextMetadata = {
+      ...currentMetadata,
+      requiresBilling: true,
+      billingStatus: "charged",
+      billingChargedAt: chargedAt,
+      billingChargedByRole: role,
+    };
+
+    const { error: updateError } = await supabaseAdmin
+      .from("guest_requests")
+      .update({ metadata_json: nextMetadata })
+      .eq("id", requestId)
+      .eq("hotel_id", scope.hotelId);
+
+    if (updateError) {
+      return NextResponse.json(
+        { ok: false, error: `Failed to charge request: ${updateError.message}` },
+        { status: 500 },
+      );
+    }
+
+    const { error: eventError } = await supabaseAdmin.from("hub_events").insert({
+      hotel_id: scope.hotelId,
+      hotel_slug: hotelSlug,
+      hotel_alias: getHotelAliasFromSlug(hotelSlug),
+      scan_session_id: null,
+      room_id: null,
+      room_number: requestRow.room_number_snapshot ?? null,
+      user_session_id: null,
+      event_name: "request_billing_charged",
+      section: "reception",
+      label: requestRow.request_type,
+      value: String(currentMetadata.typeLabel ?? requestRow.title ?? requestRow.request_type),
+      extra: {
+        requestId,
+        price: currentMetadata.price ?? null,
+        currency: currentMetadata.currency ?? null,
+        sourceRequestDef: currentMetadata.sourceRequestDef ?? null,
+        chargedAt,
+      },
+    });
+
+    if (eventError) {
+      console.error("staff billing hub_events insert error", eventError);
+    }
+
+    return NextResponse.json({ ok: true, metadata: nextMetadata });
+  } catch (error) {
+    console.error("staff request-billing POST error", error);
+    return NextResponse.json(
+      { ok: false, error: "Unexpected server error" },
+      { status: 500 },
+    );
+  }
+}

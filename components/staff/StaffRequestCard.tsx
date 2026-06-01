@@ -16,6 +16,8 @@ type StaffRequestCardProps = {
   onStart?: (id: string) => void;
   onDone?: (id: string) => void;
   onReturn?: (id: string) => void;
+  canCharge?: boolean;
+  onCharge?: (id: string) => void;
   isOverdue?: boolean;
   overdueMinutes?: number;
 };
@@ -110,6 +112,14 @@ function formatOverdueText(minutes: number | undefined, locale: string) {
   return `Waiting ${safeMinutes} min.`;
 }
 
+function formatBillingAmount(request: StaffRequest) {
+  const price = String(request.price ?? "").trim();
+  const currency = String(request.currency ?? "").trim();
+
+  if (!price && !currency) return "";
+  return [price, currency].filter(Boolean).join(" ");
+}
+
 export default function StaffRequestCard({
   request,
   mode,
@@ -117,6 +127,8 @@ export default function StaffRequestCard({
   onStart,
   onDone,
   onReturn,
+  canCharge = false,
+  onCharge,
   isOverdue = false,
   overdueMinutes,
 }: StaffRequestCardProps) {
@@ -124,6 +136,10 @@ export default function StaffRequestCard({
   const t = staffText(lang);
   const isNew = request.status === "new";
   const isInProgress = request.status === "in_progress";
+  const billingAmount = formatBillingAmount(request);
+  const isCharged = request.billingStatus === "charged";
+  const shouldShowBilling = mode === "reception" && request.requiresBilling;
+  const shouldShowChargeButton = shouldShowBilling && canCharge && !isCharged;
   const cardClassName = isOverdue
     ? "rounded-3xl border border-rose-500/90 bg-rose-950/35 p-5 shadow-lg shadow-rose-500/20 ring-2 ring-rose-500/30 animate-pulse"
     : "rounded-3xl border border-white/10 bg-white/5 p-5 shadow-sm";
@@ -150,6 +166,19 @@ export default function StaffRequestCard({
             >
               {translateStaffStatus(request.status, lang)}
             </span>
+
+            {shouldShowBilling ? (
+              <span
+                className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                  isCharged
+                    ? "border-emerald-400/30 bg-emerald-400/15 text-emerald-100"
+                    : "border-amber-400/30 bg-amber-400/15 text-amber-100"
+                }`}
+              >
+                {isCharged ? t.billingCharged : t.billingPending}
+                {billingAmount ? ` · ${billingAmount}` : ""}
+              </span>
+            ) : null}
 
             {isOverdue ? (
               <span className="rounded-full border border-rose-300/50 bg-rose-500/25 px-3 py-1 text-xs font-bold uppercase tracking-wide text-rose-50">
@@ -184,6 +213,24 @@ export default function StaffRequestCard({
           {mode === "manager" ? (
             <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm leading-6 text-white/70">
               {t.managerViewOnly}
+            </div>
+          ) : null}
+
+          {shouldShowChargeButton ? (
+            <button
+              type="button"
+              onClick={() => onCharge?.(request.id)}
+              className="min-h-14 rounded-2xl bg-amber-500 px-4 text-base font-semibold text-white transition hover:bg-amber-400"
+            >
+              {t.charge}
+              {billingAmount ? ` · ${billingAmount}` : ""}
+            </button>
+          ) : null}
+
+          {shouldShowBilling && isCharged ? (
+            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/15 px-4 py-4 text-center text-sm font-semibold text-emerald-100">
+              {t.charged}
+              {billingAmount ? ` · ${billingAmount}` : ""}
             </div>
           ) : null}
 

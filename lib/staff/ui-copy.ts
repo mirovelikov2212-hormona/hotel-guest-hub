@@ -101,6 +101,10 @@ const copy = {
     done: "ГОТОВО",
     return: "ВЪРНИ",
     noActionsAvailable: "Няма налични действия",
+    charge: "НАЧИСЛИ",
+    charged: "Начислено",
+    billingPending: "За начисляване",
+    billingCharged: "Начислено към стаята",
     reports: "Отчети",
     reportsIntro:
       "Управленският изглед показва кои типове заявки се повтарят най-често и кои стаи генерират най-много проблеми.",
@@ -255,6 +259,10 @@ const copy = {
     done: "DONE",
     return: "RETURN",
     noActionsAvailable: "No actions available",
+    charge: "CHARGE",
+    charged: "Charged",
+    billingPending: "To be charged",
+    billingCharged: "Charged to room",
     reports: "Reports",
     reportsIntro:
       "The management view shows which request types repeat most often and which rooms generate the most issues.",
@@ -406,6 +414,10 @@ const copy = {
     done: "ERLEDIGT",
     return: "ZURÜCK",
     noActionsAvailable: "Keine Aktionen verfügbar",
+    charge: "BUCHEN",
+    charged: "Gebucht",
+    billingPending: "Zu berechnen",
+    billingCharged: "Auf Zimmer gebucht",
     reports: "Berichte",
     reportsIntro:
       "Die Managementansicht zeigt, welche Anfragearten sich am häufigsten wiederholen und welche Zimmer die meisten Probleme erzeugen.",

@@ -33,6 +33,7 @@ type StaffStoreContextValue = {
   hotelId?: string;
   hotelSlug?: string;
   updateRequestStatus: (id: string, status: StaffRequestStatus) => Promise<void>;
+  chargeRequest: (id: string) => Promise<void>;
   addRequest: (input: AddRequestInput) => Promise<void>;
   getRequestsByDepartment: (department: StaffDepartment) => StaffRequest[];
   getOperationalRequestsByDepartment: (
@@ -161,6 +162,34 @@ async function updateStaffRequestStatus(input: {
 
   if (!response.ok) {
     throw new Error(`Failed to update request status: ${response.status}`);
+  }
+}
+
+async function chargeStaffRequest(input: {
+  id: string;
+  hotelSlug: string;
+  role: StaffRole;
+}) {
+  const response = await fetch("/api/staff/request-billing", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      id: input.id,
+      requestId: input.id,
+      hotelSlug: input.hotelSlug,
+      role: input.role,
+    }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    const message = payload?.error
+      ? String(payload.error)
+      : `Failed to charge request: ${response.status}`;
+    throw new Error(message);
   }
 }
 
@@ -323,6 +352,29 @@ export function StaffStoreProvider({
     [currentRole, loadRequests, normalizedHotelSlug]
   );
 
+  const chargeRequest = useCallback(
+    async (id: string) => {
+      if (!normalizedHotelSlug || !currentRole) return;
+
+      try {
+        await chargeStaffRequest({
+          id,
+          hotelSlug: normalizedHotelSlug,
+          role: currentRole,
+        });
+
+        await loadRequests();
+      } catch (error) {
+        console.error("Failed to charge staff request", error);
+        if (typeof window !== "undefined") {
+          const message = error instanceof Error ? error.message : "Failed to charge request";
+          window.alert(message);
+        }
+      }
+    },
+    [currentRole, loadRequests, normalizedHotelSlug]
+  );
+
   const addRequest = useCallback(
     async (input: AddRequestInput) => {
       try {
@@ -375,6 +427,7 @@ export function StaffStoreProvider({
       hotelId: normalizedHotelId,
       hotelSlug: normalizedHotelSlug,
       updateRequestStatus,
+      chargeRequest,
       addRequest,
       getRequestsByDepartment,
       getOperationalRequestsByDepartment,
@@ -387,6 +440,7 @@ export function StaffStoreProvider({
       normalizedHotelId,
       normalizedHotelSlug,
       updateRequestStatus,
+      chargeRequest,
       addRequest,
       getRequestsByDepartment,
       getOperationalRequestsByDepartment,

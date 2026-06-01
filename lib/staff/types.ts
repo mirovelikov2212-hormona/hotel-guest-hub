@@ -47,6 +47,8 @@ export type StaffRequestType =
   | "luggage_help"
   | "massage_booking";
 
+export type StaffBillingStatus = "pending" | "charged";
+
 export type StaffRequest = {
   id: string;
   room: string;
@@ -59,6 +61,14 @@ export type StaffRequest = {
   createdAtIso: string;
   createdDateKey: string;
   note?: string;
+  requiresBilling?: boolean;
+  price?: string | null;
+  currency?: string | null;
+  billingStatus?: StaffBillingStatus | null;
+  billingChargedAt?: string | null;
+  billingChargedByRole?: string | null;
+  sourceRequestDef?: string | null;
+  notifyDepartments?: string[];
 };
 
 export const staffDepartmentLabels: Record<StaffDepartment, string> = {
