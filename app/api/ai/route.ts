@@ -52,6 +52,22 @@ type HotelInfoItem = {
   text?: TextMap;
 };
 
+type HubKnowledgeItem = {
+  label?: string;
+  title?: string;
+  info?: string;
+  text?: string;
+  kind?: string;
+  href?: string;
+  url?: string;
+};
+
+type HubKnowledgeSection = {
+  id?: string;
+  title?: string;
+  items?: HubKnowledgeItem[];
+};
+
 type HotelPayload = {
   hotelName?: string;
   locationQuery?: string;
@@ -62,6 +78,7 @@ type HotelPayload = {
   services?: ServiceItem[];
   reviews?: { google?: string; tripadvisor?: string; booking?: string };
   socialLinks?: { facebook?: string; instagram?: string; tiktok?: string; youtube?: string };
+  hubSections?: HubKnowledgeSection[];
 };
 
 const SUPPORTED_LANGS: Lang[] = ["bg", "de", "en", "ro", "cs"];
@@ -777,6 +794,66 @@ function getActiveServices(hotel: HotelPayload) {
 
 function getActiveHotelInfo(hotel: HotelPayload) {
   return (hotel.hotelInfoItems ?? []).filter((item) => item && item.active !== false);
+}
+
+function hubValue(value: unknown) {
+  if (typeof value === "string" || typeof value === "number") return String(value).trim();
+  return "";
+}
+
+function buildHotelInfoItemsFromHubSections(sections: HubKnowledgeSection[] | undefined, lang: Lang): HotelInfoItem[] {
+  if (!Array.isArray(sections) || !sections.length) return [];
+
+  const items: HotelInfoItem[] = [];
+
+  sections.forEach((section, sectionIndex) => {
+    const sectionId = hubValue(section?.id) || `section_${sectionIndex}`;
+    const sectionTitle = stripIcon(hubValue(section?.title));
+
+    (section?.items ?? []).forEach((item, itemIndex) => {
+      const label = stripIcon(hubValue(item?.label || item?.title));
+      const info = normalizeDisplayText(hubValue(item?.info || item?.text));
+      const href = hubValue(item?.href || item?.url);
+      const text = [info, href].filter(Boolean).join("\n").trim();
+
+      if (!label && !text) return;
+
+      items.push({
+        key: `hub_${sectionId}_${itemIndex}`,
+        category: sectionId,
+        section: sectionTitle,
+        active: true,
+        sortOrder: 7000 + sectionIndex * 100 + itemIndex,
+        title: { [lang]: label || sectionTitle || sectionId },
+        text: { [lang]: text || label },
+      });
+    });
+  });
+
+  return items;
+}
+
+function mergeHotelInfoItems(...groups: Array<HotelInfoItem[] | undefined>) {
+  const seen = new Set<string>();
+  const merged: HotelInfoItem[] = [];
+
+  for (const group of groups) {
+    for (const item of group ?? []) {
+      if (!item || item.active === false) continue;
+      const identity = clean([
+        item.key,
+        item.id,
+        item.category,
+        ...getAllMapValues(item.title),
+        ...getAllMapValues(item.text),
+      ].join(" "));
+      if (!identity || seen.has(identity)) continue;
+      seen.add(identity);
+      merged.push(item);
+    }
+  }
+
+  return merged;
 }
 
 function getVenueHours(venue: Venue, lang: Lang) {
@@ -1671,10 +1748,13 @@ function buildAiServicesFromRequestDefs(requestDefs: any[] | undefined): Service
     .filter((service) => service.key || service.label);
 }
 
-function mergeHotelKnowledge(clientHotel: HotelPayload, serverConfig: any): HotelPayload {
+function mergeHotelKnowledge(clientHotel: HotelPayload, serverConfig: any, lang: Lang): HotelPayload {
   const client = clientHotel ?? {};
   const server = serverConfig ?? {};
   const serverServices = buildAiServicesFromRequestDefs(server.requestDefs);
+  const serverHotelInfo = Array.isArray(server.hotelInfoItems) ? server.hotelInfoItems : [];
+  const clientHotelInfo = Array.isArray(client.hotelInfoItems) ? client.hotelInfoItems : [];
+  const visibleHubInfo = buildHotelInfoItemsFromHubSections(client.hubSections, lang);
 
   return {
     ...client,
@@ -1685,7 +1765,7 @@ function mergeHotelKnowledge(clientHotel: HotelPayload, serverConfig: any): Hote
     reviews: server.reviews ?? client.reviews,
     socialLinks: server.socialLinks ?? client.socialLinks,
     venueRows: Array.isArray(server.venueRows) && server.venueRows.length ? server.venueRows : (client.venueRows ?? []),
-    hotelInfoItems: Array.isArray(server.hotelInfoItems) && server.hotelInfoItems.length ? server.hotelInfoItems : (client.hotelInfoItems ?? []),
+    hotelInfoItems: mergeHotelInfoItems(serverHotelInfo, clientHotelInfo, visibleHubInfo),
     services: Array.isArray(client.services) && client.services.length ? client.services : serverServices,
   };
 }
@@ -1710,7 +1790,7 @@ export async function POST(req: Request) {
         })
       : null;
 
-    const hotel = mergeHotelKnowledge(clientHotel, serverConfig);
+    const hotel = mergeHotelKnowledge(clientHotel, serverConfig, lang);
 
     return NextResponse.json({
       ok: true,

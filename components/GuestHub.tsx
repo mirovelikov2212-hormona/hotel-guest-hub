@@ -3841,6 +3841,19 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             socialLinks: config.socialLinks,
             venueRows: (config as any).venueRows ?? [],
             hotelInfoItems: (config as any).hotelInfoItems ?? [],
+            hubSections: sections.map((section) => ({
+              id: String(section.id || ""),
+              title: String(section.title || ""),
+              items: section.items
+                .map((item: any) => ({
+                  label: typeof item?.label === "string" ? item.label : "",
+                  info: typeof item?.info === "string" ? item.info : "",
+                  kind: typeof item?.kind === "string" ? item.kind : "",
+                  href: typeof item?.href === "string" ? item.href : "",
+                  url: typeof item?.url === "string" ? item.url : "",
+                }))
+                .filter((item: any) => item.label || item.info || item.href || item.url),
+            })),
             services: aiServices,
           },
         }),
