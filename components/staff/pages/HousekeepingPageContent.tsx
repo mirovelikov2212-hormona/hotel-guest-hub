@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
@@ -10,7 +10,7 @@ import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import { getRequestSummary, sortStaffRequests } from "@/lib/staff/mock-data";
 import { staffText } from "@/lib/staff/ui-copy";
 
-type SummaryFilter = "active" | "new" | "in_progress" | "returned" | "completed_today";
+type SummaryFilter = "active" | "new" | "in_progress" | "returned";
 
 export default function HousekeepingPage() {
   const { lang } = useStaffUi();
@@ -18,7 +18,6 @@ export default function HousekeepingPage() {
   const {
     hotelSlug,
     getOperationalRequestsByDepartment,
-    getRequestsByDepartment,
     updateRequestStatus,
   } = useStaffStore();
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>("active");
@@ -34,75 +33,21 @@ export default function HousekeepingPage() {
     requests,
   });
 
-  const departmentRequests = useMemo(
-    () => sortStaffRequests(getRequestsByDepartment("housekeeping")),
-    [getRequestsByDepartment]
-  );
-
-  const [todayKey, setTodayKey] = useState(() =>
-    new Date().toLocaleDateString("sv-SE")
-  );
-
-  useEffect(() => {
-    const updateDay = () => {
-      setTodayKey(new Date().toLocaleDateString("sv-SE"));
-      setSummaryFilter("active");
-    };
-
-    const now = new Date();
-    const nextReset = new Date(now);
-    nextReset.setHours(24, 0, 10, 0);
-
-    let intervalId: ReturnType<typeof setInterval> | undefined;
-
-    const timeoutId = setTimeout(() => {
-      updateDay();
-      intervalId = setInterval(updateDay, 24 * 60 * 60 * 1000);
-    }, nextReset.getTime() - now.getTime());
-
-    return () => {
-      clearTimeout(timeoutId);
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, []);
-
   const activeRequests = useMemo(
     () => requests.filter((request) => request.status !== "completed"),
     [requests]
   );
 
-  const completedTodayRequests = useMemo(
-    () =>
-      departmentRequests.filter((request) => {
-        if (request.status !== "completed") return false;
-
-        const completedIso =
-          (request as any).completedAtIso ??
-          (request as any).updatedAtIso ??
-          (request as any).createdAtIso ??
-          null;
-
-        if (!completedIso) return false;
-
-        return new Date(completedIso).toLocaleDateString("sv-SE") === todayKey;
-      }),
-    [departmentRequests, todayKey]
-  );
-
   const summary = useMemo(() => getRequestSummary(requests), [requests]);
 
   const visibleRequests = useMemo(() => {
-    if (summaryFilter === "completed_today") {
-      return sortStaffRequests(completedTodayRequests);
-    }
-
     const base = activeRequests.filter((request) => {
       if (summaryFilter === "active") return true;
       return request.status === summaryFilter;
     });
 
     return sortStaffRequests(base);
-  }, [activeRequests, completedTodayRequests, summaryFilter]);
+  }, [activeRequests, summaryFilter]);
 
   return (
     <main className="space-y-6 pb-safe">
@@ -129,7 +74,7 @@ export default function HousekeepingPage() {
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StaffSummaryCard
           label={t.active}
           value={summary.newCount + summary.inProgressCount + summary.returnedCount}
@@ -154,12 +99,6 @@ export default function HousekeepingPage() {
           danger
           active={summaryFilter === "returned"}
           onClick={() => setSummaryFilter("returned")}
-        />
-        <StaffSummaryCard
-          label={lang === "bg" ? "Приключени" : lang === "de" ? "Erledigt" : "Completed"}
-          value={completedTodayRequests.length}
-          active={summaryFilter === "completed_today"}
-          onClick={() => setSummaryFilter("completed_today")}
         />
       </section>
 
