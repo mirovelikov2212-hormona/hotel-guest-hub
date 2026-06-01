@@ -28,24 +28,6 @@ const SECTION_ICON_PREFIXES: Record<string, string> = {
   fifa: "🏆",
 };
 
-const LINK_ICON_PREFIXES: Record<string, string> = {
-  google: "⭐",
-  tripadvisor: "⭐",
-  booking: "🛏️",
-  facebook: "📘",
-  instagram: "📸",
-  tiktok: "🎵",
-  youtube: "▶️",
-};
-
-function withLinkIcon(label: string, linkKey: string): string {
-  const raw = String(label || "").trim();
-  if (!raw) return raw;
-  if (/^[\p{Extended_Pictographic}⭐▶️]/u.test(raw)) return raw;
-  const icon = LINK_ICON_PREFIXES[String(linkKey || "").toLowerCase().trim()] || "🔗";
-  return `${icon} ${raw}`.trim();
-}
-
 function withSectionIcon(title: string, sectionKey?: string): string {
   const raw = String(title || "").trim();
   if (!raw) return raw;
@@ -3849,6 +3831,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         body: JSON.stringify({
           question: aiQ,
           lang: String(lang),
+          hotelSlug: config.hotelSlug,
           hotel: {
             hotelName: config.hotelName,
             locationQuery: config.location?.query,
@@ -4449,7 +4432,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(config.reviews?.google
           ? [
             {
-              label: withLinkIcon(String(tUI("leave_google_review") || "Google Review"), "google"),
+              label: String(tUI("leave_google_review") || "Google Review"),
               kind: "link" as const,
               href: config.reviews.google,
               newTab: true,
@@ -4459,7 +4442,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(config.reviews?.tripadvisor
           ? [
             {
-              label: withLinkIcon(String(tUI("leave_tripadvisor_review") || "TripAdvisor Review"), "tripadvisor"),
+              label: String(tUI("leave_tripadvisor_review") || "TripAdvisor Review"),
               kind: "link" as const,
               href: config.reviews.tripadvisor,
               newTab: true,
@@ -4469,7 +4452,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(config.reviews?.booking
           ? [
             {
-              label: withLinkIcon(String(tUI("leave_booking_review") || "Booking.com"), "booking"),
+              label: String(tUI("leave_booking_review") || "Booking.com"),
               kind: "link" as const,
               href: config.reviews.booking,
               newTab: true,
@@ -4500,10 +4483,10 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           kind: "info" as const,
           info: socialIntro,
         },
-        ...(socialLinks.facebook ? [{ label: withLinkIcon("Facebook", "facebook"), kind: "link" as const, href: socialLinks.facebook, newTab: true }] : []),
-        ...(socialLinks.instagram ? [{ label: withLinkIcon("Instagram", "instagram"), kind: "link" as const, href: socialLinks.instagram, newTab: true }] : []),
-        ...(socialLinks.tiktok ? [{ label: withLinkIcon("TikTok", "tiktok"), kind: "link" as const, href: socialLinks.tiktok, newTab: true }] : []),
-        ...(socialLinks.youtube ? [{ label: withLinkIcon("YouTube", "youtube"), kind: "link" as const, href: socialLinks.youtube, newTab: true }] : []),
+        ...(socialLinks.facebook ? [{ label: "Facebook", kind: "link" as const, href: socialLinks.facebook, newTab: true }] : []),
+        ...(socialLinks.instagram ? [{ label: "Instagram", kind: "link" as const, href: socialLinks.instagram, newTab: true }] : []),
+        ...(socialLinks.tiktok ? [{ label: "TikTok", kind: "link" as const, href: socialLinks.tiktok, newTab: true }] : []),
+        ...(socialLinks.youtube ? [{ label: "YouTube", kind: "link" as const, href: socialLinks.youtube, newTab: true }] : []),
       ],
     } satisfies HubSection)
     : null;

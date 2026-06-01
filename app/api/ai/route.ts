@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getHotelConfig } from "@/lib/config";
 
 type Lang = "bg" | "de" | "en" | "ro" | "cs";
 
@@ -1633,12 +1634,83 @@ async function buildHotelAnswer(question: string, lang: Lang, hotel: HotelPayloa
   return t.noData;
 }
 
+
+function buildAiServicesFromRequestDefs(requestDefs: any[] | undefined): ServiceItem[] {
+  return (requestDefs ?? [])
+    .filter((def) => def && def.enabled !== false && def.aiVisible !== false && def.guestVisible !== false)
+    .map((def) => {
+      const titleMap = (def.title ?? {}) as TextMap;
+      const descriptionParts = [
+        getMapValue((def.description ?? {}) as TextMap, "en"),
+        getMapValue((def.policy ?? {}) as TextMap, "en"),
+        getMapValue((def.subtitle ?? {}) as TextMap, "en"),
+      ].filter(Boolean);
+
+      const optionWords = Object.values(def.optionsByLang ?? {})
+        .flatMap((value: any) => Array.isArray(value) ? value : [])
+        .map((value: any) => String(value || "").trim())
+        .filter(Boolean);
+
+      return {
+        key: String(def.id || def.requestType || "").trim(),
+        label: getMapValue(titleMap, "en") || String(def.id || def.requestType || "service").replace(/_/g, " "),
+        description: descriptionParts.join("\n\n"),
+        active: def.enabled !== false,
+        category: String(def.category || def.targetDepartment || "").trim(),
+        keywords: [
+          String(def.id || ""),
+          String(def.requestType || ""),
+          String(def.category || ""),
+          String(def.targetDepartment || ""),
+          ...(Array.isArray(def.keywords) ? def.keywords : []),
+          ...Object.values(titleMap).map((value) => String(value || "")),
+          ...optionWords,
+        ].filter(Boolean),
+      } as ServiceItem;
+    })
+    .filter((service) => service.key || service.label);
+}
+
+function mergeHotelKnowledge(clientHotel: HotelPayload, serverConfig: any): HotelPayload {
+  const client = clientHotel ?? {};
+  const server = serverConfig ?? {};
+  const serverServices = buildAiServicesFromRequestDefs(server.requestDefs);
+
+  return {
+    ...client,
+    hotelName: server.hotelName || client.hotelName,
+    locationQuery: server.location?.query || server.locationQuery || client.locationQuery,
+    wifi: server.wifi ?? client.wifi,
+    departmentHours: server.departmentHours ?? client.departmentHours,
+    reviews: server.reviews ?? client.reviews,
+    socialLinks: server.socialLinks ?? client.socialLinks,
+    venueRows: Array.isArray(server.venueRows) && server.venueRows.length ? server.venueRows : (client.venueRows ?? []),
+    hotelInfoItems: Array.isArray(server.hotelInfoItems) && server.hotelInfoItems.length ? server.hotelInfoItems : (client.hotelInfoItems ?? []),
+    services: Array.isArray(client.services) && client.services.length ? client.services : serverServices,
+  };
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
     const question = String(body?.question ?? body?.message ?? body?.prompt ?? body?.text ?? "").trim();
     const lang = normalizeLang(String(body?.lang ?? "en"));
-    const hotel = (body?.hotel ?? {}) as HotelPayload;
+    const clientHotel = (body?.hotel ?? {}) as HotelPayload;
+    const hotelSlug = String(
+      body?.hotelSlug ??
+      (body?.hotel as any)?.hotelSlug ??
+      (body?.hotel as any)?.slug ??
+      ""
+    ).trim();
+
+    const serverConfig = hotelSlug
+      ? await getHotelConfig(hotelSlug).catch((error) => {
+          console.error("AI failed to load server hotel config", { hotelSlug, error });
+          return null;
+        })
+      : null;
+
+    const hotel = mergeHotelKnowledge(clientHotel, serverConfig);
 
     return NextResponse.json({
       ok: true,
