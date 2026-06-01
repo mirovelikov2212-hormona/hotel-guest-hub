@@ -70,6 +70,29 @@ function withSectionIcon(title: string, sectionKey?: string): string {
 
   return icon ? `${icon} ${raw}` : raw;
 }
+
+const LINK_ICON_PREFIXES: Record<string, string> = {
+  google: "⭐",
+  tripadvisor: "⭐",
+  booking: "🛏️",
+  facebook: "📘",
+  instagram: "📸",
+  tiktok: "🎵",
+  youtube: "▶️",
+};
+
+function withLinkIcon(label: string, linkKey: keyof typeof LINK_ICON_PREFIXES): string {
+  const raw = String(label || "").trim();
+  if (!raw) return raw;
+
+  // Avoid duplicating icons when the text already starts with an emoji/symbol.
+  if (/^[\p{Extended_Pictographic}⭐▶️]/u.test(raw)) {
+    return raw;
+  }
+
+  return `${LINK_ICON_PREFIXES[linkKey]} ${raw}`;
+}
+
 // END_STAYHUB_SECTION_ICON_HELPERS
 
 
@@ -4445,7 +4468,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(config.reviews?.google
           ? [
             {
-              label: String(tUI("leave_google_review") || "Google Review"),
+              label: withLinkIcon(String(tUI("leave_google_review") || "Google Review"), "google"),
               kind: "link" as const,
               href: config.reviews.google,
               newTab: true,
@@ -4455,7 +4478,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(config.reviews?.tripadvisor
           ? [
             {
-              label: String(tUI("leave_tripadvisor_review") || "TripAdvisor Review"),
+              label: withLinkIcon(String(tUI("leave_tripadvisor_review") || "TripAdvisor Review"), "tripadvisor"),
               kind: "link" as const,
               href: config.reviews.tripadvisor,
               newTab: true,
@@ -4465,7 +4488,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(config.reviews?.booking
           ? [
             {
-              label: String(tUI("leave_booking_review") || "Booking.com"),
+              label: withLinkIcon(String(tUI("leave_booking_review") || "Booking.com"), "booking"),
               kind: "link" as const,
               href: config.reviews.booking,
               newTab: true,
@@ -4496,10 +4519,10 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           kind: "info" as const,
           info: socialIntro,
         },
-        ...(socialLinks.facebook ? [{ label: "Facebook", kind: "link" as const, href: socialLinks.facebook, newTab: true }] : []),
-        ...(socialLinks.instagram ? [{ label: "Instagram", kind: "link" as const, href: socialLinks.instagram, newTab: true }] : []),
-        ...(socialLinks.tiktok ? [{ label: "TikTok", kind: "link" as const, href: socialLinks.tiktok, newTab: true }] : []),
-        ...(socialLinks.youtube ? [{ label: "YouTube", kind: "link" as const, href: socialLinks.youtube, newTab: true }] : []),
+        ...(socialLinks.facebook ? [{ label: withLinkIcon("Facebook", "facebook"), kind: "link" as const, href: socialLinks.facebook, newTab: true }] : []),
+        ...(socialLinks.instagram ? [{ label: withLinkIcon("Instagram", "instagram"), kind: "link" as const, href: socialLinks.instagram, newTab: true }] : []),
+        ...(socialLinks.tiktok ? [{ label: withLinkIcon("TikTok", "tiktok"), kind: "link" as const, href: socialLinks.tiktok, newTab: true }] : []),
+        ...(socialLinks.youtube ? [{ label: withLinkIcon("YouTube", "youtube"), kind: "link" as const, href: socialLinks.youtube, newTab: true }] : []),
       ],
     } satisfies HubSection)
     : null;
