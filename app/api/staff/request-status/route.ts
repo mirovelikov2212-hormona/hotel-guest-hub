@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import type { StaffDepartment, StaffRequestStatus } from "@/lib/staff/types";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
+import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
 
 type GuestRequestRow = {
   id: string;
@@ -76,31 +77,31 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
   return { hotelId: hotel.id, role };
 }
 
-function isAfterOperationsHours() {
-  const now = new Date();
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  return minutes < 8 * 60 || minutes >= 17 * 60;
-}
-
 function canRoleUpdateDepartment(
   role: StaffRole,
   department: StaffDepartment | undefined,
   serviceTime?: string
 ) {
-  if (role === "manager") return true;
+  const afterHours = isReceptionBackupHours();
+
+  if (role === "manager") return false;
   if (role === "reception") {
     if (department === "reception") return true;
     if (
       (department === "housekeeping" || department === "maintenance") &&
       serviceTime !== "tomorrow" &&
-      isAfterOperationsHours()
+      afterHours
     ) {
       return true;
     }
     return false;
   }
-  if (role === "housekeeping") return department === "housekeeping";
-  if (role === "maintenance") return department === "maintenance";
+  if (role === "housekeeping") {
+    return department === "housekeeping" && !afterHours;
+  }
+  if (role === "maintenance") {
+    return department === "maintenance" && !afterHours;
+  }
   return false;
 }
 

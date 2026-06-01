@@ -4,6 +4,7 @@ import type { StaffRole } from "@/lib/staff-auth/cookie-name";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
+import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
 import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
 import type {
   StaffDepartment,
@@ -149,9 +150,18 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    let requests = (data as GuestRequestRow[]).map(mapRowToStaffRequest);
+
+    if (role === "housekeeping" || role === "maintenance") {
+      const afterHours = isReceptionBackupHours();
+      if (afterHours) {
+        requests = requests.filter((request) => request.status === "completed");
+      }
+    }
+
     return NextResponse.json({
       ok: true,
-      requests: (data as GuestRequestRow[]).map(mapRowToStaffRequest),
+      requests,
     });
   } catch (error) {
     console.error("staff requests GET error", error);

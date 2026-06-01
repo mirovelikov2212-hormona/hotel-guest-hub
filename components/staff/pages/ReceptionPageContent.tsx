@@ -12,6 +12,7 @@ import type {
   StaffRequestStatus,
 } from "@/lib/staff/types";
 import { staffText } from "@/lib/staff/ui-copy";
+import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
 
 type DepartmentFilter = "all" | StaffDepartment;
 type StatusFilter = "all" | "active" | StaffRequestStatus;
@@ -80,12 +81,6 @@ function sortRequests(
   });
 }
 
-function isAfterOperationsHours() {
-  const now = new Date();
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  return minutes < 8 * 60 || minutes >= 17 * 60;
-}
-
 export default function ReceptionPage() {
   const { lang } = useStaffUi();
   const t = staffText(lang);
@@ -143,13 +138,14 @@ export default function ReceptionPage() {
     return sortRequests(base, sortMode, nowMs);
   }, [requests, activeDepartment, activeStatus, sortMode, nowMs]);
 
-  const afterHours = useMemo(() => isAfterOperationsHours(), []);
+  const afterHours = useMemo(() => isReceptionBackupHours(new Date(nowMs)), [nowMs]);
 
   const actionableRequests = useMemo(
     () =>
       filteredRequests.filter((request) => {
         if (request.department === "reception") return true;
         if (!afterHours) return false;
+        if (request.serviceTime === "tomorrow") return false;
         return (
           request.department === "housekeeping" ||
           request.department === "maintenance"
@@ -164,6 +160,7 @@ export default function ReceptionPage() {
         if (request.department === "reception") return false;
         if (
           afterHours &&
+          request.serviceTime !== "tomorrow" &&
           (request.department === "housekeeping" ||
             request.department === "maintenance")
         ) {
