@@ -19,8 +19,6 @@ export function getDepartmentForRequestType(
     case "extra_cleaning":
     case "minibar":
     case "minibar_refill":
-    case "coffee_capsules":
-    case "pillow_menu":
     case "other_housekeeping":
       return "housekeeping";
 

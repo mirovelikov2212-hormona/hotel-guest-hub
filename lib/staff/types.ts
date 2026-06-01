@@ -10,8 +10,6 @@ export type StaffRequestStatus =
   | "completed"
   | "returned";
 
-export type StaffBillingStatus = "pending" | "charged";
-
 export type StaffServiceTime = "now" | "today" | "tomorrow";
 
 export type StaffRequestType =
@@ -24,9 +22,6 @@ export type StaffRequestType =
   | "baby_cot"
   | "iron"
   | "minibar"
-  | "minibar_refill"
-  | "coffee_capsules"
-  | "pillow_menu"
   | "laundry"
   | "other_housekeeping"
   | "air_conditioning"
@@ -64,14 +59,6 @@ export type StaffRequest = {
   createdAtIso: string;
   createdDateKey: string;
   note?: string;
-  notifyDepartments?: StaffDepartment[];
-  requiresBilling?: boolean;
-  billingStatus?: StaffBillingStatus;
-  billingChargedAt?: string;
-  billingChargedByRole?: string;
-  price?: string;
-  currency?: string;
-  sourceRequestDef?: string;
 };
 
 export const staffDepartmentLabels: Record<StaffDepartment, string> = {

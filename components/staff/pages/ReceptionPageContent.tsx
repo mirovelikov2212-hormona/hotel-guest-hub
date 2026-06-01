@@ -12,7 +12,6 @@ import type {
   StaffRequestStatus,
 } from "@/lib/staff/types";
 import { staffText } from "@/lib/staff/ui-copy";
-import { canRoleChargeRequest, canRoleProcessOperationalRequest } from "@/lib/staff/request-operations";
 
 type DepartmentFilter = "all" | StaffDepartment;
 type StatusFilter = "all" | "active" | StaffRequestStatus;
@@ -22,8 +21,8 @@ const RECEPTION_OVERDUE_AFTER_MINUTES = 10;
 
 const priorityOrder: Record<StaffRequestStatus, number> = {
   new: 0,
-  in_progress: 1,
-  returned: 2,
+  returned: 1,
+  in_progress: 2,
   completed: 3,
 };
 
@@ -81,15 +80,19 @@ function sortRequests(
   });
 }
 
-
+function isAfterOperationsHours() {
+  const now = new Date();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  return minutes < 8 * 60 || minutes >= 17 * 60;
+}
 
 export default function ReceptionPage() {
   const { lang } = useStaffUi();
   const t = staffText(lang);
   const [activeDepartment, setActiveDepartment] =
     useState<DepartmentFilter>("all");
-  const [activeStatus, setActiveStatus] = useState<StatusFilter>("active");
-  const [sortMode, setSortMode] = useState<SortMode>("newest");
+  const [activeStatus, setActiveStatus] = useState<StatusFilter>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("priority");
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
@@ -100,8 +103,8 @@ export default function ReceptionPage() {
     return () => window.clearInterval(interval);
   }, []);
 
-  const { getAllRequests, updateRequestStatus, updateRequestBilling } = useStaffStore();
-  const requests = getAllRequests();
+  const { getOperationalAllRequests, updateRequestStatus } = useStaffStore();
+  const requests = getOperationalAllRequests();
 
   const activeRequests = useMemo(
     () => requests.filter((request) => isActiveStatus(request.status)),
@@ -140,23 +143,35 @@ export default function ReceptionPage() {
     return sortRequests(base, sortMode, nowMs);
   }, [requests, activeDepartment, activeStatus, sortMode, nowMs]);
 
+  const afterHours = useMemo(() => isAfterOperationsHours(), []);
+
   const actionableRequests = useMemo(
     () =>
-      filteredRequests.filter((request) =>
-        canRoleProcessOperationalRequest("reception", request, new Date(nowMs)) ||
-        canRoleChargeRequest("reception", request)
-      ),
-    [filteredRequests, nowMs],
+      filteredRequests.filter((request) => {
+        if (request.department === "reception") return true;
+        if (!afterHours) return false;
+        return (
+          request.department === "housekeeping" ||
+          request.department === "maintenance"
+        );
+      }),
+    [afterHours, filteredRequests],
   );
 
   const monitoringRequests = useMemo(
     () =>
-      filteredRequests.filter(
-        (request) =>
-          !canRoleProcessOperationalRequest("reception", request, new Date(nowMs)) &&
-          !canRoleChargeRequest("reception", request)
-      ),
-    [filteredRequests, nowMs],
+      filteredRequests.filter((request) => {
+        if (request.department === "reception") return false;
+        if (
+          afterHours &&
+          (request.department === "housekeeping" ||
+            request.department === "maintenance")
+        ) {
+          return false;
+        }
+        return true;
+      }),
+    [afterHours, filteredRequests],
   );
 
   return (
@@ -293,22 +308,18 @@ export default function ReceptionPage() {
         {actionableRequests.length ? (
           actionableRequests.map((request) => {
             const requestAgeMinutes = getRequestAgeMinutes(request, nowMs);
-            const canAct = canRoleProcessOperationalRequest("reception", request, new Date(nowMs));
-            const canCharge = canRoleChargeRequest("reception", request);
 
             return (
               <StaffRequestCard
                 key={request.id}
                 request={request}
                 mode="reception"
-                canAct={canAct}
-                canCharge={canCharge}
+                canAct
                 isOverdue={isOverdueForReception(request, nowMs)}
                 overdueMinutes={requestAgeMinutes}
                 onStart={(id) => void updateRequestStatus(id, "in_progress")}
                 onDone={(id) => void updateRequestStatus(id, "completed")}
                 onReturn={(id) => void updateRequestStatus(id, "returned")}
-                onCharge={(id) => void updateRequestBilling(id)}
               />
             );
           })

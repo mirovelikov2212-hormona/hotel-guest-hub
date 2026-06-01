@@ -13,8 +13,6 @@ type StaffRequestCardProps = {
   request: StaffRequest;
   mode: "department" | "reception" | "manager";
   canAct?: boolean;
-  canCharge?: boolean;
-  onCharge?: (id: string) => void;
   onStart?: (id: string) => void;
   onDone?: (id: string) => void;
   onReturn?: (id: string) => void;
@@ -88,30 +86,6 @@ function getStaffRequestIcon(type: string): string {
   }
 }
 
-function getBillingCopy(lang: string) {
-  if (lang === "bg") {
-    return {
-      pending: "Платена услуга: трябва да се начисли към стаята.",
-      charged: "Начислено към стаята.",
-      button: "НАЧИСЛЕНО",
-    };
-  }
-
-  if (lang === "de") {
-    return {
-      pending: "Kostenpflichtige Leistung: bitte auf das Zimmer buchen.",
-      charged: "Auf das Zimmer gebucht.",
-      button: "GEBUCHT",
-    };
-  }
-
-  return {
-    pending: "Paid service: charge to the room account.",
-    charged: "Charged to the room account.",
-    button: "CHARGED",
-  };
-}
-
 function cleanRequestTitle(value: string) {
   return value.replace(/^[^\p{L}\p{N}]+/u, "").trim();
 }
@@ -140,8 +114,6 @@ export default function StaffRequestCard({
   request,
   mode,
   canAct = false,
-  canCharge = false,
-  onCharge,
   onStart,
   onDone,
   onReturn,
@@ -151,12 +123,7 @@ export default function StaffRequestCard({
   const { lang } = useStaffUi();
   const t = staffText(lang);
   const isNew = request.status === "new";
-  const isReturned = request.status === "returned";
-  const isWaiting = isNew || isReturned;
   const isInProgress = request.status === "in_progress";
-  const billingCopy = getBillingCopy(lang);
-  const hasBilling = Boolean(request.requiresBilling || request.price);
-  const isCharged = request.billingStatus === "charged";
   const cardClassName = isOverdue
     ? "rounded-3xl border border-rose-500/90 bg-rose-950/35 p-5 shadow-lg shadow-rose-500/20 ring-2 ring-rose-500/30 animate-pulse"
     : "rounded-3xl border border-white/10 bg-white/5 p-5 shadow-sm";
@@ -211,21 +178,6 @@ export default function StaffRequestCard({
               {request.note}
             </div>
           ) : null}
-
-          {hasBilling ? (
-            <div className={`max-w-2xl rounded-2xl border px-4 py-3 text-sm leading-6 ${
-              isCharged
-                ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-100"
-                : "border-amber-400/25 bg-amber-400/10 text-amber-100"
-            }`}>
-              <span className="font-semibold">
-                {isCharged ? billingCopy.charged : billingCopy.pending}
-              </span>
-              {request.price ? (
-                <span> {request.price}{request.currency ? ` ${request.currency}` : ""}</span>
-              ) : null}
-            </div>
-          ) : null}
         </div>
 
         <div className="flex w-full flex-col gap-3 lg:w-72">
@@ -241,17 +193,7 @@ export default function StaffRequestCard({
             </div>
           ) : null}
 
-          {canCharge ? (
-            <button
-              type="button"
-              onClick={() => onCharge?.(request.id)}
-              className="min-h-14 rounded-2xl border border-amber-300/40 bg-amber-400/20 px-4 text-base font-semibold text-amber-50 transition hover:bg-amber-400/30"
-            >
-              {billingCopy.button}
-            </button>
-          ) : null}
-
-          {canAct && isWaiting ? (
+          {canAct && isNew ? (
             <>
               <button
                 type="button"
@@ -261,15 +203,13 @@ export default function StaffRequestCard({
                 {t.start}
               </button>
 
-              {isNew ? (
-                <button
-                  type="button"
-                  onClick={() => onReturn?.(request.id)}
-                  className="min-h-14 rounded-2xl border border-rose-400/30 bg-rose-400/15 px-4 text-base font-semibold text-rose-100 transition hover:bg-rose-400/25"
-                >
-                  {t.return}
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={() => onReturn?.(request.id)}
+                className="min-h-14 rounded-2xl border border-rose-400/30 bg-rose-400/15 px-4 text-base font-semibold text-rose-100 transition hover:bg-rose-400/25"
+              >
+                {t.return}
+              </button>
             </>
           ) : null}
 
@@ -283,7 +223,7 @@ export default function StaffRequestCard({
             </button>
           ) : null}
 
-          {canAct && !isWaiting && !isInProgress ? (
+          {canAct && !isNew && !isInProgress ? (
             <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-center text-sm font-medium text-white/50">
               {t.noActionsAvailable}
             </div>

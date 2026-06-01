@@ -5,7 +5,6 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import type { StaffDepartment, StaffRequestStatus } from "@/lib/staff/types";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
-import { canRoleProcessOperationalRequest } from "@/lib/staff/request-operations";
 
 type GuestRequestRow = {
   id: string;
@@ -77,19 +76,32 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
   return { hotelId: hotel.id, role };
 }
 
+function isAfterOperationsHours() {
+  const now = new Date();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  return minutes < 8 * 60 || minutes >= 17 * 60;
+}
 
-
-function canRoleUpdateDepartment(input: {
-  role: StaffRole;
-  department: StaffDepartment | undefined;
-  status: StaffRequestStatus;
-  serviceTime?: string;
-}) {
-  return canRoleProcessOperationalRequest(input.role, {
-    department: input.department,
-    status: input.status,
-    serviceTime: input.serviceTime,
-  });
+function canRoleUpdateDepartment(
+  role: StaffRole,
+  department: StaffDepartment | undefined,
+  serviceTime?: string
+) {
+  if (role === "manager") return true;
+  if (role === "reception") {
+    if (department === "reception") return true;
+    if (
+      (department === "housekeeping" || department === "maintenance") &&
+      serviceTime !== "tomorrow" &&
+      isAfterOperationsHours()
+    ) {
+      return true;
+    }
+    return false;
+  }
+  if (role === "housekeeping") return department === "housekeeping";
+  if (role === "maintenance") return department === "maintenance";
+  return false;
 }
 
 export async function POST(req: NextRequest) {
@@ -135,14 +147,9 @@ export async function POST(req: NextRequest) {
     const department = requestData.metadata_json?.department ?? getDepartmentForRequestType(normalizedType);
     const serviceTime = requestData.metadata_json?.serviceTime;
 
-    if (!canRoleUpdateDepartment({
-      role,
-      department,
-      status: requestData.status,
-      serviceTime,
-    })) {
+    if (!canRoleUpdateDepartment(role, department, serviceTime)) {
       return NextResponse.json(
-        { ok: false, error: "Този отдел няма право да обработи оперативния статус на тази заявка в текущия часови прозорец." },
+        { ok: false, error: "Role is not allowed to update this request" },
         { status: 403 }
       );
     }

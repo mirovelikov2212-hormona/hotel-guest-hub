@@ -10,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
-import { canRoleViewRequest } from "@/lib/staff/request-operations";
 import type {
   StaffDepartment,
   StaffRequest,
@@ -34,7 +33,6 @@ type StaffStoreContextValue = {
   hotelId?: string;
   hotelSlug?: string;
   updateRequestStatus: (id: string, status: StaffRequestStatus) => Promise<void>;
-  updateRequestBilling: (id: string) => Promise<void>;
   addRequest: (input: AddRequestInput) => Promise<void>;
   getRequestsByDepartment: (department: StaffDepartment) => StaffRequest[];
   getOperationalRequestsByDepartment: (
@@ -78,24 +76,23 @@ function isOperationalRequest(request: StaffRequest) {
   );
 }
 
-function isStaffRole(value: string | undefined): value is StaffRole {
-  return (
-    value === "reception" ||
-    value === "housekeeping" ||
-    value === "maintenance" ||
-    value === "manager"
-  );
-}
-
 function getRoleFromPath(pathname: string | null): StaffRole | undefined {
   if (!pathname) return undefined;
 
   const parts = pathname.split("/").filter(Boolean);
-  if (parts[0] !== "staff") return undefined;
+  if (parts.length < 3 || parts[0] !== "staff") return undefined;
 
-  // Supports both /staff/reception and /staff/[hotelSlug]/reception.
-  const lastPart = parts[parts.length - 1]?.toLowerCase();
-  return isStaffRole(lastPart) ? lastPart : undefined;
+  const role = parts[2]?.toLowerCase();
+  if (
+    role === "reception" ||
+    role === "housekeeping" ||
+    role === "maintenance" ||
+    role === "manager"
+  ) {
+    return role;
+  }
+
+  return undefined;
 }
 
 function extractRequests(payload: unknown): StaffRequest[] {
@@ -162,39 +159,8 @@ async function updateStaffRequestStatus(input: {
     }),
   });
 
-  const payload = await response.json().catch(() => null) as { ok?: boolean; error?: string } | null;
-
-  if (!response.ok || payload?.ok === false) {
-    const message = payload?.error || `Failed to update request status: ${response.status}`;
-    throw new Error(message);
-  }
-}
-
-
-async function updateStaffRequestBilling(input: {
-  id: string;
-  hotelSlug: string;
-  role: StaffRole;
-}) {
-  const response = await fetch("/api/staff/request-billing", {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      id: input.id,
-      requestId: input.id,
-      hotelSlug: input.hotelSlug,
-      role: input.role,
-    }),
-  });
-
-  const payload = await response.json().catch(() => null) as { ok?: boolean; error?: string } | null;
-
-  if (!response.ok || payload?.ok === false) {
-    const message = payload?.error || `Failed to update billing status: ${response.status}`;
-    throw new Error(message);
+  if (!response.ok) {
+    throw new Error(`Failed to update request status: ${response.status}`);
   }
 }
 
@@ -214,12 +180,6 @@ async function createStaffRequest(input: AddRequestInput & {
   if (!response.ok) {
     throw new Error(`Failed to create staff request: ${response.status}`);
   }
-}
-
-function shouldShowInDepartmentBoard(request: StaffRequest, department: StaffDepartment) {
-  if (request.department !== department) return false;
-
-  return canRoleViewRequest(department as StaffRole, request);
 }
 
 export function StaffStoreProvider({
@@ -347,14 +307,6 @@ export function StaffStoreProvider({
     async (id: string, status: StaffRequestStatus) => {
       if (!normalizedHotelSlug || !currentRole) return;
 
-      const previousRequests = requests;
-
-      setRequests((current) =>
-        current.map((request) =>
-          request.id === id ? { ...request, status } : request
-        )
-      );
-
       try {
         await updateStaffRequestStatus({
           id,
@@ -365,67 +317,10 @@ export function StaffStoreProvider({
 
         await loadRequests();
       } catch (error) {
-        setRequests(previousRequests);
-
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Неуспешна обработка на заявката.";
-
         console.error("Failed to update staff request status", error);
-
-        if (typeof window !== "undefined") {
-          window.alert(message);
-        }
       }
     },
-    [currentRole, loadRequests, normalizedHotelSlug, requests]
-  );
-
-  const updateRequestBilling = useCallback(
-    async (id: string) => {
-      if (!normalizedHotelSlug || !currentRole) return;
-
-      const previousRequests = requests;
-      const nowIso = new Date().toISOString();
-
-      setRequests((current) =>
-        current.map((request) =>
-          request.id === id
-            ? {
-                ...request,
-                requiresBilling: true,
-                billingStatus: "charged",
-                billingChargedAt: nowIso,
-              }
-            : request
-        )
-      );
-
-      try {
-        await updateStaffRequestBilling({
-          id,
-          hotelSlug: normalizedHotelSlug,
-          role: currentRole,
-        });
-
-        await loadRequests();
-      } catch (error) {
-        setRequests(previousRequests);
-
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Неуспешно маркиране на начисляването.";
-
-        console.error("Failed to update staff request billing", error);
-
-        if (typeof window !== "undefined") {
-          window.alert(message);
-        }
-      }
-    },
-    [currentRole, loadRequests, normalizedHotelSlug, requests]
+    [currentRole, loadRequests, normalizedHotelSlug]
   );
 
   const addRequest = useCallback(
@@ -449,8 +344,7 @@ export function StaffStoreProvider({
     (department: StaffDepartment) => {
       return requests.filter(
         (request) =>
-          isOperationalRequest(request) &&
-          shouldShowInDepartmentBoard(request, department)
+          request.department === department && isOperationalRequest(request)
       );
     },
     [requests]
@@ -481,7 +375,6 @@ export function StaffStoreProvider({
       hotelId: normalizedHotelId,
       hotelSlug: normalizedHotelSlug,
       updateRequestStatus,
-      updateRequestBilling,
       addRequest,
       getRequestsByDepartment,
       getOperationalRequestsByDepartment,
@@ -494,7 +387,6 @@ export function StaffStoreProvider({
       normalizedHotelId,
       normalizedHotelSlug,
       updateRequestStatus,
-      updateRequestBilling,
       addRequest,
       getRequestsByDepartment,
       getOperationalRequestsByDepartment,

@@ -5,7 +5,6 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
-import { canRoleViewRequest } from "@/lib/staff/request-operations";
 import type {
   StaffDepartment,
   StaffRequest,
@@ -33,9 +32,6 @@ type GuestRequestRow = {
     price?: string | null;
     currency?: string | null;
     notifyDepartments?: string[];
-    billingStatus?: "pending" | "charged";
-    billingChargedAt?: string;
-    billingChargedByRole?: string;
     guestLanguage?: string;
     staffTitleBg?: string | null;
     staffNoteBg?: string | null;
@@ -84,21 +80,6 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
       message: row.message,
       metadata,
     }),
-    notifyDepartments: Array.isArray(metadata.notifyDepartments)
-      ? metadata.notifyDepartments.filter((department): department is StaffDepartment =>
-          department === "reception" ||
-          department === "housekeeping" ||
-          department === "maintenance" ||
-          department === "restaurant"
-        )
-      : undefined,
-    requiresBilling: Boolean(metadata.requiresBilling || metadata.price),
-    billingStatus: metadata.billingStatus ?? (metadata.requiresBilling ? "pending" : undefined),
-    billingChargedAt: metadata.billingChargedAt,
-    billingChargedByRole: metadata.billingChargedByRole,
-    price: metadata.price ?? undefined,
-    currency: metadata.currency ?? undefined,
-    sourceRequestDef: metadata.sourceRequestDef ?? undefined,
   };
 }
 
@@ -155,8 +136,10 @@ export async function GET(req: NextRequest) {
       .eq("hotel_id", scope.hotelId)
       .order("created_at", { ascending: false });
 
-    // Keep this query broad and do department routing in TypeScript.
-    // Some older requests may not have metadata_json.department, so we derive it from request_type.
+    if (role === "housekeeping" || role === "maintenance") {
+      query = query.contains("metadata_json", { department: role });
+    }
+
     const { data, error } = await query;
 
     if (error) {
@@ -166,26 +149,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const now = new Date();
-    const rows = (data as GuestRequestRow[]).filter((row) => {
-      const metadata = row.metadata_json ?? {};
-      const normalizedType = normalizeStaffRequestType(row.request_type, metadata.department);
-      const department = metadata.department ?? getDepartmentForRequestType(normalizedType);
-
-      return canRoleViewRequest(role, {
-        department,
-        status: row.status,
-        serviceTime: metadata.serviceTime,
-        requiresBilling: Boolean(metadata.requiresBilling || metadata.price),
-        price: metadata.price,
-        notifyDepartments: metadata.notifyDepartments,
-        billingStatus: metadata.billingStatus,
-      }, now);
-    });
-
     return NextResponse.json({
       ok: true,
-      requests: rows.map(mapRowToStaffRequest),
+      requests: (data as GuestRequestRow[]).map(mapRowToStaffRequest),
     });
   } catch (error) {
     console.error("staff requests GET error", error);

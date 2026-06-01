@@ -1,6 +1,7 @@
 import type { StaffDepartment, StaffRequestType } from "@/lib/staff/types";
 
 const aliases: Record<string, StaffRequestType> = {
+  minibar_refill: "minibar",
   minibar_notice: "minibar",
   light_issue: "light_not_working",
   cleaning: "other_housekeeping",
@@ -20,9 +21,6 @@ const known = new Set<StaffRequestType>([
   "baby_cot",
   "iron",
   "minibar",
-  "minibar_refill",
-  "coffee_capsules",
-  "pillow_menu",
   "laundry",
   "other_housekeeping",
   "air_conditioning",
