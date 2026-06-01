@@ -531,7 +531,7 @@ const GENERIC_SERVICE_KEYWORDS = [
 
 const HOTEL_KEYWORDS = [
   "hotel", "wifi", "wi-fi", "wlan", "internet", "reception", "rezeption", "recepție", "recepce", "restaurant", "bar", "spa", "pool", "kids", "animation", "parking", "park", "review", "policy", "rules", "gift", "cause", "charity", "booking", "tripadvisor",
-  "хотел", "рецепц", "ресторан", "бар", "спа", "басейн", "дет", "анимац", "паркинг", "правила", "политик", "хавли", "шезлонг", "благотвор", "подарък", "кауза",
+  "хотел", "рецепц", "ресторан", "бар", "спа", "басейн", "дет", "анимац", "паркинг", "правила", "политик", "хавли", "шезлонг", "благотвор", "подарък", "кауза", "gift", "cause", "gift with a cause", "geschenk", "sinn", "cadou", "cauza", "darek", "ucel", "подарък", "кауза",
   "parcare", "prosoape", "șezlong", "sezlong", "caritate", "cadou", "cauză", "cauza", "politica", "reguli", "animație", "animatie",
   "parkování", "ručníky", "lehátka", "charita", "dárek", "darek", "účel", "ucel", "pravidla", "animace",
   "check", "location", "address", "hours", "opening", "program", "nearby", "around", "area", "работ", "час", "къде", "район", "района", "около", "наблизо", "близо", "where", "wo", "umgebung", "nähe", "unde", "apropiere", "împrejurimi", "kde", "okolí", "blízko", "otevírací", "program",
@@ -801,7 +801,7 @@ function isGenericServiceQuestion(question: string) {
 function findMatchingServices(question: string, hotel: HotelPayload) {
   const q = clean(question);
 
-  return getActiveServices(hotel).filter((service) => {
+  const matches = getActiveServices(hotel).filter((service) => {
     const tokens = [
       clean(service.key),
       clean(service.key.replace(/_/g, " ")),
@@ -812,6 +812,8 @@ function findMatchingServices(question: string, hotel: HotelPayload) {
 
     return tokens.some((token) => hasTerm(q, token));
   });
+
+  return refineServiceMatches(question, matches);
 }
 
 function itemIdentity(item: HotelInfoItem, lang: Lang) {
@@ -966,6 +968,145 @@ function buildHotelInfoAnswer(question: string, lang: Lang, hotel: HotelPayload)
 }
 
 
+
+const SERVICE_SUMMARY: Record<string, Partial<Record<Lang, string>>> = {
+  pillow_menu: {
+    bg: "Предлагат се допълнителни възглавници за по-голям комфорт. Изборът се прави от секция Housekeeping в хъба.",
+    en: "Additional pillows are available for extra comfort. You can request them from the Housekeeping section in the hub.",
+    de: "Zusätzliche Kissen sind für mehr Komfort verfügbar. Sie können sie im Bereich Housekeeping im Hub anfragen.",
+    ro: "Sunt disponibile perne suplimentare pentru mai mult confort. Le puteți solicita din secțiunea Housekeeping din hub.",
+    cs: "Pro větší pohodlí jsou k dispozici další polštáře. Můžete o ně požádat v sekci Housekeeping v hubu.",
+  },
+  coffee_capsules: {
+    bg: "Кафе капсули могат да бъдат заявени от секция Housekeeping. Услугата е платена и се начислява към стаята.",
+    en: "Coffee capsules can be requested from the Housekeeping section. This is a paid service and can be charged to the room.",
+    de: "Kaffeekapseln können im Bereich Housekeeping angefragt werden. Dies ist eine kostenpflichtige Leistung und kann dem Zimmer belastet werden.",
+    ro: "Capsulele de cafea pot fi solicitate din secțiunea Housekeeping. Serviciul este contra cost și poate fi adăugat pe nota camerei.",
+    cs: "Kávové kapsle lze objednat v sekci Housekeeping. Služba je placená a může být připsána na účet pokoje.",
+  },
+  late_checkout: {
+    bg: "Късен check-out може да бъде заявен от рецепция и се предоставя според заетостта на хотела.",
+    en: "Late check-out can be requested from reception and is subject to hotel availability.",
+    de: "Late Check-out kann an der Rezeption angefragt werden und hängt von der Verfügbarkeit im Hotel ab.",
+    ro: "Late check-out poate fi solicitat la recepție și depinde de disponibilitatea hotelului.",
+    cs: "Pozdní check-out lze požádat na recepci a závisí na dostupnosti hotelu.",
+  },
+  massage_booking: {
+    bg: "Масаж или релакс терапия може да бъде заявена през хъба. Услугата е платена и се потвърждава според наличните часове.",
+    en: "Massage or relaxation therapy can be requested through the hub. This is a paid service and depends on available time slots.",
+    de: "Massage oder Entspannungstherapie kann über den Hub angefragt werden. Dies ist eine kostenpflichtige Leistung und abhängig von verfügbaren Zeiten.",
+    ro: "Masajul sau terapia de relaxare poate fi solicitată prin hub. Serviciul este contra cost și depinde de intervalele disponibile.",
+    cs: "Masáž nebo relaxační terapii lze požádat přes hub. Služba je placená a závisí na dostupných termínech.",
+  },
+  minibar: {
+    bg: "Зареждане на минибар може да бъде заявено от секция Housekeeping. Консумацията се начислява към стаята.",
+    en: "Minibar refill can be requested from the Housekeeping section. Consumed items are charged to the room.",
+    de: "Eine Minibar-Auffüllung kann im Bereich Housekeeping angefragt werden. Verbrauchte Artikel werden dem Zimmer belastet.",
+    ro: "Reumplerea minibarului poate fi solicitată din secțiunea Housekeeping. Produsele consumate se adaugă pe nota camerei.",
+    cs: "Doplnění minibaru lze požádat v sekci Housekeeping. Spotřebované položky jsou účtovány na pokoj.",
+  },
+};
+
+function compactSentences(value: string, maxChars = 360, maxSentences = 3) {
+  const text = normalizeDisplayText(value)
+    .replace(/\s+/g, " ")
+    .replace(/\s*•\s*/g, " ")
+    .trim();
+  if (!text) return "";
+
+  const sentences = text
+    .split(/(?<=[.!?。])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  let result = sentences.length ? sentences.slice(0, maxSentences).join(" ") : text;
+  if (result.length > maxChars) result = `${result.slice(0, maxChars).trim()}…`;
+  return result;
+}
+
+function extractPriceLine(value: string, lang: Lang) {
+  const text = normalizeDisplayText(value);
+  const match = text.match(/(?:€\s*)?\d+(?:[,.]\d{1,2})?\s*€/);
+  if (!match) return "";
+  const price = match[0].trim();
+  const labels: Record<Lang, string> = {
+    bg: "Цена",
+    en: "Price",
+    de: "Preis",
+    ro: "Preț",
+    cs: "Cena",
+  };
+  return `${labels[lang]}: ${price}.`;
+}
+
+function serviceActionLine(service: ServiceItem, lang: Lang) {
+  const sectionKey = SERVICE_SECTION_BY_KEY[service.key];
+  const section = sectionKey ? SERVICE_SECTION_LABELS[lang][sectionKey] : "";
+  if (!section) return "";
+
+  const lines: Record<Lang, string> = {
+    bg: `Можете да го заявите от секция ${section} в хъба.`,
+    en: `You can request it from the ${section} section in the hub.`,
+    de: `Sie können es im Bereich ${section} im Hub anfragen.`,
+    ro: `Îl puteți solicita din secțiunea ${section} din hub.`,
+    cs: `Můžete o něj požádat v sekci ${section} v hubu.`,
+  };
+  return lines[lang];
+}
+
+function serviceScore(service: ServiceItem, question: string) {
+  const q = clean(question);
+  const key = clean(service.key);
+  const label = clean(stripIcon(service.label));
+  let score = 0;
+
+  if (key && hasTerm(q, key)) score += 80;
+  if (key && hasTerm(q, key.replace(/_/g, " "))) score += 80;
+  if (label && hasTerm(q, label)) score += 70;
+
+  for (const token of [...(service.keywords ?? []), ...(SERVICE_KEYWORDS[service.key] ?? [])]) {
+    if (hasTerm(q, token)) score += clean(token).length >= 8 ? 12 : 6;
+  }
+
+  if (service.key === "pillow_menu" && hasAnyTerm(q, ["pillow", "pillows", "възглав", "pern", "polstar", "polštář", "kissen"])) score += 30;
+  if (service.key === "extra_pillow" && hasAnyTerm(q, ["menu", "меню", "available", "какви", "what", "welche", "disponibile", "k dispozici"])) score -= 25;
+  if (service.key === "pillow_menu" && hasAnyTerm(q, ["menu", "меню", "available", "какви", "what", "welche", "disponibile", "k dispozici"])) score += 25;
+
+  return score;
+}
+
+function refineServiceMatches(question: string, matches: ServiceItem[]) {
+  const sorted = [...matches]
+    .map((service) => ({ service, score: serviceScore(service, question) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  const hasPillowMenu = sorted.some((entry) => entry.service.key === "pillow_menu");
+  const seen = new Set<string>();
+  const result: ServiceItem[] = [];
+
+  for (const { service } of sorted) {
+    if (hasPillowMenu && service.key === "extra_pillow") continue;
+    const key = service.key || stripIcon(service.label);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(service);
+  }
+
+  return result;
+}
+
+function friendlyLead(lang: Lang) {
+  const leads: Record<Lang, string> = {
+    bg: "Разбира се, с удоволствие.",
+    en: "Of course, gladly.",
+    de: "Sehr gern.",
+    ro: "Sigur, cu plăcere.",
+    cs: "Samozřejmě, rád pomohu.",
+  };
+  return leads[lang];
+}
+
 function uniqueNonEmpty(lines: string[]) {
   const seen = new Set<string>();
   const result: string[] = [];
@@ -984,7 +1125,7 @@ function uniqueNonEmpty(lines: string[]) {
 
 function formatInfoForSmartAnswer(item: HotelInfoItem, lang: Lang) {
   const title = stripIcon(getMapValue(item.title, lang));
-  const text = normalizeDisplayText(getMapValue(item.text, lang));
+  const text = compactSentences(getMapValue(item.text, lang), 460, 3);
 
   if (title && text) return `• ${title}\n${text}`;
   if (text) return `• ${text}`;
@@ -994,13 +1135,13 @@ function formatInfoForSmartAnswer(item: HotelInfoItem, lang: Lang) {
 
 function formatServiceForSmartAnswer(service: ServiceItem, lang: Lang) {
   const label = stripIcon(service.label);
-  const description = normalizeDisplayText(service.description || "");
-  const sectionKey = SERVICE_SECTION_BY_KEY[service.key];
-  const section = sectionKey ? SERVICE_SECTION_LABELS[lang][sectionKey] : "";
-  const action = section ? `${COPY[lang].actionLead} ${section}.` : "";
-  const paid = PAID_SERVICE_KEYS.has(service.key) ? COPY[lang].paidNotice : "";
+  const customSummary = SERVICE_SUMMARY[service.key]?.[lang] || "";
+  const description = customSummary || compactSentences(service.description || "", 300, 2);
+  const price = extractPriceLine(service.description || "", lang);
+  const action = serviceActionLine(service, lang);
+  const paid = PAID_SERVICE_KEYS.has(service.key) && !price && !customSummary ? COPY[lang].paidNotice : "";
 
-  const details = [description, paid, action].filter(Boolean).join("\n");
+  const details = uniqueNonEmpty([description, price, paid, action]).join("\n");
   if (label && details) return `• ${label}\n${details}`;
   if (details) return `• ${details}`;
   if (label) return `• ${label}`;
@@ -1086,25 +1227,36 @@ function buildSmartTopicAnswer(question: string, lang: Lang, hotel: HotelPayload
 
   const lines: string[] = [];
 
-  if (infoMatches.length) {
-    lines.push(COPY[lang].hotelInfoIntro);
-    lines.push(...infoMatches.slice(0, 4).map((item) => formatInfoForSmartAnswer(item, lang)));
+  // If the guest asks for a specific information page, answer that first and keep it short.
+  if (infoMatches.length && !serviceMatches.length && !venueMatches.length) {
+    lines.push(...infoMatches.slice(0, 2).map((item) => formatInfoForSmartAnswer(item, lang)));
+    const cleaned = uniqueNonEmpty(lines);
+    return cleaned.length ? [friendlyLead(lang), ...cleaned, COPY[lang].askReception].join("\n\n") : null;
+  }
+
+  // If the guest asks for a specific service, avoid dumping several similar hub entries.
+  if (serviceMatches.length && !venueMatches.length) {
+    lines.push(...serviceMatches.slice(0, 2).map((service) => formatServiceForSmartAnswer(service, lang)));
+    const cleaned = uniqueNonEmpty(lines);
+    return cleaned.length ? [friendlyLead(lang), ...cleaned].join("\n\n") : null;
   }
 
   if (venueMatches.length) {
     lines.push(
-      ...venueMatches.slice(0, 5).map((venue) => formatVenueLine(venue, lang, wantsReservation, question))
+      ...venueMatches.slice(0, 3).map((venue) => formatVenueLine(venue, lang, wantsReservation, question))
     );
+  }
+
+  if (infoMatches.length) {
+    lines.push(...infoMatches.slice(0, 2).map((item) => formatInfoForSmartAnswer(item, lang)));
   }
 
   if (serviceMatches.length) {
-    lines.push(
-      ...serviceMatches.slice(0, 5).map((service) => formatServiceForSmartAnswer(service, lang))
-    );
+    lines.push(...serviceMatches.slice(0, 2).map((service) => formatServiceForSmartAnswer(service, lang)));
   }
 
   const cleaned = uniqueNonEmpty(lines);
-  return cleaned.length ? [COPY[lang].lead, ...cleaned].join("\n\n") : null;
+  return cleaned.length ? [friendlyLead(lang), ...cleaned].join("\n\n") : null;
 }
 
 function buildServiceAnswer(question: string, lang: Lang, hotel: HotelPayload) {
