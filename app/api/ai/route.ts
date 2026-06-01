@@ -91,8 +91,8 @@ const COPY = {
       "Мога да помагам с информация за хотела, неговите услуги и времето около хотела. Попитайте ме за ресторанти, барове, работно време, Wi‑Fi, паркинг, спа, анимация, услуги, правила или прогноза за времето.",
     noData:
       "Все още нямам тази информация за хотела. Моля, обърнете се към рецепция.",
-    lead: "Разбира се — ето какво мога да Ви кажа по темата:",
-    nearbyLead: "Разбира се — за района около хотела имаме следната информация:",
+    lead: "Най-релевантната информация:",
+    nearbyLead: "Информация за района около хотела:",
     actionLead: "Можете да го направите директно през хъба:",
     paidNotice: "Имайте предвид, че това е платена услуга и може да бъде начислена към сметката на стаята.",
     askReception: "Ако желаете нещо по-специфично, рецепцията ще Ви помогне най-точно.",
@@ -143,8 +143,8 @@ const COPY = {
       "I can help with information about the hotel, its services and the weather around the hotel. Ask me about restaurants, bars, opening hours, Wi‑Fi, parking, spa, animation, services, hotel rules or today’s weather.",
     noData:
       "I do not have that hotel information yet. Please contact reception.",
-    lead: "Of course — here is the most relevant information:",
-    nearbyLead: "Of course — for the area around the hotel, we have the following information:",
+    lead: "Most relevant information:",
+    nearbyLead: "Information for the area around the hotel:",
     actionLead: "You can do this directly in the hub:",
     paidNotice: "Please note that this is a paid service and may be charged to your room account.",
     askReception: "For anything more specific, reception will be happy to guide you.",
@@ -191,8 +191,8 @@ const COPY = {
       "Ich kann mit Informationen über das Hotel, seine Leistungen und das Wetter rund um das Hotel helfen. Fragen Sie mich nach Restaurants, Bars, Öffnungszeiten, WLAN, Parkplatz, Spa, Animation, Services, Hotelregeln oder dem Wetter.",
     noData:
       "Ich habe diese Hotelinformation noch nicht. Bitte wenden Sie sich an die Rezeption.",
-    lead: "Sehr gern — hier ist die passende Information:",
-    nearbyLead: "Sehr gern — für die Umgebung des Hotels haben wir folgende Informationen:",
+    lead: "Passende Information:",
+    nearbyLead: "Informationen zur Umgebung des Hotels:",
     actionLead: "Sie können das direkt im Hub erledigen:",
     paidNotice: "Bitte beachten Sie, dass dies eine kostenpflichtige Leistung ist und dem Zimmerkonto belastet werden kann.",
     askReception: "Für spezielle Wünsche hilft Ihnen die Rezeption gern weiter.",
@@ -239,8 +239,8 @@ const COPY = {
       "Pot ajuta cu informații despre hotel, serviciile sale și vremea din zona hotelului. Întrebați-mă despre restaurante, baruri, program, Wi‑Fi, parcare, spa, animație, servicii, reguli sau vremea de azi.",
     noData:
       "Nu am încă această informație despre hotel. Vă rugăm să contactați recepția.",
-    lead: "Sigur — iată informația relevantă:",
-    nearbyLead: "Sigur — pentru zona din jurul hotelului avem următoarele informații:",
+    lead: "Informația relevantă:",
+    nearbyLead: "Informații pentru zona din jurul hotelului:",
     actionLead: "Puteți face acest lucru direct din hub:",
     paidNotice: "Vă rugăm să rețineți că acesta este un serviciu contra cost și poate fi adăugat la contul camerei.",
     askReception: "Pentru ceva mai specific, recepția vă poate ajuta cel mai bine.",
@@ -287,8 +287,8 @@ const COPY = {
       "Mohu pomoci s informacemi o hotelu, jeho službách a počasí v okolí hotelu. Zeptejte se na restaurace, bary, otevírací dobu, Wi‑Fi, parkování, spa, animaci, služby, pravidla nebo dnešní počasí.",
     noData:
       "Tuto informaci o hotelu zatím nemám. Kontaktujte prosím recepci.",
-    lead: "Samozřejmě — zde jsou nejdůležitější informace:",
-    nearbyLead: "Samozřejmě — pro okolí hotelu máme tyto informace:",
+    lead: "Nejdůležitější informace:",
+    nearbyLead: "Informace o okolí hotelu:",
     actionLead: "Můžete to vyřídit přímo v hubu:",
     paidNotice: "Upozorňujeme, že se jedná o placenou službu a může být připsána na účet pokoje.",
     askReception: "Pro konkrétnější přání vám nejlépe pomůže recepce.",
@@ -379,7 +379,7 @@ const WEATHER_COPY: Record<Lang, {
     noLocation: "За да кажа времето точно, трябва да имам зададена локация на хотела. Моля, проверете настройката Hotel Location Query.",
     unavailable: "В момента не успявам да заредя прогнозата. Рецепцията ще Ви ориентира най-точно за времето днес.",
     outsideArea: "Мога да дам прогноза само за района на хотела. За други градове или държави, моля, проверете специализирано приложение за времето.",
-    lead: (place) => `Разбира се — ето актуалното време за района на ${place}:`,
+    lead: (place) => `Актуално време за района на ${place}:`,
     now: "Сега",
     today: "Днес",
     tomorrow: "Утре",
@@ -400,7 +400,7 @@ const WEATHER_COPY: Record<Lang, {
     noLocation: "To give accurate weather, I need the hotel location to be set. Please check the Hotel Location Query setting.",
     unavailable: "I can’t load the weather forecast right now. Reception can guide you best for today’s conditions.",
     outsideArea: "I can provide weather only for the hotel area. For other cities or countries, please check a dedicated weather app.",
-    lead: (place) => `Of course — here is the current weather for the ${place} area:`,
+    lead: (place) => `Current weather for the ${place} area:`,
     now: "Now",
     today: "Today",
     tomorrow: "Tomorrow",
@@ -421,7 +421,7 @@ const WEATHER_COPY: Record<Lang, {
     noLocation: "Für eine genaue Wetterauskunft muss die Hotellocation hinterlegt sein. Bitte prüfen Sie die Einstellung Hotel Location Query.",
     unavailable: "Ich kann die Wetterdaten gerade nicht laden. Die Rezeption hilft Ihnen für heute am besten weiter.",
     outsideArea: "Ich kann das Wetter nur für die Umgebung des Hotels anzeigen. Für andere Städte oder Länder nutzen Sie bitte eine Wetter-App.",
-    lead: (place) => `Sehr gern — hier ist das aktuelle Wetter für die Umgebung von ${place}:`,
+    lead: (place) => `Aktuelles Wetter für die Umgebung von ${place}:`,
     now: "Aktuell",
     today: "Heute",
     tomorrow: "Morgen",
@@ -442,7 +442,7 @@ const WEATHER_COPY: Record<Lang, {
     noLocation: "Pentru a oferi vremea exactă, locația hotelului trebuie să fie setată. Verificați setarea Hotel Location Query.",
     unavailable: "Momentan nu pot încărca prognoza meteo. Recepția vă poate ghida cel mai bine pentru condițiile de azi.",
     outsideArea: "Pot oferi vremea doar pentru zona hotelului. Pentru alte orașe sau țări, vă rugăm să verificați o aplicație meteo dedicată.",
-    lead: (place) => `Sigur — iată vremea actuală pentru zona ${place}:`,
+    lead: (place) => `Vremea actuală pentru zona ${place}:`,
     now: "Acum",
     today: "Astăzi",
     tomorrow: "Mâine",
@@ -463,7 +463,7 @@ const WEATHER_COPY: Record<Lang, {
     noLocation: "Pro přesnou předpověď počasí musí být nastavena poloha hotelu. Zkontrolujte prosím nastavení Hotel Location Query.",
     unavailable: "Momentálně se mi nedaří načíst předpověď počasí. Recepce vám pro dnešek poradí nejlépe.",
     outsideArea: "Mohu zobrazit počasí pouze pro oblast hotelu. Pro jiná města nebo země prosím použijte specializovanou aplikaci pro počasí.",
-    lead: (place) => `Samozřejmě — zde je aktuální počasí pro oblast ${place}:`,
+    lead: (place) => `Aktuální počasí pro oblast ${place}:`,
     now: "Nyní",
     today: "Dnes",
     tomorrow: "Zítra",
@@ -1019,14 +1019,14 @@ function buildVenueCategoryAnswer(question: string, lang: Lang, hotel: HotelPayl
     .join(lang === "bg" ? " и " : lang === "de" ? " und " : lang === "ro" ? " și " : lang === "cs" ? " a " : " and ");
 
   const lines = venues.slice(0, 8).map((venue) => formatVenueLine(venue, lang, wantsReservation, question));
-  return [t.lead, t.venueListIntro(labels), ...lines].join("\n");
+  return [t.venueListIntro(labels), ...lines.slice(0, 4)].join("\n");
 }
 
 function buildSpecificVenueAnswer(question: string, lang: Lang, hotel: HotelPayload) {
   const wantsReservation = hasAnyTerm(question, ["reserv", "book", "резерв", "buch", "rezerv", "rezervare", "rezervovat"]);
   const venues = getActiveVenues(hotel).filter((venue) => venueMatchesQuestion(venue, question, lang));
   if (!venues.length) return null;
-  return [COPY[lang].lead, ...venues.slice(0, 5).map((venue) => formatVenueLine(venue, lang, wantsReservation, question))].join("\n");
+  return venues.slice(0, 2).map((venue) => formatVenueLine(venue, lang, wantsReservation, question)).join("\n\n");
 }
 
 function buildHotelInfoAnswer(question: string, lang: Lang, hotel: HotelPayload) {
@@ -1042,7 +1042,7 @@ function buildHotelInfoAnswer(question: string, lang: Lang, hotel: HotelPayload)
     return "";
   }).filter(Boolean);
 
-  return lines.length ? [COPY[lang].hotelInfoIntro, ...lines].join("\n") : null;
+  return lines.length ? lines.join("\n\n") : null;
 }
 
 
@@ -1203,7 +1203,7 @@ function uniqueNonEmpty(lines: string[]) {
 
 function formatInfoForSmartAnswer(item: HotelInfoItem, lang: Lang) {
   const title = stripIcon(getMapValue(item.title, lang));
-  const text = compactSentences(getMapValue(item.text, lang), 460, 3);
+  const text = compactSentences(getMapValue(item.text, lang), 300, 2);
 
   if (title && text) return `• ${title}\n${text}`;
   if (text) return `• ${text}`;
@@ -1216,7 +1216,7 @@ function formatServiceForSmartAnswer(service: ServiceItem, lang: Lang) {
   const customSummary = SERVICE_SUMMARY[service.key]?.[lang] || "";
   const description = customSummary || compactSentences(service.description || "", 300, 2);
   const price = extractPriceLine(service.description || "", lang);
-  const action = serviceActionLine(service, lang);
+  const action = customSummary ? "" : serviceActionLine(service, lang);
   const paid = PAID_SERVICE_KEYS.has(service.key) && !price && !customSummary ? COPY[lang].paidNotice : "";
 
   const details = uniqueNonEmpty([description, price, paid, action]).join("\n");
@@ -1289,7 +1289,7 @@ function buildNearbyAnswer(question: string, lang: Lang, hotel: HotelPayload) {
   if (!matches.length) return COPY[lang].nearbyNoData;
 
   const lines = matches.slice(0, 5).map((item) => formatInfoForSmartAnswer(item, lang)).filter(Boolean);
-  return lines.length ? [COPY[lang].nearbyLead, ...lines, COPY[lang].askReception].join("\n\n") : COPY[lang].nearbyNoData;
+  return lines.length ? lines.slice(0, 3).join("\n\n") : COPY[lang].nearbyNoData;
 }
 
 function buildSmartTopicAnswer(question: string, lang: Lang, hotel: HotelPayload) {
@@ -1307,34 +1307,34 @@ function buildSmartTopicAnswer(question: string, lang: Lang, hotel: HotelPayload
 
   // If the guest asks for a specific information page, answer that first and keep it short.
   if (infoMatches.length && !serviceMatches.length && !venueMatches.length) {
-    lines.push(...infoMatches.slice(0, 2).map((item) => formatInfoForSmartAnswer(item, lang)));
+    lines.push(...infoMatches.slice(0, 1).map((item) => formatInfoForSmartAnswer(item, lang)));
     const cleaned = uniqueNonEmpty(lines);
-    return cleaned.length ? [friendlyLead(lang), ...cleaned, COPY[lang].askReception].join("\n\n") : null;
+    return cleaned.length ? cleaned.slice(0, 1).join("\n\n") : null;
   }
 
   // If the guest asks for a specific service, avoid dumping several similar hub entries.
   if (serviceMatches.length && !venueMatches.length) {
-    lines.push(...serviceMatches.slice(0, 2).map((service) => formatServiceForSmartAnswer(service, lang)));
+    lines.push(...serviceMatches.slice(0, 1).map((service) => formatServiceForSmartAnswer(service, lang)));
     const cleaned = uniqueNonEmpty(lines);
-    return cleaned.length ? [friendlyLead(lang), ...cleaned].join("\n\n") : null;
+    return cleaned.length ? cleaned.slice(0, 1).join("\n\n") : null;
   }
 
   if (venueMatches.length) {
     lines.push(
-      ...venueMatches.slice(0, 3).map((venue) => formatVenueLine(venue, lang, wantsReservation, question))
+      ...venueMatches.slice(0, 1).map((venue) => formatVenueLine(venue, lang, wantsReservation, question))
     );
   }
 
   if (infoMatches.length) {
-    lines.push(...infoMatches.slice(0, 2).map((item) => formatInfoForSmartAnswer(item, lang)));
+    lines.push(...infoMatches.slice(0, 1).map((item) => formatInfoForSmartAnswer(item, lang)));
   }
 
   if (serviceMatches.length) {
-    lines.push(...serviceMatches.slice(0, 2).map((service) => formatServiceForSmartAnswer(service, lang)));
+    lines.push(...serviceMatches.slice(0, 1).map((service) => formatServiceForSmartAnswer(service, lang)));
   }
 
   const cleaned = uniqueNonEmpty(lines);
-  return cleaned.length ? [friendlyLead(lang), ...cleaned].join("\n\n") : null;
+  return cleaned.length ? cleaned.slice(0, 2).join("\n\n") : null;
 }
 
 function buildServiceAnswer(question: string, lang: Lang, hotel: HotelPayload) {
@@ -1344,7 +1344,7 @@ function buildServiceAnswer(question: string, lang: Lang, hotel: HotelPayload) {
 
   const matches = findMatchingServices(question, hotel);
   if (matches.length) {
-    return [t.lead, ...matches.slice(0, 5).map((service) => formatServiceForSmartAnswer(service, lang))].join("\n\n");
+    return matches.slice(0, 2).map((service) => formatServiceForSmartAnswer(service, lang)).join("\n\n");
   }
 
   if (isGenericServiceQuestion(question)) {
