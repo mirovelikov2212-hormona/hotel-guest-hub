@@ -22,6 +22,21 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  if (url.pathname.startsWith("/api/")) {
+    event.respondWith(
+      fetch(request, { cache: "no-store" }).catch(() =>
+        new Response(
+          JSON.stringify({ ok: false, error: "Network unavailable" }),
+          {
+            status: 503,
+            headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+          }
+        )
+      )
+    );
+    return;
+  }
+
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).catch(() => caches.match("/").then((cached) => cached || Response.error()))

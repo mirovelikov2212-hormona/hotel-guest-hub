@@ -12,7 +12,6 @@ import type {
   StaffRequestStatus,
   StaffRequestType,
   StaffServiceTime,
-  StaffBillingStatus,
 } from "@/lib/staff/types";
 
 type GuestRequestRow = {
@@ -37,7 +36,7 @@ type GuestRequestRow = {
     guestLanguage?: string;
     staffTitleBg?: string | null;
     staffNoteBg?: string | null;
-    billingStatus?: StaffBillingStatus | null;
+    billingStatus?: "pending" | "charged" | "waived" | "cancelled" | null;
     billingChargedAt?: string | null;
     billingChargedByRole?: string | null;
     billingWaivedAt?: string | null;
@@ -47,6 +46,13 @@ type GuestRequestRow = {
     billingUpdatedAt?: string | null;
     billingUpdatedByRole?: string | null;
   } | null;
+};
+
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
 };
 
 function isValidRole(value: string): value is StaffRole {
@@ -111,7 +117,7 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
 async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
   const session = await getCurrentStaffSession(hotelSlug, role);
   if (!session) {
-    return { error: NextResponse.json({ ok: false, error: "No active staff session" }, { status: 401 }) };
+    return { error: NextResponse.json({ ok: false, error: "No active staff session" }, { status: 401, headers: NO_STORE_HEADERS }) };
   }
 
   const { data: hotel, error: hotelError } = await supabaseAdmin
@@ -122,14 +128,14 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
     .maybeSingle();
 
   if (hotelError || !hotel) {
-    return { error: NextResponse.json({ ok: false, error: "Hotel not found for session" }, { status: 401 }) };
+    return { error: NextResponse.json({ ok: false, error: "Hotel not found for session" }, { status: 401, headers: NO_STORE_HEADERS }) };
   }
 
   if (hotel.slug !== hotelSlug || session.role !== role) {
     return {
       error: NextResponse.json(
         { ok: false, error: "Session does not match requested hotel/role" },
-        { status: 403 }
+        { status: 403, headers: NO_STORE_HEADERS }
       ),
     };
   }
@@ -146,7 +152,7 @@ export async function GET(req: NextRequest) {
     if (!hotelSlug || !isValidRole(role)) {
       return NextResponse.json(
         { ok: false, error: "Missing hotelSlug or role" },
-        { status: 400 }
+        { status: 400, headers: NO_STORE_HEADERS }
       );
     }
 
@@ -170,7 +176,7 @@ export async function GET(req: NextRequest) {
     if (error) {
       return NextResponse.json(
         { ok: false, error: `Failed to fetch requests: ${error.message}` },
-        { status: 500 }
+        { status: 500, headers: NO_STORE_HEADERS }
       );
     }
 
@@ -183,15 +189,18 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      ok: true,
-      requests,
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        requests,
+      },
+      { headers: NO_STORE_HEADERS }
+    );
   } catch (error) {
     console.error("staff requests GET error", error);
     return NextResponse.json(
       { ok: false, error: "Unexpected server error" },
-      { status: 500 }
+      { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 }

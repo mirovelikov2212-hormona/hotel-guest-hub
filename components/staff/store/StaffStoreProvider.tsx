@@ -11,9 +11,9 @@ import {
 } from "react";
 import { usePathname } from "next/navigation";
 import type {
+  StaffBillingStatus,
   StaffDepartment,
   StaffRequest,
-  StaffBillingStatus,
   StaffRequestStatus,
   StaffRequestType,
   StaffServiceTime,
@@ -34,8 +34,8 @@ type StaffStoreContextValue = {
   hotelId?: string;
   hotelSlug?: string;
   updateRequestStatus: (id: string, status: StaffRequestStatus) => Promise<void>;
-  chargeRequest: (id: string) => Promise<void>;
   setRequestBillingStatus: (id: string, billingStatus: StaffBillingStatus) => Promise<void>;
+  chargeRequest: (id: string) => Promise<void>;
   addRequest: (input: AddRequestInput) => Promise<void>;
   getRequestsByDepartment: (department: StaffDepartment) => StaffRequest[];
   getOperationalRequestsByDepartment: (
@@ -48,26 +48,19 @@ type StaffStoreContextValue = {
 
 const StaffStoreContext = createContext<StaffStoreContextValue | null>(null);
 
-function readStaffCache(key?: string): StaffRequest[] {
-  if (!key || typeof window === "undefined") return [];
+function clearLegacyStaffCaches(activeKey?: string) {
+  if (typeof window === "undefined") return;
 
   try {
-    const raw = window.sessionStorage.getItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as StaffRequest[]) : [];
-  } catch {
-    return [];
-  }
-}
+    Object.keys(window.sessionStorage)
+      .filter((key) => key.startsWith("stayhub_staff_cache:") && key !== activeKey)
+      .forEach((key) => window.sessionStorage.removeItem(key));
 
-function writeStaffCache(key: string | undefined, requests: StaffRequest[]) {
-  if (!key || typeof window === "undefined") return;
-
-  try {
-    window.sessionStorage.setItem(key, JSON.stringify(requests));
+    if (activeKey) {
+      window.sessionStorage.removeItem(activeKey);
+    }
   } catch (error) {
-    console.error("writeStaffCache failed", error);
+    console.error("clearLegacyStaffCaches failed", error);
   }
 }
 
@@ -125,12 +118,17 @@ async function fetchStaffRequests(input: {
   const params = new URLSearchParams({
     hotelSlug: input.hotelSlug,
     role: input.role,
+    _: String(Date.now()),
   });
 
   const response = await fetch(`/api/staff/requests?${params.toString()}`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
+    headers: {
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
   });
 
   if (!response.ok) {
@@ -167,7 +165,7 @@ async function updateStaffRequestStatus(input: {
   }
 }
 
-async function updateStaffRequestBilling(input: {
+async function setStaffRequestBillingStatus(input: {
   id: string;
   hotelSlug: string;
   role: StaffRole;
@@ -184,7 +182,6 @@ async function updateStaffRequestBilling(input: {
       requestId: input.id,
       hotelSlug: input.hotelSlug,
       role: input.role,
-      billingStatus: input.billingStatus,
     }),
   });
 
@@ -192,7 +189,7 @@ async function updateStaffRequestBilling(input: {
     const payload = await response.json().catch(() => null);
     const message = payload?.error
       ? String(payload.error)
-      : `Failed to update billing: ${response.status}`;
+      : `Failed to charge request: ${response.status}`;
     throw new Error(message);
   }
 }
@@ -251,14 +248,7 @@ export function StaffStoreProvider({
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (!staffCacheKey) return;
-
-    const cached = readStaffCache(staffCacheKey);
-    setRequests(cached);
-
-    if (cached.length) {
-      setIsReady(true);
-    }
+    clearLegacyStaffCaches(staffCacheKey);
   }, [staffCacheKey]);
 
   const loadRequests = useCallback(async () => {
@@ -275,13 +265,12 @@ export function StaffStoreProvider({
       });
 
       setRequests(data);
-      writeStaffCache(staffCacheKey, data);
     } catch (error) {
       console.error("Failed to load staff requests from API", error);
     } finally {
       setIsReady(true);
     }
-  }, [currentRole, normalizedHotelSlug, staffCacheKey]);
+  }, [currentRole, normalizedHotelSlug]);
 
   useEffect(() => {
     if (!shouldLoadStaffData) {
@@ -361,7 +350,7 @@ export function StaffStoreProvider({
       if (!normalizedHotelSlug || !currentRole) return;
 
       try {
-        await updateStaffRequestBilling({
+        await setStaffRequestBillingStatus({
           id,
           hotelSlug: normalizedHotelSlug,
           role: currentRole,
@@ -370,9 +359,12 @@ export function StaffStoreProvider({
 
         await loadRequests();
       } catch (error) {
-        console.error("Failed to update staff request billing", error);
+        console.error("Failed to update staff request billing status", error);
         if (typeof window !== "undefined") {
-          const message = error instanceof Error ? error.message : "Failed to update billing";
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Failed to update billing status";
           window.alert(message);
         }
       }
@@ -439,8 +431,8 @@ export function StaffStoreProvider({
       hotelId: normalizedHotelId,
       hotelSlug: normalizedHotelSlug,
       updateRequestStatus,
-      chargeRequest,
       setRequestBillingStatus,
+      chargeRequest,
       addRequest,
       getRequestsByDepartment,
       getOperationalRequestsByDepartment,
@@ -453,8 +445,8 @@ export function StaffStoreProvider({
       normalizedHotelId,
       normalizedHotelSlug,
       updateRequestStatus,
-      chargeRequest,
       setRequestBillingStatus,
+      chargeRequest,
       addRequest,
       getRequestsByDepartment,
       getOperationalRequestsByDepartment,
