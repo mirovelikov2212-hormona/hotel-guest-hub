@@ -14,6 +14,7 @@ type ReportView =
   | "requests_snapshot"
   | "top_requests"
   | "request_rooms"
+  | "upsell_snapshot"
   | "issues_snapshot"
   | "top_issues"
   | "problem_rooms";
@@ -42,6 +43,186 @@ type RoomStat = {
   returned: number;
   completed: number;
 };
+
+
+type UpsellServiceStat = {
+  type: StaffRequestType;
+  label: string;
+  chargedCount: number;
+  pendingCount: number;
+  chargedRevenue: number;
+  pendingRevenue: number;
+  currency: string;
+};
+
+type UpsellRoomStat = {
+  room: string;
+  chargedCount: number;
+  pendingCount: number;
+  chargedRevenue: number;
+  pendingRevenue: number;
+  currency: string;
+};
+
+function getUpsellText(lang: "bg" | "en" | "de") {
+  if (lang === "en") {
+    return {
+      tab: "Upsell",
+      title: "Upsell revenue",
+      intro: "Additional paid services charged through reception. This report is based only on requests marked as charged.",
+      chargedRevenue: "Charged revenue",
+      potentialRevenue: "Potential revenue",
+      pendingRevenue: "Pending revenue",
+      chargedServices: "Charged services",
+      pendingServices: "Pending services",
+      byService: "Revenue by service",
+      byRoom: "Revenue by room",
+      noUpsellData: "No paid services have been charged yet.",
+      service: "Service",
+      charged: "Charged",
+      pending: "Pending",
+      revenue: "Revenue",
+      pendingAmount: "Pending amount",
+    };
+  }
+
+  if (lang === "de") {
+    return {
+      tab: "Upsell",
+      title: "Upsell-Umsatz",
+      intro: "Zusätzliche kostenpflichtige Leistungen, die über die Rezeption gebucht wurden. Dieser Bericht basiert nur auf als gebucht markierten Anfragen.",
+      chargedRevenue: "Gebuchter Umsatz",
+      potentialRevenue: "Möglicher Umsatz",
+      pendingRevenue: "Offen zur Buchung",
+      chargedServices: "Gebuchte Leistungen",
+      pendingServices: "Offene Leistungen",
+      byService: "Umsatz nach Leistung",
+      byRoom: "Umsatz nach Zimmer",
+      noUpsellData: "Es wurden noch keine kostenpflichtigen Leistungen gebucht.",
+      service: "Leistung",
+      charged: "Gebucht",
+      pending: "Offen",
+      revenue: "Umsatz",
+      pendingAmount: "Offener Betrag",
+    };
+  }
+
+  return {
+    tab: "Upsell",
+    title: "Upsell оборот",
+    intro: "Допълнителни платени услуги, начислени от рецепция. Отчетът брои само заявките, маркирани като начислени.",
+    chargedRevenue: "Начислен оборот",
+    potentialRevenue: "Потенциален оборот",
+    pendingRevenue: "Чака начисляване",
+    chargedServices: "Начислени услуги",
+    pendingServices: "Неначислени услуги",
+    byService: "Оборот по услуга",
+    byRoom: "Оборот по стая",
+    noUpsellData: "Все още няма начислени платени услуги.",
+    service: "Услуга",
+    charged: "Начислени",
+    pending: "Чакащи",
+    revenue: "Оборот",
+    pendingAmount: "Чакаща сума",
+  };
+}
+
+function parseMoney(value?: string | number | null) {
+  if (value === null || value === undefined) return 0;
+  const normalized = String(value)
+    .replace(/[^0-9,.-]/g, "")
+    .replace(/\.(?=\d{3}(\D|$))/g, "")
+    .replace(",", ".");
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatMoney(amount: number, currency = "€") {
+  const formatted = amount.toLocaleString("de-DE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${formatted} ${currency}`.trim();
+}
+
+function isBillableRequest(request: StaffRequest) {
+  return Boolean(request.requiresBilling) || parseMoney(request.price) > 0;
+}
+
+function isChargedRequest(request: StaffRequest) {
+  return isBillableRequest(request) && request.billingStatus === "charged";
+}
+
+function getRequestCurrency(request: StaffRequest) {
+  return String(request.currency || "€").trim() || "€";
+}
+
+function getRequestAmount(request: StaffRequest) {
+  return parseMoney(request.price);
+}
+
+function buildUpsellServiceStats(requests: StaffRequest[], lang: "bg" | "en" | "de"): UpsellServiceStat[] {
+  const map = new Map<StaffRequestType, UpsellServiceStat>();
+
+  for (const request of requests.filter(isBillableRequest)) {
+    const amount = getRequestAmount(request);
+    const currency = getRequestCurrency(request);
+    const existing = map.get(request.type) ?? {
+      type: request.type,
+      label: translateRequestType(request.type, lang, request.typeLabel),
+      chargedCount: 0,
+      pendingCount: 0,
+      chargedRevenue: 0,
+      pendingRevenue: 0,
+      currency,
+    };
+
+    if (isChargedRequest(request)) {
+      existing.chargedCount += 1;
+      existing.chargedRevenue += amount;
+    } else {
+      existing.pendingCount += 1;
+      existing.pendingRevenue += amount;
+    }
+
+    map.set(request.type, existing);
+  }
+
+  return [...map.values()].sort(
+    (a, b) => b.chargedRevenue - a.chargedRevenue || b.chargedCount - a.chargedCount || a.label.localeCompare(b.label),
+  );
+}
+
+function buildUpsellRoomStats(requests: StaffRequest[]): UpsellRoomStat[] {
+  const map = new Map<string, UpsellRoomStat>();
+
+  for (const request of requests.filter(isBillableRequest)) {
+    const amount = getRequestAmount(request);
+    const currency = getRequestCurrency(request);
+    const existing = map.get(request.room) ?? {
+      room: request.room,
+      chargedCount: 0,
+      pendingCount: 0,
+      chargedRevenue: 0,
+      pendingRevenue: 0,
+      currency,
+    };
+
+    if (isChargedRequest(request)) {
+      existing.chargedCount += 1;
+      existing.chargedRevenue += amount;
+    } else {
+      existing.pendingCount += 1;
+      existing.pendingRevenue += amount;
+    }
+
+    map.set(request.room, existing);
+  }
+
+  return [...map.values()].sort(
+    (a, b) => b.chargedRevenue - a.chargedRevenue || b.chargedCount - a.chargedCount || a.room.localeCompare(b.room, undefined, { numeric: true }),
+  );
+}
 
 function isOpenStatus(status: StaffRequestStatus) {
   return status === "new" || status === "in_progress";
@@ -162,10 +343,28 @@ export default function ManagerPage() {
   const requestRoomStats = useMemo(() => buildRoomStats(requests), [requests]);
   const problemRoomStats = useMemo(() => buildRoomStats(problemRequests), [problemRequests]);
 
+  const upsellText = useMemo(() => getUpsellText(lang), [lang]);
+  const billableRequests = useMemo(() => requests.filter(isBillableRequest), [requests]);
+  const chargedUpsellRequests = useMemo(() => billableRequests.filter(isChargedRequest), [billableRequests]);
+  const pendingUpsellRequests = useMemo(() => billableRequests.filter((request) => !isChargedRequest(request)), [billableRequests]);
+  const upsellCurrency = billableRequests.find((request) => getRequestCurrency(request))?.currency || "€";
+  const chargedUpsellRevenue = useMemo(
+    () => chargedUpsellRequests.reduce((sum, request) => sum + getRequestAmount(request), 0),
+    [chargedUpsellRequests],
+  );
+  const pendingUpsellRevenue = useMemo(
+    () => pendingUpsellRequests.reduce((sum, request) => sum + getRequestAmount(request), 0),
+    [pendingUpsellRequests],
+  );
+  const potentialUpsellRevenue = chargedUpsellRevenue + pendingUpsellRevenue;
+  const upsellServiceStats = useMemo(() => buildUpsellServiceStats(requests, lang), [requests, lang]);
+  const upsellRoomStats = useMemo(() => buildUpsellRoomStats(requests), [requests]);
+
   const reportTabs = [
     { id: "requests_snapshot" as const, label: t.requestsSnapshot },
     { id: "top_requests" as const, label: t.topRequestTypes },
     { id: "request_rooms" as const, label: t.requestHeavyRooms },
+    { id: "upsell_snapshot" as const, label: upsellText.tab },
     { id: "issues_snapshot" as const, label: t.problemsSnapshot },
     { id: "top_issues" as const, label: t.topProblemTypes },
     { id: "problem_rooms" as const, label: t.problematicRooms },
@@ -237,6 +436,17 @@ export default function ManagerPage() {
         return [[t.requestType, t.totalRequests, t.openRequests, t.returnedRequests, t.completedRequests], ...requestTypeStats.map((item) => [item.label, item.total, item.open, item.returned, item.completed])];
       case "request_rooms":
         return [[t.room, t.totalRequests, t.openRequests, t.returnedRequests, t.completedRequests], ...requestRoomStats.map((room) => [`${t.room} ${room.room}`, room.total, room.open, room.returned, room.completed])];
+      case "upsell_snapshot":
+        return [
+          [upsellText.service, upsellText.charged, upsellText.revenue, upsellText.pending, upsellText.pendingAmount],
+          ...upsellServiceStats.map((item) => [
+            item.label,
+            item.chargedCount,
+            formatMoney(item.chargedRevenue, item.currency),
+            item.pendingCount,
+            formatMoney(item.pendingRevenue, item.currency),
+          ]),
+        ];
       case "issues_snapshot":
         return [
           [t.room, t.problemType, "Status", "Date", "Time"],
@@ -256,7 +466,7 @@ export default function ManagerPage() {
       case "problem_rooms":
         return [[t.room, t.totalIssues, t.openIssues, t.returnedIssues, t.completedIssues], ...problemRoomStats.map((room) => [`${t.room} ${room.room}`, room.total, room.open, room.returned, room.completed])];
     }
-  }, [activeReport, issueTypeStats, lang, problemRequests, problemRoomStats, requestRoomStats, requestTypeStats, requests, t]);
+  }, [activeReport, issueTypeStats, lang, problemRequests, problemRoomStats, requestRoomStats, requestTypeStats, requests, t, upsellServiceStats, upsellText]);
 
   function exportCsv() {
     downloadFile(`manager-${activeReport}.csv`, rowsToCsv(reportRows), "text/csv;charset=utf-8;");
@@ -363,6 +573,88 @@ export default function ManagerPage() {
                 ))}
               </div>
             ) : <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">{t.noRequestData}</div>
+          ) : null}
+
+          {activeReport === "upsell_snapshot" ? (
+            billableRequests.length ? (
+              <div className="space-y-5">
+                <div>
+                  <h4 className="text-lg font-semibold text-white">{upsellText.title}</h4>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">{upsellText.intro}</p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                  <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                    <p className="text-sm text-emerald-100/75">{upsellText.chargedRevenue}</p>
+                    <p className="mt-2 text-3xl font-semibold text-white">{formatMoney(chargedUpsellRevenue, upsellCurrency)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-sm text-white/50">{upsellText.potentialRevenue}</p>
+                    <p className="mt-2 text-3xl font-semibold text-white">{formatMoney(potentialUpsellRevenue, upsellCurrency)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
+                    <p className="text-sm text-amber-100/75">{upsellText.pendingRevenue}</p>
+                    <p className="mt-2 text-3xl font-semibold text-white">{formatMoney(pendingUpsellRevenue, upsellCurrency)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-sm text-white/50">{upsellText.chargedServices}</p>
+                    <p className="mt-2 text-3xl font-semibold text-white">{chargedUpsellRequests.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-sm text-white/50">{upsellText.pendingServices}</p>
+                    <p className="mt-2 text-3xl font-semibold text-white">{pendingUpsellRequests.length}</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <h5 className="font-semibold text-white">{upsellText.byService}</h5>
+                    <div className="mt-4 space-y-3">
+                      {upsellServiceStats.map((item) => (
+                        <button
+                          key={item.type}
+                          type="button"
+                          onClick={() => setSelectedDrilldown({ kind: "request_type", type: item.type })}
+                          className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-left transition hover:border-emerald-300/30 hover:bg-white/10"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="font-medium text-white">{item.label}</p>
+                            <p className="font-semibold text-emerald-100">{formatMoney(item.chargedRevenue, item.currency)}</p>
+                          </div>
+                          <p className="mt-2 text-sm text-white/60">
+                            {upsellText.charged}: <span className="font-semibold text-white">{item.chargedCount}</span>
+                            {" · "}{upsellText.pending}: <span className="font-semibold text-white">{item.pendingCount}</span>
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <h5 className="font-semibold text-white">{upsellText.byRoom}</h5>
+                    <div className="mt-4 space-y-3">
+                      {upsellRoomStats.map((room) => (
+                        <button
+                          key={room.room}
+                          type="button"
+                          onClick={() => setSelectedDrilldown({ kind: "request_room", room: room.room })}
+                          className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-left transition hover:border-emerald-300/30 hover:bg-white/10"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="font-medium text-white">{t.room} {room.room}</p>
+                            <p className="font-semibold text-emerald-100">{formatMoney(room.chargedRevenue, room.currency)}</p>
+                          </div>
+                          <p className="mt-2 text-sm text-white/60">
+                            {upsellText.charged}: <span className="font-semibold text-white">{room.chargedCount}</span>
+                            {" · "}{upsellText.pending}: <span className="font-semibold text-white">{room.pendingCount}</span>
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">{upsellText.noUpsellData}</div>
           ) : null}
 
           {activeReport === "issues_snapshot" ? (
