@@ -6,7 +6,7 @@ import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import { getRequestSummary } from "@/lib/staff/mock-data";
-import type { StaffRequest, StaffRequestType, StaffRequestStatus } from "@/lib/staff/types";
+import type { StaffBillingStatus, StaffRequest, StaffRequestType, StaffRequestStatus } from "@/lib/staff/types";
 import { isTechnicalRequestType } from "@/lib/staff/request-type-utils";
 import { staffText, translateRequestType } from "@/lib/staff/ui-copy";
 
@@ -24,6 +24,9 @@ type DrilldownSelection =
   | { kind: "issue_status"; status: "new" | "in_progress" | "completed" | "returned" | "open" }
   | { kind: "request_type"; type: StaffRequestType }
   | { kind: "request_room"; room: string }
+  | { kind: "upsell_status"; status: "all" | StaffBillingStatus }
+  | { kind: "upsell_type"; type: StaffRequestType }
+  | { kind: "upsell_room"; room: string }
   | { kind: "issue_type"; type: StaffRequestType }
   | { kind: "issue_room"; room: string };
 
@@ -50,8 +53,12 @@ type UpsellServiceStat = {
   label: string;
   chargedCount: number;
   pendingCount: number;
+  waivedCount: number;
+  cancelledCount: number;
   chargedRevenue: number;
   pendingRevenue: number;
+  waivedRevenue: number;
+  cancelledRevenue: number;
   currency: string;
 };
 
@@ -59,8 +66,12 @@ type UpsellRoomStat = {
   room: string;
   chargedCount: number;
   pendingCount: number;
+  waivedCount: number;
+  cancelledCount: number;
   chargedRevenue: number;
   pendingRevenue: number;
+  waivedRevenue: number;
+  cancelledRevenue: number;
   currency: string;
 };
 
@@ -69,20 +80,30 @@ function getUpsellText(lang: "bg" | "en" | "de") {
     return {
       tab: "Upsell",
       title: "Upsell revenue",
-      intro: "Additional paid services charged through reception. This report is based only on requests marked as charged.",
+      intro: "Additional paid services tracked by reception. Click a card to see the exact requests behind the number.",
       chargedRevenue: "Charged revenue",
       potentialRevenue: "Potential revenue",
-      pendingRevenue: "Pending revenue",
+      pendingRevenue: "Pending charge",
+      waivedRevenue: "No-charge value",
+      cancelledRevenue: "Cancelled value",
       chargedServices: "Charged services",
       pendingServices: "Pending services",
+      waivedServices: "No-charge services",
+      cancelledServices: "Cancelled services",
       byService: "Revenue by service",
       byRoom: "Revenue by room",
-      noUpsellData: "No paid services have been charged yet.",
+      noUpsellData: "No paid services have been requested yet.",
       service: "Service",
       charged: "Charged",
       pending: "Pending",
+      waived: "No charge",
+      cancelled: "Cancelled",
       revenue: "Revenue",
       pendingAmount: "Pending amount",
+      waivedAmount: "No-charge value",
+      cancelledAmount: "Cancelled value",
+      upsellDetails: "Upsell details",
+      allPaidServices: "All paid services",
     };
   }
 
@@ -90,40 +111,60 @@ function getUpsellText(lang: "bg" | "en" | "de") {
     return {
       tab: "Upsell",
       title: "Upsell-Umsatz",
-      intro: "Zusätzliche kostenpflichtige Leistungen, die über die Rezeption gebucht wurden. Dieser Bericht basiert nur auf als gebucht markierten Anfragen.",
+      intro: "Zusätzliche kostenpflichtige Leistungen, die von der Rezeption verfolgt werden. Klicken Sie auf eine Karte, um die konkreten Anfragen zu sehen.",
       chargedRevenue: "Gebuchter Umsatz",
       potentialRevenue: "Möglicher Umsatz",
       pendingRevenue: "Offen zur Buchung",
+      waivedRevenue: "Wert ohne Buchung",
+      cancelledRevenue: "Stornierter Wert",
       chargedServices: "Gebuchte Leistungen",
       pendingServices: "Offene Leistungen",
+      waivedServices: "Ohne Buchung",
+      cancelledServices: "Stornierte Leistungen",
       byService: "Umsatz nach Leistung",
       byRoom: "Umsatz nach Zimmer",
-      noUpsellData: "Es wurden noch keine kostenpflichtigen Leistungen gebucht.",
+      noUpsellData: "Es wurden noch keine kostenpflichtigen Leistungen angefragt.",
       service: "Leistung",
       charged: "Gebucht",
       pending: "Offen",
+      waived: "Ohne Buchung",
+      cancelled: "Storniert",
       revenue: "Umsatz",
       pendingAmount: "Offener Betrag",
+      waivedAmount: "Wert ohne Buchung",
+      cancelledAmount: "Stornierter Wert",
+      upsellDetails: "Upsell-Details",
+      allPaidServices: "Alle kostenpflichtigen Leistungen",
     };
   }
 
   return {
     tab: "Upsell",
     title: "Upsell оборот",
-    intro: "Допълнителни платени услуги, начислени от рецепция. Отчетът брои само заявките, маркирани като начислени.",
+    intro: "Допълнителни платени услуги, проследени от рецепция. Натиснете карта, за да видите конкретните заявки зад числото.",
     chargedRevenue: "Начислен оборот",
     potentialRevenue: "Потенциален оборот",
     pendingRevenue: "Чака начисляване",
+    waivedRevenue: "Без начисляване",
+    cancelledRevenue: "Отказана стойност",
     chargedServices: "Начислени услуги",
-    pendingServices: "Неначислени услуги",
+    pendingServices: "Чакащи услуги",
+    waivedServices: "Без начисляване",
+    cancelledServices: "Отказани услуги",
     byService: "Оборот по услуга",
     byRoom: "Оборот по стая",
-    noUpsellData: "Все още няма начислени платени услуги.",
+    noUpsellData: "Все още няма заявени платени услуги.",
     service: "Услуга",
     charged: "Начислени",
     pending: "Чакащи",
+    waived: "Без начисляване",
+    cancelled: "Отказани",
     revenue: "Оборот",
     pendingAmount: "Чакаща сума",
+    waivedAmount: "Стойност без начисляване",
+    cancelledAmount: "Отказана сума",
+    upsellDetails: "Детайл по upsell",
+    allPaidServices: "Всички платени услуги",
   };
 }
 
@@ -149,8 +190,24 @@ function isBillableRequest(request: StaffRequest) {
   return Boolean(request.requiresBilling) || parseMoney(request.price) > 0;
 }
 
+function getBillingStatus(request: StaffRequest): StaffBillingStatus {
+  return request.billingStatus ?? "pending";
+}
+
 function isChargedRequest(request: StaffRequest) {
-  return isBillableRequest(request) && request.billingStatus === "charged";
+  return isBillableRequest(request) && getBillingStatus(request) === "charged";
+}
+
+function isPendingBillingRequest(request: StaffRequest) {
+  return isBillableRequest(request) && getBillingStatus(request) === "pending";
+}
+
+function isWaivedBillingRequest(request: StaffRequest) {
+  return isBillableRequest(request) && getBillingStatus(request) === "waived";
+}
+
+function isCancelledBillingRequest(request: StaffRequest) {
+  return isBillableRequest(request) && getBillingStatus(request) === "cancelled";
 }
 
 function getRequestCurrency(request: StaffRequest) {
@@ -172,14 +229,25 @@ function buildUpsellServiceStats(requests: StaffRequest[], lang: "bg" | "en" | "
       label: translateRequestType(request.type, lang, request.typeLabel),
       chargedCount: 0,
       pendingCount: 0,
+      waivedCount: 0,
+      cancelledCount: 0,
       chargedRevenue: 0,
       pendingRevenue: 0,
+      waivedRevenue: 0,
+      cancelledRevenue: 0,
       currency,
     };
 
-    if (isChargedRequest(request)) {
+    const status = getBillingStatus(request);
+    if (status === "charged") {
       existing.chargedCount += 1;
       existing.chargedRevenue += amount;
+    } else if (status === "waived") {
+      existing.waivedCount += 1;
+      existing.waivedRevenue += amount;
+    } else if (status === "cancelled") {
+      existing.cancelledCount += 1;
+      existing.cancelledRevenue += amount;
     } else {
       existing.pendingCount += 1;
       existing.pendingRevenue += amount;
@@ -203,14 +271,25 @@ function buildUpsellRoomStats(requests: StaffRequest[]): UpsellRoomStat[] {
       room: request.room,
       chargedCount: 0,
       pendingCount: 0,
+      waivedCount: 0,
+      cancelledCount: 0,
       chargedRevenue: 0,
       pendingRevenue: 0,
+      waivedRevenue: 0,
+      cancelledRevenue: 0,
       currency,
     };
 
-    if (isChargedRequest(request)) {
+    const status = getBillingStatus(request);
+    if (status === "charged") {
       existing.chargedCount += 1;
       existing.chargedRevenue += amount;
+    } else if (status === "waived") {
+      existing.waivedCount += 1;
+      existing.waivedRevenue += amount;
+    } else if (status === "cancelled") {
+      existing.cancelledCount += 1;
+      existing.cancelledRevenue += amount;
     } else {
       existing.pendingCount += 1;
       existing.pendingRevenue += amount;
@@ -346,7 +425,9 @@ export default function ManagerPage() {
   const upsellText = useMemo(() => getUpsellText(lang), [lang]);
   const billableRequests = useMemo(() => requests.filter(isBillableRequest), [requests]);
   const chargedUpsellRequests = useMemo(() => billableRequests.filter(isChargedRequest), [billableRequests]);
-  const pendingUpsellRequests = useMemo(() => billableRequests.filter((request) => !isChargedRequest(request)), [billableRequests]);
+  const pendingUpsellRequests = useMemo(() => billableRequests.filter(isPendingBillingRequest), [billableRequests]);
+  const waivedUpsellRequests = useMemo(() => billableRequests.filter(isWaivedBillingRequest), [billableRequests]);
+  const cancelledUpsellRequests = useMemo(() => billableRequests.filter(isCancelledBillingRequest), [billableRequests]);
   const upsellCurrency = billableRequests.find((request) => getRequestCurrency(request))?.currency || "€";
   const chargedUpsellRevenue = useMemo(
     () => chargedUpsellRequests.reduce((sum, request) => sum + getRequestAmount(request), 0),
@@ -356,7 +437,15 @@ export default function ManagerPage() {
     () => pendingUpsellRequests.reduce((sum, request) => sum + getRequestAmount(request), 0),
     [pendingUpsellRequests],
   );
-  const potentialUpsellRevenue = chargedUpsellRevenue + pendingUpsellRevenue;
+  const waivedUpsellRevenue = useMemo(
+    () => waivedUpsellRequests.reduce((sum, request) => sum + getRequestAmount(request), 0),
+    [waivedUpsellRequests],
+  );
+  const cancelledUpsellRevenue = useMemo(
+    () => cancelledUpsellRequests.reduce((sum, request) => sum + getRequestAmount(request), 0),
+    [cancelledUpsellRequests],
+  );
+  const potentialUpsellRevenue = chargedUpsellRevenue + pendingUpsellRevenue + waivedUpsellRevenue + cancelledUpsellRevenue;
   const upsellServiceStats = useMemo(() => buildUpsellServiceStats(requests, lang), [requests, lang]);
   const upsellRoomStats = useMemo(() => buildUpsellRoomStats(requests), [requests]);
 
@@ -401,6 +490,34 @@ export default function ManagerPage() {
           subtitle: t.requestRoomsText,
           requests: sortByTime(requests.filter((request) => request.room === selectedDrilldown.room)),
         };
+      case "upsell_status": {
+        const matching = sortByTime(billableRequests.filter((request) => {
+          if (selectedDrilldown.status === "all") return true;
+          return getBillingStatus(request) === selectedDrilldown.status;
+        }));
+        const title = selectedDrilldown.status === "all"
+          ? upsellText.allPaidServices
+          : selectedDrilldown.status === "charged"
+            ? upsellText.chargedServices
+            : selectedDrilldown.status === "waived"
+              ? upsellText.waivedServices
+              : selectedDrilldown.status === "cancelled"
+                ? upsellText.cancelledServices
+                : upsellText.pendingServices;
+        return { title, subtitle: upsellText.intro, requests: matching };
+      }
+      case "upsell_type":
+        return {
+          title: translateRequestType(selectedDrilldown.type, lang),
+          subtitle: upsellText.byService,
+          requests: sortByTime(billableRequests.filter((request) => request.type === selectedDrilldown.type)),
+        };
+      case "upsell_room":
+        return {
+          title: `${t.room} ${selectedDrilldown.room}`,
+          subtitle: upsellText.byRoom,
+          requests: sortByTime(billableRequests.filter((request) => request.room === selectedDrilldown.room)),
+        };
       case "issue_type":
         return {
           title: translateRequestType(selectedDrilldown.type, lang),
@@ -414,7 +531,7 @@ export default function ManagerPage() {
           requests: sortByTime(problemRequests.filter((request) => request.room === selectedDrilldown.room)),
         };
     }
-  }, [lang, problemRequests, requests, selectedDrilldown, t]);
+  }, [billableRequests, lang, problemRequests, requests, selectedDrilldown, t, upsellText]);
 
   const reportRows = useMemo(() => {
     switch (activeReport) {
@@ -438,13 +555,15 @@ export default function ManagerPage() {
         return [[t.room, t.totalRequests, t.openRequests, t.returnedRequests, t.completedRequests], ...requestRoomStats.map((room) => [`${t.room} ${room.room}`, room.total, room.open, room.returned, room.completed])];
       case "upsell_snapshot":
         return [
-          [upsellText.service, upsellText.charged, upsellText.revenue, upsellText.pending, upsellText.pendingAmount],
+          [upsellText.service, upsellText.charged, upsellText.revenue, upsellText.pending, upsellText.pendingAmount, upsellText.waived, upsellText.cancelled],
           ...upsellServiceStats.map((item) => [
             item.label,
             item.chargedCount,
             formatMoney(item.chargedRevenue, item.currency),
             item.pendingCount,
             formatMoney(item.pendingRevenue, item.currency),
+            item.waivedCount,
+            item.cancelledCount,
           ]),
         ];
       case "issues_snapshot":
@@ -583,27 +702,46 @@ export default function ManagerPage() {
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">{upsellText.intro}</p>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                  <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <button type="button" onClick={() => setSelectedDrilldown({ kind: "upsell_status", status: "charged" })} className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-left transition hover:border-emerald-300/40 hover:bg-emerald-300/15">
                     <p className="text-sm text-emerald-100/75">{upsellText.chargedRevenue}</p>
                     <p className="mt-2 text-3xl font-semibold text-white">{formatMoney(chargedUpsellRevenue, upsellCurrency)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                    <p className="text-sm text-white/50">{upsellText.potentialRevenue}</p>
-                    <p className="mt-2 text-3xl font-semibold text-white">{formatMoney(potentialUpsellRevenue, upsellCurrency)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
+                    <p className="mt-1 text-xs text-emerald-100/60">{chargedUpsellRequests.length} {upsellText.charged}</p>
+                  </button>
+                  <button type="button" onClick={() => setSelectedDrilldown({ kind: "upsell_status", status: "pending" })} className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-left transition hover:border-amber-300/40 hover:bg-amber-300/15">
                     <p className="text-sm text-amber-100/75">{upsellText.pendingRevenue}</p>
                     <p className="mt-2 text-3xl font-semibold text-white">{formatMoney(pendingUpsellRevenue, upsellCurrency)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <p className="mt-1 text-xs text-amber-100/60">{pendingUpsellRequests.length} {upsellText.pending}</p>
+                  </button>
+                  <button type="button" onClick={() => setSelectedDrilldown({ kind: "upsell_status", status: "waived" })} className="rounded-2xl border border-sky-300/20 bg-sky-300/10 p-4 text-left transition hover:border-sky-300/40 hover:bg-sky-300/15">
+                    <p className="text-sm text-sky-100/75">{upsellText.waivedRevenue}</p>
+                    <p className="mt-2 text-3xl font-semibold text-white">{formatMoney(waivedUpsellRevenue, upsellCurrency)}</p>
+                    <p className="mt-1 text-xs text-sky-100/60">{waivedUpsellRequests.length} {upsellText.waived}</p>
+                  </button>
+                  <button type="button" onClick={() => setSelectedDrilldown({ kind: "upsell_status", status: "cancelled" })} className="rounded-2xl border border-rose-300/20 bg-rose-300/10 p-4 text-left transition hover:border-rose-300/40 hover:bg-rose-300/15">
+                    <p className="text-sm text-rose-100/75">{upsellText.cancelledRevenue}</p>
+                    <p className="mt-2 text-3xl font-semibold text-white">{formatMoney(cancelledUpsellRevenue, upsellCurrency)}</p>
+                    <p className="mt-1 text-xs text-rose-100/60">{cancelledUpsellRequests.length} {upsellText.cancelled}</p>
+                  </button>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <button type="button" onClick={() => setSelectedDrilldown({ kind: "upsell_status", status: "all" })} className="rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30">
+                    <p className="text-sm text-white/50">{upsellText.potentialRevenue}</p>
+                    <p className="mt-2 text-3xl font-semibold text-white">{formatMoney(potentialUpsellRevenue, upsellCurrency)}</p>
+                  </button>
+                  <button type="button" onClick={() => setSelectedDrilldown({ kind: "upsell_status", status: "charged" })} className="rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30">
                     <p className="text-sm text-white/50">{upsellText.chargedServices}</p>
                     <p className="mt-2 text-3xl font-semibold text-white">{chargedUpsellRequests.length}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  </button>
+                  <button type="button" onClick={() => setSelectedDrilldown({ kind: "upsell_status", status: "pending" })} className="rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30">
                     <p className="text-sm text-white/50">{upsellText.pendingServices}</p>
                     <p className="mt-2 text-3xl font-semibold text-white">{pendingUpsellRequests.length}</p>
-                  </div>
+                  </button>
+                  <button type="button" onClick={() => setSelectedDrilldown({ kind: "upsell_status", status: "waived" })} className="rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-violet-300/30 hover:bg-black/30">
+                    <p className="text-sm text-white/50">{upsellText.waivedServices}</p>
+                    <p className="mt-2 text-3xl font-semibold text-white">{waivedUpsellRequests.length}</p>
+                  </button>
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-2">
@@ -614,7 +752,7 @@ export default function ManagerPage() {
                         <button
                           key={item.type}
                           type="button"
-                          onClick={() => setSelectedDrilldown({ kind: "request_type", type: item.type })}
+                          onClick={() => setSelectedDrilldown({ kind: "upsell_type", type: item.type })}
                           className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-left transition hover:border-emerald-300/30 hover:bg-white/10"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -624,6 +762,8 @@ export default function ManagerPage() {
                           <p className="mt-2 text-sm text-white/60">
                             {upsellText.charged}: <span className="font-semibold text-white">{item.chargedCount}</span>
                             {" · "}{upsellText.pending}: <span className="font-semibold text-white">{item.pendingCount}</span>
+                            {" · "}{upsellText.waived}: <span className="font-semibold text-white">{item.waivedCount}</span>
+                            {" · "}{upsellText.cancelled}: <span className="font-semibold text-white">{item.cancelledCount}</span>
                           </p>
                         </button>
                       ))}
@@ -637,7 +777,7 @@ export default function ManagerPage() {
                         <button
                           key={room.room}
                           type="button"
-                          onClick={() => setSelectedDrilldown({ kind: "request_room", room: room.room })}
+                          onClick={() => setSelectedDrilldown({ kind: "upsell_room", room: room.room })}
                           className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-left transition hover:border-emerald-300/30 hover:bg-white/10"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -647,6 +787,8 @@ export default function ManagerPage() {
                           <p className="mt-2 text-sm text-white/60">
                             {upsellText.charged}: <span className="font-semibold text-white">{room.chargedCount}</span>
                             {" · "}{upsellText.pending}: <span className="font-semibold text-white">{room.pendingCount}</span>
+                            {" · "}{upsellText.waived}: <span className="font-semibold text-white">{room.waivedCount}</span>
+                            {" · "}{upsellText.cancelled}: <span className="font-semibold text-white">{room.cancelledCount}</span>
                           </p>
                         </button>
                       ))}

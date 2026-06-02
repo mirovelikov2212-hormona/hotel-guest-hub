@@ -1,7 +1,7 @@
 "use client";
 
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
-import type { StaffRequest } from "@/lib/staff/types";
+import type { StaffBillingStatus, StaffRequest } from "@/lib/staff/types";
 import { staffDepartmentClasses, staffStatusClasses } from "@/lib/staff/types";
 import {
   staffText,
@@ -18,6 +18,8 @@ type StaffRequestCardProps = {
   onReturn?: (id: string) => void;
   canCharge?: boolean;
   onCharge?: (id: string) => void;
+  onWaive?: (id: string) => void;
+  onCancelBilling?: (id: string) => void;
   isOverdue?: boolean;
   overdueMinutes?: number;
 };
@@ -83,6 +85,8 @@ function getStaffRequestIcon(type: string): string {
       return "🛠️";
     case "restaurant_reservation":
       return "🍽️";
+    case "massage_booking":
+      return "💆";
     default:
       return "•";
   }
@@ -120,6 +124,24 @@ function formatBillingAmount(request: StaffRequest) {
   return [price, currency].filter(Boolean).join(" ");
 }
 
+function getBillingStatus(request: StaffRequest): StaffBillingStatus {
+  return request.billingStatus ?? (request.requiresBilling ? "pending" : "pending");
+}
+
+function getBillingBadgeClasses(status: StaffBillingStatus) {
+  switch (status) {
+    case "charged":
+      return "border-emerald-400/30 bg-emerald-400/15 text-emerald-100";
+    case "waived":
+      return "border-sky-400/30 bg-sky-400/15 text-sky-100";
+    case "cancelled":
+      return "border-rose-400/30 bg-rose-400/15 text-rose-100";
+    case "pending":
+    default:
+      return "border-amber-400/30 bg-amber-400/15 text-amber-100";
+  }
+}
+
 export default function StaffRequestCard({
   request,
   mode,
@@ -129,6 +151,8 @@ export default function StaffRequestCard({
   onReturn,
   canCharge = false,
   onCharge,
+  onWaive,
+  onCancelBilling,
   isOverdue = false,
   overdueMinutes,
 }: StaffRequestCardProps) {
@@ -137,12 +161,24 @@ export default function StaffRequestCard({
   const isNew = request.status === "new";
   const isInProgress = request.status === "in_progress";
   const billingAmount = formatBillingAmount(request);
-  const isCharged = request.billingStatus === "charged";
-  const shouldShowBilling = mode === "reception" && request.requiresBilling;
-  const shouldShowChargeButton = shouldShowBilling && canCharge && !isCharged;
+  const billingStatus = getBillingStatus(request);
+  const isCharged = billingStatus === "charged";
+  const isWaived = billingStatus === "waived";
+  const isCancelled = billingStatus === "cancelled";
+  const isPendingBilling = billingStatus === "pending";
+  const shouldShowBilling = (mode === "reception" || mode === "manager") && Boolean(request.requiresBilling);
+  const shouldShowBillingActions = shouldShowBilling && canCharge && isPendingBilling;
   const cardClassName = isOverdue
     ? "rounded-3xl border border-rose-500/90 bg-rose-950/35 p-5 shadow-lg shadow-rose-500/20 ring-2 ring-rose-500/30 animate-pulse"
     : "rounded-3xl border border-white/10 bg-white/5 p-5 shadow-sm";
+
+  const billingLabel = isCharged
+    ? t.billingCharged
+    : isWaived
+      ? t.billingWaived
+      : isCancelled
+        ? t.billingCancelled
+        : t.billingPending;
 
   return (
     <article className={cardClassName}>
@@ -169,13 +205,9 @@ export default function StaffRequestCard({
 
             {shouldShowBilling ? (
               <span
-                className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                  isCharged
-                    ? "border-emerald-400/30 bg-emerald-400/15 text-emerald-100"
-                    : "border-amber-400/30 bg-amber-400/15 text-amber-100"
-                }`}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${getBillingBadgeClasses(billingStatus)}`}
               >
-                {isCharged ? t.billingCharged : t.billingPending}
+                {billingLabel}
                 {billingAmount ? ` · ${billingAmount}` : ""}
               </span>
             ) : null}
@@ -216,20 +248,36 @@ export default function StaffRequestCard({
             </div>
           ) : null}
 
-          {shouldShowChargeButton ? (
-            <button
-              type="button"
-              onClick={() => onCharge?.(request.id)}
-              className="min-h-14 rounded-2xl bg-amber-500 px-4 text-base font-semibold text-white transition hover:bg-amber-400"
-            >
-              {t.charge}
-              {billingAmount ? ` · ${billingAmount}` : ""}
-            </button>
+          {shouldShowBillingActions ? (
+            <div className="grid gap-2">
+              <button
+                type="button"
+                onClick={() => onCharge?.(request.id)}
+                className="min-h-14 rounded-2xl bg-amber-500 px-4 text-base font-semibold text-white transition hover:bg-amber-400"
+              >
+                {t.charge}
+                {billingAmount ? ` · ${billingAmount}` : ""}
+              </button>
+              <button
+                type="button"
+                onClick={() => onWaive?.(request.id)}
+                className="min-h-12 rounded-2xl border border-sky-300/30 bg-sky-400/15 px-4 text-sm font-semibold text-sky-100 transition hover:bg-sky-400/25"
+              >
+                {t.noCharge}
+              </button>
+              <button
+                type="button"
+                onClick={() => onCancelBilling?.(request.id)}
+                className="min-h-12 rounded-2xl border border-rose-400/30 bg-rose-400/15 px-4 text-sm font-semibold text-rose-100 transition hover:bg-rose-400/25"
+              >
+                {t.cancelPaidService}
+              </button>
+            </div>
           ) : null}
 
-          {shouldShowBilling && isCharged ? (
-            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/15 px-4 py-4 text-center text-sm font-semibold text-emerald-100">
-              {t.charged}
+          {shouldShowBilling && !isPendingBilling ? (
+            <div className={`rounded-2xl border px-4 py-4 text-center text-sm font-semibold ${getBillingBadgeClasses(billingStatus)}`}>
+              {billingLabel}
               {billingAmount ? ` · ${billingAmount}` : ""}
             </div>
           ) : null}

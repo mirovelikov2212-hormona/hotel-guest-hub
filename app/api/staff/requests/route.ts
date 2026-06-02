@@ -12,6 +12,7 @@ import type {
   StaffRequestStatus,
   StaffRequestType,
   StaffServiceTime,
+  StaffBillingStatus,
 } from "@/lib/staff/types";
 
 type GuestRequestRow = {
@@ -36,9 +37,15 @@ type GuestRequestRow = {
     guestLanguage?: string;
     staffTitleBg?: string | null;
     staffNoteBg?: string | null;
-    billingStatus?: "pending" | "charged" | null;
+    billingStatus?: StaffBillingStatus | null;
     billingChargedAt?: string | null;
     billingChargedByRole?: string | null;
+    billingWaivedAt?: string | null;
+    billingWaivedByRole?: string | null;
+    billingCancelledAt?: string | null;
+    billingCancelledByRole?: string | null;
+    billingUpdatedAt?: string | null;
+    billingUpdatedByRole?: string | null;
   } | null;
 };
 
@@ -90,6 +97,12 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
     billingStatus: metadata.billingStatus ?? (metadata.requiresBilling ? "pending" : null),
     billingChargedAt: metadata.billingChargedAt ?? null,
     billingChargedByRole: metadata.billingChargedByRole ?? null,
+    billingWaivedAt: metadata.billingWaivedAt ?? null,
+    billingWaivedByRole: metadata.billingWaivedByRole ?? null,
+    billingCancelledAt: metadata.billingCancelledAt ?? null,
+    billingCancelledByRole: metadata.billingCancelledByRole ?? null,
+    billingUpdatedAt: metadata.billingUpdatedAt ?? null,
+    billingUpdatedByRole: metadata.billingUpdatedByRole ?? null,
     sourceRequestDef: metadata.sourceRequestDef ?? null,
     notifyDepartments: metadata.notifyDepartments ?? [],
   };

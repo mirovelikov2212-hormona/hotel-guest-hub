@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import type { StaffRole } from "@/lib/staff-auth/cookie-name";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import type { StaffBillingStatus } from "@/lib/staff/types";
 
 function isValidRole(value: string): value is StaffRole {
   return (
@@ -9,6 +10,15 @@ function isValidRole(value: string): value is StaffRole {
     value === "housekeeping" ||
     value === "maintenance" ||
     value === "manager"
+  );
+}
+
+function isValidBillingStatus(value: string): value is StaffBillingStatus {
+  return (
+    value === "pending" ||
+    value === "charged" ||
+    value === "waived" ||
+    value === "cancelled"
   );
 }
 
@@ -61,15 +71,63 @@ function isBillableMetadata(metadata: Record<string, unknown>) {
   return false;
 }
 
+function getRequestedBillingStatus(body: Record<string, unknown>): StaffBillingStatus {
+  const rawStatus = String(body.billingStatus || body.status || "").trim().toLowerCase();
+  if (isValidBillingStatus(rawStatus)) return rawStatus;
+
+  const action = String(body.action || "charge").trim().toLowerCase();
+  if (action === "waive" || action === "waived" || action === "no_charge") return "waived";
+  if (action === "cancel" || action === "cancelled" || action === "canceled") return "cancelled";
+  if (action === "pending") return "pending";
+  return "charged";
+}
+
+function applyBillingStatus(
+  metadata: Record<string, unknown>,
+  billingStatus: StaffBillingStatus,
+  role: StaffRole,
+) {
+  const now = new Date().toISOString();
+  const nextMetadata: Record<string, unknown> = {
+    ...metadata,
+    requiresBilling: true,
+    billingStatus,
+    billingUpdatedAt: now,
+    billingUpdatedByRole: role,
+  };
+
+  if (billingStatus === "charged") {
+    nextMetadata.billingChargedAt = now;
+    nextMetadata.billingChargedByRole = role;
+  }
+
+  if (billingStatus === "waived") {
+    nextMetadata.billingWaivedAt = now;
+    nextMetadata.billingWaivedByRole = role;
+  }
+
+  if (billingStatus === "cancelled") {
+    nextMetadata.billingCancelledAt = now;
+    nextMetadata.billingCancelledByRole = role;
+  }
+
+  if (billingStatus === "pending") {
+    nextMetadata.billingPendingAt = now;
+    nextMetadata.billingPendingByRole = role;
+  }
+
+  return { nextMetadata, changedAt: now };
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => null);
+    const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
 
     const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();
     const role = String(body?.role || "").trim().toLowerCase();
     const requestId = String(body?.requestId || body?.id || "").trim();
 
-    if (!hotelSlug || !isValidRole(role) || !requestId) {
+    if (!hotelSlug || !isValidRole(role) || !requestId || !body) {
       return NextResponse.json(
         { ok: false, error: "Missing or invalid payload" },
         { status: 400 },
@@ -78,11 +136,12 @@ export async function POST(req: NextRequest) {
 
     if (role !== "reception") {
       return NextResponse.json(
-        { ok: false, error: "Only reception can charge paid services" },
+        { ok: false, error: "Only reception can update paid service billing" },
         { status: 403 },
       );
     }
 
+    const billingStatus = getRequestedBillingStatus(body);
     const scope = await resolveAuthorizedScope(hotelSlug, role);
     if ("error" in scope) return scope.error;
 
@@ -112,14 +171,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const chargedAt = new Date().toISOString();
-    const nextMetadata = {
-      ...currentMetadata,
-      requiresBilling: true,
-      billingStatus: "charged",
-      billingChargedAt: chargedAt,
-      billingChargedByRole: role,
-    };
+    const { nextMetadata, changedAt } = applyBillingStatus(currentMetadata, billingStatus, role);
 
     const { error: updateError } = await supabaseAdmin
       .from("guest_requests")
@@ -129,7 +181,7 @@ export async function POST(req: NextRequest) {
 
     if (updateError) {
       return NextResponse.json(
-        { ok: false, error: `Failed to charge request: ${updateError.message}` },
+        { ok: false, error: `Failed to update billing: ${updateError.message}` },
         { status: 500 },
       );
     }
@@ -142,16 +194,17 @@ export async function POST(req: NextRequest) {
       room_id: null,
       room_number: requestRow.room_number_snapshot ?? null,
       user_session_id: null,
-      event_name: "request_billing_charged",
+      event_name: `request_billing_${billingStatus}`,
       section: "reception",
       label: requestRow.request_type,
       value: String(currentMetadata.typeLabel ?? requestRow.title ?? requestRow.request_type),
       extra: {
         requestId,
+        billingStatus,
         price: currentMetadata.price ?? null,
         currency: currentMetadata.currency ?? null,
         sourceRequestDef: currentMetadata.sourceRequestDef ?? null,
-        chargedAt,
+        changedAt,
       },
     });
 

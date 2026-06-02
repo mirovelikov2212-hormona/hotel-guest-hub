@@ -47,7 +47,7 @@ export type StaffRequestType =
   | "luggage_help"
   | "massage_booking";
 
-export type StaffBillingStatus = "pending" | "charged";
+export type StaffBillingStatus = "pending" | "charged" | "waived" | "cancelled";
 
 export type StaffRequest = {
   id: string;
@@ -67,6 +67,12 @@ export type StaffRequest = {
   billingStatus?: StaffBillingStatus | null;
   billingChargedAt?: string | null;
   billingChargedByRole?: string | null;
+  billingWaivedAt?: string | null;
+  billingWaivedByRole?: string | null;
+  billingCancelledAt?: string | null;
+  billingCancelledByRole?: string | null;
+  billingUpdatedAt?: string | null;
+  billingUpdatedByRole?: string | null;
   sourceRequestDef?: string | null;
   notifyDepartments?: string[];
 };

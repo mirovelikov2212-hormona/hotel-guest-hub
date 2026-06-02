@@ -13,6 +13,7 @@ import { usePathname } from "next/navigation";
 import type {
   StaffDepartment,
   StaffRequest,
+  StaffBillingStatus,
   StaffRequestStatus,
   StaffRequestType,
   StaffServiceTime,
@@ -34,6 +35,7 @@ type StaffStoreContextValue = {
   hotelSlug?: string;
   updateRequestStatus: (id: string, status: StaffRequestStatus) => Promise<void>;
   chargeRequest: (id: string) => Promise<void>;
+  setRequestBillingStatus: (id: string, billingStatus: StaffBillingStatus) => Promise<void>;
   addRequest: (input: AddRequestInput) => Promise<void>;
   getRequestsByDepartment: (department: StaffDepartment) => StaffRequest[];
   getOperationalRequestsByDepartment: (
@@ -165,10 +167,11 @@ async function updateStaffRequestStatus(input: {
   }
 }
 
-async function chargeStaffRequest(input: {
+async function updateStaffRequestBilling(input: {
   id: string;
   hotelSlug: string;
   role: StaffRole;
+  billingStatus: StaffBillingStatus;
 }) {
   const response = await fetch("/api/staff/request-billing", {
     method: "POST",
@@ -181,6 +184,7 @@ async function chargeStaffRequest(input: {
       requestId: input.id,
       hotelSlug: input.hotelSlug,
       role: input.role,
+      billingStatus: input.billingStatus,
     }),
   });
 
@@ -188,7 +192,7 @@ async function chargeStaffRequest(input: {
     const payload = await response.json().catch(() => null);
     const message = payload?.error
       ? String(payload.error)
-      : `Failed to charge request: ${response.status}`;
+      : `Failed to update billing: ${response.status}`;
     throw new Error(message);
   }
 }
@@ -352,27 +356,35 @@ export function StaffStoreProvider({
     [currentRole, loadRequests, normalizedHotelSlug]
   );
 
-  const chargeRequest = useCallback(
-    async (id: string) => {
+  const setRequestBillingStatus = useCallback(
+    async (id: string, billingStatus: StaffBillingStatus) => {
       if (!normalizedHotelSlug || !currentRole) return;
 
       try {
-        await chargeStaffRequest({
+        await updateStaffRequestBilling({
           id,
           hotelSlug: normalizedHotelSlug,
           role: currentRole,
+          billingStatus,
         });
 
         await loadRequests();
       } catch (error) {
-        console.error("Failed to charge staff request", error);
+        console.error("Failed to update staff request billing", error);
         if (typeof window !== "undefined") {
-          const message = error instanceof Error ? error.message : "Failed to charge request";
+          const message = error instanceof Error ? error.message : "Failed to update billing";
           window.alert(message);
         }
       }
     },
     [currentRole, loadRequests, normalizedHotelSlug]
+  );
+
+  const chargeRequest = useCallback(
+    async (id: string) => {
+      await setRequestBillingStatus(id, "charged");
+    },
+    [setRequestBillingStatus]
   );
 
   const addRequest = useCallback(
@@ -428,6 +440,7 @@ export function StaffStoreProvider({
       hotelSlug: normalizedHotelSlug,
       updateRequestStatus,
       chargeRequest,
+      setRequestBillingStatus,
       addRequest,
       getRequestsByDepartment,
       getOperationalRequestsByDepartment,
@@ -441,6 +454,7 @@ export function StaffStoreProvider({
       normalizedHotelSlug,
       updateRequestStatus,
       chargeRequest,
+      setRequestBillingStatus,
       addRequest,
       getRequestsByDepartment,
       getOperationalRequestsByDepartment,

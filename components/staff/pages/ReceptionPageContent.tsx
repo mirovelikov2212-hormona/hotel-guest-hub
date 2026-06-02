@@ -98,7 +98,7 @@ export default function ReceptionPage() {
     return () => window.clearInterval(interval);
   }, []);
 
-  const { getOperationalAllRequests, updateRequestStatus, chargeRequest } = useStaffStore();
+  const { getOperationalAllRequests, updateRequestStatus, setRequestBillingStatus } = useStaffStore();
   const requests = getOperationalAllRequests();
 
   const activeRequests = useMemo(
@@ -318,7 +318,9 @@ export default function ReceptionPage() {
                 onDone={(id) => void updateRequestStatus(id, "completed")}
                 onReturn={(id) => void updateRequestStatus(id, "returned")}
                 canCharge={Boolean(request.requiresBilling)}
-                onCharge={(id) => void chargeRequest(id)}
+                onCharge={(id) => void setRequestBillingStatus(id, "charged")}
+                onWaive={(id) => void setRequestBillingStatus(id, "waived")}
+                onCancelBilling={(id) => void setRequestBillingStatus(id, "cancelled")}
               />
             );
           })
@@ -350,7 +352,9 @@ export default function ReceptionPage() {
                 isOverdue={isOverdueForReception(request, nowMs)}
                 overdueMinutes={requestAgeMinutes}
                 canCharge={Boolean(request.requiresBilling)}
-                onCharge={(id) => void chargeRequest(id)}
+                onCharge={(id) => void setRequestBillingStatus(id, "charged")}
+                onWaive={(id) => void setRequestBillingStatus(id, "waived")}
+                onCancelBilling={(id) => void setRequestBillingStatus(id, "cancelled")}
               />
             );
           })
