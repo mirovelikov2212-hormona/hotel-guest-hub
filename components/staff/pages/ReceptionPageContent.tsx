@@ -11,12 +11,82 @@ import type {
   StaffRequest,
   StaffRequestStatus,
 } from "@/lib/staff/types";
-import { staffText } from "@/lib/staff/ui-copy";
+import {
+  staffText,
+  translateDepartment,
+  translateStaffStatus,
+} from "@/lib/staff/ui-copy";
 import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
 
 type DepartmentFilter = "all" | StaffDepartment;
 type StatusFilter = "all" | "active" | StaffRequestStatus;
 type SortMode = "priority" | "newest" | "oldest";
+
+type ReceptionHistoryCopy = {
+  title: string;
+  subtitle: string;
+  open: string;
+  close: string;
+  empty: string;
+  details: string;
+  note: string;
+  billing: string;
+  noBilling: string;
+};
+
+const HOTEL_TIME_ZONE = "Europe/Sofia";
+
+const receptionHistoryCopy: Record<"bg" | "en" | "de", ReceptionHistoryCopy> = {
+  bg: {
+    title: "Дневна история",
+    subtitle:
+      "Всички заявки за текущия хотелски ден. Само за справка — без оперативни действия.",
+    open: "Покажи историята",
+    close: "Скрий историята",
+    empty: "Все още няма заявки за текущия хотелски ден.",
+    details: "Детайли",
+    note: "Бележка / избор",
+    billing: "Начисляване",
+    noBilling: "Без начисляване",
+  },
+  en: {
+    title: "Daily history",
+    subtitle:
+      "All requests for the current hotel day. Reference only — no operational actions.",
+    open: "Show history",
+    close: "Hide history",
+    empty: "There are no requests for the current hotel day yet.",
+    details: "Details",
+    note: "Note / selection",
+    billing: "Billing",
+    noBilling: "No billing",
+  },
+  de: {
+    title: "Tageshistorie",
+    subtitle:
+      "Alle Anfragen des aktuellen Hoteltages. Nur zur Übersicht — keine operativen Aktionen.",
+    open: "Historie anzeigen",
+    close: "Historie ausblenden",
+    empty: "Für den aktuellen Hoteltag gibt es noch keine Anfragen.",
+    details: "Details",
+    note: "Notiz / Auswahl",
+    billing: "Buchung",
+    noBilling: "Keine Buchung",
+  },
+};
+
+const hotelDateFormatter = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: HOTEL_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const hotelTimeFormatter = new Intl.DateTimeFormat("bg-BG", {
+  timeZone: HOTEL_TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 const RECEPTION_OVERDUE_AFTER_MINUTES = 10;
 
@@ -44,6 +114,71 @@ function isOverdueForReception(request: StaffRequest, nowMs: number) {
 
   return (
     getRequestAgeMinutes(request, nowMs) >= RECEPTION_OVERDUE_AFTER_MINUTES
+  );
+}
+
+function getHotelDateKey(iso: string) {
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return "";
+  return hotelDateFormatter.format(date);
+}
+
+function formatHotelTime(iso: string) {
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return "--:--";
+  return hotelTimeFormatter.format(date);
+}
+
+function formatRequestDateTime(iso: string, locale: string) {
+  const date = new Date(iso);
+  return date.toLocaleString(locale, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getBillingStatusLabel(
+  request: StaffRequest,
+  lang: "bg" | "en" | "de",
+) {
+  if (!request.requiresBilling) {
+    return receptionHistoryCopy[lang].noBilling;
+  }
+
+  if (request.billingStatus === "charged") {
+    return lang === "de" ? "Gebucht" : lang === "en" ? "Charged" : "Начислено";
+  }
+
+  if (request.billingStatus === "waived") {
+    return lang === "de"
+      ? "Ohne Buchung"
+      : lang === "en"
+        ? "No charge"
+        : "Без начисляване";
+  }
+
+  if (request.billingStatus === "cancelled") {
+    return lang === "de"
+      ? "Storniert"
+      : lang === "en"
+        ? "Cancelled"
+        : "Отказана";
+  }
+
+  return lang === "de"
+    ? "Wartet"
+    : lang === "en"
+      ? "Pending"
+      : "Чака начисляване";
+}
+
+function sortNewestFirst(requests: StaffRequest[]) {
+  return [...requests].sort(
+    (a, b) =>
+      new Date(b.createdAtIso).getTime() - new Date(a.createdAtIso).getTime(),
   );
 }
 
@@ -81,6 +216,140 @@ function sortRequests(
   });
 }
 
+function ReceptionDailyHistory({
+  requests,
+  lang,
+  todayKey,
+}: {
+  requests: StaffRequest[];
+  lang: "bg" | "en" | "de";
+  todayKey: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const copy = receptionHistoryCopy[lang];
+  const dailyRequests = useMemo(
+    () =>
+      sortNewestFirst(
+        requests.filter(
+          (request) => getHotelDateKey(request.createdAtIso) === todayKey,
+        ),
+      ),
+    [requests, todayKey],
+  );
+
+  return (
+    <section className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-white/40">
+            {copy.title}
+          </p>
+          <h3 className="mt-1 text-xl font-semibold text-white">
+            {copy.title} · {dailyRequests.length}
+          </h3>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-white/60">
+            {copy.subtitle}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsOpen((value) => !value)}
+          className="rounded-2xl border border-white/15 bg-black/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+        >
+          {isOpen ? copy.close : copy.open}
+        </button>
+      </div>
+
+      {isOpen ? (
+        <div className="mt-4 space-y-3">
+          {dailyRequests.length ? (
+            dailyRequests.map((request) => (
+              <details
+                key={request.id}
+                className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3"
+              >
+                <summary className="cursor-pointer list-none">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white">
+                        {formatHotelTime(request.createdAtIso)} ·{" "}
+                        {request.typeLabel}
+                      </p>
+                      <p className="mt-1 text-xs text-white/50">
+                        {translateDepartment(request.department, lang)} ·{" "}
+                        {translateStaffStatus(request.status, lang)}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide">
+                      <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-white/70">
+                        {staffText(lang).room} {request.room}
+                      </span>
+                      {request.requiresBilling ? (
+                        <span className="rounded-full border border-amber-400/30 bg-amber-400/15 px-3 py-1 text-amber-100">
+                          {getBillingStatusLabel(request, lang)}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                </summary>
+
+                <div className="mt-3 grid gap-3 border-t border-white/10 pt-3 text-sm text-white/70 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.16em] text-white/35">
+                      {copy.details}
+                    </p>
+                    <p className="mt-1">
+                      {translateDepartment(request.department, lang)} ·{" "}
+                      {translateStaffStatus(request.status, lang)}
+                    </p>
+                    <p className="mt-1 text-white/50">
+                      {staffText(lang).requestedAt}{" "}
+                      {formatRequestDateTime(request.createdAtIso, lang)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.16em] text-white/35">
+                      {copy.billing}
+                    </p>
+                    <p className="mt-1">
+                      {getBillingStatusLabel(request, lang)}
+                    </p>
+                    {request.price || request.currency ? (
+                      <p className="mt-1 text-white/50">
+                        {[request.price, request.currency]
+                          .filter(Boolean)
+                          .join(" ")}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {request.note ? (
+                    <div className="md:col-span-2">
+                      <p className="text-xs uppercase tracking-[0.16em] text-white/35">
+                        {copy.note}
+                      </p>
+                      <p className="mt-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-white/75">
+                        {request.note}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              </details>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">
+              {copy.empty}
+            </div>
+          )}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export default function ReceptionPage() {
   const { lang } = useStaffUi();
   const t = staffText(lang);
@@ -98,8 +367,18 @@ export default function ReceptionPage() {
     return () => window.clearInterval(interval);
   }, []);
 
-  const { getOperationalAllRequests, updateRequestStatus, setRequestBillingStatus } = useStaffStore();
+  const {
+    getAllRequests,
+    getOperationalAllRequests,
+    updateRequestStatus,
+    setRequestBillingStatus,
+  } = useStaffStore();
   const requests = getOperationalAllRequests();
+  const allRequests = getAllRequests();
+  const todayHotelDateKey = useMemo(
+    () => hotelDateFormatter.format(new Date(nowMs)),
+    [nowMs],
+  );
 
   const activeRequests = useMemo(
     () => requests.filter((request) => isActiveStatus(request.status)),
@@ -138,7 +417,10 @@ export default function ReceptionPage() {
     return sortRequests(base, sortMode, nowMs);
   }, [requests, activeDepartment, activeStatus, sortMode, nowMs]);
 
-  const afterHours = useMemo(() => isReceptionBackupHours(new Date(nowMs)), [nowMs]);
+  const afterHours = useMemo(
+    () => isReceptionBackupHours(new Date(nowMs)),
+    [nowMs],
+  );
 
   const actionableRequests = useMemo(
     () =>
@@ -320,7 +602,9 @@ export default function ReceptionPage() {
                 canCharge={Boolean(request.requiresBilling)}
                 onCharge={(id) => void setRequestBillingStatus(id, "charged")}
                 onWaive={(id) => void setRequestBillingStatus(id, "waived")}
-                onCancelBilling={(id) => void setRequestBillingStatus(id, "cancelled")}
+                onCancelBilling={(id) =>
+                  void setRequestBillingStatus(id, "cancelled")
+                }
               />
             );
           })
@@ -354,7 +638,9 @@ export default function ReceptionPage() {
                 canCharge={Boolean(request.requiresBilling)}
                 onCharge={(id) => void setRequestBillingStatus(id, "charged")}
                 onWaive={(id) => void setRequestBillingStatus(id, "waived")}
-                onCancelBilling={(id) => void setRequestBillingStatus(id, "cancelled")}
+                onCancelBilling={(id) =>
+                  void setRequestBillingStatus(id, "cancelled")
+                }
               />
             );
           })
@@ -364,6 +650,12 @@ export default function ReceptionPage() {
           </div>
         )}
       </section>
+
+      <ReceptionDailyHistory
+        requests={allRequests}
+        lang={lang}
+        todayKey={todayHotelDateKey}
+      />
     </main>
   );
 }
