@@ -101,7 +101,7 @@ import type { StaffDepartment, StaffRequestType, StaffServiceTime, StaffRequestS
 import { usePathname, useSearchParams } from "next/navigation";
 import type { HotelConfig, LangKey, HubSection, DepartmentKey, HubItem, RequestDef } from "@/lib/types";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
-import { persistQrContextFromUrl, trackHubEvent } from "@/lib/trackHubEvent";
+import { persistQrContextFromUrl, trackHubEvent, type TrackHubPayload } from "@/lib/trackHubEvent";
 import InstallAppButton from "@/components/InstallAppButton";
 import {
   buildWhatsAppLink,
@@ -1287,6 +1287,15 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     const safeLang = normalizeGuestLang(nextLang);
     setLangState(safeLang);
     writeGuestLang(safeLang);
+    void trackHubEvent({
+      eventName: "language_changed",
+      eventCategory: "preference",
+      section: "language",
+      sectionKey: "language",
+      label: "language",
+      value: String(safeLang),
+      language: String(safeLang),
+    });
   }, []);
   const hubOpenTrackedRef = useRef(false);
 
@@ -1344,7 +1353,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     mode: "confirm" | "switch";
     nextRoom: string;
     currentRoom?: string;
+    source?: "url_param" | "manual_input" | "manual_input_switch" | "url_param_switch";
   } | null>(null);
+  const roomPromptTrackedRef = useRef<Set<string>>(new Set());
   const [roomStateHydrated, setRoomStateHydrated] = useState(false);
   const [pendingRoomChangeFrom, setPendingRoomChangeFrom] = useState<string | null>(null);
 
@@ -1458,6 +1469,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           mode: "switch",
           currentRoom: storedRoom,
           nextRoom: qrRoom,
+          source: "url_param_switch",
         });
       }
 
@@ -1482,6 +1494,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     setRoomModal({
       mode: "confirm",
       nextRoom: qrRoom,
+      source: "url_param",
     });
     setRoomStateHydrated(true);
   }, [roomStateKey, qrRoom, ignoredQrRoom, isKnownHotelRoom]);
@@ -1492,12 +1505,50 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     if (hubOpenTrackedRef.current) return;
     hubOpenTrackedRef.current = true;
 
-    trackHubEvent({
+    void trackHubEvent({
       eventName: "hub_open",
-      roomNumber: null,
-      page: window.location.pathname,
+      eventCategory: "session",
+      roomNumber: qrRoom || undefined,
+      roomSource: qrRoom ? "url_param" : undefined,
+      language: String(lang),
+      page: window.location.pathname + window.location.search,
     });
-  }, []);
+  }, [qrRoom, lang]);
+
+  const trackGuestEvent = useCallback((payload: TrackHubPayload) => {
+    void trackHubEvent({
+      ...payload,
+      roomNumber: payload.roomNumber ?? (roomConfirmed && room ? room : undefined),
+      roomConfirmed: payload.roomConfirmed ?? (roomConfirmed && Boolean(room)),
+      roomSource: payload.roomSource ?? (roomConfirmed && room ? "confirmed" : undefined),
+      language: payload.language ?? String(lang),
+      page: payload.page ?? (typeof window !== "undefined" ? window.location.pathname + window.location.search : undefined),
+    });
+  }, [lang, room, roomConfirmed]);
+
+  useEffect(() => {
+    if (!roomModal?.nextRoom) return;
+
+    const key = `${roomModal.mode}:${roomModal.currentRoom || ""}:${roomModal.nextRoom}:${roomModal.source || ""}`;
+    if (roomPromptTrackedRef.current.has(key)) return;
+    roomPromptTrackedRef.current.add(key);
+
+    trackGuestEvent({
+      eventName: "room_confirm_prompt_shown",
+      eventCategory: "room",
+      section: "room",
+      sectionKey: "room",
+      label: roomModal.mode,
+      value: roomModal.nextRoom,
+      roomNumber: roomModal.nextRoom,
+      roomConfirmed: false,
+      roomSource: roomModal.source || "manual_input",
+      extra: {
+        currentRoom: roomModal.currentRoom || null,
+        nextRoom: roomModal.nextRoom,
+      },
+    });
+  }, [roomModal, trackGuestEvent]);
 
   useEffect(() => {
     if (!roomStateKey) return;
@@ -2108,6 +2159,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         mode: "switch",
         currentRoom: activeRoom,
         nextRoom: candidate,
+        source: "manual_input_switch",
       });
       return;
     }
@@ -2116,6 +2168,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     setRoomModal({
       mode: "confirm",
       nextRoom: candidate,
+      source: "manual_input",
     });
   };
 
@@ -2152,20 +2205,47 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       `${window.location.pathname}?room=${encodeURIComponent(nextRoom)}`
     );
 
-    trackHubEvent({
+    trackGuestEvent({
       eventName: isRoomChange ? "room_changed" : "room_confirmed",
+      eventCategory: "room",
+      section: "room",
+      sectionKey: "room",
+      label: isRoomChange ? "room_changed" : "room_confirmed",
+      value: nextRoom,
       roomNumber: nextRoom,
-      page: window.location.pathname,
+      roomConfirmed: true,
+      roomSource: "confirmed",
       extra: isRoomChange
         ? {
           fromRoom: previousRoom,
           toRoom: nextRoom,
+          modalSource: roomModal.source || null,
         }
-        : {},
+        : {
+          modalSource: roomModal.source || null,
+        },
     });
   };
 
   const cancelRoomConfirmation = () => {
+    if (roomModal?.nextRoom) {
+      trackGuestEvent({
+        eventName: roomModal.mode === "switch" ? "room_change_cancelled" : "room_confirm_rejected",
+        eventCategory: "room",
+        section: "room",
+        sectionKey: "room",
+        label: roomModal.mode,
+        value: roomModal.nextRoom,
+        roomNumber: roomModal.nextRoom,
+        roomConfirmed: false,
+        roomSource: roomModal.source || "manual_input",
+        extra: {
+          currentRoom: roomModal.currentRoom || null,
+          nextRoom: roomModal.nextRoom,
+        },
+      });
+    }
+
     if (roomModal?.mode === "switch" && roomModal.currentRoom) {
       setIgnoredQrRoom(roomModal.nextRoom);
       setManualRoomInput(roomModal.currentRoom);
@@ -2235,10 +2315,16 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       confirmLabel: roomCopy.changeRoomContinue,
       cancelLabel: lang === "bg" ? "Отказ" : lang === "de" ? "Abbrechen" : "Cancel",
       onConfirm: () => {
-        trackHubEvent({
+        trackGuestEvent({
           eventName: "room_change_started",
+          eventCategory: "room",
+          section: "room",
+          sectionKey: "room",
+          label: "room_change_started",
+          value: room,
           roomNumber: room,
-          page: window.location.pathname,
+          roomConfirmed: true,
+          roomSource: "confirmed",
           extra: {
             fromRoom: room,
           },
@@ -3749,6 +3835,32 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
       const normalizedType = String(type);
 
+      const trackedSection =
+        explicitDepartmentOverride ??
+        (housekeepingRequestTypes.has(normalizedType)
+          ? "housekeeping"
+          : maintenanceRequestTypes.has(normalizedType)
+            ? "maintenance"
+            : "reception");
+
+      trackGuestEvent({
+        eventName: "request_submit_clicked",
+        eventCategory: "request",
+        section: trackedSection,
+        sectionKey: trackedSection,
+        itemKey: normalizedType,
+        buttonKey: "submit_request",
+        label: normalizedType,
+        value: safeTypeLabel,
+        roomNumber: roomValue,
+        roomConfirmed: true,
+        roomSource: "confirmed",
+        extra: {
+          serviceTime,
+          sourceRequestDef: sourceRequestDef || null,
+        },
+      });
+
       // Keep the original operational department in the request.
       // After-hours handover to reception is calculated dynamically in Staff Hub,
       // so the request can return to housekeeping/maintenance after 07:00 if still open.
@@ -3807,30 +3919,46 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         ...prev.filter((item) => item.id !== created.id),
       ]);
 
-      const trackedSection =
-        departmentOverride ??
-        (housekeepingRequestTypes.has(normalizedType)
-          ? "housekeeping"
-          : maintenanceRequestTypes.has(normalizedType)
-            ? "maintenance"
-            : "reception");
-
-      trackHubEvent({
-        eventName: "request_submitted",
-        roomNumber: roomValue,
+      trackGuestEvent({
+        eventName: "request_created",
+        eventCategory: "request",
         section: trackedSection,
+        sectionKey: trackedSection,
+        itemKey: normalizedType,
+        buttonKey: "submit_request",
         label: normalizedType,
         value: safeTypeLabel,
-        page: window.location.pathname,
+        requestId: created.id,
+        roomNumber: roomValue,
+        roomConfirmed: true,
+        roomSource: "confirmed",
         extra: {
           requestId: created.id,
           serviceTime,
+          sourceRequestDef: sourceRequestDef || null,
         },
       });
 
       setShowRequestSuccess(true);
     } catch (error) {
       console.error("submitGuestRequest failed", error);
+      trackGuestEvent({
+        eventName: "request_failed",
+        eventCategory: "request",
+        section: "request",
+        sectionKey: "request",
+        itemKey: String(type || "request"),
+        buttonKey: "submit_request",
+        label: String(type || "request"),
+        value: cleanRequestTitle(typeLabel),
+        roomNumber: roomValue,
+        roomConfirmed: true,
+        roomSource: "confirmed",
+        extra: {
+          serviceTime,
+          sourceRequestDef: sourceRequestDef || null,
+        },
+      });
       delete recentSubmissionRef.current[signature];
       window.alert(roomCopy.requestFailed);
     } finally {
@@ -3841,8 +3969,22 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   };
 
   const askAI = async () => {
-    if (!aiQ.trim()) return;
+    const questionText = aiQ.trim();
+    if (!questionText) return;
     if (!ensureConfirmedRoom()) return;
+
+    trackGuestEvent({
+      eventName: "ai_question_sent",
+      eventCategory: "ai",
+      section: "ai",
+      sectionKey: "ai",
+      buttonKey: "ai_send",
+      label: "question_length",
+      value: String(questionText.length),
+      extra: {
+        questionLength: questionText.length,
+      },
+    });
 
     try {
       setAiLoading(true);
@@ -3852,7 +3994,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          question: aiQ,
+          question: questionText,
           lang: String(lang),
           hotelSlug: config.hotelSlug,
           hotel: {
@@ -3885,12 +4027,40 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       const data = await res.json();
 
       if (!data?.ok) {
+        trackGuestEvent({
+          eventName: "ai_error",
+          eventCategory: "ai",
+          section: "ai",
+          sectionKey: "ai",
+          label: "api_not_ok",
+          value: "false",
+        });
         setAiAnswer(String(tUI("ai_error") || "Възникна грешка при обработката."));
         return;
       }
 
-      setAiAnswer(String(data.answer || tUI("ai_no_info") || "Все още нямам тази информация за хотела."));
+      const answerText = String(data.answer || tUI("ai_no_info") || "Все още нямам тази информация за хотела.");
+      setAiAnswer(answerText);
+      trackGuestEvent({
+        eventName: "ai_answer_shown",
+        eventCategory: "ai",
+        section: "ai",
+        sectionKey: "ai",
+        label: "answer_length",
+        value: String(answerText.length),
+        extra: {
+          answerLength: answerText.length,
+        },
+      });
     } catch {
+      trackGuestEvent({
+        eventName: "ai_error",
+        eventCategory: "ai",
+        section: "ai",
+        sectionKey: "ai",
+        label: "request_failed",
+        value: "false",
+      });
       setAiAnswer(String(tUI("ai_error") || "Възникна грешка при обработката."));
     } finally {
       setAiLoading(false);
@@ -4095,6 +4265,17 @@ EN: ${helpMsg}` : opsMsg,
     }
 
     if (type === "url" && venue.reservationUrl) {
+      trackGuestEvent({
+        eventName: "external_link_clicked",
+        eventCategory: "reservation",
+        section: "outlets",
+        sectionKey: "outlets",
+        itemKey: normalizeCategory(venue),
+        buttonKey: "reservation_url",
+        label: venueName,
+        value: "url",
+        extra: { href: venue.reservationUrl },
+      });
       window.open(String(venue.reservationUrl), "_blank", "noopener,noreferrer");
       return;
     }
@@ -4102,6 +4283,16 @@ EN: ${helpMsg}` : opsMsg,
     if (type === "phone" && venue.reservationPhone) {
       const phone = String(venue.reservationPhone || "").trim();
       if (!phone) return;
+      trackGuestEvent({
+        eventName: "phone_link_clicked",
+        eventCategory: "reservation",
+        section: "outlets",
+        sectionKey: "outlets",
+        itemKey: normalizeCategory(venue),
+        buttonKey: "reservation_phone",
+        label: venueName,
+        value: "phone",
+      });
       window.location.href = safeTelLink(phone);
       return;
     }
@@ -4109,6 +4300,16 @@ EN: ${helpMsg}` : opsMsg,
     if (type === "email" && venue.reservationEmail) {
       const subject = encodeURIComponent(`${config.hotelName} - ${venueName} reservation`);
       const body = encodeURIComponent(msg);
+      trackGuestEvent({
+        eventName: "email_link_clicked",
+        eventCategory: "reservation",
+        section: "outlets",
+        sectionKey: "outlets",
+        itemKey: normalizeCategory(venue),
+        buttonKey: "reservation_email",
+        label: venueName,
+        value: "email",
+      });
       window.location.href = `mailto:${venue.reservationEmail}?subject=${subject}&body=${body}`;
       return;
     }
@@ -4116,6 +4317,16 @@ EN: ${helpMsg}` : opsMsg,
     if (type === "whatsapp" && venue.reservationWhatsapp) {
       const wa = String(venue.reservationWhatsapp || "").trim();
       if (!wa) return;
+      trackGuestEvent({
+        eventName: "whatsapp_link_clicked",
+        eventCategory: "reservation",
+        section: "outlets",
+        sectionKey: "outlets",
+        itemKey: normalizeCategory(venue),
+        buttonKey: "reservation_whatsapp",
+        label: venueName,
+        value: "whatsapp",
+      });
       window.location.href = buildWhatsAppLink(wa, msg);
       return;
     }
@@ -4126,6 +4337,17 @@ EN: ${helpMsg}` : opsMsg,
         ? getDeptWhatsapp("reception")
         : getDeptWhatsapp("restaurant");
 
+    trackGuestEvent({
+      eventName: "whatsapp_link_clicked",
+      eventCategory: "reservation",
+      section: "outlets",
+      sectionKey: "outlets",
+      itemKey: normalizeCategory(venue),
+      buttonKey: "reservation_whatsapp_fallback",
+      label: venueName,
+      value: routed.dept,
+    });
+
     openWhatsApp(to, msg, routed.warned);
   };
 
@@ -4133,6 +4355,18 @@ EN: ${helpMsg}` : opsMsg,
     if (!ensureConfirmedRoom()) return;
 
     const type = String(venue.reservationType || "").trim().toLowerCase();
+    const venueName = getVenueText(venue, "name", lang) || venue.name || "venue";
+
+    trackGuestEvent({
+      eventName: "venue_reservation_clicked",
+      eventCategory: "reservation",
+      section: "outlets",
+      sectionKey: "outlets",
+      itemKey: normalizeCategory(venue),
+      buttonKey: "reserve",
+      label: venueName,
+      value: type || "reservation",
+    });
 
     if (type === "none") return;
 
@@ -4150,6 +4384,17 @@ EN: ${helpMsg}` : opsMsg,
     }
 
     if (type === "url" && venue.reservationUrl) {
+      trackGuestEvent({
+        eventName: "external_link_clicked",
+        eventCategory: "reservation",
+        section: "outlets",
+        sectionKey: "outlets",
+        itemKey: normalizeCategory(venue),
+        buttonKey: "reservation_url",
+        label: venueName,
+        value: "url",
+        extra: { href: venue.reservationUrl },
+      });
       window.open(String(venue.reservationUrl), "_blank", "noopener,noreferrer");
       return;
     }
@@ -5288,6 +5533,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 getQuantityButtonLabel={getQuantityButtonLabel}
                 submitRequestDefQuantityChoice={submitRequestDefQuantityChoice}
                 submitRequestDefSelectionOption={submitRequestDefSelectionOption}
+                onTrack={trackGuestEvent}
               />
             ) : (
               <Accordion
@@ -5314,6 +5560,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 submitRequestDefQuantityChoice={submitRequestDefQuantityChoice}
                 submitRequestDefSelectionOption={submitRequestDefSelectionOption}
                 onCloseAi={clearAiState}
+                onTrack={trackGuestEvent}
               />
             );
           })}
@@ -5348,6 +5595,7 @@ function Accordion({
   submitRequestDefQuantityChoice,
   submitRequestDefSelectionOption,
   onCloseAi,
+  onTrack,
 }: {
   section: HubSection;
   tUI: (k: string) => any;
@@ -5371,6 +5619,7 @@ function Accordion({
   submitRequestDefQuantityChoice: (def: RequestDef, qty: number) => void;
   submitRequestDefSelectionOption: (def: RequestDef, option: string, optionIndex: number) => void;
   onCloseAi?: () => void;
+  onTrack: (payload: TrackHubPayload) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [openRequestDefId, setOpenRequestDefId] = useState<string | null>(null);
@@ -5382,6 +5631,16 @@ function Accordion({
         onClick={() =>
           setOpen((prev) => {
             const next = !prev;
+            const sectionId = String(section.id || "section");
+
+            onTrack({
+              eventName: sectionId === "ai" && next ? "ai_opened" : next ? "section_opened" : "section_closed",
+              eventCategory: sectionId === "ai" ? "ai" : "navigation",
+              section: sectionId,
+              sectionKey: sectionId,
+              label: String(section.title || sectionId),
+              value: next ? "open" : "closed",
+            });
 
             if (section.id === "ai" && !next) {
               onCloseAi?.();
@@ -5481,7 +5740,18 @@ function Accordion({
                     <div key={quickKey} className="rounded-xl stayhub-card overflow-hidden text-sm">
                       <button
                         type="button"
-                        onClick={() => setOpenRequestDefId(isQuickOpen ? null : quickKey)}
+                        onClick={() => {
+                          onTrack({
+                            eventName: isQuickOpen ? "request_option_closed" : "request_option_opened",
+                            eventCategory: "request",
+                            section: String(section.id || "section"),
+                            sectionKey: String(section.id || "section"),
+                            itemKey: String(def.id || def.requestType || "request"),
+                            label: title,
+                            value: isQuickOpen ? "closed" : "open",
+                          });
+                          setOpenRequestDefId(isQuickOpen ? null : quickKey);
+                        }}
                         className="w-full px-3 py-3 text-left flex items-center justify-between gap-3"
                       >
                         <span className="font-semibold text-white">
@@ -5511,7 +5781,19 @@ function Accordion({
                                   key={qty}
                                   type="button"
                                   disabled={submittingRequest}
-                                  onClick={() => submitRequestDefQuantityChoice(def, qty)}
+                                  onClick={() => {
+                                    onTrack({
+                                      eventName: "request_quantity_selected",
+                                      eventCategory: "request",
+                                      section: String(section.id || "section"),
+                                      sectionKey: String(section.id || "section"),
+                                      itemKey: String(def.id || def.requestType || "request"),
+                                      buttonKey: "quantity_choice",
+                                      label: title,
+                                      value: String(qty),
+                                    });
+                                    submitRequestDefQuantityChoice(def, qty);
+                                  }}
                                   className="rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                   {getQuantityButtonLabel(def, qty)}
@@ -5530,7 +5812,20 @@ function Accordion({
                                       key={`${def.id}-${optionIndex}`}
                                       type="button"
                                       disabled={submittingRequest}
-                                      onClick={() => submitRequestDefSelectionOption(def, option, optionIndex)}
+                                      onClick={() => {
+                                        onTrack({
+                                          eventName: "request_option_selected",
+                                          eventCategory: "request",
+                                          section: String(section.id || "section"),
+                                          sectionKey: String(section.id || "section"),
+                                          itemKey: String(def.id || def.requestType || "request"),
+                                          buttonKey: "selection_option",
+                                          label: title,
+                                          value: String(optionIndex + 1),
+                                          extra: { optionLabel: option },
+                                        });
+                                        submitRequestDefSelectionOption(def, option, optionIndex);
+                                      }}
                                       className="w-full overflow-hidden rounded-2xl p-3 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                       {imageUrl ? (
@@ -5561,7 +5856,20 @@ function Accordion({
                                     key={`${def.id}-${optionIndex}`}
                                     type="button"
                                     disabled={submittingRequest}
-                                    onClick={() => submitRequestDefSelectionOption(def, option, optionIndex)}
+                                    onClick={() => {
+                                      onTrack({
+                                        eventName: "request_option_selected",
+                                        eventCategory: "request",
+                                        section: String(section.id || "section"),
+                                        sectionKey: String(section.id || "section"),
+                                        itemKey: String(def.id || def.requestType || "request"),
+                                        buttonKey: "selection_option",
+                                        label: title,
+                                        value: String(optionIndex + 1),
+                                        extra: { optionLabel: option },
+                                      });
+                                      submitRequestDefSelectionOption(def, option, optionIndex);
+                                    }}
                                     className="w-full rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
                                   >
                                     {option}
@@ -5573,7 +5881,19 @@ function Accordion({
                             <button
                               type="button"
                               disabled={submittingRequest}
-                              onClick={() => handleRequestDefClick(def)}
+                              onClick={() => {
+                                onTrack({
+                                  eventName: "request_button_clicked",
+                                  eventCategory: "request",
+                                  section: String(section.id || "section"),
+                                  sectionKey: String(section.id || "section"),
+                                  itemKey: String(def.id || def.requestType || "request"),
+                                  buttonKey: "request_button",
+                                  label: title,
+                                  value: String(def.requestType || def.id || "request"),
+                                });
+                                handleRequestDefClick(def);
+                              }}
                               className="mt-3 w-full rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {lang === "bg" ? "Изпрати заявка" : lang === "de" ? "Anfrage senden" : lang === "ro" ? "Trimite solicitarea" : lang === "cs" ? "Odeslat požadavek" : "Send request"}
@@ -5590,7 +5910,17 @@ function Accordion({
                     <button
                       key={idx}
                       type="button"
-                      onClick={it.onClick}
+                      onClick={() => {
+                        onTrack({
+                          eventName: "button_clicked",
+                          eventCategory: "interaction",
+                          section: String(section.id || "section"),
+                          sectionKey: String(section.id || "section"),
+                          buttonKey: "custom_action",
+                          label: String(it.label || "action"),
+                        });
+                        it.onClick?.();
+                      }}
                       disabled={submittingRequest}
                       className={clsx(
                         "rounded-xl px-3 py-3 text-left text-sm font-semibold ring-1 transition",
@@ -5611,6 +5941,19 @@ function Accordion({
                       href={it.href}
                       target={it.newTab || it.href.startsWith("http") ? "_blank" : undefined}
                       rel="noreferrer"
+                      onClick={() => {
+                        const href = String(it.href || "");
+                        onTrack({
+                          eventName: href.startsWith("tel:") ? "phone_link_clicked" : href.startsWith("mailto:") ? "email_link_clicked" : "external_link_clicked",
+                          eventCategory: "link",
+                          section: String(section.id || "section"),
+                          sectionKey: String(section.id || "section"),
+                          buttonKey: "link",
+                          label: String(it.label || "link"),
+                          value: href.startsWith("http") ? new URL(href).hostname : href.split(":")[0] || "link",
+                          extra: { href },
+                        });
+                      }}
                       className="rounded-xl px-3 py-3 text-sm font-semibold stayhub-action-card active:scale-[0.99] transition"
                     >
                       {it.label}
@@ -5715,6 +6058,7 @@ function OutletsAccordion({
   getQuantityButtonLabel,
   submitRequestDefQuantityChoice,
   submitRequestDefSelectionOption,
+  onTrack,
 }: {
   section: HubSection;
   lang: LangKey;
@@ -5738,6 +6082,7 @@ function OutletsAccordion({
   getQuantityButtonLabel: (def: RequestDef, qty: number) => string;
   submitRequestDefQuantityChoice: (def: RequestDef, qty: number) => void;
   submitRequestDefSelectionOption: (def: RequestDef, option: string, optionIndex: number) => void;
+  onTrack: (payload: TrackHubPayload) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [openCategory, setOpenCategory] = useState<string | null>(null);
@@ -5800,7 +6145,19 @@ function OutletsAccordion({
       <div key={quickKey} className="rounded-xl stayhub-card overflow-hidden text-sm">
         <button
           type="button"
-          onClick={() => setOpenSpaRequestDefId(isQuickOpen ? null : quickKey)}
+          onClick={() => {
+            onTrack({
+              eventName: isQuickOpen ? "request_option_closed" : "request_option_opened",
+              eventCategory: "request",
+              section: "outlets",
+              sectionKey: "outlets",
+              itemKey: String(def.id || def.requestType || "request"),
+              label: title,
+              value: isQuickOpen ? "closed" : "open",
+              extra: { category: "spa" },
+            });
+            setOpenSpaRequestDefId(isQuickOpen ? null : quickKey);
+          }}
           className="w-full px-3 py-3 text-left flex items-center justify-between gap-3"
         >
           <span className="font-semibold text-white">{icon ? `${icon} ` : ""}{title}</span>
@@ -5828,7 +6185,20 @@ function OutletsAccordion({
                     key={qty}
                     type="button"
                     disabled={submittingRequest}
-                    onClick={() => submitRequestDefQuantityChoice(def, qty)}
+                    onClick={() => {
+                      onTrack({
+                        eventName: "request_quantity_selected",
+                        eventCategory: "request",
+                        section: "outlets",
+                        sectionKey: "outlets",
+                        itemKey: String(def.id || def.requestType || "request"),
+                        buttonKey: "quantity_choice",
+                        label: title,
+                        value: String(qty),
+                        extra: { category: "spa" },
+                      });
+                      submitRequestDefQuantityChoice(def, qty);
+                    }}
                     className="rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {getQuantityButtonLabel(def, qty)}
@@ -5847,7 +6217,20 @@ function OutletsAccordion({
                         key={`${def.id}-${optionIndex}`}
                         type="button"
                         disabled={submittingRequest}
-                        onClick={() => submitRequestDefSelectionOption(def, option, optionIndex)}
+                        onClick={() => {
+                          onTrack({
+                            eventName: "request_option_selected",
+                            eventCategory: "request",
+                            section: "outlets",
+                            sectionKey: "outlets",
+                            itemKey: String(def.id || def.requestType || "request"),
+                            buttonKey: "selection_option",
+                            label: title,
+                            value: String(optionIndex + 1),
+                            extra: { category: "spa", optionLabel: option },
+                          });
+                          submitRequestDefSelectionOption(def, option, optionIndex);
+                        }}
                         className="w-full overflow-hidden rounded-2xl p-3 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {imageUrl ? (
@@ -5878,7 +6261,20 @@ function OutletsAccordion({
                       key={`${def.id}-${optionIndex}`}
                       type="button"
                       disabled={submittingRequest}
-                      onClick={() => submitRequestDefSelectionOption(def, option, optionIndex)}
+                      onClick={() => {
+                        onTrack({
+                          eventName: "request_option_selected",
+                          eventCategory: "request",
+                          section: "outlets",
+                          sectionKey: "outlets",
+                          itemKey: String(def.id || def.requestType || "request"),
+                          buttonKey: "selection_option",
+                          label: title,
+                          value: String(optionIndex + 1),
+                          extra: { category: "spa", optionLabel: option },
+                        });
+                        submitRequestDefSelectionOption(def, option, optionIndex);
+                      }}
                       className="w-full rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {option}
@@ -5890,7 +6286,20 @@ function OutletsAccordion({
               <button
                 type="button"
                 disabled={submittingRequest}
-                onClick={() => handleRequestDefClick(def)}
+                onClick={() => {
+                  onTrack({
+                    eventName: "request_button_clicked",
+                    eventCategory: "request",
+                    section: "outlets",
+                    sectionKey: "outlets",
+                    itemKey: String(def.id || def.requestType || "request"),
+                    buttonKey: "request_button",
+                    label: title,
+                    value: String(def.requestType || def.id || "request"),
+                    extra: { category: "spa" },
+                  });
+                  handleRequestDefClick(def);
+                }}
                 className="mt-3 w-full rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {lang === "bg" ? "Изпрати заявка" : lang === "de" ? "Anfrage senden" : lang === "ro" ? "Trimite solicitarea" : lang === "cs" ? "Odeslat požadavek" : "Send request"}
@@ -5965,6 +6374,19 @@ function OutletsAccordion({
               href={venue.menuUrl}
               target="_blank"
               rel="noreferrer"
+              onClick={() => {
+                onTrack({
+                  eventName: "external_link_clicked",
+                  eventCategory: "link",
+                  section: "outlets",
+                  sectionKey: "outlets",
+                  itemKey: normalizeCategory(venue),
+                  buttonKey: "menu_pdf",
+                  label: getVenueText(venue, "name", lang) || venue.name || "venue",
+                  value: "menu_pdf",
+                  extra: { href: venue.menuUrl },
+                });
+              }}
               className="rounded-xl px-3 py-3 text-sm font-semibold stayhub-action-card transition"
             >
               {String(tUI("view_menu_pdf") || "View menu")}
@@ -5976,6 +6398,19 @@ function OutletsAccordion({
               href={venue.programUrl}
               target="_blank"
               rel="noreferrer"
+              onClick={() => {
+                onTrack({
+                  eventName: "external_link_clicked",
+                  eventCategory: "link",
+                  section: "outlets",
+                  sectionKey: "outlets",
+                  itemKey: normalizeCategory(venue),
+                  buttonKey: "program_url",
+                  label: getVenueText(venue, "name", lang) || venue.name || "venue",
+                  value: "program_url",
+                  extra: { href: venue.programUrl },
+                });
+              }}
               className="rounded-xl px-3 py-3 text-sm font-semibold stayhub-action-card transition"
             >
               {String(tUI("view_program") || "View program")}
@@ -6013,7 +6448,20 @@ function OutletsAccordion({
     <div className="rounded-2xl overflow-hidden stayhub-section-shell">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() =>
+          setOpen((prev) => {
+            const next = !prev;
+            onTrack({
+              eventName: next ? "section_opened" : "section_closed",
+              eventCategory: "navigation",
+              section: "outlets",
+              sectionKey: "outlets",
+              label: String(section.title || "outlets"),
+              value: next ? "open" : "closed",
+            });
+            return next;
+          })
+        }
         className="w-full px-4 py-4 text-left stayhub-section-header flex items-center justify-between gap-3"
       >
         <div className="text-base font-semibold">{withSectionIcon(section.title, (section as any).id || (section as any).key || (section as any).type || (section as any).section)}</div>
@@ -6041,6 +6489,15 @@ function OutletsAccordion({
                   <button
                     type="button"
                     onClick={() => {
+                      onTrack({
+                        eventName: catOpen ? "outlet_category_closed" : "outlet_category_opened",
+                        eventCategory: "navigation",
+                        section: "outlets",
+                        sectionKey: "outlets",
+                        itemKey: catKey,
+                        label: groupTitle,
+                        value: catOpen ? "closed" : "open",
+                      });
                       setOpenCategory(catOpen ? null : catKey);
                       setOpenVenue(null);
                     }}
@@ -6076,7 +6533,18 @@ function OutletsAccordion({
                             >
                               <button
                                 type="button"
-                                onClick={() => setOpenVenue(venueOpen ? null : venueKey)}
+                                onClick={() => {
+                                  onTrack({
+                                    eventName: venueOpen ? "venue_closed" : "venue_opened",
+                                    eventCategory: "navigation",
+                                    section: "outlets",
+                                    sectionKey: "outlets",
+                                    itemKey: catKey,
+                                    label: venueName,
+                                    value: venueOpen ? "closed" : "open",
+                                  });
+                                  setOpenVenue(venueOpen ? null : venueKey);
+                                }}
                                 className="w-full px-3 py-3 text-left flex items-center justify-between gap-3"
                               >
                                 <div>

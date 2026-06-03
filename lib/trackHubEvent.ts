@@ -1,10 +1,21 @@
 export type TrackHubPayload = {
   eventName: string;
   roomNumber?: string | null;
+  roomId?: string | null;
+  roomConfirmed?: boolean | null;
+  roomSource?: string | null;
+  eventCategory?: string | null;
   section?: string | null;
+  sectionKey?: string | null;
+  itemKey?: string | null;
+  buttonKey?: string | null;
   label?: string | null;
   value?: string | null;
+  language?: string | null;
   page?: string | null;
+  pagePath?: string | null;
+  requestId?: string | null;
+  metadata?: Record<string, unknown>;
   extra?: Record<string, unknown>;
 };
 
@@ -20,12 +31,19 @@ const ALIAS_TO_HOTEL_ID: Record<UiAlias, string> = {
   demo: "243c8e86-af66-455f-b664-ec2185d5f3f3",
 };
 
+const ROOM_STATE_STORAGE_PREFIX = "guesthub_room_state";
+const TRACKING_SESSION_STORAGE_KEY = "sh_tracking_session_id";
+
 function readCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
   const match = document.cookie.match(
     new RegExp(`(?:^|; )${name.replace(/[.$?*|{}()[\]\\/+^]/g, "\\$&")}=([^;]*)`)
   );
   return match ? decodeURIComponent(match[1]) : null;
+}
+
+function normalizeRoomNumber(value: unknown): string {
+  return String(value || "").trim().replace(/\s+/g, "");
 }
 
 function getHotelAlias(): string {
@@ -46,6 +64,26 @@ function getHotelAlias(): string {
   if (match?.[1]) return match[1];
 
   return "aquamarine";
+}
+
+function getRoomStateLookupKeys(hotelAlias: string, hotelSlug: string) {
+  if (typeof window === "undefined") return [];
+
+  const keys = new Set<string>();
+  const pathMatch = window.location.pathname.match(/^\/h\/([^/]+)/i);
+
+  if (pathMatch?.[1]) keys.add(String(pathMatch[1]).trim().toLowerCase());
+
+  const host = window.location.hostname.toLowerCase();
+  if (host.endsWith(".stayhub.app")) {
+    const sub = host.split(".")[0];
+    if (sub && sub !== "www") keys.add(sub);
+  }
+
+  if (hotelAlias) keys.add(String(hotelAlias).trim().toLowerCase());
+  if (hotelSlug) keys.add(String(hotelSlug).trim().toLowerCase());
+
+  return Array.from(keys).filter(Boolean);
 }
 
 function getHotelSlug(alias: string): string {
@@ -78,6 +116,148 @@ function setStoredValue(key: string, value: string) {
   } catch { }
 }
 
+function readStoredRoomState(hotelAlias: string, hotelSlug: string): {
+  room: string | null;
+  roomConfirmed: boolean;
+} {
+  if (typeof window === "undefined") return { room: null, roomConfirmed: false };
+
+  for (const key of getRoomStateLookupKeys(hotelAlias, hotelSlug)) {
+    try {
+      const raw = window.localStorage.getItem(`${ROOM_STATE_STORAGE_PREFIX}:${key}`);
+      if (!raw) continue;
+
+      const parsed = JSON.parse(raw) as { room?: unknown; roomConfirmed?: unknown };
+      const room = normalizeRoomNumber(parsed?.room);
+      const roomConfirmed = Boolean(parsed?.roomConfirmed);
+
+      if (room && roomConfirmed) return { room, roomConfirmed };
+      if (room) return { room, roomConfirmed: false };
+    } catch { }
+  }
+
+  return { room: null, roomConfirmed: false };
+}
+
+function getOrCreateTrackingSessionId(): string | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const existing = window.sessionStorage.getItem(TRACKING_SESSION_STORAGE_KEY);
+    if (existing) return existing;
+
+    const next =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `sh_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+
+    window.sessionStorage.setItem(TRACKING_SESSION_STORAGE_KEY, next);
+    return next;
+  } catch {
+    return null;
+  }
+}
+
+function getDeviceInfo() {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return {
+      deviceType: null,
+      osFamily: null,
+      browserFamily: null,
+      pwaMode: null,
+      screenSizeGroup: null,
+    };
+  }
+
+  const ua = String(navigator.userAgent || "").toLowerCase();
+  const width = window.innerWidth || 0;
+
+  const isTablet = /ipad|tablet/.test(ua) || (/android/.test(ua) && !/mobile/.test(ua));
+  const isMobile = !isTablet && /mobi|iphone|ipod|android/.test(ua);
+
+  const deviceType = isTablet ? "tablet" : isMobile ? "mobile" : "desktop";
+
+  const osFamily = /iphone|ipad|ipod/.test(ua)
+    ? "iOS"
+    : /android/.test(ua)
+      ? "Android"
+      : /windows/.test(ua)
+        ? "Windows"
+        : /mac os|macintosh/.test(ua)
+          ? "macOS"
+          : /linux/.test(ua)
+            ? "Linux"
+            : "Other";
+
+  const browserFamily = /edg\//.test(ua)
+    ? "Edge"
+    : /samsungbrowser/.test(ua)
+      ? "Samsung Internet"
+      : /firefox|fxios/.test(ua)
+        ? "Firefox"
+        : /crios|chrome|chromium/.test(ua)
+          ? "Chrome"
+          : /safari/.test(ua)
+            ? "Safari"
+            : "Other";
+
+  const standalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as any).standalone === true;
+
+  const pwaMode = standalone ? "installed_pwa" : "browser";
+  const screenSizeGroup = width <= 480 ? "small" : width <= 900 ? "medium" : "large";
+
+  return { deviceType, osFamily, browserFamily, pwaMode, screenSizeGroup };
+}
+
+function getCurrentPagePath() {
+  if (typeof window === "undefined") return null;
+  return `${window.location.pathname}${window.location.search}`;
+}
+
+function resolveRoomContext(payload: TrackHubPayload, hotelAlias: string, hotelSlug: string) {
+  if (typeof window === "undefined") {
+    return { roomNumber: payload.roomNumber ?? null, roomConfirmed: Boolean(payload.roomConfirmed), roomSource: payload.roomSource ?? null };
+  }
+
+  const url = new URL(window.location.href);
+  const payloadRoom = normalizeRoomNumber(payload.roomNumber);
+  const roomFromUrl = normalizeRoomNumber(url.searchParams.get("room"));
+  const storedRoomState = readStoredRoomState(hotelAlias, hotelSlug);
+  const storedRoom = normalizeRoomNumber(storedRoomState.room);
+
+  const roomNumber = payloadRoom || roomFromUrl || storedRoom || null;
+
+  let roomConfirmed = Boolean(payload.roomConfirmed);
+  if (typeof payload.roomConfirmed !== "boolean") {
+    if (payload.eventName === "room_confirmed" || payload.eventName === "room_changed") {
+      roomConfirmed = true;
+    } else if (
+      payload.eventName === "room_confirm_prompt_shown" ||
+      payload.eventName === "room_confirm_rejected"
+    ) {
+      roomConfirmed = false;
+    } else {
+      roomConfirmed = Boolean(roomNumber && storedRoomState.roomConfirmed && storedRoom === roomNumber);
+    }
+  }
+
+  const roomSource =
+    payload.roomSource ??
+    (payloadRoom
+      ? roomConfirmed
+        ? "confirmed"
+        : "payload"
+      : roomFromUrl
+        ? "url_param"
+        : storedRoom
+          ? "stored_confirmed"
+          : null);
+
+  return { roomNumber, roomConfirmed, roomSource };
+}
+
 export function persistQrContextFromUrl() {
   if (typeof window === "undefined") return;
 
@@ -100,6 +280,10 @@ export async function trackHubEvent(payload: TrackHubPayload) {
   const hotelAlias = getHotelAlias();
   const hotelSlug = getHotelSlug(hotelAlias);
   const hotelId = getHotelId(hotelAlias);
+  const { roomNumber, roomConfirmed, roomSource } = resolveRoomContext(payload, hotelAlias, hotelSlug);
+  const environment = hotelSlug === "demo" || hotelAlias === "demo" ? "demo" : "production";
+  const sessionId = getOrCreateTrackingSessionId();
+  const device = getDeviceInfo();
 
   const scanSessionId =
     url.searchParams.get("qsid") ||
@@ -119,22 +303,59 @@ export async function trackHubEvent(payload: TrackHubPayload) {
     readCookie("sh_qr_code") ||
     null;
 
+  const pagePath = payload.pagePath ?? payload.page ?? getCurrentPagePath();
+  const legacyExtra = {
+    ...(payload.extra ?? {}),
+    qrCode,
+    roomSource,
+    roomConfirmed,
+    environment,
+    language: payload.language ?? null,
+    deviceType: device.deviceType,
+    osFamily: device.osFamily,
+    browserFamily: device.browserFamily,
+    pwaMode: device.pwaMode,
+    screenSizeGroup: device.screenSizeGroup,
+    sessionId,
+  };
+
+  const metadata = {
+    ...(payload.metadata ?? {}),
+    ...(payload.extra ?? {}),
+  };
+
   const body = JSON.stringify({
     hotelId,
     hotelSlug,
     hotelAlias,
+    environment,
     scanSessionId,
-    roomNumber: payload.roomNumber ?? null,
+    roomId: payload.roomId ?? null,
+    roomNumber,
+    userSessionId: sessionId,
+    sessionId,
     eventName: payload.eventName,
-    section: payload.section ?? null,
+    eventCategory: payload.eventCategory ?? null,
+    section: payload.section ?? payload.sectionKey ?? null,
+    sectionKey: payload.sectionKey ?? payload.section ?? null,
+    itemKey: payload.itemKey ?? null,
+    buttonKey: payload.buttonKey ?? null,
     label: payload.label ?? null,
     value: payload.value ?? null,
+    language: payload.language ?? null,
+    requestId: payload.requestId ?? null,
+    roomSource,
+    roomConfirmed,
+    deviceType: device.deviceType,
+    osFamily: device.osFamily,
+    browserFamily: device.browserFamily,
+    pwaMode: device.pwaMode,
+    screenSizeGroup: device.screenSizeGroup,
     src,
-    page: payload.page ?? window.location.pathname,
-    extra: {
-      ...(payload.extra ?? {}),
-      qrCode,
-    },
+    page: pagePath,
+    pagePath,
+    metadata,
+    extra: legacyExtra,
   });
 
   if (navigator.sendBeacon) {
