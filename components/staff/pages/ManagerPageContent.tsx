@@ -25,7 +25,7 @@ type DrilldownSelection =
   | { kind: "request_type"; type: StaffRequestType }
   | { kind: "request_room"; room: string }
   | { kind: "upsell_status"; status: "all" | StaffBillingStatus }
-  | { kind: "upsell_type"; type: StaffRequestType }
+  | { kind: "upsell_service"; serviceKey: string }
   | { kind: "upsell_room"; room: string }
   | { kind: "issue_type"; type: StaffRequestType }
   | { kind: "issue_room"; room: string };
@@ -49,8 +49,9 @@ type RoomStat = {
 
 
 type UpsellServiceStat = {
-  type: StaffRequestType;
+  serviceKey: string;
   label: string;
+  details: Array<{ label: string; count: number }>;
   chargedCount: number;
   pendingCount: number;
   waivedCount: number;
@@ -94,6 +95,7 @@ function getUpsellText(lang: "bg" | "en" | "de") {
       byRoom: "Revenue by room",
       noUpsellData: "No paid services have been requested yet.",
       service: "Service",
+      details: "Exact item / details",
       charged: "Charged",
       pending: "Pending",
       waived: "No charge",
@@ -125,6 +127,7 @@ function getUpsellText(lang: "bg" | "en" | "de") {
       byRoom: "Umsatz nach Zimmer",
       noUpsellData: "Es wurden noch keine kostenpflichtigen Leistungen angefragt.",
       service: "Leistung",
+      details: "Genauer Artikel / Details",
       charged: "Gebucht",
       pending: "Offen",
       waived: "Ohne Buchung",
@@ -155,6 +158,7 @@ function getUpsellText(lang: "bg" | "en" | "de") {
     byRoom: "Оборот по стая",
     noUpsellData: "Все още няма заявени платени услуги.",
     service: "Услуга",
+    details: "Точен артикул / детайл",
     charged: "Начислени",
     pending: "Чакащи",
     waived: "Без начисляване",
@@ -218,15 +222,99 @@ function getRequestAmount(request: StaffRequest) {
   return parseMoney(request.price);
 }
 
+const upsellServiceLabels: Record<"bg" | "en" | "de", Record<string, string>> = {
+  bg: {
+    coffee_capsules: "Кафе капсули",
+    pillow_menu: "Меню възглавници",
+    late_checkout: "Късен чек-аут",
+    massage_booking: "Масаж / релакс терапия",
+  },
+  en: {
+    coffee_capsules: "Coffee capsules",
+    pillow_menu: "Pillow menu",
+    late_checkout: "Late checkout",
+    massage_booking: "Massage / relaxation therapy",
+  },
+  de: {
+    coffee_capsules: "Kaffeekapseln",
+    pillow_menu: "Kissenmenü",
+    late_checkout: "Später Check-out",
+    massage_booking: "Massage / Entspannungstherapie",
+  },
+};
+
+function getUpsellServiceKey(request: StaffRequest) {
+  const sourceRequestDef = String(request.sourceRequestDef || "").trim().toLowerCase();
+  return sourceRequestDef || request.type;
+}
+
+function getUpsellServiceLabel(request: StaffRequest, lang: "bg" | "en" | "de") {
+  const serviceKey = getUpsellServiceKey(request);
+  const mapped = upsellServiceLabels[lang]?.[serviceKey];
+  if (mapped) return mapped;
+
+  const preciseLabel = String(request.typeLabel || "").trim();
+  if (preciseLabel && serviceKey !== request.type) return preciseLabel;
+
+  return translateRequestType(request.type, lang, preciseLabel);
+}
+
+function getUpsellRequestDetail(request: StaffRequest) {
+  const serviceKey = getUpsellServiceKey(request);
+  const note = String(request.note || "").trim();
+  if (!note) return "";
+
+  const lines = note.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+
+  const findValue = (patterns: RegExp[]) => {
+    for (const line of lines) {
+      for (const pattern of patterns) {
+        const match = line.match(pattern);
+        if (match?.[1]) return match[1].trim();
+      }
+    }
+    return "";
+  };
+
+  if (serviceKey === "pillow_menu") {
+    return findValue([
+      /^Избрана възглавница:\s*(.+)$/i,
+      /^Избрана услуга:\s*(.+)$/i,
+      /^Избрана опция:\s*(.+)$/i,
+    ]);
+  }
+
+  if (serviceKey === "massage_booking") {
+    return findValue([
+      /^Избрана услуга:\s*(.+)$/i,
+      /^Избрана опция:\s*(.+)$/i,
+    ]);
+  }
+
+  if (serviceKey === "coffee_capsules") {
+    const quantity = findValue([/^Количество:\s*(.+)$/i]);
+    return quantity ? `Количество: ${quantity}` : "";
+  }
+
+  if (serviceKey === "late_checkout") {
+    const time = note.match(/\b([01]\d|2[0-3]):[0-5]\d\b/)?.[0] || "";
+    return time ? `Час: ${time}` : "";
+  }
+
+  return "";
+}
+
 function buildUpsellServiceStats(requests: StaffRequest[], lang: "bg" | "en" | "de"): UpsellServiceStat[] {
-  const map = new Map<StaffRequestType, UpsellServiceStat>();
+  const map = new Map<string, UpsellServiceStat>();
 
   for (const request of requests.filter(isBillableRequest)) {
+    const serviceKey = getUpsellServiceKey(request);
     const amount = getRequestAmount(request);
     const currency = getRequestCurrency(request);
-    const existing = map.get(request.type) ?? {
-      type: request.type,
-      label: translateRequestType(request.type, lang, request.typeLabel),
+    const existing = map.get(serviceKey) ?? {
+      serviceKey,
+      label: getUpsellServiceLabel(request, lang),
+      details: [],
       chargedCount: 0,
       pendingCount: 0,
       waivedCount: 0,
@@ -237,6 +325,13 @@ function buildUpsellServiceStats(requests: StaffRequest[], lang: "bg" | "en" | "
       cancelledRevenue: 0,
       currency,
     };
+
+    const detail = getUpsellRequestDetail(request);
+    if (detail) {
+      const detailEntry = existing.details.find((item) => item.label === detail);
+      if (detailEntry) detailEntry.count += 1;
+      else existing.details.push({ label: detail, count: 1 });
+    }
 
     const status = getBillingStatus(request);
     if (status === "charged") {
@@ -253,12 +348,17 @@ function buildUpsellServiceStats(requests: StaffRequest[], lang: "bg" | "en" | "
       existing.pendingRevenue += amount;
     }
 
-    map.set(request.type, existing);
+    map.set(serviceKey, existing);
   }
 
-  return [...map.values()].sort(
-    (a, b) => b.chargedRevenue - a.chargedRevenue || b.chargedCount - a.chargedCount || a.label.localeCompare(b.label),
-  );
+  return [...map.values()]
+    .map((item) => ({
+      ...item,
+      details: [...item.details].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+    }))
+    .sort(
+      (a, b) => b.chargedRevenue - a.chargedRevenue || b.chargedCount - a.chargedCount || a.label.localeCompare(b.label),
+    );
 }
 
 function buildUpsellRoomStats(requests: StaffRequest[]): UpsellRoomStat[] {
@@ -506,12 +606,16 @@ export default function ManagerPage() {
                 : upsellText.pendingServices;
         return { title, subtitle: upsellText.intro, requests: matching };
       }
-      case "upsell_type":
+      case "upsell_service": {
+        const matching = sortByTime(
+          billableRequests.filter((request) => getUpsellServiceKey(request) === selectedDrilldown.serviceKey),
+        );
         return {
-          title: translateRequestType(selectedDrilldown.type, lang),
+          title: matching[0] ? getUpsellServiceLabel(matching[0], lang) : selectedDrilldown.serviceKey.replace(/_/g, " "),
           subtitle: upsellText.byService,
-          requests: sortByTime(billableRequests.filter((request) => request.type === selectedDrilldown.type)),
+          requests: matching,
         };
+      }
       case "upsell_room":
         return {
           title: `${t.room} ${selectedDrilldown.room}`,
@@ -555,9 +659,10 @@ export default function ManagerPage() {
         return [[t.room, t.totalRequests, t.openRequests, t.returnedRequests, t.completedRequests], ...requestRoomStats.map((room) => [`${t.room} ${room.room}`, room.total, room.open, room.returned, room.completed])];
       case "upsell_snapshot":
         return [
-          [upsellText.service, upsellText.charged, upsellText.revenue, upsellText.pending, upsellText.pendingAmount, upsellText.waived, upsellText.cancelled],
+          [upsellText.service, upsellText.details, upsellText.charged, upsellText.revenue, upsellText.pending, upsellText.pendingAmount, upsellText.waived, upsellText.cancelled],
           ...upsellServiceStats.map((item) => [
             item.label,
+            item.details.map((detail) => detail.count > 1 ? `${detail.label} × ${detail.count}` : detail.label).join(" · "),
             item.chargedCount,
             formatMoney(item.chargedRevenue, item.currency),
             item.pendingCount,
@@ -750,9 +855,9 @@ export default function ManagerPage() {
                     <div className="mt-4 space-y-3">
                       {upsellServiceStats.map((item) => (
                         <button
-                          key={item.type}
+                          key={item.serviceKey}
                           type="button"
-                          onClick={() => setSelectedDrilldown({ kind: "upsell_type", type: item.type })}
+                          onClick={() => setSelectedDrilldown({ kind: "upsell_service", serviceKey: item.serviceKey })}
                           className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-left transition hover:border-emerald-300/30 hover:bg-white/10"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -765,6 +870,11 @@ export default function ManagerPage() {
                             {" · "}{upsellText.waived}: <span className="font-semibold text-white">{item.waivedCount}</span>
                             {" · "}{upsellText.cancelled}: <span className="font-semibold text-white">{item.cancelledCount}</span>
                           </p>
+                          {item.details.length ? (
+                            <p className="mt-2 text-xs leading-5 text-white/50">
+                              {item.details.map((detail) => detail.count > 1 ? `${detail.label} × ${detail.count}` : detail.label).join(" · ")}
+                            </p>
+                          ) : null}
                         </button>
                       ))}
                     </div>
