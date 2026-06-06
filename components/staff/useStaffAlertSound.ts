@@ -6,13 +6,8 @@ import type { StaffDepartment, StaffRequest } from "@/lib/staff/types";
 const ALERT_SOUND_STORAGE_PREFIX = "stayhub_staff_alert_sound";
 const DEFAULT_SOUND_SRC = "/sounds/new-request-chime.wav";
 
-function buildSoundKey(
-  hotelSlug: string | undefined,
-  department: StaffDepartment,
-) {
-  return `${ALERT_SOUND_STORAGE_PREFIX}:${String(hotelSlug || "default")
-    .trim()
-    .toLowerCase()}:${department}`;
+function buildSoundKey(hotelSlug: string | undefined, department: StaffDepartment) {
+  return `${ALERT_SOUND_STORAGE_PREFIX}:${String(hotelSlug || "default").trim().toLowerCase()}:${department}`;
 }
 
 export function useStaffAlertSound({
@@ -26,13 +21,9 @@ export function useStaffAlertSound({
   requests: StaffRequest[];
   src?: string;
 }) {
-  const storageKey = useMemo(
-    () => buildSoundKey(hotelSlug, department),
-    [hotelSlug, department],
-  );
+  const storageKey = useMemo(() => buildSoundKey(hotelSlug, department), [hotelSlug, department]);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [ready, setReady] = useState(false);
-  const [freshRequestSequence, setFreshRequestSequence] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const initializedRef = useRef(false);
   const seenNewIdsRef = useRef<Set<string>>(new Set());
@@ -40,19 +31,18 @@ export function useStaffAlertSound({
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const audio = new Audio(src);
-    audio.preload = "auto";
-    audio.volume = 1;
-    audio.load();
-    audioRef.current = audio;
+    audioRef.current = new Audio(src);
+    audioRef.current.preload = "auto";
 
     const stored = window.localStorage.getItem(storageKey);
     setSoundEnabled(stored === "on");
     setReady(true);
 
     return () => {
-      audio.pause();
-      audioRef.current = null;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
     };
   }, [src, storageKey]);
 
@@ -63,12 +53,9 @@ export function useStaffAlertSound({
     try {
       audio.pause();
       audio.currentTime = 0;
-      audio.muted = false;
-      audio.volume = 1;
       await audio.play();
       return true;
-    } catch (error) {
-      console.warn("Reception alert sound could not play", error);
+    } catch {
       return false;
     }
   }, []);
@@ -82,16 +69,13 @@ export function useStaffAlertSound({
     }
 
     if (next) {
-      // This explicit click unlocks later background playback in the browser.
       await playTone();
     }
   }, [playTone, soundEnabled, storageKey]);
 
   useEffect(() => {
     const currentNewIds = new Set(
-      requests
-        .filter((request) => request.status === "new")
-        .map((request) => request.id),
+      requests.filter((request) => request.status === "new").map((request) => request.id)
     );
 
     if (!initializedRef.current) {
@@ -101,24 +85,19 @@ export function useStaffAlertSound({
     }
 
     const hasFreshNewRequest = [...currentNewIds].some(
-      (id) => !seenNewIdsRef.current.has(id),
+      (id) => !seenNewIdsRef.current.has(id)
     );
 
     seenNewIdsRef.current = currentNewIds;
 
-    if (!hasFreshNewRequest) return;
+    if (!soundEnabled || !hasFreshNewRequest) return;
 
-    setFreshRequestSequence((value) => value + 1);
-
-    if (soundEnabled) {
-      void playTone();
-    }
+    void playTone();
   }, [playTone, requests, soundEnabled]);
 
   return {
     ready,
     soundEnabled,
     toggleSound,
-    freshRequestSequence,
   };
 }

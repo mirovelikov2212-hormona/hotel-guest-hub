@@ -90,7 +90,6 @@ const hotelTimeFormatter = new Intl.DateTimeFormat("bg-BG", {
 });
 
 const RECEPTION_OVERDUE_AFTER_MINUTES = 10;
-const RECEPTION_ALERT_TAB_TITLE = "🔴 НОВА ЗАЯВКА";
 
 const priorityOrder: Record<StaffRequestStatus, number> = {
   new: 0,
@@ -352,11 +351,17 @@ function ReceptionDailyHistory({
   );
 }
 
-function useReceptionTabAlert(freshRequestSequence: number) {
+
+const RECEPTION_ALERT_TITLE = "🔴 НОВА ЗАЯВКА";
+const RECEPTION_TITLE_BLINK_MS = 900;
+
+function useReceptionTabTitleAlert(requests: StaffRequest[]) {
+  const initializedRef = useRef(false);
+  const seenNewIdsRef = useRef<Set<string>>(new Set());
   const originalTitleRef = useRef("GuestHub Staff");
-  const alertActiveRef = useRef(false);
   const blinkIntervalRef = useRef<number | null>(null);
-  const alertVisibleRef = useRef(false);
+  const alertActiveRef = useRef(false);
+  const showAlertTitleRef = useRef(false);
 
   const clearBlinkInterval = useCallback(() => {
     if (blinkIntervalRef.current !== null) {
@@ -368,7 +373,7 @@ function useReceptionTabAlert(freshRequestSequence: number) {
   const stopAlert = useCallback(() => {
     clearBlinkInterval();
     alertActiveRef.current = false;
-    alertVisibleRef.current = false;
+    showAlertTitleRef.current = false;
     document.title = originalTitleRef.current;
   }, [clearBlinkInterval]);
 
@@ -376,41 +381,59 @@ function useReceptionTabAlert(freshRequestSequence: number) {
     if (alertActiveRef.current) return;
 
     alertActiveRef.current = true;
-    alertVisibleRef.current = true;
-    document.title = RECEPTION_ALERT_TAB_TITLE;
+    showAlertTitleRef.current = true;
+    document.title = RECEPTION_ALERT_TITLE;
 
     blinkIntervalRef.current = window.setInterval(() => {
-      alertVisibleRef.current = !alertVisibleRef.current;
-      document.title = alertVisibleRef.current
-        ? RECEPTION_ALERT_TAB_TITLE
+      showAlertTitleRef.current = !showAlertTitleRef.current;
+      document.title = showAlertTitleRef.current
+        ? RECEPTION_ALERT_TITLE
         : originalTitleRef.current;
-    }, 800);
+    }, RECEPTION_TITLE_BLINK_MS);
   }, []);
 
   useEffect(() => {
     originalTitleRef.current = document.title || "GuestHub Staff";
 
-    const stopWhenReceptionIsVisible = () => {
+    const stopWhenReceptionIsActive = () => {
       if (document.visibilityState === "visible" && document.hasFocus()) {
         stopAlert();
       }
     };
 
-    document.addEventListener("visibilitychange", stopWhenReceptionIsVisible);
-    window.addEventListener("focus", stopWhenReceptionIsVisible);
+    document.addEventListener("visibilitychange", stopWhenReceptionIsActive);
+    window.addEventListener("focus", stopWhenReceptionIsActive);
 
     return () => {
       document.removeEventListener(
         "visibilitychange",
-        stopWhenReceptionIsVisible,
+        stopWhenReceptionIsActive,
       );
-      window.removeEventListener("focus", stopWhenReceptionIsVisible);
+      window.removeEventListener("focus", stopWhenReceptionIsActive);
       stopAlert();
     };
   }, [stopAlert]);
 
   useEffect(() => {
-    if (freshRequestSequence === 0) return;
+    const currentNewIds = new Set(
+      requests
+        .filter((request) => request.status === "new")
+        .map((request) => request.id),
+    );
+
+    if (!initializedRef.current) {
+      seenNewIdsRef.current = currentNewIds;
+      initializedRef.current = true;
+      return;
+    }
+
+    const hasFreshNewRequest = [...currentNewIds].some(
+      (id) => !seenNewIdsRef.current.has(id),
+    );
+
+    seenNewIdsRef.current = currentNewIds;
+
+    if (!hasFreshNewRequest) return;
 
     const receptionIsInactive =
       document.visibilityState !== "visible" || !document.hasFocus();
@@ -418,7 +441,7 @@ function useReceptionTabAlert(freshRequestSequence: number) {
     if (receptionIsInactive) {
       startAlert();
     }
-  }, [freshRequestSequence, startAlert]);
+  }, [requests, startAlert]);
 }
 
 export default function ReceptionPage() {
@@ -505,14 +528,13 @@ export default function ReceptionPage() {
     [requests],
   );
 
-  const { soundEnabled, toggleSound, freshRequestSequence } =
-    useStaffAlertSound({
-      hotelSlug,
-      department: "reception",
-      requests: receptionAlertRequests,
-    });
+  const { soundEnabled, toggleSound } = useStaffAlertSound({
+    hotelSlug,
+    department: "reception",
+    requests: receptionAlertRequests,
+  });
 
-  useReceptionTabAlert(freshRequestSequence);
+  useReceptionTabTitleAlert(receptionAlertRequests);
 
   return (
     <main className="space-y-6 pb-safe">
