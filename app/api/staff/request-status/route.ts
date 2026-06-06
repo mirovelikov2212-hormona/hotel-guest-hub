@@ -86,15 +86,11 @@ function canRoleUpdateDepartment(
 
   if (role === "manager") return false;
   if (role === "reception") {
-    if (department === "reception") return true;
-    if (
-      (department === "housekeeping" || department === "maintenance") &&
-      serviceTime !== "tomorrow" &&
-      afterHours
-    ) {
-      return true;
-    }
-    return false;
+    return (
+      department === "reception" ||
+      department === "housekeeping" ||
+      department === "maintenance"
+    );
   }
   if (role === "housekeeping") {
     return department === "housekeeping" && !afterHours;

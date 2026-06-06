@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import StaffFilterButton from "@/components/staff/StaffFilterButton";
+import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
+import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import type {
@@ -16,7 +18,6 @@ import {
   translateDepartment,
   translateStaffStatus,
 } from "@/lib/staff/ui-copy";
-import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
 
 type DepartmentFilter = "all" | StaffDepartment;
 type StatusFilter = "all" | "active" | StaffRequestStatus;
@@ -372,29 +373,13 @@ export default function ReceptionPage() {
     getOperationalAllRequests,
     updateRequestStatus,
     setRequestBillingStatus,
+    hotelSlug,
   } = useStaffStore();
   const requests = getOperationalAllRequests();
   const allRequests = getAllRequests();
   const todayHotelDateKey = useMemo(
     () => hotelDateFormatter.format(new Date(nowMs)),
     [nowMs],
-  );
-
-  const activeRequests = useMemo(
-    () => requests.filter((request) => isActiveStatus(request.status)),
-    [requests],
-  );
-
-  const receptionActiveRequests = useMemo(
-    () =>
-      activeRequests.filter((request) => request.department === "reception"),
-    [activeRequests],
-  );
-
-  const otherDepartmentActiveRequests = useMemo(
-    () =>
-      activeRequests.filter((request) => request.department !== "reception"),
-    [activeRequests],
   );
 
   const returnedRequests = useMemo(
@@ -417,41 +402,44 @@ export default function ReceptionPage() {
     return sortRequests(base, sortMode, nowMs);
   }, [requests, activeDepartment, activeStatus, sortMode, nowMs]);
 
-  const afterHours = useMemo(
-    () => isReceptionBackupHours(new Date(nowMs)),
-    [nowMs],
-  );
-
   const actionableRequests = useMemo(
     () =>
-      filteredRequests.filter((request) => {
-        if (request.department === "reception") return true;
-        if (!afterHours) return false;
-        if (request.serviceTime === "tomorrow") return false;
-        return (
+      filteredRequests.filter(
+        (request) =>
+          request.department === "reception" ||
           request.department === "housekeeping" ||
-          request.department === "maintenance"
-        );
-      }),
-    [afterHours, filteredRequests],
+          request.department === "maintenance",
+      ),
+    [filteredRequests],
   );
 
   const monitoringRequests = useMemo(
     () =>
-      filteredRequests.filter((request) => {
-        if (request.department === "reception") return false;
-        if (
-          afterHours &&
-          request.serviceTime !== "tomorrow" &&
-          (request.department === "housekeeping" ||
-            request.department === "maintenance")
-        ) {
-          return false;
-        }
-        return true;
-      }),
-    [afterHours, filteredRequests],
+      filteredRequests.filter(
+        (request) =>
+          request.department !== "reception" &&
+          request.department !== "housekeeping" &&
+          request.department !== "maintenance",
+      ),
+    [filteredRequests],
   );
+
+  const receptionAlertRequests = useMemo(
+    () =>
+      requests.filter(
+        (request) =>
+          request.department === "reception" ||
+          request.department === "housekeeping" ||
+          request.department === "maintenance",
+      ),
+    [requests],
+  );
+
+  const { soundEnabled, toggleSound } = useStaffAlertSound({
+    hotelSlug,
+    department: "reception",
+    requests: receptionAlertRequests,
+  });
 
   return (
     <main className="space-y-6 pb-safe">
@@ -469,8 +457,14 @@ export default function ReceptionPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
-            {t.controlCenterMonitoring}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <StaffAlertSoundButton
+              soundEnabled={soundEnabled}
+              onToggle={() => void toggleSound()}
+            />
+            <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+              {t.controlCenterMonitoring}
+            </div>
           </div>
         </div>
       </section>

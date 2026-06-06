@@ -182,6 +182,7 @@ async function setStaffRequestBillingStatus(input: {
       requestId: input.id,
       hotelSlug: input.hotelSlug,
       role: input.role,
+      billingStatus: input.billingStatus,
     }),
   });
 
@@ -285,6 +286,7 @@ export function StaffStoreProvider({
       if (cancelled) return;
 
       if (
+        currentRole !== "reception" &&
         typeof document !== "undefined" &&
         document.visibilityState === "hidden"
       ) {
@@ -323,7 +325,7 @@ export function StaffStoreProvider({
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [loadRequests, shouldLoadStaffData]);
+  }, [currentRole, loadRequests, shouldLoadStaffData]);
 
   const updateRequestStatus = useCallback(
     async (id: string, status: StaffRequestStatus) => {

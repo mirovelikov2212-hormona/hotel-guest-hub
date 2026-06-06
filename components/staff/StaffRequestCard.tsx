@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import type { StaffBillingStatus, StaffRequest } from "@/lib/staff/types";
 import { staffDepartmentClasses, staffStatusClasses } from "@/lib/staff/types";
@@ -158,6 +159,7 @@ export default function StaffRequestCard({
 }: StaffRequestCardProps) {
   const { lang } = useStaffUi();
   const t = staffText(lang);
+  const [billingActionsOpen, setBillingActionsOpen] = useState(false);
   const isNew = request.status === "new";
   const isInProgress = request.status === "in_progress";
   const billingAmount = formatBillingAmount(request);
@@ -167,7 +169,12 @@ export default function StaffRequestCard({
   const isCancelled = billingStatus === "cancelled";
   const isPendingBilling = billingStatus === "pending";
   const shouldShowBilling = (mode === "reception" || mode === "manager") && Boolean(request.requiresBilling);
-  const shouldShowBillingActions = shouldShowBilling && canCharge && isPendingBilling;
+  const shouldShowBillingActions =
+    shouldShowBilling && canCharge && isPendingBilling && billingActionsOpen;
+  const shouldShowBillingToggle =
+    shouldShowBilling && canCharge && isPendingBilling;
+  const shouldShowReturn =
+    canAct && isNew && !(mode === "reception" && request.requiresBilling);
   const cardClassName = isOverdue
     ? "rounded-3xl border border-rose-500/90 bg-rose-950/35 p-5 shadow-lg shadow-rose-500/20 ring-2 ring-rose-500/30 animate-pulse"
     : "rounded-3xl border border-white/10 bg-white/5 p-5 shadow-sm";
@@ -248,8 +255,20 @@ export default function StaffRequestCard({
             </div>
           ) : null}
 
+          {shouldShowBillingToggle ? (
+            <button
+              type="button"
+              aria-expanded={billingActionsOpen}
+              onClick={() => setBillingActionsOpen((value) => !value)}
+              className="min-h-14 rounded-2xl border border-amber-300/35 bg-amber-400/15 px-4 text-base font-semibold text-amber-100 transition hover:bg-amber-400/25"
+            >
+              {t.billingActions}
+              {billingAmount ? ` · ${billingAmount}` : ""}
+            </button>
+          ) : null}
+
           {shouldShowBillingActions ? (
-            <div className="grid gap-2">
+            <div className="grid gap-2 rounded-2xl border border-amber-300/20 bg-amber-400/5 p-3">
               <button
                 type="button"
                 onClick={() => onCharge?.(request.id)}
@@ -298,13 +317,15 @@ export default function StaffRequestCard({
                 {t.start}
               </button>
 
-              <button
-                type="button"
-                onClick={() => onReturn?.(request.id)}
-                className="min-h-14 rounded-2xl border border-rose-400/30 bg-rose-400/15 px-4 text-base font-semibold text-rose-100 transition hover:bg-rose-400/25"
-              >
-                {t.return}
-              </button>
+              {shouldShowReturn ? (
+                <button
+                  type="button"
+                  onClick={() => onReturn?.(request.id)}
+                  className="min-h-14 rounded-2xl border border-rose-400/30 bg-rose-400/15 px-4 text-base font-semibold text-rose-100 transition hover:bg-rose-400/25"
+                >
+                  {t.return}
+                </button>
+              ) : null}
             </>
           ) : null}
 

@@ -25,7 +25,7 @@ const copy = {
     maintenanceDesc:
       "Технически проблеми като климатик, топла вода, осветление и други неизправности.",
     receptionDesc:
-      "Наблюдение на всички заявки по отдели, плюс обработка на заявките за рецепция.",
+      "Активен контролен център за заявките на рецепция, камериерки и техническа поддръжка.",
     managerDesc:
       "Пълен оперативен преглед по отдели, статуси и натоварване.",
     departmentBadge: "Отдел",
@@ -38,7 +38,7 @@ const copy = {
     confirmedDecision2:
       "Задължителни хотелски операции като room cleaning не са част от guest request потока.",
     confirmedDecision3:
-      "Рецепцията следи всички заявки, а отделите работят по своите собствени заявки.",
+      "Рецепцията може да обработва заявките на рецепция, камериерки и техническа поддръжка, а отделите продължават да работят по своите задачи.",
     confirmedDecision4: "Потокът за служители е максимално прост: Старт, Завършено, Върни.",
     sharedHousekeepingBoard: "Общ board за камериерки",
     unlockSupervisorActions: "Отключи действията на супервайзъра",
@@ -50,10 +50,10 @@ const copy = {
     maintenanceIntro:
       "Само технически guest проблеми. Ясен номер на стая, ясен проблем и бързи статус действия.",
     receptionIntro:
-      "Оперативен контролен изглед. Рецепцията изпълнява само своите заявки и следи останалите отдели в режим само за преглед.",
+      "Активен оперативен контролен изглед. Рецепцията може да обработва заявките на рецепция, камериерки и техническа поддръжка.",
     managerIntro:
       "Пълен оперативен преглед за всички отдели. Фокус върху активното натоварване, върнатите заявки и най-старите нерешени задачи.",
-    controlCenterMonitoring: "Контролен център + наблюдение",
+    controlCenterMonitoring: "Активен контролен център",
     technicalQueue: "Активна техническа опашка",
     allDepartmentsOverview: "Пълен преглед на всички отдели",
     total: "Общо",
@@ -70,7 +70,7 @@ const copy = {
     monitoringOnly: "Само наблюдение",
     monitoringOnlyText:
       "Рецепцията може да следи тези заявки, но изпълнението остава в съответния отдел.",
-    noReceptionRequests: "Няма заявки за рецепция по текущия филтър.",
+    noReceptionRequests: "Няма активни заявки по текущия филтър.",
     noMonitoringRequests: "Няма заявки за наблюдение по текущия филтър.",
     oldestActiveRequests: "Най-стари активни заявки",
     oldestActiveRequestsText: "Тези нерешени заявки чакат най-дълго.",
@@ -101,6 +101,7 @@ const copy = {
     done: "ГОТОВО",
     return: "ВЪРНИ",
     noActionsAvailable: "Няма налични действия",
+    billingActions: "НАЧИСЛЯВАНЕ",
     charge: "НАЧИСЛИ",
     noCharge: "БЕЗ НАЧИСЛЯВАНЕ",
     cancelPaidService: "ОТКАЗАНА",
@@ -189,7 +190,7 @@ const copy = {
     maintenanceDesc:
       "Technical issues such as air conditioning, hot water, lights and other defects.",
     receptionDesc:
-      "Monitor all department requests and execute reception-owned requests.",
+      "Active control center for reception, housekeeping and maintenance requests.",
     managerDesc:
       "Full operational overview across departments, statuses and workload.",
     departmentBadge: "Department",
@@ -202,7 +203,7 @@ const copy = {
     confirmedDecision2:
       "Mandatory hotel operations like room cleaning are not part of the guest request flow.",
     confirmedDecision3:
-      "Reception monitors all requests, while departments work on their own tasks.",
+      "Reception can process reception, housekeeping and maintenance requests while departments continue working on their own tasks.",
     confirmedDecision4: "The staff flow stays simple: Start, Done, Return.",
     sharedHousekeepingBoard: "Shared housekeeping board",
     unlockSupervisorActions: "Unlock supervisor actions",
@@ -214,10 +215,10 @@ const copy = {
     maintenanceIntro:
       "Technical guest issues only. Clear room number, clear problem type and simple status actions.",
     receptionIntro:
-      "Operational control view. Reception executes only reception tasks and monitors the other departments in read-only mode.",
+      "Active operational control view. Reception can process reception, housekeeping and maintenance requests.",
     managerIntro:
       "Full operational overview across all departments. Focus on active load, returned requests and the oldest unresolved items.",
-    controlCenterMonitoring: "Control center + monitoring",
+    controlCenterMonitoring: "Active control center",
     technicalQueue: "Active technical queue",
     allDepartmentsOverview: "All departments overview",
     total: "Total",
@@ -234,7 +235,7 @@ const copy = {
     monitoringOnly: "Monitoring only",
     monitoringOnlyText:
       "Reception can monitor these requests, but execution stays inside the assigned department.",
-    noReceptionRequests: "No reception requests in the current filter.",
+    noReceptionRequests: "No active requests in the current filter.",
     noMonitoringRequests: "No monitoring requests in the current filter.",
     oldestActiveRequests: "Oldest active requests",
     oldestActiveRequestsText: "These unresolved items have been waiting the longest.",
@@ -265,6 +266,7 @@ const copy = {
     done: "DONE",
     return: "RETURN",
     noActionsAvailable: "No actions available",
+    billingActions: "BILLING",
     charge: "CHARGE",
     noCharge: "NO CHARGE",
     cancelPaidService: "CANCELLED",
@@ -353,7 +355,7 @@ const copy = {
     maintenanceDesc:
       "Technische Probleme wie Klimaanlage, Warmwasser, Beleuchtung und andere Störungen.",
     receptionDesc:
-      "Überblick über alle Abteilungsanfragen und Bearbeitung der Rezeptionsanfragen.",
+      "Aktive Leitstelle für Anfragen der Rezeption, des Housekeepings und der Technik.",
     managerDesc:
       "Voller operativer Überblick über Abteilungen, Status und Auslastung.",
     departmentBadge: "Abteilung",
@@ -366,7 +368,7 @@ const copy = {
     confirmedDecision2:
       "Pflichtprozesse wie Zimmerreinigung gehören nicht zum Guest-Request-Flow.",
     confirmedDecision3:
-      "Die Rezeption überwacht alle Anfragen, während die Abteilungen ihre eigenen Aufgaben bearbeiten.",
+      "Die Rezeption kann Anfragen von Rezeption, Housekeeping und Technik bearbeiten, während die Abteilungen weiterhin ihre eigenen Aufgaben erledigen.",
     confirmedDecision4: "Der Mitarbeiterfluss bleibt einfach: Start, Fertig, Zurück.",
     sharedHousekeepingBoard: "Gemeinsames Housekeeping-Board",
     unlockSupervisorActions: "Supervisor-Aktionen entsperren",
@@ -378,10 +380,10 @@ const copy = {
     maintenanceIntro:
       "Nur technische Gästethemen. Klare Zimmernummer, klares Problem und einfache Statusaktionen.",
     receptionIntro:
-      "Operative Kontrollansicht. Die Rezeption bearbeitet nur eigene Aufgaben und überwacht die anderen Abteilungen im Nur-Lesen-Modus.",
+      "Aktive operative Kontrollansicht. Die Rezeption kann Anfragen der Rezeption, des Housekeepings und der Technik bearbeiten.",
     managerIntro:
       "Voller operativer Überblick über alle Abteilungen. Fokus auf aktive Last, zurückgesendete Anfragen und die ältesten offenen Punkte.",
-    controlCenterMonitoring: "Kontrollzentrum + Monitoring",
+    controlCenterMonitoring: "Aktive Leitstelle",
     technicalQueue: "Aktive technische Warteschlange",
     allDepartmentsOverview: "Überblick über alle Abteilungen",
     total: "Gesamt",
@@ -398,7 +400,7 @@ const copy = {
     monitoringOnly: "Nur Überwachung",
     monitoringOnlyText:
       "Die Rezeption kann diese Anfragen überwachen, die Ausführung bleibt aber in der zuständigen Abteilung.",
-    noReceptionRequests: "Keine Rezeptionsanfragen im aktuellen Filter.",
+    noReceptionRequests: "Keine aktiven Anfragen im aktuellen Filter.",
     noMonitoringRequests: "Keine Monitoring-Anfragen im aktuellen Filter.",
     oldestActiveRequests: "Älteste aktive Anfragen",
     oldestActiveRequestsText: "Diese offenen Anfragen warten bereits am längsten.",
@@ -426,6 +428,7 @@ const copy = {
     done: "ERLEDIGT",
     return: "ZURÜCK",
     noActionsAvailable: "Keine Aktionen verfügbar",
+    billingActions: "ABRECHNUNG",
     charge: "BUCHEN",
     noCharge: "OHNE BUCHUNG",
     cancelPaidService: "STORNIERT",
