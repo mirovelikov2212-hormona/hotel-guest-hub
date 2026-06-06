@@ -90,9 +90,6 @@ const hotelTimeFormatter = new Intl.DateTimeFormat("bg-BG", {
 });
 
 const RECEPTION_OVERDUE_AFTER_MINUTES = 10;
-const RECEPTION_NORMAL_FAVICON = "/icon.png";
-const RECEPTION_ALERT_FAVICON = "/icons/reception-alert-red.svg";
-const RECEPTION_FAVICON_BLINK_MS = 750;
 const RECEPTION_ALERT_TAB_TITLE = "🔴 НОВА ЗАЯВКА";
 
 const priorityOrder: Record<StaffRequestStatus, number> = {
@@ -355,62 +352,30 @@ function ReceptionDailyHistory({
   );
 }
 
-function useReceptionFaviconAlert(freshRequestSequence: number) {
-  const faviconLinkRef = useRef<HTMLLinkElement | null>(null);
+function useReceptionTabAlert(freshRequestSequence: number) {
   const originalTitleRef = useRef("GuestHub Staff");
-  const blinkIntervalRef = useRef<number | null>(null);
-  const isBlinkingRef = useRef(false);
-  const showAlertIconRef = useRef(false);
+  const alertActiveRef = useRef(false);
 
-  const setFavicon = useCallback((href: string) => {
-    const link = faviconLinkRef.current;
-    if (!link) return;
-    link.href = href;
+  const stopAlert = useCallback(() => {
+    if (!alertActiveRef.current) return;
+
+    alertActiveRef.current = false;
+    document.title = originalTitleRef.current;
   }, []);
 
-  const stopBlinking = useCallback(() => {
-    if (blinkIntervalRef.current !== null) {
-      window.clearInterval(blinkIntervalRef.current);
-      blinkIntervalRef.current = null;
-    }
+  const startAlert = useCallback(() => {
+    if (alertActiveRef.current) return;
 
-    isBlinkingRef.current = false;
-    showAlertIconRef.current = false;
-    setFavicon(RECEPTION_NORMAL_FAVICON);
-    document.title = originalTitleRef.current;
-  }, [setFavicon]);
-
-  const startBlinking = useCallback(() => {
-    if (isBlinkingRef.current) return;
-
-    isBlinkingRef.current = true;
-    showAlertIconRef.current = true;
-    setFavicon(RECEPTION_ALERT_FAVICON);
+    alertActiveRef.current = true;
     document.title = RECEPTION_ALERT_TAB_TITLE;
-
-    blinkIntervalRef.current = window.setInterval(() => {
-      showAlertIconRef.current = !showAlertIconRef.current;
-      setFavicon(
-        showAlertIconRef.current
-          ? RECEPTION_ALERT_FAVICON
-          : RECEPTION_NORMAL_FAVICON,
-      );
-    }, RECEPTION_FAVICON_BLINK_MS);
-  }, [setFavicon]);
+  }, []);
 
   useEffect(() => {
     originalTitleRef.current = document.title || "GuestHub Staff";
 
-    const link = document.createElement("link");
-    link.id = "stayhub-reception-favicon-alert";
-    link.rel = "icon";
-    link.href = RECEPTION_NORMAL_FAVICON;
-    document.head.appendChild(link);
-    faviconLinkRef.current = link;
-
     const stopWhenReceptionIsVisible = () => {
       if (document.visibilityState === "visible" && document.hasFocus()) {
-        stopBlinking();
+        stopAlert();
       }
     };
 
@@ -423,11 +388,9 @@ function useReceptionFaviconAlert(freshRequestSequence: number) {
         stopWhenReceptionIsVisible,
       );
       window.removeEventListener("focus", stopWhenReceptionIsVisible);
-      stopBlinking();
-      link.remove();
-      faviconLinkRef.current = null;
+      stopAlert();
     };
-  }, [stopBlinking]);
+  }, [stopAlert]);
 
   useEffect(() => {
     if (freshRequestSequence === 0) return;
@@ -436,9 +399,9 @@ function useReceptionFaviconAlert(freshRequestSequence: number) {
       document.visibilityState !== "visible" || !document.hasFocus();
 
     if (receptionIsInactive) {
-      startBlinking();
+      startAlert();
     }
-  }, [freshRequestSequence, startBlinking]);
+  }, [freshRequestSequence, startAlert]);
 }
 
 export default function ReceptionPage() {
@@ -532,7 +495,7 @@ export default function ReceptionPage() {
       requests: receptionAlertRequests,
     });
 
-  useReceptionFaviconAlert(freshRequestSequence);
+  useReceptionTabAlert(freshRequestSequence);
 
   return (
     <main className="space-y-6 pb-safe">
