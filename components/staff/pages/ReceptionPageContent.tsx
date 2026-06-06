@@ -93,6 +93,7 @@ const RECEPTION_OVERDUE_AFTER_MINUTES = 10;
 const RECEPTION_NORMAL_FAVICON = "/icon.png";
 const RECEPTION_ALERT_FAVICON = "/icons/reception-alert-red.svg";
 const RECEPTION_FAVICON_BLINK_MS = 750;
+const RECEPTION_ALERT_TAB_TITLE = "🔴 НОВА ЗАЯВКА";
 
 const priorityOrder: Record<StaffRequestStatus, number> = {
   new: 0,
@@ -354,13 +355,12 @@ function ReceptionDailyHistory({
   );
 }
 
-function useReceptionFaviconAlert(requests: StaffRequest[]) {
+function useReceptionFaviconAlert(freshRequestSequence: number) {
   const faviconLinkRef = useRef<HTMLLinkElement | null>(null);
+  const originalTitleRef = useRef("GuestHub Staff");
   const blinkIntervalRef = useRef<number | null>(null);
   const isBlinkingRef = useRef(false);
   const showAlertIconRef = useRef(false);
-  const initializedRequestsRef = useRef(false);
-  const seenNewRequestIdsRef = useRef<Set<string>>(new Set());
 
   const setFavicon = useCallback((href: string) => {
     const link = faviconLinkRef.current;
@@ -377,6 +377,7 @@ function useReceptionFaviconAlert(requests: StaffRequest[]) {
     isBlinkingRef.current = false;
     showAlertIconRef.current = false;
     setFavicon(RECEPTION_NORMAL_FAVICON);
+    document.title = originalTitleRef.current;
   }, [setFavicon]);
 
   const startBlinking = useCallback(() => {
@@ -385,6 +386,7 @@ function useReceptionFaviconAlert(requests: StaffRequest[]) {
     isBlinkingRef.current = true;
     showAlertIconRef.current = true;
     setFavicon(RECEPTION_ALERT_FAVICON);
+    document.title = RECEPTION_ALERT_TAB_TITLE;
 
     blinkIntervalRef.current = window.setInterval(() => {
       showAlertIconRef.current = !showAlertIconRef.current;
@@ -397,6 +399,8 @@ function useReceptionFaviconAlert(requests: StaffRequest[]) {
   }, [setFavicon]);
 
   useEffect(() => {
+    originalTitleRef.current = document.title || "GuestHub Staff";
+
     const link = document.createElement("link");
     link.id = "stayhub-reception-favicon-alert";
     link.rel = "icon";
@@ -426,25 +430,7 @@ function useReceptionFaviconAlert(requests: StaffRequest[]) {
   }, [stopBlinking]);
 
   useEffect(() => {
-    const currentNewRequestIds = new Set(
-      requests
-        .filter((request) => request.status === "new")
-        .map((request) => request.id),
-    );
-
-    if (!initializedRequestsRef.current) {
-      seenNewRequestIdsRef.current = currentNewRequestIds;
-      initializedRequestsRef.current = true;
-      return;
-    }
-
-    const hasFreshNewRequest = [...currentNewRequestIds].some(
-      (id) => !seenNewRequestIdsRef.current.has(id),
-    );
-
-    seenNewRequestIdsRef.current = currentNewRequestIds;
-
-    if (!hasFreshNewRequest) return;
+    if (freshRequestSequence === 0) return;
 
     const receptionIsInactive =
       document.visibilityState !== "visible" || !document.hasFocus();
@@ -452,7 +438,7 @@ function useReceptionFaviconAlert(requests: StaffRequest[]) {
     if (receptionIsInactive) {
       startBlinking();
     }
-  }, [requests, startBlinking]);
+  }, [freshRequestSequence, startBlinking]);
 }
 
 export default function ReceptionPage() {
@@ -539,13 +525,14 @@ export default function ReceptionPage() {
     [requests],
   );
 
-  const { soundEnabled, toggleSound } = useStaffAlertSound({
-    hotelSlug,
-    department: "reception",
-    requests: receptionAlertRequests,
-  });
+  const { soundEnabled, toggleSound, freshRequestSequence } =
+    useStaffAlertSound({
+      hotelSlug,
+      department: "reception",
+      requests: receptionAlertRequests,
+    });
 
-  useReceptionFaviconAlert(receptionAlertRequests);
+  useReceptionFaviconAlert(freshRequestSequence);
 
   return (
     <main className="space-y-6 pb-safe">

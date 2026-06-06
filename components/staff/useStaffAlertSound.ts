@@ -24,7 +24,9 @@ export function useStaffAlertSound({
   const storageKey = useMemo(() => buildSoundKey(hotelSlug, department), [hotelSlug, department]);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [ready, setReady] = useState(false);
+  const [freshRequestSequence, setFreshRequestSequence] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUnlockedRef = useRef(false);
   const initializedRef = useRef(false);
   const seenNewIdsRef = useRef<Set<string>>(new Set());
 
@@ -33,6 +35,8 @@ export function useStaffAlertSound({
 
     audioRef.current = new Audio(src);
     audioRef.current.preload = "auto";
+    audioRef.current.load();
+    audioUnlockedRef.current = false;
 
     const stored = window.localStorage.getItem(storageKey);
     setSoundEnabled(stored === "on");
@@ -53,12 +57,61 @@ export function useStaffAlertSound({
     try {
       audio.pause();
       audio.currentTime = 0;
+      audio.muted = false;
+      audio.volume = 1;
       await audio.play();
+      audioUnlockedRef.current = true;
       return true;
     } catch {
       return false;
     }
   }, []);
+
+  const unlockAudio = useCallback(async () => {
+    const audio = audioRef.current;
+    if (!audio) return false;
+    if (audioUnlockedRef.current) return true;
+
+    const previousMuted = audio.muted;
+    const previousVolume = audio.volume;
+
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.muted = true;
+      audio.volume = 0;
+      await audio.play();
+      audio.pause();
+      audio.currentTime = 0;
+      audio.muted = previousMuted;
+      audio.volume = previousVolume;
+      audioUnlockedRef.current = true;
+      return true;
+    } catch {
+      audio.muted = previousMuted;
+      audio.volume = previousVolume;
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !soundEnabled || !ready) return;
+    if (audioUnlockedRef.current) return;
+
+    const tryUnlock = () => {
+      void unlockAudio();
+    };
+
+    window.addEventListener("pointerdown", tryUnlock, true);
+    window.addEventListener("keydown", tryUnlock, true);
+    window.addEventListener("touchstart", tryUnlock, true);
+
+    return () => {
+      window.removeEventListener("pointerdown", tryUnlock, true);
+      window.removeEventListener("keydown", tryUnlock, true);
+      window.removeEventListener("touchstart", tryUnlock, true);
+    };
+  }, [ready, soundEnabled, unlockAudio]);
 
   const toggleSound = useCallback(async () => {
     const next = !soundEnabled;
@@ -90,14 +143,19 @@ export function useStaffAlertSound({
 
     seenNewIdsRef.current = currentNewIds;
 
-    if (!soundEnabled || !hasFreshNewRequest) return;
+    if (!hasFreshNewRequest) return;
 
-    void playTone();
+    setFreshRequestSequence((value) => value + 1);
+
+    if (soundEnabled) {
+      void playTone();
+    }
   }, [playTone, requests, soundEnabled]);
 
   return {
     ready,
     soundEnabled,
     toggleSound,
+    freshRequestSequence,
   };
 }
