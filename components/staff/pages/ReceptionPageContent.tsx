@@ -355,19 +355,36 @@ function ReceptionDailyHistory({
 function useReceptionTabAlert(freshRequestSequence: number) {
   const originalTitleRef = useRef("GuestHub Staff");
   const alertActiveRef = useRef(false);
+  const blinkIntervalRef = useRef<number | null>(null);
+  const alertVisibleRef = useRef(false);
+
+  const clearBlinkInterval = useCallback(() => {
+    if (blinkIntervalRef.current !== null) {
+      window.clearInterval(blinkIntervalRef.current);
+      blinkIntervalRef.current = null;
+    }
+  }, []);
 
   const stopAlert = useCallback(() => {
-    if (!alertActiveRef.current) return;
-
+    clearBlinkInterval();
     alertActiveRef.current = false;
+    alertVisibleRef.current = false;
     document.title = originalTitleRef.current;
-  }, []);
+  }, [clearBlinkInterval]);
 
   const startAlert = useCallback(() => {
     if (alertActiveRef.current) return;
 
     alertActiveRef.current = true;
+    alertVisibleRef.current = true;
     document.title = RECEPTION_ALERT_TAB_TITLE;
+
+    blinkIntervalRef.current = window.setInterval(() => {
+      alertVisibleRef.current = !alertVisibleRef.current;
+      document.title = alertVisibleRef.current
+        ? RECEPTION_ALERT_TAB_TITLE
+        : originalTitleRef.current;
+    }, 800);
   }, []);
 
   useEffect(() => {

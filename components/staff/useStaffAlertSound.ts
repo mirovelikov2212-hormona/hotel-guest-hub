@@ -15,33 +15,6 @@ function buildSoundKey(
     .toLowerCase()}:${department}`;
 }
 
-function playWebAudioChime(context: AudioContext) {
-  const tones = [
-    { frequency: 880, startOffset: 0, duration: 0.16 },
-    { frequency: 1175, startOffset: 0.18, duration: 0.24 },
-  ];
-  const now = context.currentTime + 0.02;
-
-  tones.forEach(({ frequency, startOffset, duration }) => {
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const startAt = now + startOffset;
-    const stopAt = startAt + duration;
-
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(frequency, startAt);
-
-    gain.gain.setValueAtTime(0.0001, startAt);
-    gain.gain.exponentialRampToValueAtTime(0.3, startAt + 0.025);
-    gain.gain.exponentialRampToValueAtTime(0.0001, stopAt);
-
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start(startAt);
-    oscillator.stop(stopAt + 0.02);
-  });
-}
-
 export function useStaffAlertSound({
   hotelSlug,
   department,
@@ -61,93 +34,29 @@ export function useStaffAlertSound({
   const [ready, setReady] = useState(false);
   const [freshRequestSequence, setFreshRequestSequence] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioUnlockedRef = useRef(false);
   const initializedRef = useRef(false);
   const seenNewIdsRef = useRef<Set<string>>(new Set());
-
-  const getAudioContext = useCallback(() => {
-    if (typeof window === "undefined") return null;
-    if (audioContextRef.current) return audioContextRef.current;
-
-    const AudioContextConstructor =
-      window.AudioContext ??
-      (window as typeof window & {
-        webkitAudioContext?: typeof AudioContext;
-      }).webkitAudioContext;
-
-    if (!AudioContextConstructor) return null;
-
-    const context = new AudioContextConstructor();
-    audioContextRef.current = context;
-    return context;
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    audioRef.current = new Audio(src);
-    audioRef.current.preload = "auto";
-    audioRef.current.load();
-    audioUnlockedRef.current = false;
+    const audio = new Audio(src);
+    audio.preload = "auto";
+    audio.volume = 1;
+    audio.load();
+    audioRef.current = audio;
 
     const stored = window.localStorage.getItem(storageKey);
     setSoundEnabled(stored === "on");
     setReady(true);
 
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-
-      const context = audioContextRef.current;
-      audioContextRef.current = null;
-      audioUnlockedRef.current = false;
-
-      if (context && context.state !== "closed") {
-        void context.close();
-      }
+      audio.pause();
+      audioRef.current = null;
     };
   }, [src, storageKey]);
 
-  const unlockAudio = useCallback(async () => {
-    const context = getAudioContext();
-    if (!context) return false;
-    if (audioUnlockedRef.current && context.state === "running") return true;
-
-    try {
-      if (context.state !== "running") {
-        await context.resume();
-      }
-
-      const unlocked = context.state === "running";
-      audioUnlockedRef.current = unlocked;
-      return unlocked;
-    } catch {
-      return false;
-    }
-  }, [getAudioContext]);
-
   const playTone = useCallback(async () => {
-    const context = getAudioContext();
-
-    if (context) {
-      try {
-        if (context.state !== "running") {
-          await context.resume();
-        }
-
-        if (context.state === "running") {
-          playWebAudioChime(context);
-          audioUnlockedRef.current = true;
-          return true;
-        }
-      } catch {
-        // Fall back to the audio file below.
-      }
-    }
-
     const audio = audioRef.current;
     if (!audio) return false;
 
@@ -158,29 +67,11 @@ export function useStaffAlertSound({
       audio.volume = 1;
       await audio.play();
       return true;
-    } catch {
+    } catch (error) {
+      console.warn("Reception alert sound could not play", error);
       return false;
     }
-  }, [getAudioContext]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !soundEnabled || !ready) return;
-    if (audioUnlockedRef.current) return;
-
-    const tryUnlock = () => {
-      void unlockAudio();
-    };
-
-    window.addEventListener("pointerdown", tryUnlock, true);
-    window.addEventListener("keydown", tryUnlock, true);
-    window.addEventListener("touchstart", tryUnlock, true);
-
-    return () => {
-      window.removeEventListener("pointerdown", tryUnlock, true);
-      window.removeEventListener("keydown", tryUnlock, true);
-      window.removeEventListener("touchstart", tryUnlock, true);
-    };
-  }, [ready, soundEnabled, unlockAudio]);
+  }, []);
 
   const toggleSound = useCallback(async () => {
     const next = !soundEnabled;
@@ -191,10 +82,10 @@ export function useStaffAlertSound({
     }
 
     if (next) {
-      await unlockAudio();
+      // This explicit click unlocks later background playback in the browser.
       await playTone();
     }
-  }, [playTone, soundEnabled, storageKey, unlockAudio]);
+  }, [playTone, soundEnabled, storageKey]);
 
   useEffect(() => {
     const currentNewIds = new Set(
