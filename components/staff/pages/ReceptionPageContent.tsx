@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import StaffFilterButton from "@/components/staff/StaffFilterButton";
@@ -90,6 +90,9 @@ const hotelTimeFormatter = new Intl.DateTimeFormat("bg-BG", {
 });
 
 const RECEPTION_OVERDUE_AFTER_MINUTES = 10;
+const RECEPTION_NORMAL_FAVICON = "/icon.png";
+const RECEPTION_ALERT_FAVICON = "/icons/reception-alert-red.svg";
+const RECEPTION_FAVICON_BLINK_MS = 750;
 
 const priorityOrder: Record<StaffRequestStatus, number> = {
   new: 0,
@@ -351,6 +354,107 @@ function ReceptionDailyHistory({
   );
 }
 
+function useReceptionFaviconAlert(requests: StaffRequest[]) {
+  const faviconLinkRef = useRef<HTMLLinkElement | null>(null);
+  const blinkIntervalRef = useRef<number | null>(null);
+  const isBlinkingRef = useRef(false);
+  const showAlertIconRef = useRef(false);
+  const initializedRequestsRef = useRef(false);
+  const seenNewRequestIdsRef = useRef<Set<string>>(new Set());
+
+  const setFavicon = useCallback((href: string) => {
+    const link = faviconLinkRef.current;
+    if (!link) return;
+    link.href = href;
+  }, []);
+
+  const stopBlinking = useCallback(() => {
+    if (blinkIntervalRef.current !== null) {
+      window.clearInterval(blinkIntervalRef.current);
+      blinkIntervalRef.current = null;
+    }
+
+    isBlinkingRef.current = false;
+    showAlertIconRef.current = false;
+    setFavicon(RECEPTION_NORMAL_FAVICON);
+  }, [setFavicon]);
+
+  const startBlinking = useCallback(() => {
+    if (isBlinkingRef.current) return;
+
+    isBlinkingRef.current = true;
+    showAlertIconRef.current = true;
+    setFavicon(RECEPTION_ALERT_FAVICON);
+
+    blinkIntervalRef.current = window.setInterval(() => {
+      showAlertIconRef.current = !showAlertIconRef.current;
+      setFavicon(
+        showAlertIconRef.current
+          ? RECEPTION_ALERT_FAVICON
+          : RECEPTION_NORMAL_FAVICON,
+      );
+    }, RECEPTION_FAVICON_BLINK_MS);
+  }, [setFavicon]);
+
+  useEffect(() => {
+    const link = document.createElement("link");
+    link.id = "stayhub-reception-favicon-alert";
+    link.rel = "icon";
+    link.href = RECEPTION_NORMAL_FAVICON;
+    document.head.appendChild(link);
+    faviconLinkRef.current = link;
+
+    const stopWhenReceptionIsVisible = () => {
+      if (document.visibilityState === "visible" && document.hasFocus()) {
+        stopBlinking();
+      }
+    };
+
+    document.addEventListener("visibilitychange", stopWhenReceptionIsVisible);
+    window.addEventListener("focus", stopWhenReceptionIsVisible);
+
+    return () => {
+      document.removeEventListener(
+        "visibilitychange",
+        stopWhenReceptionIsVisible,
+      );
+      window.removeEventListener("focus", stopWhenReceptionIsVisible);
+      stopBlinking();
+      link.remove();
+      faviconLinkRef.current = null;
+    };
+  }, [stopBlinking]);
+
+  useEffect(() => {
+    const currentNewRequestIds = new Set(
+      requests
+        .filter((request) => request.status === "new")
+        .map((request) => request.id),
+    );
+
+    if (!initializedRequestsRef.current) {
+      seenNewRequestIdsRef.current = currentNewRequestIds;
+      initializedRequestsRef.current = true;
+      return;
+    }
+
+    const hasFreshNewRequest = [...currentNewRequestIds].some(
+      (id) => !seenNewRequestIdsRef.current.has(id),
+    );
+
+    seenNewRequestIdsRef.current = currentNewRequestIds;
+
+    if (!hasFreshNewRequest) return;
+
+    const receptionIsInactive =
+      document.visibilityState !== "visible" || !document.hasFocus();
+
+    if (receptionIsInactive) {
+      startBlinking();
+    }
+  }, [requests, startBlinking]);
+}
+
 export default function ReceptionPage() {
   const { lang } = useStaffUi();
   const t = staffText(lang);
@@ -440,6 +544,8 @@ export default function ReceptionPage() {
     department: "reception",
     requests: receptionAlertRequests,
   });
+
+  useReceptionFaviconAlert(receptionAlertRequests);
 
   return (
     <main className="space-y-6 pb-safe">
