@@ -506,17 +506,6 @@ export default function ReceptionPage() {
     [filteredRequests],
   );
 
-  const monitoringRequests = useMemo(
-    () =>
-      filteredRequests.filter(
-        (request) =>
-          request.department !== "reception" &&
-          request.department !== "housekeeping" &&
-          request.department !== "maintenance",
-      ),
-    [filteredRequests],
-  );
-
   const receptionAlertRequests = useMemo(
     () =>
       requests.filter(
@@ -700,42 +689,6 @@ export default function ReceptionPage() {
         ) : (
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/60">
             {t.noReceptionRequests}
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-4">
-        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/80">
-            {t.monitoringOnly}
-          </h3>
-          <p className="mt-1 text-sm text-white/60">{t.monitoringOnlyText}</p>
-        </div>
-
-        {monitoringRequests.length ? (
-          monitoringRequests.map((request) => {
-            const requestAgeMinutes = getRequestAgeMinutes(request, nowMs);
-
-            return (
-              <StaffRequestCard
-                key={request.id}
-                request={request}
-                mode="reception"
-                canAct={false}
-                isOverdue={isOverdueForReception(request, nowMs)}
-                overdueMinutes={requestAgeMinutes}
-                canCharge={Boolean(request.requiresBilling)}
-                onCharge={(id) => void setRequestBillingStatus(id, "charged")}
-                onWaive={(id) => void setRequestBillingStatus(id, "waived")}
-                onCancelBilling={(id) =>
-                  void setRequestBillingStatus(id, "cancelled")
-                }
-              />
-            );
-          })
-        ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/60">
-            {t.noMonitoringRequests}
           </div>
         )}
       </section>
