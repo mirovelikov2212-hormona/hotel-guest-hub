@@ -5,6 +5,7 @@ import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
+import { useStaffTabTitleAlert } from "@/components/staff/useStaffTabTitleAlert";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import { getRequestSummary, sortStaffRequests } from "@/lib/staff/mock-data";
@@ -32,6 +33,8 @@ export default function HousekeepingPage() {
     department: "housekeeping",
     requests,
   });
+
+  useStaffTabTitleAlert(requests);
 
   const activeRequests = useMemo(
     () => requests.filter((request) => request.status !== "completed"),

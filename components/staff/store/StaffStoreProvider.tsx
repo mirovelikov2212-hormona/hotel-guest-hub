@@ -285,8 +285,13 @@ export function StaffStoreProvider({
     const safeLoad = async () => {
       if (cancelled) return;
 
+      const keepsPollingInBackground =
+        currentRole === "reception" ||
+        currentRole === "housekeeping" ||
+        currentRole === "maintenance";
+
       if (
-        currentRole !== "reception" &&
+        !keepsPollingInBackground &&
         typeof document !== "undefined" &&
         document.visibilityState === "hidden"
       ) {
