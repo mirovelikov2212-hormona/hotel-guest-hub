@@ -134,9 +134,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (role !== "reception") {
+    if (role !== "reception" && role !== "manager") {
       return NextResponse.json(
-        { ok: false, error: "Only reception can update paid service billing" },
+        { ok: false, error: "Only reception or manager can update paid service billing" },
         { status: 403 },
       );
     }
@@ -195,7 +195,7 @@ export async function POST(req: NextRequest) {
       room_number: requestRow.room_number_snapshot ?? null,
       user_session_id: null,
       event_name: `request_billing_${billingStatus}`,
-      section: "reception",
+      section: role,
       label: requestRow.request_type,
       value: String(currentMetadata.typeLabel ?? requestRow.title ?? requestRow.request_type),
       extra: {

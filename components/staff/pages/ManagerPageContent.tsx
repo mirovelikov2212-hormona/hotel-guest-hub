@@ -1,8 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
+import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
+import { useStaffTabTitleAlert } from "@/components/staff/useStaffTabTitleAlert";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import { getRequestSummary } from "@/lib/staff/mock-data";
@@ -509,8 +512,25 @@ function downloadFile(filename: string, content: string, mimeType: string) {
 export default function ManagerPage() {
   const { lang } = useStaffUi();
   const t = staffText(lang);
-  const { getAllRequests } = useStaffStore();
+  const {
+    hotelSlug,
+    getAllRequests,
+    getOperationalAllRequests,
+    updateRequestStatus,
+    setRequestBillingStatus,
+  } = useStaffStore();
   const requests = getAllRequests();
+  const operationalRequests = useMemo(
+    () => sortByTime(getOperationalAllRequests()),
+    [getOperationalAllRequests],
+  );
+  const { soundEnabled, toggleSound } = useStaffAlertSound({
+    hotelSlug,
+    department: "manager",
+    requests: operationalRequests,
+  });
+
+  useStaffTabTitleAlert(operationalRequests);
   const [activeReport, setActiveReport] = useState<ReportView>("requests_snapshot");
   const [selectedDrilldown, setSelectedDrilldown] = useState<DrilldownSelection | null>(null);
   const summary = useMemo(() => getRequestSummary(requests), [requests]);
@@ -709,8 +729,11 @@ export default function ManagerPage() {
             <h2 className="text-2xl font-semibold tracking-tight">{t.managerDashboard}</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">{t.managerIntro}</p>
           </div>
-          <div className="rounded-2xl border border-violet-400/20 bg-violet-400/10 px-4 py-3 text-sm text-violet-100">
-            {t.allDepartmentsOverview}
+          <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+            <div className="rounded-2xl border border-violet-400/20 bg-violet-400/10 px-4 py-3 text-sm text-violet-100">
+              {t.allDepartmentsOverview}
+            </div>
+            <StaffAlertSoundButton soundEnabled={soundEnabled} onToggle={toggleSound} />
           </div>
         </div>
       </section>
@@ -721,6 +744,40 @@ export default function ManagerPage() {
         <StaffSummaryCard label={t.inProgress} value={summary.inProgressCount} onClick={() => setSelectedDrilldown({ kind: "request_status", status: "in_progress" })} />
         <StaffSummaryCard label={t.completed} value={summary.completedCount} onClick={() => setSelectedDrilldown({ kind: "request_status", status: "completed" })} />
         <StaffSummaryCard label={t.returned} value={summary.returnedCount} danger onClick={() => setSelectedDrilldown({ kind: "request_status", status: "returned" })} />
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
+        <div>
+          <p className="text-xs uppercase tracking-[0.18em] text-white/40">{t.active}</p>
+          <h3 className="mt-1 text-xl font-semibold text-white">{t.managerOperationsTitle}</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            {t.managerOperationsIntro}
+          </p>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          {operationalRequests.length ? (
+            operationalRequests.map((request) => (
+              <StaffRequestCard
+                key={`manager-operational-${request.id}`}
+                request={request}
+                mode="manager"
+                canAct
+                canCharge
+                onStart={(id) => void updateRequestStatus(id, "in_progress")}
+                onDone={(id) => void updateRequestStatus(id, "completed")}
+                onReturn={(id) => void updateRequestStatus(id, "returned")}
+                onCharge={(id) => void setRequestBillingStatus(id, "charged")}
+                onWaive={(id) => void setRequestBillingStatus(id, "waived")}
+                onCancelBilling={(id) => void setRequestBillingStatus(id, "cancelled")}
+              />
+            ))
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">
+              {t.noManagerOperationalRequests}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-white/5 p-5">

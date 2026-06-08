@@ -53,6 +53,10 @@ const copy = {
       "Активен оперативен контролен изглед. Рецепцията може да обработва заявките на рецепция, камериерки и техническа поддръжка.",
     managerIntro:
       "Пълен оперативен преглед за всички отдели. Фокус върху активното натоварване, върнатите заявки и най-старите нерешени задачи.",
+    managerOperationsTitle: "Активни заявки за обработка",
+    managerOperationsIntro:
+      "Мениджърът може да стартира, приключва и връща заявки от всички отдели, както и да управлява начисляването на платени услуги.",
+    noManagerOperationalRequests: "В момента няма активни заявки за обработка.",
     controlCenterMonitoring: "Активен контролен център",
     technicalQueue: "Активна техническа опашка",
     allDepartmentsOverview: "Пълен преглед на всички отдели",
@@ -218,6 +222,10 @@ const copy = {
       "Active operational control view. Reception can process reception, housekeeping and maintenance requests.",
     managerIntro:
       "Full operational overview across all departments. Focus on active load, returned requests and the oldest unresolved items.",
+    managerOperationsTitle: "Active requests for handling",
+    managerOperationsIntro:
+      "The manager can start, complete and return requests from all departments and manage billing for paid services.",
+    noManagerOperationalRequests: "There are no active requests to handle at the moment.",
     controlCenterMonitoring: "Active control center",
     technicalQueue: "Active technical queue",
     allDepartmentsOverview: "All departments overview",
@@ -383,6 +391,10 @@ const copy = {
       "Aktive operative Kontrollansicht. Die Rezeption kann Anfragen der Rezeption, des Housekeepings und der Technik bearbeiten.",
     managerIntro:
       "Voller operativer Überblick über alle Abteilungen. Fokus auf aktive Last, zurückgesendete Anfragen und die ältesten offenen Punkte.",
+    managerOperationsTitle: "Aktive Anfragen zur Bearbeitung",
+    managerOperationsIntro:
+      "Der Manager kann Anfragen aller Abteilungen starten, abschließen und zurückgeben sowie die Abrechnung kostenpflichtiger Leistungen verwalten.",
+    noManagerOperationalRequests: "Derzeit gibt es keine aktiven Anfragen zur Bearbeitung.",
     controlCenterMonitoring: "Aktive Leitstelle",
     technicalQueue: "Aktive technische Warteschlange",
     allDepartmentsOverview: "Überblick über alle Abteilungen",

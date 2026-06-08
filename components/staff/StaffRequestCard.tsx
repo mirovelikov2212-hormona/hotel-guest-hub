@@ -174,7 +174,9 @@ export default function StaffRequestCard({
   const shouldShowBillingToggle =
     shouldShowBilling && canCharge && isPendingBilling;
   const shouldShowReturn =
-    canAct && isNew && !(mode === "reception" && request.requiresBilling);
+    canAct &&
+    isNew &&
+    !((mode === "reception" || mode === "manager") && request.requiresBilling);
   const cardClassName = isOverdue
     ? "rounded-3xl border border-rose-500/90 bg-rose-950/35 p-5 shadow-lg shadow-rose-500/20 ring-2 ring-rose-500/30 animate-pulse"
     : "rounded-3xl border border-white/10 bg-white/5 p-5 shadow-sm";
@@ -249,7 +251,7 @@ export default function StaffRequestCard({
         </div>
 
         <div className="flex w-full flex-col gap-3 lg:w-72">
-          {mode === "manager" ? (
+          {mode === "manager" && !canAct ? (
             <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm leading-6 text-white/70">
               {t.managerViewOnly}
             </div>

@@ -84,7 +84,14 @@ function canRoleUpdateDepartment(
 ) {
   const afterHours = isReceptionBackupHours();
 
-  if (role === "manager") return false;
+  if (role === "manager") {
+    return (
+      department === "reception" ||
+      department === "housekeeping" ||
+      department === "maintenance" ||
+      department === "restaurant"
+    );
+  }
   if (role === "reception") {
     return (
       department === "reception" ||

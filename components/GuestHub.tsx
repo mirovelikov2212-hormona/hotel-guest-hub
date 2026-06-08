@@ -4100,7 +4100,19 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const submitGuestRequest = (input: GuestRequestSubmissionInput) => {
     const roomValue = room.trim();
-    const safeTypeLabel = cleanRequestTitle(input.typeLabel);
+    const sourceRequestDefKey = String(input.sourceRequestDef || "").trim().toLowerCase();
+    const sourceRequestDef = sourceRequestDefKey
+      ? requestDefs.find((def) => String(def.id || "").trim().toLowerCase() === sourceRequestDefKey)
+      : undefined;
+    const requestDefLabel = sourceRequestDef ? getRequestDefTitle(sourceRequestDef) : "";
+    const titleDerivedKey = getGuestRequestLabelKey("", input.typeLabel);
+    const typeDerivedKey = getGuestRequestLabelKey(input.type, input.typeLabel);
+    const translatedLabel = [sourceRequestDefKey, titleDerivedKey, typeDerivedKey]
+      .map((key) => (key ? String(tUI(key) || "").trim() : ""))
+      .find(Boolean);
+    const safeTypeLabel = cleanRequestTitle(
+      requestDefLabel || translatedLabel || input.typeLabel
+    );
 
     if (submittingRequestRef.current) return;
 
@@ -5398,8 +5410,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               onClick: () =>
                 submitGuestRequest({
                   type: "other_technical_issue",
-                  typeLabel: "Coffee machine issue",
-                  note: "Guest reported a coffee machine issue.",
+                  typeLabel: String(tUI("coffee_machine") || "Coffee machine issue"),
                 }),
             },
           ]

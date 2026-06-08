@@ -288,7 +288,8 @@ export function StaffStoreProvider({
       const keepsPollingInBackground =
         currentRole === "reception" ||
         currentRole === "housekeeping" ||
-        currentRole === "maintenance";
+        currentRole === "maintenance" ||
+        currentRole === "manager";
 
       if (
         !keepsPollingInBackground &&

@@ -6,7 +6,9 @@ import type { StaffDepartment, StaffRequest } from "@/lib/staff/types";
 const ALERT_SOUND_STORAGE_PREFIX = "stayhub_staff_alert_sound";
 const DEFAULT_SOUND_SRC = "/sounds/new-request-chime.wav";
 
-function buildSoundKey(hotelSlug: string | undefined, department: StaffDepartment) {
+type StaffAlertScope = StaffDepartment | "manager";
+
+function buildSoundKey(hotelSlug: string | undefined, department: StaffAlertScope) {
   return `${ALERT_SOUND_STORAGE_PREFIX}:${String(hotelSlug || "default").trim().toLowerCase()}:${department}`;
 }
 
@@ -17,7 +19,7 @@ export function useStaffAlertSound({
   src = DEFAULT_SOUND_SRC,
 }: {
   hotelSlug?: string;
-  department: StaffDepartment;
+  department: StaffAlertScope;
   requests: StaffRequest[];
   src?: string;
 }) {
