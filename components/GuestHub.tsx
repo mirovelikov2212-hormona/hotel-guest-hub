@@ -4110,8 +4110,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     const translatedLabel = [sourceRequestDefKey, titleDerivedKey, typeDerivedKey]
       .map((key) => (key ? String(tUI(key) || "").trim() : ""))
       .find(Boolean);
+    // Prefer the canonical label translated for the guest's currently selected
+    // language. REQUEST_DEFS may contain an English fallback title even when the
+    // rest of the confirmation dialog is BG/RO/DE/CS.
     const safeTypeLabel = cleanRequestTitle(
-      requestDefLabel || translatedLabel || input.typeLabel
+      translatedLabel || requestDefLabel || input.typeLabel
     );
 
     if (submittingRequestRef.current) return;
@@ -4230,7 +4233,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           },
         });
 
-        void performGuestRequestSubmission(input);
+        void performGuestRequestSubmission({
+          ...input,
+          typeLabel: safeTypeLabel,
+        });
       },
     });
   };
