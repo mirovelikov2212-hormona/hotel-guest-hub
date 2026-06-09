@@ -1,4 +1,4 @@
-const CACHE_VERSION = "stayhub-aquamarine-light-v1779996060134";
+const CACHE_VERSION = "stayhub-manager-push-v1780981283";
 const APP_SHELL = ["/", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -55,5 +55,45 @@ self.addEventListener("fetch", (event) => {
         return response;
       });
     })
+  );
+});
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { body: event.data ? event.data.text() : "" };
+  }
+
+  const title = payload.title || "StayHub — Нова заявка";
+  const options = {
+    body: payload.body || "Има нова заявка за обработка.",
+    icon: payload.icon || "/icons/manager-192.png",
+    badge: payload.badge || "/icons/manager-192.png",
+    tag: payload.tag || `stayhub-manager-${Date.now()}`,
+    renotify: payload.renotify !== false,
+    requireInteraction: Boolean(payload.requireInteraction),
+    data: payload.data || { url: "/" },
+    vibrate: [250, 120, 250],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || "/", self.location.origin).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clients) => {
+      for (const client of clients) {
+        if (client.url.startsWith(self.location.origin) && "focus" in client) {
+          await client.navigate(targetUrl).catch(() => undefined);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow ? self.clients.openWindow(targetUrl) : undefined;
+    }),
   );
 });

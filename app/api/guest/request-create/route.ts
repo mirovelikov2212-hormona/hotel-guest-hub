@@ -5,6 +5,7 @@ import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
 import type { StaffDepartment, StaffRequestStatus, StaffServiceTime } from "@/lib/staff/types";
 import { getHotelConfig } from "@/lib/config";
+import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
 
 function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
@@ -180,6 +181,16 @@ export async function POST(req: NextRequest) {
     if (error || !data) {
       return NextResponse.json({ ok: false, error: error?.message || "Failed to create request" }, { status: 500 });
     }
+
+    await sendManagerPushNotification({
+      hotelId: hotel.id,
+      hotelSlug: hotel.slug,
+      requestId: String(data.id),
+      room: String(data.room_number_snapshot ?? room),
+      requestTitle: staffTitleBg || typeLabel,
+    }).catch((pushError) => {
+      console.error("Manager push notification failed", pushError);
+    });
 
     const created = new Date(data.created_at);
 

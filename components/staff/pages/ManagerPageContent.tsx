@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
+import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
 import { useStaffTabTitleAlert } from "@/components/staff/useStaffTabTitleAlert";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
@@ -737,6 +738,8 @@ export default function ManagerPage() {
           </div>
         </div>
       </section>
+
+      {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} /> : null}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <StaffSummaryCard label={t.total} value={summary.total} onClick={() => setSelectedDrilldown({ kind: "request_status", status: "all" })} />
