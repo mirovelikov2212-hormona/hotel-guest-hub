@@ -1274,6 +1274,49 @@ function getGuestIntroCopy(lang: LangKey, hotelName?: string) {
   return copy[lang] ?? copy.bg;
 }
 
+type DepartmentIntroSectionId = "reception" | "housekeeping" | "maintenance";
+
+function isDepartmentIntroSection(value: string): value is DepartmentIntroSectionId {
+  return value === "reception" || value === "housekeeping" || value === "maintenance";
+}
+
+function getDepartmentIntroCopy(lang: LangKey) {
+  const copy: Record<LangKey, { title: string; body: string; button: string }> = {
+    bg: {
+      title: "Бърза заявка към хотела",
+      body:
+        "Тук можете директно да изпратите свое желание или да съобщите проблем до съответния хотелски екип. Не е необходимо да ходите до рецепцията — заявката се изпраща веднага към правилния отдел и може да бъде обработена по-бързо.",
+      button: "Продължи",
+    },
+    en: {
+      title: "Quick hotel request",
+      body:
+        "Here you can send a request or report a problem directly to the responsible hotel team. There is no need to visit reception — your request is sent immediately to the correct department and can be handled faster.",
+      button: "Continue",
+    },
+    de: {
+      title: "Schnelle Anfrage an das Hotel",
+      body:
+        "Hier können Sie einen Wunsch oder ein Problem direkt an das zuständige Hotelteam senden. Sie müssen nicht zur Rezeption gehen — Ihre Anfrage wird sofort an die richtige Abteilung übermittelt und kann schneller bearbeitet werden.",
+      button: "Weiter",
+    },
+    ro: {
+      title: "Solicitare rapidă către hotel",
+      body:
+        "Aici puteți trimite direct o dorință sau puteți semnala o problemă echipei responsabile a hotelului. Nu este necesar să mergeți la recepție — solicitarea ajunge imediat la departamentul potrivit și poate fi soluționată mai repede.",
+      button: "Continuă",
+    },
+    cs: {
+      title: "Rychlý požadavek pro hotel",
+      body:
+        "Zde můžete odeslat svůj požadavek nebo nahlásit problém přímo příslušnému hotelovému týmu. Nemusíte chodit na recepci — požadavek bude okamžitě předán správnému oddělení a může být vyřízen rychleji.",
+      button: "Pokračovat",
+    },
+  };
+
+  return copy[lang] ?? copy.bg;
+}
+
 function writeGuestLang(nextLang: LangKey) {
   if (typeof window === "undefined") return;
 
@@ -5834,6 +5877,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 submitRequestDefSelectionOption={submitRequestDefSelectionOption}
                 onCloseAi={clearAiState}
                 onTrack={trackGuestEvent}
+                introStorageScope={String(roomStateKey || config.hotelSlug || "default")}
               />
             );
           })}
@@ -5869,6 +5913,7 @@ function Accordion({
   submitRequestDefSelectionOption,
   onCloseAi,
   onTrack,
+  introStorageScope,
 }: {
   section: HubSection;
   tUI: (k: string) => any;
@@ -5893,35 +5938,90 @@ function Accordion({
   submitRequestDefSelectionOption: (def: RequestDef, option: string, optionIndex: number) => void;
   onCloseAi?: () => void;
   onTrack: (payload: TrackHubPayload) => void;
+  introStorageScope: string;
 }) {
   const [open, setOpen] = useState(false);
   const [openRequestDefId, setOpenRequestDefId] = useState<string | null>(null);
+  const [departmentIntroOpen, setDepartmentIntroOpen] = useState(false);
+  const sectionId = String(section.id || "section");
+  const departmentIntroCopy = getDepartmentIntroCopy(lang);
+
+  const getDepartmentIntroStorageKey = () =>
+    `stayhub:department-intro:${String(introStorageScope || "default").toLowerCase()}:${sectionId}`;
+
+  const hasSeenDepartmentIntro = () => {
+    if (typeof window === "undefined" || !isDepartmentIntroSection(sectionId)) return true;
+
+    try {
+      return window.sessionStorage.getItem(getDepartmentIntroStorageKey()) === "1";
+    } catch {
+      return false;
+    }
+  };
+
+  const trackSectionState = (next: boolean) => {
+    onTrack({
+      eventName: sectionId === "ai" && next ? "ai_opened" : next ? "section_opened" : "section_closed",
+      eventCategory: sectionId === "ai" ? "ai" : "navigation",
+      section: sectionId,
+      sectionKey: sectionId,
+      label: String(section.title || sectionId),
+      value: next ? "open" : "closed",
+    });
+
+    if (section.id === "ai" && !next) {
+      onCloseAi?.();
+    }
+  };
+
+  const handleSectionToggle = () => {
+    const next = !open;
+
+    if (
+      next &&
+      isDepartmentIntroSection(sectionId) &&
+      !hasSeenDepartmentIntro()
+    ) {
+      setDepartmentIntroOpen(true);
+      onTrack({
+        eventName: "department_intro_shown",
+        eventCategory: "navigation",
+        section: sectionId,
+        sectionKey: sectionId,
+        label: String(section.title || sectionId),
+        value: "shown",
+      });
+      return;
+    }
+
+    trackSectionState(next);
+    setOpen(next);
+  };
+
+  const continueFromDepartmentIntro = () => {
+    try {
+      window.sessionStorage.setItem(getDepartmentIntroStorageKey(), "1");
+    } catch { }
+
+    setDepartmentIntroOpen(false);
+    onTrack({
+      eventName: "department_intro_continue_clicked",
+      eventCategory: "navigation",
+      section: sectionId,
+      sectionKey: sectionId,
+      buttonKey: "continue",
+      label: String(section.title || sectionId),
+      value: "continue",
+    });
+    trackSectionState(true);
+    setOpen(true);
+  };
 
   return (
     <div className="rounded-2xl overflow-hidden stayhub-section-shell">
       <button
         type="button"
-        onClick={() =>
-          setOpen((prev) => {
-            const next = !prev;
-            const sectionId = String(section.id || "section");
-
-            onTrack({
-              eventName: sectionId === "ai" && next ? "ai_opened" : next ? "section_opened" : "section_closed",
-              eventCategory: sectionId === "ai" ? "ai" : "navigation",
-              section: sectionId,
-              sectionKey: sectionId,
-              label: String(section.title || sectionId),
-              value: next ? "open" : "closed",
-            });
-
-            if (section.id === "ai" && !next) {
-              onCloseAi?.();
-            }
-
-            return next;
-          })
-        }
+        onClick={handleSectionToggle}
         className="w-full px-4 py-4 text-left stayhub-section-header flex items-center justify-between gap-3"
       >
         <div>
@@ -5934,6 +6034,38 @@ function Accordion({
         </div>
         <div className="text-lg">▾</div>
       </button>
+
+      {departmentIntroOpen ? (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/75 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`department-intro-title-${sectionId}`}
+            className="w-full max-w-lg rounded-3xl border border-white/15 bg-neutral-950 p-6 shadow-2xl"
+          >
+            <p className="text-sm font-semibold text-[color:var(--stayhub-action)]">
+              {withSectionIcon(String(section.title || sectionId), sectionId)}
+            </p>
+            <h3
+              id={`department-intro-title-${sectionId}`}
+              className="mt-2 text-2xl font-bold text-white"
+            >
+              {departmentIntroCopy.title}
+            </h3>
+            <p className="mt-4 text-base leading-7 text-neutral-200">
+              {departmentIntroCopy.body}
+            </p>
+            <button
+              type="button"
+              onClick={continueFromDepartmentIntro}
+              className="mt-6 w-full rounded-2xl px-4 py-4 text-base font-bold transition active:scale-[0.99]"
+              style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}
+            >
+              {departmentIntroCopy.button}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {open ? (
         <div className="stayhub-section-body px-4 py-4">

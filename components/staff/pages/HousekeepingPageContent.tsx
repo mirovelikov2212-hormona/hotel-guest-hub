@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
@@ -13,6 +13,27 @@ import { staffText } from "@/lib/staff/ui-copy";
 
 type SummaryFilter = "active" | "new" | "in_progress" | "returned";
 
+const DEPARTMENT_OVERDUE_AFTER_MINUTES = 10;
+
+function getRequestAgeMinutes(createdAtIso: string, nowMs: number) {
+  const createdAtMs = new Date(createdAtIso).getTime();
+
+  if (!Number.isFinite(createdAtMs)) return 0;
+
+  return Math.max(0, Math.floor((nowMs - createdAtMs) / 60000));
+}
+
+function isDepartmentRequestOverdue(
+  status: string,
+  createdAtIso: string,
+  nowMs: number,
+) {
+  return (
+    status === "new" &&
+    getRequestAgeMinutes(createdAtIso, nowMs) >= DEPARTMENT_OVERDUE_AFTER_MINUTES
+  );
+}
+
 export default function HousekeepingPage() {
   const { lang } = useStaffUi();
   const t = staffText(lang);
@@ -22,6 +43,15 @@ export default function HousekeepingPage() {
     updateRequestStatus,
   } = useStaffStore();
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>("active");
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 30000);
+
+    return () => window.clearInterval(interval);
+  }, []);
 
   const requests = useMemo(
     () => sortStaffRequests(getOperationalRequestsByDepartment("housekeeping")),
@@ -111,17 +141,30 @@ export default function HousekeepingPage() {
 
       <section className="space-y-4">
         {visibleRequests.length ? (
-          visibleRequests.map((request) => (
-            <StaffRequestCard
-              key={request.id}
-              request={request}
-              mode="department"
-              canAct
-              onStart={(id) => void updateRequestStatus(id, "in_progress")}
-              onDone={(id) => void updateRequestStatus(id, "completed")}
-              onReturn={(id) => void updateRequestStatus(id, "returned")}
-            />
-          ))
+          visibleRequests.map((request) => {
+            const requestAgeMinutes = getRequestAgeMinutes(
+              request.createdAtIso,
+              nowMs,
+            );
+
+            return (
+              <StaffRequestCard
+                key={request.id}
+                request={request}
+                mode="department"
+                canAct
+                isOverdue={isDepartmentRequestOverdue(
+                  request.status,
+                  request.createdAtIso,
+                  nowMs,
+                )}
+                overdueMinutes={requestAgeMinutes}
+                onStart={(id) => void updateRequestStatus(id, "in_progress")}
+                onDone={(id) => void updateRequestStatus(id, "completed")}
+                onReturn={(id) => void updateRequestStatus(id, "returned")}
+              />
+            );
+          })
         ) : (
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/60">
             {t.noRequestsForFilter}
