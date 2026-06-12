@@ -688,7 +688,21 @@ type RequestDialogState = {
   confirmLabel?: string;
   cancelLabel?: string;
   onConfirm?: () => void;
+  onCancel?: () => void;
 } | null;
+
+type GuestRequestSubmissionInput = {
+  type: StaffRequestType | string;
+  typeLabel: string;
+  note?: string;
+  serviceTime?: StaffServiceTime;
+  departmentOverride?: StaffDepartment;
+  notifyDepartments?: string[];
+  requiresBilling?: boolean;
+  price?: string;
+  currency?: string;
+  sourceRequestDef?: string;
+};
 
 type StoredGuestRoomState = {
   manualRoomInput: string;
@@ -2318,12 +2332,14 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     confirmLabel,
     cancelLabel,
     onConfirm,
+    onCancel,
   }: {
     title: string;
     message: string;
     confirmLabel?: string;
     cancelLabel?: string;
     onConfirm?: () => void;
+    onCancel?: () => void;
   }) => {
     setRequestDialog({
       title,
@@ -2331,11 +2347,14 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       confirmLabel,
       cancelLabel,
       onConfirm,
+      onCancel,
     });
   };
 
   const closeRequestDialog = () => {
+    const action = requestDialog?.onCancel;
     setRequestDialog(null);
+    action?.();
   };
 
   const confirmRequestDialog = () => {
@@ -3845,7 +3864,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     "other_technical_issue",
   ]);
 
-  const submitGuestRequest = async ({
+  const performGuestRequestSubmission = async ({
     type,
     typeLabel,
     note,
@@ -3856,18 +3875,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     price,
     currency,
     sourceRequestDef,
-  }: {
-    type: StaffRequestType | string;
-    typeLabel: string;
-    note?: string;
-    serviceTime?: StaffServiceTime;
-    departmentOverride?: StaffDepartment;
-    notifyDepartments?: string[];
-    requiresBilling?: boolean;
-    price?: string;
-    currency?: string;
-    sourceRequestDef?: string;
-  }) => {
+  }: GuestRequestSubmissionInput) => {
     const roomValue = room.trim();
     const signatureLabel = cleanRequestTitle(typeLabel).toLowerCase() || String(type || "request");
     const signature = `${roomValue}::${type}::${signatureLabel}`;
@@ -4049,6 +4057,272 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       setSubmittingRequestLabel("");
     }
   };
+
+
+  const getRequestConfirmationCopy = () => {
+    if (lang === "bg") {
+      return {
+        title: "Потвърдете заявката",
+        room: "Стая",
+        service: "Услуга",
+        details: "Детайли",
+        option: "Избор",
+        quantity: "Количество",
+        total: "Обща цена",
+        date: "Дата",
+        time: "Час",
+        price: "Цена",
+        paidNotice: "Тази услуга е платена и може да бъде начислена към стаята.",
+        question: "Сигурни ли сте, че искате да изпратите тази заявка?",
+        cancel: "ОТКАЗ",
+        confirm: "ПОТВЪРДИ И ИЗПРАТИ",
+      };
+    }
+
+    if (lang === "de") {
+      return {
+        title: "Anfrage bestätigen",
+        room: "Zimmer",
+        service: "Leistung",
+        details: "Details",
+        option: "Auswahl",
+        quantity: "Menge",
+        total: "Gesamtpreis",
+        date: "Datum",
+        time: "Uhrzeit",
+        price: "Preis",
+        paidNotice: "Diese Leistung ist kostenpflichtig und kann dem Zimmerkonto belastet werden.",
+        question: "Möchten Sie diese Anfrage wirklich senden?",
+        cancel: "ABBRECHEN",
+        confirm: "BESTÄTIGEN UND SENDEN",
+      };
+    }
+
+    if (lang === "ro") {
+      return {
+        title: "Confirmați solicitarea",
+        room: "Camera",
+        service: "Serviciu",
+        details: "Detalii",
+        option: "Selecție",
+        quantity: "Cantitate",
+        total: "Preț total",
+        date: "Data",
+        time: "Ora",
+        price: "Preț",
+        paidNotice: "Acest serviciu este contra cost și poate fi adăugat în contul camerei.",
+        question: "Sigur doriți să trimiteți această solicitare?",
+        cancel: "ANULEAZĂ",
+        confirm: "CONFIRMĂ ȘI TRIMITE",
+      };
+    }
+
+    if (lang === "cs") {
+      return {
+        title: "Potvrďte požadavek",
+        room: "Pokoj",
+        service: "Služba",
+        details: "Podrobnosti",
+        option: "Výběr",
+        quantity: "Množství",
+        total: "Celková cena",
+        date: "Datum",
+        time: "Čas",
+        price: "Cena",
+        paidNotice: "Tato služba je placená a může být připsána na účet pokoje.",
+        question: "Opravdu chcete tento požadavek odeslat?",
+        cancel: "ZRUŠIT",
+        confirm: "POTVRDIT A ODESLAT",
+      };
+    }
+
+    return {
+      title: "Confirm request",
+      room: "Room",
+      service: "Service",
+      details: "Details",
+      option: "Selection",
+      quantity: "Quantity",
+      total: "Total price",
+      date: "Date",
+      time: "Time",
+      price: "Price",
+      paidNotice: "This is a paid service and may be charged to the room account.",
+      question: "Are you sure you want to send this request?",
+      cancel: "CANCEL",
+      confirm: "CONFIRM AND SEND",
+    };
+  };
+
+  const buildGuestRequestConfirmationDetails = (note: string | undefined) => {
+    const copy = getRequestConfirmationCopy();
+    const rawLines = String(note || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    const hasGuestChoice = rawLines.some((line) => /^Избор на госта\s*:/i.test(line));
+
+    return rawLines
+      .filter((line) => !/^Оперативно BG\s*:/i.test(line))
+      .filter((line) => !/^Рецепцията трябва да потвърди/i.test(line))
+      .filter((line) => !/^Работно време на СПА\s*:/i.test(line))
+      .filter((line) => !(hasGuestChoice && /^Избрана услуга\s*:/i.test(line)))
+      .map((line) =>
+        line
+          .replace(/^Избор на госта\s*:/i, `${copy.option}:`)
+          .replace(/^Избрана услуга\s*:/i, `${copy.option}:`)
+          .replace(/^Количество\s*:/i, `${copy.quantity}:`)
+          .replace(/^Обща цена\s*:/i, `${copy.total}:`)
+          .replace(/^Дата\s*:/i, `${copy.date}:`)
+          .replace(/^Час\s*:/i, `${copy.time}:`)
+      )
+      .join("\n");
+  };
+
+  const submitGuestRequest = (input: GuestRequestSubmissionInput) => {
+    const roomValue = room.trim();
+    const sourceRequestDefKey = String(input.sourceRequestDef || "").trim().toLowerCase();
+    const sourceRequestDef = sourceRequestDefKey
+      ? requestDefs.find((def) => String(def.id || "").trim().toLowerCase() === sourceRequestDefKey)
+      : undefined;
+    const requestDefLabel = sourceRequestDef ? getRequestDefTitle(sourceRequestDef) : "";
+    const titleDerivedKey = getGuestRequestLabelKey("", input.typeLabel);
+    const typeDerivedKey = getGuestRequestLabelKey(input.type, input.typeLabel);
+    const translatedLabel = [sourceRequestDefKey, titleDerivedKey, typeDerivedKey]
+      .map((key) => (key ? String(tUI(key) || "").trim() : ""))
+      .find(Boolean);
+    // Prefer the canonical label translated for the guest's currently selected
+    // language. REQUEST_DEFS may contain an English fallback title even when the
+    // rest of the confirmation dialog is BG/RO/DE/CS.
+    const safeTypeLabel = cleanRequestTitle(
+      translatedLabel || requestDefLabel || input.typeLabel
+    );
+
+    if (submittingRequestRef.current) return;
+
+    if (!roomValue) {
+      window.alert(roomCopy.missingRoomQrAlert);
+      return;
+    }
+
+    if (!ensureConfirmedRoom()) return;
+
+    const normalizedType = String(input.type || "request");
+    const trackedSection =
+      input.departmentOverride ??
+      (housekeepingRequestTypes.has(normalizedType)
+        ? "housekeeping"
+        : maintenanceRequestTypes.has(normalizedType)
+          ? "maintenance"
+          : "reception");
+    const copy = getRequestConfirmationCopy();
+    const billableRequestKeys = new Set([
+      "coffee_capsules",
+      "pillow_menu",
+      "minibar",
+      "minibar_refill",
+      "laundry",
+      "late_checkout",
+    ]);
+    const isBillable = Boolean(
+      input.requiresBilling ||
+      String(input.price || "").trim() ||
+      billableRequestKeys.has(normalizedType.toLowerCase()) ||
+      billableRequestKeys.has(String(input.sourceRequestDef || "").trim().toLowerCase())
+    );
+    const details = buildGuestRequestConfirmationDetails(input.note);
+    const priceText = [input.price, input.currency]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join(" ");
+    const messageParts = [
+      `${copy.room}: ${roomValue}`,
+      `${copy.service}: ${safeTypeLabel}`,
+    ];
+
+    if (details) {
+      messageParts.push("", `${copy.details}:`, details);
+    }
+
+    if (isBillable) {
+      if (priceText) messageParts.push("", `${copy.price}: ${priceText}`);
+      messageParts.push(copy.paidNotice);
+    }
+
+    messageParts.push("", copy.question);
+
+    trackGuestEvent({
+      eventName: "request_confirm_prompt_shown",
+      eventCategory: "request",
+      section: trackedSection,
+      sectionKey: trackedSection,
+      itemKey: normalizedType,
+      buttonKey: "request_confirm_prompt",
+      label: normalizedType,
+      value: safeTypeLabel,
+      roomNumber: roomValue,
+      roomConfirmed: true,
+      roomSource: "confirmed",
+      extra: {
+        serviceTime: input.serviceTime || "now",
+        sourceRequestDef: input.sourceRequestDef || null,
+        requiresBilling: isBillable,
+      },
+    });
+
+    openRequestDialog({
+      title: copy.title,
+      message: messageParts.join("\n"),
+      confirmLabel: copy.confirm,
+      cancelLabel: copy.cancel,
+      onCancel: () => {
+        trackGuestEvent({
+          eventName: "request_confirm_cancelled",
+          eventCategory: "request",
+          section: trackedSection,
+          sectionKey: trackedSection,
+          itemKey: normalizedType,
+          buttonKey: "cancel_request",
+          label: normalizedType,
+          value: safeTypeLabel,
+          roomNumber: roomValue,
+          roomConfirmed: true,
+          roomSource: "confirmed",
+          extra: {
+            serviceTime: input.serviceTime || "now",
+            sourceRequestDef: input.sourceRequestDef || null,
+          },
+        });
+      },
+      onConfirm: () => {
+        trackGuestEvent({
+          eventName: "request_confirmed",
+          eventCategory: "request",
+          section: trackedSection,
+          sectionKey: trackedSection,
+          itemKey: normalizedType,
+          buttonKey: "confirm_and_send",
+          label: normalizedType,
+          value: safeTypeLabel,
+          roomNumber: roomValue,
+          roomConfirmed: true,
+          roomSource: "confirmed",
+          extra: {
+            serviceTime: input.serviceTime || "now",
+            sourceRequestDef: input.sourceRequestDef || null,
+            requiresBilling: isBillable,
+          },
+        });
+
+        void performGuestRequestSubmission({
+          ...input,
+          typeLabel: safeTypeLabel,
+        });
+      },
+    });
+  };
+
 
   const askAI = async () => {
     const questionText = aiQ.trim();
@@ -4808,13 +5082,13 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         {
           label: "📍 New del Mar",
           kind: "link" as const,
-          href: mapsSearchUrl("43.340729, 28.069419"),
+          href: "https://www.google.com/search?q=New+del+mar+Kranevo",
           newTab: true,
         },
         {
           label: "📍 Ресторант Извора",
           kind: "link" as const,
-          href: mapsSearchUrl("43.342391, 28.063333"),
+          href: "https://www.google.com/search?q=Restaurant+Izvora+Kranevo",
           newTab: true,
         },
       ]
@@ -5305,8 +5579,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               onClick: () =>
                 submitGuestRequest({
                   type: "other_technical_issue",
-                  typeLabel: "Coffee machine issue",
-                  note: "Guest reported a coffee machine issue.",
+                  typeLabel: String(tUI("coffee_machine") || "Coffee machine issue"),
                 }),
             },
           ]
