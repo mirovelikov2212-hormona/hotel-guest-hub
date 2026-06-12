@@ -372,7 +372,7 @@ const COPY = {
       pool: "бассейны",
       gym: "фитнес-залы",
       lounge: "лаунж-зоны",
-      entertainment: "игровые зоны",
+      entertainment: "игровые залы",
       room_service: "услуги в номер",
     },
   },
@@ -939,7 +939,9 @@ function mergeHotelInfoItems(...groups: Array<HotelInfoItem[] | undefined>) {
 
 function getVenueHours(venue: Venue, lang: Lang) {
   const localized = venue.hoursByLang?.[lang] || venue.hoursByLang?.en || venue.hoursByLang?.bg || "";
-  return normalizeDisplayText(localized || venue.hours || (venue.open && venue.close ? `${venue.open} - ${venue.close}` : ""));
+  return normalizeDisplayText(
+    localized || venue.hours || (venue.open && venue.close ? `${venue.open} - ${venue.close}` : "")
+  ).replace(/\b(\d):(\d{2})\b/g, "0$1:$2");
 }
 
 function detectCategories(question: string) {
@@ -1023,6 +1025,7 @@ function isHotelQuestion(question: string, hotel: HotelPayload) {
   const q = clean(question);
   if (!q) return true;
   if (hasAnyTerm(q, HOTEL_KEYWORDS)) return true;
+  if (detectCategories(q).length > 0) return true;
 
   const infoMatch = findMatchingHotelInfo(q, "en", hotel).length > 0;
   if (infoMatch) return true;
@@ -1042,24 +1045,57 @@ function isHotelQuestion(question: string, hotel: HotelPayload) {
   });
 }
 
-function pickMealLines(question: string, hours: string) {
+function pickMealLines(question: string, hours: string, lang: Lang) {
   const parts = normalizeDisplayText(hours).split(/\n+/).map((x) => x.trim()).filter(Boolean);
   if (!parts.length) return "";
 
-  const mealGroups = [
-    { key: "breakfast", terms: ["breakfast", "закуска", "завтрак", "frühstück", "fruhstuck", "mic dejun", "snídaně", "snidane"], excludeLineTerms: ["snack", "следобед", "afternoon", "gustare", "svačina", "svacina"] },
-    { key: "lunch", terms: ["lunch", "обяд", "обед", "mittagessen", "prânz", "pranz", "oběd", "obed"], excludeLineTerms: [] },
-    { key: "snack", terms: ["snack", "следобед", "следобедна закуска", "afternoon snack", "gustare", "svačina", "svacina"], excludeLineTerms: [] },
-    { key: "dinner", terms: ["dinner", "вечеря", "ужин", "abendessen", "cină", "cina", "večeře", "vecere"], excludeLineTerms: [] },
-  ];
+  const mealGroupsByLang: Record<Lang, Array<{ key: string; terms: string[]; excludeLineTerms?: string[] }>> = {
+    bg: [
+      { key: "breakfast", terms: ["закуска"], excludeLineTerms: ["следобедна закуска"] },
+      { key: "lunch", terms: ["обяд"] },
+      { key: "snack", terms: ["следобедна закуска", "следобедна"] },
+      { key: "dinner", terms: ["вечеря"] },
+    ],
+    en: [
+      { key: "breakfast", terms: ["breakfast"], excludeLineTerms: ["afternoon snack"] },
+      { key: "lunch", terms: ["lunch"] },
+      { key: "snack", terms: ["afternoon snack", "snack"] },
+      { key: "dinner", terms: ["dinner"] },
+    ],
+    de: [
+      { key: "breakfast", terms: ["frühstück", "fruhstuck"] },
+      { key: "lunch", terms: ["mittagessen", "mittag"] },
+      { key: "snack", terms: ["nachmittagssnack", "snack"] },
+      { key: "dinner", terms: ["abendessen"] },
+    ],
+    ro: [
+      { key: "breakfast", terms: ["mic dejun"] },
+      { key: "lunch", terms: ["prânz", "pranz"] },
+      { key: "snack", terms: ["gustare de după-amiază", "gustare de dupa-amiaza", "gustare"] },
+      { key: "dinner", terms: ["cină", "cina"] },
+    ],
+    cs: [
+      { key: "breakfast", terms: ["snídaně", "snidane"] },
+      { key: "lunch", terms: ["oběd", "obed"] },
+      { key: "snack", terms: ["odpolední svačina", "odpoledni svacina", "svačina", "svacina"] },
+      { key: "dinner", terms: ["večeře", "vecere"] },
+    ],
+    ru: [
+      { key: "breakfast", terms: ["завтрак"] },
+      { key: "lunch", terms: ["обед"] },
+      { key: "snack", terms: ["полдник"] },
+      { key: "dinner", terms: ["ужин"] },
+    ],
+  };
 
+  const mealGroups = mealGroupsByLang[lang];
   const requestedGroups = mealGroups.filter((group) => hasAnyTerm(question, group.terms));
   if (!requestedGroups.length) return normalizeDisplayText(hours);
 
   const selected = parts.filter((line) =>
     requestedGroups.some((group) => {
       if (!hasAnyTerm(line, group.terms)) return false;
-      if (group.excludeLineTerms.length && hasAnyTerm(line, group.excludeLineTerms)) return false;
+      if (group.excludeLineTerms?.length && hasAnyTerm(line, group.excludeLineTerms)) return false;
       return true;
     })
   );
@@ -1071,19 +1107,24 @@ function formatVenueLine(venue: Venue, lang: Lang, wantsReservation: boolean, qu
   const t = COPY[lang];
   const name = getVenueText(venue, "name", lang) || venue.name || "Hotel";
   const hours = getVenueHours(venue, lang);
-  const detail =
-    getVenueText(venue, "shortDescription", lang) ||
-    getVenueText(venue, "description", lang) ||
-    getVenueText(venue, "cuisine", lang) ||
-    getVenueText(venue, "location", lang) ||
-    getVenueText(venue, "programText", lang) ||
-    getVenueText(venue, "ageGroup", lang) ||
-    "";
+  const localizedHours = hours ? pickMealLines(question, hours, lang) : "";
 
-  if (wantsReservation || venue.requiresReservation) return t.venueReservation(name);
-  if (hours) return t.venueHours(name, pickMealLines(question, hours));
-  if (detail) return t.venueInfo(name, detail);
-  return `• ${name}`;
+  const details = uniqueNonEmpty([
+    getVenueText(venue, "shortDescription", lang),
+    getVenueText(venue, "description", lang),
+    getVenueText(venue, "cuisine", lang),
+    getVenueText(venue, "location", lang),
+    getVenueText(venue, "programText", lang),
+    getVenueText(venue, "ageGroup", lang),
+  ]);
+
+  const lines = [`• ${name}`, ...details, localizedHours].filter(Boolean);
+
+  if (wantsReservation || venue.requiresReservation) {
+    lines.push(t.venueReservation(name).replace(/^•\s*/, ""));
+  }
+
+  return lines.join("\n");
 }
 
 function buildVenueCategoryAnswer(question: string, lang: Lang, hotel: HotelPayload) {
@@ -1097,7 +1138,7 @@ function buildVenueCategoryAnswer(question: string, lang: Lang, hotel: HotelPayl
 
   const labels = categories
     .map((category) => t.categoryLabel[category as keyof typeof t.categoryLabel] || category)
-    .join(lang === "bg" ? " и " : lang === "de" ? " und " : lang === "ro" ? " și " : lang === "cs" ? " a " : " and ");
+    .join(lang === "bg" || lang === "ru" ? " и " : lang === "de" ? " und " : lang === "ro" ? " și " : lang === "cs" ? " a " : " and ");
 
   const lines = venues.slice(0, 8).map((venue) => formatVenueLine(venue, lang, wantsReservation, question));
   return [t.venueListIntro(labels), ...lines.slice(0, 4)].join("\n");
@@ -1394,27 +1435,31 @@ function buildSmartTopicAnswer(question: string, lang: Lang, hotel: HotelPayload
 
   const lines: string[] = [];
 
-  // If the guest asks for a specific information page, answer that first and keep it short.
   if (infoMatches.length && !serviceMatches.length && !venueMatches.length) {
     lines.push(...infoMatches.slice(0, 1).map((item) => formatInfoForSmartAnswer(item, lang)));
     const cleaned = uniqueNonEmpty(lines);
-    return cleaned.length ? cleaned.slice(0, 1).join("\n\n") : null;
+    return cleaned.length ? cleaned[0] : null;
   }
 
-  // If the guest asks for a specific service, avoid dumping several similar hub entries.
   if (serviceMatches.length && !venueMatches.length) {
     lines.push(...serviceMatches.slice(0, 1).map((service) => formatServiceForSmartAnswer(service, lang)));
     const cleaned = uniqueNonEmpty(lines);
-    return cleaned.length ? cleaned.slice(0, 1).join("\n\n") : null;
+    return cleaned.length ? cleaned[0] : null;
   }
 
   if (venueMatches.length) {
-    lines.push(
-      ...venueMatches.slice(0, 1).map((venue) => formatVenueLine(venue, lang, wantsReservation, question))
-    );
+    lines.push(formatVenueLine(venueMatches[0], lang, wantsReservation, question));
+
+    // For a direct venue question, return only the exact venue. This prevents
+    // unrelated cards such as a conference room from matching a generic word
+    // like "room", "sală" or "зал".
+    if (!serviceMatches.length) {
+      const cleaned = uniqueNonEmpty(lines);
+      return cleaned.length ? cleaned[0] : null;
+    }
   }
 
-  if (infoMatches.length) {
+  if (infoMatches.length && !venueMatches.length) {
     lines.push(...infoMatches.slice(0, 1).map((item) => formatInfoForSmartAnswer(item, lang)));
   }
 
@@ -1839,6 +1884,43 @@ function buildAiServicesFromRequestDefs(requestDefs: any[] | undefined, lang: La
     .filter((service) => service.key || service.label);
 }
 
+function mergeVenueRows(serverRows: Venue[] | undefined, clientRows: Venue[] | undefined): Venue[] {
+  const server = Array.isArray(serverRows) ? serverRows : [];
+  const client = Array.isArray(clientRows) ? clientRows : [];
+
+  if (!server.length) return client;
+  if (!client.length) return server;
+
+  const clientByIdentity = new Map<string, Venue>();
+  for (const venue of client) {
+    const identity = clean(
+      `${normalizeCategory(venue.category || venue.type)}:${getVenueText(venue, "name", "en") || venue.name || ""}`
+    );
+    if (identity) clientByIdentity.set(identity, venue);
+  }
+
+  return server.map((serverVenue) => {
+    const identity = clean(
+      `${normalizeCategory(serverVenue.category || serverVenue.type)}:${getVenueText(serverVenue, "name", "en") || serverVenue.name || ""}`
+    );
+    const clientVenue = clientByIdentity.get(identity);
+    if (!clientVenue) return serverVenue;
+
+    return {
+      ...serverVenue,
+      ...clientVenue,
+      nameByLang: { ...(serverVenue.nameByLang || {}), ...(clientVenue.nameByLang || {}) },
+      shortDescriptionByLang: { ...(serverVenue.shortDescriptionByLang || {}), ...(clientVenue.shortDescriptionByLang || {}) },
+      descriptionByLang: { ...(serverVenue.descriptionByLang || {}), ...(clientVenue.descriptionByLang || {}) },
+      cuisineByLang: { ...(serverVenue.cuisineByLang || {}), ...(clientVenue.cuisineByLang || {}) },
+      hoursByLang: { ...(serverVenue.hoursByLang || {}), ...(clientVenue.hoursByLang || {}) },
+      locationByLang: { ...(serverVenue.locationByLang || {}), ...(clientVenue.locationByLang || {}) },
+      programTextByLang: { ...(serverVenue.programTextByLang || {}), ...(clientVenue.programTextByLang || {}) },
+      ageGroupByLang: { ...(serverVenue.ageGroupByLang || {}), ...(clientVenue.ageGroupByLang || {}) },
+    };
+  });
+}
+
 function mergeHotelKnowledge(clientHotel: HotelPayload, serverConfig: any, lang: Lang): HotelPayload {
   const client = clientHotel ?? {};
   const server = serverConfig ?? {};
@@ -1855,7 +1937,7 @@ function mergeHotelKnowledge(clientHotel: HotelPayload, serverConfig: any, lang:
     departmentHours: server.departmentHours ?? client.departmentHours,
     reviews: server.reviews ?? client.reviews,
     socialLinks: server.socialLinks ?? client.socialLinks,
-    venueRows: Array.isArray(server.venueRows) && server.venueRows.length ? server.venueRows : (client.venueRows ?? []),
+    venueRows: mergeVenueRows(server.venueRows, client.venueRows),
     hotelInfoItems: mergeHotelInfoItems(serverHotelInfo, clientHotelInfo, visibleHubInfo),
     services: Array.isArray(client.services) && client.services.length ? client.services : serverServices,
   };

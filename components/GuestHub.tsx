@@ -4820,7 +4820,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             departmentHours: config.departmentHours,
             reviews: config.reviews,
             socialLinks: config.socialLinks,
-            venueRows: (config as any).venueRows ?? [],
+            venueRows: rawVenueRows,
             hotelInfoItems: (config as any).hotelInfoItems ?? [],
             hubSections: sections.map((section) => ({
               id: String(section.id || ""),
@@ -5686,11 +5686,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           : "",
         kind: "info",
         info: weatherInfo,
-      },
-      {
-        label: "Weather data by Open-Meteo API",
-        kind: "info" as const,
-        info: "",
       },
     ],
   };
