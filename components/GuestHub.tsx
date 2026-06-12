@@ -317,6 +317,44 @@ function categoryMeta(category: string) {
   return meta[key] ?? { title: humanizeCategory(key), icon: "📍" };
 }
 
+const RESTAURANT_HOURS_TITLE_BY_LANG: Record<string, string> = {
+  bg: "Ресторант – работно време",
+  en: "Restaurant – opening hours",
+  de: "Restaurant – Öffnungszeiten",
+  ro: "Restaurant – program",
+  cs: "Restaurace – otevírací doba",
+};
+
+const RESTAURANT_MEAL_LABELS_BY_LANG: Record<string, string[]> = {
+  bg: ["Закуска", "Обяд", "Следобедна закуска", "Вечеря"],
+  en: ["Breakfast", "Lunch", "Afternoon snack", "Dinner"],
+  de: ["Frühstück", "Mittagessen", "Nachmittagssnack", "Abendessen"],
+  ro: ["Mic dejun", "Prânz", "Gustare de după-amiază", "Cină"],
+  cs: ["Snídaně", "Oběd", "Odpolední svačina", "Večeře"],
+};
+
+const GAME_ROOM_PRICING_BY_LANG: Record<string, string> = {
+  bg: "Билярдът и тенисът на маса се ползват срещу 5,00 € на час. Останалите игри в залата са безплатни.",
+  en: "Billiards and table tennis cost 5.00 € per hour. All other games in the games room are free of charge.",
+  de: "Billard und Tischtennis kosten 5,00 € pro Stunde. Alle anderen Spiele im Spielraum sind kostenlos.",
+  ro: "Biliardul și tenisul de masă costă 5,00 € pe oră. Celelalte jocuri din sala de jocuri sunt gratuite.",
+  cs: "Kulečník a stolní tenis stojí 5,00 € za hodinu. Ostatní hry v herně jsou zdarma.",
+};
+
+function formatRestaurantHoursForLanguage(rawValue: string, lang: LangKey | string): string {
+  const normalized = String(rawValue || "")
+    .replace(/\s*\|\s*/g, "\n")
+    .replace(/\\n/g, "\n")
+    .trim();
+
+  const ranges = normalized.match(/\d{1,2}:\d{2}\s*[-–—]\s*\d{1,2}:\d{2}/g) || [];
+  if (ranges.length < 4) return normalized;
+
+  const languageKey = ["bg", "en", "de", "ro", "cs"].includes(String(lang)) ? String(lang) : "en";
+  const labels = RESTAURANT_MEAL_LABELS_BY_LANG[languageKey] || RESTAURANT_MEAL_LABELS_BY_LANG.en;
+  return labels.map((label, index) => `${label}: ${ranges[index]}`).join("\n");
+}
+
 function getBuiltinUiText(lang: LangKey | string, key: string) {
   const normalizedLang = String(lang || "").trim().toLowerCase();
   const targetLang = ["bg", "de", "en", "ro", "cs"].includes(normalizedLang)
@@ -650,21 +688,7 @@ type RequestDialogState = {
   confirmLabel?: string;
   cancelLabel?: string;
   onConfirm?: () => void;
-  onCancel?: () => void;
 } | null;
-
-type GuestRequestSubmissionInput = {
-  type: StaffRequestType | string;
-  typeLabel: string;
-  note?: string;
-  serviceTime?: StaffServiceTime;
-  departmentOverride?: StaffDepartment;
-  notifyDepartments?: string[];
-  requiresBilling?: boolean;
-  price?: string;
-  currency?: string;
-  sourceRequestDef?: string;
-};
 
 type StoredGuestRoomState = {
   manualRoomInput: string;
@@ -1268,49 +1292,6 @@ function getGuestIntroCopy(lang: LangKey, hotelName?: string) {
       title: "Vítejte u svého digitálního concierge",
       body: `Toto je váš digitální asistent během pobytu v ${name}. Najdete zde informace o hotelu, restauraci, barech, Wi‑Fi, počasí, animaci a užitečných místech v okolí. Můžete také posílat požadavky na recepci, housekeeping a údržbu. Abychom službu přiřadili k vašemu pokoji, zadejte prosím číslo pokoje.`,
       button: "Rozumím, pokračovat",
-    },
-  };
-
-  return copy[lang] ?? copy.bg;
-}
-
-type DepartmentIntroSectionId = "reception" | "housekeeping" | "maintenance";
-
-function isDepartmentIntroSection(value: string): value is DepartmentIntroSectionId {
-  return value === "reception" || value === "housekeeping" || value === "maintenance";
-}
-
-function getDepartmentIntroCopy(lang: LangKey) {
-  const copy: Record<LangKey, { title: string; body: string; button: string }> = {
-    bg: {
-      title: "Бърза заявка към хотела",
-      body:
-        "Тук можете директно да изпратите свое желание или да съобщите проблем до съответния хотелски екип. Не е необходимо да ходите до рецепцията — заявката се изпраща веднага към правилния отдел и може да бъде обработена по-бързо.",
-      button: "Продължи",
-    },
-    en: {
-      title: "Quick hotel request",
-      body:
-        "Here you can send a request or report a problem directly to the responsible hotel team. There is no need to visit reception — your request is sent immediately to the correct department and can be handled faster.",
-      button: "Continue",
-    },
-    de: {
-      title: "Schnelle Anfrage an das Hotel",
-      body:
-        "Hier können Sie einen Wunsch oder ein Problem direkt an das zuständige Hotelteam senden. Sie müssen nicht zur Rezeption gehen — Ihre Anfrage wird sofort an die richtige Abteilung übermittelt und kann schneller bearbeitet werden.",
-      button: "Weiter",
-    },
-    ro: {
-      title: "Solicitare rapidă către hotel",
-      body:
-        "Aici puteți trimite direct o dorință sau puteți semnala o problemă echipei responsabile a hotelului. Nu este necesar să mergeți la recepție — solicitarea ajunge imediat la departamentul potrivit și poate fi soluționată mai repede.",
-      button: "Continuă",
-    },
-    cs: {
-      title: "Rychlý požadavek pro hotel",
-      body:
-        "Zde můžete odeslat svůj požadavek nebo nahlásit problém přímo příslušnému hotelovému týmu. Nemusíte chodit na recepci — požadavek bude okamžitě předán správnému oddělení a může být vyřízen rychleji.",
-      button: "Pokračovat",
     },
   };
 
@@ -2337,14 +2318,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     confirmLabel,
     cancelLabel,
     onConfirm,
-    onCancel,
   }: {
     title: string;
     message: string;
     confirmLabel?: string;
     cancelLabel?: string;
     onConfirm?: () => void;
-    onCancel?: () => void;
   }) => {
     setRequestDialog({
       title,
@@ -2352,14 +2331,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       confirmLabel,
       cancelLabel,
       onConfirm,
-      onCancel,
     });
   };
 
   const closeRequestDialog = () => {
-    const action = requestDialog?.onCancel;
     setRequestDialog(null);
-    action?.();
   };
 
   const confirmRequestDialog = () => {
@@ -3708,9 +3684,53 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   }
   const taxiProviders = config.taxiProviders ?? [];
 
-  const rawVenueRows = (((config as any).venueRows ?? []) as Array<VenueRow>).filter(
-    (v) => v && (v.name || getVenueText(v, "name", lang)) && (v.type || v.category) && v.active !== false
-  );
+  const hotelContentSlug = String((config as any)?.hotelSlug || "").trim().toLowerCase();
+  const isAquamarineHotel =
+    ["aquamarin", "aquamarine"].includes(hotelContentSlug) ||
+    /aquamarine/i.test(String(config.hotelName || ""));
+
+  const rawVenueRows = (((config as any).venueRows ?? []) as Array<VenueRow>)
+    .filter(
+      (v) => v && (v.name || getVenueText(v, "name", lang)) && (v.type || v.category) && v.active !== false
+    )
+    .map((venue) => {
+      if (!isAquamarineHotel) return venue;
+
+      const venueIdentity = [
+        venue.type,
+        venue.category,
+        venue.name,
+        ...Object.values(venue.nameByLang || {}),
+        venue.shortDescription,
+        ...Object.values(venue.shortDescriptionByLang || {}),
+      ]
+        .map((value) => String(value || "").trim().toLowerCase())
+        .filter(Boolean)
+        .join(" ");
+
+      const isGamesRoom = /games?.?room|игрална|spielzimmer|sal[ăa] de jocuri|herna/i.test(venueIdentity);
+      if (!isGamesRoom) return venue;
+
+      const descriptionByLang = { ...(venue.descriptionByLang || {}) };
+      for (const languageKey of ["bg", "en", "de", "ro", "cs"]) {
+        const existing = String(descriptionByLang[languageKey] || "").trim();
+        const pricing = GAME_ROOM_PRICING_BY_LANG[languageKey];
+        if (!pricing || /5(?:[.,]00)?\s*€/.test(existing)) continue;
+        descriptionByLang[languageKey] = [existing, pricing].filter(Boolean).join("\n\n");
+      }
+
+      const fallbackDescription = String(venue.description || "").trim();
+      const fallbackPricing = GAME_ROOM_PRICING_BY_LANG.en;
+
+      return {
+        ...venue,
+        description:
+          fallbackDescription && /5(?:[.,]00)?\s*€/.test(fallbackDescription)
+            ? fallbackDescription
+            : [fallbackDescription, fallbackPricing].filter(Boolean).join("\n\n"),
+        descriptionByLang,
+      };
+    });
 
   const groupedOutlets = useMemo(() => {
     const grouped = rawVenueRows.reduce<Record<string, VenueRow[]>>((acc, row) => {
@@ -3825,7 +3845,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     "other_technical_issue",
   ]);
 
-  const performGuestRequestSubmission = async ({
+  const submitGuestRequest = async ({
     type,
     typeLabel,
     note,
@@ -3836,7 +3856,18 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     price,
     currency,
     sourceRequestDef,
-  }: GuestRequestSubmissionInput) => {
+  }: {
+    type: StaffRequestType | string;
+    typeLabel: string;
+    note?: string;
+    serviceTime?: StaffServiceTime;
+    departmentOverride?: StaffDepartment;
+    notifyDepartments?: string[];
+    requiresBilling?: boolean;
+    price?: string;
+    currency?: string;
+    sourceRequestDef?: string;
+  }) => {
     const roomValue = room.trim();
     const signatureLabel = cleanRequestTitle(typeLabel).toLowerCase() || String(type || "request");
     const signature = `${roomValue}::${type}::${signatureLabel}`;
@@ -4018,272 +4049,6 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       setSubmittingRequestLabel("");
     }
   };
-
-
-  const getRequestConfirmationCopy = () => {
-    if (lang === "bg") {
-      return {
-        title: "Потвърдете заявката",
-        room: "Стая",
-        service: "Услуга",
-        details: "Детайли",
-        option: "Избор",
-        quantity: "Количество",
-        total: "Обща цена",
-        date: "Дата",
-        time: "Час",
-        price: "Цена",
-        paidNotice: "Тази услуга е платена и може да бъде начислена към стаята.",
-        question: "Сигурни ли сте, че искате да изпратите тази заявка?",
-        cancel: "ОТКАЗ",
-        confirm: "ПОТВЪРДИ И ИЗПРАТИ",
-      };
-    }
-
-    if (lang === "de") {
-      return {
-        title: "Anfrage bestätigen",
-        room: "Zimmer",
-        service: "Leistung",
-        details: "Details",
-        option: "Auswahl",
-        quantity: "Menge",
-        total: "Gesamtpreis",
-        date: "Datum",
-        time: "Uhrzeit",
-        price: "Preis",
-        paidNotice: "Diese Leistung ist kostenpflichtig und kann dem Zimmerkonto belastet werden.",
-        question: "Möchten Sie diese Anfrage wirklich senden?",
-        cancel: "ABBRECHEN",
-        confirm: "BESTÄTIGEN UND SENDEN",
-      };
-    }
-
-    if (lang === "ro") {
-      return {
-        title: "Confirmați solicitarea",
-        room: "Camera",
-        service: "Serviciu",
-        details: "Detalii",
-        option: "Selecție",
-        quantity: "Cantitate",
-        total: "Preț total",
-        date: "Data",
-        time: "Ora",
-        price: "Preț",
-        paidNotice: "Acest serviciu este contra cost și poate fi adăugat în contul camerei.",
-        question: "Sigur doriți să trimiteți această solicitare?",
-        cancel: "ANULEAZĂ",
-        confirm: "CONFIRMĂ ȘI TRIMITE",
-      };
-    }
-
-    if (lang === "cs") {
-      return {
-        title: "Potvrďte požadavek",
-        room: "Pokoj",
-        service: "Služba",
-        details: "Podrobnosti",
-        option: "Výběr",
-        quantity: "Množství",
-        total: "Celková cena",
-        date: "Datum",
-        time: "Čas",
-        price: "Cena",
-        paidNotice: "Tato služba je placená a může být připsána na účet pokoje.",
-        question: "Opravdu chcete tento požadavek odeslat?",
-        cancel: "ZRUŠIT",
-        confirm: "POTVRDIT A ODESLAT",
-      };
-    }
-
-    return {
-      title: "Confirm request",
-      room: "Room",
-      service: "Service",
-      details: "Details",
-      option: "Selection",
-      quantity: "Quantity",
-      total: "Total price",
-      date: "Date",
-      time: "Time",
-      price: "Price",
-      paidNotice: "This is a paid service and may be charged to the room account.",
-      question: "Are you sure you want to send this request?",
-      cancel: "CANCEL",
-      confirm: "CONFIRM AND SEND",
-    };
-  };
-
-  const buildGuestRequestConfirmationDetails = (note: string | undefined) => {
-    const copy = getRequestConfirmationCopy();
-    const rawLines = String(note || "")
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    const hasGuestChoice = rawLines.some((line) => /^Избор на госта\s*:/i.test(line));
-
-    return rawLines
-      .filter((line) => !/^Оперативно BG\s*:/i.test(line))
-      .filter((line) => !/^Рецепцията трябва да потвърди/i.test(line))
-      .filter((line) => !/^Работно време на СПА\s*:/i.test(line))
-      .filter((line) => !(hasGuestChoice && /^Избрана услуга\s*:/i.test(line)))
-      .map((line) =>
-        line
-          .replace(/^Избор на госта\s*:/i, `${copy.option}:`)
-          .replace(/^Избрана услуга\s*:/i, `${copy.option}:`)
-          .replace(/^Количество\s*:/i, `${copy.quantity}:`)
-          .replace(/^Обща цена\s*:/i, `${copy.total}:`)
-          .replace(/^Дата\s*:/i, `${copy.date}:`)
-          .replace(/^Час\s*:/i, `${copy.time}:`)
-      )
-      .join("\n");
-  };
-
-  const submitGuestRequest = (input: GuestRequestSubmissionInput) => {
-    const roomValue = room.trim();
-    const sourceRequestDefKey = String(input.sourceRequestDef || "").trim().toLowerCase();
-    const sourceRequestDef = sourceRequestDefKey
-      ? requestDefs.find((def) => String(def.id || "").trim().toLowerCase() === sourceRequestDefKey)
-      : undefined;
-    const requestDefLabel = sourceRequestDef ? getRequestDefTitle(sourceRequestDef) : "";
-    const titleDerivedKey = getGuestRequestLabelKey("", input.typeLabel);
-    const typeDerivedKey = getGuestRequestLabelKey(input.type, input.typeLabel);
-    const translatedLabel = [sourceRequestDefKey, titleDerivedKey, typeDerivedKey]
-      .map((key) => (key ? String(tUI(key) || "").trim() : ""))
-      .find(Boolean);
-    // Prefer the canonical label translated for the guest's currently selected
-    // language. REQUEST_DEFS may contain an English fallback title even when the
-    // rest of the confirmation dialog is BG/RO/DE/CS.
-    const safeTypeLabel = cleanRequestTitle(
-      translatedLabel || requestDefLabel || input.typeLabel
-    );
-
-    if (submittingRequestRef.current) return;
-
-    if (!roomValue) {
-      window.alert(roomCopy.missingRoomQrAlert);
-      return;
-    }
-
-    if (!ensureConfirmedRoom()) return;
-
-    const normalizedType = String(input.type || "request");
-    const trackedSection =
-      input.departmentOverride ??
-      (housekeepingRequestTypes.has(normalizedType)
-        ? "housekeeping"
-        : maintenanceRequestTypes.has(normalizedType)
-          ? "maintenance"
-          : "reception");
-    const copy = getRequestConfirmationCopy();
-    const billableRequestKeys = new Set([
-      "coffee_capsules",
-      "pillow_menu",
-      "minibar",
-      "minibar_refill",
-      "laundry",
-      "late_checkout",
-    ]);
-    const isBillable = Boolean(
-      input.requiresBilling ||
-      String(input.price || "").trim() ||
-      billableRequestKeys.has(normalizedType.toLowerCase()) ||
-      billableRequestKeys.has(String(input.sourceRequestDef || "").trim().toLowerCase())
-    );
-    const details = buildGuestRequestConfirmationDetails(input.note);
-    const priceText = [input.price, input.currency]
-      .map((value) => String(value || "").trim())
-      .filter(Boolean)
-      .join(" ");
-    const messageParts = [
-      `${copy.room}: ${roomValue}`,
-      `${copy.service}: ${safeTypeLabel}`,
-    ];
-
-    if (details) {
-      messageParts.push("", `${copy.details}:`, details);
-    }
-
-    if (isBillable) {
-      if (priceText) messageParts.push("", `${copy.price}: ${priceText}`);
-      messageParts.push(copy.paidNotice);
-    }
-
-    messageParts.push("", copy.question);
-
-    trackGuestEvent({
-      eventName: "request_confirm_prompt_shown",
-      eventCategory: "request",
-      section: trackedSection,
-      sectionKey: trackedSection,
-      itemKey: normalizedType,
-      buttonKey: "request_confirm_prompt",
-      label: normalizedType,
-      value: safeTypeLabel,
-      roomNumber: roomValue,
-      roomConfirmed: true,
-      roomSource: "confirmed",
-      extra: {
-        serviceTime: input.serviceTime || "now",
-        sourceRequestDef: input.sourceRequestDef || null,
-        requiresBilling: isBillable,
-      },
-    });
-
-    openRequestDialog({
-      title: copy.title,
-      message: messageParts.join("\n"),
-      confirmLabel: copy.confirm,
-      cancelLabel: copy.cancel,
-      onCancel: () => {
-        trackGuestEvent({
-          eventName: "request_confirm_cancelled",
-          eventCategory: "request",
-          section: trackedSection,
-          sectionKey: trackedSection,
-          itemKey: normalizedType,
-          buttonKey: "cancel_request",
-          label: normalizedType,
-          value: safeTypeLabel,
-          roomNumber: roomValue,
-          roomConfirmed: true,
-          roomSource: "confirmed",
-          extra: {
-            serviceTime: input.serviceTime || "now",
-            sourceRequestDef: input.sourceRequestDef || null,
-          },
-        });
-      },
-      onConfirm: () => {
-        trackGuestEvent({
-          eventName: "request_confirmed",
-          eventCategory: "request",
-          section: trackedSection,
-          sectionKey: trackedSection,
-          itemKey: normalizedType,
-          buttonKey: "confirm_and_send",
-          label: normalizedType,
-          value: safeTypeLabel,
-          roomNumber: roomValue,
-          roomConfirmed: true,
-          roomSource: "confirmed",
-          extra: {
-            serviceTime: input.serviceTime || "now",
-            sourceRequestDef: input.sourceRequestDef || null,
-            requiresBilling: isBillable,
-          },
-        });
-
-        void performGuestRequestSubmission({
-          ...input,
-          typeLabel: safeTypeLabel,
-        });
-      },
-    });
-  };
-
 
   const askAI = async () => {
     const questionText = aiQ.trim();
@@ -4793,13 +4558,76 @@ EN: ${helpMsg}` : opsMsg,
     [getHotelInfoIdentity]
   );
 
+  const coffeeCapsulesRequestDef = requestDefs.find((def) => {
+    const id = String(def.id || "").trim().toLowerCase();
+    const requestType = String(def.requestType || "").trim().toLowerCase();
+    return id === "coffee_capsules" || requestType === "coffee_capsules";
+  });
+
+  const coffeeCapsulesPrice = String(coffeeCapsulesRequestDef?.price || "2,05").trim();
+  const coffeeCapsulesCurrency = String(coffeeCapsulesRequestDef?.currency || "€").trim() || "€";
+
+  const mainRestaurantVenue = [...rawVenueRows]
+    .filter((venue) => normalizeCategory(venue) === "restaurants")
+    .sort((a, b) => Number(a.sortOrder ?? 999) - Number(b.sortOrder ?? 999))[0];
+
+  const restaurantHoursSource = String(
+    mainRestaurantVenue?.hoursByLang?.[String(lang)] ||
+      mainRestaurantVenue?.hoursByLang?.bg ||
+      mainRestaurantVenue?.hours ||
+      (mainRestaurantVenue?.open || mainRestaurantVenue?.close
+        ? `${mainRestaurantVenue?.open || "?"} - ${mainRestaurantVenue?.close || "?"}`
+        : "")
+  ).trim();
+
+  const restaurantHoursText = formatRestaurantHoursForLanguage(restaurantHoursSource, lang);
+
   const toHotelInfoHubItem = useCallback(
-    (item: any): HubItem => ({
-      label: `${item?.icon ? `${String(item.icon).trim()} ` : ""}${getHotelInfoText(item, "title")}`.trim(),
-      kind: "info" as const,
-      info: getHotelInfoText(item, "text"),
-    }),
-    [getHotelInfoText]
+    (item: any): HubItem => {
+      const identity = getHotelInfoIdentity(item);
+      let icon = item?.icon ? String(item.icon).trim() : "";
+      let title = getHotelInfoText(item, "title");
+      let info = getHotelInfoText(item, "text");
+
+      if (isAquamarineHotel) {
+        const stableKey = String(item?.key || item?.id || "").trim().toLowerCase();
+        const isRestaurantHoursInfo =
+          ["breakfast", "breakfast_hours", "info_breakfast"].includes(stableKey) ||
+          /(^|\s)(breakfast|закуска|frühstück|mic dejun|snídaně)(\s|$)/i.test(identity);
+
+        if (isRestaurantHoursInfo && restaurantHoursText) {
+          const languageKey = ["bg", "en", "de", "ro", "cs"].includes(String(lang)) ? String(lang) : "en";
+          icon = "🍽️";
+          title = RESTAURANT_HOURS_TITLE_BY_LANG[languageKey] || RESTAURANT_HOURS_TITLE_BY_LANG.en;
+          info = restaurantHoursText;
+        }
+
+        const isCoffeeCapsulesInfo =
+          stableKey === "coffee_capsules" ||
+          /coffee.?capsule|кафе.?капсул|kaffeekapsel|capsule de cafea|kávové kapsle/i.test(identity);
+
+        if (isCoffeeCapsulesInfo && info) {
+          const displayPrice = `${coffeeCapsulesPrice} ${coffeeCapsulesCurrency}`.trim();
+          const replaced = info.replace(/\d+(?:[.,]\d{1,2})?\s*(?:€|EUR)/i, displayPrice);
+          info = replaced === info && !info.includes(displayPrice) ? `${info} ${displayPrice}`.trim() : replaced;
+        }
+      }
+
+      return {
+        label: `${icon ? `${icon} ` : ""}${title}`.trim(),
+        kind: "info" as const,
+        info,
+      };
+    },
+    [
+      coffeeCapsulesCurrency,
+      coffeeCapsulesPrice,
+      getHotelInfoIdentity,
+      getHotelInfoText,
+      isAquamarineHotel,
+      lang,
+      restaurantHoursText,
+    ]
   );
 
   const toAnimationHubItem = useCallback(
@@ -4975,6 +4803,23 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   const nearbyRestaurantsQuery = `restaurants near ${nearbyAnchorQuery}`;
   const nearbyPharmacyQuery = `pharmacy near ${nearbyAnchorQuery}`;
 
+  const aquamarineRecommendedPlaces: HubItem[] = isAquamarineHotel
+    ? [
+        {
+          label: "📍 New del Mar",
+          kind: "link" as const,
+          href: mapsSearchUrl("43.340729, 28.069419"),
+          newTab: true,
+        },
+        {
+          label: "📍 Ресторант Извора",
+          kind: "link" as const,
+          href: mapsSearchUrl("43.342391, 28.063333"),
+          newTab: true,
+        },
+      ]
+    : [];
+
   const exploreSection = hotelAreaSearchQuery
     ? ({
       id: "explore",
@@ -4986,6 +4831,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           href: mapsSearchUrl(nearbyAttractionsQuery),
           newTab: true,
         },
+        ...aquamarineRecommendedPlaces,
         {
           label: String(tUI("restaurants_nearby") || "Restaurants nearby"),
           kind: "link" as const,
@@ -5459,7 +5305,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               onClick: () =>
                 submitGuestRequest({
                   type: "other_technical_issue",
-                  typeLabel: String(tUI("coffee_machine") || "Coffee machine issue"),
+                  typeLabel: "Coffee machine issue",
+                  note: "Guest reported a coffee machine issue.",
                 }),
             },
           ]
@@ -5877,7 +5724,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 submitRequestDefSelectionOption={submitRequestDefSelectionOption}
                 onCloseAi={clearAiState}
                 onTrack={trackGuestEvent}
-                introStorageScope={String(roomStateKey || config.hotelSlug || "default")}
               />
             );
           })}
@@ -5913,7 +5759,6 @@ function Accordion({
   submitRequestDefSelectionOption,
   onCloseAi,
   onTrack,
-  introStorageScope,
 }: {
   section: HubSection;
   tUI: (k: string) => any;
@@ -5938,90 +5783,35 @@ function Accordion({
   submitRequestDefSelectionOption: (def: RequestDef, option: string, optionIndex: number) => void;
   onCloseAi?: () => void;
   onTrack: (payload: TrackHubPayload) => void;
-  introStorageScope: string;
 }) {
   const [open, setOpen] = useState(false);
   const [openRequestDefId, setOpenRequestDefId] = useState<string | null>(null);
-  const [departmentIntroOpen, setDepartmentIntroOpen] = useState(false);
-  const sectionId = String(section.id || "section");
-  const departmentIntroCopy = getDepartmentIntroCopy(lang);
-
-  const getDepartmentIntroStorageKey = () =>
-    `stayhub:department-intro:${String(introStorageScope || "default").toLowerCase()}:${sectionId}`;
-
-  const hasSeenDepartmentIntro = () => {
-    if (typeof window === "undefined" || !isDepartmentIntroSection(sectionId)) return true;
-
-    try {
-      return window.sessionStorage.getItem(getDepartmentIntroStorageKey()) === "1";
-    } catch {
-      return false;
-    }
-  };
-
-  const trackSectionState = (next: boolean) => {
-    onTrack({
-      eventName: sectionId === "ai" && next ? "ai_opened" : next ? "section_opened" : "section_closed",
-      eventCategory: sectionId === "ai" ? "ai" : "navigation",
-      section: sectionId,
-      sectionKey: sectionId,
-      label: String(section.title || sectionId),
-      value: next ? "open" : "closed",
-    });
-
-    if (section.id === "ai" && !next) {
-      onCloseAi?.();
-    }
-  };
-
-  const handleSectionToggle = () => {
-    const next = !open;
-
-    if (
-      next &&
-      isDepartmentIntroSection(sectionId) &&
-      !hasSeenDepartmentIntro()
-    ) {
-      setDepartmentIntroOpen(true);
-      onTrack({
-        eventName: "department_intro_shown",
-        eventCategory: "navigation",
-        section: sectionId,
-        sectionKey: sectionId,
-        label: String(section.title || sectionId),
-        value: "shown",
-      });
-      return;
-    }
-
-    trackSectionState(next);
-    setOpen(next);
-  };
-
-  const continueFromDepartmentIntro = () => {
-    try {
-      window.sessionStorage.setItem(getDepartmentIntroStorageKey(), "1");
-    } catch { }
-
-    setDepartmentIntroOpen(false);
-    onTrack({
-      eventName: "department_intro_continue_clicked",
-      eventCategory: "navigation",
-      section: sectionId,
-      sectionKey: sectionId,
-      buttonKey: "continue",
-      label: String(section.title || sectionId),
-      value: "continue",
-    });
-    trackSectionState(true);
-    setOpen(true);
-  };
 
   return (
     <div className="rounded-2xl overflow-hidden stayhub-section-shell">
       <button
         type="button"
-        onClick={handleSectionToggle}
+        onClick={() =>
+          setOpen((prev) => {
+            const next = !prev;
+            const sectionId = String(section.id || "section");
+
+            onTrack({
+              eventName: sectionId === "ai" && next ? "ai_opened" : next ? "section_opened" : "section_closed",
+              eventCategory: sectionId === "ai" ? "ai" : "navigation",
+              section: sectionId,
+              sectionKey: sectionId,
+              label: String(section.title || sectionId),
+              value: next ? "open" : "closed",
+            });
+
+            if (section.id === "ai" && !next) {
+              onCloseAi?.();
+            }
+
+            return next;
+          })
+        }
         className="w-full px-4 py-4 text-left stayhub-section-header flex items-center justify-between gap-3"
       >
         <div>
@@ -6034,38 +5824,6 @@ function Accordion({
         </div>
         <div className="text-lg">▾</div>
       </button>
-
-      {departmentIntroOpen ? (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/75 p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={`department-intro-title-${sectionId}`}
-            className="w-full max-w-lg rounded-3xl border border-white/15 bg-neutral-950 p-6 shadow-2xl"
-          >
-            <p className="text-sm font-semibold text-[color:var(--stayhub-action)]">
-              {withSectionIcon(String(section.title || sectionId), sectionId)}
-            </p>
-            <h3
-              id={`department-intro-title-${sectionId}`}
-              className="mt-2 text-2xl font-bold text-white"
-            >
-              {departmentIntroCopy.title}
-            </h3>
-            <p className="mt-4 text-base leading-7 text-neutral-200">
-              {departmentIntroCopy.body}
-            </p>
-            <button
-              type="button"
-              onClick={continueFromDepartmentIntro}
-              className="mt-6 w-full rounded-2xl px-4 py-4 text-base font-bold transition active:scale-[0.99]"
-              style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}
-            >
-              {departmentIntroCopy.button}
-            </button>
-          </div>
-        </div>
-      ) : null}
 
       {open ? (
         <div className="stayhub-section-body px-4 py-4">
