@@ -5082,13 +5082,13 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         {
           label: "📍 New del Mar",
           kind: "link" as const,
-          href: "https://www.google.com/search?q=New+del+mar+Kranevo",
+          href: "https://www.facebook.com/p/Del-Mar-Fish-Restaurant-BBQ-100040199001878/",
           newTab: true,
         },
         {
           label: "📍 Ресторант Извора",
           kind: "link" as const,
-          href: "https://www.google.com/search?q=Restaurant+Izvora+Kranevo",
+          href: "https://izvora-kranevo.com/",
           newTab: true,
         },
       ]
