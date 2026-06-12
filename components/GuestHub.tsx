@@ -534,12 +534,12 @@ const WEATHER_GUEST_COPY: Record<string, {
   updated: string;
   localTime: string;
 }> = {
-  bg: { title: "Времето", loading: "Зареждане на прогнозата...", error: "Прогнозата временно не е достъпна.", now: "Сега", feels: "усеща се като", humidity: "Влажност", clouds: "Облачност", wind: "Вятър", rain: "Вероятност за валеж", today: "Днес", tomorrow: "Утре", updated: "Обновено", localTime: "Местно време" },
-  en: { title: "Weather", loading: "Loading forecast...", error: "The forecast is temporarily unavailable.", now: "Now", feels: "feels like", humidity: "Humidity", clouds: "Cloud cover", wind: "Wind", rain: "Chance of rain", today: "Today", tomorrow: "Tomorrow", updated: "Updated", localTime: "Local time" },
-  de: { title: "Wetter", loading: "Wetter wird geladen...", error: "Die Wettervorhersage ist vorübergehend nicht verfügbar.", now: "Aktuell", feels: "gefühlt", humidity: "Luftfeuchtigkeit", clouds: "Bewölkung", wind: "Wind", rain: "Regenwahrscheinlichkeit", today: "Heute", tomorrow: "Morgen", updated: "Aktualisiert", localTime: "Ortszeit" },
-  ro: { title: "Vremea", loading: "Se încarcă prognoza...", error: "Prognoza nu este disponibilă momentan.", now: "Acum", feels: "se simte ca", humidity: "Umiditate", clouds: "Nebulozitate", wind: "Vânt", rain: "Probabilitate de ploaie", today: "Astăzi", tomorrow: "Mâine", updated: "Actualizat", localTime: "Ora locală" },
-  cs: { title: "Počasí", loading: "Načítání předpovědi...", error: "Předpověď je dočasně nedostupná.", now: "Nyní", feels: "pocitově", humidity: "Vlhkost", clouds: "Oblačnost", wind: "Vítr", rain: "Pravděpodobnost deště", today: "Dnes", tomorrow: "Zítra", updated: "Aktualizováno", localTime: "Místní čas" },
-  ru: { title: "Погода", loading: "Загрузка прогноза...", error: "Прогноз временно недоступен.", now: "Сейчас", feels: "ощущается как", humidity: "Влажность", clouds: "Облачность", wind: "Ветер", rain: "Вероятность осадков", today: "Сегодня", tomorrow: "Завтра", updated: "Обновлено", localTime: "Местное время" },
+  bg: { title: "Времето", loading: "Зареждане на прогнозата...", error: "Прогнозата временно не е достъпна.", now: "Сега", feels: "усеща се като", humidity: "Влажност", clouds: "Облачност", wind: "Вятър", rain: "Вероятност за валеж", today: "Днес", tomorrow: "Утре", updated: "Времето се актуализира на всеки 10 минути.", localTime: "Местно време" },
+  en: { title: "Weather", loading: "Loading forecast...", error: "The forecast is temporarily unavailable.", now: "Now", feels: "feels like", humidity: "Humidity", clouds: "Cloud cover", wind: "Wind", rain: "Chance of rain", today: "Today", tomorrow: "Tomorrow", updated: "Weather data is updated every 10 minutes.", localTime: "Local time" },
+  de: { title: "Wetter", loading: "Wetter wird geladen...", error: "Die Wettervorhersage ist vorübergehend nicht verfügbar.", now: "Aktuell", feels: "gefühlt", humidity: "Luftfeuchtigkeit", clouds: "Bewölkung", wind: "Wind", rain: "Regenwahrscheinlichkeit", today: "Heute", tomorrow: "Morgen", updated: "Die Wetterdaten werden alle 10 Minuten aktualisiert.", localTime: "Ortszeit" },
+  ro: { title: "Vremea", loading: "Se încarcă prognoza...", error: "Prognoza nu este disponibilă momentan.", now: "Acum", feels: "se simte ca", humidity: "Umiditate", clouds: "Nebulozitate", wind: "Vânt", rain: "Probabilitate de ploaie", today: "Astăzi", tomorrow: "Mâine", updated: "Datele meteo se actualizează la fiecare 10 minute.", localTime: "Ora locală" },
+  cs: { title: "Počasí", loading: "Načítání předpovědi...", error: "Předpověď je dočasně nedostupná.", now: "Nyní", feels: "pocitově", humidity: "Vlhkost", clouds: "Oblačnost", wind: "Vítr", rain: "Pravděpodobnost deště", today: "Dnes", tomorrow: "Zítra", updated: "Údaje o počasí se aktualizují každých 10 minut.", localTime: "Místní čas" },
+  ru: { title: "Погода", loading: "Загрузка прогноза...", error: "Прогноз временно недоступен.", now: "Сейчас", feels: "ощущается как", humidity: "Влажность", clouds: "Облачность", wind: "Ветер", rain: "Вероятность осадков", today: "Сегодня", tomorrow: "Завтра", updated: "Данные о погоде обновляются каждые 10 минут.", localTime: "Местное время" },
 };
 
 function weatherConditionLabel(code: number | null | undefined, lang: LangKey | string) {
@@ -4820,7 +4820,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             departmentHours: config.departmentHours,
             reviews: config.reviews,
             socialLinks: config.socialLinks,
-            venueRows: rawVenueRows,
+            venueRows: (config as any).venueRows ?? [],
             hotelInfoItems: (config as any).hotelInfoItems ?? [],
             hubSections: sections.map((section) => ({
               id: String(section.id || ""),
@@ -5631,22 +5631,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     }
   };
 
-  const weatherUpdatedTime = (() => {
-    if (!weatherData?.updatedAt) return "";
-    try {
-      const normalized = String(weatherData.updatedAt).includes("T")
-        ? String(weatherData.updatedAt)
-        : `${String(weatherData.updatedAt)}T00:00:00`;
-      return new Intl.DateTimeFormat(weatherLocale[weatherLang] || "en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: weatherData?.timezone || "Europe/Sofia",
-      }).format(new Date(normalized));
-    } catch {
-      return String(weatherData.updatedAt).slice(11, 16);
-    }
-  })();
-
   const weatherInfo = (() => {
     if (weatherLoading && !weatherData) return weatherCopy.loading;
     if (weatherError && !weatherData) return weatherCopy.error;
@@ -5670,7 +5654,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         const rain = day.rainChance != null ? ` · ${weatherCopy.rain}: ${Math.round(day.rainChance)}%` : "";
         return `${weatherDayLabel(day.date, index)}: ${weatherConditionIcon(day.weatherCode)} ${weatherConditionLabel(day.weatherCode, weatherLang)} · ${min}/${max}${rain}`;
       }),
-      weatherUpdatedTime ? `${weatherCopy.updated}: ${weatherUpdatedTime}` : "",
+      weatherCopy.updated,
     ].filter((line, index, all) => line !== "" || (index > 0 && all[index - 1] !== ""));
 
     return lines.join("\n").trim();
@@ -5686,6 +5670,11 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           : "",
         kind: "info",
         info: weatherInfo,
+      },
+      {
+        label: "Weather data by Open-Meteo API",
+        kind: "info" as const,
+        info: "",
       },
     ],
   };
