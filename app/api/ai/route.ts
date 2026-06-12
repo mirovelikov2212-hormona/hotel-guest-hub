@@ -642,10 +642,10 @@ const INFO_GROUP_KEYWORDS: Record<string, string[]> = {
   sunbed: ["sunbed", "sunbeds", "шезлонг", "шезлонги", "șezlong", "sezlong", "lehátko", "lehátka"],
   charity: ["charity", "gift", "cause", "gift with a cause", "благотвор", "подарък", "кауза", "подарък с кауза", "caritate", "cadou", "cauză", "cauza", "cadou cu o cauza", "cadou cu o cauză", "charita", "dárek", "darek", "účel", "ucel", "darek s dobrym ucelem", "dárek s dobrým účelem"],
   animation: ["animation", "анимац", "анимация", "animație", "animatie", "animace", "program"],
-  world_cup: ["world cup", "fifa", "световно", "mondial", "ms ve fotbale", "wm 2026"],
+  world_cup: ["world cup", "fifa", "световно", "чемпионат мира", "mondial", "ms ve fotbale", "wm 2026"],
   emergency: ["emergency", "urgent", "спеш", "экстренно", "срочно", "notfall", "urgență", "nouz"],
   attractions: ["attraction", "nearby", "around", "забележ", "наблизо", "достопримечательности", "рядом", "atrac", "împrejurimi", "zajímav", "okolí"],
-  pharmacy: ["pharmacy", "аптека", "farmacie", "lékárna"],
+  pharmacy: ["pharmacy", "аптека", "аптеки", "farmacie", "lékárna"],
 };
 
 
@@ -852,14 +852,14 @@ function normalizeCategory(value?: string) {
     .replace(/\s+/g, "_")
     .replace(/-+/g, "_");
 
-  if (raw.includes("restaurant")) return "restaurants";
+  if (raw.includes("restaurant") || raw.includes("ресторан") || raw.includes("restaurante") || raw.includes("restaurace")) return "restaurants";
   if (raw.includes("bar")) return "bars";
   if (raw.includes("spa") || raw.includes("wellness")) return "spa";
-  if (raw.includes("kids") || raw.includes("children")) return "kids";
-  if (raw.includes("pool")) return "pool";
+  if (raw.includes("kids") || raw.includes("children") || raw.includes("дет") || raw.includes("copii") || raw.includes("děti") || raw.includes("deti")) return "kids";
+  if (raw.includes("pool") || raw.includes("басейн") || raw.includes("бассейн") || raw.includes("piscina") || raw.includes("bazén") || raw.includes("bazen")) return "pool";
   if (raw.includes("gym") || raw.includes("fitness")) return "gym";
   if (raw.includes("lounge")) return "lounge";
-  if (raw.includes("entertainment") || raw.includes("games")) return "entertainment";
+  if (raw.includes("entertainment") || raw.includes("games") || raw.includes("игров") || raw.includes("играл")) return "entertainment";
   if (raw.includes("room_service") || raw.includes("roomservice")) return "room_service";
 
   return raw;
@@ -1047,10 +1047,10 @@ function pickMealLines(question: string, hours: string) {
   if (!parts.length) return "";
 
   const mealGroups = [
-    { key: "breakfast", terms: ["breakfast", "закуска", "frühstück", "fruhstuck", "mic dejun", "snídaně", "snidane"], excludeLineTerms: ["snack", "следобед", "afternoon", "gustare", "svačina", "svacina"] },
-    { key: "lunch", terms: ["lunch", "обяд", "mittagessen", "prânz", "pranz", "oběd", "obed"], excludeLineTerms: [] },
+    { key: "breakfast", terms: ["breakfast", "закуска", "завтрак", "frühstück", "fruhstuck", "mic dejun", "snídaně", "snidane"], excludeLineTerms: ["snack", "следобед", "afternoon", "gustare", "svačina", "svacina"] },
+    { key: "lunch", terms: ["lunch", "обяд", "обед", "mittagessen", "prânz", "pranz", "oběd", "obed"], excludeLineTerms: [] },
     { key: "snack", terms: ["snack", "следобед", "следобедна закуска", "afternoon snack", "gustare", "svačina", "svacina"], excludeLineTerms: [] },
-    { key: "dinner", terms: ["dinner", "вечеря", "abendessen", "cină", "cina", "večeře", "vecere"], excludeLineTerms: [] },
+    { key: "dinner", terms: ["dinner", "вечеря", "ужин", "abendessen", "cină", "cina", "večeře", "vecere"], excludeLineTerms: [] },
   ];
 
   const requestedGroups = mealGroups.filter((group) => hasAnyTerm(question, group.terms));
@@ -1315,12 +1315,12 @@ function formatServiceForSmartAnswer(service: ServiceItem, lang: Lang) {
   return "";
 }
 
-function findMatchingVenues(question: string, hotel: HotelPayload) {
+function findMatchingVenues(question: string, lang: Lang, hotel: HotelPayload) {
   const q = clean(question);
   const categories = detectCategories(q);
   const venues = getActiveVenues(hotel).filter((venue) => {
     const category = normalizeCategory(venue.category || venue.type);
-    return venueMatchesQuestion(venue, q) || (category && categories.includes(category));
+    return venueMatchesQuestion(venue, q, lang) || (category && categories.includes(category));
   });
 
   const seen = new Set<string>();
@@ -1387,7 +1387,7 @@ function buildSmartTopicAnswer(question: string, lang: Lang, hotel: HotelPayload
 
   const infoMatches = findMatchingHotelInfo(q, lang, hotel);
   const serviceMatches = findMatchingServices(q, hotel);
-  const venueMatches = findMatchingVenues(q, hotel);
+  const venueMatches = findMatchingVenues(q, lang, hotel);
   const wantsReservation = hasAnyTerm(q, ["reserv", "book", "резерв", "брониров", "забронировать", "buch", "rezerv", "rezervare", "rezervovat"]);
 
   if (!infoMatches.length && !serviceMatches.length && !venueMatches.length) return null;
@@ -1690,7 +1690,7 @@ async function buildWeatherAnswer(question: string, lang: Lang, hotel: HotelPayl
   const wantsTomorrow = isTomorrowWeatherQuestion(question);
   const dayIndex = wantsTomorrow ? 1 : 0;
 
-  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${geo.latitude}&longitude=${geo.longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,precipitation&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&timezone=auto&forecast_days=3`;
+  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${geo.latitude}&longitude=${geo.longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,precipitation&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&timezone=Europe%2FSofia&forecast_days=3`;
   const data = await fetchJsonWithTimeout(forecastUrl).catch(() => null);
   if (!data?.current && !data?.daily) return t.unavailable;
 

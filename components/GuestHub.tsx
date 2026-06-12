@@ -504,6 +504,7 @@ type GuestWeatherPayload = {
   ok: boolean;
   place?: string;
   timezone?: string;
+  sourceUrl?: string;
   updatedAt?: string;
   current?: {
     temperature: number | null;
@@ -656,6 +657,12 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       something_broken_prompt: "Опишете какво е счупено или повредено:",
       something_broken_required: "Моля, опишете какво е счупено, за да може поддръжката да реагира правилно.",
       ai_intro: "Мога да помагам само с информация за хотела – ресторанти, барове, работно време, спа, детски кът, стая за игри, удобства и услуги в хотела.",
+      ai_title: "AI консултант",
+      ai_placeholder: "Задайте въпрос за хотела...",
+      ai_send: "Изпрати",
+      ai_loading: "Мисля...",
+      ai_no_info: "Все още нямам тази информация за хотела.",
+      ai_error: "Не успях да обработя въпроса. Опитайте отново.",
     },
     de: {
       install_app: "App installieren",
@@ -709,6 +716,12 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       something_broken_prompt: "Bitte beschreiben Sie, was kaputt oder beschädigt ist:",
       something_broken_required: "Bitte beschreiben Sie, was kaputt ist, damit die Technik richtig reagieren kann.",
       ai_intro: "Ich kann nur mit Hotelinformationen helfen – Restaurants, Bars, Öffnungszeiten, Spa, Kinderclub, Spielzimmer, Einrichtungen und Hoteldienstleistungen.",
+      ai_title: "AI-Concierge",
+      ai_placeholder: "Fragen Sie etwas zum Hotel...",
+      ai_send: "Senden",
+      ai_loading: "Ich denke...",
+      ai_no_info: "Ich habe diese Hotelinformation noch nicht.",
+      ai_error: "Die Anfrage konnte nicht verarbeitet werden. Bitte erneut versuchen.",
     },
     en: {
       install_app: "Install the app",
@@ -767,6 +780,12 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       something_broken_prompt: "Please describe what is broken or damaged:",
       something_broken_required: "Please describe what is broken so maintenance can respond properly.",
       ai_intro: "I can help only with hotel information – restaurants, bars, opening hours, spa, kids club, games room, facilities and hotel services.",
+      ai_title: "AI Concierge",
+      ai_placeholder: "Ask a question about the hotel...",
+      ai_send: "Send",
+      ai_loading: "Thinking...",
+      ai_no_info: "I do not have that hotel information yet.",
+      ai_error: "I could not process the question. Please try again.",
     },
     ro: {
       install_app: "Instalează aplicația",
@@ -825,6 +844,12 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       something_broken_prompt: "Descrieți ce este stricat sau deteriorat:",
       something_broken_required: "Vă rugăm să descrieți ce este stricat, pentru ca echipa de întreținere să poată interveni corect.",
       ai_intro: "Pot ajuta doar cu informații despre hotel – restaurante, baruri, program de lucru, spa, club pentru copii, sală de jocuri, facilități și servicii ale hotelului.",
+      ai_title: "Concierge AI",
+      ai_placeholder: "Întrebați ceva despre hotel...",
+      ai_send: "Trimite",
+      ai_loading: "Mă gândesc...",
+      ai_no_info: "Nu am încă această informație despre hotel.",
+      ai_error: "Nu am putut procesa întrebarea. Încercați din nou.",
     },
     cs: {
       install_app: "Nainstalovat aplikaci",
@@ -883,6 +908,12 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       something_broken_prompt: "Popište, co je rozbité nebo poškozené:",
       something_broken_required: "Popište prosím, co je rozbité, aby údržba mohla správně reagovat.",
       ai_intro: "Mohu pomoci pouze s informacemi o hotelu – restaurace, bary, otevírací doba, spa, dětský klub, herna, vybavení a hotelové služby.",
+      ai_title: "AI concierge",
+      ai_placeholder: "Zeptejte se na hotel...",
+      ai_send: "Odeslat",
+      ai_loading: "Přemýšlím...",
+      ai_no_info: "Tuto informaci o hotelu zatím nemám.",
+      ai_error: "Dotaz se nepodařilo zpracovat. Zkuste to znovu.",
     },
   };
 
@@ -1936,6 +1967,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         if (Number.isFinite(hotelLongitude)) params.set("lon", String(hotelLongitude));
         if (config.location?.query) params.set("query", String(config.location.query));
         if (config.hotelName) params.set("place", String(config.hotelName));
+        params.set("tz", "Europe/Sofia");
 
         const response = await fetch(`/api/weather?${params.toString()}`, {
           signal: controller.signal,
@@ -2338,6 +2370,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         "Ich kann nur mit Hotelinformationen helfen – Restaurants, Bars, Öffnungszeiten, Spa, Kinderclub, Spielzimmer, Einrichtungen und Hoteldienstleistungen.",
       ru:
         "Я могу помочь только с информацией об отеле: рестораны, бары, часы работы, СПА, детский клуб, игровая комната, удобства и услуги отеля.",
+      ro:
+        "Pot ajuta doar cu informații despre hotel: restaurante, baruri, program, spa, club pentru copii, sală de jocuri, facilități și servicii ale hotelului.",
+      cs:
+        "Mohu pomoci pouze s informacemi o hotelu: restaurace, bary, otevírací doba, spa, dětský klub, herna, vybavení a hotelové služby.",
     } as const;
 
     const translated = String(tUI("ai_intro") || "").trim();
@@ -2346,7 +2382,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       return translated;
     }
 
-    return map[(lang as "bg" | "en" | "de" | "ru")] || map.bg;
+    return map[(lang as "bg" | "en" | "de" | "ru" | "ro" | "cs")] || map.bg;
   }, [lang, tUI]);
 
   const guestStatusLabel = useCallback(
@@ -5595,6 +5631,22 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     }
   };
 
+  const weatherUpdatedTime = (() => {
+    if (!weatherData?.updatedAt) return "";
+    try {
+      const normalized = String(weatherData.updatedAt).includes("T")
+        ? String(weatherData.updatedAt)
+        : `${String(weatherData.updatedAt)}T00:00:00`;
+      return new Intl.DateTimeFormat(weatherLocale[weatherLang] || "en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: weatherData?.timezone || "Europe/Sofia",
+      }).format(new Date(normalized));
+    } catch {
+      return String(weatherData.updatedAt).slice(11, 16);
+    }
+  })();
+
   const weatherInfo = (() => {
     if (weatherLoading && !weatherData) return weatherCopy.loading;
     if (weatherError && !weatherData) return weatherCopy.error;
@@ -5618,7 +5670,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         const rain = day.rainChance != null ? ` · ${weatherCopy.rain}: ${Math.round(day.rainChance)}%` : "";
         return `${weatherDayLabel(day.date, index)}: ${weatherConditionIcon(day.weatherCode)} ${weatherConditionLabel(day.weatherCode, weatherLang)} · ${min}/${max}${rain}`;
       }),
-      weatherData.updatedAt ? `${weatherCopy.updated}: ${String(weatherData.updatedAt).slice(11, 16)}` : "",
+      weatherUpdatedTime ? `${weatherCopy.updated}: ${weatherUpdatedTime}` : "",
     ].filter((line, index, all) => line !== "" || (index > 0 && all[index - 1] !== ""));
 
     return lines.join("\n").trim();
@@ -5636,10 +5688,9 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         info: weatherInfo,
       },
       {
-        label: "Weather data by Open-Meteo.com",
-        kind: "link",
-        href: "https://open-meteo.com/",
-        newTab: true,
+        label: "Weather data by Open-Meteo API",
+        kind: "info" as const,
+        info: "",
       },
     ],
   };

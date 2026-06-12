@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
     let longitude = toFiniteNumber(params.get("lon"));
     const locationQuery = String(params.get("query") || "").trim();
     let place = String(params.get("place") || "").trim();
+    const requestedTimezone = String(params.get("tz") || "Europe/Sofia").trim() || "Europe/Sofia";
 
     if (!isValidLatitude(latitude) || !isValidLongitude(longitude)) {
       if (!locationQuery) {
@@ -114,7 +115,7 @@ export async function GET(request: NextRequest) {
         "precipitation_probability_max",
       ].join(",")
     );
-    forecastUrl.searchParams.set("timezone", "auto");
+    forecastUrl.searchParams.set("timezone", requestedTimezone);
     forecastUrl.searchParams.set("forecast_days", "4");
     forecastUrl.searchParams.set("wind_speed_unit", "kmh");
     if (commercialApiKey) forecastUrl.searchParams.set("apikey", commercialApiKey);
@@ -137,7 +138,8 @@ export async function GET(request: NextRequest) {
       place: place || locationQuery || "Hotel",
       latitude,
       longitude,
-      timezone: data?.timezone || "auto",
+      timezone: data?.timezone || requestedTimezone,
+      sourceUrl: forecastUrl.toString(),
       updatedAt: current.time || new Date().toISOString(),
       current: {
         temperature: current.temperature_2m ?? null,
