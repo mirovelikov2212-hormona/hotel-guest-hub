@@ -2657,8 +2657,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       if (!def) return "";
 
       const junkValues = new Set(["true", "false", "yes", "no", "eur", "bgn", "usd", "none"]);
-
-      return [
+      const rawMessage = [
         getRequestDefField(def, "description"),
         getRequestDefField(def, "policy"),
         getRequestDefField(def, "subtitle"),
@@ -2666,8 +2665,24 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         .map((item) => String(item || "").trim())
         .filter((item) => item && !junkValues.has(item.toLowerCase()))
         .join("\n\n");
+
+      const defId = String(def.id || "").trim().toLowerCase();
+      const requestType = String(def.requestType || "").trim().toLowerCase();
+      const currentHotelSlug = String((config as any)?.hotelSlug || "").trim().toLowerCase();
+      const isAquamarine =
+        ["aquamarin", "aquamarine"].includes(currentHotelSlug) ||
+        /aquamarine/i.test(String(config.hotelName || ""));
+      const isCoffeeCapsules = defId === "coffee_capsules" || requestType === "coffee_capsules";
+
+      // Keep old descriptive texts from Google Sheets consistent with the
+      // current Aquamarine unit price until the sheet cache is refreshed.
+      if (isAquamarine && isCoffeeCapsules) {
+        return rawMessage.replace(/2(?:[.,]00)\s*(€|EUR)/gi, "2,05 €");
+      }
+
+      return rawMessage;
     },
-    [getRequestDefField]
+    [config, getRequestDefField]
   );
 
   const getRequestDefTitle = useCallback(
@@ -3279,18 +3294,31 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     return undefined;
   }
 
+  function isAquamarineCoffeeCapsulesRequest(def: RequestDef) {
+    const defId = String(def.id || "").trim().toLowerCase();
+    const requestType = String(def.requestType || "").trim().toLowerCase();
+    const currentHotelSlug = String((config as any)?.hotelSlug || "").trim().toLowerCase();
+    const isAquamarine =
+      ["aquamarin", "aquamarine"].includes(currentHotelSlug) ||
+      /aquamarine/i.test(String(config.hotelName || ""));
+
+    return isAquamarine && (defId === "coffee_capsules" || requestType === "coffee_capsules");
+  }
+
   function getRequestDefEffectivePrice(def: RequestDef) {
+    if (isAquamarineCoffeeCapsulesRequest(def)) return "2,05";
     if (def.id === "late_checkout") return def.price || "25,00";
     return def.price;
   }
 
   function getRequestDefEffectiveCurrency(def: RequestDef) {
+    if (isAquamarineCoffeeCapsulesRequest(def)) return "€";
     if (def.id === "late_checkout") return def.currency || "€";
     return def.currency;
   }
 
   function getRequestDefEffectiveRequiresBilling(def: RequestDef) {
-    return Boolean(def.requiresBilling || def.price || def.id === "late_checkout");
+    return Boolean(def.requiresBilling || getRequestDefEffectivePrice(def) || def.id === "late_checkout");
   }
 
   function getRequestDefEffectiveNotifyDepartments(def: RequestDef) {
@@ -3406,8 +3434,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   }
 
   function getRequestDefPriceHint(def: RequestDef) {
-    const price = String(def.price || "").trim();
-    const currency = String(def.currency || "").trim();
+    const price = String(getRequestDefEffectivePrice(def) || "").trim();
+    const currency = String(getRequestDefEffectiveCurrency(def) || "").trim();
     if (!price) return "";
 
     const suffix = def.requestKind === "quantity" || def.requiresQuantity
@@ -3425,8 +3453,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   }
 
   function getQuantityButtonLabel(def: RequestDef, qty: number) {
-    const unitPrice = parseMoneyValue(def.price);
-    const currency = String(def.currency || "€").trim();
+    const unitPrice = parseMoneyValue(getRequestDefEffectivePrice(def));
+    const currency = String(getRequestDefEffectiveCurrency(def) || "€").trim();
     const base = `${qty} ${getQtyUnitLabel()}`;
     if (!unitPrice) return base;
     return `${base} — ${formatMoneyValue(unitPrice * qty, currency)}`;
@@ -3595,8 +3623,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     }
 
     const extractedPrice = extractPriceFromText(option) || extractPriceFromText(bgSelected);
-    const requestPrice = String(def.price || extractedPrice?.price || "").trim();
-    const requestCurrency = String(def.currency || extractedPrice?.currency || "").trim();
+    const requestPrice = String(getRequestDefEffectivePrice(def) || extractedPrice?.price || "").trim();
+    const requestCurrency = String(getRequestDefEffectiveCurrency(def) || extractedPrice?.currency || "").trim();
 
     submitGuestRequest({
       type: String(def.requestType || def.id),
@@ -3615,8 +3643,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     if (!ensureConfirmedRoom()) return;
 
     const title = getRequestDefTitle(def) || def.id.replace(/_/g, " ");
-    const unitPrice = parseMoneyValue(def.price);
-    const currency = String(def.currency || "€").trim();
+    const effectivePrice = getRequestDefEffectivePrice(def);
+    const unitPrice = parseMoneyValue(effectivePrice);
+    const currency = String(getRequestDefEffectiveCurrency(def) || "€").trim();
     const total = unitPrice ? unitPrice * qty : null;
     const noteParts = [`Количество: ${qty}`];
 
@@ -3631,7 +3660,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       departmentOverride: getRequestDefDepartmentOverride(def),
       notifyDepartments: def.notifyDepartments,
       requiresBilling: def.requiresBilling,
-      price: total !== null ? total.toFixed(2).replace(".", ",") : def.price,
+      price: total !== null ? total.toFixed(2).replace(".", ",") : effectivePrice,
       currency,
       sourceRequestDef: def.id,
     });
@@ -4838,8 +4867,12 @@ EN: ${helpMsg}` : opsMsg,
     return id === "coffee_capsules" || requestType === "coffee_capsules";
   });
 
-  const coffeeCapsulesPrice = String(coffeeCapsulesRequestDef?.price || "2,05").trim();
-  const coffeeCapsulesCurrency = String(coffeeCapsulesRequestDef?.currency || "€").trim() || "€";
+  const coffeeCapsulesPrice = coffeeCapsulesRequestDef
+    ? String(getRequestDefEffectivePrice(coffeeCapsulesRequestDef) || "2,05").trim()
+    : "2,05";
+  const coffeeCapsulesCurrency = coffeeCapsulesRequestDef
+    ? String(getRequestDefEffectiveCurrency(coffeeCapsulesRequestDef) || "€").trim() || "€"
+    : "€";
 
   const mainRestaurantVenue = [...rawVenueRows]
     .filter((venue) => normalizeCategory(venue) === "restaurants")
@@ -5080,7 +5113,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   const aquamarineRecommendedPlaces: HubItem[] = isAquamarineHotel
     ? [
         {
-          label: "📍 New del Mar",
+          label: "📍 Del Mar Fish Restaurant & BBQ",
           kind: "link" as const,
           href: "https://www.facebook.com/p/Del-Mar-Fish-Restaurant-BBQ-100040199001878/",
           newTab: true,
