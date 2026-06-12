@@ -344,6 +344,7 @@ function parseHotelInfoRows(rows: Record<string, string>[]): Array<{
         de: readCell(row, ["Title DE", "title_de", "titleDe"]),
         ro: readCell(row, ["Title RO", "title_ro", "titleRo"]),
         cs: readCell(row, ["Title CS", "title_cs", "titleCs"]),
+        ru: readCell(row, ["Title RU", "title_ru", "titleRu"]),
       };
 
       const text = {
@@ -352,6 +353,7 @@ function parseHotelInfoRows(rows: Record<string, string>[]): Array<{
         de: readCell(row, ["Text DE", "Body DE", "text_de", "body_de", "textDe"]),
         ro: readCell(row, ["Text RO", "Body RO", "text_ro", "body_ro", "textRo"]),
         cs: readCell(row, ["Text CS", "Body CS", "text_cs", "body_cs", "textCs"]),
+        ru: readCell(row, ["Text RU", "Body RU", "text_ru", "body_ru", "textRu"]),
       };
 
       return {
@@ -570,7 +572,7 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     .filter(Boolean) as LangKey[];
 
   const effectiveLanguages = (languages.length ? languages : ["bg", "en", "de"]) as LangKey[];
-  const venueLanguages = Array.from(new Set([...effectiveLanguages, "bg", "en", "de", "ro", "cs"])) as LangKey[];
+  const venueLanguages = Array.from(new Set([...effectiveLanguages, "bg", "en", "de", "ro", "cs", "ru"])) as LangKey[];
   const requestDefs = parseRequestDefs(requestDefRows, effectiveLanguages);
 
   const hotelLatitude = pickOptionalNumber(mergedConfig, "hotelLatitude");

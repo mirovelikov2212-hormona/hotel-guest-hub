@@ -23,6 +23,7 @@ const SECTION_ICON_PREFIXES: Record<string, string> = {
   follow: "📱",
   explore: "🗺️",
   nearby: "🗺️",
+  weather: "🌤️",
   world_cup: "🏆",
   worldcup: "🏆",
   fifa: "🏆",
@@ -256,7 +257,7 @@ function getLanguageFallbackOrder(lang: LangKey | string): string[] {
   const alias = current === "cs" ? "cz" : current === "cz" ? "cs" : "";
 
   return Array.from(
-    new Set([current, alias, "en", "bg", "de", "ro", "cs"].filter(Boolean))
+    new Set([current, alias, "en", "bg", "de", "ro", "cs", "ru"].filter(Boolean))
   );
 }
 
@@ -323,6 +324,7 @@ const RESTAURANT_HOURS_TITLE_BY_LANG: Record<string, string> = {
   de: "Restaurant – Öffnungszeiten",
   ro: "Restaurant – program",
   cs: "Restaurace – otevírací doba",
+  ru: "Ресторан — часы работы",
 };
 
 const RESTAURANT_MEAL_LABELS_BY_LANG: Record<string, string[]> = {
@@ -331,6 +333,7 @@ const RESTAURANT_MEAL_LABELS_BY_LANG: Record<string, string[]> = {
   de: ["Frühstück", "Mittagessen", "Nachmittagssnack", "Abendessen"],
   ro: ["Mic dejun", "Prânz", "Gustare de după-amiază", "Cină"],
   cs: ["Snídaně", "Oběd", "Odpolední svačina", "Večeře"],
+  ru: ["Завтрак", "Обед", "Полдник", "Ужин"],
 };
 
 const GAME_ROOM_PRICING_BY_LANG: Record<string, string> = {
@@ -339,6 +342,7 @@ const GAME_ROOM_PRICING_BY_LANG: Record<string, string> = {
   de: "Billard und Tischtennis kosten 5,00 € pro Stunde. Alle anderen Spiele im Spielraum sind kostenlos.",
   ro: "Biliardul și tenisul de masă costă 5,00 € pe oră. Celelalte jocuri din sala de jocuri sunt gratuite.",
   cs: "Kulečník a stolní tenis stojí 5,00 € za hodinu. Ostatní hry v herně jsou zdarma.",
+  ru: "Бильярд и настольный теннис стоят 5,00 € в час. Остальные игры в игровой комнате бесплатны.",
 };
 
 function formatRestaurantHoursForLanguage(rawValue: string, lang: LangKey | string): string {
@@ -350,14 +354,252 @@ function formatRestaurantHoursForLanguage(rawValue: string, lang: LangKey | stri
   const ranges = normalized.match(/\d{1,2}:\d{2}\s*[-–—]\s*\d{1,2}:\d{2}/g) || [];
   if (ranges.length < 4) return normalized;
 
-  const languageKey = ["bg", "en", "de", "ro", "cs"].includes(String(lang)) ? String(lang) : "en";
+  const languageKey = ["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang)) ? String(lang) : "en";
   const labels = RESTAURANT_MEAL_LABELS_BY_LANG[languageKey] || RESTAURANT_MEAL_LABELS_BY_LANG.en;
   return labels.map((label, index) => `${label}: ${ranges[index]}`).join("\n");
 }
 
+
+const RU_BUILTIN_UI: Record<string, string> = {
+  install_app: "Установить приложение",
+  outlets_title: "Объекты и услуги",
+  hours: "Часы работы",
+  cuisine: "Кухня",
+  location: "Расположение",
+  age_group: "Возраст",
+  program: "Программа",
+  view_menu_pdf: "Посмотреть меню",
+  view_program: "Посмотреть программу",
+  reserve_now: "Забронировать",
+  hotel_info_title: "ℹ️ Информация",
+  section_info_title: "ℹ️ Информация",
+  section_animation_title: "🎭 Анимация",
+  section_world_cup_title: "🏆 Чемпионат мира 2026",
+  subsection_policies: "Правила",
+  outlet_type_restaurants: "Рестораны",
+  outlet_type_bars: "Бары",
+  outlet_type_spa: "СПА",
+  outlet_type_lounge: "Лаунж",
+  outlet_type_kids: "Детский клуб",
+  outlet_type_pool: "Бассейн",
+  outlet_type_gym: "Фитнес",
+  outlet_type_room_service: "Обслуживание номеров",
+  outlet_type_entertainment: "Развлечения",
+  room_cleaning: "Уборка номера",
+  extra_pillows: "Дополнительные подушки",
+  wake_up: "Звонок-будильник",
+  coffee_capsules: "Кофейные капсулы",
+  pillow_menu: "Меню подушек",
+  special_occasion: "Особый повод",
+  minibar: "Пополнение мини-бара",
+  coffee_machine: "Кофемашина",
+  ac_issue: "Кондиционер / отопление",
+  water_issue: "Проблема с водой",
+  something_broken: "Что-то сломано",
+  bathrobe: "Халат",
+  slippers: "Тапочки",
+  baby_cot: "Детская кроватка",
+  tv_issue: "Проблема с телевизором",
+  light_not_working: "Проблема с освещением",
+  bathroom_issue: "Проблема в ванной",
+  door_lock_issue: "Проблема с дверью / замком",
+  wifi_issue: "Проблема с Wi‑Fi",
+  power_outlet_issue: "Проблема с розеткой",
+  safe_issue: "Проблема с сейфом",
+  balcony_door_issue: "Проблема с балконной дверью",
+  minibar_not_cooling: "Мини-бар не охлаждает",
+  reception_general: "Вопрос на рецепцию",
+  information: "Информация",
+  luggage_help: "Помощь с багажом",
+  paid_service_notice: "Платная услуга. Сумма может быть начислена на счёт номера.",
+  laundry_paid_notice: "Услуга прачечной платная. После подтверждения запрос будет отправлен в housekeeping, а рецепция сможет начислить сумму на счёт номера.",
+  minibar_paid_notice: "Пополнение мини-бара — платная услуга. После подтверждения запрос будет отправлен в housekeeping, а рецепция сможет начислить сумму на счёт номера.",
+  something_broken_prompt: "Опишите, что сломано или повреждено:",
+  something_broken_required: "Пожалуйста, опишите неисправность, чтобы техническая служба могла правильно отреагировать.",
+  ai_intro: "Я могу помочь только с информацией об отеле: рестораны, бары, часы работы, СПА, детский клуб, игровая комната, удобства и услуги отеля.",
+  weather_title: "Погода",
+  weather_loading: "Загрузка прогноза...",
+  weather_error: "Не удалось загрузить прогноз. Попробуйте позже.",
+  ai_error: "Не удалось обработать запрос. Попробуйте ещё раз.",
+  ai_loading: "Думаю...",
+  ai_no_info: "У меня пока нет этой информации об отеле.",
+  ai_open: "Открыть AI-консьержа",
+  ai_placeholder: "Задайте вопрос об отеле...",
+  ai_send: "Отправить",
+  ai_title: "AI-консьерж",
+  attractions_nearby: "Достопримечательности рядом",
+  billing_note: "Платная услуга / начисление на номер",
+  blanket: "Дополнительное одеяло",
+  confirm_no_occasion: "Есть особый повод?\nOK = Без повода\nCancel = Указать повод",
+  continue_request: "Продолжить",
+  dept_closed_to_reception: "Сейчас этот отдел не работает. Запрос будет отправлен на рецепцию.",
+  emergency_call: "Позвонить на рецепцию",
+  emergency_title: "Экстренная помощь",
+  example_date: "15.06.2026",
+  example_time: "15:00",
+  explore_title: "Рядом с отелем",
+  hero_subtitle: "Всё необходимое для комфортного отдыха",
+  housekeeping_after_note: "После 17:00 запросы направляются на рецепцию.",
+  housekeeping_title: "Housekeeping",
+  housekeeping_title_after: "Housekeeping — после 17:00 рецепция",
+  info_title: "Информация",
+  invalid_date: "Неверная дата",
+  invalid_reservation_time: "Выбранное время находится вне часов работы.",
+  invalid_time: "Неверное время",
+  iron: "Утюг и гладильная доска",
+  label_option: "Выбор",
+  label_people: "Количество гостей",
+  label_quantity: "Количество",
+  label_time: "Время",
+  late_checkout: "Поздний выезд",
+  late_checkout_info: "Поздний выезд предоставляется за дополнительную плату. Условия и стоимость подтверждает рецепция.",
+  late_checkout_selected_time: "Выбранное время позднего выезда",
+  late_checkout_time_prompt: "Выберите время позднего выезда: 13:00 или 14:00",
+  laundry: "Прачечная",
+  leave_booking_review: "Отзыв на Booking.com",
+  leave_google_review: "Отзыв в Google",
+  leave_tripadvisor_review: "Отзыв на TripAdvisor",
+  light_issue: "Проблема с освещением",
+  maintenance_title: "Техническая служба",
+  minibar_notice: "Пополнение мини-бара — платная услуга, которая может быть начислена на счёт номера.",
+  no_occasion: "Без повода",
+  notice: "Ваш запрос будет отправлен непосредственно соответствующему отделу отеля.",
+  pharmacy: "Аптека рядом",
+  prompt_date: "Дата:",
+  prompt_occasion: "Повод (например, день рождения):",
+  prompt_people: "Количество гостей:",
+  prompt_time: "Время:",
+  reception_title: "Рецепция",
+  request_note_prompt: "Добавьте подробности (необязательно):",
+  request_option_prompt: "Выберите вариант:",
+  request_quantity_invalid: "Введите допустимое количество.",
+  request_quantity_prompt: "Количество:",
+  reservation_outside_hours: "Часы работы: {hours}",
+  restaurants_nearby: "Рестораны рядом",
+  reviews_intro: "Вам нравится отдых? Будем благодарны за ваш отзыв.",
+  reviews_title: "Отзывы",
+  social_intro: "Следите за новостями и предложениями отеля в социальных сетях.",
+  social_title: "Следите за нами",
+  taxi: "Такси",
+  toilet_paper: "Туалетная бумага",
+  towels: "Дополнительные полотенца",
+  wake_up_invalid: "Выберите допустимое время звонка-будильника.",
+  wake_up_select: "Выберите время звонка-будильника:",
+  wake_up_selected: "Выбранное время",
+  wifi_network: "Сеть Wi‑Fi",
+  wifi_password: "Пароль",
+  wifi_show: "Показать данные Wi‑Fi",
+  wifi_title: "Wi‑Fi",
+};
+
+type GuestWeatherDay = {
+  date: string;
+  weatherCode: number | null;
+  temperatureMax: number | null;
+  temperatureMin: number | null;
+  rainChance: number | null;
+};
+
+type GuestWeatherPayload = {
+  ok: boolean;
+  place?: string;
+  timezone?: string;
+  updatedAt?: string;
+  current?: {
+    temperature: number | null;
+    apparentTemperature: number | null;
+    humidity: number | null;
+    weatherCode: number | null;
+    cloudCover: number | null;
+    windSpeed: number | null;
+    windDirection: number | null;
+    precipitation: number | null;
+  };
+  daily?: GuestWeatherDay[];
+};
+
+const WEATHER_GUEST_COPY: Record<string, {
+  title: string;
+  loading: string;
+  error: string;
+  now: string;
+  feels: string;
+  humidity: string;
+  clouds: string;
+  wind: string;
+  rain: string;
+  today: string;
+  tomorrow: string;
+  updated: string;
+  localTime: string;
+}> = {
+  bg: { title: "Времето", loading: "Зареждане на прогнозата...", error: "Прогнозата временно не е достъпна.", now: "Сега", feels: "усеща се като", humidity: "Влажност", clouds: "Облачност", wind: "Вятър", rain: "Вероятност за валеж", today: "Днес", tomorrow: "Утре", updated: "Обновено", localTime: "Местно време" },
+  en: { title: "Weather", loading: "Loading forecast...", error: "The forecast is temporarily unavailable.", now: "Now", feels: "feels like", humidity: "Humidity", clouds: "Cloud cover", wind: "Wind", rain: "Chance of rain", today: "Today", tomorrow: "Tomorrow", updated: "Updated", localTime: "Local time" },
+  de: { title: "Wetter", loading: "Wetter wird geladen...", error: "Die Wettervorhersage ist vorübergehend nicht verfügbar.", now: "Aktuell", feels: "gefühlt", humidity: "Luftfeuchtigkeit", clouds: "Bewölkung", wind: "Wind", rain: "Regenwahrscheinlichkeit", today: "Heute", tomorrow: "Morgen", updated: "Aktualisiert", localTime: "Ortszeit" },
+  ro: { title: "Vremea", loading: "Se încarcă prognoza...", error: "Prognoza nu este disponibilă momentan.", now: "Acum", feels: "se simte ca", humidity: "Umiditate", clouds: "Nebulozitate", wind: "Vânt", rain: "Probabilitate de ploaie", today: "Astăzi", tomorrow: "Mâine", updated: "Actualizat", localTime: "Ora locală" },
+  cs: { title: "Počasí", loading: "Načítání předpovědi...", error: "Předpověď je dočasně nedostupná.", now: "Nyní", feels: "pocitově", humidity: "Vlhkost", clouds: "Oblačnost", wind: "Vítr", rain: "Pravděpodobnost deště", today: "Dnes", tomorrow: "Zítra", updated: "Aktualizováno", localTime: "Místní čas" },
+  ru: { title: "Погода", loading: "Загрузка прогноза...", error: "Прогноз временно недоступен.", now: "Сейчас", feels: "ощущается как", humidity: "Влажность", clouds: "Облачность", wind: "Ветер", rain: "Вероятность осадков", today: "Сегодня", tomorrow: "Завтра", updated: "Обновлено", localTime: "Местное время" },
+};
+
+function weatherConditionLabel(code: number | null | undefined, lang: LangKey | string) {
+  const key = Number(code);
+  const condition = key === 0 ? "clear"
+    : key === 1 || key === 2 ? "partly"
+      : key === 3 ? "cloudy"
+        : key === 45 || key === 48 ? "fog"
+          : key >= 51 && key <= 67 ? "rain"
+            : key >= 71 && key <= 77 ? "snow"
+              : key >= 80 && key <= 82 ? "showers"
+                : key >= 95 ? "storm"
+                  : "mixed";
+
+  const labels: Record<string, Record<string, string>> = {
+    clear: { bg: "ясно", en: "clear", de: "klar", ro: "senin", cs: "jasno", ru: "ясно" },
+    partly: { bg: "частично облачно", en: "partly cloudy", de: "teilweise bewölkt", ro: "parțial noros", cs: "polojasno", ru: "переменная облачность" },
+    cloudy: { bg: "облачно", en: "cloudy", de: "bewölkt", ro: "noros", cs: "zataženo", ru: "облачно" },
+    fog: { bg: "мъгла", en: "fog", de: "Nebel", ro: "ceață", cs: "mlha", ru: "туман" },
+    rain: { bg: "дъжд", en: "rain", de: "Regen", ro: "ploaie", cs: "déšť", ru: "дождь" },
+    snow: { bg: "сняг", en: "snow", de: "Schnee", ro: "ninsoare", cs: "sníh", ru: "снег" },
+    showers: { bg: "превалявания", en: "showers", de: "Schauer", ro: "averse", cs: "přeháňky", ru: "ливни" },
+    storm: { bg: "гръмотевична буря", en: "thunderstorm", de: "Gewitter", ro: "furtună", cs: "bouřka", ru: "гроза" },
+    mixed: { bg: "променливо", en: "variable", de: "wechselhaft", ro: "variabil", cs: "proměnlivo", ru: "переменная погода" },
+  };
+
+  const safeLang = ["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang)) ? String(lang) : "en";
+  return labels[condition]?.[safeLang] || labels[condition]?.en || "";
+}
+
+function weatherConditionIcon(code: number | null | undefined) {
+  const value = Number(code);
+  if (value === 0) return "☀️";
+  if (value === 1 || value === 2) return "🌤️";
+  if (value === 3) return "☁️";
+  if (value === 45 || value === 48) return "🌫️";
+  if (value >= 51 && value <= 67) return "🌧️";
+  if (value >= 71 && value <= 77) return "❄️";
+  if (value >= 80 && value <= 82) return "🌦️";
+  if (value >= 95) return "⛈️";
+  return "🌤️";
+}
+
+function compassDirection(degrees: number | null | undefined, lang: LangKey | string) {
+  if (!Number.isFinite(Number(degrees))) return "";
+  const directions: Record<string, string[]> = {
+    bg: ["С", "СИ", "И", "ЮИ", "Ю", "ЮЗ", "З", "СЗ"],
+    en: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"],
+    de: ["N", "NO", "O", "SO", "S", "SW", "W", "NW"],
+    ro: ["N", "NE", "E", "SE", "S", "SV", "V", "NV"],
+    cs: ["S", "SV", "V", "JV", "J", "JZ", "Z", "SZ"],
+    ru: ["С", "СВ", "В", "ЮВ", "Ю", "ЮЗ", "З", "СЗ"],
+  };
+  const safeLang = ["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang)) ? String(lang) : "en";
+  const index = Math.round((((Number(degrees) % 360) + 360) % 360) / 45) % 8;
+  return directions[safeLang]?.[index] || "";
+}
+
 function getBuiltinUiText(lang: LangKey | string, key: string) {
   const normalizedLang = String(lang || "").trim().toLowerCase();
-  const targetLang = ["bg", "de", "en", "ro", "cs"].includes(normalizedLang)
+  const targetLang = ["bg", "de", "en", "ro", "cs", "ru"].includes(normalizedLang)
     ? normalizedLang
     : "en";
 
@@ -644,7 +886,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
     },
   };
 
-  return copy[targetLang]?.[key] || "";
+  return targetLang === "ru" ? RU_BUILTIN_UI[key] || "" : copy[targetLang]?.[key] || "";
 }
 
 function getCategoryDisplayTitle(category: string, tUI: (k: string) => any) {
@@ -1159,7 +1401,9 @@ function getRequestActionLabel(lang: LangKey): string {
         ? "Solicită"
         : lang === "cs"
           ? "Objednat"
-          : "Request";
+          : lang === "ru"
+            ? "Отправить запрос"
+            : "Request";
 }
 
 function readBooleanConfigValue(value: unknown, fallback = false) {
@@ -1209,7 +1453,7 @@ function normalizeRoomNumber(value: unknown) {
 
 const GUEST_LANGUAGE_STORAGE_KEY = "stayhub_guest_language";
 const GUEST_INTRO_STORAGE_PREFIX = "stayhub_guest_intro_seen";
-const SUPPORTED_GUEST_LANGS: LangKey[] = ["bg", "en", "de", "ro", "cs"];
+const SUPPORTED_GUEST_LANGS: LangKey[] = ["bg", "en", "de", "ro", "cs", "ru"];
 
 function parseGuestLang(value: unknown): LangKey | null {
   const normalized = String(value || "").trim().toLowerCase();
@@ -1219,7 +1463,8 @@ function parseGuestLang(value: unknown): LangKey | null {
     normalized === "de" ||
     normalized === "en" ||
     normalized === "ro" ||
-    normalized === "cs"
+    normalized === "cs" ||
+    normalized === "ru"
   ) {
     return normalized as LangKey;
   }
@@ -1306,6 +1551,11 @@ function getGuestIntroCopy(lang: LangKey, hotelName?: string) {
       title: "Vítejte u svého digitálního concierge",
       body: `Toto je váš digitální asistent během pobytu v ${name}. Najdete zde informace o hotelu, restauraci, barech, Wi‑Fi, počasí, animaci a užitečných místech v okolí. Můžete také posílat požadavky na recepci, housekeeping a údržbu. Abychom službu přiřadili k vašemu pokoji, zadejte prosím číslo pokoje.`,
       button: "Rozumím, pokračovat",
+    },
+    ru: {
+      title: "Добро пожаловать в цифровой консьерж",
+      body: `Это ваш цифровой помощник во время пребывания в ${name}. Здесь вы найдёте информацию об отеле, ресторане, барах, Wi‑Fi, погоде, анимации и полезных местах поблизости. Вы также можете отправлять запросы на рецепцию, в housekeeping и техническую службу. Чтобы связать услугу с вашим номером, пожалуйста, введите номер комнаты.`,
+      button: "Понятно, продолжить",
     },
   };
 
@@ -1664,6 +1914,56 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     Number.isFinite(hotelLatitude) &&
     Number.isFinite(hotelLongitude);
 
+  const [weatherData, setWeatherData] = useState<GuestWeatherPayload | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(true);
+  const [weatherError, setWeatherError] = useState(false);
+  const [weatherClock, setWeatherClock] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setWeatherClock(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let refreshTimer: number | undefined;
+
+    const loadWeather = async () => {
+      try {
+        setWeatherLoading(true);
+        const params = new URLSearchParams();
+        if (Number.isFinite(hotelLatitude)) params.set("lat", String(hotelLatitude));
+        if (Number.isFinite(hotelLongitude)) params.set("lon", String(hotelLongitude));
+        if (config.location?.query) params.set("query", String(config.location.query));
+        if (config.hotelName) params.set("place", String(config.hotelName));
+
+        const response = await fetch(`/api/weather?${params.toString()}`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as GuestWeatherPayload;
+        if (!response.ok || !payload?.ok) throw new Error("weather_unavailable");
+
+        setWeatherData(payload);
+        setWeatherError(false);
+      } catch (error) {
+        if ((error as Error)?.name === "AbortError") return;
+        console.error("Guest weather load failed", error);
+        setWeatherError(true);
+      } finally {
+        setWeatherLoading(false);
+      }
+    };
+
+    void loadWeather();
+    refreshTimer = window.setInterval(() => void loadWeather(), 10 * 60_000);
+
+    return () => {
+      controller.abort();
+      if (refreshTimer) window.clearInterval(refreshTimer);
+    };
+  }, [config.hotelName, config.location?.query, hotelLatitude, hotelLongitude]);
+
   const ensureGuestIsNearHotel = useCallback(async () => {
     if (!canUseGeoGuard) {
       setGeoMessage(null);
@@ -1675,7 +1975,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         ? "Това действие е позволено само в рамките на хотела. Разрешете достъп до местоположението и опитайте отново."
         : lang === "de"
           ? "Diese Funktion ist nur innerhalb des Hotelbereichs erlaubt. Bitte Standortfreigabe erlauben und erneut versuchen."
-          : "This action is allowed only within the hotel area. Please allow location access and try again.";
+          : lang === "ru"
+            ? "Эта функция доступна только на территории отеля. Разрешите доступ к местоположению и попробуйте снова."
+            : "This action is allowed only within the hotel area. Please allow location access and try again.";
 
     if (!("geolocation" in navigator)) {
       const msg = getGeoErrorMessage();
@@ -1702,7 +2004,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
                 ? "Това действие е позволено само в рамките на хотела."
                 : lang === "de"
                   ? "Diese Funktion ist nur innerhalb des Hotelbereichs erlaubt."
-                  : "This action is allowed only within the hotel area.";
+                  : lang === "ru"
+                    ? "Эта функция доступна только на территории отеля."
+                    : "This action is allowed only within the hotel area.";
 
             setGeoMessage(msg);
             window.alert(msg);
@@ -1748,10 +2052,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
     const preferred =
       currentLang === "ro"
-        ? ["ro", "en", "bg", "de", "cs"]
+        ? ["ro", "en", "bg", "de", "cs", "ru"]
         : currentLang === "cs"
-          ? ["cs", "en", "bg", "de", "ro"]
-          : [currentLang, "en", "bg", "de"];
+          ? ["cs", "en", "bg", "de", "ro", "ru"]
+          : currentLang === "ru"
+            ? ["ru", "en", "bg", "de", "ro", "cs"]
+            : [currentLang, "en", "bg", "de", "ro", "cs", "ru"];
 
     return Array.from(new Set(preferred)) as LangKey[];
   }, [lang]);
@@ -1943,6 +2249,40 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         status_returned: "Primită",
         lockedActionAlert: "Vă rugăm să confirmați mai întâi numărul camerei pentru a debloca funcțiile.",
       },
+      ru: {
+        roomBadge: "Номер {room}",
+        cardTitle: "Подтвердите номер комнаты",
+        cardText: "Чтобы открыть функции отеля, введите и подтвердите номер комнаты.",
+        inputLabel: "Номер комнаты",
+        inputPlaceholder: "Например: 204",
+        confirmButton: "Подтвердить номер",
+        confirmMessage: "Вы уверены, что это ваш номер?\nНомер {room}",
+        confirmedState: "Подтверждённый номер: {room}",
+        changeRoom: "Сменить номер",
+        changeRoomWarningTitle: "Смена номера",
+        changeRoomWarningText: "Меняйте активный номер только в том случае, если вас действительно переселили. Затем введите и подтвердите новый номер.",
+        changeRoomContinue: "Продолжить",
+        lockedNotice: "Закрытые разделы откроются после ввода номера комнаты.",
+        lockedSectionMessage: "Подтвердите номер комнаты, чтобы открыть этот раздел.",
+        missingRoomAlert: "Пожалуйста, введите номер комнаты.",
+        invalidRoomAlert: "Пожалуйста, введите действительный номер комнаты отеля.",
+        missingRoomQrAlert: "Номер комнаты отсутствует. Отсканируйте QR-код ещё раз или введите номер вручную.",
+        requestSent: "Запрос отправлен: {typeLabel}",
+        requestAcceptedTitle: "Запрос принят",
+        requestAcceptedText: "Ваш запрос принят и будет обработан как можно скорее.",
+        requestSendingTitle: "Отправка запроса",
+        requestSendingText: "Пожалуйста, подождите. Отправляется: {typeLabel}",
+        requestFailed: "Не удалось отправить запрос. Попробуйте ещё раз.",
+        myRequestsTitle: "Мои запросы",
+        myRequestsEmpty: "С этого устройства ещё не было отправлено запросов.",
+        myRequestsLoading: "Загрузка статусов...",
+        refreshRequests: "Обновить",
+        status_new: "Принят",
+        status_in_progress: "В работе",
+        status_completed: "Выполнен",
+        status_returned: "Принят",
+        lockedActionAlert: "Сначала подтвердите номер комнаты, чтобы открыть функции.",
+      },
       cs: {
         roomBadge: "Pokoj {room}",
         cardTitle: "Potvrďte číslo pokoje",
@@ -1979,7 +2319,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       },
     } as const;
 
-    if (lang === "bg" || lang === "en" || lang === "de" || lang === "ro" || lang === "cs") {
+    if (lang === "bg" || lang === "en" || lang === "de" || lang === "ro" || lang === "cs" || lang === "ru") {
       return copy[lang];
     }
 
@@ -1996,6 +2336,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         "I can help only with hotel information – restaurants, bars, opening hours, spa, kids club, games room, facilities and hotel services.",
       de:
         "Ich kann nur mit Hotelinformationen helfen – Restaurants, Bars, Öffnungszeiten, Spa, Kinderclub, Spielzimmer, Einrichtungen und Hoteldienstleistungen.",
+      ru:
+        "Я могу помочь только с информацией об отеле: рестораны, бары, часы работы, СПА, детский клуб, игровая комната, удобства и услуги отеля.",
     } as const;
 
     const translated = String(tUI("ai_intro") || "").trim();
@@ -2004,7 +2346,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       return translated;
     }
 
-    return map[(lang as "bg" | "en" | "de")] || map.bg;
+    return map[(lang as "bg" | "en" | "de" | "ru")] || map.bg;
   }, [lang, tUI]);
 
   const guestStatusLabel = useCallback(
@@ -2370,7 +2712,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       title: roomCopy.changeRoomWarningTitle,
       message: roomCopy.changeRoomWarningText,
       confirmLabel: roomCopy.changeRoomContinue,
-      cancelLabel: lang === "bg" ? "Отказ" : lang === "de" ? "Abbrechen" : "Cancel",
+      cancelLabel: lang === "bg" ? "Отказ" : lang === "de" ? "Abbrechen" : lang === "ru" ? "Отмена" : "Cancel",
       onConfirm: () => {
         trackGuestEvent({
           eventName: "room_change_started",
@@ -2777,7 +3119,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       ? "Късният check-out се предлага срещу допълнително заплащане. Точните условия и цена се потвърждават от рецепция."
       : lang === "de"
         ? "Late Check-out wird gegen Aufpreis angeboten. Die genauen Konditionen und der Preis werden von der Rezeption bestätigt."
-        : "Late checkout is available for an additional charge. Final conditions and pricing are confirmed by reception.")
+        : lang === "ru"
+          ? "Поздний выезд предоставляется за дополнительную плату. Точные условия и стоимость подтверждаются на рецепции."
+          : "Late checkout is available for an additional charge. Final conditions and pricing are confirmed by reception.")
   ).trim();
 
   const minibarNotice = String(
@@ -2810,15 +3154,17 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       bg: (section: string) => `Изпратете заявката от секцията ${section} в хъба.`,
       en: (section: string) => `Send the request from the ${section} section in the hub.`,
       de: (section: string) => `Senden Sie die Anfrage über den Bereich ${section} im Hub.`,
+      ru: (section: string) => `Отправьте запрос через раздел ${section} в хабе.`,
     } as const;
 
     const slotLabelByLang = {
       bg: (slots: string) => `Налични часове: ${slots}.`,
       en: (slots: string) => `Available times: ${slots}.`,
       de: (slots: string) => `Verfügbare Zeiten: ${slots}.`,
+      ru: (slots: string) => `Доступное время: ${slots}.`,
     } as const;
 
-    const currentLang = (lang === "bg" || lang === "en" || lang === "de") ? lang : "en";
+    const currentLang = (lang === "bg" || lang === "en" || lang === "de" || lang === "ru") ? lang : "en";
 
     return requestDefs
       .filter((def) => def.aiVisible !== false && def.guestVisible !== false)
@@ -2940,6 +3286,23 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         hotWater: `Puteți raporta o problemă cu apa caldă din secțiunea ${sectionLabels.maintenance}.`,
         broken: `Puteți raporta o problemă tehnică din secțiunea ${sectionLabels.maintenance}.`,
       },
+      ru: {
+        requestFrom: (label: string, section: string) =>
+          `Да, вы можете заказать ${label.toLowerCase()} в разделе ${section} хаба.`,
+        laundry:
+          "Для услуги прачечной, пожалуйста, обратитесь на рецепцию.",
+        lateCheckout:
+          lateCheckoutInfo ||
+          "Поздний выезд предоставляется за дополнительную плату. Окончательные условия и стоимость подтверждает рецепция.",
+        wakeUp: `Вы можете заказать звонок-будильник в разделе ${sectionLabels.reception}. Доступное время: ${wakeUpSlots.join(", ")}.`,
+        minibar: minibarNotice
+          ? `${minibarNotice} Пополнение мини-бара можно заказать в разделе ${sectionLabels.housekeeping}.`
+          : `Пополнение мини-бара можно заказать в разделе ${sectionLabels.housekeeping}.`,
+        taxi: `Такси можно заказать в разделе ${sectionLabels.reception}.`,
+        ac: `О проблеме с кондиционером можно сообщить в разделе ${sectionLabels.maintenance}.`,
+        hotWater: `Об отсутствии горячей воды можно сообщить в разделе ${sectionLabels.maintenance}.`,
+        broken: `О технической неисправности можно сообщить в разделе ${sectionLabels.maintenance}.`,
+      },
       cs: {
         requestFrom: (label: string, section: string) =>
           `Ano, ${label.toLowerCase()} můžete požádat v sekci ${section} v hubu.`,
@@ -2959,7 +3322,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       },
     } as const;
 
-    const c = copy[(lang === "bg" || lang === "en" || lang === "de" || lang === "ro" || lang === "cs") ? lang : "en"];
+    const c = copy[(lang === "bg" || lang === "en" || lang === "de" || lang === "ro" || lang === "cs" || lang === "ru") ? lang : "en"];
 
     const legacyServices = [
       {
@@ -3083,13 +3446,13 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     openRequestDialog({
       title:
         String(tUI("info_title") || "").trim() ||
-        (lang === "bg" ? "Информация" : lang === "de" ? "ℹ️ Information" : "ℹ️ Information"),
+        (lang === "bg" ? "Информация" : lang === "de" ? "ℹ️ Information" : lang === "ru" ? "ℹ️ Информация" : "ℹ️ Information"),
       message,
       confirmLabel:
         String(tUI("continue_request") || "").trim() ||
-        (lang === "bg" ? "Продължи" : lang === "de" ? "Weiter" : "Continue"),
+        (lang === "bg" ? "Продължи" : lang === "de" ? "Weiter" : lang === "ru" ? "Продолжить" : "Continue"),
       cancelLabel:
-        lang === "bg" ? "Отказ" : lang === "de" ? "Abbrechen" : "Cancel",
+        lang === "bg" ? "Отказ" : lang === "de" ? "Abbrechen" : lang === "ru" ? "Отмена" : "Cancel",
       onConfirm,
     });
   }
@@ -3133,7 +3496,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         ? "Изберете час за късен check-out: 13:00 или 14:00"
         : lang === "de"
           ? "Wählen Sie die Uhrzeit für Late Check-out: 13:00 oder 14:00"
-          : "Choose late check-out time: 13:00 or 14:00",
+          : lang === "ru"
+            ? "Выберите время позднего выезда: 13:00 или 14:00"
+            : "Choose late check-out time: 13:00 or 14:00",
       "13:00"
     );
 
@@ -3147,7 +3512,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         ? "Моля, въведете само 13:00 или 14:00."
         : lang === "de"
           ? "Bitte geben Sie nur 13:00 oder 14:00 ein."
-          : "Please enter only 13:00 or 14:00."
+          : lang === "ru"
+            ? "Пожалуйста, введите только 13:00 или 14:00."
+            : "Please enter only 13:00 or 14:00."
     );
 
     return null;
@@ -3200,7 +3567,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             ? "Желан час за късен чек-аут:"
             : lang === "de"
               ? "Gewünschte Uhrzeit für den späten Check-out:"
-              : "Desired late checkout time:")
+              : lang === "ru"
+                ? "Желаемое время позднего выезда:"
+                : "Desired late checkout time:")
         )
         : String(tUI("prompt_time") || "Time:");
 
@@ -3224,7 +3593,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             ? "Желан час за напускане"
             : lang === "de"
               ? "Gewünschte Check-out-Zeit"
-              : "Desired checkout time")
+              : lang === "ru"
+                ? "Желаемое время выезда"
+                : "Desired checkout time")
         )
         : String(tUI("label_time") || "Time");
 
@@ -3337,7 +3708,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         title,
         message: infoMessage || title,
         confirmLabel:
-          lang === "bg" ? "Затвори" : lang === "de" ? "Schließen" : lang === "ro" ? "Închide" : lang === "cs" ? "Zavřít" : "Close",
+          lang === "bg" ? "Затвори" : lang === "de" ? "Schließen" : lang === "ro" ? "Închide" : lang === "cs" ? "Zavřít" : lang === "ru" ? "Закрыть" : "Close",
       });
       return;
     }
@@ -3430,6 +3801,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     if (lang === "de") return "Stk.";
     if (lang === "ro") return "buc.";
     if (lang === "cs") return "ks";
+    if (lang === "ru") return "шт.";
     return "pcs";
   }
 
@@ -3439,7 +3811,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     if (!price) return "";
 
     const suffix = def.requestKind === "quantity" || def.requiresQuantity
-      ? (lang === "bg" ? " / бр." : lang === "de" ? " / Stk." : lang === "ro" ? " / buc." : lang === "cs" ? " / ks" : " each")
+      ? (lang === "bg" ? " / бр." : lang === "de" ? " / Stk." : lang === "ro" ? " / buc." : lang === "cs" ? " / ks" : lang === "ru" ? " / шт." : " each")
       : "";
 
     return [price, currency].filter(Boolean).join(" ") + suffix;
@@ -3524,7 +3896,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             ? `Masajele pot fi rezervate doar în programul Spa: ${hours}.`
             : lang === "cs"
               ? `Masáže lze rezervovat pouze během otevírací doby Spa: ${hours}.`
-              : `Масажите могат да се резервират само в работното време на СПА центъра: ${hours}.`;
+              : lang === "ru"
+                ? `Массаж можно забронировать только в часы работы СПА: ${hours}.`
+                : `Масажите могат да се резервират само в работното време на СПА центъра: ${hours}.`;
 
     const finish =
       durationMinutes > 0
@@ -3536,7 +3910,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
               ? " Vă rugăm să alegeți o oră astfel încât terapia să se încheie în timpul programului."
               : lang === "cs"
                 ? " Zvolte prosím čas tak, aby terapie skončila v rámci otevírací doby."
-                : " Моля изберете час, така че терапията да приключи в рамките на работното време."
+                : lang === "ru"
+                  ? " Пожалуйста, выберите время так, чтобы процедура завершилась в часы работы."
+                  : " Моля изберете час, така че терапията да приключи в рамките на работното време."
         : "";
 
     return base + finish;
@@ -3760,7 +4136,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       if (!isGamesRoom) return venue;
 
       const descriptionByLang = { ...(venue.descriptionByLang || {}) };
-      for (const languageKey of ["bg", "en", "de", "ro", "cs"]) {
+      for (const languageKey of ["bg", "en", "de", "ro", "cs", "ru"]) {
         const existing = String(descriptionByLang[languageKey] || "").trim();
         const pricing = GAME_ROOM_PRICING_BY_LANG[languageKey];
         if (!pricing || /5(?:[.,]00)?\s*€/.test(existing)) continue;
@@ -4146,6 +4522,25 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       };
     }
 
+    if (lang === "ru") {
+      return {
+        title: "Подтвердите запрос",
+        room: "Номер",
+        service: "Услуга",
+        details: "Подробности",
+        option: "Выбор",
+        quantity: "Количество",
+        total: "Общая стоимость",
+        date: "Дата",
+        time: "Время",
+        price: "Цена",
+        paidNotice: "Это платная услуга, сумма может быть начислена на счёт номера.",
+        question: "Вы уверены, что хотите отправить этот запрос?",
+        cancel: "ОТМЕНА",
+        confirm: "ПОДТВЕРДИТЬ И ОТПРАВИТЬ",
+      };
+    }
+
     if (lang === "cs") {
       return {
         title: "Potvrďte požadavek",
@@ -4482,6 +4877,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const getVenueReservationTitle = (venueName: string) => {
     if (lang === "de") return `Reservierung: ${venueName}`;
     if (lang === "en") return `Reservation: ${venueName}`;
+    if (lang === "ru") return `Бронирование: ${venueName}`;
     return `Резервация: ${venueName}`;
   };
 
@@ -4903,7 +5299,7 @@ EN: ${helpMsg}` : opsMsg,
           /(^|\s)(breakfast|закуска|frühstück|mic dejun|snídaně)(\s|$)/i.test(identity);
 
         if (isRestaurantHoursInfo && restaurantHoursText) {
-          const languageKey = ["bg", "en", "de", "ro", "cs"].includes(String(lang)) ? String(lang) : "en";
+          const languageKey = ["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang)) ? String(lang) : "en";
           icon = "🍽️";
           title = RESTAURANT_HOURS_TITLE_BY_LANG[languageKey] || RESTAURANT_HOURS_TITLE_BY_LANG.en;
           info = restaurantHoursText;
@@ -4939,7 +5335,7 @@ EN: ${helpMsg}` : opsMsg,
 
   const toAnimationHubItem = useCallback(
     (item: any): HubItem => {
-      const currentLang = (["bg", "de", "en", "ro", "cs"].includes(String(lang || "")) ? lang : "en") as LangKey;
+      const currentLang = (["bg", "de", "en", "ro", "cs", "ru"].includes(String(lang || "")) ? lang : "en") as LangKey;
       const defaults: Record<LangKey, { title: string; text: string }> = {
         bg: {
           title: "🎭 Анимация",
@@ -4960,6 +5356,10 @@ EN: ${helpMsg}` : opsMsg,
         cs: {
           title: "Animační program",
           text: "Informace od našeho animačního týmu.",
+        },
+        ru: {
+          title: "Анимационная программа",
+          text: "Информация от нашей команды аниматоров.",
         },
       };
 
@@ -5001,7 +5401,7 @@ EN: ${helpMsg}` : opsMsg,
       id: "info",
       title:
         String(tUI("hotel_info_title") || tUI("section_info_title") || "").trim() ||
-        (lang === "bg" ? "ℹ️ Инфо" : lang === "de" ? "ℹ️ Info" : lang === "ro" ? "Informații" : lang === "cs" ? "Informace" : "ℹ️ Info"),
+        (lang === "bg" ? "ℹ️ Инфо" : lang === "de" ? "ℹ️ Info" : lang === "ro" ? "Informații" : lang === "cs" ? "Informace" : lang === "ru" ? "ℹ️ Информация" : "ℹ️ Info"),
       items,
     } satisfies HubSection;
   }, [buildRequestDefItems, hotelInfoItems, isHotelInfoGroup, lang, tUI, toAnimationHubItem]);
@@ -5020,7 +5420,7 @@ EN: ${helpMsg}` : opsMsg,
     return {
       id: "animation",
       title: String(tUI("section_animation_title") || "").trim() ||
-        (lang === "bg" ? "🎭 Анимация" : lang === "de" ? "🎭 Animation" : lang === "ro" ? "🎭 Animație" : lang === "cs" ? "🎭 Animace" : "🎭 Animation"),
+        (lang === "bg" ? "🎭 Анимация" : lang === "de" ? "🎭 Animation" : lang === "ro" ? "🎭 Animație" : lang === "cs" ? "🎭 Animace" : lang === "ru" ? "🎭 Анимация" : "🎭 Animation"),
       items,
     } satisfies HubSection;
   }, [buildRequestDefItems, hotelInfoItems, isHotelInfoGroup, lang, tUI, toHotelInfoHubItem]);
@@ -5155,6 +5555,95 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     } satisfies HubSection)
     : null;
 
+  const weatherLang = ["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang))
+    ? String(lang)
+    : "en";
+  const weatherCopy = WEATHER_GUEST_COPY[weatherLang] || WEATHER_GUEST_COPY.en;
+  const weatherLocale: Record<string, string> = {
+    bg: "bg-BG",
+    en: "en-GB",
+    de: "de-DE",
+    ro: "ro-RO",
+    cs: "cs-CZ",
+    ru: "ru-RU",
+  };
+  const weatherCurrent = weatherData?.current;
+  const weatherLocalTime = (() => {
+    try {
+      return new Intl.DateTimeFormat(weatherLocale[weatherLang] || "en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: weatherData?.timezone || "Europe/Sofia",
+      }).format(new Date(weatherClock));
+    } catch {
+      return new Date(weatherClock).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+  })();
+
+  const weatherDayLabel = (date: string, index: number) => {
+    if (index === 0) return weatherCopy.today;
+    if (index === 1) return weatherCopy.tomorrow;
+
+    try {
+      return new Intl.DateTimeFormat(weatherLocale[weatherLang] || "en-GB", {
+        weekday: "long",
+        day: "2-digit",
+        month: "2-digit",
+      }).format(new Date(`${date}T12:00:00`));
+    } catch {
+      return date;
+    }
+  };
+
+  const weatherInfo = (() => {
+    if (weatherLoading && !weatherData) return weatherCopy.loading;
+    if (weatherError && !weatherData) return weatherCopy.error;
+    if (!weatherData?.ok || !weatherCurrent) return weatherCopy.error;
+
+    const currentCode = weatherCurrent.weatherCode;
+    const temperature = weatherCurrent.temperature;
+    const apparent = weatherCurrent.apparentTemperature;
+    const windDirection = compassDirection(weatherCurrent.windDirection, weatherLang);
+    const lines = [
+      `${weatherCopy.localTime}: ${weatherLocalTime}`,
+      `${weatherCopy.now}: ${weatherConditionIcon(currentCode)} ${weatherConditionLabel(currentCode, weatherLang)}${temperature != null ? ` · ${Math.round(temperature)}°C` : ""}${apparent != null ? ` (${weatherCopy.feels}: ${Math.round(apparent)}°C)` : ""}`,
+      weatherCurrent.humidity != null ? `${weatherCopy.humidity}: ${Math.round(weatherCurrent.humidity)}%` : "",
+      weatherCurrent.cloudCover != null ? `${weatherCopy.clouds}: ${Math.round(weatherCurrent.cloudCover)}%` : "",
+      weatherCurrent.windSpeed != null ? `${weatherCopy.wind}: ${Math.round(weatherCurrent.windSpeed)} km/h${windDirection ? ` ${windDirection}` : ""}` : "",
+      weatherData.daily?.[0]?.rainChance != null ? `${weatherCopy.rain}: ${Math.round(weatherData.daily[0].rainChance as number)}%` : "",
+      "",
+      ...(weatherData.daily || []).slice(0, 3).map((day, index) => {
+        const min = day.temperatureMin != null ? `${Math.round(day.temperatureMin)}°` : "–";
+        const max = day.temperatureMax != null ? `${Math.round(day.temperatureMax)}°` : "–";
+        const rain = day.rainChance != null ? ` · ${weatherCopy.rain}: ${Math.round(day.rainChance)}%` : "";
+        return `${weatherDayLabel(day.date, index)}: ${weatherConditionIcon(day.weatherCode)} ${weatherConditionLabel(day.weatherCode, weatherLang)} · ${min}/${max}${rain}`;
+      }),
+      weatherData.updatedAt ? `${weatherCopy.updated}: ${String(weatherData.updatedAt).slice(11, 16)}` : "",
+    ].filter((line, index, all) => line !== "" || (index > 0 && all[index - 1] !== ""));
+
+    return lines.join("\n").trim();
+  })();
+
+  const weatherSection: HubSection = {
+    id: "weather",
+    title: String(tUI("weather_title") || weatherCopy.title),
+    items: [
+      {
+        label: weatherCurrent?.temperature != null
+          ? `${weatherConditionIcon(weatherCurrent.weatherCode)} ${Math.round(weatherCurrent.temperature)}°C · ${weatherConditionLabel(weatherCurrent.weatherCode, weatherLang)}`
+          : "",
+        kind: "info",
+        info: weatherInfo,
+      },
+      {
+        label: "Weather data by Open-Meteo.com",
+        kind: "link",
+        href: "https://open-meteo.com/",
+        newTab: true,
+      },
+    ],
+  };
+
   const reviewIntroLabel = String(
     tUI("reviews_intro") ||
     (lang === "bg"
@@ -5165,7 +5654,9 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           ? "Vă place sejurul? Ne-ar bucura să ne lăsați o recenzie."
           : lang === "cs"
             ? "Líbí se Vám pobyt? Budeme rádi za Vaše hodnocení."
-            : "Enjoying your stay? We would be grateful for your review.")
+            : lang === "ru"
+              ? "Вам нравится отдых? Будем благодарны за ваш отзыв."
+              : "Enjoying your stay? We would be grateful for your review.")
   );
 
   const reviewIntroText = reviewIntroLabel.replace(/\?\s+/, "?\n");
@@ -5220,8 +5711,9 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     de: { title: "Folgen Sie uns", intro: "Folgen Sie uns in den sozialen Medien für Neuigkeiten, Fotos und Angebote." },
     ro: { title: "Urmăriți-ne", intro: "Urmăriți-ne pe rețelele sociale pentru noutăți, fotografii și oferte speciale." },
     cs: { title: "Sledujte nás", intro: "Sledujte nás na sociálních sítích pro novinky, fotografie a speciální nabídky." },
+    ru: { title: "Подписывайтесь на нас", intro: "Следите за нами в социальных сетях, чтобы узнавать новости, смотреть фотографии и специальные предложения." },
   } as const;
-  const socialLang = (lang === "bg" || lang === "en" || lang === "de" || lang === "ro" || lang === "cs") ? lang : "en";
+  const socialLang = (lang === "bg" || lang === "en" || lang === "de" || lang === "ro" || lang === "cs" || lang === "ru") ? lang : "en";
   const socialLinks = config.socialLinks ?? {};
   const socialIntro = String(tUI("social_intro") || socialCopy[socialLang].intro);
   const socialSection = (socialLinks.facebook || socialLinks.instagram || socialLinks.tiktok || socialLinks.youtube)
@@ -5259,6 +5751,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   const sections: HubSection[] = [
     ...(wifiSection ? [wifiSection] : []),
     ...(hotelInfoSection ? [hotelInfoSection] : []),
+    weatherSection,
     {
       id: "reception",
       title: tUI("reception_title") || "Reception",
@@ -5408,7 +5901,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                     title: String(tUI(x.labelKey) || x.labelKey),
                     message: action.getMessage(lang),
                     confirmLabel:
-                      lang === "bg" ? "Затвори" : lang === "de" ? "Schließen" : lang === "ro" ? "Închide" : lang === "cs" ? "Zavřít" : "Close",
+                      lang === "bg" ? "Затвори" : lang === "de" ? "Schließen" : lang === "ro" ? "Închide" : lang === "cs" ? "Zavřít" : lang === "ru" ? "Закрыть" : "Close",
                   });
                 },
               };
@@ -5835,12 +6328,16 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                   ? "Смяна на стая"
                   : lang === "de"
                     ? "Zimmer wechseln"
-                    : "Switch room"
+                    : lang === "ru"
+                      ? "Смена номера"
+                      : "Switch room"
                 : lang === "bg"
                   ? "Потвърждение на стая"
                   : lang === "de"
                     ? "Zimmer bestätigen"
-                    : "Confirm room"}
+                    : lang === "ru"
+                      ? "Подтверждение номера"
+                      : "Confirm room"}
             </div>
 
             <p className="mt-3 whitespace-pre-line text-sm leading-6 text-neutral-200">
@@ -5849,7 +6346,9 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                   ? `В момента устройството е активно за стая ${roomModal.currentRoom}. Сменяйте стаята само ако наистина сте преместени в друга стая. Сигурни ли сте, че искате да преминете към стая ${roomModal.nextRoom}?`
                   : lang === "de"
                     ? `Dieses Gerät ist aktuell für Zimmer ${roomModal.currentRoom} aktiv. Wechseln Sie das Zimmer nur, wenn Sie tatsächlich in ein anderes Zimmer umgezogen sind. Sind Sie sicher, dass Sie zu Zimmer ${roomModal.nextRoom} wechseln möchten?`
-                    : `This device is currently active for room ${roomModal.currentRoom}. Change the room only if you have actually been moved to another room. Are you sure you want to switch to room ${roomModal.nextRoom}?`
+                    : lang === "ru"
+                      ? `Сейчас устройство привязано к номеру ${roomModal.currentRoom}. Меняйте номер только в том случае, если вас действительно переселили. Вы уверены, что хотите перейти к номеру ${roomModal.nextRoom}?`
+                      : `This device is currently active for room ${roomModal.currentRoom}. Change the room only if you have actually been moved to another room. Are you sure you want to switch to room ${roomModal.nextRoom}?`
                 : roomCopy.confirmMessage.replace("{room}", roomModal.nextRoom)}
             </p>
 
@@ -5859,7 +6358,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 onClick={cancelRoomConfirmation}
                 className="rounded-xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white"
               >
-                {lang === "bg" ? "Отказ" : lang === "de" ? "Abbrechen" : "Cancel"}
+                {lang === "bg" ? "Отказ" : lang === "de" ? "Abbrechen" : lang === "ru" ? "Отмена" : "Cancel"}
               </button>
 
               <button
@@ -5873,12 +6372,16 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                     ? "Смени стаята"
                     : lang === "de"
                       ? "Zimmer wechseln"
-                      : "Switch room"
+                      : lang === "ru"
+                        ? "Сменить номер"
+                        : "Switch room"
                   : lang === "bg"
                     ? "Потвърди"
                     : lang === "de"
                       ? "Bestätigen"
-                      : "Confirm"}
+                      : lang === "ru"
+                        ? "Подтвердить"
+                        : "Confirm"}
               </button>
             </div>
           </div>
@@ -6239,7 +6742,7 @@ function Accordion({
 
                           {priceHint ? (
                             <div className="mt-2 rounded-lg px-3 py-2 text-xs font-semibold" style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}>
-                              {lang === "bg" ? "Цена" : lang === "de" ? "Preis" : lang === "ro" ? "Preț" : lang === "cs" ? "Cena" : "Price"}: {priceHint}
+                              {lang === "bg" ? "Цена" : lang === "de" ? "Preis" : lang === "ro" ? "Preț" : lang === "cs" ? "Cena" : lang === "ru" ? "Цена" : "Price"}: {priceHint}
                             </div>
                           ) : null}
 
@@ -6365,7 +6868,7 @@ function Accordion({
                               }}
                               className="mt-3 w-full rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {lang === "bg" ? "Изпрати заявка" : lang === "de" ? "Anfrage senden" : lang === "ro" ? "Trimite solicitarea" : lang === "cs" ? "Odeslat požadavek" : "Send request"}
+                              {lang === "bg" ? "Изпрати заявка" : lang === "de" ? "Anfrage senden" : lang === "ro" ? "Trimite solicitarea" : lang === "cs" ? "Odeslat požadavek" : lang === "ru" ? "Отправить запрос" : "Send request"}
                             </button>
                           )}
                         </div>
@@ -6643,7 +7146,7 @@ function OutletsAccordion({
 
             {priceHint ? (
               <div className="mt-2 rounded-lg px-3 py-2 text-xs font-semibold" style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}>
-                {lang === "bg" ? "Цена" : lang === "de" ? "Preis" : lang === "ro" ? "Preț" : lang === "cs" ? "Cena" : "Price"}: {priceHint}
+                {lang === "bg" ? "Цена" : lang === "de" ? "Preis" : lang === "ro" ? "Preț" : lang === "cs" ? "Cena" : lang === "ru" ? "Цена" : "Price"}: {priceHint}
               </div>
             ) : null}
 
@@ -6771,7 +7274,7 @@ function OutletsAccordion({
                 }}
                 className="mt-3 w-full rounded-xl px-3 py-2 text-left text-xs font-semibold stayhub-action-card active:scale-[0.99] transition disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {lang === "bg" ? "Изпрати заявка" : lang === "de" ? "Anfrage senden" : lang === "ro" ? "Trimite solicitarea" : lang === "cs" ? "Odeslat požadavek" : "Send request"}
+                {lang === "bg" ? "Изпрати заявка" : lang === "de" ? "Anfrage senden" : lang === "ro" ? "Trimite solicitarea" : lang === "cs" ? "Odeslat požadavek" : lang === "ru" ? "Отправить запрос" : "Send request"}
               </button>
             )}
           </div>

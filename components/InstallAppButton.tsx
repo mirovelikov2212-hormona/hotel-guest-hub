@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type UiLang = "bg" | "en" | "de";
+type UiLang = "bg" | "en" | "de" | "ro" | "cs" | "ru";
 
 export default function InstallAppButton({
   label,
@@ -45,29 +45,46 @@ export default function InstallAppButton({
   if (isStandalone) return null;
 
   const resolvedLang: UiLang =
-    lang === "de" ? "de" : lang === "en" ? "en" : "bg";
+    lang === "de" || lang === "en" || lang === "ro" || lang === "cs" || lang === "ru"
+      ? lang
+      : "bg";
 
-  const iosInstallTitle =
-    resolvedLang === "de"
-      ? "Als App installieren"
-      : resolvedLang === "en"
-        ? "Install as App"
-        : "Инсталирай като App";
+  const installCopy: Record<UiLang, { title: string; hint: string; button: string }> = {
+    bg: {
+      title: "Инсталирай като App",
+      hint: "Споделяне → Добавяне към началния екран",
+      button: "Инсталирай като App",
+    },
+    en: {
+      title: "Install as App",
+      hint: "Share → Add to Home Screen",
+      button: "Install App",
+    },
+    de: {
+      title: "Als App installieren",
+      hint: "Teilen → Zum Home-Bildschirm",
+      button: "Als App installieren",
+    },
+    ro: {
+      title: "Instalează ca aplicație",
+      hint: "Partajare → Adăugați pe ecranul principal",
+      button: "Instalează aplicația",
+    },
+    cs: {
+      title: "Nainstalovat jako aplikaci",
+      hint: "Sdílet → Přidat na plochu",
+      button: "Nainstalovat aplikaci",
+    },
+    ru: {
+      title: "Установить как приложение",
+      hint: "Поделиться → На экран «Домой»",
+      button: "Установить приложение",
+    },
+  };
 
-  const iosInstallHint =
-    resolvedLang === "de"
-      ? "Teilen → Zum Home-Bildschirm"
-      : resolvedLang === "en"
-        ? "Share → Add to Home Screen"
-        : "Споделяне → Добавяне към началния екран";
-
-  const androidLabel =
-    label ??
-    (resolvedLang === "de"
-      ? "Als App installieren"
-      : resolvedLang === "en"
-        ? "Install App"
-        : "Инсталирай като App");
+  const iosInstallTitle = installCopy[resolvedLang].title;
+  const iosInstallHint = installCopy[resolvedLang].hint;
+  const androidLabel = label ?? installCopy[resolvedLang].button;
 
   if (isIOS) {
     return (

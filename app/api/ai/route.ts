@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getHotelConfig } from "@/lib/config";
 
-type Lang = "bg" | "de" | "en" | "ro" | "cs";
+type Lang = "bg" | "de" | "en" | "ro" | "cs" | "ru";
 
 type Venue = {
   category?: string;
@@ -81,7 +81,7 @@ type HotelPayload = {
   hubSections?: HubKnowledgeSection[];
 };
 
-const SUPPORTED_LANGS: Lang[] = ["bg", "de", "en", "ro", "cs"];
+const SUPPORTED_LANGS: Lang[] = ["bg", "de", "en", "ro", "cs", "ru"];
 
 const COPY = {
   bg: {
@@ -328,6 +328,55 @@ const COPY = {
       room_service: "pokojová služba",
     },
   },
+  ru: {
+    intro:
+      "Я могу помочь с актуальной информацией об отеле: рестораны, бары, часы работы, Wi‑Fi, парковка, анимация, правила, услуги, запросы в хабе и погода рядом с отелем.",
+    outOfScope:
+      "Я могу помочь с информацией об отеле, его услугах и погоде рядом с отелем. Спросите меня о ресторанах, барах, часах работы, Wi‑Fi, парковке, СПА, анимации, услугах, правилах или прогнозе погоды.",
+    noData:
+      "У меня пока нет этой информации об отеле. Пожалуйста, обратитесь на рецепцию.",
+    lead: "Самая подходящая информация:",
+    nearbyLead: "Информация о районе рядом с отелем:",
+    actionLead: "Вы можете сделать это прямо в хабе:",
+    paidNotice: "Обратите внимание: это платная услуга, и её стоимость может быть начислена на счёт номера.",
+    askReception: "Если вам нужно что-то более конкретное, сотрудники рецепции помогут точнее.",
+    nearbyNoData: "Места рядом с отелем можно найти в разделе «Рядом с отелем». Для конкретной рекомендации лучше обратиться на рецепцию.",
+    servicesIntro: "Сейчас в хабе доступны следующие услуги:",
+    hotelInfoIntro: "Актуальная информация:",
+    wifi: (ssid?: string, password?: string) =>
+      ssid
+        ? `Сеть Wi‑Fi: ${ssid}${password ? `\nПароль: ${password}` : ""}`
+        : "У меня пока нет данных о Wi‑Fi. Пожалуйста, обратитесь на рецепцию.",
+    receptionHours: (open?: string, close?: string) =>
+      open && close ? `Рецепция работает с ${open} до ${close}.` : "Рецепция готова помочь вам.",
+    location: (q?: string) =>
+      q ? `Отель находится в районе ${q}.` : "У меня пока нет точной информации о местоположении.",
+    venueListIntro: (label: string) => `В отеле доступны следующие ${label}:`,
+    venueHours: (name: string, hours: string) => `• ${name}\n${hours}`,
+    venueInfo: (name: string, details: string) => `• ${name} — ${details}`,
+    venueReservation: (name: string) =>
+      `• ${name} — для бронирования используйте соответствующий раздел в хабе или обратитесь на рецепцию.`,
+    housekeepingHours: (open?: string, close?: string) =>
+      open && close
+        ? `Housekeeping работает с ${open} до ${close}. После окончания рабочего времени запросы направляются на рецепцию.`
+        : "Housekeeping готов помочь вам.",
+    maintenanceHours: (open?: string, close?: string) =>
+      open && close ? `Техническая служба работает с ${open} до ${close}.` : "Техническая служба готова помочь вам.",
+    reviews: "Оставить отзыв можно в разделе «Отзывы» — через Google, TripAdvisor или Booking, если они доступны.",
+    social: "Подписаться на наши страницы можно в разделе «Следите за нами».",
+    categoryLabel: {
+      restaurants: "рестораны",
+      bars: "бары",
+      spa: "СПА-объекты",
+      kids: "детские зоны",
+      pool: "бассейны",
+      gym: "фитнес-залы",
+      lounge: "лаунж-зоны",
+      entertainment: "игровые зоны",
+      room_service: "услуги в номер",
+    },
+  },
+
 
 } as const;
 
@@ -351,6 +400,10 @@ const CONVERSATION_COPY: Record<Lang, { greeting: string; thanks: string }> = {
   cs: {
     greeting: "Dobrý den! Rád vám pomohu. Můžete se zeptat na restaurace, bary, Wi‑Fi, parkování, otevírací dobu, služby v hubu nebo počasí v okolí hotelu.",
     thanks: "Rádo se stalo. Pokud budete potřebovat ještě něco, jsem tu pro vás.",
+  },
+  ru: {
+    greeting: "Здравствуйте! С удовольствием помогу. Вы можете спросить о ресторанах, барах, Wi‑Fi, парковке, часах работы, услугах в хабе или погоде рядом с отелем.",
+    thanks: "Пожалуйста. Если вам понадобится ещё что-то, я готов помочь.",
   },
 };
 
@@ -480,6 +533,27 @@ const WEATHER_COPY: Record<Lang, {
     adviceWind: "Vypadá to na vítr, u bazénu může být chladněji, než se zdá.",
     adviceGood: "Počasí vypadá příjemně na procházku nebo chvíli u bazénu.",
   },
+  ru: {
+    noLocation: "Чтобы показать точную погоду, в настройках должно быть указано местоположение отеля.",
+    unavailable: "Сейчас не удаётся загрузить прогноз погоды. Сотрудники рецепции помогут уточнить условия на сегодня.",
+    outsideArea: "Я могу показать погоду только для района отеля. Для других городов или стран используйте приложение погоды.",
+    lead: (place) => `Актуальная погода для района ${place}:`,
+    now: "Сейчас",
+    today: "Сегодня",
+    tomorrow: "Завтра",
+    temperature: "Температура",
+    feelsLike: "ощущается как",
+    minMax: (min, max) => min != null && max != null ? `Мин. / макс.: ${Math.round(min)}°C / ${Math.round(max)}°C` : "",
+    clouds: "Облачность",
+    wind: "Ветер",
+    rainChance: "Вероятность дождя",
+    humidity: "Влажность",
+    adviceRain: "Лучше взять зонт — погода иногда любит сюрпризы.",
+    adviceHot: "Возьмите воду и защиту от солнца, особенно для прогулки или отдыха у бассейна.",
+    adviceCold: "Лёгкая куртка будет полезна — комфорт тоже часть отдыха.",
+    adviceWind: "Ожидается ветер, поэтому у бассейна может быть прохладнее.",
+    adviceGood: "Погода подходит для прогулки или отдыха у бассейна.",
+  },
 };
 
 const GREETING_TERMS = [
@@ -488,10 +562,12 @@ const GREETING_TERMS = [
   "hallo", "guten tag", "guten morgen", "guten abend",
   "bună", "buna", "salut", "bună ziua", "buna ziua", "bună dimineața", "buna dimineata",
   "ahoj", "dobrý den", "dobry den", "dobré ráno", "dobry rano", "dobrý večer", "dobry vecer",
+  "привет", "здравствуйте", "добрый день", "доброе утро", "добрый вечер",
 ];
 
 const THANKS_TERMS = [
   "thanks", "thank you", "благодаря", "мерси", "danke", "vielen dank", "mulțumesc", "multumesc", "děkuji", "dekuji", "díky", "diky",
+  "спасибо", "благодарю",
 ];
 
 const WEATHER_TERMS = [
@@ -500,51 +576,53 @@ const WEATHER_TERMS = [
   "wetter", "vorhersage", "temperatur", "regen", "wolken", "bewölkt", "wind", "sonne", "sturm", "schirm",
   "vreme", "vremea", "prognoza", "temperatură", "temperatura", "ploaie", "plouă", "ploua", "nori", "vânt", "vant", "soare", "furtună", "furtuna",
   "počasí", "pocasi", "předpověď", "predpoved", "teplota", "déšť", "dest", "prší", "prsi", "mraky", "oblačno", "vítr", "vitr", "slunce", "bouřka", "bourka",
+  "погода", "прогноз", "температура", "дождь", "облачно", "облака", "ветер", "солнце", "гроза", "зонт",
 ];
 
 const TOMORROW_TERMS = [
-  "tomorrow", "утре", "morgen", "mâine", "maine", "zítra", "zitra",
+  "tomorrow", "утре", "morgen", "mâine", "maine", "zítra", "zitra", "завтра",
 ];
 
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  restaurants: ["restaurant", "restaurants", "ресторант", "ресторанти", "restoran", "restaurante", "restaurace", "mic dejun", "breakfast", "закуска", "frühstück", "snídaně", "lunch", "обяд", "mittag", "prânz", "oběd", "dinner", "вечеря", "abendessen", "cină", "večeře"],
-  bars: ["bar", "bars", "бар", "барове", "baruri", "bary"],
-  spa: ["spa", "спа", "wellness", "sauna", "масаж", "masaj", "masáž"],
-  kids: ["kids", "kids club", "children", "дет", "деца", "детски", "copii", "děti", "dětský"],
-  pool: ["pool", "басейн", "басейни", "piscină", "piscina", "bazén", "bazen"],
+  restaurants: ["restaurant", "restaurants", "ресторант", "ресторанти", "restoran", "restaurante", "restaurace", "ресторан", "рестораны", "mic dejun", "breakfast", "закуска", "завтрак", "frühstück", "snídaně", "lunch", "обяд", "обед", "mittag", "prânz", "oběd", "dinner", "вечеря", "ужин", "abendessen", "cină", "večeře"],
+  bars: ["bar", "bars", "бар", "барове", "baruri", "bary", "бары"],
+  spa: ["spa", "спа", "wellness", "sauna", "сауна", "масаж", "массаж", "masaj", "masáž"],
+  kids: ["kids", "kids club", "children", "дет", "деца", "детски", "дети", "детский", "copii", "děti", "dětský"],
+  pool: ["pool", "басейн", "басейни", "бассейн", "бассейны", "piscină", "piscina", "bazén", "bazen"],
   gym: ["gym", "fitness", "фитнес"],
   lounge: ["lounge", "лаундж"],
-  entertainment: ["entertainment", "games", "game", "games room", "игри", "игрална", "игрална зала", "sală de jocuri", "sala de jocuri", "herna"],
+  entertainment: ["entertainment", "games", "game", "games room", "игри", "игрална", "игрална зала", "игры", "игровая", "игровой зал", "sală de jocuri", "sala de jocuri", "herna"],
   room_service: ["room service", "roomservice", "room-service", "pokojová služba"],
 };
 
 const SERVICE_KEYWORDS: Record<string, string[]> = {
-  towels: ["towel", "towels", "хавли", "кърпи", "prosop", "prosoape", "ručník", "ručníky"],
-  toilet_paper: ["toilet paper", "toilet", "paper", "тоалетна хартия", "hârtie igienică", "toaletní papír"],
-  extra_pillow: ["pillow", "pillows", "възглав", "възглавници", "pernă", "perne", "polštář", "polštáře"],
-  extra_blanket: ["blanket", "одеяло", "одеяла", "pătură", "patura", "přikrývka"],
-  bathrobe: ["bathrobe", "robe", "халат", "halat", "župan"],
-  slippers: ["slippers", "pantoffel", "чехли", "papuci", "pantofle"],
-  baby_cot: ["baby cot", "baby bed", "crib", "baby crib", "бебешко легло", "кошарка", "pătuț", "dětská postýlka"],
-  iron: ["iron", "ютия", "fier de călcat", "žehlička"],
+  towels: ["towel", "towels", "хавли", "кърпи", "полотенце", "полотенца", "prosop", "prosoape", "ručník", "ručníky"],
+  toilet_paper: ["toilet paper", "toilet", "paper", "тоалетна хартия", "туалетная бумага", "hârtie igienică", "toaletní papír"],
+  extra_pillow: ["pillow", "pillows", "възглав", "възглавници", "подушка", "подушки", "pernă", "perne", "polštář", "polštáře"],
+  extra_blanket: ["blanket", "одеяло", "одеяла", "плед", "одеяло", "pătură", "patura", "přikrývka"],
+  bathrobe: ["bathrobe", "robe", "халат", "банный халат", "halat", "župan"],
+  slippers: ["slippers", "pantoffel", "чехли", "тапочки", "papuci", "pantofle"],
+  baby_cot: ["baby cot", "baby bed", "crib", "baby crib", "бебешко легло", "кошарка", "детская кроватка", "кроватка", "pătuț", "dětská postýlka"],
+  iron: ["iron", "ютия", "утюг", "fier de călcat", "žehlička"],
   minibar: ["minibar", "минибар"],
-  laundry: ["laundry", "washing", "пране", "spălătorie", "prádelna"],
-  late_checkout: ["late checkout", "late check-out", "checkout", "check-out", "късно напускане", "check-out târziu", "pozdní check-out"],
-  wake_up_call: ["wake up", "wake-up", "wakeup", "събуждане", "будене", "trezire", "buzení"],
+  laundry: ["laundry", "washing", "пране", "стирка", "прачечная", "spălătorie", "prádelna"],
+  late_checkout: ["late checkout", "late check-out", "checkout", "check-out", "късно напускане", "поздний выезд", "check-out târziu", "pozdní check-out"],
+  wake_up_call: ["wake up", "wake-up", "wakeup", "събуждане", "будене", "будильник", "разбудить", "trezire", "buzení"],
   taxi: ["taxi", "такси"],
-  air_conditioning: ["air conditioning", "ac", "климатик", "aer condiționat", "klimatizace"],
-  no_hot_water: ["hot water", "warm water", "топла вода", "apă caldă", "teplá voda"],
-  other_technical_issue: ["broken", "issue", "problem", "счупено", "проблем", "defect", "rozbité", "porucha"],
-  coffee_capsules: ["coffee capsules", "coffee", "capsules", "кафе", "кафе капсули", "капсули", "cafea", "capsule", "capsule de cafea", "kávové kapsle", "kava", "káva"],
-  pillow_menu: ["pillow menu", "меню възглавници", "meniu perne", "nabídka polštářů"],
-  massage_booking: ["massage", "massages", "масаж", "масажи", "релакс", "masaj", "masaje", "masáž", "masáže", "spa therapy", "relax therapy"],
+  air_conditioning: ["air conditioning", "ac", "климатик", "кондиционер", "aer condiționat", "klimatizace"],
+  no_hot_water: ["hot water", "warm water", "топла вода", "горячая вода", "нет горячей воды", "apă caldă", "teplá voda"],
+  other_technical_issue: ["broken", "issue", "problem", "счупено", "проблем", "сломано", "не работает", "defect", "rozbité", "porucha"],
+  coffee_capsules: ["coffee capsules", "coffee", "capsules", "кафе", "кафе капсули", "капсули", "кофе", "кофейные капсулы", "капсулы", "cafea", "capsule", "capsule de cafea", "kávové kapsle", "kava", "káva"],
+  pillow_menu: ["pillow menu", "меню възглавници", "меню подушек", "meniu perne", "nabídka polštářů"],
+  massage_booking: ["massage", "massages", "масаж", "масажи", "массаж", "массажи", "релакс", "masaj", "masaje", "masáž", "masáže", "spa therapy", "relax therapy"],
   special_occasion: ["special occasion", "специален повод", "ocazie specială", "zvláštní příležitost"],
 };
 
 const GENERIC_SERVICE_KEYWORDS = [
   "service", "services", "услуги", "order", "request", "поръч", "заяв", "can i", "може ли", "what can", "какво мога", "какви услуги",
   "servicii", "solicit", "pot", "služby", "požadavek", "mohu",
+  "услуга", "услуги", "заказать", "заказ", "запрос", "можно ли", "что можно",
 ];
 
 const HOTEL_KEYWORDS = [
@@ -553,19 +631,20 @@ const HOTEL_KEYWORDS = [
   "parcare", "prosoape", "șezlong", "sezlong", "caritate", "cadou", "cauză", "cauza", "politica", "reguli", "animație", "animatie",
   "parkování", "ručníky", "lehátka", "charita", "dárek", "darek", "účel", "ucel", "pravidla", "animace",
   "check", "location", "address", "hours", "opening", "program", "nearby", "around", "area", "работ", "час", "къде", "район", "района", "около", "наблизо", "близо", "where", "wo", "umgebung", "nähe", "unde", "apropiere", "împrejurimi", "kde", "okolí", "blízko", "otevírací", "program",
-  "minibar", "минибар", "laundry", "пране", "wake", "събуж", "taxi", "такси", "facebook", "instagram", "tiktok", "tik tok", "youtube", "social", "социал", "последвай", "последват", "follow",
+  "minibar", "минибар", "laundry", "пране", "стирка", "wake", "събуж", "разбудить", "taxi", "такси", "facebook", "instagram", "tiktok", "tik tok", "youtube", "social", "социал", "социаль", "подписаться", "follow",
+  "отель", "рецепция", "ресторан", "бар", "спа", "бассейн", "дети", "анимация", "парковка", "правила", "политика", "полотенца", "шезлонги", "отзывы", "где", "рядом", "поблизости", "часы работы",
 ];
 
 const INFO_GROUP_KEYWORDS: Record<string, string[]> = {
-  parking: ["parking", "park", "паркинг", "parcare", "parkování"],
-  checkin: ["check in", "check-in", "checkout", "check-out", "настаняване", "напускане", "cazare", "plecare", "příjezd", "odjezd"],
-  towel: ["towel", "towels", "хавли", "кърпи", "prosop", "prosoape", "ručník", "ručníky"],
+  parking: ["parking", "park", "паркинг", "парковка", "parcare", "parkování"],
+  checkin: ["check in", "check-in", "checkout", "check-out", "настаняване", "напускане", "заезд", "выезд", "cazare", "plecare", "příjezd", "odjezd"],
+  towel: ["towel", "towels", "хавли", "кърпи", "полотенце", "полотенца", "prosop", "prosoape", "ručník", "ručníky"],
   sunbed: ["sunbed", "sunbeds", "шезлонг", "шезлонги", "șezlong", "sezlong", "lehátko", "lehátka"],
   charity: ["charity", "gift", "cause", "gift with a cause", "благотвор", "подарък", "кауза", "подарък с кауза", "caritate", "cadou", "cauză", "cauza", "cadou cu o cauza", "cadou cu o cauză", "charita", "dárek", "darek", "účel", "ucel", "darek s dobrym ucelem", "dárek s dobrým účelem"],
-  animation: ["animation", "анимац", "animație", "animatie", "animace", "program"],
+  animation: ["animation", "анимац", "анимация", "animație", "animatie", "animace", "program"],
   world_cup: ["world cup", "fifa", "световно", "mondial", "ms ve fotbale", "wm 2026"],
-  emergency: ["emergency", "urgent", "спеш", "notfall", "urgență", "nouz"],
-  attractions: ["attraction", "nearby", "around", "забележ", "наблизо", "atrac", "împrejurimi", "zajímav", "okolí"],
+  emergency: ["emergency", "urgent", "спеш", "экстренно", "срочно", "notfall", "urgență", "nouz"],
+  attractions: ["attraction", "nearby", "around", "забележ", "наблизо", "достопримечательности", "рядом", "atrac", "împrejurimi", "zajímav", "okolí"],
   pharmacy: ["pharmacy", "аптека", "farmacie", "lékárna"],
 };
 
@@ -576,13 +655,14 @@ const NEARBY_TERMS = [
   "umgebung", "in der nähe", "nähe", "rund um das hotel",
   "apropiere", "în apropiere", "imprejurimi", "împrejurimi", "zona hotelului",
   "okolí", "v okolí", "blízko", "u hotelu",
+  "рядом", "поблизости", "около отеля", "в районе", "за пределами отеля",
 ];
 
 const OUTSIDE_CATEGORY_TERMS: Record<string, string[]> = {
-  restaurants_nearby: ["restaurant", "restaurants", "ресторант", "ресторанти", "restaurante", "restaurace"],
-  bars_nearby: ["bar", "bars", "бар", "барове", "baruri", "bary"],
+  restaurants_nearby: ["restaurant", "restaurants", "ресторант", "ресторанти", "ресторан", "рестораны", "restaurante", "restaurace"],
+  bars_nearby: ["bar", "bars", "бар", "барове", "бары", "baruri", "bary"],
   pharmacy: ["pharmacy", "аптека", "farmacie", "lékárna", "apotheke"],
-  attractions: ["attraction", "attractions", "sightseeing", "places", "забележ", "какво да видя", "atrac", "zajímav", "památky"],
+  attractions: ["attraction", "attractions", "sightseeing", "places", "забележ", "какво да видя", "достопримечательности", "что посмотреть", "atrac", "zajímav", "památky"],
 };
 
 const PAID_SERVICE_KEYS = new Set(["minibar", "laundry", "coffee_capsules", "pillow_menu", "late_checkout", "massage_booking"]);
@@ -593,6 +673,7 @@ const SERVICE_SECTION_LABELS = {
   de: { housekeeping: "Housekeeping", reception: "Rezeption", support: "Technik / Support" },
   ro: { housekeeping: "Housekeeping", reception: "Recepție", support: "Suport / Întreținere" },
   cs: { housekeeping: "Housekeeping", reception: "Recepce", support: "Podpora / Údržba" },
+  ru: { housekeeping: "Housekeeping", reception: "Рецепция", support: "Техническая служба" },
 } as const;
 
 const SERVICE_SECTION_BY_KEY: Record<string, keyof typeof SERVICE_SECTION_LABELS.bg> = {
@@ -667,7 +748,7 @@ function hasAnyTerm(text: string, terms: string[]) {
 
 function getMapValue(map: TextMap | undefined, lang: Lang) {
   if (!map) return "";
-  const preferred: string[] = [lang, "en", "bg", "de", "ro", "cs"];
+  const preferred: string[] = [lang, "en", "bg", "de", "ro", "cs", "ru"];
   for (const key of preferred) {
     const value = map[key];
     if (value && String(value).trim()) return String(value).trim();
@@ -699,7 +780,7 @@ function normalizeDisplayText(value: string) {
 function languageFallbackOrder(lang: Lang | string): string[] {
   const current = String(lang || "").trim().toLowerCase();
   const alias = current === "cs" ? "cz" : current === "cz" ? "cs" : "";
-  return Array.from(new Set([current, alias, "en", "bg", "de", "ro", "cs"].filter(Boolean)));
+  return Array.from(new Set([current, alias, "en", "bg", "de", "ro", "cs", "ru"].filter(Boolean)));
 }
 
 function getLocalizedVenueValue(map: Record<string, string> | undefined, lang: Lang | string, fallback = "") {
@@ -1010,7 +1091,7 @@ function buildVenueCategoryAnswer(question: string, lang: Lang, hotel: HotelPayl
   const categories = detectCategories(question);
   if (!categories.length) return null;
 
-  const wantsReservation = hasAnyTerm(question, ["reserv", "book", "резерв", "buch", "rezerv", "rezervare", "rezervovat"]);
+  const wantsReservation = hasAnyTerm(question, ["reserv", "book", "резерв", "брониров", "забронировать", "buch", "rezerv", "rezervare", "rezervovat"]);
   const venues = getActiveVenues(hotel).filter((venue) => categories.includes(normalizeCategory(venue.category || venue.type)));
   if (!venues.length) return t.noData;
 
@@ -1054,6 +1135,7 @@ const SERVICE_SUMMARY: Record<string, Partial<Record<Lang, string>>> = {
     de: "Zusätzliche Kissen sind für mehr Komfort verfügbar. Sie können sie im Bereich Housekeeping im Hub anfragen.",
     ro: "Sunt disponibile perne suplimentare pentru mai mult confort. Le puteți solicita din secțiunea Housekeeping din hub.",
     cs: "Pro větší pohodlí jsou k dispozici další polštáře. Můžete o ně požádat v sekci Housekeeping v hubu.",
+    ru: "Для большего комфорта доступны дополнительные подушки. Их можно заказать в разделе Housekeeping.",
   },
   coffee_capsules: {
     bg: "Кафе капсули могат да бъдат заявени от секция Housekeeping. Услугата е платена и се начислява към стаята.",
@@ -1061,6 +1143,7 @@ const SERVICE_SUMMARY: Record<string, Partial<Record<Lang, string>>> = {
     de: "Kaffeekapseln können im Bereich Housekeeping angefragt werden. Dies ist eine kostenpflichtige Leistung und kann dem Zimmer belastet werden.",
     ro: "Capsulele de cafea pot fi solicitate din secțiunea Housekeeping. Serviciul este contra cost și poate fi adăugat pe nota camerei.",
     cs: "Kávové kapsle lze objednat v sekci Housekeeping. Služba je placená a může být připsána na účet pokoje.",
+    ru: "Кофейные капсулы можно заказать в разделе Housekeeping. Это платная услуга, которая может быть начислена на счёт номера.",
   },
   late_checkout: {
     bg: "Късен check-out може да бъде заявен от рецепция и се предоставя според заетостта на хотела.",
@@ -1068,6 +1151,7 @@ const SERVICE_SUMMARY: Record<string, Partial<Record<Lang, string>>> = {
     de: "Late Check-out kann an der Rezeption angefragt werden und hängt von der Verfügbarkeit im Hotel ab.",
     ro: "Late check-out poate fi solicitat la recepție și depinde de disponibilitatea hotelului.",
     cs: "Pozdní check-out lze požádat na recepci a závisí na dostupnosti hotelu.",
+    ru: "Поздний выезд можно запросить на рецепции; услуга предоставляется при наличии возможности.",
   },
   massage_booking: {
     bg: "Масаж или релакс терапия може да бъде заявена през хъба. Услугата е платена и се потвърждава според наличните часове.",
@@ -1075,6 +1159,7 @@ const SERVICE_SUMMARY: Record<string, Partial<Record<Lang, string>>> = {
     de: "Massage oder Entspannungstherapie kann über den Hub angefragt werden. Dies ist eine kostenpflichtige Leistung und abhängig von verfügbaren Zeiten.",
     ro: "Masajul sau terapia de relaxare poate fi solicitată prin hub. Serviciul este contra cost și depinde de intervalele disponibile.",
     cs: "Masáž nebo relaxační terapii lze požádat přes hub. Služba je placená a závisí na dostupných termínech.",
+    ru: "Массаж или расслабляющую процедуру можно заказать через хаб. Это платная услуга, доступная при наличии свободного времени.",
   },
   minibar: {
     bg: "Зареждане на минибар може да бъде заявено от секция Housekeeping. Консумацията се начислява към стаята.",
@@ -1082,6 +1167,7 @@ const SERVICE_SUMMARY: Record<string, Partial<Record<Lang, string>>> = {
     de: "Eine Minibar-Auffüllung kann im Bereich Housekeeping angefragt werden. Verbrauchte Artikel werden dem Zimmer belastet.",
     ro: "Reumplerea minibarului poate fi solicitată din secțiunea Housekeeping. Produsele consumate se adaugă pe nota camerei.",
     cs: "Doplnění minibaru lze požádat v sekci Housekeeping. Spotřebované položky jsou účtovány na pokoj.",
+    ru: "Пополнение мини-бара можно заказать в разделе Housekeeping. Использованные товары начисляются на счёт номера.",
   },
 };
 
@@ -1113,6 +1199,7 @@ function extractPriceLine(value: string, lang: Lang) {
     de: "Preis",
     ro: "Preț",
     cs: "Cena",
+    ru: "Цена",
   };
   return `${labels[lang]}: ${price}.`;
 }
@@ -1128,6 +1215,7 @@ function serviceActionLine(service: ServiceItem, lang: Lang) {
     de: `Sie können es im Bereich ${section} im Hub anfragen.`,
     ro: `Îl puteți solicita din secțiunea ${section} din hub.`,
     cs: `Můžete o něj požádat v sekci ${section} v hubu.`,
+    ru: `Вы можете заказать это в разделе ${section} в хабе.`,
   };
   return lines[lang];
 }
@@ -1146,9 +1234,9 @@ function serviceScore(service: ServiceItem, question: string) {
     if (hasTerm(q, token)) score += clean(token).length >= 8 ? 12 : 6;
   }
 
-  if (service.key === "pillow_menu" && hasAnyTerm(q, ["pillow", "pillows", "възглав", "pern", "polstar", "polštář", "kissen"])) score += 30;
-  if (service.key === "extra_pillow" && hasAnyTerm(q, ["menu", "меню", "available", "какви", "what", "welche", "disponibile", "k dispozici"])) score -= 25;
-  if (service.key === "pillow_menu" && hasAnyTerm(q, ["menu", "меню", "available", "какви", "what", "welche", "disponibile", "k dispozici"])) score += 25;
+  if (service.key === "pillow_menu" && hasAnyTerm(q, ["pillow", "pillows", "възглав", "подуш", "pern", "polstar", "polštář", "kissen"])) score += 30;
+  if (service.key === "extra_pillow" && hasAnyTerm(q, ["menu", "меню", "available", "какви", "какие", "доступные", "what", "welche", "disponibile", "k dispozici"])) score -= 25;
+  if (service.key === "pillow_menu" && hasAnyTerm(q, ["menu", "меню", "available", "какви", "какие", "доступные", "what", "welche", "disponibile", "k dispozici"])) score += 25;
 
   return score;
 }
@@ -1181,6 +1269,7 @@ function friendlyLead(lang: Lang) {
     de: "Sehr gern.",
     ro: "Sigur, cu plăcere.",
     cs: "Samozřejmě, rád pomohu.",
+    ru: "Конечно, с удовольствием.",
   };
   return leads[lang];
 }
@@ -1264,7 +1353,7 @@ function findNearbyHotelInfo(question: string, lang: Lang, hotel: HotelPayload) 
   const nearbyIdentityTerms = [
     ...NEARBY_TERMS,
     "nearby", "around", "атракции", "забележ", "наблизо", "около", "район",
-    "restaurants nearby", "ресторанти наблизо", "аптека", "pharmacy", "atracții", "atractii", "restaurante", "okolí", "zajímav", "restaurace",
+    "restaurants nearby", "ресторанти наблизо", "рестораны рядом", "аптека", "pharmacy", "atracții", "atractii", "restaurante", "okolí", "zajímav", "restaurace",
   ];
 
   return items.filter((item) => {
@@ -1299,7 +1388,7 @@ function buildSmartTopicAnswer(question: string, lang: Lang, hotel: HotelPayload
   const infoMatches = findMatchingHotelInfo(q, lang, hotel);
   const serviceMatches = findMatchingServices(q, hotel);
   const venueMatches = findMatchingVenues(q, hotel);
-  const wantsReservation = hasAnyTerm(q, ["reserv", "book", "резерв", "buch", "rezerv", "rezervare", "rezervovat"]);
+  const wantsReservation = hasAnyTerm(q, ["reserv", "book", "резерв", "брониров", "забронировать", "buch", "rezerv", "rezervare", "rezervovat"]);
 
   if (!infoMatches.length && !serviceMatches.length && !venueMatches.length) return null;
 
@@ -1388,6 +1477,7 @@ function degreeToCompass(deg?: number, lang: Lang = "en") {
     de: ["N", "NO", "O", "SO", "S", "SW", "W", "NW"],
     ro: ["N", "NE", "E", "SE", "S", "SV", "V", "NV"],
     cs: ["S", "SV", "V", "JV", "J", "JZ", "Z", "SZ"],
+    ru: ["С", "СВ", "В", "ЮВ", "Ю", "ЮЗ", "З", "СЗ"],
   };
   return labels[lang][Math.round(deg / 45) % 8];
 }
@@ -1413,15 +1503,15 @@ function weatherCodeText(code: number | undefined, lang: Lang) {
                   : "unknown";
 
   const map: Record<string, Record<Lang, string>> = {
-    clear: { bg: "ясно", en: "clear", de: "klar", ro: "senin", cs: "jasno" },
-    partly: { bg: "частично облачно", en: "partly cloudy", de: "teilweise bewölkt", ro: "parțial noros", cs: "polojasno" },
-    cloudy: { bg: "облачно", en: "cloudy", de: "bewölkt", ro: "noros", cs: "zataženo" },
-    fog: { bg: "мъгла", en: "foggy", de: "neblig", ro: "ceață", cs: "mlha" },
-    drizzle: { bg: "слаб дъжд", en: "light rain", de: "leichter Regen", ro: "ploaie slabă", cs: "slabý déšť" },
-    rain: { bg: "дъжд", en: "rain", de: "Regen", ro: "ploaie", cs: "déšť" },
-    snow: { bg: "сняг", en: "snow", de: "Schnee", ro: "zăpadă", cs: "sníh" },
-    storm: { bg: "гръмотевична буря", en: "thunderstorm", de: "Gewitter", ro: "furtună", cs: "bouřka" },
-    unknown: { bg: "променливо", en: "variable", de: "wechselhaft", ro: "variabil", cs: "proměnlivo" },
+    clear: { bg: "ясно", en: "clear", de: "klar", ro: "senin", cs: "jasno", ru: "ясно" },
+    partly: { bg: "частично облачно", en: "partly cloudy", de: "teilweise bewölkt", ro: "parțial noros", cs: "polojasno", ru: "переменная облачность" },
+    cloudy: { bg: "облачно", en: "cloudy", de: "bewölkt", ro: "noros", cs: "zataženo", ru: "облачно" },
+    fog: { bg: "мъгла", en: "foggy", de: "neblig", ro: "ceață", cs: "mlha", ru: "туман" },
+    drizzle: { bg: "слаб дъжд", en: "light rain", de: "leichter Regen", ro: "ploaie slabă", cs: "slabý déšť", ru: "небольшой дождь" },
+    rain: { bg: "дъжд", en: "rain", de: "Regen", ro: "ploaie", cs: "déšť", ru: "дождь" },
+    snow: { bg: "сняг", en: "snow", de: "Schnee", ro: "zăpadă", cs: "sníh", ru: "снег" },
+    storm: { bg: "гръмотевична буря", en: "thunderstorm", de: "Gewitter", ro: "furtună", cs: "bouřka", ru: "гроза" },
+    unknown: { bg: "променливо", en: "variable", de: "wechselhaft", ro: "variabil", cs: "proměnlivo", ru: "переменная погода" },
   };
 
   return map[key][lang];
@@ -1447,19 +1537,19 @@ function cleanExplicitWeatherPlaceCandidate(value: string) {
 
   // Remove date/time words that are often next to the city name.
   place = place
-    .replace(/(^|\s)(utre|tomorrow|morgen|maine|mâine|zitra|zítra|today|dnes|днес|днеска|утре|следобед|вечерта|сутринта)(\s|$)/g, " ")
-    .replace(/(^|\s)(weather|forecast|wetter|meteo|времето|прогноза|vremea|počasí|pocasi)(\s|$)/g, " ")
-    .replace(/(^|\s)(today|tomorrow|утре|днес|morgen|heute|mâine|maine|astăzi|astazi|zítra|zitra|dnes)(\s|$)/g, " ")
+    .replace(/(^|\s)(utre|tomorrow|morgen|maine|mâine|zitra|zítra|today|dnes|днес|днеска|утре|следобед|вечерта|сутринта|завтра|сегодня|вечером|утром)(\s|$)/g, " ")
+    .replace(/(^|\s)(weather|forecast|wetter|meteo|времето|прогноза|погода|прогноз|vremea|počasí|pocasi)(\s|$)/g, " ")
+    .replace(/(^|\s)(today|tomorrow|утре|днес|завтра|сегодня|morgen|heute|mâine|maine|astăzi|astazi|zítra|zitra|dnes)(\s|$)/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
   // Stop at common connector words, so "Offenbach tomorrow" does not become a fake long place.
   place = place
-    .split(/\s+(?:tomorrow|today|morgen|heute|utre|maine|mâine|zitra|zítra|dnes|утре|днес|ще|ли|please|моля)\s+/)[0]
+    .split(/\s+(?:tomorrow|today|morgen|heute|utre|maine|mâine|zitra|zítra|dnes|утре|днес|завтра|сегодня|будет|ли|пожалуйста|ще|please|моля)\s+/)[0]
     .trim();
 
   // Ignore very vague words. These are handled by isHotelAreaPlace().
-  if (["the", "der", "die", "das", "на", "за", "в", "във", "in", "for"].includes(place)) return "";
+  if (["the", "der", "die", "das", "на", "за", "в", "във", "для", "около", "in", "for"].includes(place)) return "";
   return place;
 }
 
@@ -1475,6 +1565,7 @@ function extractExplicitWeatherPlace(question: string) {
     /(?:^|\s)(?:fuer|fur|für|bei|in|umgebung von|naehe von|nähe von)\s+([a-zа-я0-9][a-zа-я0-9\- ]{1,55})/gi,
     /(?:^|\s)(?:în|in|la|langa|lângă|pentru)\s+([a-zа-я0-9][a-zа-я0-9\- ]{1,55})/gi,
     /(?:^|\s)(?:v|ve|pro|u)\s+([a-zа-я0-9][a-zа-я0-9\- ]{1,55})/gi,
+    /(?:^|\s)(?:в|во|для|около|рядом с)\s+([a-zа-я0-9][a-zа-я0-9\- ]{1,55})/gi,
   ];
 
   for (const pattern of patterns) {
@@ -1496,7 +1587,7 @@ function isHotelAreaPlace(place: string, hotel: HotelPayload) {
 
   const vagueHotelAreaTerms = [
     "hotela", "hotel", "hotelului", "hotelu", "хотела", "района на хотела", "около хотела",
-    "around the hotel", "hotel area", "zona hotelului", "okolí hotelu", "umgebung des hotels",
+    "around the hotel", "hotel area", "zona hotelului", "okolí hotelu", "umgebung des hotels", "рядом с отелем", "около отеля", "район отеля",
   ];
   if (vagueHotelAreaTerms.some((term) => normalizedPlace.includes(normalizePlace(term)))) return true;
 
@@ -1508,14 +1599,14 @@ function isHotelAreaPlace(place: string, hotel: HotelPayload) {
   if (reference.includes(normalizedPlace) || normalizedPlace.includes(reference)) return true;
 
   const blockedGenericTokens = new Set([
-    "hotel", "resort", "bulgaria", "germany", "deutschland", "bългария", "balgaria", "блгария"
+    "hotel", "resort", "отель", "курорт", "bulgaria", "germany", "deutschland", "bългария", "balgaria", "блгария", "болгария"
   ]);
 
   const tokens = new Set(
     reference
       .split(/\s+|,/)
       .map((x) => x.trim())
-      .filter((x) => x.length >= 4 && !["hotel", "resort", "bulgaria", "germany", "deutschland", "bългария", "balgaria"].includes(x))
+      .filter((x) => x.length >= 4 && !["hotel", "resort", "отель", "курорт", "bulgaria", "germany", "deutschland", "bългария", "balgaria", "болгария"].includes(x))
   );
 
   return normalizedPlace.split(/\s+/).some((token) => tokens.has(token) && !blockedGenericTokens.has(token));
@@ -1659,7 +1750,7 @@ async function buildHotelAnswer(question: string, lang: Lang, hotel: HotelPayloa
   if (isWeatherQuestion(q)) return await buildWeatherAnswer(question, lang, hotel);
   if (!isHotelQuestion(q, hotel)) return t.outOfScope;
 
-  if (hasAnyTerm(q, ["wifi", "wi-fi", "wlan", "internet", "парол", "парола", "passwort", "password", "parolă", "parola", "heslo"])) {
+  if (hasAnyTerm(q, ["wifi", "wi-fi", "wlan", "internet", "парол", "парола", "пароль", "passwort", "password", "parolă", "parola", "heslo"])) {
     return t.wifi(hotel.wifi?.ssid, hotel.wifi?.password);
   }
 
@@ -1672,29 +1763,29 @@ async function buildHotelAnswer(question: string, lang: Lang, hotel: HotelPayloa
   const hotelInfoAnswer = buildHotelInfoAnswer(q, lang, hotel);
   if (hotelInfoAnswer) return hotelInfoAnswer;
 
-  if (hasAnyTerm(q, ["review", "reviews", "отзив", "отзиви", "рейтинг", "rating", "bewertung", "recenzie", "recenze", "booking", "tripadvisor", "google review"])) {
+  if (hasAnyTerm(q, ["review", "reviews", "отзив", "отзиви", "отзыв", "отзывы", "рейтинг", "rating", "bewertung", "recenzie", "recenze", "booking", "tripadvisor", "google review"])) {
     return t.reviews;
   }
 
-  if (hasAnyTerm(q, ["facebook", "instagram", "tiktok", "tik tok", "youtube", "social", "социал", "последвай", "последват", "follow", "urmări", "sleduj"])) {
+  if (hasAnyTerm(q, ["facebook", "instagram", "tiktok", "tik tok", "youtube", "social", "социал", "социаль", "подписаться", "follow", "urmări", "sleduj"])) {
     return t.social;
   }
 
-  if (hasAnyTerm(q, ["reception", "rezeption", "рецепц", "recepție", "recepce"])) {
+  if (hasAnyTerm(q, ["reception", "rezeption", "рецепц", "рецепция", "recepție", "recepce"])) {
     const reception = hotel.departmentHours?.reception ?? {};
     return t.receptionHours(reception.open, reception.close);
   }
 
-  if (hasAnyTerm(q, ["where", "wo", "location", "address", "къде", "адрес", "unde", "locație", "kde", "poloha"])) {
+  if (hasAnyTerm(q, ["where", "wo", "location", "address", "къде", "где", "адрес", "местоположение", "unde", "locație", "kde", "poloha"])) {
     return t.location(hotel.locationQuery);
   }
 
-  if (hasAnyTerm(q, ["housekeeping", "clean", "камер", "почист", "curăț", "uklid", "úklid"])) {
+  if (hasAnyTerm(q, ["housekeeping", "clean", "камер", "почист", "уборка", "убрать", "curăț", "uklid", "úklid"])) {
     const housekeeping = hotel.departmentHours?.housekeeping ?? {};
     return t.housekeepingHours(housekeeping.open, housekeeping.close);
   }
 
-  if (hasAnyTerm(q, ["maintenance", "technik", "поддр", "repair", "întreținere", "údržba"])) {
+  if (hasAnyTerm(q, ["maintenance", "technik", "поддр", "техническая служба", "ремонт", "repair", "întreținere", "údržba"])) {
     const maintenance = hotel.departmentHours?.maintenance ?? {};
     return t.maintenanceHours(maintenance.open, maintenance.close);
   }
@@ -1712,15 +1803,15 @@ async function buildHotelAnswer(question: string, lang: Lang, hotel: HotelPayloa
 }
 
 
-function buildAiServicesFromRequestDefs(requestDefs: any[] | undefined): ServiceItem[] {
+function buildAiServicesFromRequestDefs(requestDefs: any[] | undefined, lang: Lang): ServiceItem[] {
   return (requestDefs ?? [])
     .filter((def) => def && def.enabled !== false && def.aiVisible !== false && def.guestVisible !== false)
     .map((def) => {
       const titleMap = (def.title ?? {}) as TextMap;
       const descriptionParts = [
-        getMapValue((def.description ?? {}) as TextMap, "en"),
-        getMapValue((def.policy ?? {}) as TextMap, "en"),
-        getMapValue((def.subtitle ?? {}) as TextMap, "en"),
+        getMapValue((def.description ?? {}) as TextMap, lang),
+        getMapValue((def.policy ?? {}) as TextMap, lang),
+        getMapValue((def.subtitle ?? {}) as TextMap, lang),
       ].filter(Boolean);
 
       const optionWords = Object.values(def.optionsByLang ?? {})
@@ -1730,7 +1821,7 @@ function buildAiServicesFromRequestDefs(requestDefs: any[] | undefined): Service
 
       return {
         key: String(def.id || def.requestType || "").trim(),
-        label: getMapValue(titleMap, "en") || String(def.id || def.requestType || "service").replace(/_/g, " "),
+        label: getMapValue(titleMap, lang) || String(def.id || def.requestType || "service").replace(/_/g, " "),
         description: descriptionParts.join("\n\n"),
         active: def.enabled !== false,
         category: String(def.category || def.targetDepartment || "").trim(),
@@ -1751,7 +1842,7 @@ function buildAiServicesFromRequestDefs(requestDefs: any[] | undefined): Service
 function mergeHotelKnowledge(clientHotel: HotelPayload, serverConfig: any, lang: Lang): HotelPayload {
   const client = clientHotel ?? {};
   const server = serverConfig ?? {};
-  const serverServices = buildAiServicesFromRequestDefs(server.requestDefs);
+  const serverServices = buildAiServicesFromRequestDefs(server.requestDefs, lang);
   const serverHotelInfo = Array.isArray(server.hotelInfoItems) ? server.hotelInfoItems : [];
   const clientHotelInfo = Array.isArray(client.hotelInfoItems) ? client.hotelInfoItems : [];
   const visibleHubInfo = buildHotelInfoItemsFromHubSections(client.hubSections, lang);

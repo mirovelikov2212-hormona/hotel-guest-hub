@@ -8,7 +8,7 @@ import type {
   RequestDefType,
 } from "@/lib/types";
 
-const DEFAULT_LANGS = ["bg", "en", "de", "ro", "cs"] as const;
+const DEFAULT_LANGS = ["bg", "en", "de", "ro", "cs", "ru"] as const;
 
 type LooseRow = Record<string, string>;
 
