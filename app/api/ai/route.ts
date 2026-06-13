@@ -1345,6 +1345,43 @@ const GUIDANCE_COPY: Record<Lang, { path: string; link: string }> = {
   ru: { path: "Находится в", link: "Ссылка" },
 };
 
+const AI_CONTEXT_COPY: Record<Lang, {
+  clarifyProgram: string;
+  animationProgramMissing: string;
+  broadcastNotConfirmed: string;
+}> = {
+  bg: {
+    clarifyProgram: "Коя програма имате предвид — програмата за анимация или програмата и резултатите от Световното първенство?",
+    animationProgramMissing: "Актуалната програма за анимация все още не е качена. Проверете секцията „Анимация“ или попитайте рецепция.",
+    broadcastNotConfirmed: "Нямам потвърдена информация дали хотелът излъчва мачовете. Моля, попитайте рецепция.",
+  },
+  en: {
+    clarifyProgram: "Which program do you mean — the animation program or the World Cup schedule and results?",
+    animationProgramMissing: "The current animation program has not been uploaded yet. Please check the Animation section or ask reception.",
+    broadcastNotConfirmed: "I do not have confirmed information that the hotel is showing the matches. Please ask reception.",
+  },
+  de: {
+    clarifyProgram: "Welches Programm meinen Sie — das Animationsprogramm oder den Spielplan und die Ergebnisse der Weltmeisterschaft?",
+    animationProgramMissing: "Das aktuelle Animationsprogramm wurde noch nicht hochgeladen. Bitte prüfen Sie den Bereich „Animation“ oder fragen Sie an der Rezeption.",
+    broadcastNotConfirmed: "Ich habe keine bestätigte Information, dass das Hotel die Spiele überträgt. Bitte fragen Sie an der Rezeption.",
+  },
+  ro: {
+    clarifyProgram: "La ce program vă referiți — programul de animație sau programul și rezultatele Cupei Mondiale?",
+    animationProgramMissing: "Programul actual de animație nu a fost încă încărcat. Verificați secțiunea Animație sau întrebați la recepție.",
+    broadcastNotConfirmed: "Nu am o confirmare că hotelul transmite meciurile. Vă rugăm să întrebați la recepție.",
+  },
+  cs: {
+    clarifyProgram: "Který program máte na mysli — animační program, nebo program a výsledky mistrovství světa?",
+    animationProgramMissing: "Aktuální animační program zatím nebyl nahrán. Podívejte se do sekce Animace nebo se zeptejte na recepci.",
+    broadcastNotConfirmed: "Nemám potvrzenou informaci, že hotel zápasy vysílá. Zeptejte se prosím na recepci.",
+  },
+  ru: {
+    clarifyProgram: "Какую программу вы имеете в виду — программу анимации или расписание и результаты чемпионата мира?",
+    animationProgramMissing: "Актуальная программа анимации пока не загружена. Проверьте раздел «Анимация» или уточните на рецепции.",
+    broadcastNotConfirmed: "У меня нет подтверждённой информации, что отель показывает матчи. Пожалуйста, уточните на рецепции.",
+  },
+};
+
 function cleanPathPart(value: string) {
   return String(value || "")
     .replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, "")
@@ -1776,7 +1813,23 @@ const SERVICE_SUMMARY: Record<string, Partial<Record<Lang, string>>> = {
   },
 };
 
+function isInternalAdminPlaceholder(value: string) {
+  const text = clean(value);
+  if (!text) return false;
+
+  const technicalFieldMention = hasAnyTerm(text, [
+    "pdf_url", "external_url", "link_url", "column pdf", "колоната pdf", "столбец pdf",
+  ]);
+  const uploadInstruction = hasAnyTerm(text, [
+    "качете pdf", "добавете pdf", "add the pdf link", "insert pdf link", "pdf-link einfugen", "pdf-link einfügen",
+    "adaugati linkul pdf", "adăugați linkul pdf", "vlozte pdf odkaz", "vložte pdf odkaz", "добавьте ссылку на pdf",
+  ]);
+
+  return technicalFieldMention || uploadInstruction;
+}
+
 function compactSentences(value: string, maxChars = 360, maxSentences = 3) {
+  if (isInternalAdminPlaceholder(value)) return "";
   const text = normalizeDisplayText(value)
     .replace(/\s+/g, " ")
     .replace(/\s*•\s*/g, " ")
@@ -2714,6 +2767,7 @@ function getOpenAiClient() {
 }
 
 function compactKnowledgeText(value: string, maxLength = 700) {
+  if (isInternalAdminPlaceholder(value)) return "";
   const cleanValue = normalizeDisplayText(value).replace(/\s+/g, " ").trim();
   if (cleanValue.length <= maxLength) return cleanValue;
   return `${cleanValue.slice(0, maxLength - 1).trim()}…`;
@@ -2934,17 +2988,18 @@ const AI_ANIMATION_CONTEXT_TERMS = [
 
 const AI_MATCH_SCHEDULE_TERMS = [
   "програма на мач", "програма за мач", "резултати", "класиране", "schedule", "fixtures", "results",
+  "программа матчей", "расписание матчей", "расписание игр", "календарь матчей",
   "spielplan", "ergebnisse", "program meci", "programul meci", "rezultate",
   "program zapasu", "program zápasů", "vysledky", "výsledky", "расписание матч", "результаты",
 ];
 
 const AI_MATCH_BROADCAST_TERMS = [
   "предавате", "излъчвате", "гледам мач", "гледане на мач", "телевизия мач",
-  "broadcast", "show matches", "watch match", "watch the match", "screen matches",
+  "broadcast", "show matches", "show the match", "show the matches", "show the world cup", "will the hotel show", "watch match", "watch the match", "screen matches",
   "ubertragen", "übertragen", "spiel schauen", "spiele ansehen",
-  "transmiteți", "transmiteti", "vizionare meci", "meciuri la televizor",
-  "vysilate", "vysíláte", "sledovani zapasu", "sledování zápasu",
-  "показываете матчи", "трансляция матч", "смотреть матч",
+  "transmiteți", "transmiteti", "transmite", "hotelul transmite", "vizionare meci", "meciuri la televizor",
+  "vysilate", "vysíláte", "vysila", "vysílá", "vysila hotel", "vysílá hotel", "sledovani zapasu", "sledování zápasu",
+  "показываете матчи", "показывает ли отель", "показывает отель", "показ матчей", "трансляция матч", "трансляция матчей", "смотреть матч",
 ];
 
 const AI_ANIMATION_PROGRAM_TERMS = [
@@ -2964,10 +3019,15 @@ function detectAiQuestionIntent(question: string) {
   const matchSchedule = matchContext && hasAnyTerm(q, AI_MATCH_SCHEDULE_TERMS);
   const matchBroadcast = matchContext && hasAnyTerm(q, AI_MATCH_BROADCAST_TERMS);
   const animationProgram = animationContext && hasAnyTerm(q, AI_ANIMATION_PROGRAM_TERMS);
-  const genericProgram = hasAnyTerm(q, ["програма", "program", "programm", "programa", "программа"])
+  const hasProgramWord = hasAnyTerm(q, ["програма", "program", "programm", "programa", "программа"]);
+  const programContextTokens = aiQuestionTokens(q).filter((token) =>
+    !["program", "programm", "programa", "програма", "програм"].some((root) => token.startsWith(root))
+  );
+  const genericProgram = hasProgramWord
     && !matchSchedule
     && !matchBroadcast
-    && !animationProgram;
+    && !animationProgram
+    && programContextTokens.length === 0;
 
   return {
     matchContext,
@@ -3078,6 +3138,63 @@ function validateSelectedAiRecords(
     .map((entry) => entry.record);
 }
 
+function findAiRecordByServiceKey(records: AiKnowledgeRecord[], key: string) {
+  return records.find((record) => record.id === `service:${key}`);
+}
+
+function groundedRecordAnswer(record: AiKnowledgeRecord, lang: Lang, lead = "") {
+  const details = compactKnowledgeText(record.details || "");
+  return uniqueNonEmpty([
+    lead,
+    record.title ? `• ${record.title}` : "",
+    details,
+    pathLine(lang, record.path),
+    ...urlLines(lang, record.urls),
+  ]).join("\n");
+}
+
+function buildDeterministicContextAnswer(
+  question: string,
+  lang: Lang,
+  hotel: HotelPayload,
+  records: AiKnowledgeRecord[]
+) {
+  const intent = detectAiQuestionIntent(question);
+
+  if (intent.genericProgram) {
+    return AI_CONTEXT_COPY[lang].clarifyProgram;
+  }
+
+  if (intent.matchSchedule) {
+    const record = findAiRecordByServiceKey(records, "world_cup_2026");
+    return record ? groundedRecordAnswer(record, lang) : COPY[lang].noData;
+  }
+
+  if (intent.animationProgram) {
+    const record = findAiRecordByServiceKey(records, "animation_program");
+    if (!record) return COPY[lang].noData;
+    if (!record.urls.length && !compactKnowledgeText(record.details || "")) {
+      return uniqueNonEmpty([
+        AI_CONTEXT_COPY[lang].animationProgramMissing,
+        pathLine(lang, record.path),
+      ]).join("\n");
+    }
+    return groundedRecordAnswer(record, lang);
+  }
+
+  if (intent.matchBroadcast) {
+    const record = findAiRecordByServiceKey(records, "world_cup_conference_room");
+    if (record) return groundedRecordAnswer(record, lang);
+    return appendGuidance(
+      AI_CONTEXT_COPY[lang].broadcastNotConfirmed,
+      lang,
+      [departmentNavLabel(lang, "reception")]
+    );
+  }
+
+  return null;
+}
+
 function parseAiModelAnswer(value: string): AiModelAnswer | null {
   try {
     const parsed = JSON.parse(value) as Partial<AiModelAnswer>;
@@ -3121,6 +3238,9 @@ async function buildOpenAiHotelAnswer(question: string, lang: Lang, hotel: Hotel
 
   const records = buildAiKnowledge(lang, hotel);
   if (!records.length) return null;
+
+  const deterministicContextAnswer = buildDeterministicContextAnswer(question, lang, hotel, records);
+  if (deterministicContextAnswer) return deterministicContextAnswer;
 
   const candidateRecords = selectAiCandidateRecords(question, records);
   const questionIntent = detectAiQuestionIntent(question);
@@ -3214,7 +3334,12 @@ export async function POST(req: Request) {
 
     let answer: string;
 
-    if (useDeterministicAnswer) {
+    const contextRecords = buildAiKnowledge(lang, hotel);
+    const hardContextAnswer = buildDeterministicContextAnswer(question, lang, hotel, contextRecords);
+
+    if (hardContextAnswer) {
+      answer = hardContextAnswer;
+    } else if (useDeterministicAnswer) {
       answer = await buildHotelAnswer(question, lang, hotel);
     } else {
       answer =

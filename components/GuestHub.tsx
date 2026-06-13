@@ -7013,8 +7013,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               </button>
 
               {aiAnswer ? (
-                <div className="max-h-[40vh] overflow-y-auto whitespace-pre-wrap rounded-xl stayhub-card p-3 text-sm leading-6">
-                  <AiAnswerContent text={aiAnswer} />
+                <div className="max-h-[40vh] min-w-0 overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words rounded-xl stayhub-card p-3 text-sm leading-6">
+                  <AiAnswerContent text={aiAnswer} lang={lang} />
                 </div>
               ) : null}
             </div>
@@ -7026,8 +7026,16 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 }
 
 
-function AiAnswerContent({ text }: { text: string }) {
+function AiAnswerContent({ text, lang }: { text: string; lang: LangKey }) {
   const parts = String(text || "").split(/(https?:\/\/[^\s]+)/g);
+  const linkLabels: Record<LangKey, string> = {
+    bg: "Отвори линка",
+    en: "Open link",
+    de: "Link öffnen",
+    ro: "Deschide linkul",
+    cs: "Otevřít odkaz",
+    ru: "Открыть ссылку",
+  };
 
   return (
     <>
@@ -7039,14 +7047,14 @@ function AiAnswerContent({ text }: { text: string }) {
         const trailing = String(match?.[2] || "");
 
         return (
-          <span key={`ai-link-${index}`}>
+          <span key={`ai-link-${index}`} className="inline-flex max-w-full items-center gap-1 align-middle">
             <a
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="break-all font-semibold underline decoration-2 underline-offset-2"
+              className="inline-flex max-w-full rounded-lg px-3 py-2 font-semibold underline decoration-2 underline-offset-2 stayhub-action-card"
             >
-              {href}
+              {linkLabels[lang] || linkLabels.en}
             </a>
             {trailing}
           </span>
