@@ -1716,6 +1716,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [aiHistory, setAiHistory] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
+  const aiConversationRef = useRef<HTMLDivElement | null>(null);
+  const aiRequestSeqRef = useRef(0);
   const [openQuickServiceId, setOpenQuickServiceId] = useState<string | null>(null);
 
   const AI_RESET_AFTER_MS = 5 * 60 * 1000;
@@ -1723,6 +1725,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const appHiddenAtRef = useRef<number | null>(null);
 
   const clearAiState = useCallback(() => {
+    aiRequestSeqRef.current += 1;
     setAiQ("");
     setAiAnswer("");
     setAiLoading(false);
@@ -2467,6 +2470,24 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
     return map[(lang as "bg" | "en" | "de" | "ru" | "ro" | "cs")] || map.bg;
   }, [lang, tUI]);
+
+  const aiChatCopy = useMemo(() => {
+    const copy = {
+      bg: { newConversation: "Нов разговор", followUp: "Попитайте още…" },
+      en: { newConversation: "New conversation", followUp: "Ask another question…" },
+      de: { newConversation: "Neues Gespräch", followUp: "Weitere Frage stellen…" },
+      ro: { newConversation: "Conversație nouă", followUp: "Puneți o altă întrebare…" },
+      cs: { newConversation: "Nová konverzace", followUp: "Zeptejte se dál…" },
+      ru: { newConversation: "Новый разговор", followUp: "Задайте ещё вопрос…" },
+    } as const;
+    return copy[(lang as keyof typeof copy)] || copy.en;
+  }, [lang]);
+
+  useEffect(() => {
+    const container = aiConversationRef.current;
+    if (!container) return;
+    container.scrollTop = container.scrollHeight;
+  }, [aiHistory, aiLoading, aiPanelOpen]);
 
   const guestStatusLabel = useCallback(
     (status: StaffRequestStatus) => {
@@ -4941,7 +4962,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const askAI = async () => {
     const questionText = aiQ.trim();
-    if (!questionText) return;
+    if (!questionText || aiLoading) return;
     if (!ensureConfirmedRoom()) return;
 
     trackGuestEvent({
@@ -4957,9 +4978,17 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       },
     });
 
+    const historyForRequest = aiHistory.slice(-6);
+    const requestSeq = ++aiRequestSeqRef.current;
+    setAiQ("");
+    setAiAnswer("");
+    setAiHistory((previous) => [
+      ...previous,
+      { role: "user" as const, content: questionText },
+    ].slice(-6));
+
     try {
       setAiLoading(true);
-      setAiAnswer("");
 
       const res = await fetch("/api/ai", {
         method: "POST",
@@ -4968,11 +4997,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           question: questionText,
           lang: String(lang),
           hotelSlug: config.hotelSlug,
-          history: aiHistory.slice(-6),
+          history: historyForRequest,
         }),
       });
 
       const data = await res.json();
+      if (requestSeq !== aiRequestSeqRef.current) return;
 
       if (!data?.ok) {
         trackGuestEvent({
@@ -4983,7 +5013,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           label: "api_not_ok",
           value: "false",
         });
-        setAiAnswer(String(tUI("ai_error") || "Възникна грешка при обработката."));
+        const errorText = String(tUI("ai_error") || "Възникна грешка при обработката.");
+        setAiAnswer(errorText);
+        setAiHistory((previous) => [
+          ...previous,
+          { role: "assistant" as const, content: errorText },
+        ].slice(-6));
         return;
       }
 
@@ -4991,7 +5026,6 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       setAiAnswer(answerText);
       setAiHistory((previous) => [
         ...previous,
-        { role: "user" as const, content: questionText },
         { role: "assistant" as const, content: answerText },
       ].slice(-6));
       trackGuestEvent({
@@ -5016,6 +5050,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         },
       });
     } catch {
+      if (requestSeq !== aiRequestSeqRef.current) return;
       trackGuestEvent({
         eventName: "ai_error",
         eventCategory: "ai",
@@ -5024,11 +5059,17 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         label: "request_failed",
         value: "false",
       });
-      setAiAnswer(String(tUI("ai_error") || "Възникна грешка при обработката."));
+      const errorText = String(tUI("ai_error") || "Възникна грешка при обработката.");
+      setAiAnswer(errorText);
+      setAiHistory((previous) => [
+        ...previous,
+        { role: "assistant" as const, content: errorText },
+      ].slice(-6));
     } finally {
-      setAiLoading(false);
+      if (requestSeq === aiRequestSeqRef.current) setAiLoading(false);
     }
   };
+
 
   const getVenueReservationDepartment = (venue: VenueRow): "reception" | "restaurant" => {
     const explicit = String(venue.reservationDepartment || "").trim().toLowerCase();
@@ -6960,34 +7001,67 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       {aiPanelOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-3 sm:items-center">
           <div className="w-full max-w-md rounded-2xl stayhub-section-shell p-4 shadow-2xl">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-lg font-semibold">🤖 {String(tUI("ai_title") || "AI Concierge")}</div>
-              <button
-                type="button"
-                onClick={closeAiPanel}
-                className="rounded-full stayhub-card px-3 py-2 text-xs font-semibold"
-              >
-                {guestNavigationLabel("close", guestNavCopy.close)}
-              </button>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="mr-auto text-lg font-semibold">🤖 {String(tUI("ai_title") || "AI Concierge")}</div>
+              <div className="flex items-center gap-2">
+                {aiHistory.length || aiQ.trim() ? (
+                  <button
+                    type="button"
+                    onClick={clearAiState}
+                    className="rounded-full stayhub-card px-3 py-2 text-xs font-semibold"
+                  >
+                    {aiChatCopy.newConversation}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={closeAiPanel}
+                  className="rounded-full stayhub-card px-3 py-2 text-xs font-semibold"
+                >
+                  {guestNavigationLabel("close", guestNavCopy.close)}
+                </button>
+              </div>
             </div>
 
             <div className="mt-3 grid grid-cols-1 gap-2">
-              {!aiQ.trim() ? (
+              {aiHistory.length === 0 && !aiLoading ? (
                 <div className="rounded-xl stayhub-card p-3 text-sm leading-6">
                   {aiIntroText}
                 </div>
-              ) : null}
+              ) : (
+                <div
+                  ref={aiConversationRef}
+                  className="max-h-[44vh] min-w-0 overflow-y-auto overflow-x-hidden rounded-xl p-1"
+                >
+                  <AiConversationMessages
+                    history={aiHistory}
+                    loading={aiLoading}
+                    loadingText={String(tUI("ai_loading") || "Thinking...")}
+                    lang={lang}
+                  />
+                </div>
+              )}
 
               <textarea
                 value={aiQ}
                 onChange={(event) => setAiQ(event.target.value)}
-                placeholder={String(tUI("ai_placeholder") || "Ask a question about the hotel...")}
-                className="min-h-[110px] w-full rounded-xl stayhub-card p-3 text-sm outline-none placeholder:text-[color:var(--stayhub-muted)]"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void askAI();
+                  }
+                }}
+                placeholder={
+                  aiHistory.length
+                    ? aiChatCopy.followUp
+                    : String(tUI("ai_placeholder") || "Ask a question about the hotel...")
+                }
+                className="min-h-[88px] w-full rounded-xl stayhub-card p-3 text-sm outline-none placeholder:text-[color:var(--stayhub-muted)]"
               />
 
               <button
                 type="button"
-                onClick={askAI}
+                onClick={() => void askAI()}
                 disabled={aiLoading || !aiQ.trim()}
                 className="rounded-xl px-3 py-3 text-left text-sm font-semibold stayhub-action-card transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -6995,12 +7069,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                   ? String(tUI("ai_loading") || "Thinking...")
                   : String(tUI("ai_send") || "Send")}
               </button>
-
-              {aiAnswer ? (
-                <div className="max-h-[40vh] min-w-0 overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words rounded-xl stayhub-card p-3 text-sm leading-6">
-                  <AiAnswerContent text={aiAnswer} lang={lang} />
-                </div>
-              ) : null}
             </div>
           </div>
         </div>
@@ -7009,6 +7077,49 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   );
 }
 
+
+function AiConversationMessages({
+  history,
+  loading,
+  loadingText,
+  lang,
+}: {
+  history: Array<{ role: "user" | "assistant"; content: string }>;
+  loading: boolean;
+  loadingText: string;
+  lang: LangKey;
+}) {
+  return (
+    <div className="space-y-2">
+      {history.map((message, index) => (
+        <div
+          key={`${message.role}-${index}-${message.content.slice(0, 24)}`}
+          className={clsx("flex", message.role === "user" ? "justify-end" : "justify-start")}
+        >
+          <div
+            className={clsx(
+              "max-w-[88%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-6",
+              message.role === "user" ? "stayhub-action-card" : "stayhub-card"
+            )}
+          >
+            {message.role === "assistant" ? (
+              <AiAnswerContent text={message.content} lang={lang} />
+            ) : (
+              message.content
+            )}
+          </div>
+        </div>
+      ))}
+      {loading ? (
+        <div className="flex justify-start">
+          <div className="max-w-[88%] rounded-2xl stayhub-card px-3 py-2 text-sm leading-6">
+            {loadingText}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function AiAnswerContent({ text, lang }: { text: string; lang: LangKey }) {
   const parts = String(text || "").split(/(https?:\/\/[^\s]+)/g);

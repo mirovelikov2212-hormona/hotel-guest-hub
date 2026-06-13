@@ -194,6 +194,7 @@ export async function POST(request: Request) {
       outputTokens,
       latencyMs: Date.now() - startedAt,
       intent: routed.intent,
+      requestedFields: routed.requested_fields,
       confidence: routed.confidence,
       routerError,
     };

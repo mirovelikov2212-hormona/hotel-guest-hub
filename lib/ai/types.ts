@@ -48,10 +48,24 @@ export type AiHistoryTurn = {
 
 export type AiRouterStatus = "answer" | "clarify" | "not_found" | "out_of_scope";
 
+export const AI_ANSWER_FIELDS = [
+  "summary",
+  "price",
+  "hours",
+  "reservation",
+  "location",
+  "options",
+  "availability",
+  "request",
+  "links",
+] as const;
+export type AiAnswerField = (typeof AI_ANSWER_FIELDS)[number];
+
 export type AiRouterResult = {
   status: AiRouterStatus;
   selected_ids: string[];
   intent: string;
+  requested_fields: AiAnswerField[];
   clarification: string;
   confidence: number;
 };
@@ -67,6 +81,7 @@ export type AiDiagnostics = {
   outputTokens?: number;
   latencyMs: number;
   intent?: string;
+  requestedFields?: AiAnswerField[];
   confidence?: number;
   routerError?: string;
 };

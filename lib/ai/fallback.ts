@@ -68,6 +68,20 @@ function scoreRecord(record: AiCatalogRecord, question: string, lang: AiLang) {
   return { record, score, exactPhrase };
 }
 
+function inferRequestedFields(question: string): AiRouterResult["requested_fields"] {
+  const q = normalize(question);
+  const fields: AiRouterResult["requested_fields"] = [];
+
+  if (/(цена|струва|колко|price|cost|how much|preis|kost|preț|pret|cât costă|kolik stoj|cena|стоит|цена)/u.test(q)) fields.push("price");
+  if (/(работно време|до колко|кога|час|отвор|hours|opening|when|what time|offen|uhr|wann|program|orar|când|otevir|kdy|v kolik|часы|когда)/u.test(q)) fields.push("hours");
+  if (/(резервац|reservation|reserve|reservier|rezerv|rezervace|бронир)/u.test(q)) fields.push("reservation");
+  if (/(къде|намира|местоположение|where|location|find|wo|standort|unde|locaț|kde|nachází|где|находит)/u.test(q)) fields.push("location");
+  if (/(вариант|видове|какви|options|types|which|welche|varianten|opțiuni|tipuri|možnosti|jaké|вариант|какие)/u.test(q)) fields.push("options");
+  if (/(налич|предлаг|имате ли|available|offer|do you have|verfüg|bieten|disponibil|aveți|nabíz|máte|доступ|есть ли)/u.test(q)) fields.push("availability");
+
+  return fields.length ? Array.from(new Set(fields)).slice(0, 5) : ["summary"];
+}
+
 export function deterministicRoute(question: string, lang: AiLang, catalog: AiHotelCatalog): AiRouterResult {
   const ranked = catalog.records
     .map((record) => scoreRecord(record, question, lang))
@@ -80,6 +94,7 @@ export function deterministicRoute(question: string, lang: AiLang, catalog: AiHo
       status: "not_found",
       selected_ids: [],
       intent: "unknown",
+      requested_fields: inferRequestedFields(question),
       clarification: "",
       confidence: 0,
     };
@@ -91,6 +106,7 @@ export function deterministicRoute(question: string, lang: AiLang, catalog: AiHo
       status: "clarify",
       selected_ids: [],
       intent: "ambiguous",
+      requested_fields: inferRequestedFields(question),
       clarification: "",
       confidence: Math.min(0.7, top.score / 1000),
     };
@@ -100,6 +116,7 @@ export function deterministicRoute(question: string, lang: AiLang, catalog: AiHo
     status: "answer",
     selected_ids: [top.record.id],
     intent: top.record.intentTags[0] || top.record.kind,
+    requested_fields: inferRequestedFields(question),
     clarification: "",
     confidence: Math.min(0.99, top.score / 1000),
   };

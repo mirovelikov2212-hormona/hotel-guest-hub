@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { AiCatalogRecord, AiHistoryTurn, AiHotelCatalog, AiLang, AiRouterResult } from "@/lib/ai/types";
+import { AI_ANSWER_FIELDS, type AiCatalogRecord, type AiHistoryTurn, type AiHotelCatalog, type AiLang, type AiRouterResult } from "@/lib/ai/types";
 
 let client: OpenAI | null = null;
 
@@ -48,7 +48,7 @@ function compactAliases(record: AiCatalogRecord, lang: AiLang) {
     ...bgFallback,
     ...enFallback,
     ...record.intentTags,
-  ]).slice(0, 18);
+  ]).slice(0, 12);
 }
 
 function reservationState(record: AiCatalogRecord) {
@@ -68,6 +68,14 @@ function parseResult(value: string): AiRouterResult | null {
         ? parsed.selected_ids.map(String).filter(Boolean).slice(0, 6)
         : [],
       intent: String(parsed.intent || "unknown"),
+      requested_fields: Array.isArray(parsed.requested_fields)
+        ? parsed.requested_fields
+            .map(String)
+            .filter((field): field is AiRouterResult["requested_fields"][number] =>
+              (AI_ANSWER_FIELDS as readonly string[]).includes(field)
+            )
+            .slice(0, 5)
+        : [],
       clarification: String(parsed.clarification || "").trim(),
       confidence: Math.max(0, Math.min(1, Number(parsed.confidence || 0))),
     };
@@ -92,12 +100,12 @@ export async function routeWithOpenAi(args: {
     title: localizedText(record, args.lang),
     aliases: compactAliases(record, args.lang),
     intent_tags: record.intentTags.map((item) => compact(item, 80)).filter(Boolean).slice(0, 12),
-    summary: compact(record.summaries[args.lang] || record.summaries.bg || record.summaries.en || "", 520),
+    summary: compact(record.summaries[args.lang] || record.summaries.bg || record.summaries.en || "", 380),
     hours: compact(record.hoursByLang?.[args.lang] || record.hoursByLang?.bg || record.hoursByLang?.en || "", 180),
     options: (record.optionsByLang?.[args.lang] || record.optionsByLang?.bg || record.optionsByLang?.en || [])
       .map((item) => compact(item, 180))
       .filter(Boolean)
-      .slice(0, 12),
+      .slice(0, 8),
     price: compact(record.price || "", 80),
     reservation: reservationState(record),
   }));
@@ -114,6 +122,9 @@ export async function routeWithOpenAi(args: {
       "The user may write in Bulgarian, English, German, Romanian, Czech or Russian, with spelling or grammatical variations.",
       "Use the whole question and the recent conversation history. Resolve short follow-up questions from that history.",
       "Select only exact record IDs from HOTEL_CATALOG that contain the confirmed answer.",
+      "Return requested_fields with only the facts explicitly requested by the user: summary, price, hours, reservation, location, options, availability, request or links.",
+      "For a short follow-up such as 'And until what time?', resolve the same record from history and return only hours. For 'How much?' return only price. For 'Where is it?' return only location.",
+      "Do not request summary when the user asks only for price, hours, reservation or location. Use summary only for general descriptions or when the requested fact exists only inside the supplied summary.",
       "Important distinctions: free transfer is not the same as taxi; match schedule is not match broadcast; animation program is not football schedule; outside bar is not lobby bar; games room is not conference room; Wi-Fi password is not a Wi-Fi problem; coffee capsules are not a coffee machine problem.",
       "For one specific request select one record. Select multiple records only when the user clearly asks for all options or a comparison.",
       "If the question asks about price, select a record only when its supplied summary, price or options confirm that price.",
@@ -143,10 +154,15 @@ export async function routeWithOpenAi(args: {
             status: { type: "string", enum: ["answer", "clarify", "not_found", "out_of_scope"] },
             selected_ids: { type: "array", items: { type: "string" }, maxItems: 6 },
             intent: { type: "string" },
+            requested_fields: {
+              type: "array",
+              items: { type: "string", enum: [...AI_ANSWER_FIELDS] },
+              maxItems: 5,
+            },
             clarification: { type: "string" },
             confidence: { type: "number", minimum: 0, maximum: 1 },
           },
-          required: ["status", "selected_ids", "intent", "clarification", "confidence"],
+          required: ["status", "selected_ids", "intent", "requested_fields", "clarification", "confidence"],
         },
       },
     },
@@ -170,6 +186,9 @@ export async function routeWithOpenAi(args: {
   parsed.selected_ids = parsed.selected_ids.filter((id) => validIds.has(id));
   if (parsed.status === "answer" && parsed.selected_ids.length === 0) {
     parsed.status = "not_found";
+  }
+  if (parsed.status === "answer" && parsed.requested_fields.length === 0) {
+    parsed.requested_fields = ["summary"];
   }
 
   return {
