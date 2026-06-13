@@ -4903,6 +4903,16 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
                 }))
                 .filter((item: any) => item.label || item.info || item.href || item.url),
             })),
+            navigation: {
+              quickServices: guestNavigationLabel("quick_services_title", guestNavCopy.quickServices),
+              hotelStay: guestNavigationLabel("hotel_stay_title", guestNavCopy.hotelStay),
+              foodEntertainment: guestNavigationLabel("food_entertainment_title", guestNavCopy.foodEntertainment),
+              reviewsSocial: guestNavigationLabel("reviews_social_title", guestNavCopy.reviewsSocial),
+              more: guestNavigationLabel("more_services_title", guestNavCopy.more),
+              sectionTitles: Object.fromEntries(
+                sections.map((section) => [String(section.id || ""), String(section.title || "")])
+              ),
+            },
             services: aiServices,
           },
         }),
@@ -6919,7 +6929,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
               {aiAnswer ? (
                 <div className="max-h-[40vh] overflow-y-auto whitespace-pre-wrap rounded-xl stayhub-card p-3 text-sm leading-6">
-                  {aiAnswer}
+                  <AiAnswerContent text={aiAnswer} />
                 </div>
               ) : null}
             </div>
@@ -6927,6 +6937,37 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         </div>
       ) : null}
     </div>
+  );
+}
+
+
+function AiAnswerContent({ text }: { text: string }) {
+  const parts = String(text || "").split(/(https?:\/\/[^\s]+)/g);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (!/^https?:\/\//i.test(part)) return <span key={`ai-text-${index}`}>{part}</span>;
+
+        const match = part.match(/^(.*?)([),.;!?]+)?$/);
+        const href = String(match?.[1] || part);
+        const trailing = String(match?.[2] || "");
+
+        return (
+          <span key={`ai-link-${index}`}>
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold underline decoration-2 underline-offset-2"
+            >
+              {href}
+            </a>
+            {trailing}
+          </span>
+        );
+      })}
+    </>
   );
 }
 

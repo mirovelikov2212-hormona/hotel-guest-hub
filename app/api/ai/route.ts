@@ -21,6 +21,10 @@ type Venue = {
   location?: string;
   locationByLang?: Record<string, string>;
   menuUrl?: string;
+  reservationUrl?: string;
+  programUrl?: string;
+  phone?: string;
+  whatsapp?: string;
   requiresReservation?: boolean;
   active?: boolean;
   programText?: string;
@@ -36,8 +40,16 @@ type ServiceItem = {
   active?: boolean;
   keywords?: string[];
   category?: string;
+  subsection?: string;
+  targetDepartment?: string;
+  type?: string;
+  sectionTitle?: string;
+  options?: string[];
   price?: string;
   currency?: string;
+  pdfUrl?: string;
+  externalUrl?: string;
+  linkUrl?: string;
 };
 
 type TextMap = Partial<Record<Lang | string, string>>;
@@ -52,6 +64,7 @@ type HotelInfoItem = {
   active?: boolean;
   title?: TextMap;
   text?: TextMap;
+  href?: string;
 };
 
 type HubKnowledgeItem = {
@@ -70,6 +83,15 @@ type HubKnowledgeSection = {
   items?: HubKnowledgeItem[];
 };
 
+type HotelNavigation = {
+  quickServices?: string;
+  hotelStay?: string;
+  foodEntertainment?: string;
+  reviewsSocial?: string;
+  more?: string;
+  sectionTitles?: Record<string, string>;
+};
+
 type HotelPayload = {
   hotelName?: string;
   locationQuery?: string;
@@ -81,6 +103,7 @@ type HotelPayload = {
   reviews?: { google?: string; tripadvisor?: string; booking?: string };
   socialLinks?: { facebook?: string; instagram?: string; tiktok?: string; youtube?: string };
   hubSections?: HubKnowledgeSection[];
+  navigation?: HotelNavigation;
 };
 
 const SUPPORTED_LANGS: Lang[] = ["bg", "de", "en", "ro", "cs", "ru"];
@@ -1109,9 +1132,9 @@ function buildHotelInfoItemsFromHubSections(sections: HubKnowledgeSection[] | un
       const label = stripIcon(hubValue(item?.label || item?.title));
       const info = normalizeDisplayText(hubValue(item?.info || item?.text));
       const href = hubValue(item?.href || item?.url);
-      const text = [info, href].filter(Boolean).join("\n").trim();
+      const text = info.trim();
 
-      if (!label && !text) return;
+      if (!label && !text && !href) return;
 
       items.push({
         key: `hub_${sectionId}_${itemIndex}`,
@@ -1121,6 +1144,7 @@ function buildHotelInfoItemsFromHubSections(sections: HubKnowledgeSection[] | un
         sortOrder: 7000 + sectionIndex * 100 + itemIndex,
         title: { [lang]: label || sectionTitle || sectionId },
         text: { [lang]: text || label },
+        href,
       });
     });
   });
@@ -1156,6 +1180,275 @@ function getVenueHours(venue: Venue, lang: Lang) {
   return normalizeDisplayText(
     localized || venue.hours || (venue.open && venue.close ? `${venue.open} - ${venue.close}` : "")
   ).replace(/\b(\d):(\d{2})\b/g, "0$1:$2");
+}
+
+
+const NAVIGATION_COPY: Record<Lang, Record<string, string>> = {
+  bg: {
+    quickServices: "Бързи услуги",
+    hotelStay: "Хотел и престой",
+    foodEntertainment: "Храна и забавления",
+    reviewsSocial: "Отзиви и социални мрежи",
+    more: "Още услуги",
+    wifi: "Wi‑Fi",
+    reception: "Рецепция",
+    housekeeping: "Камериерки",
+    maintenance: "Поддръжка",
+    info: "Инфо",
+    weather: "Времето",
+    outlets: "Обекти",
+    animation: "Анимация",
+    world_cup: "Световно първенство 2026",
+    explore: "Около хотела",
+    reviews: "Отзиви",
+    social: "Последвайте ни",
+    emergency: "Спешен случай",
+  },
+  en: {
+    quickServices: "Quick services",
+    hotelStay: "Hotel & stay",
+    foodEntertainment: "Food & entertainment",
+    reviewsSocial: "Reviews & social media",
+    more: "More services",
+    wifi: "Wi‑Fi",
+    reception: "Reception",
+    housekeeping: "Housekeeping",
+    maintenance: "Maintenance",
+    info: "Info",
+    weather: "Weather",
+    outlets: "Outlets",
+    animation: "Animation",
+    world_cup: "World Cup 2026",
+    explore: "Explore nearby",
+    reviews: "Reviews",
+    social: "Follow us",
+    emergency: "Emergency",
+  },
+  de: {
+    quickServices: "Schnellzugriff",
+    hotelStay: "Hotel & Aufenthalt",
+    foodEntertainment: "Essen & Unterhaltung",
+    reviewsSocial: "Bewertungen & Social Media",
+    more: "Weitere Services",
+    wifi: "WLAN",
+    reception: "Rezeption",
+    housekeeping: "Housekeeping",
+    maintenance: "Technik",
+    info: "Info",
+    weather: "Wetter",
+    outlets: "Angebote",
+    animation: "Animation",
+    world_cup: "WM 2026",
+    explore: "Umgebung",
+    reviews: "Bewertungen",
+    social: "Folgen Sie uns",
+    emergency: "Notfall",
+  },
+  ro: {
+    quickServices: "Servicii rapide",
+    hotelStay: "Hotel și sejur",
+    foodEntertainment: "Mâncare și divertisment",
+    reviewsSocial: "Recenzii și rețele sociale",
+    more: "Mai multe servicii",
+    wifi: "Wi‑Fi",
+    reception: "Recepție",
+    housekeeping: "Curățenie",
+    maintenance: "Întreținere",
+    info: "Informații",
+    weather: "Vremea",
+    outlets: "Facilități",
+    animation: "Animație",
+    world_cup: "Cupa Mondială 2026",
+    explore: "Explorează împrejurimile",
+    reviews: "Recenzii",
+    social: "Urmăriți-ne",
+    emergency: "Urgență",
+  },
+  cs: {
+    quickServices: "Rychlé služby",
+    hotelStay: "Hotel a pobyt",
+    foodEntertainment: "Jídlo a zábava",
+    reviewsSocial: "Hodnocení a sociální sítě",
+    more: "Další služby",
+    wifi: "Wi‑Fi",
+    reception: "Recepce",
+    housekeeping: "Úklid pokoje",
+    maintenance: "Údržba",
+    info: "Informace",
+    weather: "Počasí",
+    outlets: "Provozovny",
+    animation: "Animace",
+    world_cup: "Mistrovství světa 2026",
+    explore: "Prozkoumat okolí",
+    reviews: "Hodnocení",
+    social: "Sledujte nás",
+    emergency: "Nouzová situace",
+  },
+  ru: {
+    quickServices: "Быстрые услуги",
+    hotelStay: "Отель и проживание",
+    foodEntertainment: "Еда и развлечения",
+    reviewsSocial: "Отзывы и соцсети",
+    more: "Другие услуги",
+    wifi: "Wi‑Fi",
+    reception: "Ресепшен",
+    housekeeping: "Уборка номера",
+    maintenance: "Техническая служба",
+    info: "Информация",
+    weather: "Погода",
+    outlets: "Объекты отеля",
+    animation: "Анимация",
+    world_cup: "Чемпионат мира 2026",
+    explore: "Рядом с отелем",
+    reviews: "Отзывы",
+    social: "Подписывайтесь на нас",
+    emergency: "Экстренная ситуация",
+  },
+};
+
+const GUIDANCE_COPY: Record<Lang, { path: string; link: string }> = {
+  bg: { path: "Намира се в", link: "Линк" },
+  en: { path: "Find it in", link: "Link" },
+  de: { path: "Zu finden unter", link: "Link" },
+  ro: { path: "Se găsește în", link: "Link" },
+  cs: { path: "Najdete v", link: "Odkaz" },
+  ru: { path: "Находится в", link: "Ссылка" },
+};
+
+function cleanPathPart(value: string) {
+  return String(value || "")
+    .replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function capitalizePathPart(value: string) {
+  const text = cleanPathPart(value);
+  return text ? `${text.charAt(0).toLocaleUpperCase()}${text.slice(1)}` : "";
+}
+
+function navLabel(hotel: HotelPayload | undefined, lang: Lang, key: string) {
+  const direct = hotel?.navigation?.[key as keyof Omit<HotelNavigation, "sectionTitles">];
+  if (typeof direct === "string" && direct.trim()) return cleanPathPart(direct);
+
+  const sectionTitle = hotel?.navigation?.sectionTitles?.[key];
+  if (sectionTitle && String(sectionTitle).trim()) return cleanPathPart(sectionTitle);
+
+  return cleanPathPart(NAVIGATION_COPY[lang][key] || key.replace(/_/g, " "));
+}
+
+function uniquePath(parts: string[]) {
+  const result: string[] = [];
+  for (const part of parts.map(cleanPathPart).filter(Boolean)) {
+    if (result.at(-1)?.toLowerCase() === part.toLowerCase()) continue;
+    result.push(part);
+  }
+  return result;
+}
+
+function pathLine(lang: Lang, parts: string[]) {
+  const path = uniquePath(parts);
+  return path.length ? `${GUIDANCE_COPY[lang].path}: ${path.join(" → ")}` : "";
+}
+
+function safeHttpUrl(value: string | undefined) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function urlLines(lang: Lang, urls: Array<string | undefined>) {
+  const unique = Array.from(new Set(urls.map(safeHttpUrl).filter(Boolean)));
+  return unique.map((url) => `${GUIDANCE_COPY[lang].link}: ${url}`);
+}
+
+function appendGuidance(answer: string, lang: Lang, path: string[], urls: Array<string | undefined> = []) {
+  return uniqueNonEmpty([
+    answer,
+    pathLine(lang, path),
+    ...urlLines(lang, urls),
+  ]).join("\n");
+}
+
+function servicePath(service: ServiceItem, lang: Lang, hotel?: HotelPayload) {
+  const category = normalizeCategory(service.category || service.targetDepartment);
+  const title = stripIcon(service.label);
+  const sectionTitle = cleanPathPart(service.sectionTitle || "");
+
+  if (["housekeeping", "reception", "maintenance"].includes(category)) {
+    return [navLabel(hotel, lang, "quickServices"), navLabel(hotel, lang, category), title];
+  }
+
+  if (["info", "policies", "policy", "charity"].includes(category)) {
+    return [navLabel(hotel, lang, "hotelStay"), navLabel(hotel, lang, "info"), title];
+  }
+
+  if (category === "animation") {
+    return [navLabel(hotel, lang, "foodEntertainment"), navLabel(hotel, lang, "animation"), title];
+  }
+
+  if (category === "world_cup") {
+    return [
+      navLabel(hotel, lang, "foodEntertainment"),
+      sectionTitle || navLabel(hotel, lang, "world_cup"),
+      title,
+    ];
+  }
+
+  if (["restaurants", "bars", "spa", "kids", "entertainment", "pool", "gym", "lounge", "room_service"].includes(category)) {
+    return [navLabel(hotel, lang, "foodEntertainment"), navLabel(hotel, lang, "outlets"), title];
+  }
+
+  return [navLabel(hotel, lang, "more"), sectionTitle || title];
+}
+
+function venuePath(venue: Venue, lang: Lang, hotel?: HotelPayload) {
+  const name = getVenueText(venue, "name", lang) || venue.name || "";
+  const category = normalizeCategory(venue.category || venue.type);
+  const categoryLabel = COPY[lang].categoryLabel[category as keyof typeof COPY[typeof lang]["categoryLabel"]] || category;
+  return [
+    navLabel(hotel, lang, "foodEntertainment"),
+    navLabel(hotel, lang, "outlets"),
+    capitalizePathPart(String(categoryLabel || "")),
+    name,
+  ];
+}
+
+function hotelInfoPath(item: HotelInfoItem, lang: Lang, hotel?: HotelPayload) {
+  const identity = itemIdentity(item, lang);
+  const category = normalizeCategory(item.category || "");
+  const title = stripIcon(getMapValue(item.title, lang));
+
+  if (category === "animation" || hasAnyTerm(identity, ["animation", "анимац", "animație", "animace"])) {
+    return [navLabel(hotel, lang, "foodEntertainment"), navLabel(hotel, lang, "animation"), title];
+  }
+
+  if (category === "world_cup" || hasAnyTerm(identity, ["world cup", "fifa", "световно", "чемпионат мира", "wm 2026"])) {
+    return [navLabel(hotel, lang, "foodEntertainment"), navLabel(hotel, lang, "world_cup"), title];
+  }
+
+  if (category === "explore" || isNearbyOutsideQuestion(identity)) {
+    return [navLabel(hotel, lang, "explore"), title];
+  }
+
+  if (category === "reviews") {
+    return [navLabel(hotel, lang, "reviewsSocial"), navLabel(hotel, lang, "reviews"), title];
+  }
+
+  if (category === "social") {
+    return [navLabel(hotel, lang, "reviewsSocial"), navLabel(hotel, lang, "social"), title];
+  }
+
+  if (category === "emergency" || hasAnyTerm(identity, ["emergency", "спеш", "notfall", "urgență", "nouz", "экстр"])) {
+    return [navLabel(hotel, lang, "emergency"), title];
+  }
+
+  return [navLabel(hotel, lang, "hotelStay"), navLabel(hotel, lang, "info"), title];
 }
 
 function detectCategories(question: string) {
@@ -1317,7 +1610,7 @@ function pickMealLines(question: string, hours: string, lang: Lang) {
   return selected.length ? selected.join("\n") : normalizeDisplayText(hours);
 }
 
-function formatVenueLine(venue: Venue, lang: Lang, wantsReservation: boolean, question = "") {
+function formatVenueLine(venue: Venue, lang: Lang, wantsReservation: boolean, question = "", hotel?: HotelPayload) {
   const t = COPY[lang];
   const name = getVenueText(venue, "name", lang) || venue.name || "Hotel";
   const hours = getVenueHours(venue, lang);
@@ -1338,7 +1631,12 @@ function formatVenueLine(venue: Venue, lang: Lang, wantsReservation: boolean, qu
     lines.push(t.venueReservation(name).replace(/^•\s*/, ""));
   }
 
-  return lines.join("\n");
+  return appendGuidance(
+    lines.join("\n"),
+    lang,
+    venuePath(venue, lang, hotel),
+    [venue.menuUrl, venue.reservationUrl, venue.programUrl]
+  );
 }
 
 function buildVenueCategoryAnswer(question: string, lang: Lang, hotel: HotelPayload) {
@@ -1354,7 +1652,7 @@ function buildVenueCategoryAnswer(question: string, lang: Lang, hotel: HotelPayl
     .map((category) => t.categoryLabel[category as keyof typeof t.categoryLabel] || category)
     .join(lang === "bg" || lang === "ru" ? " и " : lang === "de" ? " und " : lang === "ro" ? " și " : lang === "cs" ? " a " : " and ");
 
-  const lines = venues.slice(0, 8).map((venue) => formatVenueLine(venue, lang, wantsReservation, question));
+  const lines = venues.slice(0, 8).map((venue) => formatVenueLine(venue, lang, wantsReservation, question, hotel));
   return [t.venueListIntro(labels), ...lines.slice(0, 4)].join("\n");
 }
 
@@ -1362,7 +1660,7 @@ function buildSpecificVenueAnswer(question: string, lang: Lang, hotel: HotelPayl
   const wantsReservation = hasAnyTerm(question, ["reserv", "book", "резерв", "брониров", "забронировать", "buch", "rezerv", "rezervare", "rezervovat"]);
   const venues = findMatchingVenues(question, lang, hotel);
   if (!venues.length) return null;
-  return venues.map((venue) => formatVenueLine(venue, lang, wantsReservation, question)).join("\n\n");
+  return venues.map((venue) => formatVenueLine(venue, lang, wantsReservation, question, hotel)).join("\n\n");
 }
 
 function buildHotelInfoAnswer(question: string, lang: Lang, hotel: HotelPayload) {
@@ -1371,11 +1669,9 @@ function buildHotelInfoAnswer(question: string, lang: Lang, hotel: HotelPayload)
 
   const lines = matches.slice(0, 5).map((item) => {
     const title = stripIcon(getMapValue(item.title, lang));
-    const text = normalizeDisplayText(getMapValue(item.text, lang));
-    if (title && text) return `• ${title}\n${text}`;
-    if (text) return `• ${text}`;
-    if (title) return `• ${title}`;
-    return "";
+    const info = normalizeDisplayText(getMapValue(item.text, lang));
+    const base = title && info ? `• ${title}\n${info}` : info ? `• ${info}` : title ? `• ${title}` : "";
+    return base ? appendGuidance(base, lang, hotelInfoPath(item, lang, hotel), [item.href]) : "";
   }).filter(Boolean);
 
   return lines.length ? lines.join("\n\n") : null;
@@ -1507,15 +1803,45 @@ function serviceScore(service: ServiceItem, question: string) {
   const q = clean(question);
   const key = clean(service.key);
   const label = clean(stripIcon(service.label));
+  const description = clean(service.description || "");
+  const sectionTitle = clean(service.sectionTitle || "");
   let score = 0;
 
-  if (key && hasTerm(q, key)) score += 80;
-  if (key && hasTerm(q, key.replace(/_/g, " "))) score += 80;
-  if (label && hasTerm(q, label)) score += 70;
+  if (key && q === key) score += 420;
+  if (key && q === key.replace(/_/g, " ")) score += 420;
+  if (label && q === label) score += 380;
+  if (key && hasTerm(q, key)) score += 120;
+  if (key && hasTerm(q, key.replace(/_/g, " "))) score += 120;
+  if (label && hasTerm(q, label)) score += 180;
+  if (sectionTitle && hasTerm(q, sectionTitle)) score += 70;
 
   for (const token of [...(service.keywords ?? []), ...(SERVICE_KEYWORDS[service.key] ?? [])]) {
-    if (hasTerm(q, token)) score += clean(token).length >= 8 ? 12 : 6;
+    const normalized = clean(token);
+    if (!normalized || !hasTerm(q, normalized)) continue;
+    score += q === normalized ? 260 : normalized.length >= 12 ? 45 : normalized.length >= 7 ? 28 : 14;
   }
+
+  const watchQuestion = hasAnyTerm(q, [
+    "предавате", "излъчвате", "гледам мач", "гледане на мач", "гледаме мач",
+    "watch match", "watch the match", "show matches", "broadcast matches",
+    "spiele ansehen", "spiel schauen", "meciuri la televizor", "vizionare meci",
+    "sledování zápasu", "смотреть матч", "трансляция матчей",
+  ]);
+  const watchContent = hasAnyTerm(`${description} ${(service.keywords ?? []).join(" ")}`, [
+    "гледане на мач", "отворена по време на мач", "watch the games", "watch match",
+    "spiele ansehen", "vizionare meci", "sledování zápasu", "смотреть матчи",
+  ]);
+  if (watchQuestion && watchContent) score += 360;
+
+  const scheduleQuestion = hasAnyTerm(q, [
+    "програма", "резултати", "schedule", "results", "fixtures", "spielplan", "ergebnisse",
+    "program și rezultate", "program a výsledky", "расписание", "результаты",
+  ]);
+  const scheduleContent = hasAnyTerm(`${label} ${description} ${(service.keywords ?? []).join(" ")}`, [
+    "програма", "резултати", "schedule", "results", "fixtures", "spielplan", "ergebnisse",
+    "program și rezultate", "program a výsledky", "расписание", "результаты",
+  ]);
+  if (scheduleQuestion && scheduleContent) score += 300;
 
   if (service.key === "pillow_menu" && hasAnyTerm(q, ["pillow", "pillows", "възглав", "подуш", "pern", "polstar", "polštář", "kissen"])) score += 30;
   if (service.key === "extra_pillow" && hasAnyTerm(q, ["menu", "меню", "available", "какви", "какие", "доступные", "what", "welche", "disponibile", "k dispozici"])) score -= 25;
@@ -1573,29 +1899,35 @@ function uniqueNonEmpty(lines: string[]) {
   return result;
 }
 
-function formatInfoForSmartAnswer(item: HotelInfoItem, lang: Lang) {
+function formatInfoForSmartAnswer(item: HotelInfoItem, lang: Lang, hotel?: HotelPayload) {
   const title = stripIcon(getMapValue(item.title, lang));
-  const text = compactSentences(getMapValue(item.text, lang), 300, 2);
-
-  if (title && text) return `• ${title}\n${text}`;
-  if (text) return `• ${text}`;
-  if (title) return `• ${title}`;
-  return "";
+  const text = compactSentences(getMapValue(item.text, lang), 420, 3);
+  const base = title && text ? `• ${title}\n${text}` : text ? `• ${text}` : title ? `• ${title}` : "";
+  return base ? appendGuidance(base, lang, hotelInfoPath(item, lang, hotel), [item.href]) : "";
 }
 
-function formatServiceForSmartAnswer(service: ServiceItem, lang: Lang) {
+function formatServiceForSmartAnswer(service: ServiceItem, lang: Lang, hotel?: HotelPayload, question = "") {
   const label = stripIcon(service.label);
   const customSummary = SERVICE_SUMMARY[service.key]?.[lang] || "";
-  const description = customSummary || compactSentences(service.description || "", 300, 2);
+  const rawDescription = customSummary || compactSentences(service.description || "", 420, 3);
+  const description = clean(rawDescription) === clean(label) ? "" : rawDescription;
   const price = structuredServicePriceLine(service, lang) || extractPriceLine(service.description || "", lang);
-  const action = customSummary ? "" : serviceActionLine(service, lang);
   const paid = PAID_SERVICE_KEYS.has(service.key) && !price && !customSummary ? COPY[lang].paidNotice : "";
 
-  const details = uniqueNonEmpty([description, price, paid, action]).join("\n");
-  if (label && details) return `• ${label}\n${details}`;
-  if (details) return `• ${details}`;
-  if (label) return `• ${label}`;
-  return "";
+  const listTerms = [
+    "какви", "кои", "видове", "опции", "цени", "menu", "which", "what", "options", "prices",
+    "welche", "arten", "preise", "ce", "care", "opțiuni", "prețuri", "jaké", "druhy", "ceny",
+    "какие", "виды", "варианты", "цены",
+  ];
+  const wantsOptions = service.options?.length && hasAnyTerm(question, listTerms);
+  const optionLines = wantsOptions ? service.options!.slice(0, 10).map((option) => `• ${option}`) : [];
+
+  const details = uniqueNonEmpty([description, price, paid, ...optionLines]).join("\n");
+  const base = label && details ? `• ${label}\n${details}` : details ? `• ${details}` : label ? `• ${label}` : "";
+
+  return base
+    ? appendGuidance(base, lang, servicePath(service, lang, hotel), [service.externalUrl, service.linkUrl, service.pdfUrl])
+    : "";
 }
 
 function findMatchingVenues(question: string, lang: Lang, hotel: HotelPayload) {
@@ -1647,8 +1979,21 @@ function buildNearbyAnswer(question: string, lang: Lang, hotel: HotelPayload) {
 
   if (!matches.length) return COPY[lang].nearbyNoData;
 
-  const lines = matches.slice(0, 5).map((item) => formatInfoForSmartAnswer(item, lang)).filter(Boolean);
+  const lines = matches.slice(0, 5).map((item) => formatInfoForSmartAnswer(item, lang, hotel)).filter(Boolean);
   return lines.length ? lines.slice(0, 3).join("\n\n") : COPY[lang].nearbyNoData;
+}
+
+function selectServiceAnswers(question: string, matches: ServiceItem[], maxItems = 3) {
+  if (!matches.length) return [];
+  const ranked = matches
+    .map((service) => ({ service, score: serviceScore(service, question) }))
+    .sort((a, b) => b.score - a.score);
+  const topScore = ranked[0]?.score ?? 0;
+
+  return ranked
+    .filter((entry, index) => index === 0 || entry.score >= Math.max(45, topScore - 90))
+    .slice(0, maxItems)
+    .map((entry) => entry.service);
 }
 
 function buildSmartTopicAnswer(question: string, lang: Lang, hotel: HotelPayload) {
@@ -1665,19 +2010,19 @@ function buildSmartTopicAnswer(question: string, lang: Lang, hotel: HotelPayload
   const lines: string[] = [];
 
   if (infoMatches.length && !serviceMatches.length && !venueMatches.length) {
-    lines.push(...infoMatches.slice(0, 1).map((item) => formatInfoForSmartAnswer(item, lang)));
+    lines.push(...infoMatches.slice(0, 1).map((item) => formatInfoForSmartAnswer(item, lang, hotel)));
     const cleaned = uniqueNonEmpty(lines);
     return cleaned.length ? cleaned[0] : null;
   }
 
   if (serviceMatches.length && !venueMatches.length) {
-    lines.push(...serviceMatches.slice(0, 1).map((service) => formatServiceForSmartAnswer(service, lang)));
+    lines.push(...selectServiceAnswers(question, serviceMatches).map((service) => formatServiceForSmartAnswer(service, lang, hotel, question)));
     const cleaned = uniqueNonEmpty(lines);
-    return cleaned.length ? cleaned[0] : null;
+    return cleaned.length ? cleaned.join("\n\n") : null;
   }
 
   if (venueMatches.length) {
-    lines.push(...venueMatches.map((venue) => formatVenueLine(venue, lang, wantsReservation, question)));
+    lines.push(...venueMatches.map((venue) => formatVenueLine(venue, lang, wantsReservation, question, hotel)));
 
     const venueHasHours = venueMatches.some((venue) => Boolean(getVenueHours(venue, lang)));
     if (!venueHasHours && infoMatches.length) {
@@ -1694,11 +2039,11 @@ function buildSmartTopicAnswer(question: string, lang: Lang, hotel: HotelPayload
   }
 
   if (infoMatches.length && !venueMatches.length) {
-    lines.push(...infoMatches.slice(0, 1).map((item) => formatInfoForSmartAnswer(item, lang)));
+    lines.push(...infoMatches.slice(0, 1).map((item) => formatInfoForSmartAnswer(item, lang, hotel)));
   }
 
   if (serviceMatches.length) {
-    lines.push(...serviceMatches.slice(0, 1).map((service) => formatServiceForSmartAnswer(service, lang)));
+    lines.push(...selectServiceAnswers(question, serviceMatches, 2).map((service) => formatServiceForSmartAnswer(service, lang, hotel, question)));
   }
 
   const cleaned = uniqueNonEmpty(lines);
@@ -1712,7 +2057,7 @@ function buildServiceAnswer(question: string, lang: Lang, hotel: HotelPayload) {
 
   const matches = findMatchingServices(question, hotel);
   if (matches.length) {
-    return matches.slice(0, 2).map((service) => formatServiceForSmartAnswer(service, lang)).join("\n\n");
+    return selectServiceAnswers(question, matches).map((service) => formatServiceForSmartAnswer(service, lang, hotel, question)).join("\n\n");
   }
 
   if (isGenericServiceQuestion(question)) {
@@ -2026,11 +2371,18 @@ async function buildHotelAnswer(question: string, lang: Lang, hotel: HotelPayloa
   if (!q) return t.intro;
   if (isGreetingOnly(q)) return CONVERSATION_COPY[lang].greeting;
   if (isThanksOnly(q)) return CONVERSATION_COPY[lang].thanks;
-  if (isWeatherQuestion(q)) return await buildWeatherAnswer(question, lang, hotel);
+  if (isWeatherQuestion(q)) {
+    const answer = await buildWeatherAnswer(question, lang, hotel);
+    return appendGuidance(answer, lang, [navLabel(hotel, lang, "hotelStay"), navLabel(hotel, lang, "weather")]);
+  }
   if (!isHotelQuestion(q, hotel)) return t.outOfScope;
 
   if (hasAnyTerm(q, ["wifi", "wi-fi", "wlan", "internet", "парол", "парола", "пароль", "passwort", "password", "parolă", "parola", "heslo"])) {
-    return t.wifi(hotel.wifi?.ssid, hotel.wifi?.password);
+    return appendGuidance(
+      t.wifi(hotel.wifi?.ssid, hotel.wifi?.password),
+      lang,
+      [navLabel(hotel, lang, "quickServices"), navLabel(hotel, lang, "wifi")]
+    );
   }
 
   const nearbyAnswer = buildNearbyAnswer(q, lang, hotel);
@@ -2043,30 +2395,56 @@ async function buildHotelAnswer(question: string, lang: Lang, hotel: HotelPayloa
   if (hotelInfoAnswer) return hotelInfoAnswer;
 
   if (hasAnyTerm(q, ["review", "reviews", "отзив", "отзиви", "отзыв", "отзывы", "рейтинг", "rating", "bewertung", "recenzie", "recenze", "booking", "tripadvisor", "google review"])) {
-    return t.reviews;
+    return appendGuidance(
+      t.reviews,
+      lang,
+      [navLabel(hotel, lang, "reviewsSocial"), navLabel(hotel, lang, "reviews")],
+      [hotel.reviews?.google, hotel.reviews?.tripadvisor, hotel.reviews?.booking]
+    );
   }
 
   if (hasAnyTerm(q, ["facebook", "instagram", "tiktok", "tik tok", "youtube", "social", "социал", "социаль", "подписаться", "follow", "urmări", "sleduj"])) {
-    return t.social;
+    return appendGuidance(
+      t.social,
+      lang,
+      [navLabel(hotel, lang, "reviewsSocial"), navLabel(hotel, lang, "social")],
+      [hotel.socialLinks?.facebook, hotel.socialLinks?.instagram, hotel.socialLinks?.tiktok, hotel.socialLinks?.youtube]
+    );
   }
 
   if (hasAnyTerm(q, ["reception", "rezeption", "рецепц", "рецепция", "recepție", "recepce"])) {
     const reception = hotel.departmentHours?.reception ?? {};
-    return t.receptionHours(reception.open, reception.close);
+    return appendGuidance(
+      t.receptionHours(reception.open, reception.close),
+      lang,
+      [navLabel(hotel, lang, "quickServices"), navLabel(hotel, lang, "reception")]
+    );
   }
 
   if (hasAnyTerm(q, ["where", "wo", "location", "address", "къде", "где", "адрес", "местоположение", "unde", "locație", "kde", "poloha"])) {
-    return t.location(hotel.locationQuery);
+    return appendGuidance(
+      t.location(hotel.locationQuery),
+      lang,
+      [navLabel(hotel, lang, "hotelStay"), navLabel(hotel, lang, "info")]
+    );
   }
 
   if (hasAnyTerm(q, ["housekeeping", "clean", "камер", "почист", "уборка", "убрать", "curăț", "uklid", "úklid"])) {
     const housekeeping = hotel.departmentHours?.housekeeping ?? {};
-    return t.housekeepingHours(housekeeping.open, housekeeping.close);
+    return appendGuidance(
+      t.housekeepingHours(housekeeping.open, housekeeping.close),
+      lang,
+      [navLabel(hotel, lang, "quickServices"), navLabel(hotel, lang, "housekeeping")]
+    );
   }
 
   if (hasAnyTerm(q, ["maintenance", "technik", "поддр", "техническая служба", "ремонт", "repair", "întreținere", "údržba"])) {
     const maintenance = hotel.departmentHours?.maintenance ?? {};
-    return t.maintenanceHours(maintenance.open, maintenance.close);
+    return appendGuidance(
+      t.maintenanceHours(maintenance.open, maintenance.close),
+      lang,
+      [navLabel(hotel, lang, "quickServices"), navLabel(hotel, lang, "maintenance")]
+    );
   }
 
   const serviceAnswer = buildServiceAnswer(q, lang, hotel);
@@ -2087,16 +2465,44 @@ function buildAiServicesFromRequestDefs(requestDefs: any[] | undefined, lang: La
     .filter((def) => def && def.enabled !== false && def.aiVisible !== false && def.guestVisible !== false)
     .map((def) => {
       const titleMap = (def.title ?? {}) as TextMap;
+      const subtitleMap = (def.subtitle ?? {}) as TextMap;
+      const descriptionMap = (def.description ?? {}) as TextMap;
+      const policyMap = (def.policy ?? {}) as TextMap;
+      const sectionTitleMap = (def.sectionTitle ?? {}) as TextMap;
+      const staffLabelMap = (def.staffLabel ?? {}) as TextMap;
+
       const descriptionParts = [
-        getMapValue((def.description ?? {}) as TextMap, lang),
-        getMapValue((def.policy ?? {}) as TextMap, lang),
-        getMapValue((def.subtitle ?? {}) as TextMap, lang),
+        getMapValue(descriptionMap, lang),
+        getMapValue(policyMap, lang),
+        getMapValue(subtitleMap, lang),
       ].filter(Boolean);
+
+      const localizedOptions = Array.isArray(def.optionsByLang?.[lang]) && def.optionsByLang[lang].length
+        ? def.optionsByLang[lang]
+        : Array.isArray(def.options)
+          ? def.options
+          : [];
 
       const optionWords = Object.values(def.optionsByLang ?? {})
         .flatMap((value: any) => Array.isArray(value) ? value : [])
         .map((value: any) => String(value || "").trim())
         .filter(Boolean);
+
+      const optionInfoWords = Object.values(def.optionInfoByLang ?? {})
+        .flatMap((value: any) => Array.isArray(value) ? value : [])
+        .map((value: any) => String(value || "").trim())
+        .filter(Boolean);
+
+      const allLocalizedText = [
+        ...Object.values(titleMap),
+        ...Object.values(subtitleMap),
+        ...Object.values(descriptionMap),
+        ...Object.values(policyMap),
+        ...Object.values(sectionTitleMap),
+        ...Object.values(staffLabelMap),
+        ...optionWords,
+        ...optionInfoWords,
+      ].map((value) => String(value || "").trim()).filter(Boolean);
 
       return {
         key: String(def.id || def.requestType || "").trim(),
@@ -2104,20 +2510,59 @@ function buildAiServicesFromRequestDefs(requestDefs: any[] | undefined, lang: La
         description: descriptionParts.join("\n\n"),
         active: def.enabled !== false,
         category: String(def.category || def.targetDepartment || "").trim(),
+        subsection: String(def.subsection || "").trim(),
+        targetDepartment: String(def.targetDepartment || "").trim(),
+        type: String(def.type || "").trim(),
+        sectionTitle: getMapValue(sectionTitleMap, lang),
+        options: localizedOptions.map((value: any) => String(value || "").trim()).filter(Boolean),
         price: String(def.price || "").trim(),
         currency: String(def.currency || "").trim(),
+        pdfUrl: String(def.pdfUrl || "").trim(),
+        externalUrl: String(def.externalUrl || "").trim(),
+        linkUrl: String(def.linkUrl || "").trim(),
         keywords: [
           String(def.id || ""),
           String(def.requestType || ""),
           String(def.category || ""),
+          String(def.subsection || ""),
           String(def.targetDepartment || ""),
           ...(Array.isArray(def.keywords) ? def.keywords : []),
-          ...Object.values(titleMap).map((value) => String(value || "")),
-          ...optionWords,
+          ...allLocalizedText,
         ].filter(Boolean),
       } as ServiceItem;
     })
     .filter((service) => service.key || service.label);
+}
+
+function mergeServices(serverServices: ServiceItem[], clientServices: ServiceItem[] | undefined) {
+  const client = Array.isArray(clientServices) ? clientServices : [];
+  const byKey = new Map<string, ServiceItem>();
+
+  for (const service of serverServices) {
+    const key = clean(service.key || service.label);
+    if (key) byKey.set(key, service);
+  }
+
+  for (const service of client) {
+    const key = clean(service.key || service.label);
+    if (!key) continue;
+    const server = byKey.get(key);
+    if (!server) {
+      byKey.set(key, service);
+      continue;
+    }
+
+    byKey.set(key, {
+      ...service,
+      ...server,
+      label: server.label || service.label,
+      description: server.description || service.description,
+      keywords: Array.from(new Set([...(server.keywords ?? []), ...(service.keywords ?? [])].filter(Boolean))),
+      options: server.options?.length ? server.options : service.options,
+    });
+  }
+
+  return Array.from(byKey.values());
 }
 
 function mergeVenueRows(serverRows: Venue[] | undefined, clientRows: Venue[] | undefined): Venue[] {
@@ -2175,7 +2620,8 @@ function mergeHotelKnowledge(clientHotel: HotelPayload, serverConfig: any, lang:
     socialLinks: server.socialLinks ?? client.socialLinks,
     venueRows: mergeVenueRows(server.venueRows, client.venueRows),
     hotelInfoItems: mergeHotelInfoItems(serverHotelInfo, clientHotelInfo, visibleHubInfo),
-    services: Array.isArray(client.services) && client.services.length ? client.services : serverServices,
+    services: mergeServices(serverServices, client.services),
+    navigation: client.navigation,
   };
 }
 
