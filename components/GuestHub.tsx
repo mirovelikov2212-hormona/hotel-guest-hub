@@ -1577,7 +1577,7 @@ type AiChatMessage = {
 
 const GUEST_LANGUAGE_STORAGE_KEY = "stayhub_guest_language";
 const GUEST_INTRO_STORAGE_PREFIX = "stayhub_guest_intro_seen";
-const GUEST_INTRO_VERSION = "departments-v2";
+const GUEST_INTRO_VERSION = "classic-v3";
 const SUPPORTED_GUEST_LANGS: LangKey[] = ["bg", "en", "de", "ro", "cs", "ru"];
 
 function parseGuestLang(value: unknown): LangKey | null {
@@ -1651,79 +1651,192 @@ function getInitialGuestLang(defaultLang?: string): LangKey {
 function getGuestIntroCopy(lang: LangKey, hotelName?: string) {
   const name = String(hotelName || "Hotel Aquamarine").trim();
 
-  const copy: Record<
-    LangKey,
-    { title: string; body: string; departments: string[]; footer: string; button: string }
-  > = {
+  const copy: Record<LangKey, { title: string; body: string; button: string }> = {
     bg: {
       title: "Добре дошли в дигиталния консиерж",
-      body: `Това е Вашият дигитален помощник по време на престоя в ${name}. Тук ще намерите информация за хотела, ресторантите, баровете, Wi‑Fi, времето, анимацията и полезни места около хотела.`,
-      departments: [
-        "🛎️ Рецепция — въпроси, такси, късен check-out, събуждане и други желания.",
-        "🧺 Камериерки — кърпи, възглавници, пране, минибар и нужди за стаята.",
-        "🛠️ Поддръжка — климатик, топла вода, телевизор, осветление и технически проблеми.",
-      ],
-      footer: "След като потвърдите номера на стаята, заявките се изпращат директно до отговорния отдел — без да е необходимо да ходите до рецепция.",
+      body: `Това е Вашият дигитален помощник по време на престоя в ${name}. Тук ще намерите информация за хотела, ресторанта, баровете, Wi-Fi, времето, анимацията и полезни места около хотела. Можете също да изпращате заявки към рецепция, housekeeping и техническа поддръжка. За да свържем услугата с Вашата стая, моля въведете номера на стаята си.`,
       button: "Разбрах, продължи",
     },
     en: {
       title: "Welcome to your digital concierge",
-      body: `This is your digital assistant during your stay at ${name}. Here you can find hotel information, restaurant and bar details, Wi‑Fi, weather, animation and useful places nearby.`,
-      departments: [
-        "🛎️ Reception — questions, taxi, late check-out, wake-up calls and other requests.",
-        "🧺 Housekeeping — towels, pillows, laundry, minibar and room needs.",
-        "🛠️ Maintenance — air conditioning, hot water, TV, lighting and technical problems.",
-      ],
-      footer: "After you confirm your room number, requests are sent directly to the responsible department — there is no need to visit reception.",
+      body: `This is your digital assistant during your stay at ${name}. Here you can find hotel information, restaurant and bar details, Wi-Fi, weather, animation and useful places nearby. You can also send requests to reception, housekeeping and maintenance. To connect the service with your room, please enter your room number.`,
       button: "Got it, continue",
     },
     de: {
       title: "Willkommen bei Ihrem digitalen Concierge",
-      body: `Dies ist Ihr digitaler Assistent während Ihres Aufenthalts im ${name}. Hier finden Sie Informationen zum Hotel, zu Restaurants und Bars, WLAN, Wetter, Animation und hilfreichen Orten in der Umgebung.`,
-      departments: [
-        "🛎️ Rezeption — Fragen, Taxi, später Check-out, Weckruf und weitere Wünsche.",
-        "🧺 Housekeeping — Handtücher, Kissen, Wäsche, Minibar und Wünsche fürs Zimmer.",
-        "🛠️ Technik — Klimaanlage, Warmwasser, Fernseher, Beleuchtung und technische Probleme.",
-      ],
-      footer: "Nachdem Sie Ihre Zimmernummer bestätigt haben, wird Ihre Anfrage direkt an die zuständige Abteilung gesendet — ein Weg zur Rezeption ist nicht nötig.",
+      body: `Dies ist Ihr digitaler Assistent während Ihres Aufenthalts im ${name}. Hier finden Sie Informationen zum Hotel, Restaurant, zu den Bars, WLAN, Wetter, Animationsprogramm und hilfreichen Orten in der Umgebung. Außerdem können Sie Anfragen an Rezeption, Housekeeping und Technik senden. Damit wir den Service Ihrem Zimmer zuordnen können, geben Sie bitte Ihre Zimmernummer ein.`,
       button: "Verstanden, weiter",
     },
     ro: {
       title: "Bine ați venit la concierge-ul digital",
-      body: `Acesta este asistentul digital pentru șederea dvs. la ${name}. Aici găsiți informații despre hotel, restaurante și baruri, Wi‑Fi, vreme, animație și locuri utile din apropiere.`,
-      departments: [
-        "🛎️ Recepție — întrebări, taxi, check-out târziu, apel de trezire și alte solicitări.",
-        "🧺 Curățenie — prosoape, perne, spălătorie, minibar și nevoi pentru cameră.",
-        "🛠️ Mentenanță — aer condiționat, apă caldă, televizor, iluminat și probleme tehnice.",
-      ],
-      footer: "După confirmarea numărului camerei, solicitările sunt trimise direct departamentului responsabil — nu este necesar să mergeți la recepție.",
+      body: `Acesta este asistentul digital pentru șederea dvs. la ${name}. Aici găsiți informații despre hotel, restaurant, baruri, Wi-Fi, vreme, animație și locuri utile din apropiere. De asemenea, puteți trimite solicitări către recepție, housekeeping și mentenanță. Pentru a conecta serviciul cu camera dvs., vă rugăm să introduceți numărul camerei.`,
       button: "Am înțeles, continuă",
     },
     cs: {
       title: "Vítejte u svého digitálního concierge",
-      body: `Toto je váš digitální asistent během pobytu v ${name}. Najdete zde informace o hotelu, restauracích a barech, Wi‑Fi, počasí, animaci a užitečných místech v okolí.`,
-      departments: [
-        "🛎️ Recepce — dotazy, taxi, pozdní check-out, buzení a další přání.",
-        "🧺 Úklid — ručníky, polštáře, praní, minibar a potřeby na pokoj.",
-        "🛠️ Údržba — klimatizace, teplá voda, televize, osvětlení a technické problémy.",
-      ],
-      footer: "Po potvrzení čísla pokoje se požadavky odešlou přímo odpovědnému oddělení — nemusíte chodit na recepci.",
+      body: `Toto je váš digitální asistent během pobytu v ${name}. Najdete zde informace o hotelu, restauraci, barech, Wi‑Fi, počasí, animaci a užitečných místech v okolí. Můžete také posílat požadavky na recepci, housekeeping a údržbu. Abychom službu přiřadili k vašemu pokoji, zadejte prosím číslo pokoje.`,
       button: "Rozumím, pokračovat",
     },
     ru: {
       title: "Добро пожаловать в цифровой консьерж",
-      body: `Это ваш цифровой помощник во время пребывания в ${name}. Здесь вы найдёте информацию об отеле, ресторанах и барах, Wi‑Fi, погоде, анимации и полезных местах поблизости.`,
-      departments: [
-        "🛎️ Ресепшен — вопросы, такси, поздний выезд, звонок-будильник и другие пожелания.",
-        "🧺 Уборка номера — полотенца, подушки, прачечная, мини-бар и всё необходимое для номера.",
-        "🛠️ Техническая служба — кондиционер, горячая вода, телевизор, освещение и технические проблемы.",
-      ],
-      footer: "После подтверждения номера комнаты запрос отправляется напрямую в ответственную службу — обращаться на ресепшен не требуется.",
+      body: `Это ваш цифровой помощник во время пребывания в ${name}. Здесь вы найдёте информацию об отеле, ресторане, барах, Wi‑Fi, погоде, анимации и полезных местах поблизости. Вы также можете отправлять запросы на ресепшен, в housekeeping и техническую службу. Чтобы связать услугу с вашим номером, пожалуйста, введите номер комнаты.`,
       button: "Понятно, продолжить",
     },
   };
 
   return copy[lang] ?? copy.bg;
+}
+
+function getDepartmentSectionIntro(
+  lang: LangKey,
+  department: "reception" | "housekeeping" | "maintenance"
+) {
+  const copy: Record<
+    LangKey,
+    Record<"reception" | "housekeeping" | "maintenance", string>
+  > = {
+    bg: {
+      reception:
+        "Тук можете да заявите такси, късен check-out, събуждане и помощ с багаж. Изберете конкретната услуга от списъка. Ако необходимото не е налично, моля обърнете се към рецепция.",
+      housekeeping:
+        "Тук можете да заявите конкретни нужди за стаята – кърпи, тоалетна хартия, възглавница, одеяло, халат, чехли, бебешка кошара, ютия, минибар или пране. Ако необходимото не е в списъка, моля обърнете се към рецепция.",
+      maintenance:
+        "Тук можете да изпратите конкретен технически проблем директно към поддръжката – климатик, топла вода, телевизор, осветление, баня и други неизправности.",
+    },
+    en: {
+      reception:
+        "Here you can request a taxi, late check-out, a wake-up call or luggage assistance. Choose the specific service from the list. If what you need is not available, please contact reception.",
+      housekeeping:
+        "Here you can request specific room items and services – towels, toilet paper, a pillow, a blanket, a bathrobe, slippers, a baby cot, an iron, minibar service or laundry. If what you need is not listed, please contact reception.",
+      maintenance:
+        "Here you can send a specific technical problem directly to maintenance – air conditioning, hot water, TV, lighting, bathroom issues and other faults.",
+    },
+    de: {
+      reception:
+        "Hier können Sie ein Taxi, einen späten Check-out, einen Weckruf oder Hilfe mit dem Gepäck anfordern. Wählen Sie den passenden Service aus der Liste. Wenn Ihr Anliegen nicht aufgeführt ist, wenden Sie sich bitte an die Rezeption.",
+      housekeeping:
+        "Hier können Sie konkrete Wünsche für Ihr Zimmer senden – Handtücher, Toilettenpapier, Kissen, Decke, Bademantel, Hausschuhe, Babybett, Bügeleisen, Minibarservice oder Wäsche. Wenn Ihr Wunsch nicht aufgeführt ist, wenden Sie sich bitte an die Rezeption.",
+      maintenance:
+        "Hier können Sie ein konkretes technisches Problem direkt an die Technik senden – Klimaanlage, Warmwasser, Fernseher, Beleuchtung, Badezimmer und andere Störungen.",
+    },
+    ro: {
+      reception:
+        "Aici puteți solicita un taxi, check-out târziu, apel de trezire sau ajutor cu bagajele. Alegeți serviciul concret din listă. Dacă ceea ce vă trebuie nu este disponibil, vă rugăm să contactați recepția.",
+      housekeeping:
+        "Aici puteți solicita lucruri și servicii concrete pentru cameră – prosoape, hârtie igienică, pernă, pătură, halat, papuci, pătuț pentru bebeluș, fier de călcat, minibar sau spălătorie. Dacă ceea ce vă trebuie nu este în listă, vă rugăm să contactați recepția.",
+      maintenance:
+        "Aici puteți trimite direct către mentenanță o problemă tehnică concretă – aer condiționat, apă caldă, televizor, iluminat, baie și alte defecțiuni.",
+    },
+    cs: {
+      reception:
+        "Zde si můžete objednat taxi, pozdní check-out, buzení nebo pomoc se zavazadly. Vyberte konkrétní službu ze seznamu. Pokud zde potřebnou možnost nenajdete, obraťte se prosím na recepci.",
+      housekeeping:
+        "Zde si můžete vyžádat konkrétní vybavení a služby pro pokoj – ručníky, toaletní papír, polštář, přikrývku, župan, pantofle, dětskou postýlku, žehličku, minibar nebo praní. Pokud potřebná možnost není v seznamu, obraťte se prosím na recepci.",
+      maintenance:
+        "Zde můžete odeslat konkrétní technický problém přímo údržbě – klimatizace, teplá voda, televize, osvětlení, koupelna a další závady.",
+    },
+    ru: {
+      reception:
+        "Здесь можно заказать такси, поздний выезд, звонок-будильник или помощь с багажом. Выберите конкретную услугу из списка. Если нужной услуги нет, пожалуйста, обратитесь на ресепшен.",
+      housekeeping:
+        "Здесь можно заказать конкретные принадлежности и услуги для номера – полотенца, туалетную бумагу, подушку, одеяло, халат, тапочки, детскую кроватку, утюг, мини-бар или прачечную. Если нужного пункта нет в списке, пожалуйста, обратитесь на ресепшен.",
+      maintenance:
+        "Здесь можно отправить конкретную техническую проблему напрямую в техническую службу – кондиционер, горячая вода, телевизор, освещение, ванная комната и другие неисправности.",
+    },
+  };
+
+  return copy[lang]?.[department] ?? copy.bg[department];
+}
+
+function normalizeAiAcknowledgement(value: string) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+function getLocalAiAcknowledgement(question: string, lang: LangKey) {
+  const normalized = normalizeAiAcknowledgement(question);
+  if (!normalized || normalized.length > 40) return "";
+
+  const phrases: Record<LangKey, string[]> = {
+    bg: ["супер", "благодаря", "мерси", "ясно", "разбрах", "добре", "ок", "страхотно", "чудесно"],
+    en: ["great", "thanks", "thank you", "perfect", "okay", "ok", "got it", "super"],
+    de: ["super", "danke", "vielen dank", "perfekt", "okay", "ok", "verstanden", "alles klar"],
+    ro: ["super", "multumesc", "mersi", "perfect", "bine", "ok", "am inteles"],
+    cs: ["super", "dekuji", "diky", "perfektni", "skvele", "ok", "rozumim"],
+    ru: ["супер", "спасибо", "отлично", "понятно", "хорошо", "ок", "благодарю"],
+  };
+
+  const replies: Record<LangKey, string> = {
+    bg: "Радвам се, че помогнах. Можете да попитате още нещо за хотела.",
+    en: "Glad I could help. You can ask me another question about the hotel.",
+    de: "Gern geschehen. Sie können mir gern noch eine Frage zum Hotel stellen.",
+    ro: "Cu plăcere. Puteți să mă întrebați și altceva despre hotel.",
+    cs: "Rádo se stalo. Můžete se zeptat na cokoli dalšího o hotelu.",
+    ru: "Рад, что помог. Вы можете задать ещё один вопрос об отеле.",
+  };
+
+  const isAcknowledgement = phrases[lang].some(
+    (phrase) => normalizeAiAcknowledgement(phrase) === normalized
+  );
+
+  return isAcknowledgement ? replies[lang] : "";
+}
+
+function isDisallowedGenericDepartmentRequest(def: RequestDef) {
+  const category = String(def.category || "").trim().toLowerCase();
+  if (category !== "reception" && category !== "housekeeping") return false;
+
+  const idText = normalizeAiAcknowledgement(
+    [def.id, def.requestType, def.section, def.subsection].filter(Boolean).join(" ")
+  );
+
+  if (
+    idText === "other" ||
+    idText === "other request" ||
+    idText === `${category} other` ||
+    idText === `other ${category}` ||
+    idText === `${category} other request` ||
+    idText === `other request ${category}`
+  ) {
+    return true;
+  }
+
+  const localizedText = normalizeAiAcknowledgement(
+    [
+      ...Object.values(def.title || {}),
+      ...Object.values(def.subtitle || {}),
+      ...Object.values(def.description || {}),
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+  const genericLabels = [
+    "other request",
+    "another request",
+    "general request",
+    "custom request",
+    "друга заявка",
+    "друго искане",
+    "друго желание",
+    "andere anfrage",
+    "sonstige anfrage",
+    "weitere anfrage",
+    "alta solicitare",
+    "alta cerere",
+    "jiny pozadavek",
+    "jina zadost",
+    "другая заявка",
+    "другой запрос",
+    "другое пожелание",
+  ];
+
+  return genericLabels.some((label) => localizedText.includes(normalizeAiAcknowledgement(label)));
 }
 
 function writeGuestLang(nextLang: LangKey) {
@@ -3102,7 +3215,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           def &&
           def.id &&
           def.enabled !== false &&
-          !hiddenGuestRequestIds.has(String(def.id).trim().toLowerCase())
+          !hiddenGuestRequestIds.has(String(def.id).trim().toLowerCase()) &&
+          !isDisallowedGenericDepartmentRequest(def)
       )
       .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))),
     [config.requestDefs]
@@ -5181,6 +5295,36 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       { role: "user" as const, content: questionText },
     ].slice(-6));
 
+    const localAcknowledgement = getLocalAiAcknowledgement(questionText, lang);
+    if (localAcknowledgement) {
+      setAiAnswer(localAcknowledgement);
+      setAiHistory((previous) => [
+        ...previous,
+        { role: "assistant" as const, content: localAcknowledgement },
+      ].slice(-6));
+
+      trackGuestEvent({
+        eventName: "ai_answer_shown",
+        eventCategory: "ai",
+        section: "ai",
+        sectionKey: "ai",
+        label: "answer_length",
+        value: String(localAcknowledgement.length),
+        extra: {
+          answerLength: localAcknowledgement.length,
+          aiEngine: "local_acknowledgement",
+          aiFallbackUsed: false,
+          aiMatchedIds: [],
+          aiIntent: "acknowledgement",
+          aiInputTokens: 0,
+          aiOutputTokens: 0,
+          aiLatencyMs: 0,
+          aiCacheHit: false,
+        },
+      });
+      return;
+    }
+
     try {
       setAiLoading(true);
 
@@ -6199,6 +6343,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     {
       id: "reception",
       title: tUI("reception_title") || "Reception",
+      subtitle: getDepartmentSectionIntro(lang, "reception"),
       items: [
         ...buildRequestDefItems("reception"),
         ...(!requestDefIds.has("luggage_help")
@@ -6286,6 +6431,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     {
       id: "housekeeping",
       title: housekeepingTitle,
+      subtitle: getDepartmentSectionIntro(lang, "housekeeping"),
       items: [
         ...buildRequestDefItems("housekeeping"),
         ...(!requestDefIds.has("towels")
@@ -6395,6 +6541,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     {
       id: "maintenance",
       title: tUI("maintenance_title") || "Maintenance",
+      subtitle: getDepartmentSectionIntro(lang, "maintenance"),
       items: [
         ...buildRequestDefItems("maintenance"),
         ...(!requestDefIds.has("air_conditioning")
@@ -6800,21 +6947,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
             <p className="mt-3 whitespace-pre-line text-sm leading-6 stayhub-intro-body">
               {guestIntroCopy.body}
-            </p>
-
-            <div className="mt-4 space-y-2">
-              {guestIntroCopy.departments.map((line) => (
-                <div
-                  key={line}
-                  className="rounded-xl stayhub-card px-3 py-2 text-sm leading-6"
-                >
-                  {line}
-                </div>
-              ))}
-            </div>
-
-            <p className="mt-4 text-sm font-semibold leading-6 stayhub-intro-body">
-              {guestIntroCopy.footer}
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
