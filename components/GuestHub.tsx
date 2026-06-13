@@ -439,7 +439,6 @@ const RU_BUILTIN_UI: Record<string, string> = {
   example_time: "15:00",
   explore_title: "Рядом с отелем",
   hero_subtitle: "Всё необходимое для комфортного отдыха",
-  housekeeping_after_note: "После 17:00 запросы направляются на рецепцию.",
   housekeeping_title: "Уборка номера",
   housekeeping_title_after: "Уборка номера",
   info_title: "Информация",
@@ -501,7 +500,6 @@ const GUEST_NAV_COPY: Record<string, {
   askAi: string;
   close: string;
   housekeeping: string;
-  housekeepingAfter: string;
 }> = {
   bg: {
     quickServices: "Бързи услуги",
@@ -512,7 +510,6 @@ const GUEST_NAV_COPY: Record<string, {
     askAi: "Попитайте AI",
     close: "Затвори",
     housekeeping: "Камериерки",
-    housekeepingAfter: "След {time} заявките се обработват от рецепция.",
   },
   en: {
     quickServices: "Quick services",
@@ -523,7 +520,6 @@ const GUEST_NAV_COPY: Record<string, {
     askAi: "Ask AI",
     close: "Close",
     housekeeping: "Housekeeping",
-    housekeepingAfter: "After {time}, requests are handled by reception.",
   },
   de: {
     quickServices: "Schnellzugriff",
@@ -534,7 +530,6 @@ const GUEST_NAV_COPY: Record<string, {
     askAi: "AI fragen",
     close: "Schließen",
     housekeeping: "Housekeeping",
-    housekeepingAfter: "Nach {time} werden Anfragen von der Rezeption bearbeitet.",
   },
   ro: {
     quickServices: "Servicii rapide",
@@ -545,7 +540,6 @@ const GUEST_NAV_COPY: Record<string, {
     askAi: "Întreabă AI",
     close: "Închide",
     housekeeping: "Curățenie",
-    housekeepingAfter: "După ora {time}, solicitările sunt gestionate de recepție.",
   },
   cs: {
     quickServices: "Rychlé služby",
@@ -556,7 +550,6 @@ const GUEST_NAV_COPY: Record<string, {
     askAi: "Zeptat se AI",
     close: "Zavřít",
     housekeeping: "Úklid pokoje",
-    housekeepingAfter: "Po {time} vyřizuje požadavky recepce.",
   },
   ru: {
     quickServices: "Быстрые услуги",
@@ -567,7 +560,6 @@ const GUEST_NAV_COPY: Record<string, {
     askAi: "Спросить AI",
     close: "Закрыть",
     housekeeping: "Уборка номера",
-    housekeepingAfter: "После {time} запросы обрабатывает рецепция.",
   },
 };
 
@@ -578,15 +570,6 @@ function getGuestNavCopy(lang: LangKey | string) {
   return GUEST_NAV_COPY[safeLang] || GUEST_NAV_COPY.en;
 }
 
-function formatOperationalTimeText(value: string, time: string, fallback: string) {
-  const source = String(value || fallback || "").trim();
-  const withPlaceholder = source.replace(/\{time\}/g, time);
-  if (withPlaceholder !== source) return withPlaceholder;
-  if (/\b\d{1,2}:\d{2}\b/.test(withPlaceholder)) {
-    return withPlaceholder.replace(/\b\d{1,2}:\d{2}\b/, time);
-  }
-  return String(fallback || source).replace(/\{time\}/g, time);
-}
 
 type GuestWeatherDay = {
   date: string;
@@ -2889,19 +2872,6 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const closedMsg =
     (tUI("dept_closed_to_reception") as string) ||
     "Отделът не работи в момента. Заявката ще бъде изпратена към рецепция.";
-
-  const operationsProcessingWindowOpen = "07:00";
-  const operationsProcessingWindowClose = config.housekeepingCutoff ?? "17:00";
-
-  const afterOperationsCutoff = useMemo(() => {
-    return !isWithinHoursLocal(
-      operationsProcessingWindowOpen,
-      operationsProcessingWindowClose
-    );
-  }, [operationsProcessingWindowClose]);
-
-  const housekeepingRoutedToReception = afterOperationsCutoff;
-  const maintenanceRoutedToReception = afterOperationsCutoff;
 
   const hkExtras =
     (config.housekeepingExtras as Array<{
@@ -5599,17 +5569,6 @@ EN: ${helpMsg}` : opsMsg,
       ? guestNavCopy.housekeeping
       : configuredHousekeepingTitle || guestNavCopy.housekeeping;
 
-  const configuredHousekeepingAfterNote = getCurrentGuestUiText("housekeeping_after_note");
-  const safeConfiguredHousekeepingAfterNote =
-    String(lang) === "ru" && /^след(?:\s|$)/i.test(configuredHousekeepingAfterNote)
-      ? ""
-      : configuredHousekeepingAfterNote;
-  const housekeepingAfterNote = formatOperationalTimeText(
-    safeConfiguredHousekeepingAfterNote,
-    operationsProcessingWindowClose,
-    guestNavCopy.housekeepingAfter
-  );
-
   const brandBackground = String(config.theme?.background || "#202627");
   const brandPrimary = String(config.theme?.primary || "#3C8476");
   const brandAction = String(config.theme?.secondary || config.theme?.accent || "#43B5A1");
@@ -5993,7 +5952,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     {
       id: "housekeeping",
       title: housekeepingTitle,
-      subtitle: housekeepingRoutedToReception ? housekeepingAfterNote : undefined,
       items: [
         ...buildRequestDefItems("housekeeping"),
         ...(!requestDefIds.has("towels")

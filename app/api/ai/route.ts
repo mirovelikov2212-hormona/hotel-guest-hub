@@ -36,6 +36,8 @@ type ServiceItem = {
   active?: boolean;
   keywords?: string[];
   category?: string;
+  price?: string;
+  currency?: string;
 };
 
 type TextMap = Partial<Record<Lang | string, string>>;
@@ -116,8 +118,8 @@ const COPY = {
       `• ${name} — за резервации използвайте съответната секция в хъба или се обърнете към рецепция.`,
     housekeepingHours: (open?: string, close?: string) =>
       open && close
-        ? `Housekeeping работи от ${open} до ${close}. След работно време заявките се насочват към рецепция.`
-        : "Housekeeping е на разположение за съдействие.",
+        ? `Камериерките са на разположение от ${open} до ${close}.`
+        : "Камериерките са на разположение за съдействие.",
     maintenanceHours: (open?: string, close?: string) =>
       open && close
         ? `Техническата поддръжка работи от ${open} до ${close}.`
@@ -166,7 +168,7 @@ const COPY = {
       `• ${name} — for reservations, please use the relevant section in the hub or contact reception.`,
     housekeepingHours: (open?: string, close?: string) =>
       open && close
-        ? `Housekeeping is available from ${open} to ${close}. After hours, requests are routed to reception.`
+        ? `Housekeeping is available from ${open} to ${close}.`
         : "Housekeeping is available for assistance.",
     maintenanceHours: (open?: string, close?: string) =>
       open && close ? `Maintenance is available from ${open} to ${close}.` : "Maintenance is available for assistance.",
@@ -214,7 +216,7 @@ const COPY = {
       `• ${name} — für Reservierungen nutzen Sie bitte den passenden Bereich im Hub oder wenden Sie sich an die Rezeption.`,
     housekeepingHours: (open?: string, close?: string) =>
       open && close
-        ? `Housekeeping ist von ${open} bis ${close} verfügbar. Außerhalb der Zeiten werden Anfragen an die Rezeption weitergeleitet.`
+        ? `Housekeeping ist von ${open} bis ${close} verfügbar.`
         : "Housekeeping hilft Ihnen gern weiter.",
     maintenanceHours: (open?: string, close?: string) =>
       open && close ? `Die Technik ist von ${open} bis ${close} verfügbar.` : "Die Technik hilft Ihnen gern weiter.",
@@ -262,8 +264,8 @@ const COPY = {
       `• ${name} — pentru rezervări, folosiți secțiunea potrivită din hub sau contactați recepția.`,
     housekeepingHours: (open?: string, close?: string) =>
       open && close
-        ? `Housekeeping este disponibil între ${open} și ${close}. În afara programului, solicitările sunt trimise la recepție.`
-        : "Housekeeping vă stă la dispoziție.",
+        ? `Serviciul de curățenie este disponibil între ${open} și ${close}.`
+        : "Serviciul de curățenie vă stă la dispoziție.",
     maintenanceHours: (open?: string, close?: string) =>
       open && close ? `Întreținerea este disponibilă între ${open} și ${close}.` : "Întreținerea vă stă la dispoziție.",
     reviews: "Puteți lăsa o recenzie din secțiunea Recenzii din hub — Google, TripAdvisor sau Booking, dacă sunt disponibile.",
@@ -310,8 +312,8 @@ const COPY = {
       `• ${name} — pro rezervace použijte příslušnou sekci v hubu nebo kontaktujte recepci.`,
     housekeepingHours: (open?: string, close?: string) =>
       open && close
-        ? `Housekeeping je k dispozici od ${open} do ${close}. Mimo tuto dobu jsou požadavky odesílány na recepci.`
-        : "Housekeeping vám rád pomůže.",
+        ? `Úklid pokoje je k dispozici od ${open} do ${close}.`
+        : "Úklid pokoje vám rád pomůže.",
     maintenanceHours: (open?: string, close?: string) =>
       open && close ? `Údržba je k dispozici od ${open} do ${close}.` : "Údržba vám ráda pomůže.",
     reviews: "Recenzi můžete zanechat v sekci Recenze v hubu — Google, TripAdvisor nebo Booking, pokud jsou k dispozici.",
@@ -358,8 +360,8 @@ const COPY = {
       `• ${name} — для бронирования используйте соответствующий раздел в хабе или обратитесь на рецепцию.`,
     housekeepingHours: (open?: string, close?: string) =>
       open && close
-        ? `Housekeeping работает с ${open} до ${close}. После окончания рабочего времени запросы направляются на рецепцию.`
-        : "Housekeeping готов помочь вам.",
+        ? `Уборка номера доступна с ${open} до ${close}.`
+        : "Служба уборки номера готова помочь вам.",
     maintenanceHours: (open?: string, close?: string) =>
       open && close ? `Техническая служба работает с ${open} до ${close}.` : "Техническая служба готова помочь вам.",
     reviews: "Оставить отзыв можно в разделе «Отзывы» — через Google, TripAdvisor или Booking, если они доступны.",
@@ -616,7 +618,10 @@ const SERVICE_KEYWORDS: Record<string, string[]> = {
   coffee_capsules: ["coffee capsules", "coffee", "capsules", "кафе", "кафе капсули", "капсули", "кофе", "кофейные капсулы", "капсулы", "cafea", "capsule", "capsule de cafea", "kávové kapsle", "kava", "káva"],
   pillow_menu: ["pillow menu", "меню възглавници", "меню подушек", "meniu perne", "nabídka polštářů"],
   massage_booking: ["massage", "massages", "масаж", "масажи", "массаж", "массажи", "релакс", "masaj", "masaje", "masáž", "masáže", "spa therapy", "relax therapy"],
-  special_occasion: ["special occasion", "специален повод", "ocazie specială", "zvláštní příležitost"],
+  special_occasion: ["special occasion", "специален повод", "ocazie specială", "zvláštní příležitost", "особый случай", "день рождения", "годовщина", "сюрприз", "праздник"],
+  animation_program: ["animation", "animation program", "анимация", "анимационная программа", "детская анимация", "вечерняя программа"],
+  world_cup_2026: ["world cup", "world cup 2026", "fifa", "football", "световно първенство", "чемпионат мира", "чемпионат мира 2026", "футбол", "матчи"],
+  world_cup_conference_room: ["conference room", "конферентна зала", "konferenzraum", "sală de conferințe", "sala de conferinte", "konferenční sál", "konferencni sal", "конференц-зал", "конференц зал"],
 };
 
 const GENERIC_SERVICE_KEYWORDS = [
@@ -668,12 +673,12 @@ const OUTSIDE_CATEGORY_TERMS: Record<string, string[]> = {
 const PAID_SERVICE_KEYS = new Set(["minibar", "laundry", "coffee_capsules", "pillow_menu", "late_checkout", "massage_booking"]);
 
 const SERVICE_SECTION_LABELS = {
-  bg: { housekeeping: "Housekeeping", reception: "Рецепция", support: "Поддръжка" },
+  bg: { housekeeping: "Камериерки", reception: "Рецепция", support: "Поддръжка" },
   en: { housekeeping: "Housekeeping", reception: "Reception", support: "Support / Maintenance" },
   de: { housekeeping: "Housekeeping", reception: "Rezeption", support: "Technik / Support" },
-  ro: { housekeeping: "Housekeeping", reception: "Recepție", support: "Suport / Întreținere" },
-  cs: { housekeeping: "Housekeeping", reception: "Recepce", support: "Podpora / Údržba" },
-  ru: { housekeeping: "Housekeeping", reception: "Рецепция", support: "Техническая служба" },
+  ro: { housekeeping: "Curățenie", reception: "Recepție", support: "Suport / Întreținere" },
+  cs: { housekeeping: "Úklid pokoje", reception: "Recepce", support: "Podpora / Údržba" },
+  ru: { housekeeping: "Уборка номера", reception: "Рецепция", support: "Техническая служба" },
 } as const;
 
 const SERVICE_SECTION_BY_KEY: Record<string, keyof typeof SERVICE_SECTION_LABELS.bg> = {
@@ -814,37 +819,246 @@ function getAllLocalizedVenueValues(venue: Venue, field: keyof Venue): string[] 
   ].filter(Boolean)));
 }
 
+
+const GENERIC_VENUE_WORDS = new Set([
+  "a", "an", "the", "and", "of", "at", "in",
+  "der", "die", "das", "den", "dem", "des", "und", "im", "am",
+  "de", "la", "si", "și", "in", "în", "pentru",
+  "a", "i", "v", "ve", "na", "pro",
+  "и", "в", "на", "за", "от", "до", "с",
+  "hotel", "хотел", "отель",
+  "bar", "bars", "бар", "барове", "бары", "baruri", "bary",
+  "restaurant", "restaurants", "ресторант", "ресторанти", "ресторан", "рестораны", "restaurante", "restaurace",
+  "room", "rooms", "zimmer", "raum", "sala", "salon", "зал", "зала", "комната",
+  "center", "centre", "centrum", "център", "центр",
+  "pool", "басейн", "бассейн", "piscina", "bazen",
+  "spa", "спа", "wellness",
+]);
+
+const VENUE_QUALIFIER_GROUPS: Record<string, string[]> = {
+  outside: [
+    "outside", "outdoor", "open air", "external", "terrace", "garden",
+    "външен", "външният", "външния", "открит", "открита", "навън",
+    "aussen", "aussenbar", "außen", "außenbar", "freiluft", "draussen", "draußen",
+    "exterior", "afara", "afară", "terasa", "terasă",
+    "venkovni", "venkovní", "venku",
+    "открытый", "наружный", "уличный", "на улице",
+  ],
+  lobby: [
+    "lobby", "foyer", "reception hall",
+    "лоби", "фоайе", "вестибюл",
+    "empfangshalle",
+    "hol", "lobby bar",
+    "лобби", "вестибюль",
+  ],
+  main: [
+    "main", "principal", "haupt", "основен", "основной", "hlavni", "hlavní",
+  ],
+  games: [
+    "games", "game room", "games room", "play room",
+    "игрална", "игровая", "игровой", "игри", "игры",
+    "spielzimmer", "spielraum",
+    "jocuri", "herna",
+  ],
+  kids: [
+    "kids", "children", "playground", "kids club",
+    "детски", "деца", "детский", "дети",
+    "kinder", "copii", "detsky", "dětský",
+  ],
+  beach: [
+    "beach", "seaside", "strand", "плаж", "пляж", "plaja", "plajă", "plaz", "pláž",
+  ],
+  rooftop: [
+    "roof", "rooftop", "sky", "dach", "покрив", "крыша", "acoperis", "acoperiș", "strecha", "střecha",
+  ],
+  indoor: [
+    "indoor", "inside", "вътрешен", "вътрешният", "закрит", "innen", "interior", "vnitrni", "vnitřní", "крытый",
+  ],
+};
+
+type RankedVenueMatch = {
+  venue: Venue;
+  score: number;
+  strength: 0 | 1 | 2 | 3;
+};
+
+function canonicalVenueText(value: string) {
+  return clean(value)
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function venueWords(value: string) {
+  return canonicalVenueText(value)
+    .split(" ")
+    .map((word) => word.trim())
+    .filter((word) => word.length >= 2);
+}
+
+function phraseInVenueText(source: string, phrase: string) {
+  const haystack = canonicalVenueText(source);
+  const needle = canonicalVenueText(phrase);
+  if (!haystack || !needle) return false;
+  return (` ${haystack} `).includes(` ${needle} `);
+}
+
+function commonPrefixLength(a: string, b: string) {
+  const limit = Math.min(a.length, b.length);
+  let index = 0;
+  while (index < limit && a[index] === b[index]) index += 1;
+  return index;
+}
+
+function venueWordMatches(questionWord: string, venueWord: string) {
+  const a = canonicalVenueText(questionWord);
+  const b = canonicalVenueText(venueWord);
+  if (!a || !b) return false;
+  if (a === b) return true;
+
+  const minLength = Math.min(a.length, b.length);
+  if (minLength >= 5 && (a.startsWith(b) || b.startsWith(a))) return true;
+
+  const prefix = commonPrefixLength(a, b);
+  return minLength >= 6 && prefix >= 5 && prefix / minLength >= 0.7;
+}
+
+function getVenueNameValues(venue: Venue, lang: Lang | string) {
+  return Array.from(new Set([
+    getVenueText(venue, "name", lang),
+    ...getAllLocalizedVenueValues(venue, "name"),
+  ].map((value) => String(value || "").trim()).filter(Boolean)));
+}
+
+function getVenueDescriptionValues(venue: Venue, lang: Lang | string) {
+  return Array.from(new Set([
+    getVenueText(venue, "shortDescription", lang),
+    getVenueText(venue, "description", lang),
+    getVenueText(venue, "cuisine", lang),
+    getVenueText(venue, "location", lang),
+    getVenueText(venue, "programText", lang),
+    getVenueText(venue, "ageGroup", lang),
+    ...getAllLocalizedVenueValues(venue, "shortDescription"),
+    ...getAllLocalizedVenueValues(venue, "description"),
+    ...getAllLocalizedVenueValues(venue, "cuisine"),
+    ...getAllLocalizedVenueValues(venue, "location"),
+    ...getAllLocalizedVenueValues(venue, "programText"),
+    ...getAllLocalizedVenueValues(venue, "ageGroup"),
+  ].map((value) => String(value || "").trim()).filter(Boolean)));
+}
+
+function distinctiveVenueWords(values: string[]) {
+  return Array.from(new Set(
+    values
+      .flatMap((value) => venueWords(value))
+      .filter((word) => word.length >= 3 && !GENERIC_VENUE_WORDS.has(word))
+  ));
+}
+
+function countVenueWordMatches(questionWords: string[], candidateWords: string[]) {
+  return candidateWords.filter((candidate) =>
+    questionWords.some((questionWord) => venueWordMatches(questionWord, candidate))
+  ).length;
+}
+
+function qualifierGroupsFor(value: string) {
+  return Object.entries(VENUE_QUALIFIER_GROUPS)
+    .filter(([, terms]) => terms.some((term) => phraseInVenueText(value, term)))
+    .map(([group]) => group);
+}
+
 function venueIdentity(venue: Venue, lang: Lang | string = "en"): string {
   return [
     venue.category,
     venue.type,
-    ...getAllLocalizedVenueValues(venue, "name"),
-    ...getAllLocalizedVenueValues(venue, "shortDescription"),
-    getVenueText(venue, "name", lang),
-    getVenueText(venue, "shortDescription", lang),
+    ...getVenueNameValues(venue, lang),
+    ...getVenueDescriptionValues(venue, lang),
   ]
-    .map((value) => clean(String(value || "")))
+    .map((value) => canonicalVenueText(String(value || "")))
     .filter(Boolean)
     .join(" ");
 }
 
-function venueSearchTokens(venue: Venue, lang: Lang | string = "en"): string[] {
-  const values = [
-    venue.category,
-    venue.type,
-    ...getAllLocalizedVenueValues(venue, "name"),
-    ...getAllLocalizedVenueValues(venue, "shortDescription"),
-    getVenueText(venue, "name", lang),
-    getVenueText(venue, "shortDescription", lang),
-  ];
+function scoreVenueMatch(venue: Venue, question: string, lang: Lang | string = "en"): RankedVenueMatch {
+  const q = canonicalVenueText(question);
+  const qWords = venueWords(q);
+  const category = normalizeCategory(venue.category || venue.type);
+  const detectedCategories = detectCategories(q);
+  const categoryMatch = Boolean(category && detectedCategories.includes(category));
 
-  return Array.from(new Set(values.map((value) => clean(String(value || ""))).filter(Boolean)));
+  const currentName = getVenueText(venue, "name", lang);
+  const names = getVenueNameValues(venue, lang);
+  const descriptions = getVenueDescriptionValues(venue, lang);
+
+  const exactCurrentName = Boolean(currentName && phraseInVenueText(q, currentName));
+  const exactAnyName = names.some((name) => phraseInVenueText(q, name));
+  const exactDescription = descriptions.some((description) => phraseInVenueText(q, description));
+
+  const currentNameWords = distinctiveVenueWords(currentName ? [currentName] : []);
+  const allNameWords = distinctiveVenueWords(names);
+  const descriptionWords = distinctiveVenueWords(descriptions);
+
+  const currentNameMatches = countVenueWordMatches(qWords, currentNameWords);
+  const allNameMatches = countVenueWordMatches(qWords, allNameWords);
+  const descriptionMatches = countVenueWordMatches(qWords, descriptionWords);
+
+  const questionQualifiers = qualifierGroupsFor(q);
+  const venueQualifiers = qualifierGroupsFor(venueIdentity(venue, lang));
+  const matchingQualifiers = questionQualifiers.filter((group) => venueQualifiers.includes(group));
+  const missingQualifiers = questionQualifiers.filter((group) => !venueQualifiers.includes(group));
+
+  let score = 0;
+  if (categoryMatch) score += 35;
+  if (exactCurrentName) score += 620;
+  else if (exactAnyName) score += 540;
+
+  score += currentNameMatches * 120;
+  score += Math.max(0, allNameMatches - currentNameMatches) * 80;
+  score += descriptionMatches * 45;
+  if (exactDescription) score += 140;
+  score += matchingQualifiers.length * 220;
+  score -= missingQualifiers.length * 180;
+
+  if (currentNameWords.length > 0 && currentNameMatches === currentNameWords.length) score += 160;
+  if (detectedCategories.length > 0 && !categoryMatch && !exactAnyName) score -= 100;
+
+  const strength: RankedVenueMatch["strength"] =
+    exactCurrentName || exactAnyName
+      ? 3
+      : matchingQualifiers.length > 0 || currentNameMatches > 0 || allNameMatches > 0
+        ? 2
+        : exactDescription || descriptionMatches > 0
+          ? 1
+          : 0;
+
+  return { venue, score, strength };
+}
+
+function rankVenueMatches(question: string, lang: Lang | string, hotel: HotelPayload) {
+  return getActiveVenues(hotel)
+    .map((venue) => scoreVenueMatch(venue, question, lang))
+    .filter((match) => match.strength > 0 && match.score >= 45)
+    .sort((a, b) => b.score - a.score);
+}
+
+function selectRankedVenueMatches(matches: RankedVenueMatch[]) {
+  if (!matches.length) return [];
+
+  const strong = matches.filter((match) => match.strength >= 2);
+  if (strong.length) {
+    const topScore = strong[0].score;
+    return strong
+      .filter((match) => match.strength === 3 || match.score >= topScore - 90)
+      .slice(0, 4);
+  }
+
+  const topScore = matches[0].score;
+  return matches.filter((match) => match.score >= topScore - 20).slice(0, 4);
 }
 
 function venueMatchesQuestion(venue: Venue, question: string, lang: Lang | string = "en") {
-  const q = clean(question);
-  const category = normalizeCategory(venue.category || venue.type);
-  return venueSearchTokens(venue, lang).some((token) => hasTerm(q, token)) || Boolean(category && hasTerm(q, category));
+  const match = scoreVenueMatch(venue, question, lang);
+  return match.strength > 0 && match.score >= 45;
 }
 
 function normalizeCategory(value?: string) {
@@ -1004,7 +1218,7 @@ function findMatchingHotelInfo(question: string, lang: Lang, hotel: HotelPayload
       ...NEARBY_TERMS,
       "nearby", "around", "наблизо", "около", "район", "района", "umgebung", "nähe", "apropiere", "împrejurimi", "okolí", "blízko",
     ];
-    if (hasAnyTerm(identity, nearbyIdentityTerms) && !isNearbyOutsideQuestion(q)) continue;
+    if (nearbyIdentityTerms.some((term) => phraseInVenueText(identity, term)) && !isNearbyOutsideQuestion(q)) continue;
 
     const groupHit = Object.values(INFO_GROUP_KEYWORDS).some((terms) => hasAnyTerm(q, terms) && hasAnyTerm(identity, terms));
     const titleSource = [
@@ -1145,10 +1359,10 @@ function buildVenueCategoryAnswer(question: string, lang: Lang, hotel: HotelPayl
 }
 
 function buildSpecificVenueAnswer(question: string, lang: Lang, hotel: HotelPayload) {
-  const wantsReservation = hasAnyTerm(question, ["reserv", "book", "резерв", "buch", "rezerv", "rezervare", "rezervovat"]);
-  const venues = getActiveVenues(hotel).filter((venue) => venueMatchesQuestion(venue, question, lang));
+  const wantsReservation = hasAnyTerm(question, ["reserv", "book", "резерв", "брониров", "забронировать", "buch", "rezerv", "rezervare", "rezervovat"]);
+  const venues = findMatchingVenues(question, lang, hotel);
   if (!venues.length) return null;
-  return venues.slice(0, 2).map((venue) => formatVenueLine(venue, lang, wantsReservation, question)).join("\n\n");
+  return venues.map((venue) => formatVenueLine(venue, lang, wantsReservation, question)).join("\n\n");
 }
 
 function buildHotelInfoAnswer(question: string, lang: Lang, hotel: HotelPayload) {
@@ -1171,20 +1385,20 @@ function buildHotelInfoAnswer(question: string, lang: Lang, hotel: HotelPayload)
 
 const SERVICE_SUMMARY: Record<string, Partial<Record<Lang, string>>> = {
   pillow_menu: {
-    bg: "Предлагат се допълнителни възглавници за по-голям комфорт. Изборът се прави от секция Housekeeping в хъба.",
+    bg: "Предлагат се допълнителни възглавници за по-голям комфорт. Изборът се прави от секция Камериерки в хъба.",
     en: "Additional pillows are available for extra comfort. You can request them from the Housekeeping section in the hub.",
     de: "Zusätzliche Kissen sind für mehr Komfort verfügbar. Sie können sie im Bereich Housekeeping im Hub anfragen.",
-    ro: "Sunt disponibile perne suplimentare pentru mai mult confort. Le puteți solicita din secțiunea Housekeeping din hub.",
-    cs: "Pro větší pohodlí jsou k dispozici další polštáře. Můžete o ně požádat v sekci Housekeeping v hubu.",
-    ru: "Для большего комфорта доступны дополнительные подушки. Их можно заказать в разделе Housekeeping.",
+    ro: "Sunt disponibile perne suplimentare pentru mai mult confort. Le puteți solicita din secțiunea Curățenie din hub.",
+    cs: "Pro větší pohodlí jsou k dispozici další polštáře. Můžete o ně požádat v sekci Úklid pokoje v hubu.",
+    ru: "Для большего комфорта доступны дополнительные подушки. Их можно заказать в разделе «Уборка номера».",
   },
   coffee_capsules: {
-    bg: "Кафе капсули могат да бъдат заявени от секция Housekeeping. Услугата е платена и се начислява към стаята.",
+    bg: "Кафе капсули могат да бъдат заявени от секция Камериерки. Услугата е платена и се начислява към стаята.",
     en: "Coffee capsules can be requested from the Housekeeping section. This is a paid service and can be charged to the room.",
     de: "Kaffeekapseln können im Bereich Housekeeping angefragt werden. Dies ist eine kostenpflichtige Leistung und kann dem Zimmer belastet werden.",
-    ro: "Capsulele de cafea pot fi solicitate din secțiunea Housekeeping. Serviciul este contra cost și poate fi adăugat pe nota camerei.",
-    cs: "Kávové kapsle lze objednat v sekci Housekeeping. Služba je placená a může být připsána na účet pokoje.",
-    ru: "Кофейные капсулы можно заказать в разделе Housekeeping. Это платная услуга, которая может быть начислена на счёт номера.",
+    ro: "Capsulele de cafea pot fi solicitate din secțiunea Curățenie. Serviciul este contra cost și poate fi adăugat pe nota camerei.",
+    cs: "Kávové kapsle lze objednat v sekci Úklid pokoje. Služba je placená a může být připsána na účet pokoje.",
+    ru: "Кофейные капсулы можно заказать в разделе «Уборка номера». Это платная услуга, которая может быть начислена на счёт номера.",
   },
   late_checkout: {
     bg: "Късен check-out може да бъде заявен от рецепция и се предоставя според заетостта на хотела.",
@@ -1203,12 +1417,12 @@ const SERVICE_SUMMARY: Record<string, Partial<Record<Lang, string>>> = {
     ru: "Массаж или расслабляющую процедуру можно заказать через хаб. Это платная услуга, доступная при наличии свободного времени.",
   },
   minibar: {
-    bg: "Зареждане на минибар може да бъде заявено от секция Housekeeping. Консумацията се начислява към стаята.",
+    bg: "Зареждане на минибар може да бъде заявено от секция Камериерки. Консумацията се начислява към стаята.",
     en: "Minibar refill can be requested from the Housekeeping section. Consumed items are charged to the room.",
     de: "Eine Minibar-Auffüllung kann im Bereich Housekeeping angefragt werden. Verbrauchte Artikel werden dem Zimmer belastet.",
-    ro: "Reumplerea minibarului poate fi solicitată din secțiunea Housekeeping. Produsele consumate se adaugă pe nota camerei.",
-    cs: "Doplnění minibaru lze požádat v sekci Housekeeping. Spotřebované položky jsou účtovány na pokoj.",
-    ru: "Пополнение мини-бара можно заказать в разделе Housekeeping. Использованные товары начисляются на счёт номера.",
+    ro: "Reumplerea minibarului poate fi solicitată din secțiunea Curățenie. Produsele consumate se adaugă pe nota camerei.",
+    cs: "Doplnění minibaru lze požádat v sekci Úklid pokoje. Spotřebované položky jsou účtovány na pokoj.",
+    ru: "Пополнение мини-бара можно заказать в разделе «Уборка номера». Использованные товары начисляются на счёт номера.",
   },
 };
 
@@ -1243,6 +1457,34 @@ function extractPriceLine(value: string, lang: Lang) {
     ru: "Цена",
   };
   return `${labels[lang]}: ${price}.`;
+}
+
+
+function structuredServicePriceLine(service: ServiceItem, lang: Lang) {
+  const rawPrice = String(service.price || "").trim();
+  if (!rawPrice) return "";
+
+  const rawCurrency = String(service.currency || "").trim();
+  const normalizedCurrency = rawCurrency.toUpperCase() === "EUR" ? "€" : rawCurrency;
+  const localPrice = lang === "en" ? rawPrice.replace(",", ".") : rawPrice.replace(".", ",");
+
+  const amount =
+    normalizedCurrency === "€"
+      ? lang === "en"
+        ? `€${localPrice}`
+        : `${localPrice} €`
+      : [localPrice, normalizedCurrency].filter(Boolean).join(" ");
+
+  const labels: Record<Lang, string> = {
+    bg: "Цена",
+    en: "Price",
+    de: "Preis",
+    ro: "Preț",
+    cs: "Cena",
+    ru: "Цена",
+  };
+
+  return `${labels[lang]}: ${amount}.`;
 }
 
 function serviceActionLine(service: ServiceItem, lang: Lang) {
@@ -1345,7 +1587,7 @@ function formatServiceForSmartAnswer(service: ServiceItem, lang: Lang) {
   const label = stripIcon(service.label);
   const customSummary = SERVICE_SUMMARY[service.key]?.[lang] || "";
   const description = customSummary || compactSentences(service.description || "", 300, 2);
-  const price = extractPriceLine(service.description || "", lang);
+  const price = structuredServicePriceLine(service, lang) || extractPriceLine(service.description || "", lang);
   const action = customSummary ? "" : serviceActionLine(service, lang);
   const paid = PAID_SERVICE_KEYS.has(service.key) && !price && !customSummary ? COPY[lang].paidNotice : "";
 
@@ -1357,25 +1599,12 @@ function formatServiceForSmartAnswer(service: ServiceItem, lang: Lang) {
 }
 
 function findMatchingVenues(question: string, lang: Lang, hotel: HotelPayload) {
-  const q = clean(question);
-  const categories = detectCategories(q);
-  const venues = getActiveVenues(hotel).filter((venue) => {
-    const category = normalizeCategory(venue.category || venue.type);
-    return venueMatchesQuestion(venue, q, lang) || (category && categories.includes(category));
-  });
-
-  const seen = new Set<string>();
-  return venues.filter((venue) => {
-    const key = clean(`${venue.category || venue.type || ""}:${venue.name || getVenueText(venue, "name", "en") || ""}`);
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const ranked = rankVenueMatches(question, lang, hotel);
+  return selectRankedVenueMatches(ranked).map((match) => match.venue);
 }
 
-
 function isNearbyOutsideQuestion(question: string) {
-  return hasAnyTerm(question, NEARBY_TERMS);
+  return NEARBY_TERMS.some((term) => phraseInVenueText(question, term));
 }
 
 function identityHasAny(item: HotelInfoItem, lang: Lang, terms: string[]) {
@@ -1400,7 +1629,7 @@ function findNearbyHotelInfo(question: string, lang: Lang, hotel: HotelPayload) 
   return items.filter((item) => {
     const identity = itemIdentity(item, lang);
     if (!identity) return false;
-    const isNearbyItem = hasAnyTerm(identity, nearbyIdentityTerms);
+    const isNearbyItem = nearbyIdentityTerms.some((term) => phraseInVenueText(identity, term));
     if (!isNearbyItem) return false;
 
     if (!requestedGroups.length) return true;
@@ -1448,14 +1677,19 @@ function buildSmartTopicAnswer(question: string, lang: Lang, hotel: HotelPayload
   }
 
   if (venueMatches.length) {
-    lines.push(formatVenueLine(venueMatches[0], lang, wantsReservation, question));
+    lines.push(...venueMatches.map((venue) => formatVenueLine(venue, lang, wantsReservation, question)));
 
-    // For a direct venue question, return only the exact venue. This prevents
-    // unrelated cards such as a conference room from matching a generic word
-    // like "room", "sală" or "зал".
+    const venueHasHours = venueMatches.some((venue) => Boolean(getVenueHours(venue, lang)));
+    if (!venueHasHours && infoMatches.length) {
+      lines.push(formatInfoForSmartAnswer(infoMatches[0], lang));
+    }
+
+    // A specific venue question returns only the ranked venue matches.
+    // Category-only questions continue to the category answer, which lists
+    // all active venues in that category.
     if (!serviceMatches.length) {
       const cleaned = uniqueNonEmpty(lines);
-      return cleaned.length ? cleaned[0] : null;
+      return cleaned.length ? cleaned.slice(0, 4).join("\n\n") : null;
     }
   }
 
@@ -1870,6 +2104,8 @@ function buildAiServicesFromRequestDefs(requestDefs: any[] | undefined, lang: La
         description: descriptionParts.join("\n\n"),
         active: def.enabled !== false,
         category: String(def.category || def.targetDepartment || "").trim(),
+        price: String(def.price || "").trim(),
+        currency: String(def.currency || "").trim(),
         keywords: [
           String(def.id || ""),
           String(def.requestType || ""),
