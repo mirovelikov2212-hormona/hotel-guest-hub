@@ -3304,15 +3304,29 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           description: [baseMessage, ...extras].map((item) => String(item || "").trim()).filter(Boolean).join("\n\n"),
           active: def.enabled !== false,
           category: def.category,
+          subsection: def.subsection,
+          targetDepartment: def.targetDepartment,
+          type: def.type,
+          sectionTitle: getTextMapValue(def.sectionTitle),
+          options: localizedOptions,
+          price: String(def.price || ""),
+          currency: String(def.currency || ""),
+          pdfUrl: String(def.pdfUrl || ""),
+          externalUrl: String(def.externalUrl || ""),
+          linkUrl: String(def.linkUrl || ""),
           keywords: [
             def.id,
             def.id.replace(/_/g, " "),
+            def.requestType || "",
+            def.category || "",
+            def.subsection || "",
+            def.targetDepartment || "",
             ...def.keywords,
             ...localizedOptions,
           ].filter(Boolean),
         };
       });
-  }, [getRequestDefField, getRequestDefMessage, getRequestDefOptions, lang, requestDefs, tUI]);
+  }, [getRequestDefField, getRequestDefMessage, getRequestDefOptions, getTextMapValue, lang, requestDefs, tUI]);
 
   const aiServices = useMemo(() => {
     const sectionLabels = {
@@ -3454,6 +3468,24 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         active: true,
       },
       {
+        key: "bathrobe",
+        label: String(tUI("bathrobe") || "Bathrobe"),
+        description: c.requestFrom(String(tUI("bathrobe") || "Bathrobe"), sectionLabels.housekeeping),
+        active: true,
+      },
+      {
+        key: "slippers",
+        label: String(tUI("slippers") || "Slippers"),
+        description: c.requestFrom(String(tUI("slippers") || "Slippers"), sectionLabels.housekeeping),
+        active: true,
+      },
+      {
+        key: "baby_cot",
+        label: String(tUI("baby_cot") || "Baby cot"),
+        description: c.requestFrom(String(tUI("baby_cot") || "Baby cot"), sectionLabels.housekeeping),
+        active: true,
+      },
+      {
         key: "iron",
         label: String(tUI("iron") || "Iron"),
         description: c.requestFrom(String(tUI("iron") || "Iron"), sectionLabels.housekeeping),
@@ -3501,6 +3533,23 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         description: c.hotWater,
         active: true,
       },
+      ...[
+        ["tv_issue", "tv_issue", "TV issue"],
+        ["light_not_working", "light_not_working", "Light issue"],
+        ["bathroom_issue", "bathroom_issue", "Bathroom issue"],
+        ["door_lock_issue", "door_lock_issue", "Door / lock issue"],
+        ["wifi_issue", "wifi_issue", "Wi-Fi issue"],
+        ["power_outlet_issue", "power_outlet_issue", "Power outlet issue"],
+        ["safe_issue", "safe_issue", "Safe issue"],
+        ["balcony_door_issue", "balcony_door_issue", "Balcony door issue"],
+        ["minibar_not_cooling", "minibar_not_cooling", "Minibar not cooling"],
+        ["coffee_machine", "coffee_machine", "Coffee machine issue"],
+      ].map(([key, labelKey, fallback]) => ({
+        key,
+        label: String(tUI(labelKey) || fallback),
+        description: c.broken,
+        active: true,
+      })),
       {
         key: "other_technical_issue",
         label: String(tUI("something_broken") || "Technical issue"),
@@ -3509,10 +3558,46 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       },
     ];
 
+    const legacyDepartments: Record<string, "housekeeping" | "reception" | "maintenance"> = {
+      towels: "housekeeping",
+      toilet_paper: "housekeeping",
+      extra_pillow: "housekeeping",
+      extra_blanket: "housekeeping",
+      bathrobe: "housekeeping",
+      slippers: "housekeeping",
+      baby_cot: "housekeeping",
+      iron: "housekeeping",
+      minibar: "housekeeping",
+      laundry: "housekeeping",
+      late_checkout: "reception",
+      wake_up_call: "reception",
+      taxi: "reception",
+      air_conditioning: "maintenance",
+      no_hot_water: "maintenance",
+      tv_issue: "maintenance",
+      light_not_working: "maintenance",
+      bathroom_issue: "maintenance",
+      door_lock_issue: "maintenance",
+      wifi_issue: "maintenance",
+      power_outlet_issue: "maintenance",
+      safe_issue: "maintenance",
+      balcony_door_issue: "maintenance",
+      minibar_not_cooling: "maintenance",
+      coffee_machine: "maintenance",
+      other_technical_issue: "maintenance",
+    };
+
+    const routedLegacyServices = legacyServices.map((service) => ({
+      ...service,
+      category: legacyDepartments[service.key] || "",
+      targetDepartment: legacyDepartments[service.key] || "",
+      type: "request",
+    }));
+
     const existingKeys = new Set(requestDefAiServices.map((service) => service.key));
     return [
       ...requestDefAiServices,
-      ...legacyServices.filter((service) => !existingKeys.has(service.key)),
+      ...routedLegacyServices.filter((service) => !existingKeys.has(service.key)),
     ];
   }, [lang, lateCheckoutInfo, minibarNotice, requestDefAiServices, tUI, wakeUpSlots]);
 
@@ -6959,7 +7044,7 @@ function AiAnswerContent({ text }: { text: string }) {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold underline decoration-2 underline-offset-2"
+              className="break-all font-semibold underline decoration-2 underline-offset-2"
             >
               {href}
             </a>
