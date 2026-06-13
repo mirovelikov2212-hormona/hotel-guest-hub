@@ -5,14 +5,16 @@ let client: OpenAI | null = null;
 
 function getClient() {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
-  if (!apiKey) return null;
+  if (!apiKey) {
+    throw new Error("openai_api_key_missing");
+  }
   if (!client) {
-    client = new OpenAI({ apiKey, timeout: 15000, maxRetries: 1 });
+    client = new OpenAI({ apiKey, timeout: 20000, maxRetries: 1 });
   }
   return client;
 }
 
-function compact(value: string, max = 240) {
+function compact(value: string, max = 360) {
   const clean = String(value || "").replace(/\s+/g, " ").trim();
   return clean.length <= max ? clean : `${clean.slice(0, max - 1)}…`;
 }
@@ -43,8 +45,6 @@ export async function routeWithOpenAi(args: {
   history: AiHistoryTurn[];
 }) {
   const openai = getClient();
-  if (!openai) return null;
-
   const model = String(process.env.OPENAI_HOTEL_MODEL || "gpt-5-mini").trim();
   const validIds = new Set(args.catalog.records.map((record) => record.id));
   const records = args.catalog.records.map((record) => ({
@@ -54,11 +54,12 @@ export async function routeWithOpenAi(args: {
     aliases: record.aliases,
     intent_tags: record.intentTags,
     current_summary: compact(record.summaries[args.lang] || ""),
+    current_hours: compact(record.hoursByLang?.[args.lang] || ""),
+    current_options: (record.optionsByLang?.[args.lang] || []).map((item) => compact(item, 160)).slice(0, 12),
     current_path: record.pathByLang[args.lang] || [],
     target_department: record.targetDepartment || "",
     request_type: record.requestType || "",
-    has_price: Boolean(record.price),
-    has_hours: Boolean(record.hoursByLang?.[args.lang]),
+    price: record.price || "",
     has_link: record.urls.length > 0,
   }));
 
@@ -66,18 +67,21 @@ export async function routeWithOpenAi(args: {
   const response = await openai.responses.create({
     model,
     store: false,
-    max_output_tokens: 320,
+    max_output_tokens: 900,
+    reasoning: { effort: "low" },
     instructions: [
       "You are the semantic router for a private hotel concierge.",
       "Use only the supplied HOTEL_CATALOG. Never use external facts and never browse.",
       "The user may write in Bulgarian, English, German, Romanian, Czech or Russian, with spelling or grammatical variations.",
-      "Understand the whole sentence and conversation context, not a single shared keyword.",
-      "Select the exact record IDs that answer the request.",
-      "Important distinctions: match schedule versus match broadcast; animation program versus football schedule; outside bar versus lobby bar; games room versus conference room; Wi-Fi password versus Wi-Fi problem; coffee capsules versus coffee machine problem.",
+      "Use the whole question and the recent conversation history. Resolve short follow-up questions from that history.",
+      "Select only exact record IDs from HOTEL_CATALOG that contain the confirmed answer.",
+      "Important distinctions: free transfer is not the same as taxi; match schedule is not match broadcast; animation program is not football schedule; outside bar is not lobby bar; games room is not conference room; Wi-Fi password is not a Wi-Fi problem; coffee capsules are not a coffee machine problem.",
       "For one specific request select one record. Select multiple records only when the user clearly asks for all options or a comparison.",
+      "If the question asks whether something is free, available, included, allowed, required, reservable, or offered, select a record only when its supplied facts actually confirm the answer.",
       "If the question is genuinely ambiguous, return clarify and ask one short clarification question in the user's language.",
-      "If the hotel catalog does not contain the answer, return not_found. If unrelated to the hotel or stay, return out_of_scope.",
-      "Do not invent facts, paths, prices, opening hours or links.",
+      "If the catalog does not confirm the requested fact, return not_found even when a related service exists.",
+      "If unrelated to the hotel or the guest's stay, return out_of_scope.",
+      "Do not invent facts, paths, prices, opening hours, conditions or links.",
     ].join("\n"),
     input: JSON.stringify({
       hotel: args.catalog.hotelName,
@@ -107,8 +111,21 @@ export async function routeWithOpenAi(args: {
     },
   });
 
-  const parsed = parseResult(response.output_text);
-  if (!parsed) return null;
+  if (response.status === "incomplete") {
+    const reason = response.incomplete_details?.reason || "unknown";
+    throw new Error(`openai_response_incomplete:${reason}`);
+  }
+
+  const outputText = String(response.output_text || "").trim();
+  if (!outputText) {
+    throw new Error("openai_response_empty");
+  }
+
+  const parsed = parseResult(outputText);
+  if (!parsed) {
+    throw new Error("openai_response_invalid_json");
+  }
+
   parsed.selected_ids = parsed.selected_ids.filter((id) => validIds.has(id));
   if (parsed.status === "answer" && parsed.selected_ids.length === 0) {
     parsed.status = "not_found";

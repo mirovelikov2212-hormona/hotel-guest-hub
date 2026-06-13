@@ -160,24 +160,22 @@ export async function POST(request: Request) {
     let inputTokens: number | undefined;
     let outputTokens: number | undefined;
     let routerLatency = 0;
+    let routerError: string | undefined;
     let routed;
 
     try {
       const openAiResult = await routeWithOpenAi({ question, lang, catalog, history });
-      if (openAiResult) {
-        routed = openAiResult.result;
-        model = openAiResult.model;
-        inputTokens = openAiResult.inputTokens;
-        outputTokens = openAiResult.outputTokens;
-        routerLatency = openAiResult.latencyMs;
-      } else {
-        engine = "deterministic";
-        routed = deterministicRoute(question, lang, catalog);
-      }
+      routed = openAiResult.result;
+      model = openAiResult.model;
+      inputTokens = openAiResult.inputTokens;
+      outputTokens = openAiResult.outputTokens;
+      routerLatency = openAiResult.latencyMs;
     } catch (error) {
+      const rawError = error instanceof Error ? error.message : String(error);
+      routerError = rawError.startsWith("openai_") ? rawError : "openai_request_failed";
       console.error("OpenAI hotel router failed; using safe fallback", {
         hotelSlug,
-        error: error instanceof Error ? error.message : String(error),
+        error: rawError,
       });
       engine = "fallback";
       fallbackUsed = true;
@@ -197,6 +195,7 @@ export async function POST(request: Request) {
       latencyMs: Date.now() - startedAt,
       intent: routed.intent,
       confidence: routed.confidence,
+      routerError,
     };
 
     return NextResponse.json({

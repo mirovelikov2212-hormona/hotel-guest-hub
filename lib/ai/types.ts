@@ -66,6 +66,7 @@ export type AiDiagnostics = {
   latencyMs: number;
   intent?: string;
   confidence?: number;
+  routerError?: string;
 };
 
 export function normalizeAiLang(value: LangKey | string | undefined): AiLang {

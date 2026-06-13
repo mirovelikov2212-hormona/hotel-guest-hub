@@ -186,8 +186,9 @@ function venueRecord(venue: VenueRow, config: HotelConfig, index: number): AiCat
   const sectionId = clean(venue.uiSectionId || "outlets");
 
   for (const lang of AI_LANGS) {
-    const summary = clean(venue.shortDescriptionByLang?.[lang] || venue.shortDescription || venue.descriptionByLang?.[lang] || venue.description);
-    summaries[lang] = summary;
+    const shortDescription = clean(venue.shortDescriptionByLang?.[lang] || venue.shortDescription);
+    const description = clean(venue.descriptionByLang?.[lang] || venue.description);
+    summaries[lang] = unique([shortDescription, description]).join("\n");
     pathByLang[lang] = pathFor(config, lang, sectionId, sectionLabel(config, lang, sectionId), titles[lang] || venue.name);
   }
 
