@@ -173,7 +173,6 @@ function isWithinAnyTimeRange(value: string, ranges: Array<{ start: number; end:
 }
 
 type VenueRow = {
-  id?: string;
   category?: string;
   type?: string;
   name: string;
@@ -584,6 +583,8 @@ type GuestWeatherPayload = {
   ok: boolean;
   place?: string;
   timezone?: string;
+  provider?: "google_weather" | "open_meteo";
+  attribution?: string;
   sourceUrl?: string;
   updatedAt?: string;
   current?: {
@@ -613,13 +614,14 @@ const WEATHER_GUEST_COPY: Record<string, {
   tomorrow: string;
   updated: string;
   localTime: string;
+  source: string;
 }> = {
-  bg: { title: "Времето", loading: "Зареждане на прогнозата...", error: "Прогнозата временно не е достъпна.", now: "Сега", feels: "усеща се като", humidity: "Влажност", clouds: "Облачност", wind: "Вятър", rain: "Вероятност за валеж", today: "Днес", tomorrow: "Утре", updated: "Времето се актуализира на всеки 10 минути.", localTime: "Местно време" },
-  en: { title: "Weather", loading: "Loading forecast...", error: "The forecast is temporarily unavailable.", now: "Now", feels: "feels like", humidity: "Humidity", clouds: "Cloud cover", wind: "Wind", rain: "Chance of rain", today: "Today", tomorrow: "Tomorrow", updated: "Weather data is updated every 10 minutes.", localTime: "Local time" },
-  de: { title: "Wetter", loading: "Wetter wird geladen...", error: "Die Wettervorhersage ist vorübergehend nicht verfügbar.", now: "Aktuell", feels: "gefühlt", humidity: "Luftfeuchtigkeit", clouds: "Bewölkung", wind: "Wind", rain: "Regenwahrscheinlichkeit", today: "Heute", tomorrow: "Morgen", updated: "Die Wetterdaten werden alle 10 Minuten aktualisiert.", localTime: "Ortszeit" },
-  ro: { title: "Vremea", loading: "Se încarcă prognoza...", error: "Prognoza nu este disponibilă momentan.", now: "Acum", feels: "se simte ca", humidity: "Umiditate", clouds: "Nebulozitate", wind: "Vânt", rain: "Probabilitate de ploaie", today: "Astăzi", tomorrow: "Mâine", updated: "Datele meteo se actualizează la fiecare 10 minute.", localTime: "Ora locală" },
-  cs: { title: "Počasí", loading: "Načítání předpovědi...", error: "Předpověď je dočasně nedostupná.", now: "Nyní", feels: "pocitově", humidity: "Vlhkost", clouds: "Oblačnost", wind: "Vítr", rain: "Pravděpodobnost deště", today: "Dnes", tomorrow: "Zítra", updated: "Údaje o počasí se aktualizují každých 10 minut.", localTime: "Místní čas" },
-  ru: { title: "Погода", loading: "Загрузка прогноза...", error: "Прогноз временно недоступен.", now: "Сейчас", feels: "ощущается как", humidity: "Влажность", clouds: "Облачность", wind: "Ветер", rain: "Вероятность осадков", today: "Сегодня", tomorrow: "Завтра", updated: "Данные о погоде обновляются каждые 10 минут.", localTime: "Местное время" },
+  bg: { title: "Времето", loading: "Зареждане на прогнозата...", error: "Прогнозата временно не е достъпна.", now: "Сега", feels: "усеща се като", humidity: "Влажност", clouds: "Облачност", wind: "Вятър", rain: "Вероятност за валеж", today: "Днес", tomorrow: "Утре", updated: "Времето се актуализира на всеки 10 минути.", localTime: "Местно време", source: "Източник" },
+  en: { title: "Weather", loading: "Loading forecast...", error: "The forecast is temporarily unavailable.", now: "Now", feels: "feels like", humidity: "Humidity", clouds: "Cloud cover", wind: "Wind", rain: "Chance of rain", today: "Today", tomorrow: "Tomorrow", updated: "Weather data is updated every 10 minutes.", localTime: "Local time", source: "Source" },
+  de: { title: "Wetter", loading: "Wetter wird geladen...", error: "Die Wettervorhersage ist vorübergehend nicht verfügbar.", now: "Aktuell", feels: "gefühlt", humidity: "Luftfeuchtigkeit", clouds: "Bewölkung", wind: "Wind", rain: "Regenwahrscheinlichkeit", today: "Heute", tomorrow: "Morgen", updated: "Die Wetterdaten werden alle 10 Minuten aktualisiert.", localTime: "Ortszeit", source: "Quelle" },
+  ro: { title: "Vremea", loading: "Se încarcă prognoza...", error: "Prognoza nu este disponibilă momentan.", now: "Acum", feels: "se simte ca", humidity: "Umiditate", clouds: "Nebulozitate", wind: "Vânt", rain: "Probabilitate de ploaie", today: "Astăzi", tomorrow: "Mâine", updated: "Datele meteo se actualizează la fiecare 10 minute.", localTime: "Ora locală", source: "Sursă" },
+  cs: { title: "Počasí", loading: "Načítání předpovědi...", error: "Předpověď je dočasně nedostupná.", now: "Nyní", feels: "pocitově", humidity: "Vlhkost", clouds: "Oblačnost", wind: "Vítr", rain: "Pravděpodobnost deště", today: "Dnes", tomorrow: "Zítra", updated: "Údaje o počasí se aktualizují každých 10 minut.", localTime: "Místní čas", source: "Zdroj" },
+  ru: { title: "Погода", loading: "Загрузка прогноза...", error: "Прогноз временно недоступен.", now: "Сейчас", feels: "ощущается как", humidity: "Влажность", clouds: "Облачность", wind: "Ветер", rain: "Вероятность осадков", today: "Сегодня", tomorrow: "Завтра", updated: "Данные о погоде обновляются каждые 10 минут.", localTime: "Местное время", source: "Источник" },
 };
 
 function weatherConditionLabel(code: number | null | undefined, lang: LangKey | string) {
@@ -1562,22 +1564,8 @@ function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
 }
 
-type AiChatAction = {
-  kind: "request_def" | "venue";
-  targetId: string;
-  matchedId: string;
-  label: string;
-};
-
-type AiChatMessage = {
-  role: "user" | "assistant";
-  content: string;
-  actions?: AiChatAction[];
-};
-
 const GUEST_LANGUAGE_STORAGE_KEY = "stayhub_guest_language";
 const GUEST_INTRO_STORAGE_PREFIX = "stayhub_guest_intro_seen";
-const GUEST_INTRO_VERSION = "classic-v3";
 const SUPPORTED_GUEST_LANGS: LangKey[] = ["bg", "en", "de", "ro", "cs", "ru"];
 
 function parseGuestLang(value: unknown): LangKey | null {
@@ -1664,12 +1652,12 @@ function getGuestIntroCopy(lang: LangKey, hotelName?: string) {
     },
     de: {
       title: "Willkommen bei Ihrem digitalen Concierge",
-      body: `Dies ist Ihr digitaler Assistent während Ihres Aufenthalts im ${name}. Hier finden Sie Informationen zum Hotel, Restaurant, zu den Bars, WLAN, Wetter, Animationsprogramm und hilfreichen Orten in der Umgebung. Außerdem können Sie Anfragen an Rezeption, Housekeeping und Technik senden. Damit wir den Service Ihrem Zimmer zuordnen können, geben Sie bitte Ihre Zimmernummer ein.`,
+      body: `Dies ist Ihr digitaler Assistent während Ihres Aufenthalts im ${name}. Hier finden Sie Informationen zum Hotel, Restaurant, Bars, WLAN, Wetter, Animationsprogramm und hilfreichen Orten in der Umgebung. Außerdem können Sie Anfragen an Rezeption, Housekeeping und Technik senden. Damit wir den Service Ihrem Zimmer zuordnen können, geben Sie bitte Ihre Zimmernummer ein.`,
       button: "Verstanden, weiter",
     },
     ro: {
       title: "Bine ați venit la concierge-ul digital",
-      body: `Acesta este asistentul digital pentru șederea dvs. la ${name}. Aici găsiți informații despre hotel, restaurant, baruri, Wi-Fi, vreme, animație și locuri utile din apropiere. De asemenea, puteți trimite solicitări către recepție, housekeeping și mentenanță. Pentru a conecta serviciul cu camera dvs., vă rugăm să introduceți numărul camerei.`,
+      body: `Acesta este asistentul digital pentru șederea dvs. la ${name}. Aici găsiți informații despre hotel, restaurant, baruri, Wi-Fi, vreme, animație și locuri utile din apropiere. De asemenea, puteți trimite solicitări către recepție, housekeeping și întreținere. Pentru a conecta serviciul cu camera dvs., vă rugăm să introduceți numărul camerei.`,
       button: "Am înțeles, continuă",
     },
     cs: {
@@ -1679,164 +1667,12 @@ function getGuestIntroCopy(lang: LangKey, hotelName?: string) {
     },
     ru: {
       title: "Добро пожаловать в цифровой консьерж",
-      body: `Это ваш цифровой помощник во время пребывания в ${name}. Здесь вы найдёте информацию об отеле, ресторане, барах, Wi‑Fi, погоде, анимации и полезных местах поблизости. Вы также можете отправлять запросы на ресепшен, в housekeeping и техническую службу. Чтобы связать услугу с вашим номером, пожалуйста, введите номер комнаты.`,
+      body: `Это ваш цифровой помощник во время пребывания в ${name}. Здесь вы найдёте информацию об отеле, ресторане, барах, Wi‑Fi, погоде, анимации и полезных местах поблизости. Вы также можете отправлять запросы на рецепцию, в housekeeping и техническую службу. Чтобы связать услугу с вашим номером, пожалуйста, введите номер комнаты.`,
       button: "Понятно, продолжить",
     },
   };
 
   return copy[lang] ?? copy.bg;
-}
-
-function getDepartmentSectionIntro(
-  lang: LangKey,
-  department: "reception" | "housekeeping" | "maintenance"
-) {
-  const copy: Record<
-    LangKey,
-    Record<"reception" | "housekeeping" | "maintenance", string>
-  > = {
-    bg: {
-      reception:
-        "Тук можете да заявите такси, късен check-out, събуждане и помощ с багаж. Изберете конкретната услуга от списъка. Ако необходимото не е налично, моля обърнете се към рецепция.",
-      housekeeping:
-        "Тук можете да заявите конкретни нужди за стаята – кърпи, тоалетна хартия, възглавница, одеяло, халат, чехли, бебешка кошара, ютия, минибар или пране. Ако необходимото не е в списъка, моля обърнете се към рецепция.",
-      maintenance:
-        "Тук можете да изпратите конкретен технически проблем директно към поддръжката – климатик, топла вода, телевизор, осветление, баня и други неизправности.",
-    },
-    en: {
-      reception:
-        "Here you can request a taxi, late check-out, a wake-up call or luggage assistance. Choose the specific service from the list. If what you need is not available, please contact reception.",
-      housekeeping:
-        "Here you can request specific room items and services – towels, toilet paper, a pillow, a blanket, a bathrobe, slippers, a baby cot, an iron, minibar service or laundry. If what you need is not listed, please contact reception.",
-      maintenance:
-        "Here you can send a specific technical problem directly to maintenance – air conditioning, hot water, TV, lighting, bathroom issues and other faults.",
-    },
-    de: {
-      reception:
-        "Hier können Sie ein Taxi, einen späten Check-out, einen Weckruf oder Hilfe mit dem Gepäck anfordern. Wählen Sie den passenden Service aus der Liste. Wenn Ihr Anliegen nicht aufgeführt ist, wenden Sie sich bitte an die Rezeption.",
-      housekeeping:
-        "Hier können Sie konkrete Wünsche für Ihr Zimmer senden – Handtücher, Toilettenpapier, Kissen, Decke, Bademantel, Hausschuhe, Babybett, Bügeleisen, Minibarservice oder Wäsche. Wenn Ihr Wunsch nicht aufgeführt ist, wenden Sie sich bitte an die Rezeption.",
-      maintenance:
-        "Hier können Sie ein konkretes technisches Problem direkt an die Technik senden – Klimaanlage, Warmwasser, Fernseher, Beleuchtung, Badezimmer und andere Störungen.",
-    },
-    ro: {
-      reception:
-        "Aici puteți solicita un taxi, check-out târziu, apel de trezire sau ajutor cu bagajele. Alegeți serviciul concret din listă. Dacă ceea ce vă trebuie nu este disponibil, vă rugăm să contactați recepția.",
-      housekeeping:
-        "Aici puteți solicita lucruri și servicii concrete pentru cameră – prosoape, hârtie igienică, pernă, pătură, halat, papuci, pătuț pentru bebeluș, fier de călcat, minibar sau spălătorie. Dacă ceea ce vă trebuie nu este în listă, vă rugăm să contactați recepția.",
-      maintenance:
-        "Aici puteți trimite direct către mentenanță o problemă tehnică concretă – aer condiționat, apă caldă, televizor, iluminat, baie și alte defecțiuni.",
-    },
-    cs: {
-      reception:
-        "Zde si můžete objednat taxi, pozdní check-out, buzení nebo pomoc se zavazadly. Vyberte konkrétní službu ze seznamu. Pokud zde potřebnou možnost nenajdete, obraťte se prosím na recepci.",
-      housekeeping:
-        "Zde si můžete vyžádat konkrétní vybavení a služby pro pokoj – ručníky, toaletní papír, polštář, přikrývku, župan, pantofle, dětskou postýlku, žehličku, minibar nebo praní. Pokud potřebná možnost není v seznamu, obraťte se prosím na recepci.",
-      maintenance:
-        "Zde můžete odeslat konkrétní technický problém přímo údržbě – klimatizace, teplá voda, televize, osvětlení, koupelna a další závady.",
-    },
-    ru: {
-      reception:
-        "Здесь можно заказать такси, поздний выезд, звонок-будильник или помощь с багажом. Выберите конкретную услугу из списка. Если нужной услуги нет, пожалуйста, обратитесь на ресепшен.",
-      housekeeping:
-        "Здесь можно заказать конкретные принадлежности и услуги для номера – полотенца, туалетную бумагу, подушку, одеяло, халат, тапочки, детскую кроватку, утюг, мини-бар или прачечную. Если нужного пункта нет в списке, пожалуйста, обратитесь на ресепшен.",
-      maintenance:
-        "Здесь можно отправить конкретную техническую проблему напрямую в техническую службу – кондиционер, горячая вода, телевизор, освещение, ванная комната и другие неисправности.",
-    },
-  };
-
-  return copy[lang]?.[department] ?? copy.bg[department];
-}
-
-function normalizeAiAcknowledgement(value: string) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim();
-}
-
-function getLocalAiAcknowledgement(question: string, lang: LangKey) {
-  const normalized = normalizeAiAcknowledgement(question);
-  if (!normalized || normalized.length > 40) return "";
-
-  const phrases: Record<LangKey, string[]> = {
-    bg: ["супер", "благодаря", "мерси", "ясно", "разбрах", "добре", "ок", "страхотно", "чудесно"],
-    en: ["great", "thanks", "thank you", "perfect", "okay", "ok", "got it", "super"],
-    de: ["super", "danke", "vielen dank", "perfekt", "okay", "ok", "verstanden", "alles klar"],
-    ro: ["super", "multumesc", "mersi", "perfect", "bine", "ok", "am inteles"],
-    cs: ["super", "dekuji", "diky", "perfektni", "skvele", "ok", "rozumim"],
-    ru: ["супер", "спасибо", "отлично", "понятно", "хорошо", "ок", "благодарю"],
-  };
-
-  const replies: Record<LangKey, string> = {
-    bg: "Радвам се, че помогнах. Можете да попитате още нещо за хотела.",
-    en: "Glad I could help. You can ask me another question about the hotel.",
-    de: "Gern geschehen. Sie können mir gern noch eine Frage zum Hotel stellen.",
-    ro: "Cu plăcere. Puteți să mă întrebați și altceva despre hotel.",
-    cs: "Rádo se stalo. Můžete se zeptat na cokoli dalšího o hotelu.",
-    ru: "Рад, что помог. Вы можете задать ещё один вопрос об отеле.",
-  };
-
-  const isAcknowledgement = phrases[lang].some(
-    (phrase) => normalizeAiAcknowledgement(phrase) === normalized
-  );
-
-  return isAcknowledgement ? replies[lang] : "";
-}
-
-function isDisallowedGenericDepartmentRequest(def: RequestDef) {
-  const category = String(def.category || "").trim().toLowerCase();
-  if (category !== "reception" && category !== "housekeeping") return false;
-
-  const idText = normalizeAiAcknowledgement(
-    [def.id, def.requestType, def.section, def.subsection].filter(Boolean).join(" ")
-  );
-
-  if (
-    idText === "other" ||
-    idText === "other request" ||
-    idText === `${category} other` ||
-    idText === `other ${category}` ||
-    idText === `${category} other request` ||
-    idText === `other request ${category}`
-  ) {
-    return true;
-  }
-
-  const localizedText = normalizeAiAcknowledgement(
-    [
-      ...Object.values(def.title || {}),
-      ...Object.values(def.subtitle || {}),
-      ...Object.values(def.description || {}),
-    ]
-      .filter(Boolean)
-      .join(" ")
-  );
-
-  const genericLabels = [
-    "other request",
-    "another request",
-    "general request",
-    "custom request",
-    "друга заявка",
-    "друго искане",
-    "друго желание",
-    "andere anfrage",
-    "sonstige anfrage",
-    "weitere anfrage",
-    "alta solicitare",
-    "alta cerere",
-    "jiny pozadavek",
-    "jina zadost",
-    "другая заявка",
-    "другой запрос",
-    "другое пожелание",
-  ];
-
-  return genericLabels.some((label) => localizedText.includes(normalizeAiAcknowledgement(label)));
 }
 
 function writeGuestLang(nextLang: LangKey) {
@@ -1882,9 +1718,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const [aiAnswer, setAiAnswer] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
-  const [aiHistory, setAiHistory] = useState<AiChatMessage[]>([]);
-  const aiConversationRef = useRef<HTMLDivElement | null>(null);
-  const aiRequestSeqRef = useRef(0);
+  const [aiHistory, setAiHistory] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const [openQuickServiceId, setOpenQuickServiceId] = useState<string | null>(null);
 
   const AI_RESET_AFTER_MS = 5 * 60 * 1000;
@@ -1892,7 +1726,6 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const appHiddenAtRef = useRef<number | null>(null);
 
   const clearAiState = useCallback(() => {
-    aiRequestSeqRef.current += 1;
     setAiQ("");
     setAiAnswer("");
     setAiLoading(false);
@@ -1951,7 +1784,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const guestIntroStorageKey = useMemo(() => {
     const scope = String(roomStateKey || config.hotelSlug || "default").trim().toLowerCase();
-    return `${GUEST_INTRO_STORAGE_PREFIX}:${GUEST_INTRO_VERSION}:${scope || "default"}`;
+    return `${GUEST_INTRO_STORAGE_PREFIX}:${scope || "default"}`;
   }, [roomStateKey, config.hotelSlug]);
 
   const guestIntroCopy = useMemo(
@@ -2198,6 +2031,14 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     Number.isFinite(hotelLatitude) &&
     Number.isFinite(hotelLongitude);
 
+  const hotelTimezone = String(
+    (config as any).timezone ??
+      (config as any).hotelTimezone ??
+      rawConfig.timezone ??
+      rawConfig.hotelTimezone ??
+      "Europe/Sofia"
+  ).trim() || "Europe/Sofia";
+
   const [weatherData, setWeatherData] = useState<GuestWeatherPayload | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
   const [weatherError, setWeatherError] = useState(false);
@@ -2220,7 +2061,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         if (Number.isFinite(hotelLongitude)) params.set("lon", String(hotelLongitude));
         if (config.location?.query) params.set("query", String(config.location.query));
         if (config.hotelName) params.set("place", String(config.hotelName));
-        params.set("tz", "Europe/Sofia");
+        params.set("tz", hotelTimezone);
 
         const response = await fetch(`/api/weather?${params.toString()}`, {
           signal: controller.signal,
@@ -2247,7 +2088,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       controller.abort();
       if (refreshTimer) window.clearInterval(refreshTimer);
     };
-  }, [config.hotelName, config.location?.query, hotelLatitude, hotelLongitude]);
+  }, [config.hotelName, config.location?.query, hotelLatitude, hotelLongitude, hotelTimezone]);
 
   const ensureGuestIsNearHotel = useCallback(async () => {
     if (!canUseGeoGuard) {
@@ -2637,36 +2478,6 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
     return map[(lang as "bg" | "en" | "de" | "ru" | "ro" | "cs")] || map.bg;
   }, [lang, tUI]);
-
-  const aiChatCopy = useMemo(() => {
-    const copy = {
-      bg: { newConversation: "Нов разговор", followUp: "Попитайте още…" },
-      en: { newConversation: "New conversation", followUp: "Ask another question…" },
-      de: { newConversation: "Neues Gespräch", followUp: "Weitere Frage stellen…" },
-      ro: { newConversation: "Conversație nouă", followUp: "Puneți o altă întrebare…" },
-      cs: { newConversation: "Nová konverzace", followUp: "Zeptejte se dál…" },
-      ru: { newConversation: "Новый разговор", followUp: "Задайте ещё вопрос…" },
-    } as const;
-    return copy[(lang as keyof typeof copy)] || copy.en;
-  }, [lang]);
-
-  const aiActionCopy = useMemo(() => {
-    const copy = {
-      bg: { request: "Заяви", order: "Поръчай", choose: "Избери", reserve: "Резервирай" },
-      en: { request: "Request", order: "Order", choose: "Choose", reserve: "Reserve" },
-      de: { request: "Anfragen", order: "Bestellen", choose: "Auswählen", reserve: "Reservieren" },
-      ro: { request: "Solicită", order: "Comandă", choose: "Alege", reserve: "Rezervă" },
-      cs: { request: "Požádat", order: "Objednat", choose: "Vybrat", reserve: "Rezervovat" },
-      ru: { request: "Запросить", order: "Заказать", choose: "Выбрать", reserve: "Забронировать" },
-    } as const;
-    return copy[(lang as keyof typeof copy)] || copy.en;
-  }, [lang]);
-
-  useEffect(() => {
-    const container = aiConversationRef.current;
-    if (!container) return;
-    container.scrollTop = container.scrollHeight;
-  }, [aiHistory, aiLoading, aiPanelOpen]);
 
   const guestStatusLabel = useCallback(
     (status: StaffRequestStatus) => {
@@ -3215,8 +3026,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           def &&
           def.id &&
           def.enabled !== false &&
-          !hiddenGuestRequestIds.has(String(def.id).trim().toLowerCase()) &&
-          !isDisallowedGenericDepartmentRequest(def)
+          !hiddenGuestRequestIds.has(String(def.id).trim().toLowerCase())
       )
       .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))),
     [config.requestDefs]
@@ -5140,135 +4950,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   };
 
 
-  function getAiVenueStableId(venue: VenueRow, index: number) {
-    const explicit = String(venue.id || "").trim();
-    if (explicit) return explicit;
-
-    const slug = String(venue.name || "")
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "");
-
-    return slug || `venue_${index}`;
-  }
-
-  function buildAiActions(matchedIds: unknown): AiChatAction[] {
-    if (!Array.isArray(matchedIds)) return [];
-
-    const actions: AiChatAction[] = [];
-    const seen = new Set<string>();
-
-    for (const rawMatchedId of matchedIds.map(String)) {
-      const matchedId = String(rawMatchedId || "").trim();
-      if (!matchedId || seen.has(matchedId)) continue;
-
-      if (matchedId.startsWith("service:") || matchedId.startsWith("info:")) {
-        const prefix = matchedId.startsWith("service:") ? "service:" : "info:";
-        const targetId = matchedId.slice(prefix.length);
-        const def = requestDefs.find((item) => {
-          const defId = String(item.id || "").trim();
-          const requestType = String(item.requestType || "").trim();
-          return defId === targetId || requestType === targetId;
-        });
-
-        const normalizedId = targetId.toLowerCase();
-        const isPaidOrReservable = Boolean(
-          def && (getRequestDefEffectiveRequiresBilling(def) || normalizedId.includes("massage"))
-        );
-
-        if (
-          !def ||
-          def.type !== "request" ||
-          !def.enabled ||
-          !def.guestVisible ||
-          !isPaidOrReservable
-        ) {
-          continue;
-        }
-
-        const actionTargetId = String(def.id || targetId).trim();
-        const title = getRequestDefTitle(def) || actionTargetId.replace(/_/g, " ");
-        const verb =
-          normalizedId.includes("massage")
-            ? aiActionCopy.reserve
-            : def.requestKind === "selection"
-              ? aiActionCopy.choose
-              : def.requestKind === "quantity" || def.requiresQuantity
-                ? aiActionCopy.order
-                : aiActionCopy.request;
-
-        actions.push({
-          kind: "request_def",
-          targetId: actionTargetId,
-          matchedId,
-          label: `${verb} ${title}`.trim(),
-        });
-        seen.add(matchedId);
-        continue;
-      }
-
-      if (matchedId.startsWith("venue:")) {
-        const targetId = matchedId.slice("venue:".length);
-        const venue = rawVenueRows.find((item, index) => getAiVenueStableId(item, index) === targetId);
-        if (!venue) continue;
-
-        const reservationType = String(venue.reservationType || "").trim().toLowerCase();
-        const hasReservationAction =
-          venue.requiresReservation === true ||
-          ["request", "staff", "url", "phone", "email", "whatsapp"].includes(reservationType);
-
-        if (!hasReservationAction) continue;
-
-        const title = getVenueText(venue, "name", lang) || String(venue.name || targetId);
-        const configuredLabel = String(
-          venue.reservationLabelByLang?.[lang] ||
-          venue.reservationLabel ||
-          ""
-        ).trim();
-
-        actions.push({
-          kind: "venue",
-          targetId,
-          matchedId,
-          label: configuredLabel || `${aiActionCopy.reserve} ${title}`.trim(),
-        });
-        seen.add(matchedId);
-      }
-    }
-
-    return actions.slice(0, 3);
-  }
-
-  function handleAiAction(action: AiChatAction) {
-    trackGuestEvent({
-      eventName: "ai_action_clicked",
-      eventCategory: "ai",
-      section: "ai",
-      sectionKey: "ai",
-      itemKey: action.targetId,
-      buttonKey: action.kind,
-      label: action.label,
-      value: action.matchedId,
-    });
-
-    setAiPanelOpen(false);
-
-    window.setTimeout(() => {
-      if (action.kind === "request_def") {
-        const def = requestDefs.find((item) => String(item.id || "").trim() === action.targetId);
-        if (def) handleRequestDefClick(def);
-        return;
-      }
-
-      const venue = rawVenueRows.find((item, index) => getAiVenueStableId(item, index) === action.targetId);
-      if (venue) openVenueReservation(venue);
-    }, 0);
-  }
-
   const askAI = async () => {
     const questionText = aiQ.trim();
-    if (!questionText || aiLoading) return;
+    if (!questionText) return;
     if (!ensureConfirmedRoom()) return;
 
     trackGuestEvent({
@@ -5284,49 +4968,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       },
     });
 
-    const historyForRequest = aiHistory
-      .slice(-6)
-      .map(({ role, content }) => ({ role, content }));
-    const requestSeq = ++aiRequestSeqRef.current;
-    setAiQ("");
-    setAiAnswer("");
-    setAiHistory((previous) => [
-      ...previous,
-      { role: "user" as const, content: questionText },
-    ].slice(-6));
-
-    const localAcknowledgement = getLocalAiAcknowledgement(questionText, lang);
-    if (localAcknowledgement) {
-      setAiAnswer(localAcknowledgement);
-      setAiHistory((previous) => [
-        ...previous,
-        { role: "assistant" as const, content: localAcknowledgement },
-      ].slice(-6));
-
-      trackGuestEvent({
-        eventName: "ai_answer_shown",
-        eventCategory: "ai",
-        section: "ai",
-        sectionKey: "ai",
-        label: "answer_length",
-        value: String(localAcknowledgement.length),
-        extra: {
-          answerLength: localAcknowledgement.length,
-          aiEngine: "local_acknowledgement",
-          aiFallbackUsed: false,
-          aiMatchedIds: [],
-          aiIntent: "acknowledgement",
-          aiInputTokens: 0,
-          aiOutputTokens: 0,
-          aiLatencyMs: 0,
-          aiCacheHit: false,
-        },
-      });
-      return;
-    }
-
     try {
       setAiLoading(true);
+      setAiAnswer("");
 
       const res = await fetch("/api/ai", {
         method: "POST",
@@ -5335,12 +4979,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           question: questionText,
           lang: String(lang),
           hotelSlug: config.hotelSlug,
-          history: historyForRequest,
+          history: aiHistory.slice(-6),
         }),
       });
 
       const data = await res.json();
-      if (requestSeq !== aiRequestSeqRef.current) return;
 
       if (!data?.ok) {
         trackGuestEvent({
@@ -5351,41 +4994,17 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           label: "api_not_ok",
           value: "false",
         });
-        const errorText = String(tUI("ai_error") || "Възникна грешка при обработката.");
-        setAiAnswer(errorText);
-        setAiHistory((previous) => [
-          ...previous,
-          { role: "assistant" as const, content: errorText },
-        ].slice(-6));
+        setAiAnswer(String(tUI("ai_error") || "Възникна грешка при обработката."));
         return;
       }
 
       const answerText = String(data.answer || tUI("ai_no_info") || "Все още нямам тази информация за хотела.");
-      const actions = buildAiActions(data?.diagnostics?.matchedIds);
       setAiAnswer(answerText);
       setAiHistory((previous) => [
         ...previous,
-        { role: "assistant" as const, content: answerText, actions },
+        { role: "user" as const, content: questionText },
+        { role: "assistant" as const, content: answerText },
       ].slice(-6));
-
-      if (actions.length) {
-        trackGuestEvent({
-          eventName: "ai_action_shown",
-          eventCategory: "ai",
-          section: "ai",
-          sectionKey: "ai",
-          label: "action_count",
-          value: String(actions.length),
-          extra: {
-            actions: actions.map((action) => ({
-              kind: action.kind,
-              targetId: action.targetId,
-              matchedId: action.matchedId,
-            })),
-          },
-        });
-      }
-
       trackGuestEvent({
         eventName: "ai_answer_shown",
         eventCategory: "ai",
@@ -5408,7 +5027,6 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         },
       });
     } catch {
-      if (requestSeq !== aiRequestSeqRef.current) return;
       trackGuestEvent({
         eventName: "ai_error",
         eventCategory: "ai",
@@ -5417,17 +5035,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         label: "request_failed",
         value: "false",
       });
-      const errorText = String(tUI("ai_error") || "Възникна грешка при обработката.");
-      setAiAnswer(errorText);
-      setAiHistory((previous) => [
-        ...previous,
-        { role: "assistant" as const, content: errorText },
-      ].slice(-6));
+      setAiAnswer(String(tUI("ai_error") || "Възникна грешка при обработката."));
     } finally {
-      if (requestSeq === aiRequestSeqRef.current) setAiLoading(false);
+      setAiLoading(false);
     }
   };
-
 
   const getVenueReservationDepartment = (venue: VenueRow): "reception" | "restaurant" => {
     const explicit = String(venue.reservationDepartment || "").trim().toLowerCase();
@@ -6213,6 +5825,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         return `${weatherDayLabel(day.date, index)}: ${weatherConditionIcon(day.weatherCode)} ${weatherConditionLabel(day.weatherCode, weatherLang)} · ${min}/${max}${rain}`;
       }),
       weatherCopy.updated,
+      weatherData.attribution ? `${weatherCopy.source}: ${weatherData.attribution}` : "",
     ].filter((line, index, all) => line !== "" || (index > 0 && all[index - 1] !== ""));
 
     return lines.join("\n").trim();
@@ -6343,7 +5956,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     {
       id: "reception",
       title: tUI("reception_title") || "Reception",
-      subtitle: getDepartmentSectionIntro(lang, "reception"),
       items: [
         ...buildRequestDefItems("reception"),
         ...(!requestDefIds.has("luggage_help")
@@ -6431,7 +6043,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     {
       id: "housekeeping",
       title: housekeepingTitle,
-      subtitle: getDepartmentSectionIntro(lang, "housekeeping"),
       items: [
         ...buildRequestDefItems("housekeeping"),
         ...(!requestDefIds.has("towels")
@@ -6541,7 +6152,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     {
       id: "maintenance",
       title: tUI("maintenance_title") || "Maintenance",
-      subtitle: getDepartmentSectionIntro(lang, "maintenance"),
       items: [
         ...buildRequestDefItems("maintenance"),
         ...(!requestDefIds.has("air_conditioning")
@@ -7362,68 +6972,34 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       {aiPanelOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-3 sm:items-center">
           <div className="w-full max-w-md rounded-2xl stayhub-section-shell p-4 shadow-2xl">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="mr-auto text-lg font-semibold">🤖 {String(tUI("ai_title") || "AI Concierge")}</div>
-              <div className="flex items-center gap-2">
-                {aiHistory.length || aiQ.trim() ? (
-                  <button
-                    type="button"
-                    onClick={clearAiState}
-                    className="rounded-full stayhub-card px-3 py-2 text-xs font-semibold"
-                  >
-                    {aiChatCopy.newConversation}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={closeAiPanel}
-                  className="rounded-full stayhub-card px-3 py-2 text-xs font-semibold"
-                >
-                  {guestNavigationLabel("close", guestNavCopy.close)}
-                </button>
-              </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-lg font-semibold">🤖 {String(tUI("ai_title") || "AI Concierge")}</div>
+              <button
+                type="button"
+                onClick={closeAiPanel}
+                className="rounded-full stayhub-card px-3 py-2 text-xs font-semibold"
+              >
+                {guestNavigationLabel("close", guestNavCopy.close)}
+              </button>
             </div>
 
             <div className="mt-3 grid grid-cols-1 gap-2">
-              {aiHistory.length === 0 && !aiLoading ? (
+              {!aiQ.trim() ? (
                 <div className="rounded-xl stayhub-card p-3 text-sm leading-6">
                   {aiIntroText}
                 </div>
-              ) : (
-                <div
-                  ref={aiConversationRef}
-                  className="max-h-[44vh] min-w-0 overflow-y-auto overflow-x-hidden rounded-xl p-1"
-                >
-                  <AiConversationMessages
-                    history={aiHistory}
-                    loading={aiLoading}
-                    loadingText={String(tUI("ai_loading") || "Thinking...")}
-                    lang={lang}
-                    onAction={handleAiAction}
-                  />
-                </div>
-              )}
+              ) : null}
 
               <textarea
                 value={aiQ}
                 onChange={(event) => setAiQ(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    void askAI();
-                  }
-                }}
-                placeholder={
-                  aiHistory.length
-                    ? aiChatCopy.followUp
-                    : String(tUI("ai_placeholder") || "Ask a question about the hotel...")
-                }
-                className="min-h-[88px] w-full rounded-xl stayhub-card p-3 text-sm outline-none placeholder:text-[color:var(--stayhub-muted)]"
+                placeholder={String(tUI("ai_placeholder") || "Ask a question about the hotel...")}
+                className="min-h-[110px] w-full rounded-xl stayhub-card p-3 text-sm outline-none placeholder:text-[color:var(--stayhub-muted)]"
               />
 
               <button
                 type="button"
-                onClick={() => void askAI()}
+                onClick={askAI}
                 disabled={aiLoading || !aiQ.trim()}
                 className="rounded-xl px-3 py-3 text-left text-sm font-semibold stayhub-action-card transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -7431,6 +7007,12 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                   ? String(tUI("ai_loading") || "Thinking...")
                   : String(tUI("ai_send") || "Send")}
               </button>
+
+              {aiAnswer ? (
+                <div className="max-h-[40vh] min-w-0 overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words rounded-xl stayhub-card p-3 text-sm leading-6">
+                  <AiAnswerContent text={aiAnswer} lang={lang} />
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -7439,67 +7021,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   );
 }
 
-
-function AiConversationMessages({
-  history,
-  loading,
-  loadingText,
-  lang,
-  onAction,
-}: {
-  history: AiChatMessage[];
-  loading: boolean;
-  loadingText: string;
-  lang: LangKey;
-  onAction: (action: AiChatAction) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      {history.map((message, index) => (
-        <div
-          key={`${message.role}-${index}-${message.content.slice(0, 24)}`}
-          className={clsx("flex", message.role === "user" ? "justify-end" : "justify-start")}
-        >
-          <div
-            className={clsx(
-              "max-w-[88%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-6",
-              message.role === "user" ? "stayhub-action-card" : "stayhub-card"
-            )}
-          >
-            {message.role === "assistant" ? (
-              <>
-                <AiAnswerContent text={message.content} lang={lang} />
-                {message.actions?.length ? (
-                  <div className="mt-3 grid grid-cols-1 gap-2 border-t border-white/15 pt-3">
-                    {message.actions.map((action) => (
-                      <button
-                        key={`${action.kind}-${action.targetId}`}
-                        type="button"
-                        onClick={() => onAction(action)}
-                        className="rounded-xl px-3 py-2 text-left text-sm font-semibold stayhub-action-card transition active:scale-[0.99]"
-                      >
-                        {action.label}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              message.content
-            )}
-          </div>
-        </div>
-      ))}
-      {loading ? (
-        <div className="flex justify-start">
-          <div className="max-w-[88%] rounded-2xl stayhub-card px-3 py-2 text-sm leading-6">
-            {loadingText}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
 
 function AiAnswerContent({ text, lang }: { text: string; lang: LangKey }) {
   const parts = String(text || "").split(/(https?:\/\/[^\s]+)/g);
@@ -7640,7 +7161,6 @@ function Accordion({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [openRequestDefId, setOpenRequestDefId] = useState<string | null>(null);
-  const [openInfoItemKey, setOpenInfoItemKey] = useState<string | null>(null);
 
   return (
     <div className="rounded-2xl overflow-hidden stayhub-section-shell">
@@ -7727,50 +7247,9 @@ function Accordion({
             ) : section.items.length ? (
               section.items.map((it, idx) => {
                 if (it.kind === "info") {
-                  const infoItemKey = `${String(section.id || "section")}-${idx}`;
-                  const isInfoAccordion = section.id === "info" && Boolean(it.label);
-                  const isInfoOpen = openInfoItemKey === infoItemKey;
-
-                  if (isInfoAccordion) {
-                    return (
-                      <div
-                        key={infoItemKey}
-                        className="overflow-hidden rounded-xl stayhub-card text-sm"
-                      >
-                        <button
-                          type="button"
-                          aria-expanded={isInfoOpen}
-                          onClick={() => {
-                            const nextOpen = !isInfoOpen;
-                            setOpenInfoItemKey(nextOpen ? infoItemKey : null);
-                            onTrack({
-                              eventName: nextOpen ? "info_item_opened" : "info_item_closed",
-                              eventCategory: "navigation",
-                              section: "info",
-                              sectionKey: "info",
-                              itemKey: infoItemKey,
-                              label: String(it.label || "info"),
-                              value: nextOpen ? "open" : "closed",
-                            });
-                          }}
-                          className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
-                        >
-                          <span className="font-semibold text-white">{it.label}</span>
-                          <span className="text-base text-white/80">{isInfoOpen ? "▴" : "▾"}</span>
-                        </button>
-
-                        {isInfoOpen ? (
-                          <div className="whitespace-pre-wrap border-t border-white/10 px-3 pb-3 pt-3 text-neutral-100">
-                            {it.info}
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  }
-
                   return (
                     <div
-                      key={infoItemKey}
+                      key={idx}
                       className="rounded-xl stayhub-card p-3 text-sm"
                     >
                       {it.label ? (
@@ -8545,7 +8024,7 @@ function OutletsAccordion({
               return (
                 <div
                   key={catKey}
-                  className="rounded-2xl stayhub-panel overflow-hidden"
+                  className="rounded-2xl overflow-hidden stayhub-action-card transition"
                 >
                   <button
                     type="button"
@@ -8562,7 +8041,7 @@ function OutletsAccordion({
                       setOpenCategory(catOpen ? null : catKey);
                       setOpenVenue(null);
                     }}
-                    className="w-full px-3 py-3 text-left flex items-center justify-between gap-3 stayhub-card-header"
+                    className="w-full px-3 py-3 text-left flex items-center justify-between gap-3 active:scale-[0.99] transition"
                   >
                     <div>
                       <div className="font-semibold text-white">
