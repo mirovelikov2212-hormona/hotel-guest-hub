@@ -97,7 +97,7 @@ function withLinkIcon(label: string, linkKey: keyof typeof LINK_ICON_PREFIXES): 
 // END_STAYHUB_SECTION_ICON_HELPERS
 
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { StaffDepartment, StaffRequestType, StaffServiceTime, StaffRequestStatus } from "@/lib/staff/types";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { HotelConfig, LangKey, HubSection, DepartmentKey, HubItem, RequestDef } from "@/lib/types";
@@ -440,8 +440,8 @@ const RU_BUILTIN_UI: Record<string, string> = {
   explore_title: "Рядом с отелем",
   hero_subtitle: "Всё необходимое для комфортного отдыха",
   housekeeping_after_note: "После 17:00 запросы направляются на рецепцию.",
-  housekeeping_title: "Housekeeping",
-  housekeeping_title_after: "Housekeeping — после 17:00 рецепция",
+  housekeeping_title: "Уборка номера",
+  housekeeping_title_after: "Уборка номера",
   info_title: "Информация",
   invalid_date: "Неверная дата",
   invalid_reservation_time: "Выбранное время находится вне часов работы.",
@@ -491,6 +491,102 @@ const RU_BUILTIN_UI: Record<string, string> = {
   wifi_show: "Показать данные Wi‑Fi",
   wifi_title: "Wi‑Fi",
 };
+
+const GUEST_NAV_COPY: Record<string, {
+  quickServices: string;
+  hotelStay: string;
+  foodEntertainment: string;
+  reviewsSocial: string;
+  more: string;
+  askAi: string;
+  close: string;
+  housekeeping: string;
+  housekeepingAfter: string;
+}> = {
+  bg: {
+    quickServices: "Бързи услуги",
+    hotelStay: "Хотел и престой",
+    foodEntertainment: "Храна и забавления",
+    reviewsSocial: "Отзиви и социални мрежи",
+    more: "Още услуги",
+    askAi: "Попитайте AI",
+    close: "Затвори",
+    housekeeping: "Камериерки",
+    housekeepingAfter: "След {time} заявките се обработват от рецепция.",
+  },
+  en: {
+    quickServices: "Quick services",
+    hotelStay: "Hotel & stay",
+    foodEntertainment: "Food & entertainment",
+    reviewsSocial: "Reviews & social media",
+    more: "More services",
+    askAi: "Ask AI",
+    close: "Close",
+    housekeeping: "Housekeeping",
+    housekeepingAfter: "After {time}, requests are handled by reception.",
+  },
+  de: {
+    quickServices: "Schnellzugriff",
+    hotelStay: "Hotel & Aufenthalt",
+    foodEntertainment: "Essen & Unterhaltung",
+    reviewsSocial: "Bewertungen & Social Media",
+    more: "Weitere Services",
+    askAi: "AI fragen",
+    close: "Schließen",
+    housekeeping: "Housekeeping",
+    housekeepingAfter: "Nach {time} werden Anfragen von der Rezeption bearbeitet.",
+  },
+  ro: {
+    quickServices: "Servicii rapide",
+    hotelStay: "Hotel și sejur",
+    foodEntertainment: "Mâncare și divertisment",
+    reviewsSocial: "Recenzii și rețele sociale",
+    more: "Mai multe servicii",
+    askAi: "Întreabă AI",
+    close: "Închide",
+    housekeeping: "Curățenie",
+    housekeepingAfter: "După ora {time}, solicitările sunt gestionate de recepție.",
+  },
+  cs: {
+    quickServices: "Rychlé služby",
+    hotelStay: "Hotel a pobyt",
+    foodEntertainment: "Jídlo a zábava",
+    reviewsSocial: "Hodnocení a sociální sítě",
+    more: "Další služby",
+    askAi: "Zeptat se AI",
+    close: "Zavřít",
+    housekeeping: "Úklid pokoje",
+    housekeepingAfter: "Po {time} vyřizuje požadavky recepce.",
+  },
+  ru: {
+    quickServices: "Быстрые услуги",
+    hotelStay: "Отель и проживание",
+    foodEntertainment: "Еда и развлечения",
+    reviewsSocial: "Отзывы и соцсети",
+    more: "Другие услуги",
+    askAi: "Спросить AI",
+    close: "Закрыть",
+    housekeeping: "Уборка номера",
+    housekeepingAfter: "После {time} запросы обрабатывает рецепция.",
+  },
+};
+
+function getGuestNavCopy(lang: LangKey | string) {
+  const safeLang = ["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang))
+    ? String(lang)
+    : "en";
+  return GUEST_NAV_COPY[safeLang] || GUEST_NAV_COPY.en;
+}
+
+function formatOperationalTimeText(value: string, time: string, fallback: string) {
+  const source = String(value || fallback || "").trim();
+  const withPlaceholder = source.replace(/\{time\}/g, time);
+  if (withPlaceholder !== source) return withPlaceholder;
+  if (/\b\d{1,2}:\d{2}\b/.test(withPlaceholder)) {
+    return withPlaceholder.replace(/\b\d{1,2}:\d{2}\b/, time);
+  }
+  return String(fallback || source).replace(/\{time\}/g, time);
+}
 
 type GuestWeatherDay = {
   date: string;
@@ -1635,6 +1731,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const [aiQ, setAiQ] = useState("");
   const [aiAnswer, setAiAnswer] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [openQuickServiceId, setOpenQuickServiceId] = useState<string | null>(null);
 
   const AI_RESET_AFTER_MS = 5 * 60 * 1000;
 
@@ -5485,9 +5583,32 @@ EN: ${helpMsg}` : opsMsg,
       .filter((section) => section.items.length > 0);
   }, [buildRequestDefItems, getTextMapValue, isRenderableRequestDef, requestDefsByCategory, tUI]);
 
-  const housekeepingTitle = tUI("housekeeping_title");
-  const housekeepingTitleAfter = tUI("housekeeping_title_after");
-  const housekeepingAfterNote = tUI("housekeeping_after_note");
+  const guestNavCopy = getGuestNavCopy(lang);
+  const getCurrentGuestUiText = (key: string) => {
+    const value = config.i18n?.[String(lang)]?.[key];
+    return value && String(value).trim() && String(value).trim() !== key
+      ? String(value).trim()
+      : "";
+  };
+  const guestNavigationLabel = (key: string, fallback: string) =>
+    getCurrentGuestUiText(key) || fallback;
+
+  const configuredHousekeepingTitle = getCurrentGuestUiText("housekeeping_title");
+  const housekeepingTitle =
+    (String(lang) === "ru" && /^housekeeping$/i.test(configuredHousekeepingTitle))
+      ? guestNavCopy.housekeeping
+      : configuredHousekeepingTitle || guestNavCopy.housekeeping;
+
+  const configuredHousekeepingAfterNote = getCurrentGuestUiText("housekeeping_after_note");
+  const safeConfiguredHousekeepingAfterNote =
+    String(lang) === "ru" && /^след(?:\s|$)/i.test(configuredHousekeepingAfterNote)
+      ? ""
+      : configuredHousekeepingAfterNote;
+  const housekeepingAfterNote = formatOperationalTimeText(
+    safeConfiguredHousekeepingAfterNote,
+    operationsProcessingWindowClose,
+    guestNavCopy.housekeepingAfter
+  );
 
   const brandBackground = String(config.theme?.background || "#202627");
   const brandPrimary = String(config.theme?.primary || "#3C8476");
@@ -5871,7 +5992,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     },
     {
       id: "housekeeping",
-      title: housekeepingRoutedToReception ? housekeepingTitleAfter : housekeepingTitle,
+      title: housekeepingTitle,
       subtitle: housekeepingRoutedToReception ? housekeepingAfterNote : undefined,
       items: [
         ...buildRequestDefItems("housekeeping"),
@@ -6180,6 +6301,144 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     },
     ...(emergencySection ? [emergencySection] : []),
   ].filter((section) => section.id === "outlets" || (section.items && section.items.length > 0));
+
+  const quickServiceIds = ["wifi", "reception", "housekeeping", "maintenance"];
+  const quickServiceSections = quickServiceIds
+    .map((id) => sections.find((section) => section.id === id))
+    .filter((section): section is HubSection => Boolean(section));
+
+  const hotelStaySectionIds = new Set(["info", "weather"]);
+  const foodEntertainmentSectionIds = new Set([
+    "outlets",
+    "animation",
+    ...dynamicRequestDefSections.map((section) => section.id),
+  ]);
+  const reviewSocialSectionIds = new Set(["reviews", "social"]);
+  const reservedSectionIds = new Set([
+    ...quickServiceIds,
+    ...hotelStaySectionIds,
+    ...foodEntertainmentSectionIds,
+    ...reviewSocialSectionIds,
+    "explore",
+    "ai",
+    "emergency",
+  ]);
+
+  const hotelStaySections = sections.filter((section) => hotelStaySectionIds.has(section.id));
+  const foodEntertainmentSections = sections.filter((section) => foodEntertainmentSectionIds.has(section.id));
+  const reviewSocialSections = sections.filter((section) => reviewSocialSectionIds.has(section.id));
+  const exploreHubSection = sections.find((section) => section.id === "explore") || null;
+  const emergencyHubSection = sections.find((section) => section.id === "emergency") || null;
+  const remainingSections = sections.filter((section) => !reservedSectionIds.has(section.id));
+  const selectedQuickServiceSection = openQuickServiceId
+    ? quickServiceSections.find((section) => section.id === openQuickServiceId) || null
+    : null;
+
+  const renderHubSection = (
+    sec: HubSection,
+    options?: { defaultOpen?: boolean; hideHeader?: boolean; keyPrefix?: string }
+  ) => {
+    const isLocked = !roomConfirmed && roomRequiredSectionIds.has(sec.id);
+    const key = `${options?.keyPrefix || "section"}-${sec.id}`;
+
+    if (isLocked) {
+      return (
+        <LockedSectionCard
+          key={key}
+          title={String(sec.title)}
+          message={roomCopy.lockedSectionMessage}
+        />
+      );
+    }
+
+    if (sec.id === "outlets") {
+      return (
+        <OutletsAccordion
+          key={key}
+          section={sec}
+          groups={groupedOutlets}
+          tUI={tUI}
+          lang={lang}
+          onReserve={openVenueReservation}
+          spaRequestItems={spaRequestDefItems}
+          submittingRequest={submittingRequest}
+          handleRequestDefClick={handleRequestDefClick}
+          getRequestDefTitle={getRequestDefTitle}
+          getRequestDefMessage={getRequestDefMessage}
+          getRequestDefOptions={getRequestDefOptions}
+          getRequestDefOptionImages={getRequestDefOptionImages}
+          getRequestDefOptionInfo={getRequestDefOptionInfo}
+          getRequestDefPriceHint={getRequestDefPriceHint}
+          getQuantityChoices={getQuantityChoices}
+          getQuantityButtonLabel={getQuantityButtonLabel}
+          submitRequestDefQuantityChoice={submitRequestDefQuantityChoice}
+          submitRequestDefSelectionOption={submitRequestDefSelectionOption}
+          onTrack={trackGuestEvent}
+        />
+      );
+    }
+
+    return (
+      <Accordion
+        key={key}
+        section={sec}
+        tUI={tUI}
+        aiQ={aiQ}
+        setAiQ={setAiQ}
+        aiA={aiAnswer}
+        aiLoading={aiLoading}
+        askAI={askAI}
+        aiIntroText={aiIntroText}
+        submittingRequest={submittingRequest}
+        lang={lang}
+        handleRequestDefClick={handleRequestDefClick}
+        getRequestDefTitle={getRequestDefTitle}
+        getRequestDefMessage={getRequestDefMessage}
+        getRequestDefOptions={getRequestDefOptions}
+        getRequestDefOptionImages={getRequestDefOptionImages}
+        getRequestDefOptionInfo={getRequestDefOptionInfo}
+        getRequestDefPriceHint={getRequestDefPriceHint}
+        getQuantityChoices={getQuantityChoices}
+        getQuantityButtonLabel={getQuantityButtonLabel}
+        submitRequestDefQuantityChoice={submitRequestDefQuantityChoice}
+        submitRequestDefSelectionOption={submitRequestDefSelectionOption}
+        onCloseAi={clearAiState}
+        onTrack={trackGuestEvent}
+        defaultOpen={options?.defaultOpen}
+        hideHeader={options?.hideHeader}
+      />
+    );
+  };
+
+  const closeAiPanel = () => {
+    setAiPanelOpen(false);
+    clearAiState();
+    trackGuestEvent({
+      eventName: "section_closed",
+      eventCategory: "ai",
+      section: "ai",
+      sectionKey: "ai",
+      label: String(tUI("ai_title") || "AI Concierge"),
+      value: "closed",
+    });
+  };
+
+  const openAiPanel = () => {
+    if (!ensureConfirmedRoom()) return;
+    setAiPanelOpen(true);
+    trackGuestEvent({
+      eventName: "ai_opened",
+      eventCategory: "ai",
+      section: "ai",
+      sectionKey: "ai",
+      label: String(tUI("ai_title") || "AI Concierge"),
+      value: "open",
+    });
+  };
+
+  const emergencyAction = emergencyHubSection?.items.find(
+    (item) => item.kind === "link" && Boolean(item.href)
+  );
 
   return (
     <div className="mx-auto min-h-screen max-w-md" style={themeStyle}>
@@ -6499,77 +6758,262 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         </div>
       ) : null}
 
-      <div className="p-4 pb-10">
+      <div className="p-4 pb-28">
         <div className="space-y-3">
-          {sections.map((sec) => {
-            const isLocked = !roomConfirmed && roomRequiredSectionIds.has(sec.id);
+          {quickServiceSections.length ? (
+            <section aria-label={guestNavigationLabel("quick_services_title", guestNavCopy.quickServices)}>
+              <div className="mb-2 px-1 text-sm font-semibold text-[color:var(--stayhub-soft)]">
+                {guestNavigationLabel("quick_services_title", guestNavCopy.quickServices)}
+              </div>
 
-            if (isLocked) {
-              return (
-                <LockedSectionCard
-                  key={sec.id}
-                  title={String(sec.title)}
-                  message={roomCopy.lockedSectionMessage}
-                />
-              );
-            }
+              <div className="grid grid-cols-2 gap-3">
+                {quickServiceSections.map((section) => {
+                  const isLocked = !roomConfirmed && roomRequiredSectionIds.has(section.id);
+                  const isSelected = openQuickServiceId === section.id;
 
-            return sec.id === "outlets" ? (
-              <OutletsAccordion
-                key={sec.id}
-                section={sec}
-                groups={groupedOutlets}
-                tUI={tUI}
-                lang={lang}
-                onReserve={openVenueReservation}
-                spaRequestItems={spaRequestDefItems}
-                submittingRequest={submittingRequest}
-                handleRequestDefClick={handleRequestDefClick}
-                getRequestDefTitle={getRequestDefTitle}
-                getRequestDefMessage={getRequestDefMessage}
-                getRequestDefOptions={getRequestDefOptions}
-                getRequestDefOptionImages={getRequestDefOptionImages}
-                getRequestDefOptionInfo={getRequestDefOptionInfo}
-                getRequestDefPriceHint={getRequestDefPriceHint}
-                getQuantityChoices={getQuantityChoices}
-                getQuantityButtonLabel={getQuantityButtonLabel}
-                submitRequestDefQuantityChoice={submitRequestDefQuantityChoice}
-                submitRequestDefSelectionOption={submitRequestDefSelectionOption}
-                onTrack={trackGuestEvent}
-              />
-            ) : (
-              <Accordion
-                key={sec.id}
-                section={sec}
-                tUI={tUI}
-                aiQ={aiQ}
-                setAiQ={setAiQ}
-                aiA={aiAnswer}
-                aiLoading={aiLoading}
-                askAI={askAI}
-                aiIntroText={aiIntroText}
-                submittingRequest={submittingRequest}
-                lang={lang}
-                handleRequestDefClick={handleRequestDefClick}
-                getRequestDefTitle={getRequestDefTitle}
-                getRequestDefMessage={getRequestDefMessage}
-                getRequestDefOptions={getRequestDefOptions}
-                getRequestDefOptionImages={getRequestDefOptionImages}
-                getRequestDefOptionInfo={getRequestDefOptionInfo}
-                getRequestDefPriceHint={getRequestDefPriceHint}
-                getQuantityChoices={getQuantityChoices}
-                getQuantityButtonLabel={getQuantityButtonLabel}
-                submitRequestDefQuantityChoice={submitRequestDefQuantityChoice}
-                submitRequestDefSelectionOption={submitRequestDefSelectionOption}
-                onCloseAi={clearAiState}
-                onTrack={trackGuestEvent}
-              />
-            );
-          })}
+                  return (
+                    <button
+                      key={`quick-${section.id}`}
+                      type="button"
+                      onClick={() => {
+                        if (isLocked && !ensureConfirmedRoom()) return;
+
+                        const nextId = isSelected ? null : section.id;
+                        setOpenQuickServiceId(nextId);
+                        trackGuestEvent({
+                          eventName: nextId ? "section_opened" : "section_closed",
+                          eventCategory: "navigation",
+                          section: section.id,
+                          sectionKey: section.id,
+                          buttonKey: "quick_service",
+                          label: String(section.title || section.id),
+                          value: nextId ? "open" : "closed",
+                        });
+                      }}
+                      className={clsx(
+                        "min-h-[92px] rounded-2xl px-3 py-4 text-left stayhub-section-header transition active:scale-[0.99]",
+                        isSelected ? "ring-2 ring-white/70" : "ring-1 ring-white/10"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-sm font-semibold leading-5">
+                          {withSectionIcon(String(section.title), section.id)}
+                        </span>
+                        <span className="text-sm">{isLocked ? "🔒" : isSelected ? "▴" : "▾"}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedQuickServiceSection ? (
+                <div className="mt-3 space-y-2">
+                  {selectedQuickServiceSection.subtitle ? (
+                    <div className="rounded-xl stayhub-card px-3 py-3 text-sm leading-5">
+                      {selectedQuickServiceSection.subtitle}
+                    </div>
+                  ) : null}
+                  {renderHubSection(selectedQuickServiceSection, {
+                    defaultOpen: true,
+                    hideHeader: true,
+                    keyPrefix: "quick-detail",
+                  })}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
+          {hotelStaySections.length ? (
+            <SectionGroupAccordion
+              id="hotel_stay"
+              title={`🏨 ${guestNavigationLabel("hotel_stay_title", guestNavCopy.hotelStay)}`}
+              onTrack={trackGuestEvent}
+            >
+              {hotelStaySections.map((section) => renderHubSection(section, { keyPrefix: "hotel-stay" }))}
+            </SectionGroupAccordion>
+          ) : null}
+
+          {foodEntertainmentSections.length ? (
+            <SectionGroupAccordion
+              id="food_entertainment"
+              title={`🍽️ ${guestNavigationLabel("food_entertainment_title", guestNavCopy.foodEntertainment)}`}
+              onTrack={trackGuestEvent}
+            >
+              {foodEntertainmentSections.map((section) =>
+                renderHubSection(section, { keyPrefix: "food-entertainment" })
+              )}
+            </SectionGroupAccordion>
+          ) : null}
+
+          {exploreHubSection
+            ? renderHubSection(exploreHubSection, { keyPrefix: "explore" })
+            : null}
+
+          {reviewSocialSections.length ? (
+            <SectionGroupAccordion
+              id="reviews_social"
+              title={`⭐ ${guestNavigationLabel("reviews_social_title", guestNavCopy.reviewsSocial)}`}
+              onTrack={trackGuestEvent}
+            >
+              {reviewSocialSections.map((section) =>
+                renderHubSection(section, { keyPrefix: "reviews-social" })
+              )}
+            </SectionGroupAccordion>
+          ) : null}
+
+          {remainingSections.length ? (
+            <SectionGroupAccordion
+              id="more_services"
+              title={`➕ ${guestNavigationLabel("more_services_title", guestNavCopy.more)}`}
+              onTrack={trackGuestEvent}
+            >
+              {remainingSections.map((section) =>
+                renderHubSection(section, { keyPrefix: "more" })
+              )}
+            </SectionGroupAccordion>
+          ) : null}
+
+          {emergencyAction && emergencyAction.kind === "link" && emergencyAction.href ? (
+            <a
+              href={emergencyAction.href}
+              onClick={() => {
+                trackGuestEvent({
+                  eventName: "phone_link_clicked",
+                  eventCategory: "emergency",
+                  section: "emergency",
+                  sectionKey: "emergency",
+                  buttonKey: "call_reception",
+                  label: String(emergencyHubSection?.title || tUI("emergency_title") || "Emergency"),
+                  value: "tel",
+                  extra: { href: emergencyAction.href },
+                });
+              }}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-rose-300/40 bg-rose-500/20 px-4 py-4 text-left shadow-sm transition active:scale-[0.99]"
+            >
+              <div>
+                <div className="text-base font-semibold">
+                  {String(emergencyHubSection?.title || `🚨 ${String(tUI("emergency_title") || "Emergency")}`)}
+                </div>
+                <div className="mt-1 text-xs opacity-85">{emergencyAction.label}</div>
+              </div>
+              <span className="text-xl">☎️</span>
+            </a>
+          ) : null}
         </div>
 
         <p className="mt-6 text-center text-xs text-neutral-400">{tUI("notice")}</p>
       </div>
+
+      <button
+        type="button"
+        onClick={openAiPanel}
+        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold shadow-2xl ring-1 ring-white/25 transition hover:opacity-95 active:scale-[0.98]"
+        style={{
+          backgroundColor: "var(--stayhub-action)",
+          color: "var(--stayhub-text)",
+          right: "max(1.25rem, calc((100vw - 28rem) / 2 + 1.25rem))",
+        }}
+        aria-label={getCurrentGuestUiText("ai_open") || guestNavCopy.askAi}
+      >
+        <span className="text-lg">🤖</span>
+        <span>{guestNavigationLabel("ask_ai", guestNavCopy.askAi)}</span>
+        {!roomConfirmed ? <span className="text-xs">🔒</span> : null}
+      </button>
+
+      {aiPanelOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-3 sm:items-center">
+          <div className="w-full max-w-md rounded-2xl stayhub-section-shell p-4 shadow-2xl">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-lg font-semibold">🤖 {String(tUI("ai_title") || "AI Concierge")}</div>
+              <button
+                type="button"
+                onClick={closeAiPanel}
+                className="rounded-full stayhub-card px-3 py-2 text-xs font-semibold"
+              >
+                {guestNavigationLabel("close", guestNavCopy.close)}
+              </button>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-2">
+              {!aiQ.trim() ? (
+                <div className="rounded-xl stayhub-card p-3 text-sm leading-6">
+                  {aiIntroText}
+                </div>
+              ) : null}
+
+              <textarea
+                value={aiQ}
+                onChange={(event) => setAiQ(event.target.value)}
+                placeholder={String(tUI("ai_placeholder") || "Ask a question about the hotel...")}
+                className="min-h-[110px] w-full rounded-xl stayhub-card p-3 text-sm outline-none placeholder:text-[color:var(--stayhub-muted)]"
+              />
+
+              <button
+                type="button"
+                onClick={askAI}
+                disabled={aiLoading || !aiQ.trim()}
+                className="rounded-xl px-3 py-3 text-left text-sm font-semibold stayhub-action-card transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {aiLoading
+                  ? String(tUI("ai_loading") || "Thinking...")
+                  : String(tUI("ai_send") || "Send")}
+              </button>
+
+              {aiAnswer ? (
+                <div className="max-h-[40vh] overflow-y-auto whitespace-pre-wrap rounded-xl stayhub-card p-3 text-sm leading-6">
+                  {aiAnswer}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SectionGroupAccordion({
+  id,
+  title,
+  children,
+  onTrack,
+}: {
+  id: string;
+  title: string;
+  children: ReactNode;
+  onTrack: (payload: TrackHubPayload) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="overflow-hidden rounded-2xl stayhub-section-shell">
+      <button
+        type="button"
+        onClick={() =>
+          setOpen((previous) => {
+            const next = !previous;
+            onTrack({
+              eventName: next ? "section_opened" : "section_closed",
+              eventCategory: "navigation",
+              section: id,
+              sectionKey: id,
+              label: title,
+              value: next ? "open" : "closed",
+            });
+            return next;
+          })
+        }
+        className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left stayhub-section-header"
+      >
+        <span className="text-base font-semibold">{title}</span>
+        <span className="text-lg">{open ? "▴" : "▾"}</span>
+      </button>
+
+      {open ? (
+        <div className="space-y-2 px-3 py-3 stayhub-section-body">
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -6598,6 +7042,8 @@ function Accordion({
   submitRequestDefSelectionOption,
   onCloseAi,
   onTrack,
+  defaultOpen = false,
+  hideHeader = false,
 }: {
   section: HubSection;
   tUI: (k: string) => any;
@@ -6622,49 +7068,53 @@ function Accordion({
   submitRequestDefSelectionOption: (def: RequestDef, option: string, optionIndex: number) => void;
   onCloseAi?: () => void;
   onTrack: (payload: TrackHubPayload) => void;
+  defaultOpen?: boolean;
+  hideHeader?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [openRequestDefId, setOpenRequestDefId] = useState<string | null>(null);
 
   return (
     <div className="rounded-2xl overflow-hidden stayhub-section-shell">
-      <button
-        type="button"
-        onClick={() =>
-          setOpen((prev) => {
-            const next = !prev;
-            const sectionId = String(section.id || "section");
+      {!hideHeader ? (
+        <button
+          type="button"
+          onClick={() =>
+            setOpen((prev) => {
+              const next = !prev;
+              const sectionId = String(section.id || "section");
 
-            onTrack({
-              eventName: sectionId === "ai" && next ? "ai_opened" : next ? "section_opened" : "section_closed",
-              eventCategory: sectionId === "ai" ? "ai" : "navigation",
-              section: sectionId,
-              sectionKey: sectionId,
-              label: String(section.title || sectionId),
-              value: next ? "open" : "closed",
-            });
+              onTrack({
+                eventName: sectionId === "ai" && next ? "ai_opened" : next ? "section_opened" : "section_closed",
+                eventCategory: sectionId === "ai" ? "ai" : "navigation",
+                section: sectionId,
+                sectionKey: sectionId,
+                label: String(section.title || sectionId),
+                value: next ? "open" : "closed",
+              });
 
-            if (section.id === "ai" && !next) {
-              onCloseAi?.();
-            }
+              if (section.id === "ai" && !next) {
+                onCloseAi?.();
+              }
 
-            return next;
-          })
-        }
-        className="w-full px-4 py-4 text-left stayhub-section-header flex items-center justify-between gap-3"
-      >
-        <div>
-          <div className="text-base font-semibold">{withSectionIcon(section.title, (section as any).id || (section as any).key || (section as any).type || (section as any).section)}</div>
-          {section.subtitle ? (
-            <div className="mt-1 text-xs font-medium opacity-80">
-              {section.subtitle}
-            </div>
-          ) : null}
-        </div>
-        <div className="text-lg">▾</div>
-      </button>
+              return next;
+            })
+          }
+          className="w-full px-4 py-4 text-left stayhub-section-header flex items-center justify-between gap-3"
+        >
+          <div>
+            <div className="text-base font-semibold">{withSectionIcon(section.title, (section as any).id || (section as any).key || (section as any).type || (section as any).section)}</div>
+            {section.subtitle ? (
+              <div className="mt-1 text-xs font-medium opacity-80">
+                {section.subtitle}
+              </div>
+            ) : null}
+          </div>
+          <div className="text-lg">▾</div>
+        </button>
+      ) : null}
 
-      {open ? (
+      {hideHeader || open ? (
         <div className="stayhub-section-body px-4 py-4">
           <div className="grid grid-cols-1 gap-2">
             {section.id === "ai" ? (
