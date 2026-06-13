@@ -1715,6 +1715,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const [aiAnswer, setAiAnswer] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [aiHistory, setAiHistory] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const [openQuickServiceId, setOpenQuickServiceId] = useState<string | null>(null);
 
   const AI_RESET_AFTER_MS = 5 * 60 * 1000;
@@ -1725,7 +1726,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     setAiQ("");
     setAiAnswer("");
     setAiLoading(false);
-  }, [setAiQ, setAiAnswer, setAiLoading]);
+    setAiHistory([]);
+  }, []);
 
   const sp = useSearchParams();
   const qrRoom = normalizeRoomNumber(sp.get("room"));
@@ -4966,40 +4968,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           question: questionText,
           lang: String(lang),
           hotelSlug: config.hotelSlug,
-          hotel: {
-            hotelName: config.hotelName,
-            locationQuery: config.location?.query,
-            wifi: config.wifi,
-            departmentHours: config.departmentHours,
-            reviews: config.reviews,
-            socialLinks: config.socialLinks,
-            venueRows: (config as any).venueRows ?? [],
-            hotelInfoItems: (config as any).hotelInfoItems ?? [],
-            hubSections: sections.map((section) => ({
-              id: String(section.id || ""),
-              title: String(section.title || ""),
-              items: section.items
-                .map((item: any) => ({
-                  label: typeof item?.label === "string" ? item.label : "",
-                  info: typeof item?.info === "string" ? item.info : "",
-                  kind: typeof item?.kind === "string" ? item.kind : "",
-                  href: typeof item?.href === "string" ? item.href : "",
-                  url: typeof item?.url === "string" ? item.url : "",
-                }))
-                .filter((item: any) => item.label || item.info || item.href || item.url),
-            })),
-            navigation: {
-              quickServices: guestNavigationLabel("quick_services_title", guestNavCopy.quickServices),
-              hotelStay: guestNavigationLabel("hotel_stay_title", guestNavCopy.hotelStay),
-              foodEntertainment: guestNavigationLabel("food_entertainment_title", guestNavCopy.foodEntertainment),
-              reviewsSocial: guestNavigationLabel("reviews_social_title", guestNavCopy.reviewsSocial),
-              more: guestNavigationLabel("more_services_title", guestNavCopy.more),
-              sectionTitles: Object.fromEntries(
-                sections.map((section) => [String(section.id || ""), String(section.title || "")])
-              ),
-            },
-            services: aiServices,
-          },
+          history: aiHistory.slice(-6),
         }),
       });
 
@@ -5020,6 +4989,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
       const answerText = String(data.answer || tUI("ai_no_info") || "Все още нямам тази информация за хотела.");
       setAiAnswer(answerText);
+      setAiHistory((previous) => [
+        ...previous,
+        { role: "user" as const, content: questionText },
+        { role: "assistant" as const, content: answerText },
+      ].slice(-6));
       trackGuestEvent({
         eventName: "ai_answer_shown",
         eventCategory: "ai",
@@ -5029,6 +5003,16 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         value: String(answerText.length),
         extra: {
           answerLength: answerText.length,
+          aiEngine: String(data?.diagnostics?.engine || "unknown"),
+          aiFallbackUsed: Boolean(data?.diagnostics?.fallbackUsed),
+          aiMatchedIds: Array.isArray(data?.diagnostics?.matchedIds)
+            ? data.diagnostics.matchedIds.slice(0, 8)
+            : [],
+          aiIntent: String(data?.diagnostics?.intent || ""),
+          aiInputTokens: Number(data?.diagnostics?.inputTokens || 0),
+          aiOutputTokens: Number(data?.diagnostics?.outputTokens || 0),
+          aiLatencyMs: Number(data?.diagnostics?.latencyMs || 0),
+          aiCacheHit: Boolean(data?.diagnostics?.cacheHit),
         },
       });
     } catch {

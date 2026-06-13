@@ -19,8 +19,9 @@ async function loadLocalHotelConfig(hotelSlug: string): Promise<HotelConfig | nu
 
   const localPath = path.join(process.cwd(), "data", "hotels", `${safeSlug}.json`);
   const demoPath = path.join(process.cwd(), "data", "hotels", "demo.json");
+  const candidates = safeSlug === "demo" ? [localPath, demoPath] : [localPath];
 
-  for (const candidate of [localPath, demoPath]) {
+  for (const candidate of candidates) {
     try {
       const raw = await fs.readFile(candidate, "utf8");
       const parsed = JSON.parse(raw) as HotelConfig;
@@ -98,10 +99,7 @@ function rowsToObjects(rows: string[][]): Record<string, string>[] {
 }
 
 async function fetchCsv(url: string): Promise<Record<string, string>[]> {
-  const bust = `t=${Date.now()}`;
-  const finalUrl = url.includes("?") ? `${url}&${bust}` : `${url}?${bust}`;
-
-  const res = await fetch(finalUrl, { cache: "no-store" });
+  const res = await fetch(url, { next: { revalidate: 300 } });
   if (!res.ok) throw new Error(`CSV fetch failed: ${res.status} ${res.statusText}`);
   const text = await res.text();
   return rowsToObjects(parseCsv(text));
@@ -144,8 +142,8 @@ function toConfigKey(field: string): string {
     "Hotel Name": "hotelName",
     "Cover Image": "coverImage",
     "Cover Image Position": "coverImagePosition",
-    "Location": "locationQuery",
-    "Hotel Location Query": "locationQuery",
+    "Location": "location",
+    "Hotel Location Query": "hotelLocationQuery",
     "Languages": "languages",
     "Default Language": "languageDefault",
     "Ops Language": "opsLanguage",
@@ -163,6 +161,8 @@ function toConfigKey(field: string): string {
     "Latitude": "hotelLatitude",
     "Hotel Longitude": "hotelLongitude",
     "Longitude": "hotelLongitude",
+    "Hotel Timezone": "hotelTimezone",
+    "Timezone": "hotelTimezone",
     "Geo Guard Enabled": "geoGuardEnabled",
     "Geo Guard Radius Meters": "geoGuardRadiusMeters",
     "Test Mode Enabled": "testModeEnabled",
@@ -327,6 +327,12 @@ function parseHotelInfoRows(rows: Record<string, string>[]): Array<{
   sortOrder?: number;
   icon?: string;
   active?: boolean;
+  aiVisible?: boolean;
+  aliasesByLang?: Record<string, string[]>;
+  intentTags?: string[];
+  uiSectionId?: string;
+  linkUrl?: string;
+  canonicalRef?: string;
   title: Record<string, string>;
   text: Record<string, string>;
 }> {
@@ -356,12 +362,24 @@ function parseHotelInfoRows(rows: Record<string, string>[]): Array<{
         ru: readCell(row, ["Text RU", "Body RU", "text_ru", "body_ru", "textRu"]),
       };
 
+      const aliasesByLang: Record<string, string[]> = {};
+      for (const lang of ["bg", "en", "de", "ro", "cs", "ru"]) {
+        const rawAliases = readCell(row, [`Aliases ${lang.toUpperCase()}`, `aliases_${lang}`, `aliases${lang.toUpperCase()}`]);
+        if (rawAliases) aliasesByLang[lang] = rawAliases.split("|").map((item) => item.trim()).filter(Boolean);
+      }
+
       return {
         key,
         category,
         sortOrder: Number(sortValue || "999"),
         icon,
         active: !["false", "0", "no"].includes(String(activeRaw || "TRUE").trim().toLowerCase()),
+        aiVisible: !["false", "0", "no"].includes(readCell(row, ["AI Visible", "ai_visible", "aiVisible"]).toLowerCase() || "yes"),
+        aliasesByLang,
+        intentTags: readCell(row, ["Intent Tags", "intent_tags", "intentTags"]).split("|").map((item) => item.trim()).filter(Boolean),
+        uiSectionId: readCell(row, ["UI Section ID", "ui_section_id", "uiSectionId"]),
+        linkUrl: readCell(row, ["Link URL", "link_url", "linkUrl", "URL", "url"]),
+        canonicalRef: readCell(row, ["Canonical Ref", "canonical_ref", "canonicalRef"]),
         title,
         text,
       };
@@ -579,17 +597,20 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
   const hotelLongitude = pickOptionalNumber(mergedConfig, "hotelLongitude");
 
   const cfg: HotelConfig = {
-    hotelSlug: safeHotelSlug,
+    hotelId: pick(mergedConfig, "hotelId", ""),
+    hotelSlug: pick(mergedConfig, "hotelSlug", safeHotelSlug),
+    publicSlug: pick(mergedConfig, "hotelAlias", ""),
     hotelName: pick(mergedConfig, "hotelName", "Hotel"),
     coverImage: pick(mergedConfig, "coverImage", "/cover.jpg"),
     coverImagePosition: pick(mergedConfig, "coverImagePosition", "center center"),
     location: {
-      query: pick(mergedConfig, "locationQuery", ""),
+      query: pick(mergedConfig, "hotelLocationQuery", pick(mergedConfig, "location", pick(mergedConfig, "locationQuery", ""))),
       ...(hotelLatitude !== undefined ? { lat: hotelLatitude, latitude: hotelLatitude } : {}),
       ...(hotelLongitude !== undefined ? { lng: hotelLongitude, longitude: hotelLongitude, lon: hotelLongitude } : {}),
     },
     ...(hotelLatitude !== undefined ? { hotelLatitude } : {}),
     ...(hotelLongitude !== undefined ? { hotelLongitude } : {}),
+    hotelTimezone: pick(mergedConfig, "hotelTimezone", "Europe/Sofia"),
     geoGuardEnabled: pickBoolean(mergedConfig, "geoGuardEnabled", true),
     geoGuardRadiusMeters: pickNumber(mergedConfig, "geoGuardRadiusMeters", 350),
     testModeEnabled: pickBoolean(mergedConfig, "testModeEnabled", false),
@@ -678,7 +699,14 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
       const programText = readCell(row, ["Program Text", "programText", "program_text"]);
       const ageGroup = readCell(row, ["Age Group", "ageGroup", "age_group"]);
 
+      const aliasesByLang: Partial<Record<LangKey, string[]>> = {};
+      for (const lang of venueLanguages) {
+        const rawAliases = readMultilingualField(row, ["Aliases"], String(lang));
+        if (rawAliases) aliasesByLang[lang] = rawAliases.split("|").map((item) => item.trim()).filter(Boolean);
+      }
+
       return {
+      id: readCell(row, ["ID", "Id", "id", "Key", "key"]),
       category: readCell(row, ["Category", "category"]),
       type: readCell(row, ["Type", "type"]).toLowerCase(),
       name,
@@ -701,6 +729,10 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
         readCell(row, ["Requires Reservation", "requiresReservation", "requires_reservation"]).toLowerCase()
       ),
       active: !["no", "false", "0"].includes(readCell(row, ["Active", "active"]).toLowerCase()),
+      aiVisible: !["no", "false", "0"].includes(readCell(row, ["AI Visible", "ai_visible", "aiVisible"]).toLowerCase() || "yes"),
+      aliasesByLang,
+      intentTags: readCell(row, ["Intent Tags", "intent_tags", "intentTags"]).split("|").map((item) => item.trim()).filter(Boolean),
+      uiSectionId: readCell(row, ["UI Section ID", "ui_section_id", "uiSectionId"]),
       sortOrder: Number(readCell(row, ["Sort Order", "sortOrder", "sort_order"]) || "999"),
       reservationType: (readCell(row, ["Reservation Type", "reservationType", "reservation_type"]) || undefined) as
         | "whatsapp"

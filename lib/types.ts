@@ -1,4 +1,4 @@
-export type LangKey = "bg" | "en" | "de" | "tr" | string;
+export type LangKey = "bg" | "en" | "de" | "ro" | "cs" | "ru" | "tr" | string;
 
 export type DepartmentKey =
   | "reception"
@@ -88,6 +88,10 @@ export type RequestDef = {
   requiresBilling?: boolean;
   notifyDepartments?: string[];
   keywords: string[];
+  aliasesByLang?: Partial<Record<LangKey, string[]>>;
+  intentTags?: string[];
+  uiSectionId?: string;
+  canonicalRef?: string;
 };
 
 export type HubSection = {
@@ -140,11 +144,16 @@ export type HotelRoom = {
 };
 
 export type VenueRow = {
+  id?: string;
   category?: string;
   type?: string;
   name: string;
   nameByLang?: Partial<Record<LangKey, string>>;
   active?: boolean;
+  aiVisible?: boolean;
+  aliasesByLang?: Partial<Record<LangKey, string[]>>;
+  intentTags?: string[];
+  uiSectionId?: string;
   sortOrder?: number | string;
   icon?: string;
 
@@ -193,12 +202,20 @@ export type HotelInfoItem = {
   sortOrder?: number;
   icon?: string;
   active?: boolean;
+  aiVisible?: boolean;
+  aliasesByLang?: Partial<Record<LangKey, string[]>>;
+  intentTags?: string[];
+  uiSectionId?: string;
+  linkUrl?: string;
+  canonicalRef?: string;
   title: RequestDefTextMap;
   text: RequestDefTextMap;
 };
 
 export type HotelConfig = {
+  hotelId?: string;
   hotelSlug?: string;
+  publicSlug?: string;
   hotelName: string;
   coverImage: string;
   coverImagePosition?: string;
@@ -227,6 +244,7 @@ export type HotelConfig = {
 
   hotelLatitude?: number;
   hotelLongitude?: number;
+  hotelTimezone?: string;
   geoGuardEnabled?: boolean;
   geoGuardRadiusMeters?: number;
   testModeEnabled?: boolean;

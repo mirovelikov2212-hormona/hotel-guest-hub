@@ -120,6 +120,32 @@ function buildTextMap(
   return out;
 }
 
+
+function buildListMap(
+  row: LooseRow,
+  base: string,
+  langs: LangKey[]
+): Partial<Record<LangKey, string[]>> {
+  const out: Partial<Record<LangKey, string[]>> = {};
+  const langList = Array.from(new Set([...DEFAULT_LANGS, ...langs.map((lang) => String(lang).trim()).filter(Boolean)]));
+
+  for (const lang of langList) {
+    const upper = String(lang).toUpperCase();
+    const lower = String(lang).toLowerCase();
+    const raw = readFirst(row, [
+      `${base}_${lower}`,
+      `${base}_${upper}`,
+      `${base} ${upper}`,
+      `${base} ${lower}`,
+      `${base}${upper}`,
+    ]);
+    const parsed = parseList(raw);
+    if (parsed.length) out[lang] = parsed;
+  }
+
+  return out;
+}
+
 function buildOptionsMap(row: LooseRow, langs: LangKey[]): Partial<Record<LangKey, string[]>> {
   const out: Partial<Record<LangKey, string[]>> = {};
   const langList = Array.from(new Set([...DEFAULT_LANGS, ...langs.map((lang) => String(lang).trim()).filter(Boolean)]));
@@ -269,6 +295,10 @@ export function parseRequestDefs(rows: LooseRow[], langs: LangKey[]): RequestDef
       requiresBilling: toBool(readFirst(row, ["requires_billing", "requiresBilling", "billing", "Billing"])),
       notifyDepartments: parseList(readFirst(row, ["notify_departments", "notifyDepartments", "Notify Departments"])),
       keywords: parseList(readFirst(row, ["keywords", "Keywords"])),
+      aliasesByLang: buildListMap(row, "aliases", langs),
+      intentTags: parseList(readFirst(row, ["intent_tags", "intentTags", "Intent Tags"])),
+      uiSectionId: readFirst(row, ["ui_section_id", "uiSectionId", "UI Section ID"]) || category,
+      canonicalRef: readFirst(row, ["canonical_ref", "canonicalRef", "Canonical Ref"]),
     });
   }
 
