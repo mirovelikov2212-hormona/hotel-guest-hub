@@ -173,6 +173,7 @@ function isWithinAnyTimeRange(value: string, ranges: Array<{ start: number; end:
 }
 
 type VenueRow = {
+  id?: string;
   category?: string;
   type?: string;
   name: string;
@@ -1561,8 +1562,22 @@ function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
 }
 
+type AiChatAction = {
+  kind: "request_def" | "venue";
+  targetId: string;
+  matchedId: string;
+  label: string;
+};
+
+type AiChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+  actions?: AiChatAction[];
+};
+
 const GUEST_LANGUAGE_STORAGE_KEY = "stayhub_guest_language";
 const GUEST_INTRO_STORAGE_PREFIX = "stayhub_guest_intro_seen";
+const GUEST_INTRO_VERSION = "departments-v2";
 const SUPPORTED_GUEST_LANGS: LangKey[] = ["bg", "en", "de", "ro", "cs", "ru"];
 
 function parseGuestLang(value: unknown): LangKey | null {
@@ -1636,35 +1651,74 @@ function getInitialGuestLang(defaultLang?: string): LangKey {
 function getGuestIntroCopy(lang: LangKey, hotelName?: string) {
   const name = String(hotelName || "Hotel Aquamarine").trim();
 
-  const copy: Record<LangKey, { title: string; body: string; button: string }> = {
+  const copy: Record<
+    LangKey,
+    { title: string; body: string; departments: string[]; footer: string; button: string }
+  > = {
     bg: {
       title: "Добре дошли в дигиталния консиерж",
-      body: `Това е Вашият дигитален помощник по време на престоя в ${name}. Тук ще намерите информация за хотела, ресторанта, баровете, Wi-Fi, времето, анимацията и полезни места около хотела. Можете също да изпращате заявки към рецепция, housekeeping и техническа поддръжка. За да свържем услугата с Вашата стая, моля въведете номера на стаята си.`,
+      body: `Това е Вашият дигитален помощник по време на престоя в ${name}. Тук ще намерите информация за хотела, ресторантите, баровете, Wi‑Fi, времето, анимацията и полезни места около хотела.`,
+      departments: [
+        "🛎️ Рецепция — въпроси, такси, късен check-out, събуждане и други желания.",
+        "🧺 Камериерки — кърпи, възглавници, пране, минибар и нужди за стаята.",
+        "🛠️ Поддръжка — климатик, топла вода, телевизор, осветление и технически проблеми.",
+      ],
+      footer: "След като потвърдите номера на стаята, заявките се изпращат директно до отговорния отдел — без да е необходимо да ходите до рецепция.",
       button: "Разбрах, продължи",
     },
     en: {
       title: "Welcome to your digital concierge",
-      body: `This is your digital assistant during your stay at ${name}. Here you can find hotel information, restaurant and bar details, Wi-Fi, weather, animation and useful places nearby. You can also send requests to reception, housekeeping and maintenance. To connect the service with your room, please enter your room number.`,
+      body: `This is your digital assistant during your stay at ${name}. Here you can find hotel information, restaurant and bar details, Wi‑Fi, weather, animation and useful places nearby.`,
+      departments: [
+        "🛎️ Reception — questions, taxi, late check-out, wake-up calls and other requests.",
+        "🧺 Housekeeping — towels, pillows, laundry, minibar and room needs.",
+        "🛠️ Maintenance — air conditioning, hot water, TV, lighting and technical problems.",
+      ],
+      footer: "After you confirm your room number, requests are sent directly to the responsible department — there is no need to visit reception.",
       button: "Got it, continue",
     },
     de: {
       title: "Willkommen bei Ihrem digitalen Concierge",
-      body: `Dies ist Ihr digitaler Assistent während Ihres Aufenthalts im ${name}. Hier finden Sie Informationen zum Hotel, Restaurant, Bars, WLAN, Wetter, Animationsprogramm und hilfreichen Orten in der Umgebung. Außerdem können Sie Anfragen an Rezeption, Housekeeping und Technik senden. Damit wir den Service Ihrem Zimmer zuordnen können, geben Sie bitte Ihre Zimmernummer ein.`,
+      body: `Dies ist Ihr digitaler Assistent während Ihres Aufenthalts im ${name}. Hier finden Sie Informationen zum Hotel, zu Restaurants und Bars, WLAN, Wetter, Animation und hilfreichen Orten in der Umgebung.`,
+      departments: [
+        "🛎️ Rezeption — Fragen, Taxi, später Check-out, Weckruf und weitere Wünsche.",
+        "🧺 Housekeeping — Handtücher, Kissen, Wäsche, Minibar und Wünsche fürs Zimmer.",
+        "🛠️ Technik — Klimaanlage, Warmwasser, Fernseher, Beleuchtung und technische Probleme.",
+      ],
+      footer: "Nachdem Sie Ihre Zimmernummer bestätigt haben, wird Ihre Anfrage direkt an die zuständige Abteilung gesendet — ein Weg zur Rezeption ist nicht nötig.",
       button: "Verstanden, weiter",
     },
     ro: {
       title: "Bine ați venit la concierge-ul digital",
-      body: `Acesta este asistentul digital pentru șederea dvs. la ${name}. Aici găsiți informații despre hotel, restaurant, baruri, Wi-Fi, vreme, animație și locuri utile din apropiere. De asemenea, puteți trimite solicitări către recepție, housekeeping și întreținere. Pentru a conecta serviciul cu camera dvs., vă rugăm să introduceți numărul camerei.`,
+      body: `Acesta este asistentul digital pentru șederea dvs. la ${name}. Aici găsiți informații despre hotel, restaurante și baruri, Wi‑Fi, vreme, animație și locuri utile din apropiere.`,
+      departments: [
+        "🛎️ Recepție — întrebări, taxi, check-out târziu, apel de trezire și alte solicitări.",
+        "🧺 Curățenie — prosoape, perne, spălătorie, minibar și nevoi pentru cameră.",
+        "🛠️ Mentenanță — aer condiționat, apă caldă, televizor, iluminat și probleme tehnice.",
+      ],
+      footer: "După confirmarea numărului camerei, solicitările sunt trimise direct departamentului responsabil — nu este necesar să mergeți la recepție.",
       button: "Am înțeles, continuă",
     },
     cs: {
       title: "Vítejte u svého digitálního concierge",
-      body: `Toto je váš digitální asistent během pobytu v ${name}. Najdete zde informace o hotelu, restauraci, barech, Wi‑Fi, počasí, animaci a užitečných místech v okolí. Můžete také posílat požadavky na recepci, housekeeping a údržbu. Abychom službu přiřadili k vašemu pokoji, zadejte prosím číslo pokoje.`,
+      body: `Toto je váš digitální asistent během pobytu v ${name}. Najdete zde informace o hotelu, restauracích a barech, Wi‑Fi, počasí, animaci a užitečných místech v okolí.`,
+      departments: [
+        "🛎️ Recepce — dotazy, taxi, pozdní check-out, buzení a další přání.",
+        "🧺 Úklid — ručníky, polštáře, praní, minibar a potřeby na pokoj.",
+        "🛠️ Údržba — klimatizace, teplá voda, televize, osvětlení a technické problémy.",
+      ],
+      footer: "Po potvrzení čísla pokoje se požadavky odešlou přímo odpovědnému oddělení — nemusíte chodit na recepci.",
       button: "Rozumím, pokračovat",
     },
     ru: {
       title: "Добро пожаловать в цифровой консьерж",
-      body: `Это ваш цифровой помощник во время пребывания в ${name}. Здесь вы найдёте информацию об отеле, ресторане, барах, Wi‑Fi, погоде, анимации и полезных местах поблизости. Вы также можете отправлять запросы на рецепцию, в housekeeping и техническую службу. Чтобы связать услугу с вашим номером, пожалуйста, введите номер комнаты.`,
+      body: `Это ваш цифровой помощник во время пребывания в ${name}. Здесь вы найдёте информацию об отеле, ресторанах и барах, Wi‑Fi, погоде, анимации и полезных местах поблизости.`,
+      departments: [
+        "🛎️ Ресепшен — вопросы, такси, поздний выезд, звонок-будильник и другие пожелания.",
+        "🧺 Уборка номера — полотенца, подушки, прачечная, мини-бар и всё необходимое для номера.",
+        "🛠️ Техническая служба — кондиционер, горячая вода, телевизор, освещение и технические проблемы.",
+      ],
+      footer: "После подтверждения номера комнаты запрос отправляется напрямую в ответственную службу — обращаться на ресепшен не требуется.",
       button: "Понятно, продолжить",
     },
   };
@@ -1715,7 +1769,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const [aiAnswer, setAiAnswer] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
-  const [aiHistory, setAiHistory] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
+  const [aiHistory, setAiHistory] = useState<AiChatMessage[]>([]);
   const aiConversationRef = useRef<HTMLDivElement | null>(null);
   const aiRequestSeqRef = useRef(0);
   const [openQuickServiceId, setOpenQuickServiceId] = useState<string | null>(null);
@@ -1784,7 +1838,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const guestIntroStorageKey = useMemo(() => {
     const scope = String(roomStateKey || config.hotelSlug || "default").trim().toLowerCase();
-    return `${GUEST_INTRO_STORAGE_PREFIX}:${scope || "default"}`;
+    return `${GUEST_INTRO_STORAGE_PREFIX}:${GUEST_INTRO_VERSION}:${scope || "default"}`;
   }, [roomStateKey, config.hotelSlug]);
 
   const guestIntroCopy = useMemo(
@@ -2479,6 +2533,18 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       ro: { newConversation: "Conversație nouă", followUp: "Puneți o altă întrebare…" },
       cs: { newConversation: "Nová konverzace", followUp: "Zeptejte se dál…" },
       ru: { newConversation: "Новый разговор", followUp: "Задайте ещё вопрос…" },
+    } as const;
+    return copy[(lang as keyof typeof copy)] || copy.en;
+  }, [lang]);
+
+  const aiActionCopy = useMemo(() => {
+    const copy = {
+      bg: { request: "Заяви", order: "Поръчай", choose: "Избери", reserve: "Резервирай" },
+      en: { request: "Request", order: "Order", choose: "Choose", reserve: "Reserve" },
+      de: { request: "Anfragen", order: "Bestellen", choose: "Auswählen", reserve: "Reservieren" },
+      ro: { request: "Solicită", order: "Comandă", choose: "Alege", reserve: "Rezervă" },
+      cs: { request: "Požádat", order: "Objednat", choose: "Vybrat", reserve: "Rezervovat" },
+      ru: { request: "Запросить", order: "Заказать", choose: "Выбрать", reserve: "Забронировать" },
     } as const;
     return copy[(lang as keyof typeof copy)] || copy.en;
   }, [lang]);
@@ -4960,6 +5026,132 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   };
 
 
+  function getAiVenueStableId(venue: VenueRow, index: number) {
+    const explicit = String(venue.id || "").trim();
+    if (explicit) return explicit;
+
+    const slug = String(venue.name || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+
+    return slug || `venue_${index}`;
+  }
+
+  function buildAiActions(matchedIds: unknown): AiChatAction[] {
+    if (!Array.isArray(matchedIds)) return [];
+
+    const actions: AiChatAction[] = [];
+    const seen = new Set<string>();
+
+    for (const rawMatchedId of matchedIds.map(String)) {
+      const matchedId = String(rawMatchedId || "").trim();
+      if (!matchedId || seen.has(matchedId)) continue;
+
+      if (matchedId.startsWith("service:") || matchedId.startsWith("info:")) {
+        const prefix = matchedId.startsWith("service:") ? "service:" : "info:";
+        const targetId = matchedId.slice(prefix.length);
+        const def = requestDefs.find((item) => {
+          const defId = String(item.id || "").trim();
+          const requestType = String(item.requestType || "").trim();
+          return defId === targetId || requestType === targetId;
+        });
+
+        const normalizedId = targetId.toLowerCase();
+        const isPaidOrReservable = Boolean(
+          def && (getRequestDefEffectiveRequiresBilling(def) || normalizedId.includes("massage"))
+        );
+
+        if (
+          !def ||
+          def.type !== "request" ||
+          !def.enabled ||
+          !def.guestVisible ||
+          !isPaidOrReservable
+        ) {
+          continue;
+        }
+
+        const actionTargetId = String(def.id || targetId).trim();
+        const title = getRequestDefTitle(def) || actionTargetId.replace(/_/g, " ");
+        const verb =
+          normalizedId.includes("massage")
+            ? aiActionCopy.reserve
+            : def.requestKind === "selection"
+              ? aiActionCopy.choose
+              : def.requestKind === "quantity" || def.requiresQuantity
+                ? aiActionCopy.order
+                : aiActionCopy.request;
+
+        actions.push({
+          kind: "request_def",
+          targetId: actionTargetId,
+          matchedId,
+          label: `${verb} ${title}`.trim(),
+        });
+        seen.add(matchedId);
+        continue;
+      }
+
+      if (matchedId.startsWith("venue:")) {
+        const targetId = matchedId.slice("venue:".length);
+        const venue = rawVenueRows.find((item, index) => getAiVenueStableId(item, index) === targetId);
+        if (!venue) continue;
+
+        const reservationType = String(venue.reservationType || "").trim().toLowerCase();
+        const hasReservationAction =
+          venue.requiresReservation === true ||
+          ["request", "staff", "url", "phone", "email", "whatsapp"].includes(reservationType);
+
+        if (!hasReservationAction) continue;
+
+        const title = getVenueText(venue, "name", lang) || String(venue.name || targetId);
+        const configuredLabel = String(
+          venue.reservationLabelByLang?.[lang] ||
+          venue.reservationLabel ||
+          ""
+        ).trim();
+
+        actions.push({
+          kind: "venue",
+          targetId,
+          matchedId,
+          label: configuredLabel || `${aiActionCopy.reserve} ${title}`.trim(),
+        });
+        seen.add(matchedId);
+      }
+    }
+
+    return actions.slice(0, 3);
+  }
+
+  function handleAiAction(action: AiChatAction) {
+    trackGuestEvent({
+      eventName: "ai_action_clicked",
+      eventCategory: "ai",
+      section: "ai",
+      sectionKey: "ai",
+      itemKey: action.targetId,
+      buttonKey: action.kind,
+      label: action.label,
+      value: action.matchedId,
+    });
+
+    setAiPanelOpen(false);
+
+    window.setTimeout(() => {
+      if (action.kind === "request_def") {
+        const def = requestDefs.find((item) => String(item.id || "").trim() === action.targetId);
+        if (def) handleRequestDefClick(def);
+        return;
+      }
+
+      const venue = rawVenueRows.find((item, index) => getAiVenueStableId(item, index) === action.targetId);
+      if (venue) openVenueReservation(venue);
+    }, 0);
+  }
+
   const askAI = async () => {
     const questionText = aiQ.trim();
     if (!questionText || aiLoading) return;
@@ -4978,7 +5170,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       },
     });
 
-    const historyForRequest = aiHistory.slice(-6);
+    const historyForRequest = aiHistory
+      .slice(-6)
+      .map(({ role, content }) => ({ role, content }));
     const requestSeq = ++aiRequestSeqRef.current;
     setAiQ("");
     setAiAnswer("");
@@ -5023,11 +5217,31 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       }
 
       const answerText = String(data.answer || tUI("ai_no_info") || "Все още нямам тази информация за хотела.");
+      const actions = buildAiActions(data?.diagnostics?.matchedIds);
       setAiAnswer(answerText);
       setAiHistory((previous) => [
         ...previous,
-        { role: "assistant" as const, content: answerText },
+        { role: "assistant" as const, content: answerText, actions },
       ].slice(-6));
+
+      if (actions.length) {
+        trackGuestEvent({
+          eventName: "ai_action_shown",
+          eventCategory: "ai",
+          section: "ai",
+          sectionKey: "ai",
+          label: "action_count",
+          value: String(actions.length),
+          extra: {
+            actions: actions.map((action) => ({
+              kind: action.kind,
+              targetId: action.targetId,
+              matchedId: action.matchedId,
+            })),
+          },
+        });
+      }
+
       trackGuestEvent({
         eventName: "ai_answer_shown",
         eventCategory: "ai",
@@ -6588,6 +6802,21 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               {guestIntroCopy.body}
             </p>
 
+            <div className="mt-4 space-y-2">
+              {guestIntroCopy.departments.map((line) => (
+                <div
+                  key={line}
+                  className="rounded-xl stayhub-card px-3 py-2 text-sm leading-6"
+                >
+                  {line}
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-4 text-sm font-semibold leading-6 stayhub-intro-body">
+              {guestIntroCopy.footer}
+            </p>
+
             <div className="mt-4 flex flex-wrap gap-2">
               {guestLanguageOptions.map((code) => (
                 <button
@@ -7038,6 +7267,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                     loading={aiLoading}
                     loadingText={String(tUI("ai_loading") || "Thinking...")}
                     lang={lang}
+                    onAction={handleAiAction}
                   />
                 </div>
               )}
@@ -7083,11 +7313,13 @@ function AiConversationMessages({
   loading,
   loadingText,
   lang,
+  onAction,
 }: {
-  history: Array<{ role: "user" | "assistant"; content: string }>;
+  history: AiChatMessage[];
   loading: boolean;
   loadingText: string;
   lang: LangKey;
+  onAction: (action: AiChatAction) => void;
 }) {
   return (
     <div className="space-y-2">
@@ -7103,7 +7335,23 @@ function AiConversationMessages({
             )}
           >
             {message.role === "assistant" ? (
-              <AiAnswerContent text={message.content} lang={lang} />
+              <>
+                <AiAnswerContent text={message.content} lang={lang} />
+                {message.actions?.length ? (
+                  <div className="mt-3 grid grid-cols-1 gap-2 border-t border-white/15 pt-3">
+                    {message.actions.map((action) => (
+                      <button
+                        key={`${action.kind}-${action.targetId}`}
+                        type="button"
+                        onClick={() => onAction(action)}
+                        className="rounded-xl px-3 py-2 text-left text-sm font-semibold stayhub-action-card transition active:scale-[0.99]"
+                      >
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </>
             ) : (
               message.content
             )}
@@ -7260,6 +7508,7 @@ function Accordion({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [openRequestDefId, setOpenRequestDefId] = useState<string | null>(null);
+  const [openInfoItemKey, setOpenInfoItemKey] = useState<string | null>(null);
 
   return (
     <div className="rounded-2xl overflow-hidden stayhub-section-shell">
@@ -7346,9 +7595,50 @@ function Accordion({
             ) : section.items.length ? (
               section.items.map((it, idx) => {
                 if (it.kind === "info") {
+                  const infoItemKey = `${String(section.id || "section")}-${idx}`;
+                  const isInfoAccordion = section.id === "info" && Boolean(it.label);
+                  const isInfoOpen = openInfoItemKey === infoItemKey;
+
+                  if (isInfoAccordion) {
+                    return (
+                      <div
+                        key={infoItemKey}
+                        className="overflow-hidden rounded-xl stayhub-card text-sm"
+                      >
+                        <button
+                          type="button"
+                          aria-expanded={isInfoOpen}
+                          onClick={() => {
+                            const nextOpen = !isInfoOpen;
+                            setOpenInfoItemKey(nextOpen ? infoItemKey : null);
+                            onTrack({
+                              eventName: nextOpen ? "info_item_opened" : "info_item_closed",
+                              eventCategory: "navigation",
+                              section: "info",
+                              sectionKey: "info",
+                              itemKey: infoItemKey,
+                              label: String(it.label || "info"),
+                              value: nextOpen ? "open" : "closed",
+                            });
+                          }}
+                          className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
+                        >
+                          <span className="font-semibold text-white">{it.label}</span>
+                          <span className="text-base text-white/80">{isInfoOpen ? "▴" : "▾"}</span>
+                        </button>
+
+                        {isInfoOpen ? (
+                          <div className="whitespace-pre-wrap border-t border-white/10 px-3 pb-3 pt-3 text-neutral-100">
+                            {it.info}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  }
+
                   return (
                     <div
-                      key={idx}
+                      key={infoItemKey}
                       className="rounded-xl stayhub-card p-3 text-sm"
                     >
                       {it.label ? (
