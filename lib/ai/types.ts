@@ -23,6 +23,8 @@ export type AiCatalogRecord = {
   requestType?: string;
   requestKind?: string;
   requiresBilling?: boolean;
+  requiresReservation?: boolean;
+  reservationType?: string;
   price?: string;
   currency?: string;
   hoursByLang?: LocalizedText;

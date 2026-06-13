@@ -28,6 +28,9 @@ function recordLines(record: AiCatalogRecord, lang: AiLang) {
 
   if (record.kind === "service" && !summary) lines.push(copy.available);
   if (summary) lines.push(summary);
+  if (record.kind === "venue" && record.requiresReservation !== undefined) {
+    lines.push(`${copy.reservation}: ${record.requiresReservation ? copy.reservationRequired : copy.reservationNotRequired}`);
+  }
   if (hours) lines.push(`${copy.hours}: ${hours}`);
   if (record.price) lines.push(`${copy.price}: ${record.price}`);
   if (options.length) lines.push(`${copy.options}: ${options.join("; ")}`);

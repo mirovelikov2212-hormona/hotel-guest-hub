@@ -10,6 +10,9 @@ export const AI_COPY: Record<AiLang, {
   price: string;
   hours: string;
   options: string;
+  reservation: string;
+  reservationRequired: string;
+  reservationNotRequired: string;
   available: string;
   requestHint: string;
   clarify: string;
@@ -24,6 +27,9 @@ export const AI_COPY: Record<AiLang, {
     price: "Цена",
     hours: "Работно време",
     options: "Възможности",
+    reservation: "Резервация",
+    reservationRequired: "Необходима е предварителна резервация.",
+    reservationNotRequired: "Не е необходима резервация.",
     available: "Да, тази услуга е налична.",
     requestHint: "Можете да я заявите директно от посочената секция в хъба.",
     clarify: "Моля, уточнете какво точно имате предвид.",
@@ -38,6 +44,9 @@ export const AI_COPY: Record<AiLang, {
     price: "Price",
     hours: "Opening hours",
     options: "Options",
+    reservation: "Reservation",
+    reservationRequired: "Advance reservation is required.",
+    reservationNotRequired: "No reservation is required.",
     available: "Yes, this service is available.",
     requestHint: "You can request it directly from the indicated section in the hub.",
     clarify: "Please clarify what you mean.",
@@ -52,6 +61,9 @@ export const AI_COPY: Record<AiLang, {
     price: "Preis",
     hours: "Öffnungszeiten",
     options: "Optionen",
+    reservation: "Reservierung",
+    reservationRequired: "Eine vorherige Reservierung ist erforderlich.",
+    reservationNotRequired: "Eine Reservierung ist nicht erforderlich.",
     available: "Ja, dieser Service ist verfügbar.",
     requestHint: "Sie können ihn direkt im angegebenen Bereich des Hubs anfragen.",
     clarify: "Bitte präzisieren Sie, was Sie meinen.",
@@ -66,6 +78,9 @@ export const AI_COPY: Record<AiLang, {
     price: "Preț",
     hours: "Program",
     options: "Opțiuni",
+    reservation: "Rezervare",
+    reservationRequired: "Este necesară o rezervare în avans.",
+    reservationNotRequired: "Nu este necesară rezervarea.",
     available: "Da, acest serviciu este disponibil.",
     requestHint: "Îl puteți solicita direct din secțiunea indicată în hub.",
     clarify: "Vă rugăm să precizați ce anume aveți în vedere.",
@@ -80,6 +95,9 @@ export const AI_COPY: Record<AiLang, {
     price: "Cena",
     hours: "Otevírací doba",
     options: "Možnosti",
+    reservation: "Rezervace",
+    reservationRequired: "Je nutná předchozí rezervace.",
+    reservationNotRequired: "Rezervace není nutná.",
     available: "Ano, tato služba je k dispozici.",
     requestHint: "Můžete o ni požádat přímo v uvedené sekci hubu.",
     clarify: "Upřesněte prosím, co máte na mysli.",
@@ -94,6 +112,9 @@ export const AI_COPY: Record<AiLang, {
     price: "Цена",
     hours: "Часы работы",
     options: "Варианты",
+    reservation: "Бронирование",
+    reservationRequired: "Требуется предварительное бронирование.",
+    reservationNotRequired: "Бронирование не требуется.",
     available: "Да, эта услуга доступна.",
     requestHint: "Вы можете заказать её прямо в указанном разделе хаба.",
     clarify: "Пожалуйста, уточните, что именно вы имеете в виду.",

@@ -188,7 +188,20 @@ function venueRecord(venue: VenueRow, config: HotelConfig, index: number): AiCat
   for (const lang of AI_LANGS) {
     const shortDescription = clean(venue.shortDescriptionByLang?.[lang] || venue.shortDescription);
     const description = clean(venue.descriptionByLang?.[lang] || venue.description);
-    summaries[lang] = unique([shortDescription, description]).join("\n");
+    const cuisine = clean(venue.cuisineByLang?.[lang] || venue.cuisine);
+    const location = clean(venue.locationByLang?.[lang] || venue.location);
+    const programText = clean(venue.programTextByLang?.[lang] || venue.programText);
+    const ageGroup = clean(venue.ageGroupByLang?.[lang] || venue.ageGroup);
+    const reservationMessage = clean(venue.reservationMessageByLang?.[lang] || venue.reservationMessage);
+    summaries[lang] = unique([
+      shortDescription,
+      description,
+      cuisine,
+      location,
+      programText,
+      ageGroup,
+      reservationMessage,
+    ]).join("\n");
     pathByLang[lang] = pathFor(config, lang, sectionId, sectionLabel(config, lang, sectionId), titles[lang] || venue.name);
   }
 
@@ -207,6 +220,8 @@ function venueRecord(venue: VenueRow, config: HotelConfig, index: number): AiCat
     pathByLang,
     urls: unique([safeUrl(venue.menuUrl), safeUrl(venue.reservationUrl), safeUrl(venue.programUrl)]),
     hoursByLang,
+    requiresReservation: venue.requiresReservation,
+    reservationType: venue.reservationType,
   };
 }
 

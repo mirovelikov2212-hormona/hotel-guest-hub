@@ -266,6 +266,14 @@ function pickBoolean(map: Record<string, string>, key: string, fallback = false)
   return fallback;
 }
 
+function parseOptionalBoolean(value: string): boolean | undefined {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (["yes", "true", "1", "on", "enabled", "ja", "да"].includes(normalized)) return true;
+  if (["no", "false", "0", "off", "disabled", "nein", "не"].includes(normalized)) return false;
+  return undefined;
+}
+
 function pickNumber(map: Record<string, string>, key: string, fallback: number): number {
   const parsed = Number(pick(map, key, "").replace(",", "."));
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -725,8 +733,8 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
       phone: readCell(row, ["Phone", "phone"]),
       open: readCell(row, ["Open", "open"]),
       close: readCell(row, ["Close", "close"]),
-      requiresReservation: ["yes", "true", "1"].includes(
-        readCell(row, ["Requires Reservation", "requiresReservation", "requires_reservation"]).toLowerCase()
+      requiresReservation: parseOptionalBoolean(
+        readCell(row, ["Requires Reservation", "requiresReservation", "requires_reservation"])
       ),
       active: !["no", "false", "0"].includes(readCell(row, ["Active", "active"]).toLowerCase()),
       aiVisible: !["no", "false", "0"].includes(readCell(row, ["AI Visible", "ai_visible", "aiVisible"]).toLowerCase() || "yes"),
