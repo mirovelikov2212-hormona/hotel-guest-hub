@@ -1892,6 +1892,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const aiConversationRef = useRef<HTMLDivElement | null>(null);
   const aiRequestSeqRef = useRef(0);
   const [openQuickServiceId, setOpenQuickServiceId] = useState<string | null>(null);
+  const [aiRequestNavigation, setAiRequestNavigation] = useState<{
+    targetId: string;
+    sectionId: string;
+    groupId: string | null;
+    nonce: number;
+  } | null>(null);
 
   const AI_RESET_AFTER_MS = 5 * 60 * 1000;
 
@@ -4509,7 +4515,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           label,
           kind: "link" as const,
           onClick: () => handleRequestDefClick(def),
-        };
+          requestDef: def,
+        } as any;
       });
   }
   const taxiProviders = config.taxiProviders ?? [];
@@ -5254,6 +5261,53 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     return actions.slice(0, 3);
   }
 
+  function getAiRequestNavigationTarget(def: RequestDef) {
+    const targetId = String(def.id || def.requestType || "").trim();
+    const matchesDef = (candidate?: RequestDef | null) => {
+      if (!candidate) return false;
+      const candidateId = String(candidate.id || "").trim();
+      const candidateType = String(candidate.requestType || "").trim();
+      return candidateId === targetId || candidateType === targetId;
+    };
+
+    const isSpaRequest = spaRequestDefItems.some((item) =>
+      matchesDef((item as any)?.requestDef as RequestDef | undefined)
+    );
+
+    if (isSpaRequest) {
+      return { sectionId: "outlets", groupId: "food_entertainment" };
+    }
+
+    const matchingSection = sections.find((section) =>
+      section.items.some((item) =>
+        matchesDef((item as any)?.requestDef as RequestDef | undefined)
+      )
+    );
+
+    const fallbackSectionId = String(def.category || def.targetDepartment || "")
+      .trim()
+      .toLowerCase();
+    const sectionId = String(matchingSection?.id || fallbackSectionId || "").trim();
+
+    if (["wifi", "reception", "housekeeping", "maintenance"].includes(sectionId)) {
+      return { sectionId, groupId: null };
+    }
+
+    if (["info", "weather"].includes(sectionId)) {
+      return { sectionId, groupId: "hotel_stay" };
+    }
+
+    if (["outlets", "animation", "world_cup"].includes(sectionId)) {
+      return { sectionId, groupId: "food_entertainment" };
+    }
+
+    if (["reviews", "social"].includes(sectionId)) {
+      return { sectionId, groupId: "reviews_social" };
+    }
+
+    return { sectionId, groupId: "more_services" };
+  }
+
   function handleAiAction(action: AiChatAction) {
     trackGuestEvent({
       eventName: "ai_action_clicked",
@@ -5270,8 +5324,27 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
     window.setTimeout(() => {
       if (action.kind === "request_def") {
-        const def = requestDefs.find((item) => String(item.id || "").trim() === action.targetId);
-        if (def) handleRequestDefClick(def);
+        const def = requestDefs.find((item) => {
+          const id = String(item.id || "").trim();
+          const requestType = String(item.requestType || "").trim();
+          return id === action.targetId || requestType === action.targetId;
+        });
+
+        if (!def) return;
+
+        const navigationTarget = getAiRequestNavigationTarget(def);
+        if (!navigationTarget.sectionId) return;
+
+        if (["wifi", "reception", "housekeeping", "maintenance"].includes(navigationTarget.sectionId)) {
+          setOpenQuickServiceId(navigationTarget.sectionId);
+        }
+
+        setAiRequestNavigation((previous) => ({
+          targetId: String(def.id || def.requestType || action.targetId).trim(),
+          sectionId: navigationTarget.sectionId,
+          groupId: navigationTarget.groupId,
+          nonce: (previous?.nonce || 0) + 1,
+        }));
         return;
       }
 
@@ -6827,6 +6900,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           getQuantityButtonLabel={getQuantityButtonLabel}
           submitRequestDefQuantityChoice={submitRequestDefQuantityChoice}
           submitRequestDefSelectionOption={submitRequestDefSelectionOption}
+          focusRequestDefId={aiRequestNavigation?.sectionId === sec.id ? aiRequestNavigation.targetId : null}
+          focusRequestNonce={aiRequestNavigation?.sectionId === sec.id ? aiRequestNavigation.nonce : 0}
           onTrack={trackGuestEvent}
         />
       );
@@ -6856,6 +6931,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         getQuantityButtonLabel={getQuantityButtonLabel}
         submitRequestDefQuantityChoice={submitRequestDefQuantityChoice}
         submitRequestDefSelectionOption={submitRequestDefSelectionOption}
+        focusRequestDefId={aiRequestNavigation?.sectionId === sec.id ? aiRequestNavigation.targetId : null}
+        focusRequestNonce={aiRequestNavigation?.sectionId === sec.id ? aiRequestNavigation.nonce : 0}
         onCloseAi={clearAiState}
         onTrack={trackGuestEvent}
         defaultOpen={options?.defaultOpen}
@@ -7281,6 +7358,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             <SectionGroupAccordion
               id="hotel_stay"
               title={`🏨 ${guestNavigationLabel("hotel_stay_title", guestNavCopy.hotelStay)}`}
+              forceOpenToken={aiRequestNavigation?.groupId === "hotel_stay" ? aiRequestNavigation.nonce : 0}
               onTrack={trackGuestEvent}
             >
               {hotelStaySections.map((section) => renderHubSection(section, { keyPrefix: "hotel-stay" }))}
@@ -7291,6 +7369,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             <SectionGroupAccordion
               id="food_entertainment"
               title={`🍽️ ${guestNavigationLabel("food_entertainment_title", guestNavCopy.foodEntertainment)}`}
+              forceOpenToken={aiRequestNavigation?.groupId === "food_entertainment" ? aiRequestNavigation.nonce : 0}
               onTrack={trackGuestEvent}
             >
               {foodEntertainmentSections.map((section) =>
@@ -7307,6 +7386,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             <SectionGroupAccordion
               id="reviews_social"
               title={`⭐ ${guestNavigationLabel("reviews_social_title", guestNavCopy.reviewsSocial)}`}
+              forceOpenToken={aiRequestNavigation?.groupId === "reviews_social" ? aiRequestNavigation.nonce : 0}
               onTrack={trackGuestEvent}
             >
               {reviewSocialSections.map((section) =>
@@ -7319,6 +7399,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             <SectionGroupAccordion
               id="more_services"
               title={`➕ ${guestNavigationLabel("more_services_title", guestNavCopy.more)}`}
+              forceOpenToken={aiRequestNavigation?.groupId === "more_services" ? aiRequestNavigation.nonce : 0}
               onTrack={trackGuestEvent}
             >
               {remainingSections.map((section) =>
@@ -7558,14 +7639,20 @@ function SectionGroupAccordion({
   id,
   title,
   children,
+  forceOpenToken = 0,
   onTrack,
 }: {
   id: string;
   title: string;
   children: ReactNode;
+  forceOpenToken?: number;
   onTrack: (payload: TrackHubPayload) => void;
 }) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (forceOpenToken > 0) setOpen(true);
+  }, [forceOpenToken]);
 
   return (
     <div className="overflow-hidden rounded-2xl stayhub-section-shell">
@@ -7622,6 +7709,8 @@ function Accordion({
   getQuantityButtonLabel,
   submitRequestDefQuantityChoice,
   submitRequestDefSelectionOption,
+  focusRequestDefId = null,
+  focusRequestNonce = 0,
   onCloseAi,
   onTrack,
   defaultOpen = false,
@@ -7648,6 +7737,8 @@ function Accordion({
   getQuantityButtonLabel: (def: RequestDef, qty: number) => string;
   submitRequestDefQuantityChoice: (def: RequestDef, qty: number) => void;
   submitRequestDefSelectionOption: (def: RequestDef, option: string, optionIndex: number) => void;
+  focusRequestDefId?: string | null;
+  focusRequestNonce?: number;
   onCloseAi?: () => void;
   onTrack: (payload: TrackHubPayload) => void;
   defaultOpen?: boolean;
@@ -7656,6 +7747,42 @@ function Accordion({
   const [open, setOpen] = useState(defaultOpen);
   const [openRequestDefId, setOpenRequestDefId] = useState<string | null>(null);
   const [openInfoItemKey, setOpenInfoItemKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!focusRequestDefId || focusRequestNonce <= 0) return;
+
+    const targetIndex = section.items.findIndex((item) => {
+      const def = (item as any)?.requestDef as RequestDef | undefined;
+      if (!def) return false;
+      const id = String(def.id || "").trim();
+      const requestType = String(def.requestType || "").trim();
+      return id === focusRequestDefId || requestType === focusRequestDefId;
+    });
+
+    if (targetIndex < 0) return;
+
+    const targetItem = section.items[targetIndex] as any;
+    const targetDef = targetItem.requestDef as RequestDef | undefined;
+    if (!targetDef) return;
+
+    setOpen(true);
+
+    if (targetItem.kind === "request_def") {
+      setOpenRequestDefId(
+        `${String(targetDef.id || targetDef.requestType || "request")}-${targetIndex}`
+      );
+    }
+
+    window.setTimeout(() => {
+      const nodes = Array.from(
+        document.querySelectorAll<HTMLElement>("[data-stayhub-request-def-id]")
+      );
+      const targetNode = nodes.find(
+        (node) => node.dataset.stayhubRequestDefId === focusRequestDefId
+      );
+      targetNode?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 160);
+  }, [focusRequestDefId, focusRequestNonce, section.id]);
 
   return (
     <div className="rounded-2xl overflow-hidden stayhub-section-shell">
@@ -7813,7 +7940,11 @@ function Accordion({
                   const isQuickOpen = openRequestDefId === quickKey;
 
                   return (
-                    <div key={quickKey} className="rounded-xl stayhub-card overflow-hidden text-sm">
+                    <div
+                      key={quickKey}
+                      data-stayhub-request-def-id={String(def.id || def.requestType || "").trim()}
+                      className="rounded-xl stayhub-card overflow-hidden text-sm"
+                    >
                       <button
                         type="button"
                         onClick={() => {
@@ -7982,10 +8113,15 @@ function Accordion({
                 }
 
                 if (it.kind === "link" && it.onClick) {
+                  const linkedRequestDef = (it as any)?.requestDef as RequestDef | undefined;
+
                   return (
                     <button
                       key={idx}
                       type="button"
+                      data-stayhub-request-def-id={String(
+                        linkedRequestDef?.id || linkedRequestDef?.requestType || ""
+                      ).trim() || undefined}
                       onClick={() => {
                         onTrack({
                           eventName: "button_clicked",
@@ -8134,6 +8270,8 @@ function OutletsAccordion({
   getQuantityButtonLabel,
   submitRequestDefQuantityChoice,
   submitRequestDefSelectionOption,
+  focusRequestDefId = null,
+  focusRequestNonce = 0,
   onTrack,
 }: {
   section: HubSection;
@@ -8158,6 +8296,8 @@ function OutletsAccordion({
   getQuantityButtonLabel: (def: RequestDef, qty: number) => string;
   submitRequestDefQuantityChoice: (def: RequestDef, qty: number) => void;
   submitRequestDefSelectionOption: (def: RequestDef, option: string, optionIndex: number) => void;
+  focusRequestDefId?: string | null;
+  focusRequestNonce?: number;
   onTrack: (payload: TrackHubPayload) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -8165,6 +8305,53 @@ function OutletsAccordion({
   const [openVenue, setOpenVenue] = useState<string | null>(null);
   const [openSpaRequestDefId, setOpenSpaRequestDefId] = useState<string | null>(null);
   const pathname = usePathname();
+
+  useEffect(() => {
+    if (!focusRequestDefId || focusRequestNonce <= 0) return;
+
+    const targetIndex = spaRequestItems.findIndex((item) => {
+      const def = (item as any)?.requestDef as RequestDef | undefined;
+      if (!def) return false;
+      const id = String(def.id || "").trim();
+      const requestType = String(def.requestType || "").trim();
+      return id === focusRequestDefId || requestType === focusRequestDefId;
+    });
+
+    if (targetIndex < 0) return;
+
+    const targetItem = spaRequestItems[targetIndex] as any;
+    const targetDef = targetItem.requestDef as RequestDef | undefined;
+    if (!targetDef) return;
+
+    const spaGroup = groups.find((group) => group.category === "spa" && group.venues.length > 0);
+    if (!spaGroup) return;
+
+    setOpen(true);
+    setOpenCategory(spaGroup.category);
+
+    if (spaGroup.venues.length > 1) {
+      const firstSpaVenue = spaGroup.venues[0];
+      setOpenVenue(
+        `${spaGroup.category}-${firstSpaVenue.name || getVenueText(firstSpaVenue, "name", lang)}-0`
+      );
+    } else {
+      setOpenVenue(null);
+    }
+
+    setOpenSpaRequestDefId(
+      `spa-${String(targetDef.id || targetDef.requestType || "request")}-${targetIndex}`
+    );
+
+    window.setTimeout(() => {
+      const nodes = Array.from(
+        document.querySelectorAll<HTMLElement>("[data-stayhub-request-def-id]")
+      );
+      const targetNode = nodes.find(
+        (node) => node.dataset.stayhubRequestDefId === focusRequestDefId
+      );
+      targetNode?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 220);
+  }, [focusRequestDefId, focusRequestNonce]);
 
   const guestUiStateKey = useMemo(
     () => `guesthub-ui:${pathname}`,
@@ -8218,7 +8405,11 @@ function OutletsAccordion({
     const isQuickOpen = openSpaRequestDefId === quickKey;
 
     return (
-      <div key={quickKey} className="rounded-xl stayhub-card overflow-hidden text-sm">
+      <div
+        key={quickKey}
+        data-stayhub-request-def-id={String(def.id || def.requestType || "").trim()}
+        className="rounded-xl stayhub-card overflow-hidden text-sm"
+      >
         <button
           type="button"
           onClick={() => {
