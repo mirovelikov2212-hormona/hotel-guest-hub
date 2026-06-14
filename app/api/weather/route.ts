@@ -49,7 +49,10 @@ type GoogleDailyForecast = {
 };
 
 function toFiniteNumber(value: string | null): number | null {
-  const parsed = Number(String(value ?? "").trim().replace(",", "."));
+  const normalized = String(value ?? "").trim().replace(",", ".");
+  if (!normalized) return null;
+
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -59,6 +62,14 @@ function isValidLatitude(value: number | null): value is number {
 
 function isValidLongitude(value: number | null): value is number {
   return value !== null && value >= -180 && value <= 180;
+}
+
+function hasUsableCoordinates(latitude: number | null, longitude: number | null) {
+  return (
+    isValidLatitude(latitude) &&
+    isValidLongitude(longitude) &&
+    !(latitude === 0 && longitude === 0)
+  );
 }
 
 async function fetchJson(url: string, revalidateSeconds = 600) {
@@ -124,6 +135,28 @@ function googleDisplayDateToIso(displayDate?: GoogleForecastDay["displayDate"]):
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+function isoDateInTimeZone(date: Date, timeZone: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(date);
+
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    const year = values.year;
+    const month = values.month;
+    const day = values.day;
+
+    if (year && month && day) return `${year}-${month}-${day}`;
+  } catch {
+    // Fall through to UTC below if an invalid time zone is ever supplied.
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
 function maxFinite(...values: unknown[]): number | null {
   const finite = values.map(Number).filter(Number.isFinite);
   return finite.length ? Math.max(...finite) : null;
@@ -157,16 +190,18 @@ async function loadGoogleWeather({
   dailyUrl.searchParams.set("location.longitude", String(longitude));
   dailyUrl.searchParams.set("unitsSystem", "METRIC");
   dailyUrl.searchParams.set("languageCode", "en");
-  dailyUrl.searchParams.set("days", "4");
-  dailyUrl.searchParams.set("pageSize", "4");
+  dailyUrl.searchParams.set("days", "5");
+  dailyUrl.searchParams.set("pageSize", "5");
 
   const [currentData, dailyData] = (await Promise.all([
     fetchJson(currentUrl.toString(), 600),
     fetchJson(dailyUrl.toString(), 600),
   ])) as [GoogleCurrentConditions, GoogleDailyForecast];
 
+  const timezone = currentData?.timeZone?.id || dailyData?.timeZone?.id || requestedTimezone;
+  const localToday = isoDateInTimeZone(new Date(), timezone);
+
   const forecast = (Array.isArray(dailyData?.forecastDays) ? dailyData.forecastDays : [])
-    .slice(0, 4)
     .map((day) => ({
       date: googleDisplayDateToIso(day.displayDate),
       weatherCode: googleConditionToWeatherCode(
@@ -183,7 +218,8 @@ async function loadGoogleWeather({
         day.nighttimeForecast?.precipitation?.probability?.percent
       ),
     }))
-    .filter((day) => day.date);
+    .filter((day) => day.date && day.date >= localToday)
+    .slice(0, 4);
 
   return {
     ok: true,
@@ -192,7 +228,7 @@ async function loadGoogleWeather({
     place: place || locationQuery || "Hotel",
     latitude,
     longitude,
-    timezone: currentData?.timeZone?.id || dailyData?.timeZone?.id || requestedTimezone,
+    timezone,
     sourceUrl: "https://developers.google.com/maps/documentation/weather",
     updatedAt: currentData?.currentTime || new Date().toISOString(),
     current: {
@@ -316,7 +352,7 @@ export async function GET(request: NextRequest) {
     let place = String(params.get("place") || "").trim();
     const requestedTimezone = String(params.get("tz") || "Europe/Sofia").trim() || "Europe/Sofia";
 
-    if (!isValidLatitude(latitude) || !isValidLongitude(longitude)) {
+    if (!hasUsableCoordinates(latitude, longitude)) {
       if (!locationQuery) {
         return NextResponse.json(
           { ok: false, error: "missing_hotel_location" },
@@ -341,25 +377,36 @@ export async function GET(request: NextRequest) {
       process.env.GOOGLE_WEATHER_API_KEY || process.env.GOOGLE_MAPS_API_KEY || ""
     ).trim();
 
+    if (latitude === null || longitude === null) {
+      throw new Error("Valid hotel coordinates are required for weather.");
+    }
+
+    const weatherLatitude: number = latitude;
+    const weatherLongitude: number = longitude;
+
     if (googleApiKey) {
       try {
         const googleWeather = await loadGoogleWeather({
-          latitude,
-          longitude,
+          latitude: weatherLatitude,
+          longitude: weatherLongitude,
           requestedTimezone,
           place,
           locationQuery,
           apiKey: googleApiKey,
         });
+
         return NextResponse.json(googleWeather);
       } catch (googleError) {
-        console.warn("Google Weather API failed; using Open-Meteo fallback", googleError);
+        console.warn(
+          "Google Weather API failed; using Open-Meteo fallback",
+          googleError
+        );
       }
     }
 
     const fallbackWeather = await loadOpenMeteoWeather({
-      latitude,
-      longitude,
+      latitude: weatherLatitude,
+      longitude: weatherLongitude,
       requestedTimezone,
       place,
       locationQuery,
