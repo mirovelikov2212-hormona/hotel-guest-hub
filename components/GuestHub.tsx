@@ -104,6 +104,7 @@ import type { HotelConfig, LangKey, HubSection, DepartmentKey, HubItem, RequestD
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { persistQrContextFromUrl, trackHubEvent, type TrackHubPayload } from "@/lib/trackHubEvent";
 import InstallAppButton from "@/components/InstallAppButton";
+import MassageBookingSection from "@/components/MassageBookingSection";
 import {
   buildWhatsAppLink,
   isAfterCutoffLocal,
@@ -1912,6 +1913,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   }, []);
 
   const sp = useSearchParams();
+  const massageHubPreviewEnabled = useMemo(() => {
+    const value = String(sp.get("massageFlow") || "").trim().toLowerCase();
+    return ["1", "true", "yes", "show"].includes(value);
+  }, [sp]);
   const qrRoom = normalizeRoomNumber(sp.get("room"));
   const forceGuestIntro = useMemo(() => {
     const value = String(sp.get("intro") || "").trim().toLowerCase();
@@ -4601,7 +4606,17 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       }
       : null;
 
-  const spaRequestDefItems = buildRequestDefItems("spa");
+  const massageBookingDef = requestDefs.find((def) => isMassageRequestDef(def)) || null;
+  const massageBookingPreviewVisible =
+    massageHubPreviewEnabled && Boolean(massageBookingDef) && Boolean(hotelContentSlug);
+
+  // During the protected Guest Hub preview, Aquamarine's Spa Center keeps only
+  // its venue information and working hours. Massage selection moves into the
+  // separate top-level “Book a massage” section below.
+  const spaRequestDefItems =
+    massageBookingPreviewVisible && isAquamarineHotel
+      ? []
+      : buildRequestDefItems("spa");
 
   const buildStaffMessage = (msgKey: string, filledOPS?: string, filledHELP?: string) => {
     const baseOPS = filledOPS ?? String(tOPS(msgKey));
@@ -5269,6 +5284,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       const candidateType = String(candidate.requestType || "").trim();
       return candidateId === targetId || candidateType === targetId;
     };
+
+    if (massageBookingPreviewVisible && isMassageRequestDef(def)) {
+      return { sectionId: "massage_booking", groupId: null };
+    }
 
     const isSpaRequest = spaRequestDefItems.some((item) =>
       matchesDef((item as any)?.requestDef as RequestDef | undefined)
@@ -7352,6 +7371,19 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 </div>
               ) : null}
             </section>
+          ) : null}
+
+          {massageBookingPreviewVisible ? (
+            <MassageBookingSection
+              hotelSlug={hotelContentSlug}
+              language={lang}
+              forceOpenToken={
+                aiRequestNavigation?.sectionId === "massage_booking"
+                  ? aiRequestNavigation.nonce
+                  : 0
+              }
+              onTrack={trackGuestEvent}
+            />
           ) : null}
 
           {hotelStaySections.length ? (
