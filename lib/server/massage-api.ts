@@ -67,6 +67,7 @@ export type MassageBookableDate = {
   availableCount: number;
   firstAvailableTime: string;
   lastAvailableTime: string;
+  availableTimes?: string[];
 };
 
 export type MassageBookableDatesResult = {

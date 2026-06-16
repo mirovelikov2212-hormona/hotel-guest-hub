@@ -24,6 +24,7 @@ type BookableDate = {
   availableCount: number;
   firstAvailableTime: string;
   lastAvailableTime: string;
+  availableTimes?: string[];
 };
 
 type ApiEnvelope<T> = {
@@ -71,6 +72,7 @@ type MassageCopy = {
   readOnlyNotice: string;
   reset: string;
   change: string;
+  changeService: string;
 };
 
 const COPY: Record<LangKey, MassageCopy> = {
@@ -95,6 +97,7 @@ const COPY: Record<LangKey, MassageCopy> = {
     readOnlyNotice: "Защитен преглед: резервация все още не се изпраща.",
     reset: "Нов избор",
     change: "Промени",
+    changeService: "Промени масажа",
   },
   en: {
     sectionTitle: "Book a massage",
@@ -117,6 +120,7 @@ const COPY: Record<LangKey, MassageCopy> = {
     readOnlyNotice: "Protected preview: no booking is submitted yet.",
     reset: "Start again",
     change: "Change",
+    changeService: "Change massage",
   },
   de: {
     sectionTitle: "Massage buchen",
@@ -139,6 +143,7 @@ const COPY: Record<LangKey, MassageCopy> = {
     readOnlyNotice: "Geschützte Vorschau: Es wird noch keine Buchung gesendet.",
     reset: "Neue Auswahl",
     change: "Ändern",
+    changeService: "Massage ändern",
   },
   ro: {
     sectionTitle: "Rezervă un masaj",
@@ -161,6 +166,7 @@ const COPY: Record<LangKey, MassageCopy> = {
     readOnlyNotice: "Previzualizare protejată: rezervarea nu este încă trimisă.",
     reset: "Selecție nouă",
     change: "Schimbați",
+    changeService: "Schimbați masajul",
   },
   cs: {
     sectionTitle: "Rezervovat masáž",
@@ -183,6 +189,7 @@ const COPY: Record<LangKey, MassageCopy> = {
     readOnlyNotice: "Chráněný náhled: rezervace se zatím neodesílá.",
     reset: "Nový výběr",
     change: "Změnit",
+    changeService: "Změnit masáž",
   },
   ru: {
     sectionTitle: "Забронировать массаж",
@@ -205,6 +212,7 @@ const COPY: Record<LangKey, MassageCopy> = {
     readOnlyNotice: "Защищённый просмотр: бронирование пока не отправляется.",
     reset: "Новый выбор",
     change: "Изменить",
+    changeService: "Изменить массаж",
   },
 };
 
@@ -273,6 +281,75 @@ async function fetchMassageApi<T>(params: URLSearchParams, signal?: AbortSignal)
   return payload.result;
 }
 
+const CACHE_TTL = {
+  services: 30 * 60 * 1000,
+  dates: 30 * 1000,
+  times: 15 * 1000,
+};
+
+type CacheEntry<T> = {
+  expiresAt: number;
+  value: T;
+};
+
+const memoryCache = new Map<string, CacheEntry<unknown>>();
+
+function readMassageCache<T>(key: string): T | null {
+  const now = Date.now();
+  const memoryEntry = memoryCache.get(key) as CacheEntry<T> | undefined;
+
+  if (memoryEntry && memoryEntry.expiresAt > now) {
+    return memoryEntry.value;
+  }
+
+  if (memoryEntry) {
+    memoryCache.delete(key);
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as CacheEntry<T>;
+    if (!parsed || parsed.expiresAt <= now) {
+      window.sessionStorage.removeItem(key);
+      return null;
+    }
+
+    memoryCache.set(key, parsed as CacheEntry<unknown>);
+    return parsed.value;
+  } catch {
+    return null;
+  }
+}
+
+function writeMassageCache<T>(key: string, value: T, ttlMs: number) {
+  const entry: CacheEntry<T> = {
+    expiresAt: Date.now() + ttlMs,
+    value,
+  };
+
+  memoryCache.set(key, entry as CacheEntry<unknown>);
+
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify(entry));
+  } catch {
+    // The in-memory cache still works when sessionStorage is unavailable.
+  }
+}
+
+function servicesCacheKey(hotelSlug: string) {
+  return `stayhub:massage:services:${hotelSlug}`;
+}
+
+function datesCacheKey(hotelSlug: string, serviceId: string, fromDate: string) {
+  return `stayhub:massage:dates:${hotelSlug}:${serviceId}:${fromDate}`;
+}
+
+function timesCacheKey(hotelSlug: string, serviceId: string, date: string) {
+  return `stayhub:massage:times:${hotelSlug}:${serviceId}:${date}`;
+}
+
 const normalCardStyle = {
   backgroundColor: "color-mix(in srgb, var(--stayhub-soft) 92%, white 8%)",
   borderColor: "color-mix(in srgb, var(--stayhub-action) 42%, transparent)",
@@ -328,12 +405,25 @@ export default function MassageBookingSection({
     [dates, selectedDate]
   );
 
+  const sectionSubtitle = selectedService && !serviceStepExpanded
+    ? `${serviceName(selectedService, lang)} · ${selectedService.durationMinutes} ${copy.minutes} · ${selectedService.price.toFixed(2)} ${selectedService.currency}`
+    : copy.sectionSubtitle;
+
   const scrollToSection = (target: HTMLElement | null) => {
     if (!target) return;
     window.setTimeout(() => target.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   };
 
   const loadServices = useCallback(async (signal?: AbortSignal) => {
+    const cacheKey = servicesCacheKey(hotelSlug);
+    const cached = readMassageCache<ServicesResult>(cacheKey);
+
+    if (cached) {
+      setServices(cached.services || []);
+      setServicesLoaded(true);
+      return;
+    }
+
     setLoadingServices(true);
     setError("");
 
@@ -344,6 +434,7 @@ export default function MassageBookingSection({
       );
       setServices(result.services || []);
       setServicesLoaded(true);
+      writeMassageCache(cacheKey, result, CACHE_TTL.services);
     } catch (loadError) {
       if (loadError instanceof DOMException && loadError.name === "AbortError") return;
       setError(loadError instanceof Error ? loadError.message : "Unable to load massages.");
@@ -370,15 +461,19 @@ export default function MassageBookingSection({
   }, [forceOpenToken]);
 
   const chooseService = async (serviceId: string) => {
+    const fromDate = getSofiaIsoDate();
+    const cacheKey = datesCacheKey(hotelSlug, serviceId, fromDate);
+    const cached = readMassageCache<BookableDatesResult>(cacheKey);
+
     setSelectedServiceId(serviceId);
-    setDates([]);
+    setDates(cached?.dates || []);
     setSelectedDate("");
     setTimes([]);
     setSelectedTime("");
     setServiceStepExpanded(false);
     setDateStepExpanded(true);
     setTimeStepExpanded(true);
-    setLoadingDates(true);
+    setLoadingDates(!cached);
     setError("");
 
     onTrack({
@@ -391,17 +486,23 @@ export default function MassageBookingSection({
       value: serviceId,
     });
 
+    if (cached) {
+      scrollToSection(dateSectionRef.current);
+      return;
+    }
+
     try {
       const result = await fetchMassageApi<BookableDatesResult>(
         new URLSearchParams({
           hotelSlug,
           action: "bookable_dates",
           serviceId,
-          fromDate: getSofiaIsoDate(),
+          fromDate,
           daysAhead: "14",
         })
       );
       setDates(result.dates || []);
+      writeMassageCache(cacheKey, result, CACHE_TTL.dates);
       scrollToSection(dateSectionRef.current);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load dates.");
@@ -413,12 +514,20 @@ export default function MassageBookingSection({
   const chooseDate = async (date: string) => {
     if (!selectedServiceId) return;
 
+    const selectedDateOption = dates.find((item) => item.date === date);
+    const cacheKey = timesCacheKey(hotelSlug, selectedServiceId, date);
+    const embeddedTimes = Array.isArray(selectedDateOption?.availableTimes)
+      ? selectedDateOption.availableTimes
+      : null;
+    const cachedTimes = readMassageCache<string[]>(cacheKey);
+    const immediatelyAvailableTimes = embeddedTimes || cachedTimes;
+
     setSelectedDate(date);
-    setTimes([]);
+    setTimes(immediatelyAvailableTimes || []);
     setSelectedTime("");
     setDateStepExpanded(false);
     setTimeStepExpanded(true);
-    setLoadingTimes(true);
+    setLoadingTimes(!immediatelyAvailableTimes);
     setError("");
 
     onTrack({
@@ -431,6 +540,12 @@ export default function MassageBookingSection({
       value: date,
     });
 
+    if (immediatelyAvailableTimes) {
+      writeMassageCache(cacheKey, immediatelyAvailableTimes, CACHE_TTL.times);
+      scrollToSection(timeSectionRef.current);
+      return;
+    }
+
     try {
       const result = await fetchMassageApi<AvailabilityResult>(
         new URLSearchParams({
@@ -440,7 +555,9 @@ export default function MassageBookingSection({
           date,
         })
       );
-      setTimes(result.availableTimes || []);
+      const availableTimes = result.availableTimes || [];
+      setTimes(availableTimes);
+      writeMassageCache(cacheKey, availableTimes, CACHE_TTL.times);
       scrollToSection(timeSectionRef.current);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load times.");
@@ -500,7 +617,7 @@ export default function MassageBookingSection({
       >
         <div>
           <div className="text-base font-semibold">💆 {copy.sectionTitle}</div>
-          <div className="mt-1 text-xs opacity-85">{copy.sectionSubtitle}</div>
+          <div className="mt-1 text-xs opacity-85">{sectionSubtitle}</div>
         </div>
         <div className="text-lg">{open ? "▴" : "▾"}</div>
       </button>
@@ -520,6 +637,7 @@ export default function MassageBookingSection({
             </div>
           ) : null}
 
+          {!selectedService || serviceStepExpanded ? (
           <section className="rounded-2xl border p-3" style={{ borderColor: "var(--stayhub-action)", backgroundColor: "var(--stayhub-soft)", color: "#202627" }}>
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-bold">{copy.chooseService}</h3>
@@ -568,6 +686,22 @@ export default function MassageBookingSection({
               <div className="mt-3 text-sm opacity-70">{copy.noServices}</div>
             )}
           </section>
+
+          ) : (
+            <div className="mb-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setServiceStepExpanded(true);
+                  scrollToSection(sectionRef.current);
+                }}
+                className="rounded-full border bg-white px-3 py-2 text-xs font-bold"
+                style={{ borderColor: "var(--stayhub-action)", color: "var(--stayhub-primary)" }}
+              >
+                {copy.changeService}
+              </button>
+            </div>
+          )}
 
           {selectedService ? (
             <section
