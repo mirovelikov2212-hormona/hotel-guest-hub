@@ -353,11 +353,13 @@ export default function MassageBookingSection({
   }, [hotelSlug]);
 
   useEffect(() => {
-    if (!open || servicesLoaded || loadingServices) return;
+    if (!open || servicesLoaded) return;
+
     const controller = new AbortController();
     void loadServices(controller.signal);
+
     return () => controller.abort();
-  }, [loadServices, loadingServices, open, servicesLoaded]);
+  }, [loadServices, open, servicesLoaded]);
 
   useEffect(() => {
     if (forceOpenToken <= 0) return;
