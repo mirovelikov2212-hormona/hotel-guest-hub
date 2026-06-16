@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type LangKey = "bg" | "en" | "de" | "ro" | "cs" | "ru";
 
@@ -88,6 +88,7 @@ const COPY: Record<
     time: string;
     readOnlyNotice: string;
     reset: string;
+    change: string;
   }
 > = {
   bg: {
@@ -111,6 +112,7 @@ const COPY: Record<
     time: "Час",
     readOnlyNotice: "Това е тестов преглед. Резервация не се изпраща.",
     reset: "Нов избор",
+    change: "Промени",
   },
   en: {
     title: "Massages",
@@ -133,6 +135,7 @@ const COPY: Record<
     time: "Time",
     readOnlyNotice: "This is a test preview. No booking is submitted.",
     reset: "Start again",
+    change: "Change",
   },
   de: {
     title: "Massagen",
@@ -155,6 +158,7 @@ const COPY: Record<
     time: "Uhrzeit",
     readOnlyNotice: "Dies ist eine Testansicht. Es wird keine Buchung gesendet.",
     reset: "Neue Auswahl",
+    change: "Ändern",
   },
   ro: {
     title: "Masaje",
@@ -177,6 +181,7 @@ const COPY: Record<
     time: "Ora",
     readOnlyNotice: "Aceasta este o previzualizare de test. Rezervarea nu este trimisă.",
     reset: "Selecție nouă",
+    change: "Schimbați",
   },
   cs: {
     title: "Masáže",
@@ -199,6 +204,7 @@ const COPY: Record<
     time: "Čas",
     readOnlyNotice: "Toto je testovací náhled. Rezervace se neodesílá.",
     reset: "Nový výběr",
+    change: "Změnit",
   },
   ru: {
     title: "Массажи",
@@ -221,6 +227,7 @@ const COPY: Record<
     time: "Время",
     readOnlyNotice: "Это тестовый просмотр. Бронирование не отправляется.",
     reset: "Новый выбор",
+    change: "Изменить",
   },
 };
 
@@ -311,12 +318,30 @@ export default function MassageAvailabilityPreview({
   const [loadingDates, setLoadingDates] = useState(false);
   const [loadingTimes, setLoadingTimes] = useState(false);
   const [error, setError] = useState("");
+  const [serviceStepExpanded, setServiceStepExpanded] = useState(true);
+  const [dateStepExpanded, setDateStepExpanded] = useState(true);
+  const [timeStepExpanded, setTimeStepExpanded] = useState(true);
+  const dateSectionRef = useRef<HTMLElement | null>(null);
+  const timeSectionRef = useRef<HTMLElement | null>(null);
+  const summarySectionRef = useRef<HTMLElement | null>(null);
 
   const copy = COPY[language];
   const selectedService = useMemo(
     () => services.find((service) => service.serviceId === selectedServiceId) || null,
     [selectedServiceId, services]
   );
+
+  const selectedDateInfo = useMemo(
+    () => dates.find((item) => item.date === selectedDate) || null,
+    [dates, selectedDate]
+  );
+
+  const scrollToSection = (target: HTMLElement | null) => {
+    if (!target) return;
+    window.setTimeout(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  };
 
   const loadServices = useCallback(async (signal?: AbortSignal) => {
     setLoadingServices(true);
@@ -348,6 +373,9 @@ export default function MassageAvailabilityPreview({
     setSelectedDate("");
     setTimes([]);
     setSelectedTime("");
+    setServiceStepExpanded(false);
+    setDateStepExpanded(true);
+    setTimeStepExpanded(true);
     setLoadingDates(true);
     setError("");
 
@@ -362,6 +390,7 @@ export default function MassageAvailabilityPreview({
         })
       );
       setDates(result.dates || []);
+      scrollToSection(dateSectionRef.current);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load dates.");
     } finally {
@@ -375,6 +404,8 @@ export default function MassageAvailabilityPreview({
     setSelectedDate(date);
     setTimes([]);
     setSelectedTime("");
+    setDateStepExpanded(false);
+    setTimeStepExpanded(true);
     setLoadingTimes(true);
     setError("");
 
@@ -388,11 +419,18 @@ export default function MassageAvailabilityPreview({
         })
       );
       setTimes(result.availableTimes || []);
+      scrollToSection(timeSectionRef.current);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load times.");
     } finally {
       setLoadingTimes(false);
     }
+  };
+
+  const chooseTime = (time: string) => {
+    setSelectedTime(time);
+    setTimeStepExpanded(false);
+    scrollToSection(summarySectionRef.current);
   };
 
   const resetSelection = () => {
@@ -401,7 +439,11 @@ export default function MassageAvailabilityPreview({
     setSelectedDate("");
     setTimes([]);
     setSelectedTime("");
+    setServiceStepExpanded(true);
+    setDateStepExpanded(true);
+    setTimeStepExpanded(true);
     setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -453,8 +495,28 @@ export default function MassageAvailabilityPreview({
         ) : null}
 
         <section className="mt-4 rounded-3xl border border-[#43b5a1] bg-white p-4 shadow-sm">
-          <h2 className="text-base font-bold">{copy.chooseService}</h2>
-          {loadingServices ? (
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-bold">{copy.chooseService}</h2>
+            {selectedService && !serviceStepExpanded ? (
+              <button
+                type="button"
+                onClick={() => setServiceStepExpanded(true)}
+                className="rounded-full border border-[#43b5a1] px-3 py-1 text-xs font-bold text-[#286f63]"
+              >
+                {copy.change}
+              </button>
+            ) : null}
+          </div>
+
+          {selectedService && !serviceStepExpanded ? (
+            <div className="mt-3 rounded-2xl border border-[#202627] bg-[#43b5a1] p-3 text-white">
+              <div className="font-bold">{serviceName(selectedService, language)}</div>
+              <div className="mt-1 text-xs text-white/85">
+                {copy.duration}: {selectedService.durationMinutes} {copy.minutes} · {copy.price}:{" "}
+                {selectedService.price.toFixed(2)} {selectedService.currency}
+              </div>
+            </div>
+          ) : loadingServices ? (
             <div className="mt-3 text-sm text-[#596364]">{copy.loading}</div>
           ) : services.length ? (
             <div className="mt-3 grid gap-2">
@@ -473,7 +535,8 @@ export default function MassageAvailabilityPreview({
                   >
                     <div className="font-bold">{serviceName(service, language)}</div>
                     <div className={`mt-1 text-xs ${active ? "text-white/85" : "text-[#596364]"}`}>
-                      {copy.duration}: {service.durationMinutes} {copy.minutes} · {copy.price}: {service.price.toFixed(2)} {service.currency}
+                      {copy.duration}: {service.durationMinutes} {copy.minutes} · {copy.price}:{" "}
+                      {service.price.toFixed(2)} {service.currency}
                     </div>
                   </button>
                 );
@@ -485,9 +548,31 @@ export default function MassageAvailabilityPreview({
         </section>
 
         {selectedService ? (
-          <section className="mt-4 rounded-3xl border border-[#43b5a1] bg-white p-4 shadow-sm">
-            <h2 className="text-base font-bold">{copy.chooseDate}</h2>
-            {loadingDates ? (
+          <section
+            ref={dateSectionRef}
+            className="mt-4 scroll-mt-4 rounded-3xl border border-[#43b5a1] bg-white p-4 shadow-sm"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-bold">{copy.chooseDate}</h2>
+              {selectedDate && !dateStepExpanded ? (
+                <button
+                  type="button"
+                  onClick={() => setDateStepExpanded(true)}
+                  className="rounded-full border border-[#43b5a1] px-3 py-1 text-xs font-bold text-[#286f63]"
+                >
+                  {copy.change}
+                </button>
+              ) : null}
+            </div>
+
+            {selectedDate && selectedDateInfo && !dateStepExpanded ? (
+              <div className="mt-3 rounded-2xl border border-[#202627] bg-[#43b5a1] p-3 text-white">
+                <div className="font-bold">{formatDate(selectedDate, language)}</div>
+                <div className="mt-1 text-xs text-white/85">
+                  {selectedDateInfo.firstAvailableTime}–{selectedDateInfo.lastAvailableTime}
+                </div>
+              </div>
+            ) : loadingDates ? (
               <div className="mt-3 text-sm text-[#596364]">{copy.loading}</div>
             ) : dates.length ? (
               <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -519,9 +604,28 @@ export default function MassageAvailabilityPreview({
         ) : null}
 
         {selectedDate ? (
-          <section className="mt-4 rounded-3xl border border-[#43b5a1] bg-white p-4 shadow-sm">
-            <h2 className="text-base font-bold">{copy.chooseTime}</h2>
-            {loadingTimes ? (
+          <section
+            ref={timeSectionRef}
+            className="mt-4 scroll-mt-4 rounded-3xl border border-[#43b5a1] bg-white p-4 shadow-sm"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-bold">{copy.chooseTime}</h2>
+              {selectedTime && !timeStepExpanded ? (
+                <button
+                  type="button"
+                  onClick={() => setTimeStepExpanded(true)}
+                  className="rounded-full border border-[#43b5a1] px-3 py-1 text-xs font-bold text-[#286f63]"
+                >
+                  {copy.change}
+                </button>
+              ) : null}
+            </div>
+
+            {selectedTime && !timeStepExpanded ? (
+              <div className="mt-3 rounded-2xl border border-[#202627] bg-[#43b5a1] px-4 py-3 text-center text-lg font-bold text-white">
+                {selectedTime}
+              </div>
+            ) : loadingTimes ? (
               <div className="mt-3 text-sm text-[#596364]">{copy.loading}</div>
             ) : times.length ? (
               <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -531,7 +635,7 @@ export default function MassageAvailabilityPreview({
                     <button
                       key={time}
                       type="button"
-                      onClick={() => setSelectedTime(time)}
+                      onClick={() => chooseTime(time)}
                       className={`rounded-xl border px-3 py-2 text-center text-sm font-bold transition active:scale-[0.98] ${
                         active
                           ? "border-[#202627] bg-[#43b5a1] text-white"
@@ -550,7 +654,10 @@ export default function MassageAvailabilityPreview({
         ) : null}
 
         {selectedService && selectedDate && selectedTime ? (
-          <section className="mt-4 rounded-3xl border-2 border-[#202627] bg-[#43b5a1] p-4 text-white shadow-sm">
+          <section
+            ref={summarySectionRef}
+            className="mt-4 scroll-mt-4 rounded-3xl border-2 border-[#202627] bg-[#43b5a1] p-4 text-white shadow-sm"
+          >
             <h2 className="text-lg font-bold">{copy.selected}</h2>
             <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-sm">
               <dt className="font-semibold text-white/80">{copy.service}</dt>
