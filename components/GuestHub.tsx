@@ -2938,10 +2938,13 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     setRoomModal(null);
     setPendingRoomChangeFrom(null);
 
+    const confirmedRoomUrl = new URL(window.location.href);
+    confirmedRoomUrl.searchParams.set("room", nextRoom);
+
     window.history.replaceState(
-      {},
+      window.history.state,
       "",
-      `${window.location.pathname}?room=${encodeURIComponent(nextRoom)}`
+      `${confirmedRoomUrl.pathname}${confirmedRoomUrl.search}${confirmedRoomUrl.hash}`
     );
 
     trackGuestEvent({
@@ -3081,7 +3084,14 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         setIgnoredQrRoom(null);
         setRoomModal(null);
 
-        window.history.replaceState({}, "", window.location.pathname);
+        const roomChangeUrl = new URL(window.location.href);
+        roomChangeUrl.searchParams.delete("room");
+
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `${roomChangeUrl.pathname}${roomChangeUrl.search}${roomChangeUrl.hash}`
+        );
       },
     });
   };
