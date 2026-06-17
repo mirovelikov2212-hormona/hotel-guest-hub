@@ -8,6 +8,23 @@ const HOTEL_SLUG_ALIASES: Record<string, string> = {
   aquamarin: "aquamarin",
 };
 
+
+type MassageControlledE2ECandidate = {
+  serviceId: string;
+  date: string;
+  time: string;
+  room: string;
+};
+
+const MASSAGE_CONTROLLED_E2E_CANDIDATES: Record<string, MassageControlledE2ECandidate> = {
+  aquamarin: {
+    serviceId: "reflexotherapy",
+    date: "2026-06-20",
+    time: "9:15",
+    room: "103",
+  },
+};
+
 type MassageApiConfig = {
   hotelSlug: string;
   url: string;
@@ -113,18 +130,36 @@ export type MassageBootstrapResult = {
 export type MassageBookingResult = {
   status: "BOOKING_WRITTEN" | "BOOKING_ALREADY_CONFIRMED";
   serviceId: string;
-  serviceNameBg: string | null;
-  sheetValue: string | null;
-  price: number;
-  currency: string | null;
+  serviceNameBg?: string | null;
+  sheetValue?: string | null;
+  price?: number;
+  currency?: string | null;
   date: string;
   startTime: string;
-  durationMinutes: number;
-  bufferMinutes: number;
-  reservedGridMinutes: number;
+  durationMinutes?: number;
+  bufferMinutes?: number;
+  reservedGridMinutes?: number;
   roomNumber: string;
   writeVerified: boolean;
   idempotentReplay: boolean;
+  cleanupRequired?: boolean;
+};
+
+type MassageControlledE2EApiResult = {
+  status: string;
+  code?: string | null;
+  message?: string | null;
+  candidate?: {
+    serviceId?: string;
+    date?: string;
+    time?: string;
+    room?: string;
+  } | null;
+  bookingStatus?: string | null;
+  writeVerified?: boolean;
+  selectedTimeRemoved?: boolean;
+  cleanupRequired?: boolean;
+  idempotentReplay?: boolean;
 };
 
 type MassageBookingRejectedResult = {
@@ -180,6 +215,40 @@ export function isMassageBookingPostEnabled(inputHotelSlug: unknown) {
   }
 
   return parseEnabledFlag(process.env.STAYHUB_MASSAGE_BOOKING_ENABLED);
+}
+
+
+export function isMassageControlledE2EEnabled(inputHotelSlug: unknown) {
+  const hotelSlug = normalizeMassageHotelSlug(inputHotelSlug);
+  if (!hotelSlug) return false;
+
+  const suffix = getEnvironmentSuffix(hotelSlug);
+  const hotelSpecific = process.env[`STAYHUB_MASSAGE_E2E_ENABLED_${suffix}`];
+
+  if (hotelSpecific !== undefined && String(hotelSpecific).trim() !== "") {
+    return parseEnabledFlag(hotelSpecific);
+  }
+
+  return parseEnabledFlag(process.env.STAYHUB_MASSAGE_E2E_ENABLED);
+}
+
+export function isApprovedMassageControlledE2ECandidate(input: {
+  hotelSlug: unknown;
+  serviceId: string;
+  date: string;
+  time: string;
+  room: string;
+}) {
+  const hotelSlug = normalizeMassageHotelSlug(input.hotelSlug);
+  const candidate = MASSAGE_CONTROLLED_E2E_CANDIDATES[hotelSlug];
+
+  return Boolean(
+    candidate &&
+      candidate.serviceId === input.serviceId &&
+      candidate.date === input.date &&
+      candidate.time === input.time &&
+      candidate.room === input.room
+  );
 }
 
 function readConfigMap(): MassageApiConfigMap {
@@ -271,6 +340,41 @@ function getMassageApiConfig(inputHotelSlug: unknown): MassageApiConfig {
     url: validateWebAppUrl(rawUrl),
     token,
   };
+}
+
+
+function getMassageControlledE2EToken(inputHotelSlug: unknown) {
+  const hotelSlug = normalizeMassageHotelSlug(inputHotelSlug);
+
+  if (!hotelSlug) {
+    throw new MassageApiError("Hotel slug is required.", {
+      statusCode: 400,
+      code: "MISSING_HOTEL_SLUG",
+    });
+  }
+
+  const suffix = getEnvironmentSuffix(hotelSlug);
+  const token = String(
+    process.env[`STAYHUB_MASSAGE_E2E_TOKEN_${suffix}`] ||
+      process.env.STAYHUB_MASSAGE_E2E_TOKEN ||
+      ""
+  ).trim();
+
+  if (!token) {
+    throw new MassageApiError("Controlled massage E2E token is not configured.", {
+      statusCode: 503,
+      code: "MASSAGE_E2E_TOKEN_NOT_CONFIGURED",
+    });
+  }
+
+  if (token.length < 32) {
+    throw new MassageApiError("Controlled massage E2E token configuration is invalid.", {
+      statusCode: 500,
+      code: "INVALID_MASSAGE_E2E_TOKEN_CONFIG",
+    });
+  }
+
+  return token;
 }
 
 function getMassageReadCacheTtl(payload: Record<string, unknown>) {
@@ -547,3 +651,123 @@ export async function createMassageBooking(input: {
     code,
   });
 }
+
+export async function createMassageControlledE2EBooking(input: {
+  hotelSlug: unknown;
+  serviceId: string;
+  date: string;
+  time: string;
+  room: string;
+}) {
+  if (!isMassageControlledE2EEnabled(input.hotelSlug)) {
+    throw new MassageApiError("Controlled massage E2E mode is disabled.", {
+      statusCode: 503,
+      code: "MASSAGE_E2E_DISABLED",
+    });
+  }
+
+  if (!isApprovedMassageControlledE2ECandidate(input)) {
+    throw new MassageApiError("This is not the approved controlled massage test candidate.", {
+      statusCode: 403,
+      code: "MASSAGE_E2E_CANDIDATE_NOT_ALLOWED",
+    });
+  }
+
+  const e2eToken = getMassageControlledE2EToken(input.hotelSlug);
+  const response = await postMassageApi<MassageControlledE2EApiResult>(
+    input.hotelSlug,
+    {
+      action: "controlled_e2e_book",
+      e2eToken,
+      serviceId: input.serviceId,
+      date: input.date,
+      time: input.time,
+      room: input.room,
+    },
+    { allowRejectedResult: true }
+  );
+
+  const result = response.result;
+
+  if (!result) {
+    throw new MassageApiError("Massage calendar returned an incomplete controlled test response.", {
+      statusCode: 502,
+      code: "INVALID_MASSAGE_E2E_RESPONSE",
+    });
+  }
+
+  if (
+    response.ok &&
+    (result.status === "E2E_BOOKING_WRITTEN" ||
+      result.status === "E2E_BOOKING_ALREADY_CONFIRMED")
+  ) {
+    invalidateMassageReadCacheForHotel(input.hotelSlug);
+
+    const alreadyConfirmed = result.status === "E2E_BOOKING_ALREADY_CONFIRMED";
+    const candidate = result.candidate || {};
+
+    return {
+      status: alreadyConfirmed ? "BOOKING_ALREADY_CONFIRMED" : "BOOKING_WRITTEN",
+      serviceId: String(candidate.serviceId || input.serviceId),
+      date: String(candidate.date || input.date),
+      startTime: String(candidate.time || input.time),
+      roomNumber: String(candidate.room || input.room),
+      writeVerified: result.writeVerified === true,
+      idempotentReplay: alreadyConfirmed || result.idempotentReplay === true,
+      cleanupRequired: result.cleanupRequired === true,
+    } satisfies MassageBookingResult;
+  }
+
+  const code = String(result.code || response.code || response.status || "MASSAGE_E2E_REJECTED");
+  const message = String(
+    result.message || response.message || "Controlled massage E2E booking could not be completed."
+  );
+
+  if (result.status === "E2E_CONFLICT" || code === "SLOT_NO_LONGER_AVAILABLE") {
+    throw new MassageApiError(message, {
+      statusCode: 409,
+      code: "SLOT_NO_LONGER_AVAILABLE",
+    });
+  }
+
+  if (result.status === "E2E_UNAUTHORIZED" || code === "INVALID_E2E_TOKEN") {
+    throw new MassageApiError("Controlled massage E2E authorization failed.", {
+      statusCode: 502,
+      code: "MASSAGE_E2E_AUTH_FAILED",
+    });
+  }
+
+  if (result.status === "E2E_NOT_CONFIGURED" || code === "MISSING_E2E_TOKEN_PROPERTY") {
+    throw new MassageApiError(message, {
+      statusCode: 503,
+      code: "MASSAGE_E2E_NOT_CONFIGURED",
+    });
+  }
+
+  if (result.status === "E2E_CHECK_REQUIRED") {
+    throw new MassageApiError(message, {
+      statusCode: 500,
+      code: "MASSAGE_E2E_CHECK_REQUIRED",
+    });
+  }
+
+  if (result.status === "E2E_REJECTED" && code === "CANDIDATE_NOT_ALLOWED") {
+    throw new MassageApiError(message, {
+      statusCode: 403,
+      code: "MASSAGE_E2E_CANDIDATE_NOT_ALLOWED",
+    });
+  }
+
+  if (code === "CALENDAR_BUSY") {
+    throw new MassageApiError(message, {
+      statusCode: 503,
+      code,
+    });
+  }
+
+  throw new MassageApiError(message, {
+    statusCode: 409,
+    code,
+  });
+}
+

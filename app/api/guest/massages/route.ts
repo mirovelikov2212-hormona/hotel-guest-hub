@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   createMassageBooking,
+  createMassageControlledE2EBooking,
   getMassageAvailability,
   getMassageBookableDates,
   getMassageBootstrap,
   getMassageServices,
+  isApprovedMassageControlledE2ECandidate,
   isMassageBookingPostEnabled,
+  isMassageControlledE2EEnabled,
   MassageApiError,
   normalizeMassageHotelSlug,
 } from "@/lib/server/massage-api";
@@ -200,7 +203,10 @@ export async function POST(req: NextRequest) {
       return json({ ok: false, code: "MISSING_HOTEL_SLUG", error: "Hotel slug is required." }, 400);
     }
 
-    if (!isMassageBookingPostEnabled(hotelSlug)) {
+    const controlledE2EEnabled = isMassageControlledE2EEnabled(hotelSlug);
+    const productionBookingEnabled = isMassageBookingPostEnabled(hotelSlug);
+
+    if (!controlledE2EEnabled && !productionBookingEnabled) {
       return json(
         {
           ok: false,
@@ -217,6 +223,47 @@ export async function POST(req: NextRequest) {
     const date = requireDate(body.date ?? body.dateIso, "date");
     const time = requireTime(body.time ?? body.startTime);
     const room = requireRoom(body.room ?? body.roomNumber);
+
+    if (controlledE2EEnabled) {
+      const approved = isApprovedMassageControlledE2ECandidate({
+        hotelSlug,
+        serviceId,
+        date,
+        time,
+        room,
+      });
+
+      if (!approved) {
+        return json(
+          {
+            ok: false,
+            code: "MASSAGE_E2E_CANDIDATE_NOT_ALLOWED",
+            error: "Only the approved controlled massage test candidate is enabled.",
+          },
+          403
+        );
+      }
+
+      const result = await createMassageControlledE2EBooking({
+        hotelSlug,
+        serviceId,
+        date,
+        time,
+        room,
+      });
+
+      const statusCode = result.status === "BOOKING_WRITTEN" ? 201 : 200;
+
+      return json(
+        {
+          ok: true,
+          action: "controlled_e2e_book",
+          hotelSlug,
+          result,
+        },
+        statusCode
+      );
+    }
 
     const result = await createMassageBooking({
       hotelSlug,
