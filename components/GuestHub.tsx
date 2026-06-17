@@ -2726,6 +2726,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     "maintenance",
     "outlets",
     "activities",
+    "massage_booking",
     "ai",
   ]);
 
@@ -7374,34 +7375,40 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           ) : null}
 
           {massageBookingPreviewVisible ? (
-            <MassageBookingSection
-              hotelSlug={hotelContentSlug}
-              language={lang}
-              room={room}
-              roomConfirmed={roomConfirmed}
-              protectedSubmissionEnabled={massageHubPreviewEnabled}
-              forceOpenToken={
-                aiRequestNavigation?.sectionId === "massage_booking"
-                  ? aiRequestNavigation.nonce
-                  : 0
-              }
-              onRequireRoomConfirmation={() => {
-                const candidate = normalizeRoomNumber(manualRoomInput);
-
-                if (candidate) {
-                  void confirmManualRoom();
-                  return;
+            roomConfirmed && room.trim() ? (
+              <MassageBookingSection
+                hotelSlug={hotelContentSlug}
+                language={lang}
+                room={room}
+                roomConfirmed={roomConfirmed}
+                protectedSubmissionEnabled={massageHubPreviewEnabled}
+                forceOpenToken={
+                  aiRequestNavigation?.sectionId === "massage_booking"
+                    ? aiRequestNavigation.nonce
+                    : 0
                 }
-
-                window.alert(roomCopy.lockedActionAlert);
-                window.setTimeout(() => {
-                  document
-                    .getElementById("stayhub-room-confirmation")
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }, 0);
-              }}
-              onTrack={trackGuestEvent}
-            />
+                onRequireRoomConfirmation={() => {
+                  window.alert(roomCopy.lockedActionAlert);
+                  window.setTimeout(() => {
+                    document
+                      .getElementById("stayhub-room-confirmation")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 0);
+                }}
+                onTrack={trackGuestEvent}
+              />
+            ) : (
+              <div id="stayhub-massage-booking" className="scroll-mt-4">
+                <LockedSectionCard
+                  title={`💆 ${
+                    massageBookingDef
+                      ? getRequestDefTitle(massageBookingDef)
+                      : String(tUI("massage_booking") || "Book a massage")
+                  }`}
+                  message={roomCopy.lockedSectionMessage}
+                />
+              </div>
+            )
           ) : null}
 
           {hotelStaySections.length ? (
