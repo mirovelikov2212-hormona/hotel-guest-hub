@@ -405,6 +405,7 @@ export default function MassageBookingSection({
   const [dateStepExpanded, setDateStepExpanded] = useState(true);
   const [timeStepExpanded, setTimeStepExpanded] = useState(true);
   const sectionRef = useRef<HTMLDivElement | null>(null);
+  const servicesLoadPromiseRef = useRef<Promise<void> | null>(null);
 
   const selectedService = useMemo(
     () => services.find((service) => service.serviceId === selectedServiceId) || null,
@@ -420,80 +421,95 @@ export default function MassageBookingSection({
     ? `${serviceName(selectedService, lang)} · ${selectedService.durationMinutes} ${copy.minutes} · ${selectedService.price.toFixed(2)} ${selectedService.currency}`
     : copy.sectionSubtitle;
 
-  const loadServices = useCallback(async (signal?: AbortSignal) => {
-    const fromDate = getSofiaIsoDate();
-    const cacheKey = bootstrapCacheKey(hotelSlug, fromDate);
-    const cached = readMassageCache<MassageBootstrapResult>(cacheKey);
-
-    if (cached) {
-      setServices(cached.services?.services || []);
-      setAvailabilityByService(cached.availabilityByService || {});
-      setServicesLoaded(true);
-      return;
+  const loadServices = useCallback((signal?: AbortSignal) => {
+    if (servicesLoadPromiseRef.current) {
+      return servicesLoadPromiseRef.current;
     }
 
-    setLoadingServices(true);
-    setError("");
+    const task = (async () => {
+      const fromDate = getSofiaIsoDate();
+      const cacheKey = bootstrapCacheKey(hotelSlug, fromDate);
+      const cached = readMassageCache<MassageBootstrapResult>(cacheKey);
 
-    try {
-      const result = await fetchMassageApi<MassageBootstrapResult>(
-        new URLSearchParams({
-          hotelSlug,
-          action: "bootstrap",
-          fromDate,
-          daysAhead: "14",
-        }),
-        signal
-      );
+      if (cached) {
+        setServices(cached.services?.services || []);
+        setAvailabilityByService(cached.availabilityByService || {});
+        setServicesLoaded(true);
+        return;
+      }
 
-      const nextServices = result.services?.services || [];
-      const nextAvailability = result.availabilityByService || {};
+      setLoadingServices(true);
+      setError("");
 
-      setServices(nextServices);
-      setAvailabilityByService(nextAvailability);
-      setServicesLoaded(true);
-      writeMassageCache(cacheKey, result, CACHE_TTL.dates);
-      writeMassageCache(
-        servicesCacheKey(hotelSlug),
-        result.services,
-        CACHE_TTL.services
-      );
-
-      for (const service of nextServices) {
-        const serviceAvailability = nextAvailability[service.serviceId];
-        if (!serviceAvailability) continue;
-
-        writeMassageCache(
-          datesCacheKey(hotelSlug, service.serviceId, fromDate),
-          serviceAvailability,
-          CACHE_TTL.dates
+      try {
+        const result = await fetchMassageApi<MassageBootstrapResult>(
+          new URLSearchParams({
+            hotelSlug,
+            action: "bootstrap",
+            fromDate,
+            daysAhead: "14",
+          }),
+          signal
         );
 
-        for (const item of serviceAvailability.dates || []) {
-          if (!Array.isArray(item.availableTimes)) continue;
+        const nextServices = result.services?.services || [];
+        const nextAvailability = result.availabilityByService || {};
+
+        setServices(nextServices);
+        setAvailabilityByService(nextAvailability);
+        setServicesLoaded(true);
+        writeMassageCache(cacheKey, result, CACHE_TTL.dates);
+        writeMassageCache(
+          servicesCacheKey(hotelSlug),
+          result.services,
+          CACHE_TTL.services
+        );
+
+        for (const service of nextServices) {
+          const serviceAvailability = nextAvailability[service.serviceId];
+          if (!serviceAvailability) continue;
+
           writeMassageCache(
-            timesCacheKey(hotelSlug, service.serviceId, item.date),
-            item.availableTimes,
-            CACHE_TTL.times
+            datesCacheKey(hotelSlug, service.serviceId, fromDate),
+            serviceAvailability,
+            CACHE_TTL.dates
           );
+
+          for (const item of serviceAvailability.dates || []) {
+            if (!Array.isArray(item.availableTimes)) continue;
+            writeMassageCache(
+              timesCacheKey(hotelSlug, service.serviceId, item.date),
+              item.availableTimes,
+              CACHE_TTL.times
+            );
+          }
         }
+      } catch (loadError) {
+        if (loadError instanceof DOMException && loadError.name === "AbortError") return;
+        setError(loadError instanceof Error ? loadError.message : "Unable to load massages.");
+      } finally {
+        setLoadingServices(false);
       }
-    } catch (loadError) {
-      if (loadError instanceof DOMException && loadError.name === "AbortError") return;
-      setError(loadError instanceof Error ? loadError.message : "Unable to load massages.");
-    } finally {
-      setLoadingServices(false);
-    }
+    })().finally(() => {
+      servicesLoadPromiseRef.current = null;
+    });
+
+    servicesLoadPromiseRef.current = task;
+    return task;
   }, [hotelSlug]);
 
+  // Warm the massage catalogue shortly after the Guest Hub mounts.
+  // The first Apps Script call can have cold-start latency, so doing it in
+  // the background makes the first visible section opening feel immediate.
   useEffect(() => {
-    if (!open || servicesLoaded) return;
+    if (servicesLoaded) return;
 
-    const controller = new AbortController();
-    void loadServices(controller.signal);
+    const timerId = window.setTimeout(() => {
+      void loadServices();
+    }, 180);
 
-    return () => controller.abort();
-  }, [loadServices, open, servicesLoaded]);
+    return () => window.clearTimeout(timerId);
+  }, [loadServices, servicesLoaded]);
 
   useEffect(() => {
     if (forceOpenToken <= 0) return;
@@ -649,6 +665,9 @@ export default function MassageBookingSection({
         onClick={() => {
           const next = !open;
           setOpen(next);
+          if (next && !servicesLoaded) {
+            void loadServices();
+          }
           onTrack({
             eventName: next ? "section_opened" : "section_closed",
             eventCategory: "navigation",
