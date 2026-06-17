@@ -7091,7 +7091,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       {/* room switch banner removed - handled only by modal */}
 
       {!roomConfirmed ? (
-        <div className="mt-3 px-4">
+        <div id="stayhub-room-confirmation" className="mt-3 scroll-mt-4 px-4">
           <div className="rounded-2xl stayhub-panel stayhub-room-panel p-4">
             <h2 className="text-base font-semibold" style={{ color: "#202627" }}>{roomCopy.cardTitle}</h2>
             <p className="mt-2 text-sm leading-6" style={{ color: "#202627" }}>{roomCopy.cardText}</p>
@@ -7377,11 +7377,29 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             <MassageBookingSection
               hotelSlug={hotelContentSlug}
               language={lang}
+              room={room}
+              roomConfirmed={roomConfirmed}
+              protectedSubmissionEnabled={massageHubPreviewEnabled}
               forceOpenToken={
                 aiRequestNavigation?.sectionId === "massage_booking"
                   ? aiRequestNavigation.nonce
                   : 0
               }
+              onRequireRoomConfirmation={() => {
+                const candidate = normalizeRoomNumber(manualRoomInput);
+
+                if (candidate) {
+                  void confirmManualRoom();
+                  return;
+                }
+
+                window.alert(roomCopy.lockedActionAlert);
+                window.setTimeout(() => {
+                  document
+                    .getElementById("stayhub-room-confirmation")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 0);
+              }}
               onTrack={trackGuestEvent}
             />
           ) : null}

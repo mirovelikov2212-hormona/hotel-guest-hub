@@ -30,8 +30,26 @@ type BookableDate = {
 type ApiEnvelope<T> = {
   ok: boolean;
   result?: T;
+  code?: string;
   error?: string;
 };
+
+type MassageBookingResult = {
+  status: "BOOKING_WRITTEN" | "BOOKING_ALREADY_CONFIRMED";
+  serviceId: string;
+  date: string;
+  startTime: string;
+  durationMinutes: number;
+  roomNumber: string;
+  writeVerified: boolean;
+  idempotentReplay: boolean;
+};
+
+type BookingFeedback = {
+  kind: "info" | "success" | "error";
+  text: string;
+  code?: string;
+} | null;
 
 type ServicesResult = {
   count: number;
@@ -82,6 +100,16 @@ type MassageCopy = {
   reset: string;
   change: string;
   changeService: string;
+  room: string;
+  confirmedRoom: string;
+  confirmRoomFirst: string;
+  confirmBooking: string;
+  sendingBooking: string;
+  protectedServerReached: string;
+  bookingSuccess: string;
+  bookingAlreadyConfirmed: string;
+  bookingConflict: string;
+  bookingFailed: string;
 };
 
 const COPY: Record<LangKey, MassageCopy> = {
@@ -107,6 +135,16 @@ const COPY: Record<LangKey, MassageCopy> = {
     reset: "Нов избор",
     change: "Промени",
     changeService: "Промени масажа",
+    room: "Стая",
+    confirmedRoom: "Потвърдена стая",
+    confirmRoomFirst: "Потвърдете стаята първо",
+    confirmBooking: "Потвърди резервацията",
+    sendingBooking: "Изпращане…",
+    protectedServerReached: "Защитеният тест достигна до сървъра. Реалното записване все още е изключено.",
+    bookingSuccess: "Резервацията за масаж е потвърдена.",
+    bookingAlreadyConfirmed: "Тази резервация вече е потвърдена.",
+    bookingConflict: "Избраният час вече не е свободен. Изберете друг час.",
+    bookingFailed: "Резервацията не можа да бъде изпратена. Опитайте отново.",
   },
   en: {
     sectionTitle: "Book a massage",
@@ -130,6 +168,16 @@ const COPY: Record<LangKey, MassageCopy> = {
     reset: "Start again",
     change: "Change",
     changeService: "Change massage",
+    room: "Room",
+    confirmedRoom: "Confirmed room",
+    confirmRoomFirst: "Confirm your room first",
+    confirmBooking: "Confirm booking",
+    sendingBooking: "Sending…",
+    protectedServerReached: "The protected test reached the server. Real booking is still disabled.",
+    bookingSuccess: "Your massage booking is confirmed.",
+    bookingAlreadyConfirmed: "This booking is already confirmed.",
+    bookingConflict: "The selected time is no longer available. Choose another time.",
+    bookingFailed: "The booking could not be submitted. Please try again.",
   },
   de: {
     sectionTitle: "Massage buchen",
@@ -153,6 +201,16 @@ const COPY: Record<LangKey, MassageCopy> = {
     reset: "Neue Auswahl",
     change: "Ändern",
     changeService: "Massage ändern",
+    room: "Zimmer",
+    confirmedRoom: "Bestätigtes Zimmer",
+    confirmRoomFirst: "Bestätigen Sie zuerst Ihr Zimmer",
+    confirmBooking: "Buchung bestätigen",
+    sendingBooking: "Wird gesendet…",
+    protectedServerReached: "Der geschützte Test hat den Server erreicht. Echte Buchungen sind noch deaktiviert.",
+    bookingSuccess: "Ihre Massagebuchung wurde bestätigt.",
+    bookingAlreadyConfirmed: "Diese Buchung ist bereits bestätigt.",
+    bookingConflict: "Die gewählte Uhrzeit ist nicht mehr verfügbar. Wählen Sie eine andere Uhrzeit.",
+    bookingFailed: "Die Buchung konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
   },
   ro: {
     sectionTitle: "Rezervă un masaj",
@@ -176,6 +234,16 @@ const COPY: Record<LangKey, MassageCopy> = {
     reset: "Selecție nouă",
     change: "Schimbați",
     changeService: "Schimbați masajul",
+    room: "Cameră",
+    confirmedRoom: "Cameră confirmată",
+    confirmRoomFirst: "Confirmați mai întâi camera",
+    confirmBooking: "Confirmați rezervarea",
+    sendingBooking: "Se trimite…",
+    protectedServerReached: "Testul protejat a ajuns la server. Rezervarea reală este încă dezactivată.",
+    bookingSuccess: "Rezervarea pentru masaj a fost confirmată.",
+    bookingAlreadyConfirmed: "Această rezervare este deja confirmată.",
+    bookingConflict: "Ora selectată nu mai este disponibilă. Alegeți altă oră.",
+    bookingFailed: "Rezervarea nu a putut fi trimisă. Încercați din nou.",
   },
   cs: {
     sectionTitle: "Rezervovat masáž",
@@ -199,6 +267,16 @@ const COPY: Record<LangKey, MassageCopy> = {
     reset: "Nový výběr",
     change: "Změnit",
     changeService: "Změnit masáž",
+    room: "Pokoj",
+    confirmedRoom: "Potvrzený pokoj",
+    confirmRoomFirst: "Nejprve potvrďte pokoj",
+    confirmBooking: "Potvrdit rezervaci",
+    sendingBooking: "Odesílání…",
+    protectedServerReached: "Chráněný test dorazil na server. Skutečné rezervace jsou zatím vypnuté.",
+    bookingSuccess: "Rezervace masáže byla potvrzena.",
+    bookingAlreadyConfirmed: "Tato rezervace je již potvrzena.",
+    bookingConflict: "Vybraný čas již není dostupný. Zvolte jiný čas.",
+    bookingFailed: "Rezervaci se nepodařilo odeslat. Zkuste to znovu.",
   },
   ru: {
     sectionTitle: "Забронировать массаж",
@@ -222,6 +300,16 @@ const COPY: Record<LangKey, MassageCopy> = {
     reset: "Новый выбор",
     change: "Изменить",
     changeService: "Изменить массаж",
+    room: "Номер",
+    confirmedRoom: "Подтверждённый номер",
+    confirmRoomFirst: "Сначала подтвердите номер",
+    confirmBooking: "Подтвердить бронирование",
+    sendingBooking: "Отправка…",
+    protectedServerReached: "Защищённый тест достиг сервера. Реальное бронирование пока отключено.",
+    bookingSuccess: "Бронирование массажа подтверждено.",
+    bookingAlreadyConfirmed: "Это бронирование уже подтверждено.",
+    bookingConflict: "Выбранное время больше недоступно. Выберите другое время.",
+    bookingFailed: "Не удалось отправить бронирование. Попробуйте ещё раз.",
   },
 };
 
@@ -378,12 +466,20 @@ const selectedCardStyle = {
 export default function MassageBookingSection({
   hotelSlug,
   language,
+  room,
+  roomConfirmed,
+  protectedSubmissionEnabled = false,
   forceOpenToken = 0,
+  onRequireRoomConfirmation,
   onTrack,
 }: {
   hotelSlug: string;
   language: LangKey;
+  room: string;
+  roomConfirmed: boolean;
+  protectedSubmissionEnabled?: boolean;
   forceOpenToken?: number;
+  onRequireRoomConfirmation: () => void;
   onTrack: (payload: TrackHubPayload) => void;
 }) {
   const lang = normalizeLanguage(language);
@@ -404,6 +500,9 @@ export default function MassageBookingSection({
   const [serviceStepExpanded, setServiceStepExpanded] = useState(true);
   const [dateStepExpanded, setDateStepExpanded] = useState(true);
   const [timeStepExpanded, setTimeStepExpanded] = useState(true);
+  const [submittingBooking, setSubmittingBooking] = useState(false);
+  const [bookingFeedback, setBookingFeedback] = useState<BookingFeedback>(null);
+  const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const servicesLoadPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -538,6 +637,8 @@ export default function MassageBookingSection({
     setLoadingDates(!available);
     setLoadingTimes(false);
     setError("");
+    setBookingFeedback(null);
+    setBookingConfirmed(false);
 
     onTrack({
       eventName: "massage_service_selected",
@@ -596,6 +697,8 @@ export default function MassageBookingSection({
     setTimeStepExpanded(true);
     setLoadingTimes(!immediatelyAvailableTimes);
     setError("");
+    setBookingFeedback(null);
+    setBookingConfirmed(false);
 
     onTrack({
       eventName: "massage_date_selected",
@@ -634,6 +737,8 @@ export default function MassageBookingSection({
   const chooseTime = (time: string) => {
     setSelectedTime(time);
     setTimeStepExpanded(false);
+    setBookingFeedback(null);
+    setBookingConfirmed(false);
     onTrack({
       eventName: "massage_time_selected",
       eventCategory: "massage",
@@ -656,6 +761,127 @@ export default function MassageBookingSection({
     setDateStepExpanded(true);
     setTimeStepExpanded(true);
     setError("");
+    setBookingFeedback(null);
+    setBookingConfirmed(false);
+  };
+
+  const submitBooking = async () => {
+    if (!selectedService || !selectedDate || !selectedTime || submittingBooking) return;
+
+    if (!roomConfirmed || !room.trim()) {
+      setBookingFeedback({ kind: "info", text: copy.confirmRoomFirst, code: "ROOM_NOT_CONFIRMED" });
+      onTrack({
+        eventName: "massage_room_confirmation_required",
+        eventCategory: "massage",
+        section: "massage_booking",
+        sectionKey: "massage_booking",
+        itemKey: selectedService.serviceId,
+        label: "room_not_confirmed",
+        value: selectedTime,
+        extra: { date: selectedDate },
+      });
+      onRequireRoomConfirmation();
+      return;
+    }
+
+    if (!protectedSubmissionEnabled) {
+      setBookingFeedback({ kind: "info", text: copy.readOnlyNotice, code: "PROTECTED_SUBMISSION_DISABLED" });
+      return;
+    }
+
+    setSubmittingBooking(true);
+    setBookingFeedback(null);
+
+    onTrack({
+      eventName: "massage_booking_submit_clicked",
+      eventCategory: "massage",
+      section: "massage_booking",
+      sectionKey: "massage_booking",
+      itemKey: selectedService.serviceId,
+      label: selectedTime,
+      value: selectedService.serviceId,
+      extra: { date: selectedDate, room },
+    });
+
+    try {
+      const response = await fetch("/api/guest/massages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          hotelSlug,
+          serviceId: selectedService.serviceId,
+          date: selectedDate,
+          time: selectedTime,
+          room,
+          roomConfirmed: true,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as ApiEnvelope<MassageBookingResult> | null;
+
+      if (response.ok && payload?.ok && payload.result) {
+        const alreadyConfirmed = payload.result.status === "BOOKING_ALREADY_CONFIRMED";
+        setBookingConfirmed(true);
+        setBookingFeedback({
+          kind: "success",
+          text: alreadyConfirmed ? copy.bookingAlreadyConfirmed : copy.bookingSuccess,
+          code: payload.result.status,
+        });
+        onTrack({
+          eventName: alreadyConfirmed ? "massage_booking_already_confirmed" : "massage_booking_submitted",
+          eventCategory: "massage",
+          section: "massage_booking",
+          sectionKey: "massage_booking",
+          itemKey: selectedService.serviceId,
+          label: selectedTime,
+          value: payload.result.status,
+          extra: { date: selectedDate, room },
+        });
+        return;
+      }
+
+      const code = String(payload?.code || "MASSAGE_BOOKING_FAILED");
+      let text = payload?.error || copy.bookingFailed;
+      let kind: "info" | "error" = "error";
+
+      if (code === "MASSAGE_BOOKING_POST_DISABLED" || code === "MASSAGE_CALENDAR_WRITE_DISABLED") {
+        kind = "info";
+        text = copy.protectedServerReached;
+      } else if (code === "ROOM_NOT_CONFIRMED") {
+        kind = "info";
+        text = copy.confirmRoomFirst;
+        onRequireRoomConfirmation();
+      } else if (code === "SLOT_NO_LONGER_AVAILABLE") {
+        text = copy.bookingConflict;
+      }
+
+      setBookingFeedback({ kind, text, code });
+      onTrack({
+        eventName: "massage_booking_submit_rejected",
+        eventCategory: "massage",
+        section: "massage_booking",
+        sectionKey: "massage_booking",
+        itemKey: selectedService.serviceId,
+        label: code,
+        value: selectedTime,
+        extra: { date: selectedDate, room, code },
+      });
+    } catch {
+      setBookingFeedback({ kind: "error", text: copy.bookingFailed, code: "NETWORK_ERROR" });
+      onTrack({
+        eventName: "massage_booking_submit_failed",
+        eventCategory: "massage",
+        section: "massage_booking",
+        sectionKey: "massage_booking",
+        itemKey: selectedService.serviceId,
+        label: "network_error",
+        value: selectedTime,
+        extra: { date: selectedDate, room },
+      });
+    } finally {
+      setSubmittingBooking(false);
+    }
   };
 
   return (
@@ -878,15 +1104,53 @@ export default function MassageBookingSection({
                 <dd className="font-bold">{formatDate(selectedDate, lang)}</dd>
                 <dt className="font-semibold opacity-80">{copy.time}</dt>
                 <dd className="font-bold">{selectedTime}</dd>
+                <dt className="font-semibold opacity-80">{copy.duration}</dt>
+                <dd className="font-bold">{selectedService.durationMinutes} {copy.minutes}</dd>
+                <dt className="font-semibold opacity-80">{copy.price}</dt>
+                <dd className="font-bold">{selectedService.price.toFixed(2)} {selectedService.currency}</dd>
+                <dt className="font-semibold opacity-80">{copy.room}</dt>
+                <dd className="font-bold">
+                  {roomConfirmed && room.trim() ? `${copy.confirmedRoom}: ${room}` : copy.confirmRoomFirst}
+                </dd>
               </dl>
+
               <div className="mt-4 rounded-xl bg-white/15 p-3 text-sm font-semibold">
                 {copy.readOnlyNotice}
               </div>
+
+              {bookingFeedback ? (
+                <div
+                  className={`mt-3 rounded-xl border p-3 text-sm font-semibold ${
+                    bookingFeedback.kind === "success"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                      : bookingFeedback.kind === "error"
+                        ? "border-red-200 bg-red-50 text-red-900"
+                        : "border-sky-200 bg-sky-50 text-sky-900"
+                  }`}
+                  role="status"
+                >
+                  {bookingFeedback.text}
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => void submitBooking()}
+                disabled={submittingBooking || bookingConfirmed}
+                className="mt-3 w-full rounded-xl border bg-white px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ borderColor: "white", color: "var(--stayhub-primary)" }}
+              >
+                {submittingBooking
+                  ? copy.sendingBooking
+                  : roomConfirmed && room.trim()
+                    ? copy.confirmBooking
+                    : copy.confirmRoomFirst}
+              </button>
+
               <button
                 type="button"
                 onClick={resetSelection}
-                className="mt-3 rounded-xl border bg-white px-4 py-2 text-sm font-bold"
-                style={{ borderColor: "white", color: "var(--stayhub-primary)" }}
+                className="mt-2 w-full rounded-xl border border-white/60 bg-transparent px-4 py-2 text-sm font-bold text-white"
               >
                 {copy.reset}
               </button>
