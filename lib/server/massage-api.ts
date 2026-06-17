@@ -17,6 +17,7 @@ type MassageApiConfig = {
 type MassageApiEnvelope<T> = {
   ok: boolean;
   apiVersion?: string;
+  requestId?: string;
   runtimeVersion?: string;
   status?: string;
   code?: string;
@@ -109,6 +110,33 @@ export type MassageBootstrapResult = {
   elapsedMs?: number;
 };
 
+export type MassageBookingResult = {
+  status: "BOOKING_WRITTEN" | "BOOKING_ALREADY_CONFIRMED";
+  serviceId: string;
+  serviceNameBg: string | null;
+  sheetValue: string | null;
+  price: number;
+  currency: string | null;
+  date: string;
+  startTime: string;
+  durationMinutes: number;
+  bufferMinutes: number;
+  reservedGridMinutes: number;
+  roomNumber: string;
+  writeVerified: boolean;
+  idempotentReplay: boolean;
+};
+
+type MassageBookingRejectedResult = {
+  status: string;
+  code?: string | null;
+  message?: string | null;
+};
+
+type PostMassageApiOptions = {
+  allowRejectedResult?: boolean;
+};
+
 export class MassageApiError extends Error {
   readonly statusCode: number;
   readonly code: string;
@@ -132,6 +160,26 @@ export function normalizeMassageHotelSlug(value: unknown) {
 
 function getEnvironmentSuffix(hotelSlug: string) {
   return hotelSlug.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+}
+
+function parseEnabledFlag(value: unknown) {
+  return ["1", "true", "yes", "on"].includes(
+    String(value || "").trim().toLowerCase()
+  );
+}
+
+export function isMassageBookingPostEnabled(inputHotelSlug: unknown) {
+  const hotelSlug = normalizeMassageHotelSlug(inputHotelSlug);
+  if (!hotelSlug) return false;
+
+  const suffix = getEnvironmentSuffix(hotelSlug);
+  const hotelSpecific = process.env[`STAYHUB_MASSAGE_BOOKING_ENABLED_${suffix}`];
+
+  if (hotelSpecific !== undefined && String(hotelSpecific).trim() !== "") {
+    return parseEnabledFlag(hotelSpecific);
+  }
+
+  return parseEnabledFlag(process.env.STAYHUB_MASSAGE_BOOKING_ENABLED);
 }
 
 function readConfigMap(): MassageApiConfigMap {
@@ -240,7 +288,8 @@ function getMassageReadCacheKey(hotelSlug: string, payload: Record<string, unkno
 
 async function postMassageApi<T>(
   hotelSlug: unknown,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  options: PostMassageApiOptions = {}
 ): Promise<MassageApiEnvelope<T>> {
   const config = getMassageApiConfig(hotelSlug);
   const cacheTtl = getMassageReadCacheTtl(payload);
@@ -301,6 +350,11 @@ async function postMassageApi<T>(
 
       if (!data.ok || !data.result) {
         const isUnauthorized = data.status === "API_UNAUTHORIZED" || data.code === "INVALID_API_TOKEN";
+
+        if (options.allowRejectedResult && data.result && !isUnauthorized) {
+          return data;
+        }
+
         throw new MassageApiError(
           isUnauthorized
             ? "Massage calendar authorization failed."
@@ -402,4 +456,94 @@ export async function getMassageBookableDates(input: {
   });
 
   return response.result as MassageBookableDatesResult;
+}
+
+
+function invalidateMassageReadCacheForHotel(inputHotelSlug: unknown) {
+  const hotelSlug = normalizeMassageHotelSlug(inputHotelSlug);
+  if (!hotelSlug) return;
+
+  const prefix = `${hotelSlug}:`;
+  for (const key of massageServerCache.values.keys()) {
+    if (key.startsWith(prefix)) {
+      massageServerCache.values.delete(key);
+    }
+  }
+}
+
+export async function createMassageBooking(input: {
+  hotelSlug: unknown;
+  serviceId: string;
+  date: string;
+  time: string;
+  room: string;
+}) {
+  const response = await postMassageApi<MassageBookingResult | MassageBookingRejectedResult>(
+    input.hotelSlug,
+    {
+      action: "book",
+      serviceId: input.serviceId,
+      date: input.date,
+      time: input.time,
+      room: input.room,
+      // Never accept browser-controlled test mode. This server path can only
+      // request a real booking, and Apps Script still has its own write guard.
+      testMode: false,
+    },
+    { allowRejectedResult: true }
+  );
+
+  const result = response.result;
+
+  if (!result) {
+    throw new MassageApiError("Massage calendar returned an incomplete booking response.", {
+      statusCode: 502,
+      code: "INVALID_MASSAGE_BOOKING_RESPONSE",
+    });
+  }
+
+  if (
+    response.ok &&
+    (result.status === "BOOKING_WRITTEN" || result.status === "BOOKING_ALREADY_CONFIRMED")
+  ) {
+    invalidateMassageReadCacheForHotel(input.hotelSlug);
+    return result as MassageBookingResult;
+  }
+
+  const rejected = result as MassageBookingRejectedResult;
+  const code = String(rejected.code || response.code || response.status || "MASSAGE_BOOKING_REJECTED");
+  const message = String(rejected.message || response.message || "Massage booking could not be completed.");
+
+  if (response.status === "BOOKING_CONFLICT" || code === "SLOT_NO_LONGER_AVAILABLE") {
+    throw new MassageApiError(message, {
+      statusCode: 409,
+      code: "SLOT_NO_LONGER_AVAILABLE",
+    });
+  }
+
+  if (response.status === "PRODUCTION_WRITE_DISABLED" || code === "PRODUCTION_WRITE_DISABLED") {
+    throw new MassageApiError("Massage booking submission is not enabled in the calendar yet.", {
+      statusCode: 503,
+      code: "MASSAGE_CALENDAR_WRITE_DISABLED",
+    });
+  }
+
+  if (code === "CALENDAR_BUSY") {
+    throw new MassageApiError(message, {
+      statusCode: 503,
+      code,
+    });
+  }
+
+  if (response.status === "BOOKING_REJECTED") {
+    throw new MassageApiError(message, {
+      statusCode: 400,
+      code,
+    });
+  }
+
+  throw new MassageApiError(message, {
+    statusCode: 409,
+    code,
+  });
 }
