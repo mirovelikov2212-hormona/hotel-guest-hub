@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getMassageAvailability,
   getMassageBookableDates,
+  getMassageBootstrap,
   getMassageServices,
   MassageApiError,
   normalizeMassageHotelSlug,
@@ -84,6 +85,13 @@ export async function GET(req: NextRequest) {
 
     if (action === "services") {
       const result = await getMassageServices(hotelSlug);
+      return json({ ok: true, action, hotelSlug, result });
+    }
+
+    if (action === "bootstrap") {
+      const fromDate = requireDate(params.get("fromDate"), "fromDate");
+      const daysAhead = requireDaysAhead(params.get("daysAhead"));
+      const result = await getMassageBootstrap({ hotelSlug, fromDate, daysAhead });
       return json({ ok: true, action, hotelSlug, result });
     }
 

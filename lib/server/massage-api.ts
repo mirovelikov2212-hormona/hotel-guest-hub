@@ -24,6 +24,27 @@ type MassageApiEnvelope<T> = {
   result?: T;
 };
 
+type MassageServerCacheEntry = {
+  expiresAt: number;
+  value: MassageApiEnvelope<unknown>;
+};
+
+type MassageServerCacheState = {
+  values: Map<string, MassageServerCacheEntry>;
+  inFlight: Map<string, Promise<MassageApiEnvelope<unknown>>>;
+};
+
+const globalMassageCache = globalThis as typeof globalThis & {
+  __stayhubMassageApiCache?: MassageServerCacheState;
+};
+
+const massageServerCache =
+  globalMassageCache.__stayhubMassageApiCache ||
+  (globalMassageCache.__stayhubMassageApiCache = {
+    values: new Map<string, MassageServerCacheEntry>(),
+    inFlight: new Map<string, Promise<MassageApiEnvelope<unknown>>>(),
+  });
+
 type MassageApiConfigMap = Record<
   string,
   {
@@ -77,6 +98,15 @@ export type MassageBookableDatesResult = {
   daysChecked: number;
   count: number;
   dates: MassageBookableDate[];
+};
+
+export type MassageBootstrapResult = {
+  fromDate: string;
+  daysChecked: number;
+  services: MassageServicesResult;
+  availabilityByService: Record<string, MassageBookableDatesResult>;
+  readMode?: string;
+  elapsedMs?: number;
 };
 
 export class MassageApiError extends Error {
@@ -195,83 +225,145 @@ function getMassageApiConfig(inputHotelSlug: unknown): MassageApiConfig {
   };
 }
 
+function getMassageReadCacheTtl(payload: Record<string, unknown>) {
+  const action = String(payload.action || "").trim().toLowerCase();
+  if (action === "services") return 30 * 60 * 1000;
+  if (action === "bootstrap") return 20 * 1000;
+  if (action === "bookable_dates") return 20 * 1000;
+  if (action === "availability") return 8 * 1000;
+  return 0;
+}
+
+function getMassageReadCacheKey(hotelSlug: string, payload: Record<string, unknown>) {
+  return `${hotelSlug}:${JSON.stringify(payload)}`;
+}
+
 async function postMassageApi<T>(
   hotelSlug: unknown,
   payload: Record<string, unknown>
 ): Promise<MassageApiEnvelope<T>> {
   const config = getMassageApiConfig(hotelSlug);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  const cacheTtl = getMassageReadCacheTtl(payload);
+  const cacheKey = getMassageReadCacheKey(config.hotelSlug, payload);
+  const now = Date.now();
+  const cached = massageServerCache.values.get(cacheKey);
 
-  try {
-    const response = await fetch(config.url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ...payload,
-        apiToken: config.token,
-      }),
-      cache: "no-store",
-      redirect: "follow",
-      signal: controller.signal,
-    });
+  if (cacheTtl > 0 && cached && cached.expiresAt > now) {
+    return cached.value as MassageApiEnvelope<T>;
+  }
 
-    if (!response.ok) {
+  if (cached) massageServerCache.values.delete(cacheKey);
+
+  const existing = massageServerCache.inFlight.get(cacheKey);
+  if (existing) return existing as Promise<MassageApiEnvelope<T>>;
+
+  const request = (async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(config.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...payload,
+          apiToken: config.token,
+        }),
+        cache: "no-store",
+        redirect: "follow",
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new MassageApiError("Massage calendar service is temporarily unavailable.", {
+          statusCode: 502,
+          code: "MASSAGE_API_HTTP_ERROR",
+        });
+      }
+
+      const data = (await response.json().catch(() => null)) as MassageApiEnvelope<T> | null;
+
+      if (!data || typeof data !== "object") {
+        throw new MassageApiError("Massage calendar returned an invalid response.", {
+          statusCode: 502,
+          code: "INVALID_MASSAGE_API_RESPONSE",
+        });
+      }
+
+      if (data.apiVersion && data.apiVersion !== MASSAGE_API_VERSION) {
+        throw new MassageApiError("Massage calendar API version is not supported.", {
+          statusCode: 502,
+          code: "UNSUPPORTED_MASSAGE_API_VERSION",
+        });
+      }
+
+      if (!data.ok || !data.result) {
+        const isUnauthorized = data.status === "API_UNAUTHORIZED" || data.code === "INVALID_API_TOKEN";
+        throw new MassageApiError(
+          isUnauthorized
+            ? "Massage calendar authorization failed."
+            : "Massage calendar could not complete the request.",
+          {
+            statusCode: isUnauthorized ? 502 : 409,
+            code: String(data.code || data.status || "MASSAGE_API_REJECTED"),
+          }
+        );
+      }
+
+      return data;
+    } catch (error) {
+      if (error instanceof MassageApiError) throw error;
+
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new MassageApiError("Massage calendar request timed out.", {
+          statusCode: 504,
+          code: "MASSAGE_API_TIMEOUT",
+        });
+      }
+
       throw new MassageApiError("Massage calendar service is temporarily unavailable.", {
         statusCode: 502,
-        code: "MASSAGE_API_HTTP_ERROR",
+        code: "MASSAGE_API_UNAVAILABLE",
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  })();
+
+  massageServerCache.inFlight.set(
+    cacheKey,
+    request as Promise<MassageApiEnvelope<unknown>>
+  );
+
+  try {
+    const result = await request;
+    if (cacheTtl > 0) {
+      massageServerCache.values.set(cacheKey, {
+        expiresAt: Date.now() + cacheTtl,
+        value: result as MassageApiEnvelope<unknown>,
       });
     }
-
-    const data = (await response.json().catch(() => null)) as MassageApiEnvelope<T> | null;
-
-    if (!data || typeof data !== "object") {
-      throw new MassageApiError("Massage calendar returned an invalid response.", {
-        statusCode: 502,
-        code: "INVALID_MASSAGE_API_RESPONSE",
-      });
-    }
-
-    if (data.apiVersion && data.apiVersion !== MASSAGE_API_VERSION) {
-      throw new MassageApiError("Massage calendar API version is not supported.", {
-        statusCode: 502,
-        code: "UNSUPPORTED_MASSAGE_API_VERSION",
-      });
-    }
-
-    if (!data.ok || !data.result) {
-      const isUnauthorized = data.status === "API_UNAUTHORIZED" || data.code === "INVALID_API_TOKEN";
-      throw new MassageApiError(
-        isUnauthorized
-          ? "Massage calendar authorization failed."
-          : "Massage calendar could not complete the request.",
-        {
-          statusCode: isUnauthorized ? 502 : 409,
-          code: String(data.code || data.status || "MASSAGE_API_REJECTED"),
-        }
-      );
-    }
-
-    return data;
-  } catch (error) {
-    if (error instanceof MassageApiError) throw error;
-
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new MassageApiError("Massage calendar request timed out.", {
-        statusCode: 504,
-        code: "MASSAGE_API_TIMEOUT",
-      });
-    }
-
-    throw new MassageApiError("Massage calendar service is temporarily unavailable.", {
-      statusCode: 502,
-      code: "MASSAGE_API_UNAVAILABLE",
-    });
+    return result;
   } finally {
-    clearTimeout(timeout);
+    massageServerCache.inFlight.delete(cacheKey);
   }
+}
+
+
+export async function getMassageBootstrap(input: {
+  hotelSlug: unknown;
+  fromDate: string;
+  daysAhead: number;
+}) {
+  const response = await postMassageApi<MassageBootstrapResult>(input.hotelSlug, {
+    action: "bootstrap",
+    fromDate: input.fromDate,
+    daysAhead: input.daysAhead,
+  });
+
+  return response.result as MassageBootstrapResult;
 }
 
 export async function getMassageServices(hotelSlug: unknown) {

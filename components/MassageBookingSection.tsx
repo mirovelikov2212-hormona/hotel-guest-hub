@@ -45,6 +45,15 @@ type BookableDatesResult = {
   dates: BookableDate[];
 };
 
+type MassageBootstrapResult = {
+  fromDate: string;
+  daysChecked: number;
+  services: ServicesResult;
+  availabilityByService: Record<string, BookableDatesResult>;
+  readMode?: string;
+  elapsedMs?: number;
+};
+
 type AvailabilityResult = {
   serviceId: string;
   date: string | null;
@@ -339,15 +348,19 @@ function writeMassageCache<T>(key: string, value: T, ttlMs: number) {
 }
 
 function servicesCacheKey(hotelSlug: string) {
-  return `stayhub:massage:services:${hotelSlug}`;
+  return `stayhub:massage:v3:services:${hotelSlug}`;
+}
+
+function bootstrapCacheKey(hotelSlug: string, fromDate: string) {
+  return `stayhub:massage:v3:bootstrap:${hotelSlug}:${fromDate}`;
 }
 
 function datesCacheKey(hotelSlug: string, serviceId: string, fromDate: string) {
-  return `stayhub:massage:dates:${hotelSlug}:${serviceId}:${fromDate}`;
+  return `stayhub:massage:v3:dates:${hotelSlug}:${serviceId}:${fromDate}`;
 }
 
 function timesCacheKey(hotelSlug: string, serviceId: string, date: string) {
-  return `stayhub:massage:times:${hotelSlug}:${serviceId}:${date}`;
+  return `stayhub:massage:v3:times:${hotelSlug}:${serviceId}:${date}`;
 }
 
 const normalCardStyle = {
@@ -377,6 +390,7 @@ export default function MassageBookingSection({
   const copy = COPY[lang];
   const [open, setOpen] = useState(false);
   const [services, setServices] = useState<MassageService[]>([]);
+  const [availabilityByService, setAvailabilityByService] = useState<Record<string, BookableDatesResult>>({});
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [dates, setDates] = useState<BookableDate[]>([]);
   const [selectedDate, setSelectedDate] = useState("");
@@ -391,9 +405,6 @@ export default function MassageBookingSection({
   const [dateStepExpanded, setDateStepExpanded] = useState(true);
   const [timeStepExpanded, setTimeStepExpanded] = useState(true);
   const sectionRef = useRef<HTMLDivElement | null>(null);
-  const dateSectionRef = useRef<HTMLElement | null>(null);
-  const timeSectionRef = useRef<HTMLElement | null>(null);
-  const summarySectionRef = useRef<HTMLElement | null>(null);
 
   const selectedService = useMemo(
     () => services.find((service) => service.serviceId === selectedServiceId) || null,
@@ -409,17 +420,14 @@ export default function MassageBookingSection({
     ? `${serviceName(selectedService, lang)} · ${selectedService.durationMinutes} ${copy.minutes} · ${selectedService.price.toFixed(2)} ${selectedService.currency}`
     : copy.sectionSubtitle;
 
-  const scrollToSection = (target: HTMLElement | null) => {
-    if (!target) return;
-    window.setTimeout(() => target.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-  };
-
   const loadServices = useCallback(async (signal?: AbortSignal) => {
-    const cacheKey = servicesCacheKey(hotelSlug);
-    const cached = readMassageCache<ServicesResult>(cacheKey);
+    const fromDate = getSofiaIsoDate();
+    const cacheKey = bootstrapCacheKey(hotelSlug, fromDate);
+    const cached = readMassageCache<MassageBootstrapResult>(cacheKey);
 
     if (cached) {
-      setServices(cached.services || []);
+      setServices(cached.services?.services || []);
+      setAvailabilityByService(cached.availabilityByService || {});
       setServicesLoaded(true);
       return;
     }
@@ -428,13 +436,48 @@ export default function MassageBookingSection({
     setError("");
 
     try {
-      const result = await fetchMassageApi<ServicesResult>(
-        new URLSearchParams({ hotelSlug, action: "services" }),
+      const result = await fetchMassageApi<MassageBootstrapResult>(
+        new URLSearchParams({
+          hotelSlug,
+          action: "bootstrap",
+          fromDate,
+          daysAhead: "14",
+        }),
         signal
       );
-      setServices(result.services || []);
+
+      const nextServices = result.services?.services || [];
+      const nextAvailability = result.availabilityByService || {};
+
+      setServices(nextServices);
+      setAvailabilityByService(nextAvailability);
       setServicesLoaded(true);
-      writeMassageCache(cacheKey, result, CACHE_TTL.services);
+      writeMassageCache(cacheKey, result, CACHE_TTL.dates);
+      writeMassageCache(
+        servicesCacheKey(hotelSlug),
+        result.services,
+        CACHE_TTL.services
+      );
+
+      for (const service of nextServices) {
+        const serviceAvailability = nextAvailability[service.serviceId];
+        if (!serviceAvailability) continue;
+
+        writeMassageCache(
+          datesCacheKey(hotelSlug, service.serviceId, fromDate),
+          serviceAvailability,
+          CACHE_TTL.dates
+        );
+
+        for (const item of serviceAvailability.dates || []) {
+          if (!Array.isArray(item.availableTimes)) continue;
+          writeMassageCache(
+            timesCacheKey(hotelSlug, service.serviceId, item.date),
+            item.availableTimes,
+            CACHE_TTL.times
+          );
+        }
+      }
     } catch (loadError) {
       if (loadError instanceof DOMException && loadError.name === "AbortError") return;
       setError(loadError instanceof Error ? loadError.message : "Unable to load massages.");
@@ -462,18 +505,22 @@ export default function MassageBookingSection({
 
   const chooseService = async (serviceId: string) => {
     const fromDate = getSofiaIsoDate();
-    const cacheKey = datesCacheKey(hotelSlug, serviceId, fromDate);
-    const cached = readMassageCache<BookableDatesResult>(cacheKey);
+    const embedded = availabilityByService[serviceId] || null;
+    const cached = readMassageCache<BookableDatesResult>(
+      datesCacheKey(hotelSlug, serviceId, fromDate)
+    );
+    const available = embedded || cached;
 
     setSelectedServiceId(serviceId);
-    setDates(cached?.dates || []);
+    setDates(available?.dates || []);
     setSelectedDate("");
     setTimes([]);
     setSelectedTime("");
     setServiceStepExpanded(false);
     setDateStepExpanded(true);
     setTimeStepExpanded(true);
-    setLoadingDates(!cached);
+    setLoadingDates(!available);
+    setLoadingTimes(false);
     setError("");
 
     onTrack({
@@ -486,10 +533,7 @@ export default function MassageBookingSection({
       value: serviceId,
     });
 
-    if (cached) {
-      scrollToSection(dateSectionRef.current);
-      return;
-    }
+    if (available) return;
 
     try {
       const result = await fetchMassageApi<BookableDatesResult>(
@@ -502,8 +546,15 @@ export default function MassageBookingSection({
         })
       );
       setDates(result.dates || []);
-      writeMassageCache(cacheKey, result, CACHE_TTL.dates);
-      scrollToSection(dateSectionRef.current);
+      setAvailabilityByService((current) => ({
+        ...current,
+        [serviceId]: result,
+      }));
+      writeMassageCache(
+        datesCacheKey(hotelSlug, serviceId, fromDate),
+        result,
+        CACHE_TTL.dates
+      );
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load dates.");
     } finally {
@@ -542,7 +593,6 @@ export default function MassageBookingSection({
 
     if (immediatelyAvailableTimes) {
       writeMassageCache(cacheKey, immediatelyAvailableTimes, CACHE_TTL.times);
-      scrollToSection(timeSectionRef.current);
       return;
     }
 
@@ -558,7 +608,6 @@ export default function MassageBookingSection({
       const availableTimes = result.availableTimes || [];
       setTimes(availableTimes);
       writeMassageCache(cacheKey, availableTimes, CACHE_TTL.times);
-      scrollToSection(timeSectionRef.current);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load times.");
     } finally {
@@ -579,7 +628,6 @@ export default function MassageBookingSection({
       value: time,
       extra: { date: selectedDate },
     });
-    scrollToSection(summarySectionRef.current);
   };
 
   const resetSelection = () => {
@@ -592,7 +640,6 @@ export default function MassageBookingSection({
     setDateStepExpanded(true);
     setTimeStepExpanded(true);
     setError("");
-    scrollToSection(sectionRef.current);
   };
 
   return (
@@ -637,18 +684,25 @@ export default function MassageBookingSection({
             </div>
           ) : null}
 
-          {!selectedService || serviceStepExpanded ? (
-          <section className="rounded-2xl border p-3" style={{ borderColor: "var(--stayhub-action)", backgroundColor: "var(--stayhub-soft)", color: "#202627" }}>
+          <section
+            className="rounded-2xl border p-3"
+            style={{
+              borderColor: "var(--stayhub-action)",
+              backgroundColor: "var(--stayhub-soft)",
+              color: "#202627",
+            }}
+            aria-busy={loadingServices || loadingDates}
+          >
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-bold">{copy.chooseService}</h3>
               {selectedService && !serviceStepExpanded ? (
                 <button
                   type="button"
                   onClick={() => setServiceStepExpanded(true)}
-                  className="rounded-full border px-3 py-1 text-xs font-bold"
+                  className="rounded-full border bg-white px-3 py-1 text-xs font-bold"
                   style={{ borderColor: "var(--stayhub-action)", color: "var(--stayhub-primary)" }}
                 >
-                  {copy.change}
+                  {copy.changeService}
                 </button>
               ) : null}
             </div>
@@ -659,6 +713,9 @@ export default function MassageBookingSection({
                 <div className="mt-1 text-xs opacity-90">
                   {copy.duration}: {selectedService.durationMinutes} {copy.minutes} · {copy.price}: {selectedService.price.toFixed(2)} {selectedService.currency}
                 </div>
+                {loadingDates ? (
+                  <div className="mt-2 text-xs font-semibold opacity-90">{copy.loading}</div>
+                ) : null}
               </div>
             ) : loadingServices ? (
               <div className="mt-3 text-sm opacity-70">{copy.loading}</div>
@@ -687,26 +744,9 @@ export default function MassageBookingSection({
             )}
           </section>
 
-          ) : (
-            <div className="mb-3 flex justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setServiceStepExpanded(true);
-                  scrollToSection(sectionRef.current);
-                }}
-                className="rounded-full border bg-white px-3 py-2 text-xs font-bold"
-                style={{ borderColor: "var(--stayhub-action)", color: "var(--stayhub-primary)" }}
-              >
-                {copy.changeService}
-              </button>
-            </div>
-          )}
-
           {selectedService ? (
             <section
-              ref={dateSectionRef}
-              className="mt-3 scroll-mt-4 rounded-2xl border p-3"
+              className="mt-3 rounded-2xl border p-3"
               style={{ borderColor: "var(--stayhub-action)", backgroundColor: "var(--stayhub-soft)", color: "#202627" }}
             >
               <div className="flex items-center justify-between gap-3">
@@ -760,8 +800,7 @@ export default function MassageBookingSection({
 
           {selectedDate ? (
             <section
-              ref={timeSectionRef}
-              className="mt-3 scroll-mt-4 rounded-2xl border p-3"
+              className="mt-3 rounded-2xl border p-3"
               style={{ borderColor: "var(--stayhub-action)", backgroundColor: "var(--stayhub-soft)", color: "#202627" }}
             >
               <div className="flex items-center justify-between gap-3">
@@ -809,8 +848,7 @@ export default function MassageBookingSection({
 
           {selectedService && selectedDate && selectedTime ? (
             <section
-              ref={summarySectionRef}
-              className="mt-3 scroll-mt-4 rounded-2xl border-2 p-4"
+              className="mt-3 rounded-2xl border-2 p-4"
               style={selectedCardStyle}
             >
               <h3 className="text-lg font-bold">{copy.selected}</h3>
