@@ -815,6 +815,7 @@ export default function MassageBookingSection({
           time: selectedTime,
           room,
           roomConfirmed: true,
+          guestLanguage: lang,
         }),
       });
 
@@ -1114,9 +1115,6 @@ export default function MassageBookingSection({
                 </dd>
               </dl>
 
-              <div className="mt-4 rounded-xl bg-white/15 p-3 text-sm font-semibold">
-                {copy.readOnlyNotice}
-              </div>
 
               {bookingFeedback ? (
                 <div

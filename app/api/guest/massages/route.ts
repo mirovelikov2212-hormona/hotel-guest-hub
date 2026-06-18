@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getHotelConfig } from "@/lib/config";
+import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
+import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
+import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
+import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import {
   createMassageBooking,
   createMassageControlledE2EBooking,
@@ -124,6 +129,240 @@ function requireConfirmedRoom(value: unknown) {
 
 function normalizeRoomForComparison(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
+}
+
+
+function getHotelSlugCandidates(inputSlug: string) {
+  const slug = String(inputSlug || "").trim().toLowerCase();
+  const candidates = new Set([slug]);
+
+  // Aquamarine is the public spelling, while the first DB record was created as aquamarin.
+  if (slug === "aquamarine") candidates.add("aquamarin");
+  if (slug === "aquamarin") candidates.add("aquamarine");
+
+  return Array.from(candidates).filter(Boolean);
+}
+
+async function getHotelByAnySlugAdmin(inputSlug: string) {
+  const candidates = getHotelSlugCandidates(inputSlug);
+
+  const { data, error } = await supabaseAdmin
+    .from("hotels")
+    .select("id, slug, name, active")
+    .in("slug", candidates)
+    .eq("active", true)
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    throw new MassageApiError("Hotel not found for staff request creation.", {
+      statusCode: 500,
+      code: "MASSAGE_STAFF_HOTEL_NOT_FOUND",
+    });
+  }
+
+  return data as { id: string; slug: string; name?: string | null; active?: boolean | null };
+}
+
+function formatMassageStaffDate(dateIso: string) {
+  const [year, month, day] = dateIso.split("-");
+  if (!year || !month || !day) return dateIso;
+  return `${day}.${month}.${year}`;
+}
+
+function buildMassageBookingKey(input: {
+  hotelSlug: string;
+  serviceId: string;
+  date: string;
+  startTime: string;
+  roomNumber: string;
+}) {
+  return [
+    normalizeMassageHotelSlug(input.hotelSlug),
+    String(input.serviceId || "").trim().toLowerCase(),
+    String(input.date || "").trim(),
+    String(input.startTime || "").trim(),
+    normalizeRoomForComparison(input.roomNumber),
+  ].join("|");
+}
+
+async function findExistingMassageStaffRequest(input: {
+  hotelId: string;
+  massageBookingKey: string;
+}) {
+  const { data, error } = await supabaseAdmin
+    .from("guest_requests")
+    .select("id, room_number_snapshot, request_type, title, status, created_at, metadata_json")
+    .eq("hotel_id", input.hotelId)
+    .eq("request_type", "massage_booking")
+    .contains("metadata_json", { massageBookingKey: input.massageBookingKey })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to check existing massage staff request", {
+      hotelId: input.hotelId,
+      massageBookingKey: input.massageBookingKey,
+      error,
+    });
+
+    throw new MassageApiError("Massage booking was saved, but staff notification could not be verified.", {
+      statusCode: 502,
+      code: "MASSAGE_STAFF_REQUEST_LOOKUP_FAILED",
+    });
+  }
+
+  return data
+    ? {
+        id: String(data.id),
+        status: String(data.status || ""),
+        action: "already_exists" as const,
+      }
+    : null;
+}
+
+async function ensureMassageStaffRequest(input: {
+  hotelSlug: string;
+  serviceId: string;
+  date: string;
+  startTime: string;
+  roomNumber: string;
+  serviceNameBg?: string | null;
+  sheetValue?: string | null;
+  durationMinutes?: number | null;
+  price?: number | string | null;
+  currency?: string | null;
+  guestLanguage?: string | null;
+}) {
+  const hotel = await getHotelByAnySlugAdmin(input.hotelSlug);
+  const massageBookingKey = buildMassageBookingKey(input);
+  const existing = await findExistingMassageStaffRequest({
+    hotelId: hotel.id,
+    massageBookingKey,
+  });
+
+  if (existing) return existing;
+
+  const normalizedType = normalizeStaffRequestType("massage_booking", "reception");
+  const department = getDepartmentForRequestType(normalizedType);
+  const serviceName = String(
+    input.serviceNameBg || input.sheetValue || input.serviceId || "Масаж"
+  ).trim();
+  const price = String(input.price ?? "").trim();
+  const currency = String(input.currency || "EUR").trim();
+  const dateLabel = formatMassageStaffDate(input.date);
+  const duration = Number(input.durationMinutes || 0);
+  const durationLine = Number.isFinite(duration) && duration > 0
+    ? `Продължителност: ${duration} мин.`
+    : "";
+  const priceLine = price ? `Цена: ${price} ${currency}` : "";
+  const note = [
+    `Избрана услуга: ${serviceName}`,
+    `Дата: ${dateLabel}`,
+    `Час: ${input.startTime}`,
+    durationLine,
+    priceLine,
+    "Източник: StayHub",
+    "График: Google Sheet е актуализиран.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const operationalMetadata = {
+    department,
+    notifyDepartments: ["reception", "manager"],
+    requiresBilling: true,
+    price: price || null,
+    currency,
+    sourceRequestDef: "massage_booking",
+    serviceTime: "today",
+    typeLabel: "Запазен масаж",
+    note,
+    rawType: "massage_booking",
+    billingStatus: "pending",
+    massageBookingKey,
+    massageBooking: {
+      serviceId: input.serviceId,
+      serviceName,
+      date: input.date,
+      startTime: input.startTime,
+      durationMinutes: duration || null,
+      price: price || null,
+      currency,
+      roomNumber: input.roomNumber,
+      source: "stayhub",
+    },
+  };
+
+  const staffTitleBg = getOperationalRequestTitleBg({
+    requestType: normalizedType,
+    title: "Запазен масаж",
+    message: note,
+    metadata: operationalMetadata,
+  });
+  const staffNoteBg = getOperationalRequestNoteBg({
+    requestType: normalizedType,
+    title: "Запазен масаж",
+    message: note,
+    metadata: operationalMetadata,
+  });
+
+  const { data, error } = await supabaseAdmin
+    .from("guest_requests")
+    .insert({
+      hotel_id: hotel.id,
+      room_number_snapshot: input.roomNumber,
+      source: "guest_hub",
+      channel: "pwa",
+      guest_language: String(input.guestLanguage || "bg").trim().toLowerCase() || "bg",
+      request_type: normalizedType,
+      category: "service",
+      priority: "normal",
+      title: "Запазен масаж",
+      message: note,
+      status: "new",
+      metadata_json: {
+        ...operationalMetadata,
+        guestLanguage: String(input.guestLanguage || "bg").trim().toLowerCase() || "bg",
+        staffTitleBg,
+        staffNoteBg,
+      },
+    })
+    .select("id, room_number_snapshot, request_type, title, status, created_at, metadata_json")
+    .single();
+
+  if (error || !data) {
+    console.error("Failed to create massage staff request", {
+      hotelSlug: input.hotelSlug,
+      roomNumber: input.roomNumber,
+      serviceId: input.serviceId,
+      date: input.date,
+      startTime: input.startTime,
+      error,
+    });
+
+    throw new MassageApiError("Massage booking was saved, but reception notification could not be created.", {
+      statusCode: 502,
+      code: "MASSAGE_STAFF_REQUEST_CREATE_FAILED",
+    });
+  }
+
+  await sendManagerPushNotification({
+    hotelId: hotel.id,
+    hotelSlug: hotel.slug,
+    requestId: String(data.id),
+    room: String(data.room_number_snapshot ?? input.roomNumber),
+    requestTitle: staffTitleBg || "Запазен масаж",
+  }).catch((pushError) => {
+    console.error("Manager push notification failed for massage booking", pushError);
+  });
+
+  return {
+    id: String(data.id),
+    status: String(data.status || "new"),
+    action: "created" as const,
+  };
 }
 
 async function requireExistingHotelRoom(hotelSlug: string, room: string) {
@@ -322,6 +561,23 @@ export async function POST(req: NextRequest) {
       room,
     });
 
+    const staffRequest =
+      result.status === "BOOKING_WRITTEN" || result.status === "BOOKING_ALREADY_CONFIRMED"
+        ? await ensureMassageStaffRequest({
+            hotelSlug,
+            serviceId: result.serviceId || serviceId,
+            date: result.date || date,
+            startTime: result.startTime || time,
+            roomNumber: result.roomNumber || room,
+            serviceNameBg: result.serviceNameBg,
+            sheetValue: result.sheetValue,
+            durationMinutes: result.durationMinutes,
+            price: result.price,
+            currency: result.currency,
+            guestLanguage: String(body.guestLanguage || "bg"),
+          })
+        : null;
+
     const statusCode = result.status === "BOOKING_WRITTEN" ? 201 : 200;
 
     return json(
@@ -330,6 +586,7 @@ export async function POST(req: NextRequest) {
         action: "book",
         hotelSlug,
         result,
+        staffRequest,
       },
       statusCode
     );
