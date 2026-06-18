@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import type { StaffBillingStatus, StaffRequest } from "@/lib/staff/types";
 import { staffDepartmentClasses, staffStatusClasses } from "@/lib/staff/types";
+import { isMassageBookingLikeRequest } from "@/lib/staff/request-type-utils";
 import {
   staffText,
   translateDepartment,
@@ -23,6 +24,7 @@ type StaffRequestCardProps = {
   onCancelBilling?: (id: string) => void;
   isOverdue?: boolean;
   overdueMinutes?: number;
+  forceBillingOnly?: boolean;
 };
 
 function getStaffRequestIcon(type: string): string {
@@ -156,6 +158,7 @@ export default function StaffRequestCard({
   onCancelBilling,
   isOverdue = false,
   overdueMinutes,
+  forceBillingOnly = false,
 }: StaffRequestCardProps) {
   const { lang } = useStaffUi();
   const t = staffText(lang);
@@ -169,31 +172,7 @@ export default function StaffRequestCard({
   const isCancelled = billingStatus === "cancelled";
   const isPendingBilling = billingStatus === "pending";
   const shouldShowBilling = (mode === "reception" || mode === "manager") && Boolean(request.requiresBilling);
-  const massageSignal = [
-    request.type,
-    request.typeLabel,
-    request.note,
-    request.sourceRequestDef,
-  ]
-    .map((value) =>
-      String(value || "")
-        .trim()
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, ""),
-    )
-    .join(" | ");
-  const isMassageBooking =
-    request.type === "massage_booking" ||
-    massageSignal.includes("massage_booking") ||
-    massageSignal.includes("spa_massage") ||
-    massageSignal.includes("масаж") ||
-    massageSignal.includes("релакс") ||
-    massageSignal.includes("massage") ||
-    massageSignal.includes("relax") ||
-    massageSignal.includes("masaj") ||
-    massageSignal.includes("masaz") ||
-    massageSignal.includes("masáž");
+  const isMassageBooking = forceBillingOnly || isMassageBookingLikeRequest(request);
   // Only massage bookings are billing-only in Reception/Manager.
   // Other paid services such as coffee capsules, pillows, minibar and late checkout keep their operational Start/Done flow.
   const shouldUseBillingOnlyFlow = shouldShowBilling && isMassageBooking;

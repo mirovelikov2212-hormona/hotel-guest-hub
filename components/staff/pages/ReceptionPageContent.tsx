@@ -13,6 +13,7 @@ import type {
   StaffRequest,
   StaffRequestStatus,
 } from "@/lib/staff/types";
+import { isMassageBookingLikeRequest } from "@/lib/staff/request-type-utils";
 import {
   staffText,
   translateDepartment,
@@ -672,6 +673,7 @@ export default function ReceptionPage() {
                 request={request}
                 mode="reception"
                 canAct
+                forceBillingOnly={isMassageBookingLikeRequest(request)}
                 isOverdue={isOverdueForReception(request, nowMs)}
                 overdueMinutes={requestAgeMinutes}
                 onStart={(id) => void updateRequestStatus(id, "in_progress")}

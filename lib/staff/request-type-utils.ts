@@ -1,4 +1,4 @@
-import type { StaffDepartment, StaffRequestType } from "@/lib/staff/types";
+import type { StaffDepartment, StaffRequest, StaffRequestType } from "@/lib/staff/types";
 
 const aliases: Record<string, StaffRequestType> = {
   minibar_refill: "minibar",
@@ -82,4 +82,38 @@ const technicalSet = new Set<StaffRequestType>([
 
 export function isTechnicalRequestType(type: StaffRequestType | string) {
   return technicalSet.has(normalizeStaffRequestType(String(type || ""), "maintenance"));
+}
+
+
+function normalizeMassageDetectionText(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+export function isMassageBookingLikeRequest(request: Partial<StaffRequest> & Record<string, unknown>) {
+  const signal = normalizeMassageDetectionText([
+    request.type,
+    request.typeLabel,
+    request.note,
+    request.sourceRequestDef,
+    request.title,
+    request.message,
+    request.request_type,
+    request.rawType,
+  ].join(" | "));
+
+  return (
+    signal.includes("massage_booking") ||
+    signal.includes("spa_massage") ||
+    signal.includes("масаж") ||
+    signal.includes("релакс") ||
+    signal.includes("massage") ||
+    signal.includes("relax") ||
+    signal.includes("masaj") ||
+    signal.includes("masaz") ||
+    signal.includes("masáž")
+  );
 }

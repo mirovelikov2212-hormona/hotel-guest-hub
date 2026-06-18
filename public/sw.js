@@ -1,4 +1,4 @@
-const CACHE_VERSION = "stayhub-manager-push-v1780981283";
+const CACHE_VERSION = "stayhub-staff-fresh-v20260618-01";
 const APP_SHELL = ["/", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -34,6 +34,13 @@ self.addEventListener("fetch", (event) => {
         )
       )
     );
+    return;
+  }
+
+  // Staff/Next.js assets must be fresh after each deploy.
+  // Old cached JS chunks were the likely reason some Staff Hub UI changes appeared late.
+  if (url.pathname.startsWith("/_next/") || url.pathname.startsWith("/staff/")) {
+    event.respondWith(fetch(request, { cache: "no-store" }).catch(() => caches.match(request).then((cached) => cached || Response.error())));
     return;
   }
 

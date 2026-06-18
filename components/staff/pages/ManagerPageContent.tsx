@@ -11,7 +11,7 @@ import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import { getRequestSummary } from "@/lib/staff/mock-data";
 import type { StaffBillingStatus, StaffRequest, StaffRequestType, StaffRequestStatus } from "@/lib/staff/types";
-import { isTechnicalRequestType } from "@/lib/staff/request-type-utils";
+import { isMassageBookingLikeRequest, isTechnicalRequestType } from "@/lib/staff/request-type-utils";
 import { staffText, translateRequestType } from "@/lib/staff/ui-copy";
 
 type ReportView =
@@ -766,6 +766,7 @@ export default function ManagerPage() {
                 request={request}
                 mode="manager"
                 canAct
+                forceBillingOnly={isMassageBookingLikeRequest(request)}
                 canCharge
                 onStart={(id) => void updateRequestStatus(id, "in_progress")}
                 onDone={(id) => void updateRequestStatus(id, "completed")}
