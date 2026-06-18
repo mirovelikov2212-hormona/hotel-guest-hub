@@ -1,7 +1,7 @@
 import "server-only";
 
 const MASSAGE_API_VERSION = "v12";
-const DEFAULT_TIMEOUT_MS = 12_000;
+const DEFAULT_TIMEOUT_MS = 22_000;
 
 const HOTEL_SLUG_ALIASES: Record<string, string> = {
   aquamarine: "aquamarin",

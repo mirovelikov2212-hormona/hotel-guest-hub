@@ -94,7 +94,11 @@ function fieldLines(record: AiCatalogRecord, field: AiAnswerField, lang: AiLang)
     case "location":
       return path.length ? [`${copy.path}: ${path.join(" → ")}`] : [];
     case "options":
-      return options.length ? [`${copy.options}: ${options.join("; ")}`] : summary ? splitFacts(summary) : [];
+      return options.length
+        ? [`${copy.options}:\n${options.map((option) => `• ${option}`).join("\n")}`]
+        : summary
+          ? splitFacts(summary)
+          : [];
     case "availability":
       return [copy.available];
     case "request":

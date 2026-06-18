@@ -605,7 +605,7 @@ export default function MassageBookingSection({
 
     const timerId = window.setTimeout(() => {
       void loadServices();
-    }, 180);
+    }, 60);
 
     return () => window.clearTimeout(timerId);
   }, [loadServices, servicesLoaded]);

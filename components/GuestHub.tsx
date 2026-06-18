@@ -7314,7 +7314,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         </div>
       ) : null}
 
-      <div className="p-4 pb-28">
+      <div className="px-4 pb-28 pt-2">
         <div className="space-y-3">
           {quickServiceSections.length ? (
             <section aria-label={guestNavigationLabel("quick_services_title", guestNavCopy.quickServices)}>
@@ -7363,7 +7363,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               </div>
 
               {selectedQuickServiceSection ? (
-                <div className="mt-3 space-y-2">
+                <div className="mt-2 space-y-2">
                   {selectedQuickServiceSection.subtitle ? (
                     <div className="rounded-xl stayhub-card px-3 py-3 text-sm leading-5">
                       {selectedQuickServiceSection.subtitle}
