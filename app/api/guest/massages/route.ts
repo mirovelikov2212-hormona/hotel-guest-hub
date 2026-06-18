@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getHotelConfig } from "@/lib/config";
 import {
   createMassageBooking,
   createMassageControlledE2EBooking,
@@ -121,6 +122,52 @@ function requireConfirmedRoom(value: unknown) {
   }
 }
 
+function normalizeRoomForComparison(value: unknown) {
+  return String(value || "").trim().replace(/\s+/g, "");
+}
+
+async function requireExistingHotelRoom(hotelSlug: string, room: string) {
+  let hotelConfig: Awaited<ReturnType<typeof getHotelConfig>>;
+
+  try {
+    hotelConfig = await getHotelConfig(hotelSlug);
+  } catch (error) {
+    console.error("Failed to load hotel config for massage room validation", {
+      hotelSlug,
+      error,
+    });
+
+    throw new MassageApiError("Room validation is temporarily unavailable.", {
+      statusCode: 503,
+      code: "ROOM_VALIDATION_UNAVAILABLE",
+    });
+  }
+
+  const validRoomNumbers = Array.isArray(hotelConfig?.validRoomNumbers)
+    ? hotelConfig.validRoomNumbers
+        .map((item) => normalizeRoomForComparison(item))
+        .filter(Boolean)
+    : [];
+
+  if (validRoomNumbers.length === 0) {
+    console.error("Massage booking blocked because no active hotel rooms are configured", {
+      hotelSlug,
+    });
+
+    throw new MassageApiError("Hotel room validation is not configured.", {
+      statusCode: 503,
+      code: "HOTEL_ROOMS_NOT_CONFIGURED",
+    });
+  }
+
+  if (!validRoomNumbers.includes(normalizeRoomForComparison(room))) {
+    throw new MassageApiError("Invalid room number.", {
+      statusCode: 400,
+      code: "INVALID_ROOM",
+    });
+  }
+}
+
 async function readJsonObject(req: NextRequest) {
   let payload: unknown;
 
@@ -223,6 +270,8 @@ export async function POST(req: NextRequest) {
     const date = requireDate(body.date ?? body.dateIso, "date");
     const time = requireTime(body.time ?? body.startTime);
     const room = requireRoom(body.room ?? body.roomNumber);
+
+    await requireExistingHotelRoom(hotelSlug, room);
 
     if (controlledE2EEnabled) {
       const approved = isApprovedMassageControlledE2ECandidate({
