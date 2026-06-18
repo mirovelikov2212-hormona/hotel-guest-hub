@@ -169,6 +169,8 @@ export default function StaffRequestCard({
   const isCancelled = billingStatus === "cancelled";
   const isPendingBilling = billingStatus === "pending";
   const shouldShowBilling = (mode === "reception" || mode === "manager") && Boolean(request.requiresBilling);
+  const isMassageBooking = String(request.type || "").trim().toLowerCase() === "massage_booking";
+  const shouldUseBillingOnlyFlow = isMassageBooking && shouldShowBilling;
   const shouldShowBillingActions =
     shouldShowBilling && canCharge && isPendingBilling && billingActionsOpen;
   const shouldShowBillingToggle =
@@ -176,6 +178,7 @@ export default function StaffRequestCard({
   const shouldShowReturn =
     canAct &&
     isNew &&
+    !shouldUseBillingOnlyFlow &&
     !((mode === "reception" || mode === "manager") && request.requiresBilling);
   const cardClassName = isOverdue
     ? "rounded-3xl border border-rose-500/90 bg-rose-950/35 p-5 shadow-lg shadow-rose-500/20 ring-2 ring-rose-500/30 animate-pulse"
@@ -309,7 +312,7 @@ export default function StaffRequestCard({
             </div>
           ) : null}
 
-          {canAct && isNew ? (
+          {canAct && isNew && !shouldUseBillingOnlyFlow ? (
             <>
               <button
                 type="button"
@@ -331,7 +334,7 @@ export default function StaffRequestCard({
             </>
           ) : null}
 
-          {canAct && isInProgress ? (
+          {canAct && isInProgress && !shouldUseBillingOnlyFlow ? (
             <button
               type="button"
               onClick={() => onDone?.(request.id)}
@@ -341,7 +344,7 @@ export default function StaffRequestCard({
             </button>
           ) : null}
 
-          {canAct && !isNew && !isInProgress ? (
+          {canAct && !isNew && !isInProgress && !shouldUseBillingOnlyFlow ? (
             <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-center text-sm font-medium text-white/50">
               {t.noActionsAvailable}
             </div>

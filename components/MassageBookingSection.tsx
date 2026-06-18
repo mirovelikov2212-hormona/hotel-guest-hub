@@ -51,6 +51,20 @@ type BookingFeedback = {
   code?: string;
 } | null;
 
+export type ConfirmedMassageBookingCard = {
+  hotelSlug: string;
+  room: string;
+  serviceId: string;
+  serviceName: string;
+  date: string;
+  dateLabel: string;
+  time: string;
+  durationMinutes: number;
+  price: number;
+  currency: string;
+  confirmedAt: string;
+};
+
 type ServicesResult = {
   count: number;
   services: MassageService[];
@@ -472,6 +486,7 @@ export default function MassageBookingSection({
   forceOpenToken = 0,
   onRequireRoomConfirmation,
   onTrack,
+  onBookingConfirmed,
 }: {
   hotelSlug: string;
   language: LangKey;
@@ -481,6 +496,7 @@ export default function MassageBookingSection({
   forceOpenToken?: number;
   onRequireRoomConfirmation: () => void;
   onTrack: (payload: TrackHubPayload) => void;
+  onBookingConfirmed?: (booking: ConfirmedMassageBookingCard) => void;
 }) {
   const lang = normalizeLanguage(language);
   const copy = COPY[lang];
@@ -828,6 +844,19 @@ export default function MassageBookingSection({
           kind: "success",
           text: alreadyConfirmed ? copy.bookingAlreadyConfirmed : copy.bookingSuccess,
           code: payload.result.status,
+        });
+        onBookingConfirmed?.({
+          hotelSlug,
+          room: payload.result.roomNumber || room,
+          serviceId: payload.result.serviceId || selectedService.serviceId,
+          serviceName: serviceName(selectedService, lang),
+          date: payload.result.date || selectedDate,
+          dateLabel: formatDate(payload.result.date || selectedDate, lang),
+          time: payload.result.startTime || selectedTime,
+          durationMinutes: payload.result.durationMinutes || selectedService.durationMinutes,
+          price: selectedService.price,
+          currency: selectedService.currency,
+          confirmedAt: new Date().toISOString(),
         });
         onTrack({
           eventName: alreadyConfirmed ? "massage_booking_already_confirmed" : "massage_booking_submitted",

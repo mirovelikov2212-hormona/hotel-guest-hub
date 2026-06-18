@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
 
     const { data: requestRow, error: requestError } = await supabaseAdmin
       .from("guest_requests")
-      .select("id, hotel_id, request_type, room_number_snapshot, title, metadata_json")
+      .select("id, hotel_id, request_type, room_number_snapshot, title, status, metadata_json")
       .eq("id", requestId)
       .eq("hotel_id", scope.hotelId)
       .maybeSingle();
@@ -172,10 +172,21 @@ export async function POST(req: NextRequest) {
     }
 
     const { nextMetadata, changedAt } = applyBillingStatus(currentMetadata, billingStatus, role);
+    const shouldAutoCompleteMassageBooking =
+      String(requestRow.request_type || "").trim().toLowerCase() === "massage_booking" &&
+      billingStatus !== "pending";
+
+    const updatePayload: Record<string, unknown> = { metadata_json: nextMetadata };
+
+    if (shouldAutoCompleteMassageBooking) {
+      updatePayload.status = "completed";
+      updatePayload.resolved_at = changedAt;
+      updatePayload.closed_at = changedAt;
+    }
 
     const { error: updateError } = await supabaseAdmin
       .from("guest_requests")
-      .update({ metadata_json: nextMetadata })
+      .update(updatePayload)
       .eq("id", requestId)
       .eq("hotel_id", scope.hotelId);
 
@@ -205,6 +216,7 @@ export async function POST(req: NextRequest) {
         currency: currentMetadata.currency ?? null,
         sourceRequestDef: currentMetadata.sourceRequestDef ?? null,
         changedAt,
+        autoCompleted: shouldAutoCompleteMassageBooking,
       },
     });
 
@@ -212,7 +224,7 @@ export async function POST(req: NextRequest) {
       console.error("staff billing hub_events insert error", eventError);
     }
 
-    return NextResponse.json({ ok: true, metadata: nextMetadata });
+    return NextResponse.json({ ok: true, metadata: nextMetadata, autoCompleted: shouldAutoCompleteMassageBooking });
   } catch (error) {
     console.error("staff request-billing POST error", error);
     return NextResponse.json(

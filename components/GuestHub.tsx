@@ -104,7 +104,7 @@ import type { HotelConfig, LangKey, HubSection, DepartmentKey, HubItem, RequestD
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { persistQrContextFromUrl, trackHubEvent, type TrackHubPayload } from "@/lib/trackHubEvent";
 import InstallAppButton from "@/components/InstallAppButton";
-import MassageBookingSection from "@/components/MassageBookingSection";
+import MassageBookingSection, { type ConfirmedMassageBookingCard } from "@/components/MassageBookingSection";
 import {
   buildWhatsAppLink,
   isAfterCutoffLocal,
@@ -1020,6 +1020,10 @@ type StoredGuestRequestRef = {
   room: string;
 };
 
+type StoredGuestMassageBooking = ConfirmedMassageBookingCard & {
+  id: string;
+};
+
 type GuestStatusRow = {
   id: string;
   room_number_snapshot: string | null;
@@ -1068,6 +1072,8 @@ type StoredGuestRoomState = {
 };
 
 const GUEST_REQUEST_REFS_STORAGE_KEY = "guesthub_guest_request_refs";
+
+const GUEST_MASSAGE_BOOKINGS_STORAGE_KEY = "guesthub_massage_bookings_v1";
 
 function getGuestRoomStateStorageKey(hotelSlug: string) {
   return `guesthub_room_state:${String(hotelSlug || "default").trim().toLowerCase()}`;
@@ -1154,6 +1160,202 @@ function pushStoredGuestRequestRef(
 
   writeStoredGuestRequestRefs(next);
   return next;
+}
+
+function massageBookingId(input: Pick<ConfirmedMassageBookingCard, "hotelSlug" | "room" | "serviceId" | "date" | "time">) {
+  return [
+    String(input.hotelSlug || "").trim().toLowerCase(),
+    String(input.room || "").trim(),
+    String(input.serviceId || "").trim().toLowerCase(),
+    String(input.date || "").trim(),
+    String(input.time || "").trim(),
+  ].join("|");
+}
+
+function readStoredGuestMassageBookings(): StoredGuestMassageBooking[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(GUEST_MASSAGE_BOOKINGS_STORAGE_KEY);
+    if (!raw) return [];
+
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter((item): item is StoredGuestMassageBooking => {
+      if (!item || typeof item !== "object") return false;
+      const candidate = item as Record<string, unknown>;
+
+      return (
+        typeof candidate.id === "string" &&
+        typeof candidate.hotelSlug === "string" &&
+        typeof candidate.room === "string" &&
+        typeof candidate.serviceId === "string" &&
+        typeof candidate.serviceName === "string" &&
+        typeof candidate.date === "string" &&
+        typeof candidate.dateLabel === "string" &&
+        typeof candidate.time === "string"
+      );
+    });
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredGuestMassageBookings(bookings: StoredGuestMassageBooking[]) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(
+      GUEST_MASSAGE_BOOKINGS_STORAGE_KEY,
+      JSON.stringify(bookings.slice(0, 20))
+    );
+  } catch (error) {
+    console.error("writeStoredGuestMassageBookings failed", error);
+  }
+}
+
+function getMassageBookingStartMs(booking: Pick<StoredGuestMassageBooking, "date" | "time">) {
+  const [year, month, day] = String(booking.date || "").split("-").map(Number);
+  const match = String(booking.time || "").trim().match(/^(\d{1,2}):(\d{2})$/);
+
+  if (!year || !month || !day || !match) return Number.NaN;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const value = new Date(year, month - 1, day, hours, minutes, 0, 0).getTime();
+
+  return Number.isFinite(value) ? value : Number.NaN;
+}
+
+function isStoredMassageBookingExpired(booking: StoredGuestMassageBooking, now = Date.now()) {
+  const startMs = getMassageBookingStartMs(booking);
+  if (!Number.isFinite(startMs)) return false;
+
+  const durationMs = Math.max(0, Number(booking.durationMinutes || 0)) * 60_000;
+  const keepAfterEndMs = 6 * 60 * 60_000;
+
+  return now > startMs + durationMs + keepAfterEndMs;
+}
+
+function pruneStoredGuestMassageBookings(bookings = readStoredGuestMassageBookings()) {
+  const now = Date.now();
+  const next = bookings.filter((booking) => !isStoredMassageBookingExpired(booking, now));
+
+  if (next.length !== bookings.length) {
+    writeStoredGuestMassageBookings(next);
+  }
+
+  return next;
+}
+
+function upsertStoredGuestMassageBooking(booking: ConfirmedMassageBookingCard) {
+  const normalized: StoredGuestMassageBooking = {
+    ...booking,
+    hotelSlug: String(booking.hotelSlug || "").trim().toLowerCase(),
+    room: String(booking.room || "").trim(),
+    serviceId: String(booking.serviceId || "").trim().toLowerCase(),
+    id: massageBookingId(booking),
+  };
+
+  const current = pruneStoredGuestMassageBookings();
+  const next = [normalized, ...current.filter((item) => item.id !== normalized.id)].slice(0, 20);
+  writeStoredGuestMassageBookings(next);
+
+  return next;
+}
+
+function getMassageReservationCopy(lang: LangKey) {
+  if (lang === "en") {
+    return {
+      title: "Upcoming massage",
+      confirmed: "Confirmed booking",
+      room: "Room",
+      duration: "Duration",
+      price: "Price",
+      minutes: "min",
+      reminderSoon: "Reminder: your massage starts in less than 1 hour.",
+      reminderNow: "Your massage appointment is now or has just started.",
+    };
+  }
+
+  if (lang === "de") {
+    return {
+      title: "Bevorstehende Massage",
+      confirmed: "Bestätigte Buchung",
+      room: "Zimmer",
+      duration: "Dauer",
+      price: "Preis",
+      minutes: "Min.",
+      reminderSoon: "Erinnerung: Ihre Massage beginnt in weniger als 1 Stunde.",
+      reminderNow: "Ihr Massagetermin ist jetzt oder hat gerade begonnen.",
+    };
+  }
+
+  if (lang === "ro") {
+    return {
+      title: "Masaj programat",
+      confirmed: "Rezervare confirmată",
+      room: "Cameră",
+      duration: "Durată",
+      price: "Preț",
+      minutes: "min.",
+      reminderSoon: "Memento: masajul începe în mai puțin de 1 oră.",
+      reminderNow: "Programarea pentru masaj este acum sau tocmai a început.",
+    };
+  }
+
+  if (lang === "cs") {
+    return {
+      title: "Nadcházející masáž",
+      confirmed: "Potvrzená rezervace",
+      room: "Pokoj",
+      duration: "Délka",
+      price: "Cena",
+      minutes: "min.",
+      reminderSoon: "Připomínka: vaše masáž začíná za méně než 1 hodinu.",
+      reminderNow: "Vaše masáž je nyní nebo právě začala.",
+    };
+  }
+
+  if (lang === "ru") {
+    return {
+      title: "Предстоящий массаж",
+      confirmed: "Бронирование подтверждено",
+      room: "Номер",
+      duration: "Продолжительность",
+      price: "Цена",
+      minutes: "мин.",
+      reminderSoon: "Напоминание: ваш массаж начнётся менее чем через 1 час.",
+      reminderNow: "Ваш массаж сейчас или только что начался.",
+    };
+  }
+
+  return {
+    title: "Предстоящ масаж",
+    confirmed: "Потвърдена резервация",
+    room: "Стая",
+    duration: "Продължителност",
+    price: "Цена",
+    minutes: "мин.",
+    reminderSoon: "Напомняне: Вашият масаж започва след по-малко от 1 час.",
+    reminderNow: "Вашият масаж е сега или току-що е започнал.",
+  };
+}
+
+function getMassageReservationReminder(booking: StoredGuestMassageBooking, lang: LangKey) {
+  const startMs = getMassageBookingStartMs(booking);
+  if (!Number.isFinite(startMs)) return "";
+
+  const now = Date.now();
+  const diffMs = startMs - now;
+  const durationMs = Math.max(20, Number(booking.durationMinutes || 20)) * 60_000;
+  const copy = getMassageReservationCopy(lang);
+
+  if (diffMs >= 0 && diffMs <= 60 * 60_000) return copy.reminderSoon;
+  if (diffMs < 0 && Math.abs(diffMs) <= durationMs) return copy.reminderNow;
+
+  return "";
 }
 
 function mapGuestStatusRow(row: GuestStatusRow): GuestStatusItem {
@@ -1960,6 +2162,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const [requestDialog, setRequestDialog] = useState<RequestDialogState>(null);
   const [guestRequestRefs, setGuestRequestRefs] = useState<StoredGuestRequestRef[]>(() => readStoredGuestRequestRefs());
+  const [guestMassageBookings, setGuestMassageBookings] = useState<StoredGuestMassageBooking[]>(() => pruneStoredGuestMassageBookings());
   const [showGuestIntro, setShowGuestIntro] = useState(false);
 
   const guestIntroStorageKey = useMemo(() => {
@@ -4617,6 +4820,42 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const massageBookingPreviewVisible =
     Boolean(massageBookingDef) && Boolean(hotelContentSlug) && isAquamarineHotel;
 
+  const activeGuestMassageBookings = useMemo(() => {
+    if (!roomConfirmed || !room.trim()) return [];
+
+    const normalizedHotelSlug = String(hotelContentSlug || config.hotelSlug || "").trim().toLowerCase();
+    const normalizedRoom = String(room || "").trim();
+
+    return guestMassageBookings
+      .filter(
+        (booking) =>
+          String(booking.hotelSlug || "").trim().toLowerCase() === normalizedHotelSlug &&
+          String(booking.room || "").trim() === normalizedRoom &&
+          !isStoredMassageBookingExpired(booking)
+      )
+      .sort((a, b) => getMassageBookingStartMs(a) - getMassageBookingStartMs(b));
+  }, [config.hotelSlug, guestMassageBookings, hotelContentSlug, room, roomConfirmed]);
+
+  const handleMassageBookingConfirmed = useCallback(
+    (booking: ConfirmedMassageBookingCard) => {
+      const normalizedHotelSlug = String(hotelContentSlug || config.hotelSlug || booking.hotelSlug || "")
+        .trim()
+        .toLowerCase();
+
+      const next = upsertStoredGuestMassageBooking({
+        ...booking,
+        hotelSlug: normalizedHotelSlug,
+      });
+
+      setGuestMassageBookings(next);
+    },
+    [config.hotelSlug, hotelContentSlug]
+  );
+
+  useEffect(() => {
+    setGuestMassageBookings(pruneStoredGuestMassageBookings());
+  }, [room, roomConfirmed]);
+
   // Aquamarine's Spa Center keeps only its venue information and working hours.
   // Massage selection moves into the separate top-level “Book a massage” section below.
   const spaRequestDefItems =
@@ -7271,6 +7510,56 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         </div>
       ) : null}
 
+      {roomConfirmed && activeGuestMassageBookings.length > 0 ? (
+        <div className="mt-3 px-4">
+          <div className="rounded-2xl stayhub-panel p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-semibold text-white">
+                {getMassageReservationCopy(lang).title}
+              </h2>
+              <span className="rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-100">
+                {getMassageReservationCopy(lang).confirmed}
+              </span>
+            </div>
+
+            <div className="mt-3 space-y-2">
+              {activeGuestMassageBookings.map((booking) => {
+                const copy = getMassageReservationCopy(lang);
+                const reminder = getMassageReservationReminder(booking, lang);
+
+                return (
+                  <div key={booking.id} className="rounded-xl stayhub-card px-3 py-3">
+                    <div className="flex items-start gap-3">
+                      <span className="text-xl leading-none">💆</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-white">
+                          {booking.serviceName}
+                        </div>
+                        <div className="mt-1 text-xs leading-5 text-neutral-300">
+                          {booking.dateLabel} • {booking.time}
+                        </div>
+                        <div className="mt-1 text-xs leading-5 text-neutral-400">
+                          {copy.room}: {booking.room} • {copy.duration}: {booking.durationMinutes} {copy.minutes}
+                          {Number.isFinite(Number(booking.price)) && Number(booking.price) > 0
+                            ? ` • ${copy.price}: ${Number(booking.price).toFixed(2)} ${booking.currency}`
+                            : ""}
+                        </div>
+
+                        {reminder ? (
+                          <div className="mt-2 rounded-lg border border-amber-300/30 bg-amber-400/15 px-3 py-2 text-xs font-semibold text-amber-100">
+                            {reminder}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {roomConfirmed && activeGuestRequests.length > 0 ? (
         <div className="mt-3 px-4">
           <div className="rounded-2xl stayhub-panel p-4">
@@ -7388,6 +7677,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                     ? aiRequestNavigation.nonce
                     : 0
                 }
+                onBookingConfirmed={handleMassageBookingConfirmed}
                 onRequireRoomConfirmation={() => {
                   window.alert(roomCopy.lockedActionAlert);
                   window.setTimeout(() => {
