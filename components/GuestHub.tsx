@@ -7539,10 +7539,14 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                           {booking.dateLabel} • {booking.time}
                         </div>
                         <div className="mt-1 text-xs leading-5 text-neutral-400">
-                          {copy.room}: {booking.room} • {copy.duration}: {booking.durationMinutes} {copy.minutes}
-                          {Number.isFinite(Number(booking.price)) && Number(booking.price) > 0
-                            ? ` • ${copy.price}: ${Number(booking.price).toFixed(2)} ${booking.currency}`
-                            : ""}
+                          {[
+                            `${copy.duration}: ${booking.durationMinutes} ${copy.minutes}`,
+                            Number.isFinite(Number(booking.price)) && Number(booking.price) > 0
+                              ? `${copy.price}: ${Number(booking.price).toFixed(2)} ${booking.currency}`
+                              : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" • ")}
                         </div>
 
                         {reminder ? (

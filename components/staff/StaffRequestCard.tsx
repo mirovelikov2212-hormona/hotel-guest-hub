@@ -169,7 +169,22 @@ export default function StaffRequestCard({
   const isCancelled = billingStatus === "cancelled";
   const isPendingBilling = billingStatus === "pending";
   const shouldShowBilling = (mode === "reception" || mode === "manager") && Boolean(request.requiresBilling);
-  const isMassageBooking = String(request.type || "").trim().toLowerCase() === "massage_booking";
+  const normalizedRequestType = String(request.type || "").trim().toLowerCase();
+  const normalizedRequestLabel = String(request.typeLabel || "").trim().toLowerCase();
+  const normalizedRequestNote = String(request.note || "").trim().toLowerCase();
+  const isMassageBooking =
+    normalizedRequestType === "massage_booking" ||
+    normalizedRequestType.includes("massage") ||
+    normalizedRequestLabel.includes("масаж / релакс") ||
+    normalizedRequestLabel.includes("massage / relaxation") ||
+    normalizedRequestLabel.includes("massage / entspannung") ||
+    normalizedRequestLabel.includes("masaj / terapie") ||
+    normalizedRequestLabel.includes("masáž / relaxační") ||
+    normalizedRequestNote.includes("рецепцията трябва да потвърди часа/наличността") ||
+    normalizedRequestNote.includes("reception must confirm") ||
+    normalizedRequestNote.includes("rezeption muss") ||
+    normalizedRequestNote.includes("recepția trebuie să confirme") ||
+    normalizedRequestNote.includes("recepce musí potvrdit");
   const shouldUseBillingOnlyFlow = isMassageBooking && shouldShowBilling;
   const shouldShowBillingActions =
     shouldShowBilling && canCharge && isPendingBilling && billingActionsOpen;

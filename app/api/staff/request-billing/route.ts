@@ -71,6 +71,33 @@ function isBillableMetadata(metadata: Record<string, unknown>) {
   return false;
 }
 
+function isMassageBookingRequest(
+  requestType: string | null | undefined,
+  title: string | null | undefined,
+  metadata: Record<string, unknown>,
+) {
+  const normalizedType = String(requestType ?? "").trim().toLowerCase();
+  const normalizedTitle = String(title ?? "").trim().toLowerCase();
+  const normalizedTypeLabel = String(metadata.typeLabel ?? "").trim().toLowerCase();
+  const normalizedSource = String(metadata.sourceRequestDef ?? "").trim().toLowerCase();
+  const normalizedNote = String(metadata.note ?? "").trim().toLowerCase();
+
+  return (
+    normalizedType === "massage_booking" ||
+    normalizedSource === "massage_booking" ||
+    normalizedType.includes("massage") ||
+    normalizedTitle.includes("масаж / релакс") ||
+    normalizedTypeLabel.includes("масаж / релакс") ||
+    normalizedTitle.includes("massage / relaxation") ||
+    normalizedTypeLabel.includes("massage / relaxation") ||
+    normalizedTitle.includes("massage / entspannung") ||
+    normalizedTypeLabel.includes("massage / entspannung") ||
+    normalizedNote.includes("рецепцията трябва да потвърди часа/наличността") ||
+    normalizedNote.includes("reception must confirm") ||
+    normalizedNote.includes("rezeption muss")
+  );
+}
+
 function getRequestedBillingStatus(body: Record<string, unknown>): StaffBillingStatus {
   const rawStatus = String(body.billingStatus || body.status || "").trim().toLowerCase();
   if (isValidBillingStatus(rawStatus)) return rawStatus;
@@ -172,13 +199,13 @@ export async function POST(req: NextRequest) {
     }
 
     const { nextMetadata, changedAt } = applyBillingStatus(currentMetadata, billingStatus, role);
-    const shouldAutoCompleteMassageBooking =
-      String(requestRow.request_type || "").trim().toLowerCase() === "massage_booking" &&
-      billingStatus !== "pending";
+    const shouldCloseMassageRequest =
+      billingStatus !== "pending" &&
+      isMassageBookingRequest(requestRow.request_type, requestRow.title, currentMetadata);
 
     const updatePayload: Record<string, unknown> = { metadata_json: nextMetadata };
 
-    if (shouldAutoCompleteMassageBooking) {
+    if (shouldCloseMassageRequest) {
       updatePayload.status = "completed";
       updatePayload.resolved_at = changedAt;
       updatePayload.closed_at = changedAt;
@@ -216,7 +243,7 @@ export async function POST(req: NextRequest) {
         currency: currentMetadata.currency ?? null,
         sourceRequestDef: currentMetadata.sourceRequestDef ?? null,
         changedAt,
-        autoCompleted: shouldAutoCompleteMassageBooking,
+        closedByBilling: shouldCloseMassageRequest,
       },
     });
 
@@ -224,7 +251,11 @@ export async function POST(req: NextRequest) {
       console.error("staff billing hub_events insert error", eventError);
     }
 
-    return NextResponse.json({ ok: true, metadata: nextMetadata, autoCompleted: shouldAutoCompleteMassageBooking });
+    return NextResponse.json({
+      ok: true,
+      metadata: nextMetadata,
+      requestClosed: shouldCloseMassageRequest,
+    });
   } catch (error) {
     console.error("staff request-billing POST error", error);
     return NextResponse.json(
