@@ -1913,10 +1913,6 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   }, []);
 
   const sp = useSearchParams();
-  const massageHubPreviewEnabled = useMemo(() => {
-    const value = String(sp.get("massageFlow") || "").trim().toLowerCase();
-    return ["1", "true", "yes", "show"].includes(value);
-  }, [sp]);
   const qrRoom = normalizeRoomNumber(sp.get("room"));
   const forceGuestIntro = useMemo(() => {
     const value = String(sp.get("intro") || "").trim().toLowerCase();
@@ -4619,11 +4615,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const massageBookingDef = requestDefs.find((def) => isMassageRequestDef(def)) || null;
   const massageBookingPreviewVisible =
-    massageHubPreviewEnabled && Boolean(massageBookingDef) && Boolean(hotelContentSlug);
+    Boolean(massageBookingDef) && Boolean(hotelContentSlug) && isAquamarineHotel;
 
-  // During the protected Guest Hub preview, Aquamarine's Spa Center keeps only
-  // its venue information and working hours. Massage selection moves into the
-  // separate top-level “Book a massage” section below.
+  // Aquamarine's Spa Center keeps only its venue information and working hours.
+  // Massage selection moves into the separate top-level “Book a massage” section below.
   const spaRequestDefItems =
     massageBookingPreviewVisible && isAquamarineHotel
       ? []
@@ -7391,7 +7386,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 language={lang}
                 room={room}
                 roomConfirmed={roomConfirmed}
-                protectedSubmissionEnabled={massageHubPreviewEnabled}
+                protectedSubmissionEnabled={true}
                 forceOpenToken={
                   aiRequestNavigation?.sectionId === "massage_booking"
                     ? aiRequestNavigation.nonce
