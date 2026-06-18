@@ -7627,6 +7627,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 {quickServiceSections.map((section) => {
                   const isLocked = !roomConfirmed && roomRequiredSectionIds.has(section.id);
                   const isSelected = openQuickServiceId === section.id;
+                  const usePreRoomWhiteStyle = !roomConfirmed;
 
                   return (
                     <button
@@ -7649,13 +7650,14 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                       }}
                       className={clsx(
                         "min-h-[92px] rounded-2xl px-3 py-4 text-left transition active:scale-[0.99]",
-                        isLocked
+                        usePreRoomWhiteStyle
                           ? "border shadow-sm"
                           : "stayhub-section-header",
-                        !isLocked && (isSelected ? "ring-2 ring-white/70" : "ring-1 ring-white/10")
+                        !usePreRoomWhiteStyle && (isSelected ? "ring-2 ring-white/70" : "ring-1 ring-white/10"),
+                        usePreRoomWhiteStyle && isSelected ? "ring-2 ring-neutral-900/20" : ""
                       )}
                       style={
-                        isLocked
+                        usePreRoomWhiteStyle
                           ? {
                               backgroundColor: "#F5F5F5",
                               borderColor: "#202627",
