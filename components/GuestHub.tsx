@@ -7314,14 +7314,10 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         </div>
       ) : null}
 
-      <div className="px-4 pb-28 pt-2">
+      <div className="px-4 pb-28 pt-3">
         <div className="space-y-3">
           {quickServiceSections.length ? (
             <section aria-label={guestNavigationLabel("quick_services_title", guestNavCopy.quickServices)}>
-              <div className="mb-2 px-1 text-sm font-semibold text-[color:var(--stayhub-soft)]">
-                {guestNavigationLabel("quick_services_title", guestNavCopy.quickServices)}
-              </div>
-
               <div className="grid grid-cols-2 gap-3">
                 {quickServiceSections.map((section) => {
                   const isLocked = !roomConfirmed && roomRequiredSectionIds.has(section.id);

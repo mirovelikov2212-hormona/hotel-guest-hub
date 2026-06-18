@@ -15,6 +15,17 @@ function unique(values: string[]) {
   return Array.from(new Set(values.map(clean).filter(Boolean)));
 }
 
+function cleanAnswerLine(value: unknown) {
+  return String(value ?? "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .trim();
+}
+
+function uniqueAnswerLines(values: string[]) {
+  return Array.from(new Set(values.map(cleanAnswerLine).filter(Boolean)));
+}
+
 function localizedRaw(map: Partial<Record<AiLang, string>> | undefined, lang: AiLang) {
   return String(map?.[lang] || map?.bg || map?.en || map?.de || map?.ro || map?.cs || map?.ru || "").trim();
 }
@@ -95,7 +106,7 @@ function fieldLines(record: AiCatalogRecord, field: AiAnswerField, lang: AiLang)
       return path.length ? [`${copy.path}: ${path.join(" → ")}`] : [];
     case "options":
       return options.length
-        ? [`${copy.options}:\n${options.map((option) => `• ${option}`).join("\n")}`]
+        ? [`${copy.options}:\n${options.join("\n")}`]
         : summary
           ? splitFacts(summary)
           : [];
@@ -113,7 +124,7 @@ function fieldLines(record: AiCatalogRecord, field: AiAnswerField, lang: AiLang)
 
 function conciseRecordAnswer(record: AiCatalogRecord, fields: AiAnswerField[], lang: AiLang, showTitle: boolean) {
   const title = localized(record.titles, lang) || record.id;
-  const lines = unique(fields.flatMap((field) => fieldLines(record, field, lang)));
+  const lines = uniqueAnswerLines(fields.flatMap((field) => fieldLines(record, field, lang)));
   if (!lines.length) return "";
   return showTitle ? [`• ${title}`, ...lines].join("\n") : lines.join("\n");
 }
