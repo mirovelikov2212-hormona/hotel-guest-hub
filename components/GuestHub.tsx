@@ -7648,9 +7648,21 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                         });
                       }}
                       className={clsx(
-                        "min-h-[92px] rounded-2xl px-3 py-4 text-left stayhub-section-header transition active:scale-[0.99]",
-                        isSelected ? "ring-2 ring-white/70" : "ring-1 ring-white/10"
+                        "min-h-[92px] rounded-2xl px-3 py-4 text-left transition active:scale-[0.99]",
+                        isLocked
+                          ? "border shadow-sm"
+                          : "stayhub-section-header",
+                        !isLocked && (isSelected ? "ring-2 ring-white/70" : "ring-1 ring-white/10")
                       )}
+                      style={
+                        isLocked
+                          ? {
+                              backgroundColor: "#F5F5F5",
+                              borderColor: "#202627",
+                              color: "#202627",
+                            }
+                          : undefined
+                      }
                     >
                       <div className="flex items-start justify-between gap-2">
                         <span className="text-sm font-semibold leading-5">
