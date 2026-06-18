@@ -2101,6 +2101,13 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     groupId: string | null;
     nonce: number;
   } | null>(null);
+  const [guestSectionsCollapseToken, setGuestSectionsCollapseToken] = useState(0);
+
+  const collapseGuestHubSectionsAfterAction = useCallback(() => {
+    setOpenQuickServiceId(null);
+    setAiRequestNavigation(null);
+    setGuestSectionsCollapseToken((value) => value + 1);
+  }, []);
 
   const AI_RESET_AFTER_MS = 5 * 60 * 1000;
 
@@ -4848,8 +4855,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       });
 
       setGuestMassageBookings(next);
+      collapseGuestHubSectionsAfterAction();
     },
-    [config.hotelSlug, hotelContentSlug]
+    [collapseGuestHubSectionsAfterAction, config.hotelSlug, hotelContentSlug]
   );
 
   useEffect(() => {
@@ -4986,6 +4994,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     );
 
     if (hasSameActiveRequest) {
+      collapseGuestHubSectionsAfterAction();
       setShowRequestSuccess(true);
       return;
     }
@@ -5107,6 +5116,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         },
       });
 
+      collapseGuestHubSectionsAfterAction();
       setShowRequestSuccess(true);
     } catch (error) {
       console.error("submitGuestRequest failed", error);
@@ -7166,6 +7176,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           submitRequestDefSelectionOption={submitRequestDefSelectionOption}
           focusRequestDefId={aiRequestNavigation?.sectionId === sec.id ? aiRequestNavigation.targetId : null}
           focusRequestNonce={aiRequestNavigation?.sectionId === sec.id ? aiRequestNavigation.nonce : 0}
+          collapseToken={guestSectionsCollapseToken}
           onTrack={trackGuestEvent}
         />
       );
@@ -7197,6 +7208,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         submitRequestDefSelectionOption={submitRequestDefSelectionOption}
         focusRequestDefId={aiRequestNavigation?.sectionId === sec.id ? aiRequestNavigation.targetId : null}
         focusRequestNonce={aiRequestNavigation?.sectionId === sec.id ? aiRequestNavigation.nonce : 0}
+        collapseToken={guestSectionsCollapseToken}
         onCloseAi={clearAiState}
         onTrack={trackGuestEvent}
         defaultOpen={options?.defaultOpen}
@@ -7681,6 +7693,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                     ? aiRequestNavigation.nonce
                     : 0
                 }
+                collapseToken={guestSectionsCollapseToken}
                 onBookingConfirmed={handleMassageBookingConfirmed}
                 onRequireRoomConfirmation={() => {
                   window.alert(roomCopy.lockedActionAlert);
@@ -7711,6 +7724,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               id="hotel_stay"
               title={`🏨 ${guestNavigationLabel("hotel_stay_title", guestNavCopy.hotelStay)}`}
               forceOpenToken={aiRequestNavigation?.groupId === "hotel_stay" ? aiRequestNavigation.nonce : 0}
+              collapseToken={guestSectionsCollapseToken}
               onTrack={trackGuestEvent}
             >
               {hotelStaySections.map((section) => renderHubSection(section, { keyPrefix: "hotel-stay" }))}
@@ -7722,6 +7736,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               id="food_entertainment"
               title={`🍽️ ${guestNavigationLabel("food_entertainment_title", guestNavCopy.foodEntertainment)}`}
               forceOpenToken={aiRequestNavigation?.groupId === "food_entertainment" ? aiRequestNavigation.nonce : 0}
+              collapseToken={guestSectionsCollapseToken}
               onTrack={trackGuestEvent}
             >
               {foodEntertainmentSections.map((section) =>
@@ -7739,6 +7754,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               id="reviews_social"
               title={`⭐ ${guestNavigationLabel("reviews_social_title", guestNavCopy.reviewsSocial)}`}
               forceOpenToken={aiRequestNavigation?.groupId === "reviews_social" ? aiRequestNavigation.nonce : 0}
+              collapseToken={guestSectionsCollapseToken}
               onTrack={trackGuestEvent}
             >
               {reviewSocialSections.map((section) =>
@@ -7752,6 +7768,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               id="more_services"
               title={`➕ ${guestNavigationLabel("more_services_title", guestNavCopy.more)}`}
               forceOpenToken={aiRequestNavigation?.groupId === "more_services" ? aiRequestNavigation.nonce : 0}
+              collapseToken={guestSectionsCollapseToken}
               onTrack={trackGuestEvent}
             >
               {remainingSections.map((section) =>
@@ -7992,12 +8009,14 @@ function SectionGroupAccordion({
   title,
   children,
   forceOpenToken = 0,
+  collapseToken = 0,
   onTrack,
 }: {
   id: string;
   title: string;
   children: ReactNode;
   forceOpenToken?: number;
+  collapseToken?: number;
   onTrack: (payload: TrackHubPayload) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -8005,6 +8024,11 @@ function SectionGroupAccordion({
   useEffect(() => {
     if (forceOpenToken > 0) setOpen(true);
   }, [forceOpenToken]);
+
+  useEffect(() => {
+    if (collapseToken <= 0) return;
+    setOpen(false);
+  }, [collapseToken]);
 
   return (
     <div className="overflow-hidden rounded-2xl stayhub-section-shell">
@@ -8063,6 +8087,7 @@ function Accordion({
   submitRequestDefSelectionOption,
   focusRequestDefId = null,
   focusRequestNonce = 0,
+  collapseToken = 0,
   onCloseAi,
   onTrack,
   defaultOpen = false,
@@ -8091,6 +8116,7 @@ function Accordion({
   submitRequestDefSelectionOption: (def: RequestDef, option: string, optionIndex: number) => void;
   focusRequestDefId?: string | null;
   focusRequestNonce?: number;
+  collapseToken?: number;
   onCloseAi?: () => void;
   onTrack: (payload: TrackHubPayload) => void;
   defaultOpen?: boolean;
@@ -8099,6 +8125,13 @@ function Accordion({
   const [open, setOpen] = useState(defaultOpen);
   const [openRequestDefId, setOpenRequestDefId] = useState<string | null>(null);
   const [openInfoItemKey, setOpenInfoItemKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (collapseToken <= 0) return;
+    setOpen(false);
+    setOpenRequestDefId(null);
+    setOpenInfoItemKey(null);
+  }, [collapseToken]);
 
   useEffect(() => {
     if (!focusRequestDefId || focusRequestNonce <= 0) return;
@@ -8624,6 +8657,7 @@ function OutletsAccordion({
   submitRequestDefSelectionOption,
   focusRequestDefId = null,
   focusRequestNonce = 0,
+  collapseToken = 0,
   onTrack,
 }: {
   section: HubSection;
@@ -8650,6 +8684,7 @@ function OutletsAccordion({
   submitRequestDefSelectionOption: (def: RequestDef, option: string, optionIndex: number) => void;
   focusRequestDefId?: string | null;
   focusRequestNonce?: number;
+  collapseToken?: number;
   onTrack: (payload: TrackHubPayload) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -8657,6 +8692,14 @@ function OutletsAccordion({
   const [openVenue, setOpenVenue] = useState<string | null>(null);
   const [openSpaRequestDefId, setOpenSpaRequestDefId] = useState<string | null>(null);
   const pathname = usePathname();
+
+  useEffect(() => {
+    if (collapseToken <= 0) return;
+    setOpen(false);
+    setOpenCategory(null);
+    setOpenVenue(null);
+    setOpenSpaRequestDefId(null);
+  }, [collapseToken]);
 
   useEffect(() => {
     if (!focusRequestDefId || focusRequestNonce <= 0) return;

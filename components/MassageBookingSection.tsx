@@ -484,6 +484,7 @@ export default function MassageBookingSection({
   roomConfirmed,
   protectedSubmissionEnabled = false,
   forceOpenToken = 0,
+  collapseToken = 0,
   onRequireRoomConfirmation,
   onTrack,
   onBookingConfirmed,
@@ -494,6 +495,7 @@ export default function MassageBookingSection({
   roomConfirmed: boolean;
   protectedSubmissionEnabled?: boolean;
   forceOpenToken?: number;
+  collapseToken?: number;
   onRequireRoomConfirmation: () => void;
   onTrack: (payload: TrackHubPayload) => void;
   onBookingConfirmed?: (booking: ConfirmedMassageBookingCard) => void;
@@ -633,6 +635,11 @@ export default function MassageBookingSection({
       sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
   }, [forceOpenToken]);
+
+  useEffect(() => {
+    if (collapseToken <= 0) return;
+    setOpen(false);
+  }, [collapseToken]);
 
   const chooseService = async (serviceId: string) => {
     const fromDate = getSofiaIsoDate();
@@ -858,6 +865,7 @@ export default function MassageBookingSection({
           currency: selectedService.currency,
           confirmedAt: new Date().toISOString(),
         });
+        setOpen(false);
         onTrack({
           eventName: alreadyConfirmed ? "massage_booking_already_confirmed" : "massage_booking_submitted",
           eventCategory: "massage",
