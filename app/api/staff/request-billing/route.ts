@@ -199,13 +199,16 @@ export async function POST(req: NextRequest) {
     }
 
     const { nextMetadata, changedAt } = applyBillingStatus(currentMetadata, billingStatus, role);
-    const shouldCloseMassageRequest =
-      billingStatus !== "pending" &&
-      isMassageBookingRequest(requestRow.request_type, requestRow.title, currentMetadata);
+    const wasRecognizedAsMassageRequest = isMassageBookingRequest(
+      requestRow.request_type,
+      requestRow.title,
+      currentMetadata,
+    );
+    const shouldCloseBillingRequest = billingStatus !== "pending" && wasRecognizedAsMassageRequest;
 
     const updatePayload: Record<string, unknown> = { metadata_json: nextMetadata };
 
-    if (shouldCloseMassageRequest) {
+    if (shouldCloseBillingRequest) {
       updatePayload.status = "completed";
       updatePayload.resolved_at = changedAt;
       updatePayload.closed_at = changedAt;
@@ -243,7 +246,8 @@ export async function POST(req: NextRequest) {
         currency: currentMetadata.currency ?? null,
         sourceRequestDef: currentMetadata.sourceRequestDef ?? null,
         changedAt,
-        closedByBilling: shouldCloseMassageRequest,
+        closedByBilling: shouldCloseBillingRequest,
+        massageBookingDetected: wasRecognizedAsMassageRequest,
       },
     });
 
@@ -254,7 +258,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       metadata: nextMetadata,
-      requestClosed: shouldCloseMassageRequest,
+      requestClosed: shouldCloseBillingRequest,
     });
   } catch (error) {
     console.error("staff request-billing POST error", error);

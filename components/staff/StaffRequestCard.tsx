@@ -172,8 +172,10 @@ export default function StaffRequestCard({
   const normalizedRequestType = String(request.type || "").trim().toLowerCase();
   const normalizedRequestLabel = String(request.typeLabel || "").trim().toLowerCase();
   const normalizedRequestNote = String(request.note || "").trim().toLowerCase();
+  const normalizedSourceRequestDef = String(request.sourceRequestDef || "").trim().toLowerCase();
   const isMassageBooking =
     normalizedRequestType === "massage_booking" ||
+    normalizedSourceRequestDef === "massage_booking" ||
     normalizedRequestType.includes("massage") ||
     normalizedRequestLabel.includes("масаж / релакс") ||
     normalizedRequestLabel.includes("massage / relaxation") ||
@@ -185,6 +187,8 @@ export default function StaffRequestCard({
     normalizedRequestNote.includes("rezeption muss") ||
     normalizedRequestNote.includes("recepția trebuie să confirme") ||
     normalizedRequestNote.includes("recepce musí potvrdit");
+  // Only massage bookings are billing-only in Reception/Manager.
+  // Other paid services such as coffee capsules, pillows and late checkout keep their operational Start/Done flow.
   const shouldUseBillingOnlyFlow = isMassageBooking && shouldShowBilling;
   const shouldShowBillingActions =
     shouldShowBilling && canCharge && isPendingBilling && billingActionsOpen;
