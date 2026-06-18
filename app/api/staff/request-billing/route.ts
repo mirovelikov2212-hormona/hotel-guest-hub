@@ -71,30 +71,41 @@ function isBillableMetadata(metadata: Record<string, unknown>) {
   return false;
 }
 
+function normalizeMassageSignal(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 function isMassageBookingRequest(
   requestType: string | null | undefined,
   title: string | null | undefined,
   metadata: Record<string, unknown>,
 ) {
-  const normalizedType = String(requestType ?? "").trim().toLowerCase();
-  const normalizedTitle = String(title ?? "").trim().toLowerCase();
-  const normalizedTypeLabel = String(metadata.typeLabel ?? "").trim().toLowerCase();
-  const normalizedSource = String(metadata.sourceRequestDef ?? "").trim().toLowerCase();
-  const normalizedNote = String(metadata.note ?? "").trim().toLowerCase();
+  const signal = normalizeMassageSignal([
+    requestType,
+    title,
+    metadata.typeLabel,
+    metadata.sourceRequestDef,
+    metadata.rawType,
+    metadata.note,
+    metadata.staffTitleBg,
+    metadata.staffNoteBg,
+    JSON.stringify(metadata),
+  ].join(" | "));
 
   return (
-    normalizedType === "massage_booking" ||
-    normalizedSource === "massage_booking" ||
-    normalizedType.includes("massage") ||
-    normalizedTitle.includes("масаж / релакс") ||
-    normalizedTypeLabel.includes("масаж / релакс") ||
-    normalizedTitle.includes("massage / relaxation") ||
-    normalizedTypeLabel.includes("massage / relaxation") ||
-    normalizedTitle.includes("massage / entspannung") ||
-    normalizedTypeLabel.includes("massage / entspannung") ||
-    normalizedNote.includes("рецепцията трябва да потвърди часа/наличността") ||
-    normalizedNote.includes("reception must confirm") ||
-    normalizedNote.includes("rezeption muss")
+    signal.includes("massage_booking") ||
+    signal.includes("spa_massage") ||
+    signal.includes("масаж") ||
+    signal.includes("релакс") ||
+    signal.includes("massage") ||
+    signal.includes("relax") ||
+    signal.includes("masaj") ||
+    signal.includes("masaz") ||
+    signal.includes("masáž")
   );
 }
 

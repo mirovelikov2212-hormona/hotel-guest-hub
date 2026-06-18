@@ -5,7 +5,11 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
-import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
+import {
+  getOperationalRequestDebugKey,
+  getOperationalRequestNoteBg,
+  getOperationalRequestTitleBg,
+} from "@/lib/staff/ops-request-copy";
 import type {
   StaffDepartment,
   StaffRequest,
@@ -68,18 +72,22 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
   const metadata = row.metadata_json ?? {};
   const created = new Date(row.created_at);
   const normalizedType = normalizeStaffRequestType(row.request_type, metadata.department);
+  const copyInput = {
+    requestType: row.request_type,
+    title: row.title,
+    message: row.message,
+    metadata,
+  };
+  const detectedKey = getOperationalRequestDebugKey(copyInput);
+  const resolvedType: StaffRequestType =
+    detectedKey === "massage_booking" ? "massage_booking" : normalizedType;
 
   return {
     id: row.id,
     room: row.room_number_snapshot ?? "Unknown",
-    department: metadata.department ?? getDepartmentForRequestType(normalizedType),
-    type: normalizedType,
-    typeLabel: getOperationalRequestTitleBg({
-      requestType: row.request_type,
-      title: row.title,
-      message: row.message,
-      metadata,
-    }),
+    department: metadata.department ?? getDepartmentForRequestType(resolvedType),
+    type: resolvedType,
+    typeLabel: getOperationalRequestTitleBg(copyInput),
     status: row.status,
     serviceTime: metadata.serviceTime ?? "now",
     createdAt: created.toLocaleString([], {
@@ -91,12 +99,7 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
     }),
     createdAtIso: row.created_at,
     createdDateKey: created.toLocaleDateString("sv-SE"),
-    note: getOperationalRequestNoteBg({
-      requestType: row.request_type,
-      title: row.title,
-      message: row.message,
-      metadata,
-    }),
+    note: getOperationalRequestNoteBg(copyInput),
     requiresBilling: Boolean(metadata.requiresBilling),
     price: metadata.price ?? null,
     currency: metadata.currency ?? null,

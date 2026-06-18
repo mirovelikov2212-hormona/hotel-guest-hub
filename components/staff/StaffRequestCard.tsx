@@ -169,27 +169,34 @@ export default function StaffRequestCard({
   const isCancelled = billingStatus === "cancelled";
   const isPendingBilling = billingStatus === "pending";
   const shouldShowBilling = (mode === "reception" || mode === "manager") && Boolean(request.requiresBilling);
-  const normalizedRequestType = String(request.type || "").trim().toLowerCase();
-  const normalizedRequestLabel = String(request.typeLabel || "").trim().toLowerCase();
-  const normalizedRequestNote = String(request.note || "").trim().toLowerCase();
-  const normalizedSourceRequestDef = String(request.sourceRequestDef || "").trim().toLowerCase();
+  const massageSignal = [
+    request.type,
+    request.typeLabel,
+    request.note,
+    request.sourceRequestDef,
+  ]
+    .map((value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, ""),
+    )
+    .join(" | ");
   const isMassageBooking =
-    normalizedRequestType === "massage_booking" ||
-    normalizedSourceRequestDef === "massage_booking" ||
-    normalizedRequestType.includes("massage") ||
-    normalizedRequestLabel.includes("масаж / релакс") ||
-    normalizedRequestLabel.includes("massage / relaxation") ||
-    normalizedRequestLabel.includes("massage / entspannung") ||
-    normalizedRequestLabel.includes("masaj / terapie") ||
-    normalizedRequestLabel.includes("masáž / relaxační") ||
-    normalizedRequestNote.includes("рецепцията трябва да потвърди часа/наличността") ||
-    normalizedRequestNote.includes("reception must confirm") ||
-    normalizedRequestNote.includes("rezeption muss") ||
-    normalizedRequestNote.includes("recepția trebuie să confirme") ||
-    normalizedRequestNote.includes("recepce musí potvrdit");
+    request.type === "massage_booking" ||
+    massageSignal.includes("massage_booking") ||
+    massageSignal.includes("spa_massage") ||
+    massageSignal.includes("масаж") ||
+    massageSignal.includes("релакс") ||
+    massageSignal.includes("massage") ||
+    massageSignal.includes("relax") ||
+    massageSignal.includes("masaj") ||
+    massageSignal.includes("masaz") ||
+    massageSignal.includes("masáž");
   // Only massage bookings are billing-only in Reception/Manager.
-  // Other paid services such as coffee capsules, pillows and late checkout keep their operational Start/Done flow.
-  const shouldUseBillingOnlyFlow = isMassageBooking && shouldShowBilling;
+  // Other paid services such as coffee capsules, pillows, minibar and late checkout keep their operational Start/Done flow.
+  const shouldUseBillingOnlyFlow = shouldShowBilling && isMassageBooking;
   const shouldShowBillingActions =
     shouldShowBilling && canCharge && isPendingBilling && billingActionsOpen;
   const shouldShowBillingToggle =
