@@ -5,6 +5,7 @@ import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
+import { ManagerSurveyReportCard, ManagerTodaySurveysCard, useStaffSurveys } from "@/components/staff/StaffSurveyCards";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
 import { useStaffTabTitleAlert } from "@/components/staff/useStaffTabTitleAlert";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
@@ -13,6 +14,7 @@ import { getRequestSummary } from "@/lib/staff/mock-data";
 import type { StaffBillingStatus, StaffRequest, StaffRequestType, StaffRequestStatus } from "@/lib/staff/types";
 import { isMassageBookingLikeRequest, isTechnicalRequestType } from "@/lib/staff/request-type-utils";
 import { staffText, translateRequestType } from "@/lib/staff/ui-copy";
+import { buildSurveyAlertRequests } from "@/lib/staff/survey-display";
 
 type ReportView =
   | "requests_snapshot"
@@ -525,13 +527,27 @@ export default function ManagerPage() {
     () => sortByTime(getOperationalAllRequests()),
     [getOperationalAllRequests],
   );
+  const {
+    activeSurveys: managerActiveSurveys,
+    reportSurveys: managerReportSurveys,
+    markingId: markingSurveyId,
+    markSurveyRead,
+  } = useStaffSurveys({ hotelSlug, role: "manager" });
+  const managerSurveyAlertRequests = useMemo(
+    () => buildSurveyAlertRequests(managerActiveSurveys),
+    [managerActiveSurveys],
+  );
+  const managerAlertRequests = useMemo(
+    () => [...operationalRequests, ...managerSurveyAlertRequests],
+    [managerSurveyAlertRequests, operationalRequests],
+  );
   const { soundEnabled, toggleSound } = useStaffAlertSound({
     hotelSlug,
     department: "manager",
-    requests: operationalRequests,
+    requests: managerAlertRequests,
   });
 
-  useStaffTabTitleAlert(operationalRequests);
+  useStaffTabTitleAlert(managerAlertRequests);
   const [activeReport, setActiveReport] = useState<ReportView>("requests_snapshot");
   const [selectedDrilldown, setSelectedDrilldown] = useState<DrilldownSelection | null>(null);
   const summary = useMemo(() => getRequestSummary(requests), [requests]);
@@ -740,6 +756,13 @@ export default function ManagerPage() {
       </section>
 
       {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} /> : null}
+
+      <ManagerTodaySurveysCard
+        surveys={managerActiveSurveys}
+        lang={lang}
+        markingId={markingSurveyId}
+        onMarkRead={(id) => void markSurveyRead(id)}
+      />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <StaffSummaryCard label={t.total} value={summary.total} onClick={() => setSelectedDrilldown({ kind: "request_status", status: "all" })} />
@@ -1048,6 +1071,8 @@ export default function ManagerPage() {
           </div>
         ) : null}
       </section>
+
+      <ManagerSurveyReportCard surveys={managerReportSurveys} lang={lang} />
     </main>
   );
 }

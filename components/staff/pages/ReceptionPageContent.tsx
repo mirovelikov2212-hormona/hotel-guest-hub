@@ -5,6 +5,7 @@ import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import StaffFilterButton from "@/components/staff/StaffFilterButton";
 import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
+import { ReceptionTodaySurveysCard, useStaffSurveys } from "@/components/staff/StaffSurveyCards";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
@@ -19,6 +20,7 @@ import {
   translateDepartment,
   translateStaffStatus,
 } from "@/lib/staff/ui-copy";
+import { buildSurveyAlertRequests } from "@/lib/staff/survey-display";
 
 type DepartmentFilter = "all" | StaffDepartment;
 type StatusFilter = "all" | "active" | StaffRequestStatus;
@@ -471,6 +473,10 @@ export default function ReceptionPage() {
   } = useStaffStore();
   const requests = getOperationalAllRequests();
   const allRequests = getAllRequests();
+  const { activeSurveys: receptionActiveSurveys } = useStaffSurveys({
+    hotelSlug,
+    role: "reception",
+  });
   const todayHotelDateKey = useMemo(
     () => hotelDateFormatter.format(new Date(nowMs)),
     [nowMs],
@@ -507,15 +513,26 @@ export default function ReceptionPage() {
     [filteredRequests],
   );
 
-  const receptionAlertRequests = useMemo(
+  const receptionSurveyAlertRequests = useMemo(
     () =>
-      requests.filter(
+      buildSurveyAlertRequests(receptionActiveSurveys, {
+        forceNew: true,
+        notifyDepartments: ["reception"],
+      }),
+    [receptionActiveSurveys],
+  );
+
+  const receptionAlertRequests = useMemo(
+    () => [
+      ...requests.filter(
         (request) =>
           request.department === "reception" ||
           request.department === "housekeeping" ||
           request.department === "maintenance",
       ),
-    [requests],
+      ...receptionSurveyAlertRequests,
+    ],
+    [requests, receptionSurveyAlertRequests],
   );
 
   const { soundEnabled, toggleSound } = useStaffAlertSound({
@@ -652,6 +669,11 @@ export default function ReceptionPage() {
           </div>
         </div>
       </section>
+
+      <ReceptionTodaySurveysCard
+        surveys={receptionActiveSurveys}
+        lang={lang}
+      />
 
       <section className="space-y-4">
         <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-4">

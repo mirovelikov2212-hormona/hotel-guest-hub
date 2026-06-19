@@ -533,6 +533,17 @@ function shouldCreateReceptionSignal(input: {
   return Number(input.rating || 0) <= 2;
 }
 
+
+function getSubmitErrorText(lang: LangKey | string) {
+  const key = String(lang || "").trim().toLowerCase();
+  if (key === "bg") return "Анкетата не беше изпратена. Моля, опитайте отново.";
+  if (key === "de") return "Die Umfrage wurde nicht gesendet. Bitte versuchen Sie es erneut.";
+  if (key === "ro") return "Chestionarul nu a fost trimis. Vă rugăm să încercați din nou.";
+  if (key === "cs") return "Dotazník nebyl odeslán. Zkuste to prosím znovu.";
+  if (key === "ru") return "Анкета не была отправлена. Пожалуйста, попробуйте ещё раз.";
+  return "The survey was not sent. Please try again.";
+}
+
 export default function Day3GuestSurvey({
   hotelSlug,
   room,
@@ -561,6 +572,7 @@ export default function Day3GuestSurvey({
   const [resolutionStatus, setResolutionStatus] = useState<ResolutionStatus>("");
   const [resolutionNote, setResolutionNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const shownTrackedRef = useRef<string>("");
 
   useEffect(() => {
@@ -642,6 +654,7 @@ export default function Day3GuestSurvey({
     setProblemText("");
     setResolutionStatus("");
     setResolutionNote("");
+    setSubmitError("");
     setSubmitting(false);
   }, []);
 
@@ -685,7 +698,14 @@ export default function Day3GuestSurvey({
 
   const submitSurvey = useCallback(async () => {
     if (submitting) return;
+
+    if (rating === null) {
+      setSubmitError(copy.selectRating);
+      return;
+    }
+
     setSubmitting(true);
+    setSubmitError("");
 
     const payload = {
       surveyVersion: SURVEY_VERSION,
@@ -700,77 +720,56 @@ export default function Day3GuestSurvey({
       hotelTimezone: timezone,
     };
 
-    onTrack({
-      eventName: "day3_survey_submitted",
-      eventCategory: "survey",
-      section: "day3_survey",
-      sectionKey: "day3_survey",
-      label: SURVEY_VERSION,
-      value: rating === null ? null : String(rating),
-      metadata: payload,
-    });
+    try {
+      const response = await fetch("/api/guest/day3-survey", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hotelSlug,
+          room,
+          language: String(lang),
+          ...payload,
+        }),
+      });
 
-    if (shouldCreateReceptionSignal({ rating, problemText, resolutionStatus })) {
-      try {
-        const response = await fetch("/api/guest/request-create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            hotelSlug,
-            room,
-            type: "information_request",
-            typeLabel: SURVEY_COPY.bg.staffSignalTitle,
-            note: buildStaffNoteBg({
-              room,
-              rating,
-              selectedCategories,
-              improvementText,
-              problemText,
-              resolutionStatus,
-              resolutionNote,
-            }),
-            serviceTime: "now",
-            departmentOverride: "reception",
-            notifyDepartments: ["reception"],
-            guestLanguage: String(lang),
-            sourceRequestDef: "day3_guest_survey",
-          }),
-        });
+      const result = (await response.json().catch(() => null)) as { ok?: boolean; survey?: { id?: string }; error?: string } | null;
 
-        const result = (await response.json().catch(() => null)) as { ok?: boolean; request?: { id?: string } } | null;
-
-        if (response.ok && result?.ok) {
-          onTrack({
-            eventName: "day3_survey_reception_signal_created",
-            eventCategory: "survey",
-            section: "day3_survey",
-            sectionKey: "day3_survey",
-            label: SURVEY_VERSION,
-            requestId: result.request?.id || undefined,
-            metadata: {
-              surveyVersion: SURVEY_VERSION,
-              requestId: result.request?.id || null,
-              resolutionStatus: resolutionStatus || null,
-            },
-          });
-        }
-      } catch (error) {
-        console.error("day3 survey reception signal failed", error);
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.error || `Failed to save survey: ${response.status}`);
       }
-    }
 
-    const next = { ...readStoredSurveyState(storageKey), submittedAt: new Date().toISOString() };
-    writeStoredSurveyState(storageKey, next);
-    setStoredState(next);
-    setStep("thanks");
-    setSubmitting(false);
+      onTrack({
+        eventName: "day3_survey_submitted",
+        eventCategory: "survey",
+        section: "day3_survey",
+        sectionKey: "day3_survey",
+        label: SURVEY_VERSION,
+        value: String(rating),
+        requestId: result.survey?.id ? `survey-${result.survey.id}` : undefined,
+        metadata: {
+          ...payload,
+          surveyId: result.survey?.id || null,
+        },
+      });
+
+      const next = { ...readStoredSurveyState(storageKey), submittedAt: new Date().toISOString() };
+      writeStoredSurveyState(storageKey, next);
+      setStoredState(next);
+      resetSurveyUi();
+    } catch (error) {
+      console.error("day3 survey submit failed", error);
+      setSubmitError(getSubmitErrorText(lang));
+      setSubmitting(false);
+    }
   }, [
+    copy.selectRating,
     hotelSlug,
     improvementText,
     lang,
     onTrack,
     problemText,
     rating,
+    resetSurveyUi,
     resolutionNote,
     resolutionStatus,
     room,
@@ -782,7 +781,7 @@ export default function Day3GuestSurvey({
     timezone,
   ]);
 
-  if (!isEligible && step !== "thanks") return null;
+  if (!isEligible) return null;
 
   const progressLabel = step === "rating" || step === "areas" ? copy.progress1 : step === "improvement" ? copy.progress2 : copy.progress3;
 
@@ -964,6 +963,12 @@ export default function Day3GuestSurvey({
                     className="mt-2 w-full rounded-xl border border-[#d7dcde] bg-white px-4 py-3 text-sm leading-6 text-[#202627] outline-none placeholder:text-[#7b8588] focus:border-[#43baad]"
                   />
                 </div>
+
+                {submitError ? (
+                  <div className="mt-4 rounded-xl border border-rose-300/30 bg-rose-300/10 px-3 py-2 text-sm font-semibold text-rose-900">
+                    {submitError}
+                  </div>
+                ) : null}
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <button

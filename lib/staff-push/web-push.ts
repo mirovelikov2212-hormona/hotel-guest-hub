@@ -8,6 +8,8 @@ type ManagerPushInput = {
   requestId: string;
   room: string;
   requestTitle: string;
+  notificationTitle?: string;
+  notificationUrl?: string;
 };
 
 type PushSubscriptionRow = {
@@ -71,7 +73,7 @@ export async function sendManagerPushNotification(input: ManagerPushInput) {
   if (!subscriptions.length) return { sent: 0, failed: 0, skipped: false };
 
   const payload = JSON.stringify({
-    title: "StayHub — Нова заявка",
+    title: input.notificationTitle || "StayHub — Нова заявка",
     body: `Стая ${input.room} · ${input.requestTitle}`,
     icon: "/icons/manager-192.png",
     badge: "/icons/manager-192.png",
@@ -79,7 +81,7 @@ export async function sendManagerPushNotification(input: ManagerPushInput) {
     renotify: true,
     requireInteraction: false,
     data: {
-      url: `/staff/${input.hotelSlug}/manager?source=push&request=${encodeURIComponent(input.requestId)}`,
+      url: input.notificationUrl || `/staff/${input.hotelSlug}/manager?source=push&request=${encodeURIComponent(input.requestId)}`,
       requestId: input.requestId,
       hotelSlug: input.hotelSlug,
     },
