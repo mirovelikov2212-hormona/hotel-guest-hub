@@ -788,28 +788,28 @@ export default function Day3GuestSurvey({
 
   return (
     <div className="mt-3 px-4">
-      <div className="rounded-2xl stayhub-panel p-4 shadow-sm">
+      <div className="rounded-2xl border p-4 shadow-sm" style={{ backgroundColor: "#F5F5F5", borderColor: "#43baad", color: "#202627" }}>
         {step === "thanks" ? (
           <div className="text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-400/15 text-2xl">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border text-2xl" style={{ borderColor: "#43baad", backgroundColor: "rgba(67,186,173,0.12)", color: "#202627" }}>
               ✓
             </div>
-            <h2 className="mt-3 text-base font-semibold text-white">{copy.thanksTitle}</h2>
-            <p className="mt-2 text-sm leading-6 text-neutral-200">{copy.thanksText}</p>
+            <h2 className="mt-3 text-base font-semibold text-[#202627]">{copy.thanksTitle}</h2>
+            <p className="mt-2 text-sm leading-6 text-[#344044]">{copy.thanksText}</p>
           </div>
         ) : (
           <>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-100/80">
+                <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#43baad]">
                   {progressLabel}
                 </div>
-                <h2 className="mt-1 text-base font-semibold text-white">{copy.title}</h2>
+                <h2 className="mt-1 text-base font-semibold text-[#202627]">{copy.title}</h2>
               </div>
               <button
                 type="button"
                 onClick={dismissSurvey}
-                className="rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-white/75 transition hover:bg-white/10"
+                className="rounded-full border border-[#202627]/25 bg-white px-3 py-1 text-xs font-semibold text-[#202627] transition hover:bg-[#43baad]/10"
               >
                 {copy.notNow}
               </button>
@@ -817,10 +817,10 @@ export default function Day3GuestSurvey({
 
             {step === "rating" ? (
               <div className="mt-4">
-                <p className="text-sm leading-6 text-neutral-200">{copy.intro}</p>
-                <p className="mt-2 text-sm leading-6 text-neutral-300">{copy.honestNote}</p>
-                <h3 className="mt-4 text-lg font-semibold text-white">{copy.q1}</h3>
-                <p className="mt-1 text-sm text-neutral-300">{copy.ratingHelp}</p>
+                <p className="text-sm leading-6 text-[#344044]">{copy.intro}</p>
+                <p className="mt-2 text-sm leading-6 text-[#4f5b5f]">{copy.honestNote}</p>
+                <h3 className="mt-4 text-lg font-semibold text-[#202627]">{copy.q1}</h3>
+                <p className="mt-1 text-sm text-[#4f5b5f]">{copy.ratingHelp}</p>
 
                 <div className="mt-3 grid gap-2">
                   {[1, 2, 3, 4, 5].map((value) => (
@@ -831,11 +831,11 @@ export default function Day3GuestSurvey({
                       className={clsx(
                         "flex min-h-12 items-center gap-3 rounded-xl border px-3 py-2 text-left transition active:scale-[0.99]",
                         rating === value
-                          ? "border-emerald-200 bg-emerald-400/20 text-white"
-                          : "border-white/10 bg-white/5 text-neutral-100 hover:bg-white/10"
+                          ? "border-[#43baad] bg-[#43baad]/15 text-[#202627]"
+                          : "border-[#d7dcde] bg-white text-[#202627] hover:bg-[#43baad]/10"
                       )}
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/20 text-sm font-bold">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#202627]/25 text-sm font-bold">
                         {value}
                       </span>
                       <span className="text-sm font-medium">{copy.ratingLabels[value]}</span>
@@ -847,8 +847,8 @@ export default function Day3GuestSurvey({
 
             {step === "areas" ? (
               <div className="mt-4">
-                <h3 className="text-lg font-semibold text-white">{copy.areaQuestion}</h3>
-                <p className="mt-1 text-sm text-neutral-300">{copy.areaHint}</p>
+                <h3 className="text-lg font-semibold text-[#202627]">{copy.areaQuestion}</h3>
+                <p className="mt-1 text-sm text-[#4f5b5f]">{copy.areaHint}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {CATEGORY_KEYS.map((key) => {
                     const selected = selectedCategories.includes(key);
@@ -860,8 +860,8 @@ export default function Day3GuestSurvey({
                         className={clsx(
                           "rounded-full border px-3 py-2 text-sm font-semibold transition",
                           selected
-                            ? "border-emerald-200 bg-emerald-400/20 text-white"
-                            : "border-white/10 bg-white/5 text-neutral-200 hover:bg-white/10"
+                            ? "border-[#43baad] bg-[#43baad]/15 text-[#202627]"
+                            : "border-[#d7dcde] bg-white text-[#202627] hover:bg-[#43baad]/10"
                         )}
                       >
                         {selected ? "✓ " : ""}{copy.categories[key]}
@@ -874,7 +874,7 @@ export default function Day3GuestSurvey({
                   <button
                     type="button"
                     onClick={() => setStep("rating")}
-                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white"
+                    className="rounded-xl border border-[#d7dcde] bg-white px-4 py-3 text-sm font-semibold text-[#202627]"
                   >
                     {copy.back}
                   </button>
@@ -892,20 +892,20 @@ export default function Day3GuestSurvey({
 
             {step === "improvement" ? (
               <div className="mt-4">
-                <h3 className="text-lg font-semibold leading-7 text-white">{copy.q2}</h3>
-                <p className="mt-2 text-sm leading-6 text-neutral-300">{copy.q2Hint}</p>
+                <h3 className="text-lg font-semibold leading-7 text-[#202627]">{copy.q2}</h3>
+                <p className="mt-2 text-sm leading-6 text-[#4f5b5f]">{copy.q2Hint}</p>
                 <textarea
                   value={improvementText}
                   onChange={(event) => setImprovementText(event.target.value.slice(0, 400))}
                   placeholder={copy.q2Placeholder}
                   rows={4}
-                  className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-neutral-400 focus:border-emerald-200/60"
+                  className="mt-3 w-full rounded-xl border border-[#d7dcde] bg-white px-4 py-3 text-sm leading-6 text-[#202627] outline-none placeholder:text-[#7b8588] focus:border-[#43baad]"
                 />
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setStep(rating && rating <= 4 ? "areas" : "rating")}
-                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white"
+                    className="rounded-xl border border-[#d7dcde] bg-white px-4 py-3 text-sm font-semibold text-[#202627]"
                   >
                     {copy.back}
                   </button>
@@ -923,18 +923,18 @@ export default function Day3GuestSurvey({
 
             {step === "problem" ? (
               <div className="mt-4">
-                <h3 className="text-lg font-semibold leading-7 text-white">{copy.q3}</h3>
-                <p className="mt-2 text-sm leading-6 text-neutral-300">{copy.q3Hint}</p>
+                <h3 className="text-lg font-semibold leading-7 text-[#202627]">{copy.q3}</h3>
+                <p className="mt-2 text-sm leading-6 text-[#4f5b5f]">{copy.q3Hint}</p>
                 <textarea
                   value={problemText}
                   onChange={(event) => setProblemText(event.target.value.slice(0, 400))}
                   placeholder={copy.q3Placeholder}
                   rows={3}
-                  className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-neutral-400 focus:border-emerald-200/60"
+                  className="mt-3 w-full rounded-xl border border-[#d7dcde] bg-white px-4 py-3 text-sm leading-6 text-[#202627] outline-none placeholder:text-[#7b8588] focus:border-[#43baad]"
                 />
 
                 <div className="mt-4">
-                  <div className="text-sm font-semibold text-white">{copy.resolutionQuestion}</div>
+                  <div className="text-sm font-semibold text-[#202627]">{copy.resolutionQuestion}</div>
                   <div className="mt-2 grid gap-2">
                     {RESOLUTION_OPTIONS.map((key) => (
                       <button
@@ -944,8 +944,8 @@ export default function Day3GuestSurvey({
                         className={clsx(
                           "rounded-xl border px-3 py-2 text-left text-sm font-semibold transition",
                           resolutionStatus === key
-                            ? "border-emerald-200 bg-emerald-400/20 text-white"
-                            : "border-white/10 bg-white/5 text-neutral-200 hover:bg-white/10"
+                            ? "border-[#43baad] bg-[#43baad]/15 text-[#202627]"
+                            : "border-[#d7dcde] bg-white text-[#202627] hover:bg-[#43baad]/10"
                         )}
                       >
                         {copy.resolutionOptions[key]}
@@ -955,13 +955,13 @@ export default function Day3GuestSurvey({
                 </div>
 
                 <div className="mt-4">
-                  <label className="text-sm font-semibold text-white">{copy.resolutionNote}</label>
+                  <label className="text-sm font-semibold text-[#202627]">{copy.resolutionNote}</label>
                   <textarea
                     value={resolutionNote}
                     onChange={(event) => setResolutionNote(event.target.value.slice(0, 400))}
                     placeholder={copy.resolutionPlaceholder}
                     rows={3}
-                    className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-neutral-400 focus:border-emerald-200/60"
+                    className="mt-2 w-full rounded-xl border border-[#d7dcde] bg-white px-4 py-3 text-sm leading-6 text-[#202627] outline-none placeholder:text-[#7b8588] focus:border-[#43baad]"
                   />
                 </div>
 
@@ -970,7 +970,7 @@ export default function Day3GuestSurvey({
                     type="button"
                     onClick={() => setStep("improvement")}
                     disabled={submitting}
-                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                    className="rounded-xl border border-[#d7dcde] bg-white px-4 py-3 text-sm font-semibold text-[#202627] disabled:opacity-60"
                   >
                     {copy.back}
                   </button>
