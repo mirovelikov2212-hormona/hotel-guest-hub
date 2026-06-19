@@ -100,6 +100,7 @@ export async function POST(req: NextRequest) {
         first_confirmed_date_key: firstConfirmedDateKey,
         guest_submitted_at: submittedAt.toISOString(),
         active_until: activeUntil,
+        manager_read_at: null,
         metadata_json: {
           hotelTimezone: timezone,
           source: "guest_hub",
@@ -107,6 +108,8 @@ export async function POST(req: NextRequest) {
           problem_text_bg: problemTextBg || null,
           resolution_note_bg: resolutionNoteBg || null,
           original_language: language,
+          reception_read_at: null,
+          reception_read_by: null,
         },
       })
       .select(
