@@ -871,22 +871,22 @@ export default function MassageBookingSection({
   };
 
   const cancelBookingConfirmation = () => {
-    if (!selectedService || !selectedDate || !selectedTime) {
-      setBookingConfirmOpen(false);
-      return;
+    if (selectedService && selectedDate && selectedTime) {
+      onTrack({
+        eventName: "massage_booking_confirm_cancelled",
+        eventCategory: "massage",
+        section: "massage_booking",
+        sectionKey: "massage_booking",
+        itemKey: selectedService.serviceId,
+        label: selectedTime,
+        value: selectedService.serviceId,
+        extra: { date: selectedDate, room },
+      });
     }
 
     setBookingConfirmOpen(false);
-    onTrack({
-      eventName: "massage_booking_confirm_cancelled",
-      eventCategory: "massage",
-      section: "massage_booking",
-      sectionKey: "massage_booking",
-      itemKey: selectedService.serviceId,
-      label: selectedTime,
-      value: selectedService.serviceId,
-      extra: { date: selectedDate, room },
-    });
+    resetSelection();
+    setOpen(false);
   };
 
   const confirmBookingAndSubmit = async () => {
