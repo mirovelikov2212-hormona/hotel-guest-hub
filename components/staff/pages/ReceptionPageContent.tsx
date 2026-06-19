@@ -473,7 +473,11 @@ export default function ReceptionPage() {
   } = useStaffStore();
   const requests = getOperationalAllRequests();
   const allRequests = getAllRequests();
-  const { activeSurveys: receptionActiveSurveys } = useStaffSurveys({
+  const {
+    activeSurveys: receptionActiveSurveys,
+    markingId: markingSurveyId,
+    markSurveyRead,
+  } = useStaffSurveys({
     hotelSlug,
     role: "reception",
   });
@@ -516,7 +520,7 @@ export default function ReceptionPage() {
   const receptionSurveyAlertRequests = useMemo(
     () =>
       buildSurveyAlertRequests(receptionActiveSurveys, {
-        forceNew: true,
+        readField: "reception",
         notifyDepartments: ["reception"],
       }),
     [receptionActiveSurveys],
@@ -673,6 +677,8 @@ export default function ReceptionPage() {
       <ReceptionTodaySurveysCard
         surveys={receptionActiveSurveys}
         lang={lang}
+        markingId={markingSurveyId}
+        onMarkRead={(id) => void markSurveyRead(id)}
       />
 
       <section className="space-y-4">

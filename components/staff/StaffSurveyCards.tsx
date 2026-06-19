@@ -252,6 +252,12 @@ function RatingBadge({ rating }: { rating: number }) {
   );
 }
 
+function getSurveyReadAt(survey: Day3Survey, mode: "manager" | "reception" | "report") {
+  if (mode === "reception") return survey.receptionReadAt;
+  if (mode === "manager") return survey.managerReadAt;
+  return survey.managerReadAt || survey.receptionReadAt;
+}
+
 function SurveyDetailCard({
   survey,
   lang,
@@ -267,32 +273,56 @@ function SurveyDetailCard({
 }) {
   const copy = getCopy(lang);
   const categories = survey.selectedCategories.map((key) => getSurveyCategoryLabel(key, lang));
-  const isUnread = !survey.managerReadAt;
+  const readAt = getSurveyReadAt(survey, mode);
+  const isUnread = !readAt && mode !== "report";
+  const [isOpen, setIsOpen] = useState(isUnread || mode === "report");
+
+  useEffect(() => {
+    if (!isUnread && mode !== "report") setIsOpen(false);
+  }, [isUnread, mode]);
+
+  const handleMarkRead = () => {
+    setIsOpen(false);
+    onMarkRead?.(survey.id);
+  };
 
   return (
     <article className="rounded-2xl border border-white/10 bg-black/20 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+        <button
+          type="button"
+          onClick={() => setIsOpen((value) => !value)}
+          className="min-w-0 flex-1 text-left"
+          aria-expanded={isOpen}
+        >
           <div className="flex flex-wrap items-center gap-2">
             <h4 className="text-base font-semibold text-white">
               {copy.room} {survey.room}
             </h4>
             <RatingBadge rating={survey.rating} />
-            {mode === "manager" ? (
+            {mode !== "report" ? (
               <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${isUnread ? "border-cyan-300/30 bg-cyan-300/15 text-cyan-100" : "border-white/10 bg-white/10 text-white/60"}`}>
                 {isUnread ? copy.unread : copy.read}
               </span>
             ) : null}
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/50">
+              {isOpen ? copy.hideDetails : copy.showDetails}
+            </span>
           </div>
           <p className="mt-2 text-xs text-white/50">
             {copy.submittedAt}: {formatSurveyDateTime(survey.guestSubmittedAt, lang)} · {copy.language}: {survey.language.toUpperCase()}
           </p>
-        </div>
+          {!isOpen ? (
+            <p className="mt-2 truncate text-sm text-white/65">
+              {categories.length ? categories.join(", ") : copy.rating} · {survey.problemText || survey.improvementText || getSurveyResolutionLabel(survey.resolutionStatus, lang)}
+            </p>
+          ) : null}
+        </button>
 
-        {mode === "manager" && isUnread && onMarkRead ? (
+        {mode !== "report" && isUnread && onMarkRead ? (
           <button
             type="button"
-            onClick={() => onMarkRead(survey.id)}
+            onClick={handleMarkRead}
             disabled={marking}
             className="rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/15 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -301,33 +331,37 @@ function SurveyDetailCard({
         ) : null}
       </div>
 
-      <div className="mt-4 grid gap-3 text-sm text-white/75 md:grid-cols-2">
-        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-          <p className="text-xs uppercase tracking-[0.16em] text-white/35">{copy.categories}</p>
-          <p className="mt-2 leading-6">{categories.length ? categories.join(", ") : "—"}</p>
-        </div>
-        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-          <p className="text-xs uppercase tracking-[0.16em] text-white/35">{copy.resolution}</p>
-          <p className="mt-2 leading-6">{getSurveyResolutionLabel(survey.resolutionStatus, lang)}</p>
-        </div>
-      </div>
+      {isOpen ? (
+        <>
+          <div className="mt-4 grid gap-3 text-sm text-white/75 md:grid-cols-2">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-[0.16em] text-white/35">{copy.categories}</p>
+              <p className="mt-2 leading-6">{categories.length ? categories.join(", ") : "—"}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-[0.16em] text-white/35">{copy.resolution}</p>
+              <p className="mt-2 leading-6">{getSurveyResolutionLabel(survey.resolutionStatus, lang)}</p>
+            </div>
+          </div>
 
-      <div className="mt-3 grid gap-3 text-sm text-white/75 md:grid-cols-2">
-        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-          <p className="text-xs uppercase tracking-[0.16em] text-white/35">{copy.improvement}</p>
-          <p className="mt-2 whitespace-pre-line leading-6">{survey.improvementText || "—"}</p>
-        </div>
-        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-          <p className="text-xs uppercase tracking-[0.16em] text-white/35">{copy.problem}</p>
-          <p className="mt-2 whitespace-pre-line leading-6">{survey.problemText || "—"}</p>
-        </div>
-      </div>
+          <div className="mt-3 grid gap-3 text-sm text-white/75 md:grid-cols-2">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-[0.16em] text-white/35">{copy.improvement}</p>
+              <p className="mt-2 whitespace-pre-line leading-6">{survey.improvementText || "—"}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-[0.16em] text-white/35">{copy.problem}</p>
+              <p className="mt-2 whitespace-pre-line leading-6">{survey.problemText || "—"}</p>
+            </div>
+          </div>
 
-      {survey.resolutionNote ? (
-        <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/75">
-          <p className="text-xs uppercase tracking-[0.16em] text-white/35">{copy.resolutionNote}</p>
-          <p className="mt-2 whitespace-pre-line leading-6">{survey.resolutionNote}</p>
-        </div>
+          {survey.resolutionNote ? (
+            <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/75">
+              <p className="text-xs uppercase tracking-[0.16em] text-white/35">{copy.resolutionNote}</p>
+              <p className="mt-2 whitespace-pre-line leading-6">{survey.resolutionNote}</p>
+            </div>
+          ) : null}
+        </>
       ) : null}
     </article>
   );
@@ -363,7 +397,7 @@ export function ManagerTodaySurveysCard({
         ) : null}
       </div>
 
-      <div className="mt-5 space-y-4">
+      <div className="mt-5 space-y-3">
         {surveys.length ? (
           surveys.map((survey) => (
             <SurveyDetailCard
@@ -388,32 +422,50 @@ export function ManagerTodaySurveysCard({
 export function ReceptionTodaySurveysCard({
   surveys,
   lang,
+  markingId,
+  onMarkRead,
 }: {
   surveys: Day3Survey[];
   lang: StaffSurveyLang;
+  markingId?: string | null;
+  onMarkRead: (id: string) => void;
 }) {
   const copy = getCopy(lang);
 
   return (
     <section className="rounded-2xl border border-rose-300/20 bg-rose-300/5 p-5">
-      <div>
-        <p className="text-xs uppercase tracking-[0.18em] text-rose-100/70">Day 3 survey</p>
-        <h3 className="mt-1 text-xl font-semibold text-white">
-          {copy.todayTitle} · {surveys.length}
-        </h3>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
-          {lang === "de"
-            ? "Nur kritische Bewertungen 1–3. Diese Karte ist ein operatives Signal, kein Bericht."
-            : lang === "en"
-              ? "Only critical ratings 1–3. This card is an operational signal, not a report."
-              : "Само критични оценки 1–3. Това е оперативен сигнал, не отчет."}
-        </p>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.18em] text-rose-100/70">Day 3 survey</p>
+          <h3 className="mt-1 text-xl font-semibold text-white">
+            {copy.todayTitle} · {surveys.length}
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            {lang === "de"
+              ? "Nur kritische Bewertungen 1–3. Diese Karte ist ein operatives Signal, kein Bericht."
+              : lang === "en"
+                ? "Only critical ratings 1–3. This card is an operational signal, not a report."
+                : "Само критични оценки 1–3. Това е оперативен сигнал, не отчет."}
+          </p>
+        </div>
+        {surveys.some((survey) => !survey.receptionReadAt) ? (
+          <span className="rounded-full border border-rose-300/30 bg-rose-300/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-rose-100">
+            {surveys.filter((survey) => !survey.receptionReadAt).length} {copy.unread}
+          </span>
+        ) : null}
       </div>
 
-      <div className="mt-5 space-y-4">
+      <div className="mt-5 space-y-3">
         {surveys.length ? (
           surveys.map((survey) => (
-            <SurveyDetailCard key={survey.id} survey={survey} lang={lang} mode="reception" />
+            <SurveyDetailCard
+              key={survey.id}
+              survey={survey}
+              lang={lang}
+              mode="reception"
+              onMarkRead={onMarkRead}
+              marking={markingId === survey.id}
+            />
           ))
         ) : (
           <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">
@@ -425,7 +477,7 @@ export function ReceptionTodaySurveysCard({
   );
 }
 
-type SurveyDaySummary = {
+export type SurveyDaySummary = {
   dateKey: string;
   surveys: Day3Survey[];
   averageRating: number;
@@ -435,7 +487,7 @@ type SurveyDaySummary = {
   unresolvedCount: number;
 };
 
-function buildSurveyDaySummaries(surveys: Day3Survey[]): SurveyDaySummary[] {
+export function buildSurveyDaySummaries(surveys: Day3Survey[]): SurveyDaySummary[] {
   const byDate = new Map<string, Day3Survey[]>();
 
   for (const survey of surveys) {
@@ -486,16 +538,15 @@ export function ManagerSurveyReportCard({
   const summaries = useMemo(() => buildSurveyDaySummaries(surveys), [surveys]);
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
+    <div className="space-y-4">
       <div>
-        <p className="text-xs uppercase tracking-[0.18em] text-white/40">Day 3 survey</p>
-        <h3 className="mt-1 text-xl font-semibold text-white">
+        <h4 className="text-lg font-semibold text-white">
           {copy.reportTitle} · {surveys.length}
-        </h3>
+        </h4>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">{copy.reportIntro}</p>
       </div>
 
-      <div className="mt-5 space-y-4">
+      <div className="space-y-4">
         {summaries.length ? (
           summaries.map((summary) => (
             <details key={summary.dateKey} className="rounded-2xl border border-white/10 bg-black/20 p-4">
@@ -541,7 +592,7 @@ export function ManagerSurveyReportCard({
                 </div>
               </div>
 
-              <div className="mt-4 space-y-4">
+              <div className="mt-4 space-y-3">
                 {summary.surveys.map((survey) => (
                   <SurveyDetailCard key={survey.id} survey={survey} lang={lang} mode="report" />
                 ))}
@@ -554,6 +605,6 @@ export function ManagerSurveyReportCard({
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }

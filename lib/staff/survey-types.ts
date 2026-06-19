@@ -21,6 +21,7 @@ export type Day3Survey = {
   guestSubmittedAt: string;
   activeUntil: string;
   managerReadAt: string | null;
+  receptionReadAt: string | null;
   createdAt: string;
 };
 

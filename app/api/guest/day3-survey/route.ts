@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
+import { translateGuestTextToBulgarian } from "@/lib/server/staff-translation";
 import {
   DAY3_SURVEY_VERSION,
   calculateSurveyActiveUntil,
@@ -62,6 +63,23 @@ export async function POST(req: NextRequest) {
     const timezone = String(body?.hotelTimezone || roomValidation.timezone || "Europe/Sofia").trim() || "Europe/Sofia";
     const submittedAt = new Date();
     const { hotelDateKey, activeUntil } = calculateSurveyActiveUntil(submittedAt, timezone);
+    const [improvementTextBg, problemTextBg, resolutionNoteBg] = await Promise.all([
+      translateGuestTextToBulgarian(improvementText, {
+        sourceLanguage: language,
+        context: "Day 3 hotel guest survey improvement answer for Manager/Reception staff.",
+        maxLength: 1000,
+      }),
+      translateGuestTextToBulgarian(problemText, {
+        sourceLanguage: language,
+        context: "Day 3 hotel guest survey problem description for Manager/Reception staff.",
+        maxLength: 1000,
+      }),
+      translateGuestTextToBulgarian(resolutionNote, {
+        sourceLanguage: language,
+        context: "Day 3 hotel guest survey resolution note for Manager/Reception staff.",
+        maxLength: 1000,
+      }),
+    ]);
 
     const { data, error } = await supabaseAdmin
       .from("guest_surveys")
@@ -85,10 +103,14 @@ export async function POST(req: NextRequest) {
         metadata_json: {
           hotelTimezone: timezone,
           source: "guest_hub",
+          improvement_text_bg: improvementTextBg || null,
+          problem_text_bg: problemTextBg || null,
+          resolution_note_bg: resolutionNoteBg || null,
+          original_language: language,
         },
       })
       .select(
-        "id, hotel_id, room_number, survey_type, rating, selected_categories, improvement_text, problem_text, resolution_status, resolution_note, language, survey_version, hotel_date_key, target_date_key, first_confirmed_date_key, guest_submitted_at, active_until, manager_read_at, created_at",
+        "id, hotel_id, room_number, survey_type, rating, selected_categories, improvement_text, problem_text, resolution_status, resolution_note, language, survey_version, hotel_date_key, target_date_key, first_confirmed_date_key, guest_submitted_at, active_until, manager_read_at, metadata_json, created_at",
       )
       .single();
 

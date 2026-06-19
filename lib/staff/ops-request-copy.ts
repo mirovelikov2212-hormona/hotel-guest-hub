@@ -14,6 +14,8 @@ type RequestMetadata = {
   notifyDepartments?: string[];
   staffTitleBg?: string | null;
   staffNoteBg?: string | null;
+  guestNoteBg?: string | null;
+  guestNoteOriginal?: string | null;
 };
 
 type OperationalCopyInput = {
@@ -184,6 +186,27 @@ function looksSystemGenerated(value: string) {
 
 function hasBulgarianLetters(value: string) {
   return /[А-Яа-я]/.test(value);
+}
+
+function translateKnownGuestFreeTextToBg(value: string) {
+  const normalized = cleanText(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (/plasa\s+de\s+tantari/.test(normalized) && /(usa|ușa)\s+balcon/.test(normalized)) {
+    return "Мрежата против комари на балконската врата.";
+  }
+
+  if (/aer\s+conditionat|climatizare/.test(normalized)) {
+    return "Проблем с климатика.";
+  }
+
+  if (/nu\s+este\s+apa\s+calda|apa\s+calda/.test(normalized)) {
+    return "Проблем с топлата вода.";
+  }
+
+  return "";
 }
 
 function extractTime(value: string) {
@@ -397,9 +420,23 @@ export function getOperationalRequestNoteBg(input: OperationalCopyInput): string
 
   const originalNote = cleanText(metadata.note ?? input.message ?? "");
   const storedNote = cleanText(metadata.staffNoteBg);
+  const storedGuestNoteBg = cleanText(metadata.guestNoteBg);
   const billingNotice = formatBillingNotice(metadata);
   const mappedNote = STAFF_NOTES_BG[key] ?? STAFF_NOTES_BG[normalizedType] ?? "";
   const translatedGeneratedNote = translateGeneratedNoteToBg(key, originalNote || storedNote, metadata);
+
+  // If an AI/stored Bulgarian translation exists for the guest's free text, staff should see only Bulgarian.
+  if (storedGuestNoteBg && hasBulgarianLetters(storedGuestNoteBg)) {
+    const guestLine = storedGuestNoteBg.startsWith("Описание от госта:")
+      ? storedGuestNoteBg
+      : `Описание от госта: ${storedGuestNoteBg}`;
+    return joinUniqueLines([guestLine, billingNotice]) || undefined;
+  }
+
+  const knownGuestTranslation = translateKnownGuestFreeTextToBg(originalNote || storedNote);
+  if (knownGuestTranslation) {
+    return joinUniqueLines([`Описание от госта: ${knownGuestTranslation}`, billingNotice]) || undefined;
+  }
 
   // If the saved staff note is already Bulgarian and not just a copied foreign system phrase, use it.
   if (storedNote && hasBulgarianLetters(storedNote) && !looksSystemGenerated(storedNote)) {

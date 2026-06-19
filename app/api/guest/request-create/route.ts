@@ -6,6 +6,7 @@ import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib
 import type { StaffDepartment, StaffRequestStatus, StaffServiceTime } from "@/lib/staff/types";
 import { getHotelConfig } from "@/lib/config";
 import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
+import { translateGuestTextToBulgarian, hasBulgarianLetters } from "@/lib/server/staff-translation";
 
 function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
@@ -128,6 +129,14 @@ export async function POST(req: NextRequest) {
 
     const normalizedType = normalizeStaffRequestType(rawType, departmentOverride);
     const department = departmentOverride ?? getDepartmentForRequestType(normalizedType);
+    const translatedGuestNoteBg = note && !hasBulgarianLetters(note)
+      ? await translateGuestTextToBulgarian(note, {
+          sourceLanguage: guestLanguage,
+          context: `StayHub guest request note. Request type: ${normalizedType}. Staff department: ${department}.`,
+          maxLength: 1000,
+        })
+      : note;
+    const noteForStaffCopy = translatedGuestNoteBg || note;
     const operationalMetadata = {
       department,
       notifyDepartments,
@@ -138,20 +147,28 @@ export async function POST(req: NextRequest) {
       serviceTime,
       typeLabel,
       note,
+      guestNoteOriginal: note,
+      guestNoteBg: translatedGuestNoteBg || null,
       rawType,
       billingStatus: requiresBilling ? "pending" : undefined,
     };
     const staffTitleBg = getOperationalRequestTitleBg({
       requestType: normalizedType,
       title: typeLabel,
-      message: note,
-      metadata: operationalMetadata,
+      message: noteForStaffCopy,
+      metadata: {
+        ...operationalMetadata,
+        note: noteForStaffCopy,
+      },
     });
     const staffNoteBg = getOperationalRequestNoteBg({
       requestType: normalizedType,
       title: typeLabel,
-      message: note,
-      metadata: operationalMetadata,
+      message: noteForStaffCopy,
+      metadata: {
+        ...operationalMetadata,
+        note: noteForStaffCopy,
+      },
     });
 
     const { data, error } = await supabaseAdmin

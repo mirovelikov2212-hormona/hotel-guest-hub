@@ -101,22 +101,31 @@ export function formatSurveyDateTime(iso: string, lang: StaffSurveyLang) {
 
 export function buildSurveyAlertRequests(
   surveys: Day3Survey[],
-  options?: { forceNew?: boolean; notifyDepartments?: StaffRequest["notifyDepartments"] },
+  options?: {
+    notifyDepartments?: StaffRequest["notifyDepartments"];
+    readField?: "manager" | "reception";
+  },
 ): StaffRequest[] {
-  return surveys.map((survey) => ({
-    id: `survey-${survey.id}`,
-    room: survey.room,
-    department: "reception",
-    type: "information_request",
-    typeLabel: `Анкета Ден 3 · оценка ${survey.rating}/5`,
-    status: options?.forceNew ? "new" : survey.managerReadAt ? "completed" : "new",
-    serviceTime: "now",
-    createdAt: formatSurveyDateTime(survey.guestSubmittedAt, "bg"),
-    createdAtIso: survey.guestSubmittedAt,
-    createdDateKey: survey.hotelDateKey,
-    note: survey.problemText || survey.improvementText || undefined,
-    requiresBilling: false,
-    sourceRequestDef: "day3_guest_survey",
-    notifyDepartments: options?.notifyDepartments || ["manager"],
-  }));
+  const readField = options?.readField || "manager";
+
+  return surveys.map((survey) => {
+    const readAt = readField === "reception" ? survey.receptionReadAt : survey.managerReadAt;
+
+    return {
+      id: `survey-${survey.id}`,
+      room: survey.room,
+      department: "reception",
+      type: "information_request",
+      typeLabel: `Анкета Ден 3 · оценка ${survey.rating}/5`,
+      status: readAt ? "completed" : "new",
+      serviceTime: "now",
+      createdAt: formatSurveyDateTime(survey.guestSubmittedAt, "bg"),
+      createdAtIso: survey.guestSubmittedAt,
+      createdDateKey: survey.hotelDateKey,
+      note: survey.problemText || survey.improvementText || undefined,
+      requiresBilling: false,
+      sourceRequestDef: "day3_guest_survey",
+      notifyDepartments: options?.notifyDepartments || ["manager"],
+    };
+  });
 }

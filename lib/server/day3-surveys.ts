@@ -28,6 +28,14 @@ export type GuestSurveyRow = {
   guest_submitted_at: string;
   active_until: string;
   manager_read_at: string | null;
+  metadata_json?: {
+    reception_read_at?: string | null;
+    reception_read_by?: string | null;
+    improvement_text_bg?: string | null;
+    problem_text_bg?: string | null;
+    resolution_note_bg?: string | null;
+    [key: string]: unknown;
+  } | null;
   created_at: string;
 };
 
@@ -201,10 +209,10 @@ export function mapSurveyRow(row: GuestSurveyRow): Day3Survey {
     room: row.room_number,
     rating: Number(row.rating || 0),
     selectedCategories: categories,
-    improvementText: row.improvement_text || "",
-    problemText: row.problem_text || "",
+    improvementText: String(row.metadata_json?.improvement_text_bg || row.improvement_text || ""),
+    problemText: String(row.metadata_json?.problem_text_bg || row.problem_text || ""),
     resolutionStatus: row.resolution_status || null,
-    resolutionNote: row.resolution_note || "",
+    resolutionNote: String(row.metadata_json?.resolution_note_bg || row.resolution_note || ""),
     language: row.language || "bg",
     surveyVersion: row.survey_version || DAY3_SURVEY_VERSION,
     hotelDateKey: row.hotel_date_key || row.guest_submitted_at.slice(0, 10),
@@ -213,6 +221,7 @@ export function mapSurveyRow(row: GuestSurveyRow): Day3Survey {
     guestSubmittedAt: row.guest_submitted_at,
     activeUntil: row.active_until,
     managerReadAt: row.manager_read_at || null,
+    receptionReadAt: row.metadata_json?.reception_read_at ? String(row.metadata_json.reception_read_at) : null,
     createdAt: row.created_at,
   };
 }

@@ -5,7 +5,7 @@ import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
-import { ManagerSurveyReportCard, ManagerTodaySurveysCard, useStaffSurveys } from "@/components/staff/StaffSurveyCards";
+import { buildSurveyDaySummaries, ManagerSurveyReportCard, ManagerTodaySurveysCard, useStaffSurveys } from "@/components/staff/StaffSurveyCards";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
 import { useStaffTabTitleAlert } from "@/components/staff/useStaffTabTitleAlert";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
@@ -21,6 +21,7 @@ type ReportView =
   | "top_requests"
   | "request_rooms"
   | "upsell_snapshot"
+  | "survey_report"
   | "issues_snapshot"
   | "top_issues"
   | "problem_rooms";
@@ -591,6 +592,7 @@ export default function ManagerPage() {
     { id: "top_requests" as const, label: t.topRequestTypes },
     { id: "request_rooms" as const, label: t.requestHeavyRooms },
     { id: "upsell_snapshot" as const, label: upsellText.tab },
+    { id: "survey_report" as const, label: lang === "de" ? "Umfragen" : lang === "en" ? "Survey report" : "Отчет анкети" },
     { id: "issues_snapshot" as const, label: t.problemsSnapshot },
     { id: "top_issues" as const, label: t.topProblemTypes },
     { id: "problem_rooms" as const, label: t.problematicRooms },
@@ -708,6 +710,22 @@ export default function ManagerPage() {
             item.cancelledCount,
           ]),
         ];
+      case "survey_report": {
+        const summaries = buildSurveyDaySummaries(managerReportSurveys);
+        return [
+          ["Дата", "Брой анкети", "Средна оценка", "Разпределение", "Най-чести категории", "Стаи за внимание", "Нерешени/частични", "Сурови отговори"],
+          ...summaries.map((summary) => [
+            summary.dateKey,
+            summary.surveys.length,
+            summary.averageRating.toFixed(1),
+            [1, 2, 3, 4, 5].map((rating) => `${rating}: ${summary.ratingDistribution[rating] || 0}`).join(" · "),
+            summary.topCategories.map((item) => `${item.key} × ${item.count}`).join(" · "),
+            summary.attentionRooms.join(", "),
+            summary.unresolvedCount,
+            summary.surveys.map((survey) => `Стая ${survey.room}: ${survey.rating}/5 | ${survey.problemText || survey.improvementText || "—"}`).join(" || "),
+          ]),
+        ];
+      }
       case "issues_snapshot":
         return [
           [t.room, t.problemType, "Status", "Date", "Time"],
@@ -727,7 +745,7 @@ export default function ManagerPage() {
       case "problem_rooms":
         return [[t.room, t.totalIssues, t.openIssues, t.returnedIssues, t.completedIssues], ...problemRoomStats.map((room) => [`${t.room} ${room.room}`, room.total, room.open, room.returned, room.completed])];
     }
-  }, [activeReport, issueTypeStats, lang, problemRequests, problemRoomStats, requestRoomStats, requestTypeStats, requests, t, upsellServiceStats, upsellText]);
+  }, [activeReport, issueTypeStats, lang, managerReportSurveys, problemRequests, problemRoomStats, requestRoomStats, requestTypeStats, requests, t, upsellServiceStats, upsellText]);
 
   function exportCsv() {
     downloadFile(`manager-${activeReport}.csv`, rowsToCsv(reportRows), "text/csv;charset=utf-8;");
@@ -993,6 +1011,10 @@ export default function ManagerPage() {
             ) : <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">{upsellText.noUpsellData}</div>
           ) : null}
 
+          {activeReport === "survey_report" ? (
+            <ManagerSurveyReportCard surveys={managerReportSurveys} lang={lang} />
+          ) : null}
+
           {activeReport === "issues_snapshot" ? (
             problemRequests.length ? (
               <div className="space-y-3">
@@ -1071,8 +1093,6 @@ export default function ManagerPage() {
           </div>
         ) : null}
       </section>
-
-      <ManagerSurveyReportCard surveys={managerReportSurveys} lang={lang} />
     </main>
   );
 }
