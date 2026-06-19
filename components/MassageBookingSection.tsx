@@ -118,6 +118,10 @@ type MassageCopy = {
   confirmedRoom: string;
   confirmRoomFirst: string;
   confirmBooking: string;
+  confirmDialogTitle: string;
+  confirmDialogQuestion: string;
+  cancelBooking: string;
+  confirmAndSend: string;
   sendingBooking: string;
   protectedServerReached: string;
   bookingSuccess: string;
@@ -153,6 +157,10 @@ const COPY: Record<LangKey, MassageCopy> = {
     confirmedRoom: "Потвърдена стая",
     confirmRoomFirst: "Потвърдете стаята първо",
     confirmBooking: "Потвърди резервацията",
+    confirmDialogTitle: "Потвърдете резервацията",
+    confirmDialogQuestion: "Сигурни ли сте, че желаете да изпратите тази резервация?",
+    cancelBooking: "Отказ",
+    confirmAndSend: "Потвърждавам",
     sendingBooking: "Изпращане…",
     protectedServerReached: "Защитеният тест достигна до сървъра. Реалното записване все още е изключено.",
     bookingSuccess: "Резервацията за масаж е потвърдена.",
@@ -186,6 +194,10 @@ const COPY: Record<LangKey, MassageCopy> = {
     confirmedRoom: "Confirmed room",
     confirmRoomFirst: "Confirm your room first",
     confirmBooking: "Confirm booking",
+    confirmDialogTitle: "Confirm booking",
+    confirmDialogQuestion: "Are you sure you want to submit this massage booking?",
+    cancelBooking: "Cancel",
+    confirmAndSend: "Confirm",
     sendingBooking: "Sending…",
     protectedServerReached: "The protected test reached the server. Real booking is still disabled.",
     bookingSuccess: "Your massage booking is confirmed.",
@@ -219,6 +231,10 @@ const COPY: Record<LangKey, MassageCopy> = {
     confirmedRoom: "Bestätigtes Zimmer",
     confirmRoomFirst: "Bestätigen Sie zuerst Ihr Zimmer",
     confirmBooking: "Buchung bestätigen",
+    confirmDialogTitle: "Buchung bestätigen",
+    confirmDialogQuestion: "Möchten Sie diese Massagebuchung wirklich senden?",
+    cancelBooking: "Abbrechen",
+    confirmAndSend: "Bestätigen",
     sendingBooking: "Wird gesendet…",
     protectedServerReached: "Der geschützte Test hat den Server erreicht. Echte Buchungen sind noch deaktiviert.",
     bookingSuccess: "Ihre Massagebuchung wurde bestätigt.",
@@ -252,6 +268,10 @@ const COPY: Record<LangKey, MassageCopy> = {
     confirmedRoom: "Cameră confirmată",
     confirmRoomFirst: "Confirmați mai întâi camera",
     confirmBooking: "Confirmați rezervarea",
+    confirmDialogTitle: "Confirmați rezervarea",
+    confirmDialogQuestion: "Sigur doriți să trimiteți această rezervare pentru masaj?",
+    cancelBooking: "Anulează",
+    confirmAndSend: "Confirm",
     sendingBooking: "Se trimite…",
     protectedServerReached: "Testul protejat a ajuns la server. Rezervarea reală este încă dezactivată.",
     bookingSuccess: "Rezervarea pentru masaj a fost confirmată.",
@@ -285,6 +305,10 @@ const COPY: Record<LangKey, MassageCopy> = {
     confirmedRoom: "Potvrzený pokoj",
     confirmRoomFirst: "Nejprve potvrďte pokoj",
     confirmBooking: "Potvrdit rezervaci",
+    confirmDialogTitle: "Potvrďte rezervaci",
+    confirmDialogQuestion: "Opravdu chcete tuto rezervaci masáže odeslat?",
+    cancelBooking: "Zrušit",
+    confirmAndSend: "Potvrdit",
     sendingBooking: "Odesílání…",
     protectedServerReached: "Chráněný test dorazil na server. Skutečné rezervace jsou zatím vypnuté.",
     bookingSuccess: "Rezervace masáže byla potvrzena.",
@@ -318,6 +342,10 @@ const COPY: Record<LangKey, MassageCopy> = {
     confirmedRoom: "Подтверждённый номер",
     confirmRoomFirst: "Сначала подтвердите номер",
     confirmBooking: "Подтвердить бронирование",
+    confirmDialogTitle: "Подтвердите бронирование",
+    confirmDialogQuestion: "Вы уверены, что хотите отправить это бронирование массажа?",
+    cancelBooking: "Отмена",
+    confirmAndSend: "Подтвердить",
     sendingBooking: "Отправка…",
     protectedServerReached: "Защищённый тест достиг сервера. Реальное бронирование пока отключено.",
     bookingSuccess: "Бронирование массажа подтверждено.",
@@ -519,6 +547,7 @@ export default function MassageBookingSection({
   const [dateStepExpanded, setDateStepExpanded] = useState(true);
   const [timeStepExpanded, setTimeStepExpanded] = useState(true);
   const [submittingBooking, setSubmittingBooking] = useState(false);
+  const [bookingConfirmOpen, setBookingConfirmOpen] = useState(false);
   const [bookingFeedback, setBookingFeedback] = useState<BookingFeedback>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const sectionRef = useRef<HTMLDivElement | null>(null);
@@ -660,6 +689,7 @@ export default function MassageBookingSection({
     setLoadingDates(!available);
     setLoadingTimes(false);
     setError("");
+    setBookingConfirmOpen(false);
     setBookingFeedback(null);
     setBookingConfirmed(false);
 
@@ -720,6 +750,7 @@ export default function MassageBookingSection({
     setTimeStepExpanded(true);
     setLoadingTimes(!immediatelyAvailableTimes);
     setError("");
+    setBookingConfirmOpen(false);
     setBookingFeedback(null);
     setBookingConfirmed(false);
 
@@ -784,12 +815,13 @@ export default function MassageBookingSection({
     setDateStepExpanded(true);
     setTimeStepExpanded(true);
     setError("");
+    setBookingConfirmOpen(false);
     setBookingFeedback(null);
     setBookingConfirmed(false);
   };
 
-  const submitBooking = async () => {
-    if (!selectedService || !selectedDate || !selectedTime || submittingBooking) return;
+  const submitBooking = () => {
+    if (!selectedService || !selectedDate || !selectedTime || submittingBooking || bookingConfirmOpen) return;
 
     if (!roomConfirmed || !room.trim()) {
       setBookingFeedback({ kind: "info", text: copy.confirmRoomFirst, code: "ROOM_NOT_CONFIRMED" });
@@ -812,11 +844,73 @@ export default function MassageBookingSection({
       return;
     }
 
+    setBookingFeedback(null);
+    setBookingConfirmOpen(true);
+
+    onTrack({
+      eventName: "massage_booking_submit_clicked",
+      eventCategory: "massage",
+      section: "massage_booking",
+      sectionKey: "massage_booking",
+      itemKey: selectedService.serviceId,
+      label: selectedTime,
+      value: selectedService.serviceId,
+      extra: { date: selectedDate, room },
+    });
+
+    onTrack({
+      eventName: "massage_booking_confirm_prompt_shown",
+      eventCategory: "massage",
+      section: "massage_booking",
+      sectionKey: "massage_booking",
+      itemKey: selectedService.serviceId,
+      label: selectedTime,
+      value: selectedService.serviceId,
+      extra: { date: selectedDate, room },
+    });
+  };
+
+  const cancelBookingConfirmation = () => {
+    if (!selectedService || !selectedDate || !selectedTime) {
+      setBookingConfirmOpen(false);
+      return;
+    }
+
+    setBookingConfirmOpen(false);
+    onTrack({
+      eventName: "massage_booking_confirm_cancelled",
+      eventCategory: "massage",
+      section: "massage_booking",
+      sectionKey: "massage_booking",
+      itemKey: selectedService.serviceId,
+      label: selectedTime,
+      value: selectedService.serviceId,
+      extra: { date: selectedDate, room },
+    });
+  };
+
+  const confirmBookingAndSubmit = async () => {
+    if (!selectedService || !selectedDate || !selectedTime || submittingBooking) return;
+
+    if (!roomConfirmed || !room.trim()) {
+      setBookingConfirmOpen(false);
+      setBookingFeedback({ kind: "info", text: copy.confirmRoomFirst, code: "ROOM_NOT_CONFIRMED" });
+      onRequireRoomConfirmation();
+      return;
+    }
+
+    if (!protectedSubmissionEnabled) {
+      setBookingConfirmOpen(false);
+      setBookingFeedback({ kind: "info", text: copy.readOnlyNotice, code: "PROTECTED_SUBMISSION_DISABLED" });
+      return;
+    }
+
+    setBookingConfirmOpen(false);
     setSubmittingBooking(true);
     setBookingFeedback(null);
 
     onTrack({
-      eventName: "massage_booking_submit_clicked",
+      eventName: "massage_booking_confirmed",
       eventCategory: "massage",
       section: "massage_booking",
       sectionKey: "massage_booking",
@@ -1170,8 +1264,8 @@ export default function MassageBookingSection({
 
               <button
                 type="button"
-                onClick={() => void submitBooking()}
-                disabled={submittingBooking || bookingConfirmed}
+                onClick={submitBooking}
+                disabled={submittingBooking || bookingConfirmed || bookingConfirmOpen}
                 className="mt-3 w-full rounded-xl border bg-white px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
                 style={{ borderColor: "white", color: "var(--stayhub-primary)" }}
               >
@@ -1193,6 +1287,53 @@ export default function MassageBookingSection({
           ) : null}
         </div>
       ) : null}
+
+          {bookingConfirmOpen && selectedService ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+              <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
+                <div className="text-lg font-semibold text-white">{copy.confirmDialogTitle}</div>
+
+                <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-sm text-neutral-200">
+                  <dt className="font-semibold text-neutral-400">{copy.room}</dt>
+                  <dd className="font-bold text-white">{room}</dd>
+                  <dt className="font-semibold text-neutral-400">{copy.service}</dt>
+                  <dd className="font-bold text-white">{serviceName(selectedService, lang)}</dd>
+                  <dt className="font-semibold text-neutral-400">{copy.date}</dt>
+                  <dd className="font-bold text-white">{formatDate(selectedDate, lang)}</dd>
+                  <dt className="font-semibold text-neutral-400">{copy.time}</dt>
+                  <dd className="font-bold text-white">{selectedTime}</dd>
+                  <dt className="font-semibold text-neutral-400">{copy.duration}</dt>
+                  <dd className="font-bold text-white">{selectedService.durationMinutes} {copy.minutes}</dd>
+                  <dt className="font-semibold text-neutral-400">{copy.price}</dt>
+                  <dd className="font-bold text-white">{selectedService.price.toFixed(2)} {selectedService.currency}</dd>
+                </dl>
+
+                <p className="mt-4 text-sm leading-6 text-neutral-200">{copy.confirmDialogQuestion}</p>
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={cancelBookingConfirmation}
+                    disabled={submittingBooking}
+                    className="rounded-xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {copy.cancelBooking}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => void confirmBookingAndSubmit()}
+                    disabled={submittingBooking}
+                    className="rounded-xl px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}
+                  >
+                    {submittingBooking ? copy.sendingBooking : copy.confirmAndSend}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
     </div>
   );
 }
