@@ -2930,7 +2930,6 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     "reception",
     "housekeeping",
     "maintenance",
-    "outlets",
     "activities",
     "massage_booking",
     "ai",
@@ -7670,7 +7669,17 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                         <span className="text-sm font-semibold leading-5">
                           {withSectionIcon(String(section.title), section.id)}
                         </span>
-                        <span className="text-sm">{isLocked ? "🔒" : isSelected ? "▴" : "▾"}</span>
+                        <span
+                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-semibold"
+                          style={
+                            usePreRoomWhiteStyle
+                              ? { borderColor: "#202627", color: "#202627" }
+                              : { borderColor: "rgba(255,255,255,0.35)", color: "var(--stayhub-text)" }
+                          }
+                          aria-hidden="true"
+                        >
+                          {isLocked ? "🔒" : isSelected ? "▴" : "▾"}
+                        </span>
                       </div>
                     </button>
                   );
@@ -7825,17 +7834,37 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       <button
         type="button"
         onClick={openAiPanel}
-        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold shadow-2xl ring-1 ring-white/25 transition hover:opacity-95 active:scale-[0.98]"
-        style={{
-          backgroundColor: "var(--stayhub-action)",
-          color: "var(--stayhub-text)",
-          right: "max(1.25rem, calc((100vw - 28rem) / 2 + 1.25rem))",
-        }}
+        className={clsx(
+          "fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold shadow-2xl transition hover:opacity-95 active:scale-[0.98]",
+          roomConfirmed ? "ring-1 ring-white/25" : "border"
+        )}
+        style={
+          roomConfirmed
+            ? {
+                backgroundColor: "var(--stayhub-action)",
+                color: "var(--stayhub-text)",
+                right: "max(1.25rem, calc((100vw - 28rem) / 2 + 1.25rem))",
+              }
+            : {
+                backgroundColor: "#F5F5F5",
+                borderColor: "#202627",
+                color: "#202627",
+                right: "max(1.25rem, calc((100vw - 28rem) / 2 + 1.25rem))",
+              }
+        }
         aria-label={getCurrentGuestUiText("ai_open") || guestNavCopy.askAi}
       >
         <span className="text-lg">🤖</span>
         <span>{guestNavigationLabel("ask_ai", guestNavCopy.askAi)}</span>
-        {!roomConfirmed ? <span className="text-xs">🔒</span> : null}
+        {!roomConfirmed ? (
+          <span
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs"
+            style={{ borderColor: "#202627", color: "#202627" }}
+            aria-hidden="true"
+          >
+            🔒
+          </span>
+        ) : null}
       </button>
 
       {aiPanelOpen ? (
