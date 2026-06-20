@@ -994,11 +994,7 @@ export default function ManagerPage() {
                             {" · "}{upsellText.waived}: <span className="font-semibold text-white">{item.waivedCount}</span>
                             {" · "}{upsellText.cancelled}: <span className="font-semibold text-white">{item.cancelledCount}</span>
                           </p>
-                          {item.details.length ? (
-                            <p className="mt-2 text-xs leading-5 text-white/50">
-                              {item.details.map((detail) => detail.count > 1 ? `${detail.label} × ${detail.count}` : detail.label).join(" · ")}
-                            </p>
-                          ) : null}
+                          {/* Keep the service revenue card compact. Exact request details are available by opening the service drilldown. */}
                         </button>
                       ))}
                     </div>
