@@ -12,6 +12,8 @@ type GuestRequestRow = {
   hotel_id: string;
   status: StaffRequestStatus;
   room_number_snapshot?: string | null;
+  is_test?: boolean | null;
+  test_expires_at?: string | null;
   metadata_json: {
     department?: StaffDepartment;
     serviceTime?: string;
@@ -129,7 +131,7 @@ export async function POST(req: NextRequest) {
 
     const { data: requestRow, error: requestError } = await supabaseAdmin
       .from("guest_requests")
-      .select("id, hotel_id, status, metadata_json, request_type, room_number_snapshot")
+      .select("id, hotel_id, status, metadata_json, request_type, room_number_snapshot, is_test, test_expires_at")
       .eq("id", requestId)
       .eq("hotel_id", scope.hotelId)
       .maybeSingle();
@@ -200,6 +202,8 @@ export async function POST(req: NextRequest) {
         section: department ?? role,
         label: normalizedType,
         value: typeLabel,
+        is_test: Boolean(requestData.is_test),
+        test_expires_at: requestData.test_expires_at ?? null,
         extra: {
           requestId,
           role,
@@ -224,6 +228,8 @@ export async function POST(req: NextRequest) {
         section: department ?? role,
         label: normalizedType,
         value: typeLabel,
+        is_test: Boolean(requestData.is_test),
+        test_expires_at: requestData.test_expires_at ?? null,
         extra: {
           requestId,
           role,

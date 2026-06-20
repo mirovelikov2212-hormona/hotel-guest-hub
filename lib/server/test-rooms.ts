@@ -1,0 +1,143 @@
+import "server-only";
+
+import { supabaseAdmin } from "@/lib/server/supabase-admin";
+
+export type TestRoomPolicy = {
+  isTest: boolean;
+  autoDeleteAfterSeconds: number | null;
+  expiresAt: string | null;
+};
+
+const DEFAULT_TEST_AUTO_DELETE_SECONDS = 180;
+const MIN_TEST_AUTO_DELETE_SECONDS = 30;
+const MAX_TEST_AUTO_DELETE_SECONDS = 60 * 60;
+const POLICY_CACHE_TTL_MS = 60_000;
+
+const policyCache = new Map<string, { cachedAt: number; policy: TestRoomPolicy }>();
+let lastCleanupByHotel = new Map<string, number>();
+
+function normalizeRoomNumber(value: unknown) {
+  return String(value || "").trim().replace(/\s+/g, "");
+}
+
+function normalizeAutoDeleteSeconds(value: unknown) {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds <= 0) return DEFAULT_TEST_AUTO_DELETE_SECONDS;
+  return Math.min(MAX_TEST_AUTO_DELETE_SECONDS, Math.max(MIN_TEST_AUTO_DELETE_SECONDS, Math.round(seconds)));
+}
+
+function emptyPolicy(): TestRoomPolicy {
+  return { isTest: false, autoDeleteAfterSeconds: null, expiresAt: null };
+}
+
+function isLikelyMissingSchemaError(error: { message?: string; code?: string } | null | undefined) {
+  const message = String(error?.message || "").toLowerCase();
+  const code = String(error?.code || "").trim();
+
+  return (
+    code === "PGRST204" ||
+    code === "42P01" ||
+    code === "42703" ||
+    message.includes("could not find") ||
+    message.includes("schema cache") ||
+    message.includes("does not exist") ||
+    message.includes("column")
+  );
+}
+
+export async function getTestRoomPolicy(hotelId: string | null | undefined, roomNumber: unknown): Promise<TestRoomPolicy> {
+  const normalizedHotelId = String(hotelId || "").trim();
+  const normalizedRoom = normalizeRoomNumber(roomNumber);
+
+  if (!normalizedHotelId || !normalizedRoom) return emptyPolicy();
+
+  const cacheKey = `${normalizedHotelId}:${normalizedRoom}`;
+  const cached = policyCache.get(cacheKey);
+  if (cached && Date.now() - cached.cachedAt < POLICY_CACHE_TTL_MS) {
+    if (!cached.policy.isTest) return cached.policy;
+    const seconds = cached.policy.autoDeleteAfterSeconds || DEFAULT_TEST_AUTO_DELETE_SECONDS;
+    return {
+      ...cached.policy,
+      expiresAt: new Date(Date.now() + seconds * 1000).toISOString(),
+    };
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("hotel_test_rooms")
+    .select("auto_delete_after_seconds")
+    .eq("hotel_id", normalizedHotelId)
+    .eq("room_number", normalizedRoom)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) {
+    if (!isLikelyMissingSchemaError(error)) {
+      console.error("Failed to resolve StayHub test room policy", { hotelId: normalizedHotelId, roomNumber: normalizedRoom, error });
+    }
+    const policy = emptyPolicy();
+    policyCache.set(cacheKey, { cachedAt: Date.now(), policy });
+    return policy;
+  }
+
+  if (!data) {
+    const policy = emptyPolicy();
+    policyCache.set(cacheKey, { cachedAt: Date.now(), policy });
+    return policy;
+  }
+
+  const seconds = normalizeAutoDeleteSeconds((data as { auto_delete_after_seconds?: unknown }).auto_delete_after_seconds);
+  const policy = {
+    isTest: true,
+    autoDeleteAfterSeconds: seconds,
+    expiresAt: new Date(Date.now() + seconds * 1000).toISOString(),
+  };
+  policyCache.set(cacheKey, { cachedAt: Date.now(), policy });
+  return policy;
+}
+
+export function getTestDataFields(policy: TestRoomPolicy) {
+  return {
+    is_test: policy.isTest,
+    test_expires_at: policy.expiresAt,
+  };
+}
+
+export function getTestDataMetadata(policy: TestRoomPolicy) {
+  if (!policy.isTest) return { isTest: false };
+
+  return {
+    isTest: true,
+    testAutoDeleteAfterSeconds: policy.autoDeleteAfterSeconds,
+    testExpiresAt: policy.expiresAt,
+  };
+}
+
+async function deleteExpiredRows(table: string, hotelId: string, cutoffIso: string) {
+  const { error } = await supabaseAdmin
+    .from(table)
+    .delete()
+    .eq("hotel_id", hotelId)
+    .eq("is_test", true)
+    .lt("test_expires_at", cutoffIso);
+
+  if (error && !isLikelyMissingSchemaError(error)) {
+    console.error("Failed to cleanup expired StayHub test data", { table, hotelId, error });
+  }
+}
+
+export async function cleanupExpiredTestData(hotelId: string | null | undefined) {
+  const normalizedHotelId = String(hotelId || "").trim();
+  if (!normalizedHotelId) return;
+
+  const now = Date.now();
+  const lastCleanup = lastCleanupByHotel.get(normalizedHotelId) || 0;
+  if (now - lastCleanup < 30_000) return;
+  lastCleanupByHotel.set(normalizedHotelId, now);
+
+  const cutoffIso = new Date(now).toISOString();
+  await Promise.all([
+    deleteExpiredRows("guest_requests", normalizedHotelId, cutoffIso),
+    deleteExpiredRows("guest_surveys", normalizedHotelId, cutoffIso),
+    deleteExpiredRows("hub_events", normalizedHotelId, cutoffIso),
+  ]);
+}

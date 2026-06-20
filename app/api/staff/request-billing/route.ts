@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
 
     const { data: requestRow, error: requestError } = await supabaseAdmin
       .from("guest_requests")
-      .select("id, hotel_id, request_type, room_number_snapshot, title, status, metadata_json")
+      .select("id, hotel_id, request_type, room_number_snapshot, title, status, is_test, test_expires_at, metadata_json")
       .eq("id", requestId)
       .eq("hotel_id", scope.hotelId)
       .maybeSingle();
@@ -250,6 +250,8 @@ export async function POST(req: NextRequest) {
       section: role,
       label: requestRow.request_type,
       value: String(currentMetadata.typeLabel ?? requestRow.title ?? requestRow.request_type),
+      is_test: Boolean(requestRow.is_test),
+      test_expires_at: requestRow.test_expires_at ?? null,
       extra: {
         requestId,
         billingStatus,

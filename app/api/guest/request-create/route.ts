@@ -7,6 +7,7 @@ import type { StaffDepartment, StaffRequestStatus, StaffServiceTime } from "@/li
 import { getHotelConfig } from "@/lib/config";
 import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
 import { translateGuestText, translateGuestTextToBulgarian, hasBulgarianLetters } from "@/lib/server/staff-translation";
+import { getTestDataFields, getTestDataMetadata, getTestRoomPolicy } from "@/lib/server/test-rooms";
 
 function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
@@ -127,6 +128,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const testRoomPolicy = await getTestRoomPolicy(hotel.id, room);
     const normalizedType = normalizeStaffRequestType(rawType, departmentOverride);
     const department = departmentOverride ?? getDepartmentForRequestType(normalizedType);
     const translatedGuestNoteBg = note && !hasBulgarianLetters(note)
@@ -151,6 +153,7 @@ export async function POST(req: NextRequest) {
       guestNoteBg: translatedGuestNoteBg || null,
       rawType,
       billingStatus: requiresBilling ? "pending" : undefined,
+      ...getTestDataMetadata(testRoomPolicy),
     };
     const staffTitleBg = getOperationalRequestTitleBg({
       requestType: normalizedType,
@@ -224,6 +227,7 @@ export async function POST(req: NextRequest) {
         message_en: staffNoteEn || messageBg,
         message_de: staffNoteDe || messageBg,
         status: "new",
+        ...getTestDataFields(testRoomPolicy),
         metadata_json: {
           ...operationalMetadata,
           guestLanguage,
@@ -242,15 +246,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: error?.message || "Failed to create request" }, { status: 500 });
     }
 
-    await sendManagerPushNotification({
+    if (!testRoomPolicy.isTest) {
+      await sendManagerPushNotification({
       hotelId: hotel.id,
       hotelSlug: hotel.slug,
       requestId: String(data.id),
       room: String(data.room_number_snapshot ?? room),
       requestTitle: staffTitleBg || typeLabel,
-    }).catch((pushError) => {
-      console.error("Manager push notification failed", pushError);
-    });
+      }).catch((pushError) => {
+        console.error("Manager push notification failed", pushError);
+      });
+    }
 
     const created = new Date(data.created_at);
 
@@ -280,6 +286,8 @@ export async function POST(req: NextRequest) {
         createdAtIso: data.created_at,
         createdDateKey: created.toLocaleDateString("sv-SE"),
         note: data.metadata_json?.note ?? data.message ?? undefined,
+        isTest: Boolean(data.metadata_json?.isTest),
+        testExpiresAt: data.metadata_json?.testExpiresAt ?? undefined,
       },
     });
   } catch (error) {

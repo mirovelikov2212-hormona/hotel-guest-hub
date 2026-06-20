@@ -34,6 +34,8 @@ export type Day3Survey = {
   activeUntil: string;
   managerReadAt: string | null;
   receptionReadAt: string | null;
+  isTest?: boolean;
+  testExpiresAt?: string | null;
   createdAt: string;
 };
 

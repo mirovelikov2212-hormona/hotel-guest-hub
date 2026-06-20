@@ -126,6 +126,8 @@ export function buildSurveyAlertRequests(
       requiresBilling: false,
       sourceRequestDef: "day3_guest_survey",
       notifyDepartments: options?.notifyDepartments || ["manager"],
+      isTest: Boolean(survey.isTest),
+      testExpiresAt: survey.testExpiresAt || null,
     };
   });
 }

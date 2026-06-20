@@ -84,6 +84,8 @@ export type StaffRequest = {
   sourceRequestDef?: string | null;
   notifyDepartments?: string[];
   guestLanguage?: string | null;
+  isTest?: boolean;
+  testExpiresAt?: string | null;
 };
 
 export const staffDepartmentLabels: Record<StaffDepartment, string> = {

@@ -11,6 +11,7 @@ import {
   getOperationalRequestTitleBg,
 } from "@/lib/staff/ops-request-copy";
 import { translateGuestText } from "@/lib/server/staff-translation";
+import { cleanupExpiredTestData } from "@/lib/server/test-rooms";
 import type {
   StaffDepartment,
   StaffRequest,
@@ -35,6 +36,8 @@ type GuestRequestRow = {
   message_de?: string | null;
   status: StaffRequestStatus;
   created_at: string;
+  is_test?: boolean | null;
+  test_expires_at?: string | null;
   metadata_json: {
     department?: StaffDepartment;
     serviceTime?: StaffServiceTime;
@@ -307,10 +310,12 @@ export async function GET(req: NextRequest) {
     const scope = await resolveAuthorizedScope(hotelSlug, role);
     if ("error" in scope) return scope.error;
 
+    await cleanupExpiredTestData(scope.hotelId);
+
     let query = supabaseAdmin
       .from("guest_requests")
       .select(
-        "id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, title_en, title_de, message_bg, message_en, message_de, status, created_at, metadata_json"
+        "id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, title_en, title_de, message_bg, message_en, message_de, status, created_at, is_test, test_expires_at, metadata_json"
       )
       .eq("hotel_id", scope.hotelId)
       .order("created_at", { ascending: false });

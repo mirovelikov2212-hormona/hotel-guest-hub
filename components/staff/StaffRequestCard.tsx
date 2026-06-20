@@ -206,6 +206,12 @@ export default function StaffRequestCard({
               {t.room} {request.room}
             </span>
 
+            {request.isTest ? (
+              <span className="rounded-full border border-fuchsia-300/35 bg-fuchsia-400/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-fuchsia-100">
+                {lang === "bg" ? "ТЕСТ" : "TEST"}
+              </span>
+            ) : null}
+
             {mode !== "department" ? (
               <span
                 className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${staffDepartmentClasses[request.department]}`}

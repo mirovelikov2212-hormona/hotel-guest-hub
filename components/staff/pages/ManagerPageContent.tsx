@@ -524,6 +524,7 @@ export default function ManagerPage() {
     setRequestBillingStatus,
   } = useStaffStore();
   const requests = getAllRequests();
+  const reportRequests = useMemo(() => requests.filter((request) => !request.isTest), [requests]);
   const operationalRequests = useMemo(
     () => sortByTime(getOperationalAllRequests()),
     [getOperationalAllRequests],
@@ -551,17 +552,17 @@ export default function ManagerPage() {
   useStaffTabTitleAlert(managerAlertRequests);
   const [activeReport, setActiveReport] = useState<ReportView>("requests_snapshot");
   const [selectedDrilldown, setSelectedDrilldown] = useState<DrilldownSelection | null>(null);
-  const summary = useMemo(() => getRequestSummary(requests), [requests]);
-  const problemRequests = useMemo(() => requests.filter(isTechnicalProblem), [requests]);
+  const summary = useMemo(() => getRequestSummary(reportRequests), [reportRequests]);
+  const problemRequests = useMemo(() => reportRequests.filter(isTechnicalProblem), [reportRequests]);
   const problemSummary = useMemo(() => getRequestSummary(problemRequests), [problemRequests]);
 
-  const requestTypeStats = useMemo(() => buildRequestTypeStats(requests, lang), [requests, lang]);
+  const requestTypeStats = useMemo(() => buildRequestTypeStats(reportRequests, lang), [reportRequests, lang]);
   const issueTypeStats = useMemo(() => buildRequestTypeStats(problemRequests, lang), [problemRequests, lang]);
-  const requestRoomStats = useMemo(() => buildRoomStats(requests), [requests]);
+  const requestRoomStats = useMemo(() => buildRoomStats(reportRequests), [reportRequests]);
   const problemRoomStats = useMemo(() => buildRoomStats(problemRequests), [problemRequests]);
 
   const upsellText = useMemo(() => getUpsellText(lang), [lang]);
-  const billableRequests = useMemo(() => requests.filter(isBillableRequest), [requests]);
+  const billableRequests = useMemo(() => reportRequests.filter(isBillableRequest), [reportRequests]);
   const chargedUpsellRequests = useMemo(() => billableRequests.filter(isChargedRequest), [billableRequests]);
   const pendingUpsellRequests = useMemo(() => billableRequests.filter(isPendingBillingRequest), [billableRequests]);
   const waivedUpsellRequests = useMemo(() => billableRequests.filter(isWaivedBillingRequest), [billableRequests]);
@@ -584,8 +585,8 @@ export default function ManagerPage() {
     [cancelledUpsellRequests],
   );
   const potentialUpsellRevenue = chargedUpsellRevenue + pendingUpsellRevenue + waivedUpsellRevenue + cancelledUpsellRevenue;
-  const upsellServiceStats = useMemo(() => buildUpsellServiceStats(requests, lang), [requests, lang]);
-  const upsellRoomStats = useMemo(() => buildUpsellRoomStats(requests), [requests]);
+  const upsellServiceStats = useMemo(() => buildUpsellServiceStats(reportRequests, lang), [reportRequests, lang]);
+  const upsellRoomStats = useMemo(() => buildUpsellRoomStats(reportRequests), [reportRequests]);
 
   const reportTabs = [
     { id: "requests_snapshot" as const, label: t.requestsSnapshot },
@@ -603,7 +604,7 @@ export default function ManagerPage() {
 
     switch (selectedDrilldown.kind) {
       case "request_status": {
-        const matching = sortByTime(requests.filter((request) => {
+        const matching = sortByTime(reportRequests.filter((request) => {
           if (selectedDrilldown.status === "all") return true;
           if (selectedDrilldown.status === "open") return isOpenStatus(request.status);
           return request.status === selectedDrilldown.status;
@@ -621,13 +622,13 @@ export default function ManagerPage() {
         return {
           title: translateRequestType(selectedDrilldown.type, lang),
           subtitle: t.topRequestTypesText,
-          requests: sortByTime(requests.filter((request) => request.type === selectedDrilldown.type)),
+          requests: sortByTime(reportRequests.filter((request) => request.type === selectedDrilldown.type)),
         };
       case "request_room":
         return {
           title: `${t.room} ${selectedDrilldown.room}`,
           subtitle: t.requestRoomsText,
-          requests: sortByTime(requests.filter((request) => request.room === selectedDrilldown.room)),
+          requests: sortByTime(reportRequests.filter((request) => request.room === selectedDrilldown.room)),
         };
       case "upsell_status": {
         const matching = sortByTime(billableRequests.filter((request) => {
@@ -674,14 +675,14 @@ export default function ManagerPage() {
           requests: sortByTime(problemRequests.filter((request) => request.room === selectedDrilldown.room)),
         };
     }
-  }, [billableRequests, lang, problemRequests, requests, selectedDrilldown, t, upsellText]);
+  }, [billableRequests, lang, problemRequests, reportRequests, selectedDrilldown, t, upsellText]);
 
   const reportRows = useMemo(() => {
     switch (activeReport) {
       case "requests_snapshot":
         return [
           [t.room, t.requestType, "Title BG", "Title EN", "Title DE", "Note BG", "Note EN", "Note DE", "Original title", "Original note", "Guest language", "Status", "Date", "Time"],
-          ...sortByTime(requests).map((request) => {
+          ...sortByTime(reportRequests).map((request) => {
             const created = new Date(request.createdAtIso);
             return [
               `${t.room} ${request.room}`,
@@ -766,7 +767,7 @@ export default function ManagerPage() {
       case "problem_rooms":
         return [[t.room, t.totalIssues, t.openIssues, t.returnedIssues, t.completedIssues], ...problemRoomStats.map((room) => [`${t.room} ${room.room}`, room.total, room.open, room.returned, room.completed])];
     }
-  }, [activeReport, issueTypeStats, lang, managerReportSurveys, problemRequests, problemRoomStats, requestRoomStats, requestTypeStats, requests, t, upsellServiceStats, upsellText]);
+  }, [activeReport, issueTypeStats, lang, managerReportSurveys, problemRequests, problemRoomStats, requestRoomStats, requestTypeStats, reportRequests, t, upsellServiceStats, upsellText]);
 
   function exportCsv() {
     downloadFile(`manager-${activeReport}.csv`, rowsToCsv(reportRows), "text/csv;charset=utf-8;");

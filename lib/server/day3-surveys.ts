@@ -40,6 +40,8 @@ export type GuestSurveyRow = {
   guest_submitted_at: string;
   active_until: string;
   manager_read_at: string | null;
+  is_test?: boolean | null;
+  test_expires_at?: string | null;
   metadata_json?: {
     reception_read_at?: string | null;
     reception_read_by?: string | null;
@@ -251,6 +253,8 @@ export function mapSurveyRow(row: GuestSurveyRow): Day3Survey {
     guestSubmittedAt: row.guest_submitted_at,
     activeUntil: row.active_until,
     managerReadAt: row.manager_read_at || null,
+    isTest: Boolean(row.is_test || row.metadata_json?.isTest),
+    testExpiresAt: row.test_expires_at || (row.metadata_json?.testExpiresAt ? String(row.metadata_json.testExpiresAt) : null),
     receptionReadAt: row.metadata_json?.reception_read_at ? String(row.metadata_json.reception_read_at) : null,
     createdAt: row.created_at,
   };

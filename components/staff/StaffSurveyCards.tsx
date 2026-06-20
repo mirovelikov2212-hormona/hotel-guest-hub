@@ -40,6 +40,7 @@ type SurveyCopy = {
   details: string;
   showDetails: string;
   hideDetails: string;
+  testLabel: string;
 };
 
 const COPY: Record<StaffSurveyLang, SurveyCopy> = {
@@ -71,6 +72,7 @@ const COPY: Record<StaffSurveyLang, SurveyCopy> = {
     details: "Детайли",
     showDetails: "Покажи детайли",
     hideDetails: "Скрий детайли",
+    testLabel: "ТЕСТ",
   },
   en: {
     todayTitle: "Today's surveys",
@@ -100,6 +102,7 @@ const COPY: Record<StaffSurveyLang, SurveyCopy> = {
     details: "Details",
     showDetails: "Show details",
     hideDetails: "Hide details",
+    testLabel: "TEST",
   },
   de: {
     todayTitle: "Umfragen heute",
@@ -129,6 +132,7 @@ const COPY: Record<StaffSurveyLang, SurveyCopy> = {
     details: "Details",
     showDetails: "Details anzeigen",
     hideDetails: "Details ausblenden",
+    testLabel: "TEST",
   },
 };
 
@@ -300,6 +304,12 @@ function SurveyDetailCard({
               {copy.room} {survey.room}
             </h4>
             <RatingBadge rating={survey.rating} />
+            {survey.isTest ? (
+              <span className="rounded-full border border-fuchsia-300/35 bg-fuchsia-400/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-fuchsia-100">
+                {copy.testLabel}
+              </span>
+            ) : null}
+
             {mode !== "report" ? (
               <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${isUnread ? "border-cyan-300/30 bg-cyan-300/15 text-cyan-100" : "border-white/10 bg-white/10 text-white/60"}`}>
                 {isUnread ? copy.unread : copy.read}

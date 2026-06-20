@@ -6,6 +6,7 @@ import {
   resolveAuthorizedSurveyScope,
   type GuestSurveyRow,
 } from "@/lib/server/day3-surveys";
+import { cleanupExpiredTestData } from "@/lib/server/test-rooms";
 import { hasBulgarianLetters, translateGuestTextToBulgarian } from "@/lib/server/staff-translation";
 
 const NO_STORE_HEADERS = {
@@ -99,7 +100,7 @@ async function backfillMissingSurveyTranslations(rows: GuestSurveyRow[]) {
       })
       .eq("id", row.id)
       .select(
-        "id, hotel_id, room_number, survey_type, rating, selected_categories, improvement_text, improvement_text_original, improvement_text_bg, improvement_text_en, improvement_text_de, problem_text, problem_text_original, problem_text_bg, problem_text_en, problem_text_de, resolution_status, resolution_note, resolution_note_original, resolution_note_bg, resolution_note_en, resolution_note_de, language, survey_version, hotel_date_key, target_date_key, first_confirmed_date_key, guest_submitted_at, active_until, manager_read_at, metadata_json, created_at",
+        "id, hotel_id, room_number, survey_type, rating, selected_categories, improvement_text, improvement_text_original, improvement_text_bg, improvement_text_en, improvement_text_de, problem_text, problem_text_original, problem_text_bg, problem_text_en, problem_text_de, resolution_status, resolution_note, resolution_note_original, resolution_note_bg, resolution_note_en, resolution_note_de, language, survey_version, hotel_date_key, target_date_key, first_confirmed_date_key, guest_submitted_at, active_until, manager_read_at, is_test, test_expires_at, metadata_json, created_at",
       )
       .single();
 
@@ -135,13 +136,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    await cleanupExpiredTestData(scope.hotelId);
+
     const nowIso = new Date().toISOString();
     const recentCutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
 
     let query = supabaseAdmin
       .from("guest_surveys")
       .select(
-        "id, hotel_id, room_number, survey_type, rating, selected_categories, improvement_text, improvement_text_original, improvement_text_bg, improvement_text_en, improvement_text_de, problem_text, problem_text_original, problem_text_bg, problem_text_en, problem_text_de, resolution_status, resolution_note, resolution_note_original, resolution_note_bg, resolution_note_en, resolution_note_de, language, survey_version, hotel_date_key, target_date_key, first_confirmed_date_key, guest_submitted_at, active_until, manager_read_at, metadata_json, created_at",
+        "id, hotel_id, room_number, survey_type, rating, selected_categories, improvement_text, improvement_text_original, improvement_text_bg, improvement_text_en, improvement_text_de, problem_text, problem_text_original, problem_text_bg, problem_text_en, problem_text_de, resolution_status, resolution_note, resolution_note_original, resolution_note_bg, resolution_note_en, resolution_note_de, language, survey_version, hotel_date_key, target_date_key, first_confirmed_date_key, guest_submitted_at, active_until, manager_read_at, is_test, test_expires_at, metadata_json, created_at",
       )
       .eq("hotel_id", scope.hotelId)
       .eq("survey_type", "day3_guest_survey")
@@ -167,7 +170,7 @@ export async function GET(req: NextRequest) {
     const surveys = hydratedRows.map(mapSurveyRow);
     const activeSurveys = surveys.filter((survey) => new Date(survey.activeUntil).getTime() > Date.now());
     const reportSurveys = role === "manager"
-      ? surveys.filter((survey) => new Date(survey.activeUntil).getTime() <= Date.now())
+      ? surveys.filter((survey) => !survey.isTest && new Date(survey.activeUntil).getTime() <= Date.now())
       : [];
 
     return NextResponse.json(

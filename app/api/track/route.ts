@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTestDataFields, getTestDataMetadata, getTestRoomPolicy } from "@/lib/server/test-rooms";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,13 +38,16 @@ export async function POST(request: NextRequest) {
       page: body.page ?? body.pagePath ?? null,
     };
 
+    const roomNumber = body.roomNumber ?? null;
+    const testRoomPolicy = await getTestRoomPolicy(body.hotelId ?? null, roomNumber);
+
     const legacyPayload = {
       hotel_id: body.hotelId ?? null,
       hotel_slug: body.hotelSlug,
       hotel_alias: body.hotelAlias,
       scan_session_id: body.scanSessionId ?? cookieScanSessionId,
       room_id: body.roomId ?? null,
-      room_number: body.roomNumber ?? null,
+      room_number: roomNumber,
       user_session_id: body.userSessionId ?? body.sessionId ?? null,
       event_name: body.eventName,
       section: body.section ?? body.sectionKey ?? null,
@@ -70,7 +74,11 @@ export async function POST(request: NextRequest) {
       room_confirmed: Boolean(body.roomConfirmed),
       page_path: normalizeText(body.pagePath ?? body.page),
       request_id: normalizeText(body.requestId),
-      metadata_json: body.metadata ?? {},
+      metadata_json: {
+        ...(body.metadata ?? {}),
+        ...getTestDataMetadata(testRoomPolicy),
+      },
+      ...getTestDataFields(testRoomPolicy),
     };
 
     let { data, error } = await supabase
