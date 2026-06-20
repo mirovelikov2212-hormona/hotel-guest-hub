@@ -88,10 +88,18 @@ async function backfillMissingSurveyTranslations(rows: GuestSurveyRow[]) {
 
     const { data, error } = await supabaseAdmin
       .from("guest_surveys")
-      .update({ metadata_json: nextMetadata })
+      .update({
+        improvement_text_original: row.improvement_text_original || row.improvement_text || null,
+        improvement_text_bg: improvementBg || null,
+        problem_text_original: row.problem_text_original || row.problem_text || null,
+        problem_text_bg: problemBg || null,
+        resolution_note_original: row.resolution_note_original || row.resolution_note || null,
+        resolution_note_bg: resolutionNoteBg || null,
+        metadata_json: nextMetadata,
+      })
       .eq("id", row.id)
       .select(
-        "id, hotel_id, room_number, survey_type, rating, selected_categories, improvement_text, problem_text, resolution_status, resolution_note, language, survey_version, hotel_date_key, target_date_key, first_confirmed_date_key, guest_submitted_at, active_until, manager_read_at, metadata_json, created_at",
+        "id, hotel_id, room_number, survey_type, rating, selected_categories, improvement_text, improvement_text_original, improvement_text_bg, improvement_text_en, improvement_text_de, problem_text, problem_text_original, problem_text_bg, problem_text_en, problem_text_de, resolution_status, resolution_note, resolution_note_original, resolution_note_bg, resolution_note_en, resolution_note_de, language, survey_version, hotel_date_key, target_date_key, first_confirmed_date_key, guest_submitted_at, active_until, manager_read_at, metadata_json, created_at",
       )
       .single();
 
@@ -133,7 +141,7 @@ export async function GET(req: NextRequest) {
     let query = supabaseAdmin
       .from("guest_surveys")
       .select(
-        "id, hotel_id, room_number, survey_type, rating, selected_categories, improvement_text, problem_text, resolution_status, resolution_note, language, survey_version, hotel_date_key, target_date_key, first_confirmed_date_key, guest_submitted_at, active_until, manager_read_at, metadata_json, created_at",
+        "id, hotel_id, room_number, survey_type, rating, selected_categories, improvement_text, improvement_text_original, improvement_text_bg, improvement_text_en, improvement_text_de, problem_text, problem_text_original, problem_text_bg, problem_text_en, problem_text_de, resolution_status, resolution_note, resolution_note_original, resolution_note_bg, resolution_note_en, resolution_note_de, language, survey_version, hotel_date_key, target_date_key, first_confirmed_date_key, guest_submitted_at, active_until, manager_read_at, metadata_json, created_at",
       )
       .eq("hotel_id", scope.hotelId)
       .eq("survey_type", "day3_guest_survey")

@@ -680,12 +680,21 @@ export default function ManagerPage() {
     switch (activeReport) {
       case "requests_snapshot":
         return [
-          [t.room, t.requestType, "Status", "Date", "Time"],
+          [t.room, t.requestType, "Title BG", "Title EN", "Title DE", "Note BG", "Note EN", "Note DE", "Original title", "Original note", "Guest language", "Status", "Date", "Time"],
           ...sortByTime(requests).map((request) => {
             const created = new Date(request.createdAtIso);
             return [
               `${t.room} ${request.room}`,
               translateRequestType(request.type, lang, request.typeLabel),
+              request.typeLabelBg || request.typeLabel || "",
+              request.typeLabelEn || "",
+              request.typeLabelDe || "",
+              request.noteBg || request.note || "",
+              request.noteEn || "",
+              request.noteDe || "",
+              request.typeLabelOriginal || "",
+              request.noteOriginal || "",
+              request.guestLanguage || "",
               request.status,
               created.toLocaleDateString(lang),
               created.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" }),
@@ -713,7 +722,7 @@ export default function ManagerPage() {
       case "survey_report": {
         const summaries = buildSurveyDaySummaries(managerReportSurveys);
         return [
-          ["Дата", "Брой анкети", "Средна оценка", "Разпределение", "Най-чести категории", "Стаи за внимание", "Нерешени/частични", "Сурови отговори"],
+          ["Дата", "Брой анкети", "Средна оценка", "Разпределение", "Най-чести категории", "Стаи за внимание", "Нерешени/частични", "Отговори BG", "Answers EN", "Antworten DE", "Original answers"],
           ...summaries.map((summary) => [
             summary.dateKey,
             summary.surveys.length,
@@ -722,18 +731,30 @@ export default function ManagerPage() {
             summary.topCategories.map((item) => `${item.key} × ${item.count}`).join(" · "),
             summary.attentionRooms.join(", "),
             summary.unresolvedCount,
-            summary.surveys.map((survey) => `Стая ${survey.room}: ${survey.rating}/5 | ${survey.problemText || survey.improvementText || "—"}`).join(" || "),
+            summary.surveys.map((survey) => `Стая ${survey.room}: ${survey.rating}/5 | ${survey.problemTextBg || survey.problemText || survey.improvementTextBg || survey.improvementText || "—"}`).join(" || "),
+            summary.surveys.map((survey) => `Room ${survey.room}: ${survey.rating}/5 | ${survey.problemTextEn || survey.improvementTextEn || "—"}`).join(" || "),
+            summary.surveys.map((survey) => `Zimmer ${survey.room}: ${survey.rating}/5 | ${survey.problemTextDe || survey.improvementTextDe || "—"}`).join(" || "),
+            summary.surveys.map((survey) => `Room ${survey.room}: ${survey.rating}/5 | ${survey.problemTextOriginal || survey.improvementTextOriginal || "—"}`).join(" || "),
           ]),
         ];
       }
       case "issues_snapshot":
         return [
-          [t.room, t.problemType, "Status", "Date", "Time"],
+          [t.room, t.problemType, "Title BG", "Title EN", "Title DE", "Note BG", "Note EN", "Note DE", "Original title", "Original note", "Guest language", "Status", "Date", "Time"],
           ...sortByTime(problemRequests).map((request) => {
             const created = new Date(request.createdAtIso);
             return [
               `${t.room} ${request.room}`,
               translateRequestType(request.type, lang, request.typeLabel),
+              request.typeLabelBg || request.typeLabel || "",
+              request.typeLabelEn || "",
+              request.typeLabelDe || "",
+              request.noteBg || request.note || "",
+              request.noteEn || "",
+              request.noteDe || "",
+              request.typeLabelOriginal || "",
+              request.noteOriginal || "",
+              request.guestLanguage || "",
               request.status,
               created.toLocaleDateString(lang),
               created.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" }),

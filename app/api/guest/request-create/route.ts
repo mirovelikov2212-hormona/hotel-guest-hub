@@ -6,7 +6,7 @@ import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib
 import type { StaffDepartment, StaffRequestStatus, StaffServiceTime } from "@/lib/staff/types";
 import { getHotelConfig } from "@/lib/config";
 import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
-import { translateGuestTextToBulgarian, hasBulgarianLetters } from "@/lib/server/staff-translation";
+import { translateGuestText, translateGuestTextToBulgarian, hasBulgarianLetters } from "@/lib/server/staff-translation";
 
 function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
@@ -170,6 +170,37 @@ export async function POST(req: NextRequest) {
         note: noteForStaffCopy,
       },
     });
+    const messageBg = staffNoteBg || translatedGuestNoteBg || note || null;
+    const [staffTitleEn, staffTitleDe, staffNoteEn, staffNoteDe] = await Promise.all([
+      translateGuestText(staffTitleBg, {
+        sourceLanguage: "bg",
+        targetLanguage: "en",
+        context: "StayHub operational request title for hotel staff reports.",
+        maxLength: 500,
+      }),
+      translateGuestText(staffTitleBg, {
+        sourceLanguage: "bg",
+        targetLanguage: "de",
+        context: "StayHub operational request title for hotel staff reports.",
+        maxLength: 500,
+      }),
+      messageBg
+        ? translateGuestText(messageBg, {
+            sourceLanguage: "bg",
+            targetLanguage: "en",
+            context: "StayHub operational request note for hotel staff reports.",
+            maxLength: 1200,
+          })
+        : Promise.resolve(""),
+      messageBg
+        ? translateGuestText(messageBg, {
+            sourceLanguage: "bg",
+            targetLanguage: "de",
+            context: "StayHub operational request note for hotel staff reports.",
+            maxLength: 1200,
+          })
+        : Promise.resolve(""),
+    ]);
 
     const { data, error } = await supabaseAdmin
       .from("guest_requests")
@@ -184,12 +215,24 @@ export async function POST(req: NextRequest) {
         priority: "normal",
         title: typeLabel,
         message: note,
+        title_original: typeLabel || null,
+        message_original: note,
+        title_bg: staffTitleBg || null,
+        title_en: staffTitleEn || staffTitleBg || null,
+        title_de: staffTitleDe || staffTitleBg || null,
+        message_bg: messageBg,
+        message_en: staffNoteEn || messageBg,
+        message_de: staffNoteDe || messageBg,
         status: "new",
         metadata_json: {
           ...operationalMetadata,
           guestLanguage,
           staffTitleBg,
+          staffTitleEn: staffTitleEn || null,
+          staffTitleDe: staffTitleDe || null,
           staffNoteBg,
+          staffNoteEn: staffNoteEn || null,
+          staffNoteDe: staffNoteDe || null,
         },
       })
       .select("id, room_number_snapshot, request_type, title, message, status, created_at, metadata_json")

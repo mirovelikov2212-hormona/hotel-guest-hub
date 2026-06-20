@@ -17,9 +17,21 @@ export type GuestSurveyRow = {
   rating: number;
   selected_categories: unknown;
   improvement_text: string | null;
+  improvement_text_original?: string | null;
+  improvement_text_bg?: string | null;
+  improvement_text_en?: string | null;
+  improvement_text_de?: string | null;
   problem_text: string | null;
+  problem_text_original?: string | null;
+  problem_text_bg?: string | null;
+  problem_text_en?: string | null;
+  problem_text_de?: string | null;
   resolution_status: Day3SurveyResolutionStatus | null;
   resolution_note: string | null;
+  resolution_note_original?: string | null;
+  resolution_note_bg?: string | null;
+  resolution_note_en?: string | null;
+  resolution_note_de?: string | null;
   language: string | null;
   survey_version: string | null;
   hotel_date_key: string | null;
@@ -32,8 +44,14 @@ export type GuestSurveyRow = {
     reception_read_at?: string | null;
     reception_read_by?: string | null;
     improvement_text_bg?: string | null;
+    improvement_text_en?: string | null;
+    improvement_text_de?: string | null;
     problem_text_bg?: string | null;
+    problem_text_en?: string | null;
+    problem_text_de?: string | null;
     resolution_note_bg?: string | null;
+    resolution_note_en?: string | null;
+    resolution_note_de?: string | null;
     [key: string]: unknown;
   } | null;
   created_at: string;
@@ -209,10 +227,22 @@ export function mapSurveyRow(row: GuestSurveyRow): Day3Survey {
     room: row.room_number,
     rating: Number(row.rating || 0),
     selectedCategories: categories,
-    improvementText: String(row.metadata_json?.improvement_text_bg || row.improvement_text || ""),
-    problemText: String(row.metadata_json?.problem_text_bg || row.problem_text || ""),
+    improvementText: String(row.improvement_text_bg || row.metadata_json?.improvement_text_bg || row.improvement_text || ""),
+    improvementTextOriginal: String(row.improvement_text_original || row.improvement_text || ""),
+    improvementTextBg: String(row.improvement_text_bg || row.metadata_json?.improvement_text_bg || row.improvement_text || ""),
+    improvementTextEn: String(row.improvement_text_en || row.metadata_json?.improvement_text_en || row.improvement_text || ""),
+    improvementTextDe: String(row.improvement_text_de || row.metadata_json?.improvement_text_de || row.improvement_text || ""),
+    problemText: String(row.problem_text_bg || row.metadata_json?.problem_text_bg || row.problem_text || ""),
+    problemTextOriginal: String(row.problem_text_original || row.problem_text || ""),
+    problemTextBg: String(row.problem_text_bg || row.metadata_json?.problem_text_bg || row.problem_text || ""),
+    problemTextEn: String(row.problem_text_en || row.metadata_json?.problem_text_en || row.problem_text || ""),
+    problemTextDe: String(row.problem_text_de || row.metadata_json?.problem_text_de || row.problem_text || ""),
     resolutionStatus: row.resolution_status || null,
-    resolutionNote: String(row.metadata_json?.resolution_note_bg || row.resolution_note || ""),
+    resolutionNote: String(row.resolution_note_bg || row.metadata_json?.resolution_note_bg || row.resolution_note || ""),
+    resolutionNoteOriginal: String(row.resolution_note_original || row.resolution_note || ""),
+    resolutionNoteBg: String(row.resolution_note_bg || row.metadata_json?.resolution_note_bg || row.resolution_note || ""),
+    resolutionNoteEn: String(row.resolution_note_en || row.metadata_json?.resolution_note_en || row.resolution_note || ""),
+    resolutionNoteDe: String(row.resolution_note_de || row.metadata_json?.resolution_note_de || row.resolution_note || ""),
     language: row.language || "bg",
     surveyVersion: row.survey_version || DAY3_SURVEY_VERSION,
     hotelDateKey: row.hotel_date_key || row.guest_submitted_at.slice(0, 10),

@@ -55,12 +55,20 @@ export type StaffRequest = {
   department: StaffDepartment;
   type: StaffRequestType;
   typeLabel: string;
+  typeLabelOriginal?: string | null;
+  typeLabelBg?: string | null;
+  typeLabelEn?: string | null;
+  typeLabelDe?: string | null;
   status: StaffRequestStatus;
   serviceTime: StaffServiceTime;
   createdAt: string;
   createdAtIso: string;
   createdDateKey: string;
   note?: string;
+  noteOriginal?: string | null;
+  noteBg?: string | null;
+  noteEn?: string | null;
+  noteDe?: string | null;
   requiresBilling?: boolean;
   price?: string | null;
   currency?: string | null;
@@ -75,6 +83,7 @@ export type StaffRequest = {
   billingUpdatedByRole?: string | null;
   sourceRequestDef?: string | null;
   notifyDepartments?: string[];
+  guestLanguage?: string | null;
 };
 
 export const staffDepartmentLabels: Record<StaffDepartment, string> = {

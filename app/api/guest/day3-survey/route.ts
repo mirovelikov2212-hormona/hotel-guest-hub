@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
-import { translateGuestTextToBulgarian } from "@/lib/server/staff-translation";
+import { translateGuestTextToStaffLanguages } from "@/lib/server/staff-translation";
 import {
   DAY3_SURVEY_VERSION,
   calculateSurveyActiveUntil,
@@ -63,20 +63,20 @@ export async function POST(req: NextRequest) {
     const timezone = String(body?.hotelTimezone || roomValidation.timezone || "Europe/Sofia").trim() || "Europe/Sofia";
     const submittedAt = new Date();
     const { hotelDateKey, activeUntil } = calculateSurveyActiveUntil(submittedAt, timezone);
-    const [improvementTextBg, problemTextBg, resolutionNoteBg] = await Promise.all([
-      translateGuestTextToBulgarian(improvementText, {
+    const [improvementTranslations, problemTranslations, resolutionNoteTranslations] = await Promise.all([
+      translateGuestTextToStaffLanguages(improvementText, {
         sourceLanguage: language,
-        context: "Day 3 hotel guest survey improvement answer for Manager/Reception staff.",
+        context: "Day 3 hotel guest survey improvement answer for Manager/Reception staff and reports.",
         maxLength: 1000,
       }),
-      translateGuestTextToBulgarian(problemText, {
+      translateGuestTextToStaffLanguages(problemText, {
         sourceLanguage: language,
-        context: "Day 3 hotel guest survey problem description for Manager/Reception staff.",
+        context: "Day 3 hotel guest survey problem description for Manager/Reception staff and reports.",
         maxLength: 1000,
       }),
-      translateGuestTextToBulgarian(resolutionNote, {
+      translateGuestTextToStaffLanguages(resolutionNote, {
         sourceLanguage: language,
-        context: "Day 3 hotel guest survey resolution note for Manager/Reception staff.",
+        context: "Day 3 hotel guest survey resolution note for Manager/Reception staff and reports.",
         maxLength: 1000,
       }),
     ]);
@@ -90,9 +90,21 @@ export async function POST(req: NextRequest) {
         rating,
         selected_categories: selectedCategories,
         improvement_text: improvementText,
+        improvement_text_original: improvementText || null,
+        improvement_text_bg: improvementTranslations.bg || null,
+        improvement_text_en: improvementTranslations.en || null,
+        improvement_text_de: improvementTranslations.de || null,
         problem_text: problemText,
+        problem_text_original: problemText || null,
+        problem_text_bg: problemTranslations.bg || null,
+        problem_text_en: problemTranslations.en || null,
+        problem_text_de: problemTranslations.de || null,
         resolution_status: resolutionStatus,
         resolution_note: resolutionNote,
+        resolution_note_original: resolutionNote || null,
+        resolution_note_bg: resolutionNoteTranslations.bg || null,
+        resolution_note_en: resolutionNoteTranslations.en || null,
+        resolution_note_de: resolutionNoteTranslations.de || null,
         language,
         survey_version: surveyVersion,
         hotel_date_key: hotelDateKey,
@@ -104,16 +116,22 @@ export async function POST(req: NextRequest) {
         metadata_json: {
           hotelTimezone: timezone,
           source: "guest_hub",
-          improvement_text_bg: improvementTextBg || null,
-          problem_text_bg: problemTextBg || null,
-          resolution_note_bg: resolutionNoteBg || null,
+          improvement_text_bg: improvementTranslations.bg || null,
+          improvement_text_en: improvementTranslations.en || null,
+          improvement_text_de: improvementTranslations.de || null,
+          problem_text_bg: problemTranslations.bg || null,
+          problem_text_en: problemTranslations.en || null,
+          problem_text_de: problemTranslations.de || null,
+          resolution_note_bg: resolutionNoteTranslations.bg || null,
+          resolution_note_en: resolutionNoteTranslations.en || null,
+          resolution_note_de: resolutionNoteTranslations.de || null,
           original_language: language,
           reception_read_at: null,
           reception_read_by: null,
         },
       })
       .select(
-        "id, hotel_id, room_number, survey_type, rating, selected_categories, improvement_text, problem_text, resolution_status, resolution_note, language, survey_version, hotel_date_key, target_date_key, first_confirmed_date_key, guest_submitted_at, active_until, manager_read_at, metadata_json, created_at",
+        "id, hotel_id, room_number, survey_type, rating, selected_categories, improvement_text, improvement_text_original, improvement_text_bg, improvement_text_en, improvement_text_de, problem_text, problem_text_original, problem_text_bg, problem_text_en, problem_text_de, resolution_status, resolution_note, resolution_note_original, resolution_note_bg, resolution_note_en, resolution_note_de, language, survey_version, hotel_date_key, target_date_key, first_confirmed_date_key, guest_submitted_at, active_until, manager_read_at, metadata_json, created_at",
       )
       .single();
 

@@ -10,6 +10,7 @@ import {
   getOperationalRequestNoteBg,
   getOperationalRequestTitleBg,
 } from "@/lib/staff/ops-request-copy";
+import { translateGuestText } from "@/lib/server/staff-translation";
 import type {
   StaffDepartment,
   StaffRequest,
@@ -24,6 +25,14 @@ type GuestRequestRow = {
   request_type: string;
   title: string;
   message: string | null;
+  title_original?: string | null;
+  message_original?: string | null;
+  title_bg?: string | null;
+  title_en?: string | null;
+  title_de?: string | null;
+  message_bg?: string | null;
+  message_en?: string | null;
+  message_de?: string | null;
   status: StaffRequestStatus;
   created_at: string;
   metadata_json: {
@@ -40,6 +49,10 @@ type GuestRequestRow = {
     guestLanguage?: string;
     staffTitleBg?: string | null;
     staffNoteBg?: string | null;
+    staffTitleEn?: string | null;
+    staffTitleDe?: string | null;
+    staffNoteEn?: string | null;
+    staffNoteDe?: string | null;
     billingStatus?: "pending" | "charged" | "waived" | "cancelled" | null;
     billingChargedAt?: string | null;
     billingChargedByRole?: string | null;
@@ -49,6 +62,8 @@ type GuestRequestRow = {
     billingCancelledByRole?: string | null;
     billingUpdatedAt?: string | null;
     billingUpdatedByRole?: string | null;
+    staff_report_translation_attempted_at?: string | null;
+    [key: string]: unknown;
   } | null;
 };
 
@@ -58,6 +73,124 @@ const NO_STORE_HEADERS = {
   Pragma: "no-cache",
   Expires: "0",
 };
+
+function normalizeText(value: unknown) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function requestNeedsReportTranslationBackfill(row: GuestRequestRow) {
+  const metadata = row.metadata_json ?? {};
+  if (metadata.staff_report_translation_attempted_at) return false;
+
+  const copyInput = {
+    requestType: row.request_type,
+    title: row.title,
+    message: row.message,
+    metadata,
+  };
+  const titleBg = normalizeText(row.title_bg || metadata.staffTitleBg || getOperationalRequestTitleBg(copyInput));
+  const noteBg = normalizeText(row.message_bg || metadata.staffNoteBg || getOperationalRequestNoteBg(copyInput) || "");
+
+  if (!normalizeText(row.title_original)) return true;
+  if (row.message && !normalizeText(row.message_original)) return true;
+  if (titleBg && !normalizeText(row.title_bg)) return true;
+  if (titleBg && (!normalizeText(row.title_en) || !normalizeText(row.title_de))) return true;
+  if (noteBg && !normalizeText(row.message_bg)) return true;
+  if (noteBg && (!normalizeText(row.message_en) || !normalizeText(row.message_de))) return true;
+
+  return false;
+}
+
+async function backfillMissingRequestReportTranslations(rows: GuestRequestRow[]) {
+  const candidates = rows.filter(requestNeedsReportTranslationBackfill).slice(0, 6);
+  if (!candidates.length) return rows;
+
+  const updatedById = new Map<string, GuestRequestRow>();
+
+  await Promise.all(candidates.map(async (row) => {
+    const metadata = row.metadata_json ?? {};
+    const copyInput = {
+      requestType: row.request_type,
+      title: row.title,
+      message: row.message,
+      metadata,
+    };
+    const titleBg = normalizeText(row.title_bg || metadata.staffTitleBg || getOperationalRequestTitleBg(copyInput));
+    const noteBg = normalizeText(row.message_bg || metadata.staffNoteBg || getOperationalRequestNoteBg(copyInput) || "");
+
+    const [titleEn, titleDe, noteEn, noteDe] = await Promise.all([
+      titleBg && !normalizeText(row.title_en)
+        ? translateGuestText(titleBg, {
+            sourceLanguage: "bg",
+            targetLanguage: "en",
+            context: "Backfill StayHub operational request title for hotel reports.",
+            maxLength: 500,
+          })
+        : Promise.resolve(normalizeText(row.title_en)),
+      titleBg && !normalizeText(row.title_de)
+        ? translateGuestText(titleBg, {
+            sourceLanguage: "bg",
+            targetLanguage: "de",
+            context: "Backfill StayHub operational request title for hotel reports.",
+            maxLength: 500,
+          })
+        : Promise.resolve(normalizeText(row.title_de)),
+      noteBg && !normalizeText(row.message_en)
+        ? translateGuestText(noteBg, {
+            sourceLanguage: "bg",
+            targetLanguage: "en",
+            context: "Backfill StayHub operational request note for hotel reports.",
+            maxLength: 1200,
+          })
+        : Promise.resolve(normalizeText(row.message_en)),
+      noteBg && !normalizeText(row.message_de)
+        ? translateGuestText(noteBg, {
+            sourceLanguage: "bg",
+            targetLanguage: "de",
+            context: "Backfill StayHub operational request note for hotel reports.",
+            maxLength: 1200,
+          })
+        : Promise.resolve(normalizeText(row.message_de)),
+    ]);
+
+    const nextMetadata = {
+      ...metadata,
+      staffTitleBg: metadata.staffTitleBg || titleBg || null,
+      staffTitleEn: metadata.staffTitleEn || titleEn || null,
+      staffTitleDe: metadata.staffTitleDe || titleDe || null,
+      staffNoteBg: metadata.staffNoteBg || noteBg || null,
+      staffNoteEn: metadata.staffNoteEn || noteEn || null,
+      staffNoteDe: metadata.staffNoteDe || noteDe || null,
+      staff_report_translation_attempted_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabaseAdmin
+      .from("guest_requests")
+      .update({
+        title_original: row.title_original || row.title || null,
+        message_original: row.message_original || row.message || null,
+        title_bg: titleBg || null,
+        title_en: titleEn || titleBg || null,
+        title_de: titleDe || titleBg || null,
+        message_bg: noteBg || null,
+        message_en: noteEn || noteBg || null,
+        message_de: noteDe || noteBg || null,
+        metadata_json: nextMetadata,
+      })
+      .eq("id", row.id)
+      .select("id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, title_en, title_de, message_bg, message_en, message_de, status, created_at, metadata_json")
+      .single();
+
+    if (error || !data) {
+      console.error("guest request report translation backfill failed", { requestId: row.id, error });
+      return;
+    }
+
+    updatedById.set(row.id, data as GuestRequestRow);
+  }));
+
+  return rows.map((row) => updatedById.get(row.id) || row);
+}
 
 function isValidRole(value: string): value is StaffRole {
   return (
@@ -82,12 +215,19 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
   const resolvedType: StaffRequestType =
     detectedKey === "massage_booking" ? "massage_booking" : normalizedType;
 
+  const titleBg = row.title_bg || metadata.staffTitleBg || getOperationalRequestTitleBg(copyInput);
+  const noteBg = row.message_bg || metadata.staffNoteBg || getOperationalRequestNoteBg(copyInput);
+
   return {
     id: row.id,
     room: row.room_number_snapshot ?? "Unknown",
     department: metadata.department ?? getDepartmentForRequestType(resolvedType),
     type: resolvedType,
-    typeLabel: getOperationalRequestTitleBg(copyInput),
+    typeLabel: titleBg,
+    typeLabelOriginal: row.title_original || row.title || null,
+    typeLabelBg: titleBg || null,
+    typeLabelEn: row.title_en || metadata.staffTitleEn || null,
+    typeLabelDe: row.title_de || metadata.staffTitleDe || null,
     status: row.status,
     serviceTime: metadata.serviceTime ?? "now",
     createdAt: created.toLocaleString([], {
@@ -99,7 +239,11 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
     }),
     createdAtIso: row.created_at,
     createdDateKey: created.toLocaleDateString("sv-SE"),
-    note: getOperationalRequestNoteBg(copyInput),
+    note: noteBg || undefined,
+    noteOriginal: row.message_original || row.message || null,
+    noteBg: noteBg || null,
+    noteEn: row.message_en || metadata.staffNoteEn || null,
+    noteDe: row.message_de || metadata.staffNoteDe || null,
     requiresBilling: Boolean(metadata.requiresBilling),
     price: metadata.price ?? null,
     currency: metadata.currency ?? null,
@@ -114,6 +258,7 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
     billingUpdatedByRole: metadata.billingUpdatedByRole ?? null,
     sourceRequestDef: metadata.sourceRequestDef ?? null,
     notifyDepartments: metadata.notifyDepartments ?? [],
+    guestLanguage: metadata.guestLanguage ?? null,
   };
 }
 
@@ -165,7 +310,7 @@ export async function GET(req: NextRequest) {
     let query = supabaseAdmin
       .from("guest_requests")
       .select(
-        "id, room_number_snapshot, request_type, title, message, status, created_at, metadata_json"
+        "id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, title_en, title_de, message_bg, message_en, message_de, status, created_at, metadata_json"
       )
       .eq("hotel_id", scope.hotelId)
       .order("created_at", { ascending: false });
@@ -183,7 +328,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    let requests = (data as GuestRequestRow[]).map(mapRowToStaffRequest);
+    const hydratedRows = await backfillMissingRequestReportTranslations(data as GuestRequestRow[]);
+    let requests = hydratedRows.map(mapRowToStaffRequest);
 
     if (role === "housekeeping" || role === "maintenance") {
       const afterHours = isReceptionBackupHours();
