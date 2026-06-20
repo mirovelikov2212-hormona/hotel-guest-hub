@@ -158,6 +158,13 @@ export default function ManagerPwaControls({
   const [busy, setBusy] = useState(false);
   const [standalone, setStandalone] = useState(false);
   const [ios, setIos] = useState(false);
+  const [debugPush, setDebugPush] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    setDebugPush(params.get("debugPush") === "1");
+  }, []);
 
   const inspect = useCallback(async () => {
     if (typeof window === "undefined") return;
@@ -332,14 +339,16 @@ export default function ManagerPwaControls({
 
           {status === "enabled" ? (
             <>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void sendTest()}
-                className="rounded-xl border border-violet-300/30 bg-violet-300/15 px-4 py-2 text-sm font-semibold text-violet-100 disabled:opacity-50"
-              >
-                {copy.test}
-              </button>
+              {debugPush ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void sendTest()}
+                  className="rounded-xl border border-violet-300/30 bg-violet-300/15 px-4 py-2 text-sm font-semibold text-violet-100 disabled:opacity-50"
+                >
+                  {copy.test}
+                </button>
+              ) : null}
               <button
                 type="button"
                 disabled={busy}
