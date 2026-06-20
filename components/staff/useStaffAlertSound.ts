@@ -77,7 +77,9 @@ export function useStaffAlertSound({
 
   useEffect(() => {
     const currentNewIds = new Set(
-      requests.filter((request) => request.status === "new").map((request) => request.id)
+      requests
+        .filter((request) => request.status === "new" && !request.isTest)
+        .map((request) => request.id)
     );
 
     if (!initializedRef.current) {

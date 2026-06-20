@@ -181,7 +181,7 @@ async function backfillMissingRequestReportTranslations(rows: GuestRequestRow[])
         metadata_json: nextMetadata,
       })
       .eq("id", row.id)
-      .select("id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, title_en, title_de, message_bg, message_en, message_de, status, created_at, metadata_json")
+      .select("id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, title_en, title_de, message_bg, message_en, message_de, status, created_at, is_test, test_expires_at, metadata_json")
       .single();
 
     if (error || !data) {
@@ -262,6 +262,8 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
     sourceRequestDef: metadata.sourceRequestDef ?? null,
     notifyDepartments: metadata.notifyDepartments ?? [],
     guestLanguage: metadata.guestLanguage ?? null,
+    isTest: Boolean(row.is_test || metadata.isTest),
+    testExpiresAt: row.test_expires_at ?? (typeof metadata.testExpiresAt === "string" ? metadata.testExpiresAt : null),
   };
 }
 

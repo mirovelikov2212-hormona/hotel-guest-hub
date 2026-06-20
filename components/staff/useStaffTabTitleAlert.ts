@@ -66,7 +66,7 @@ export function useStaffTabTitleAlert(requests: StaffRequest[]) {
   useEffect(() => {
     const currentNewIds = new Set(
       requests
-        .filter((request) => request.status === "new")
+        .filter((request) => request.status === "new" && !request.isTest)
         .map((request) => request.id),
     );
 
