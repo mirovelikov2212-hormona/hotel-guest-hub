@@ -795,7 +795,7 @@ export default function ManagerPage() {
         </div>
       </section>
 
-      {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} /> : null}
+      {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="manager" /> : null}
 
       <ManagerTodaySurveysCard
         surveys={managerActiveSurveys}

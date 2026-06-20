@@ -5,7 +5,9 @@ import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
 import type { StaffDepartment, StaffRequestStatus, StaffServiceTime } from "@/lib/staff/types";
 import { getHotelConfig } from "@/lib/config";
-import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
+import { sendManagerPushNotification, sendStaffPushNotification } from "@/lib/staff-push/web-push";
+import type { PushStaffRole } from "@/lib/staff-push/manager-auth";
+import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
 import { translateGuestText, translateGuestTextToBulgarian, hasBulgarianLetters } from "@/lib/server/staff-translation";
 import { getTestDataFields, getTestDataMetadata, getTestRoomPolicy } from "@/lib/server/test-rooms";
 
@@ -75,6 +77,30 @@ async function getHotelByAnySlugAdmin(inputSlug: string) {
   }
 
   return data;
+}
+
+function getStaffPushRolesForRequest(input: {
+  department: StaffDepartment;
+  notifyDepartments: string[];
+}) {
+  const roles = new Set<PushStaffRole>();
+  const afterHours = isReceptionBackupHours();
+
+  const addDepartmentRole = (value: string) => {
+    if (value === "reception") {
+      roles.add("reception");
+      return;
+    }
+
+    if (value === "housekeeping" || value === "maintenance") {
+      roles.add(afterHours ? "reception" : value);
+    }
+  };
+
+  addDepartmentRole(input.department);
+  input.notifyDepartments.forEach(addDepartmentRole);
+
+  return Array.from(roles);
 }
 
 
@@ -248,14 +274,32 @@ export async function POST(req: NextRequest) {
 
     if (!testRoomPolicy.isTest) {
       await sendManagerPushNotification({
-      hotelId: hotel.id,
-      hotelSlug: hotel.slug,
-      requestId: String(data.id),
-      room: String(data.room_number_snapshot ?? room),
-      requestTitle: staffTitleBg || typeLabel,
+        hotelId: hotel.id,
+        hotelSlug: hotel.slug,
+        requestId: String(data.id),
+        room: String(data.room_number_snapshot ?? room),
+        requestTitle: staffTitleBg || typeLabel,
       }).catch((pushError) => {
         console.error("Manager push notification failed", pushError);
       });
+
+      const staffPushRoles = getStaffPushRolesForRequest({
+        department,
+        notifyDepartments,
+      });
+
+      if (staffPushRoles.length) {
+        await sendStaffPushNotification({
+          hotelId: hotel.id,
+          hotelSlug: hotel.slug,
+          requestId: String(data.id),
+          room: String(data.room_number_snapshot ?? room),
+          requestTitle: staffTitleBg || typeLabel,
+          targetRoles: staffPushRoles,
+        }).catch((pushError) => {
+          console.error("Department staff push notification failed", pushError);
+        });
+      }
     }
 
     const created = new Date(data.created_at);

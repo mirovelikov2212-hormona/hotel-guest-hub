@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
+import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
@@ -106,6 +107,8 @@ export default function HousekeepingPage() {
           </div>
         </div>
       </section>
+
+      {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="housekeeping" /> : null}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StaffSummaryCard

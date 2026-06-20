@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 
+type StaffPushRole = "reception" | "housekeeping" | "maintenance" | "manager";
+
 type Status =
   | "checking"
   | "unsupported"
@@ -41,18 +43,39 @@ function isStandaloneMode() {
   );
 }
 
-function getCopy(lang: "bg" | "en" | "de") {
+function getRoleTitle(role: StaffPushRole, lang: "bg" | "en" | "de") {
+  if (lang === "en") {
+    if (role === "reception") return "Reception app";
+    if (role === "housekeeping") return "Housekeeping app";
+    if (role === "maintenance") return "Maintenance app";
+    return "Manager app";
+  }
+
+  if (lang === "de") {
+    if (role === "reception") return "Rezeptions-App";
+    if (role === "housekeeping") return "Housekeeping-App";
+    if (role === "maintenance") return "Technik-App";
+    return "Manager-App";
+  }
+
+  if (role === "reception") return "Рецепция приложение";
+  if (role === "housekeeping") return "Камериерки приложение";
+  if (role === "maintenance") return "Технически отдел приложение";
+  return "Manager приложение";
+}
+
+function getCopy(lang: "bg" | "en" | "de", role: StaffPushRole) {
   if (lang === "en") {
     return {
-      title: "Manager app",
+      title: getRoleTitle(role, lang),
       install: "On iPhone: open this page in Safari, tap Share, then Add to Home Screen.",
-      installRequired: "Install StayHub Manager on the Home Screen before enabling push notifications.",
+      installRequired: "On iPhone, install this staff app on the Home Screen before enabling push notifications.",
       enable: "Enable push notifications",
       disable: "Disable notifications",
       test: "Send test notification",
       enabled: "Push notifications are active on this device.",
-      ready: "The app is installed. Enable notifications to receive every new request.",
-      denied: "Notifications are blocked. Enable them in iPhone Settings for StayHub Manager.",
+      ready: "Enable notifications to receive new requests for this department on this device.",
+      denied: "Notifications are blocked. Enable them in the phone settings for this app.",
       unsupported: "Push notifications are not supported by this browser or device.",
       notConfigured: "Push notifications are not configured on the server yet.",
       checking: "Checking notification status…",
@@ -63,15 +86,15 @@ function getCopy(lang: "bg" | "en" | "de") {
 
   if (lang === "de") {
     return {
-      title: "Manager-App",
+      title: getRoleTitle(role, lang),
       install: "Auf dem iPhone: Diese Seite in Safari öffnen, Teilen und dann Zum Home-Bildschirm wählen.",
-      installRequired: "Installieren Sie StayHub Manager zuerst auf dem Home-Bildschirm.",
+      installRequired: "Auf dem iPhone muss diese Mitarbeiter-App zuerst auf dem Home-Bildschirm installiert werden.",
       enable: "Push-Mitteilungen aktivieren",
       disable: "Mitteilungen deaktivieren",
       test: "Testmitteilung senden",
       enabled: "Push-Mitteilungen sind auf diesem Gerät aktiv.",
-      ready: "Die App ist installiert. Aktivieren Sie Mitteilungen für jede neue Anfrage.",
-      denied: "Mitteilungen sind blockiert. Aktivieren Sie sie in den iPhone-Einstellungen für StayHub Manager.",
+      ready: "Aktivieren Sie Mitteilungen, um neue Anfragen für diese Abteilung zu erhalten.",
+      denied: "Mitteilungen sind blockiert. Aktivieren Sie sie in den Telefoneinstellungen für diese App.",
       unsupported: "Push-Mitteilungen werden von diesem Browser oder Gerät nicht unterstützt.",
       notConfigured: "Push-Mitteilungen sind auf dem Server noch nicht eingerichtet.",
       checking: "Mitteilungsstatus wird geprüft…",
@@ -81,15 +104,15 @@ function getCopy(lang: "bg" | "en" | "de") {
   }
 
   return {
-    title: "Manager приложение",
+    title: getRoleTitle(role, lang),
     install: "На iPhone: отворете тази страница в Safari → Споделяне → Добавяне към началния екран.",
-    installRequired: "Първо инсталирайте StayHub Manager на началния екран.",
+    installRequired: "На iPhone първо инсталирайте това Staff приложение на началния екран.",
     enable: "Разреши push известията",
     disable: "Изключи известията",
     test: "Изпрати тестово известие",
     enabled: "Push известията са активни на това устройство.",
-    ready: "Приложението е инсталирано. Разрешете известията за всяка нова заявка.",
-    denied: "Известията са блокирани. Разрешете ги от iPhone Settings за StayHub Manager.",
+    ready: "Разрешете известията, за да получавате новите заявки за този отдел на телефона.",
+    denied: "Известията са блокирани. Разрешете ги от настройките на телефона за това приложение.",
     unsupported: "Това устройство или браузър не поддържа push известия.",
     notConfigured: "Push известията още не са настроени на сървъра.",
     checking: "Проверка на известията…",
@@ -98,27 +121,38 @@ function getCopy(lang: "bg" | "en" | "de") {
   };
 }
 
-async function getPushConfig(hotelSlug: string): Promise<PushConfig> {
+async function getPushConfig(hotelSlug: string, role: StaffPushRole): Promise<PushConfig> {
+  const params = new URLSearchParams({ hotelSlug, role });
   const response = await fetch(
-    `/api/staff/push/config?hotelSlug=${encodeURIComponent(hotelSlug)}`,
+    `/api/staff/push/config?${params.toString()}`,
     { credentials: "include", cache: "no-store" },
   );
   return response.json();
 }
 
-async function saveSubscription(hotelSlug: string, subscription: PushSubscription) {
-  const response = await fetch("/api/staff/push/manager-subscription", {
+async function saveSubscription(
+  hotelSlug: string,
+  role: StaffPushRole,
+  subscription: PushSubscription,
+) {
+  const response = await fetch("/api/staff/push/subscription", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ hotelSlug, subscription: subscription.toJSON() }),
+    body: JSON.stringify({ hotelSlug, role, subscription: subscription.toJSON() }),
   });
   if (!response.ok) throw new Error("Failed to save subscription");
 }
 
-export default function ManagerPwaControls({ hotelSlug }: { hotelSlug: string }) {
+export default function ManagerPwaControls({
+  hotelSlug,
+  role = "manager",
+}: {
+  hotelSlug: string;
+  role?: StaffPushRole;
+}) {
   const { lang } = useStaffUi();
-  const copy = useMemo(() => getCopy(lang), [lang]);
+  const copy = useMemo(() => getCopy(lang, role), [lang, role]);
   const [status, setStatus] = useState<Status>("checking");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -143,7 +177,7 @@ export default function ManagerPwaControls({ hotelSlug }: { hotelSlug: string })
       return;
     }
 
-    const config = await getPushConfig(hotelSlug).catch(() => null);
+    const config = await getPushConfig(hotelSlug, role).catch(() => null);
     if (!config?.ok || !config.configured || !config.publicKey) {
       setStatus("not_configured");
       return;
@@ -158,12 +192,12 @@ export default function ManagerPwaControls({ hotelSlug }: { hotelSlug: string })
     const subscription = await registration.pushManager.getSubscription();
 
     if (subscription) {
-      await saveSubscription(hotelSlug, subscription).catch(() => undefined);
+      await saveSubscription(hotelSlug, role, subscription).catch(() => undefined);
       setStatus("enabled");
     } else {
       setStatus("ready");
     }
-  }, [hotelSlug]);
+  }, [hotelSlug, role]);
 
   useEffect(() => {
     void inspect().catch(() => setStatus("error"));
@@ -184,7 +218,7 @@ export default function ManagerPwaControls({ hotelSlug }: { hotelSlug: string })
         return;
       }
 
-      const config = await getPushConfig(hotelSlug);
+      const config = await getPushConfig(hotelSlug, role);
       if (!config.ok || !config.configured || !config.publicKey) {
         setStatus("not_configured");
         return;
@@ -198,15 +232,15 @@ export default function ManagerPwaControls({ hotelSlug }: { hotelSlug: string })
         applicationServerKey: urlBase64ToUint8Array(config.publicKey),
       });
 
-      await saveSubscription(hotelSlug, subscription);
+      await saveSubscription(hotelSlug, role, subscription);
       setStatus("enabled");
     } catch (error) {
-      console.error("Manager push enable failed", error);
+      console.error("Staff push enable failed", error);
       setStatus("error");
     } finally {
       setBusy(false);
     }
-  }, [hotelSlug]);
+  }, [hotelSlug, role]);
 
   const disable = useCallback(async () => {
     setBusy(true);
@@ -215,22 +249,22 @@ export default function ManagerPwaControls({ hotelSlug }: { hotelSlug: string })
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
       if (subscription) {
-        await fetch("/api/staff/push/manager-subscription", {
+        await fetch("/api/staff/push/subscription", {
           method: "DELETE",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ hotelSlug, endpoint: subscription.endpoint }),
+          body: JSON.stringify({ hotelSlug, role, endpoint: subscription.endpoint }),
         });
         await subscription.unsubscribe();
       }
       setStatus("ready");
     } catch (error) {
-      console.error("Manager push disable failed", error);
+      console.error("Staff push disable failed", error);
       setStatus("error");
     } finally {
       setBusy(false);
     }
-  }, [hotelSlug]);
+  }, [hotelSlug, role]);
 
   const sendTest = useCallback(async () => {
     setBusy(true);
@@ -240,17 +274,17 @@ export default function ManagerPwaControls({ hotelSlug }: { hotelSlug: string })
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hotelSlug }),
+        body: JSON.stringify({ hotelSlug, role }),
       });
       if (!response.ok) throw new Error("Test push failed");
       setMessage(copy.testSent);
     } catch (error) {
-      console.error("Manager test push failed", error);
+      console.error("Staff test push failed", error);
       setStatus("error");
     } finally {
       setBusy(false);
     }
-  }, [copy.testSent, hotelSlug]);
+  }, [copy.testSent, hotelSlug, role]);
 
   const statusText = status === "checking"
     ? copy.checking

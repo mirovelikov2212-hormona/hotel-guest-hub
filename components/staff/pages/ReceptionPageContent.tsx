@@ -5,6 +5,7 @@ import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import StaffFilterButton from "@/components/staff/StaffFilterButton";
 import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
+import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
 import { ReceptionTodaySurveysCard, useStaffSurveys } from "@/components/staff/StaffSurveyCards";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
@@ -574,6 +575,8 @@ export default function ReceptionPage() {
           </div>
         </div>
       </section>
+
+      {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="reception" /> : null}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <StaffSummaryCard

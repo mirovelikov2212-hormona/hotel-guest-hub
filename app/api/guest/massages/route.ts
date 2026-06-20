@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getHotelConfig } from "@/lib/config";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
-import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
+import { sendManagerPushNotification, sendStaffPushNotification } from "@/lib/staff-push/web-push";
 import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
@@ -356,6 +356,17 @@ async function ensureMassageStaffRequest(input: {
     requestTitle: staffTitleBg || "Запазен масаж",
   }).catch((pushError) => {
     console.error("Manager push notification failed for massage booking", pushError);
+  });
+
+  await sendStaffPushNotification({
+    hotelId: hotel.id,
+    hotelSlug: hotel.slug,
+    requestId: String(data.id),
+    room: String(data.room_number_snapshot ?? input.roomNumber),
+    requestTitle: staffTitleBg || "Запазен масаж",
+    targetRoles: ["reception"],
+  }).catch((pushError) => {
+    console.error("Reception push notification failed for massage booking", pushError);
   });
 
   return {
