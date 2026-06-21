@@ -190,6 +190,32 @@ function isIosDevice() {
     (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
 }
 
+async function waitForGuestServiceWorker(timeoutMs = 4000): Promise<ServiceWorkerRegistration | null> {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
+
+  try {
+    const existing = await navigator.serviceWorker.getRegistration();
+    if (existing) return existing;
+  } catch (error) {
+    console.warn("guest push get service worker registration failed", error);
+  }
+
+  try {
+    // The file already exists for staff push. Registering it here is safe and avoids
+    // a mobile PWA state where serviceWorker.ready can wait too long after reinstall.
+    const registered = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    if (registered) return registered;
+  } catch (error) {
+    console.warn("guest push service worker registration failed", error);
+  }
+
+  const timeout = new Promise<null>((resolve) => {
+    window.setTimeout(() => resolve(null), timeoutMs);
+  });
+
+  return Promise.race([navigator.serviceWorker.ready, timeout]).catch(() => null);
+}
+
 async function getGuestPushConfig(): Promise<{ ok?: boolean; configured?: boolean; publicKey?: string; error?: string }> {
   const response = await fetch("/api/guest/push/config", { credentials: "include", cache: "no-store" });
   return response.json();
@@ -314,10 +340,7 @@ export default function GuestSurveyPushControls({
       return;
     }
 
-    const registration = await Promise.race([
-      navigator.serviceWorker.ready,
-      new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 2500)),
-    ]).catch(() => null);
+    const registration = await waitForGuestServiceWorker(2500);
     const subscription = await registration?.pushManager.getSubscription().catch(() => null);
     setStatus(subscription ? "enabled" : "ready");
   }, [room, roomConfirmed]);
@@ -347,7 +370,13 @@ export default function GuestSurveyPushControls({
         return;
       }
 
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await waitForGuestServiceWorker(5000);
+      if (!registration) {
+        setStatus("error");
+        setMessage(copy.error);
+        return;
+      }
+
       const existing = await registration.pushManager.getSubscription();
       const subscription = existing || await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -381,8 +410,8 @@ export default function GuestSurveyPushControls({
     setMessage("");
 
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      const registration = await waitForGuestServiceWorker(5000);
+      const subscription = await registration?.pushManager.getSubscription();
       if (subscription) {
         await deleteGuestSubscription({ hotelSlug, room, subscription }).catch(() => undefined);
         await subscription.unsubscribe();
