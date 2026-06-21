@@ -106,6 +106,7 @@ import { persistQrContextFromUrl, trackHubEvent, type TrackHubPayload } from "@/
 import InstallAppButton from "@/components/InstallAppButton";
 import MassageBookingSection, { type ConfirmedMassageBookingCard } from "@/components/MassageBookingSection";
 import Day3GuestSurvey from "@/components/Day3GuestSurvey";
+import GuestSurveyPushControls from "@/components/GuestSurveyPushControls";
 import {
   buildWhatsAppLink,
   isAfterCutoffLocal,
@@ -7523,14 +7524,23 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       ) : null}
 
       {roomConfirmed ? (
-        <Day3GuestSurvey
-          hotelSlug={String(config.hotelSlug || hotelContentSlug || "aquamarin")}
-          room={room}
-          roomConfirmed={roomConfirmed}
-          lang={lang}
-          timezone={hotelTimezone}
-          onTrack={trackGuestEvent}
-        />
+        <>
+          <GuestSurveyPushControls
+            hotelSlug={String(config.hotelSlug || hotelContentSlug || "aquamarin")}
+            room={room}
+            roomConfirmed={roomConfirmed}
+            lang={lang}
+            timezone={hotelTimezone}
+          />
+          <Day3GuestSurvey
+            hotelSlug={String(config.hotelSlug || hotelContentSlug || "aquamarin")}
+            room={room}
+            roomConfirmed={roomConfirmed}
+            lang={lang}
+            timezone={hotelTimezone}
+            onTrack={trackGuestEvent}
+          />
+        </>
       ) : null}
 
       {roomConfirmed && activeGuestMassageBookings.length > 0 ? (
