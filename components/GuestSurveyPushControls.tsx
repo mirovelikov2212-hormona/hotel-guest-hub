@@ -258,7 +258,7 @@ export default function GuestSurveyPushControls({
   timezone: string;
 }) {
   const copy = COPY[normalizeLang(lang)] || COPY.en;
-  const [status, setStatus] = useState<Status>("checking");
+  const [status, setStatus] = useState<Status>("ready");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [ios, setIos] = useState(false);
@@ -303,13 +303,21 @@ export default function GuestSurveyPushControls({
       return;
     }
 
+    // Show the compact enable button while the async checks run. On some mobile PWAs,
+    // navigator.serviceWorker.ready can be slow or temporarily stuck after reinstall;
+    // hiding the whole control during that state makes the prompt disappear.
+    setStatus("ready");
+
     const config = await getGuestPushConfig().catch(() => null);
     if (!config?.configured || !config.publicKey) {
       setStatus("not_configured");
       return;
     }
 
-    const registration = await navigator.serviceWorker.ready.catch(() => null);
+    const registration = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 2500)),
+    ]).catch(() => null);
     const subscription = await registration?.pushManager.getSubscription().catch(() => null);
     setStatus(subscription ? "enabled" : "ready");
   }, [room, roomConfirmed]);
@@ -390,7 +398,6 @@ export default function GuestSurveyPushControls({
   }, [busy, copy.error, hotelSlug, room]);
 
   if (!roomConfirmed || !normalizeRoomNumber(room)) return null;
-  if (status === "checking") return null;
 
   return (
     <div className="mt-3 px-4">
@@ -400,7 +407,7 @@ export default function GuestSurveyPushControls({
             🔔
           </span>
 
-          {status === "ready" || status === "error" ? (
+          {status === "ready" || status === "checking" || status === "error" ? (
             <button
               type="button"
               onClick={() => void enable()}
