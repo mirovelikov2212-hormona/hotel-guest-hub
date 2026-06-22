@@ -289,6 +289,7 @@ export async function POST(req: NextRequest) {
     if (error || !data) {
       await logSystemError({
         hotelId: hotel.id,
+        severity: "critical",
         source: "guest_hub",
         eventType: "guest_request_insert_failed",
         message: "Guest request could not be inserted in Supabase.",
@@ -387,6 +388,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("guest request-create POST error", error);
     await logSystemError({
+      severity: "critical",
       source: "api",
       eventType: "guest_request_create_unexpected_error",
       message: "Unexpected server error while creating a guest request.",

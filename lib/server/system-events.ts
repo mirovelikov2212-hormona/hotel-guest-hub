@@ -1,6 +1,7 @@
 import "server-only";
 
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { sendCriticalSystemEventAlert } from "@/lib/server/critical-email-alerts";
 
 export type SystemEventSeverity = "info" | "warning" | "error" | "critical";
 
@@ -141,13 +142,55 @@ export async function logSystemEvent(input: LogSystemEventInput) {
   };
 
   try {
-    const { error } = await supabaseAdmin.from("system_events").insert(payload);
+    const { data, error } = await supabaseAdmin
+      .from("system_events")
+      .insert(payload)
+      .select("id, created_at")
+      .single();
+
     if (error) {
       console.error("system_events insert failed", {
         eventType: payload.event_type,
         severity: payload.severity,
         source: payload.source,
         error,
+      });
+
+      if (payload.severity === "critical") {
+        await sendCriticalSystemEventAlert({
+          createdAt: new Date().toISOString(),
+          hotelId: payload.hotel_id,
+          severity: payload.severity,
+          source: payload.source,
+          eventType: payload.event_type,
+          message: payload.message,
+          roomNumber: payload.room_number,
+          departmentId: payload.department_id,
+          requestId: payload.request_id,
+          surveyId: payload.survey_id,
+          metadata: {
+            ...payload.metadata_json,
+            systemEventsInsertFailed: true,
+          },
+        });
+      }
+      return;
+    }
+
+    if (payload.severity === "critical") {
+      await sendCriticalSystemEventAlert({
+        eventId: data?.id ? String(data.id) : null,
+        createdAt: data?.created_at ? String(data.created_at) : new Date().toISOString(),
+        hotelId: payload.hotel_id,
+        severity: payload.severity,
+        source: payload.source,
+        eventType: payload.event_type,
+        message: payload.message,
+        roomNumber: payload.room_number,
+        departmentId: payload.department_id,
+        requestId: payload.request_id,
+        surveyId: payload.survey_id,
+        metadata: payload.metadata_json,
       });
     }
   } catch (error) {
@@ -157,6 +200,25 @@ export async function logSystemEvent(input: LogSystemEventInput) {
       source: payload.source,
       error,
     });
+
+    if (payload.severity === "critical") {
+      await sendCriticalSystemEventAlert({
+        createdAt: new Date().toISOString(),
+        hotelId: payload.hotel_id,
+        severity: payload.severity,
+        source: payload.source,
+        eventType: payload.event_type,
+        message: payload.message,
+        roomNumber: payload.room_number,
+        departmentId: payload.department_id,
+        requestId: payload.request_id,
+        surveyId: payload.survey_id,
+        metadata: {
+          ...payload.metadata_json,
+          systemEventsLoggingFailed: true,
+        },
+      });
+    }
   }
 }
 

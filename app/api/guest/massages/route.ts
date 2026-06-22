@@ -209,6 +209,7 @@ async function findExistingMassageStaffRequest(input: {
     });
     await logSystemError({
       hotelId: input.hotelId,
+      severity: "critical",
       source: "massage",
       eventType: "massage_staff_request_lookup_failed",
       message: "Existing massage staff request lookup failed after calendar booking.",
@@ -352,6 +353,7 @@ async function ensureMassageStaffRequest(input: {
     });
     await logSystemError({
       hotelId: hotel.id,
+      severity: "critical",
       source: "massage",
       eventType: "massage_staff_request_create_failed",
       message: "Massage booking was saved, but the reception/manager staff request could not be created.",
@@ -532,7 +534,7 @@ export async function GET(req: NextRequest) {
     if (error instanceof MassageApiError) {
       if (error.statusCode >= 500) {
         await logSystemError({
-          severity: "error",
+          severity: "critical",
           source: "massage",
           eventType: error.code || "massage_get_error",
           message: "Massage GET request failed with a server-side massage error.",
@@ -544,6 +546,7 @@ export async function GET(req: NextRequest) {
 
     console.error("guest massages GET error", error);
     await logSystemError({
+      severity: "critical",
       source: "massage",
       eventType: "massage_get_unexpected_error",
       message: "Unexpected server error while loading massage data.",
@@ -674,7 +677,7 @@ export async function POST(req: NextRequest) {
     if (error instanceof MassageApiError) {
       if (error.statusCode >= 500) {
         await logSystemError({
-          severity: error.statusCode >= 500 ? "error" : "warning",
+          severity: "critical",
           source: "massage",
           eventType: error.code || "massage_post_error",
           message: "Massage POST request failed with a server-side massage error.",
@@ -686,6 +689,7 @@ export async function POST(req: NextRequest) {
 
     console.error("guest massages POST error", error);
     await logSystemError({
+      severity: "critical",
       source: "massage",
       eventType: "massage_post_unexpected_error",
       message: "Unexpected server error while creating a massage booking.",

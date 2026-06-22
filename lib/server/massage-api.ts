@@ -476,7 +476,7 @@ async function postMassageApi<T>(
     } catch (error) {
       if (error instanceof MassageApiError) {
         await logSystemError({
-          severity: error.statusCode >= 500 ? "error" : "warning",
+          severity: error.statusCode >= 500 ? "critical" : "warning",
           source: "apps_script",
           eventType: error.code || "massage_api_error",
           message: "Massage Apps Script API returned or caused a controlled error.",
@@ -492,6 +492,7 @@ async function postMassageApi<T>(
           code: "MASSAGE_API_TIMEOUT",
         });
         await logSystemError({
+          severity: "critical",
           source: "apps_script",
           eventType: timeoutError.code,
           message: "Massage Apps Script API request timed out.",
@@ -506,6 +507,7 @@ async function postMassageApi<T>(
         code: "MASSAGE_API_UNAVAILABLE",
       });
       await logSystemError({
+        severity: "critical",
         source: "apps_script",
         eventType: unavailableError.code,
         message: "Massage Apps Script API request failed unexpectedly.",

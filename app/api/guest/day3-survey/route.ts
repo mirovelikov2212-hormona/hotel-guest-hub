@@ -153,6 +153,7 @@ export async function POST(req: NextRequest) {
       console.error("guest day3 survey insert error", error);
       await logSystemError({
         hotelId: hotel.id,
+        severity: "critical",
         source: "survey",
         eventType: "day3_survey_insert_failed",
         message: "Day 3 survey could not be inserted in Supabase.",
@@ -203,6 +204,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("guest day3 survey POST error", error);
     await logSystemError({
+      severity: "critical",
       source: "api",
       eventType: "day3_survey_unexpected_error",
       message: "Unexpected server error while saving a Day 3 survey.",
