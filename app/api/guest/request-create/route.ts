@@ -10,6 +10,7 @@ import type { PushStaffRole } from "@/lib/staff-push/manager-auth";
 import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
 import { translateGuestText, translateGuestTextToBulgarian, hasBulgarianLetters } from "@/lib/server/staff-translation";
 import { getTestDataFields, getTestDataMetadata, getTestRoomPolicy } from "@/lib/server/test-rooms";
+import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 
 function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
@@ -138,8 +139,16 @@ export async function POST(req: NextRequest) {
 
     const hotel = await getHotelByAnySlugAdmin(hotelSlug);
 
-    const hotelConfig = await getHotelConfig(hotelSlug).catch((error) => {
+    const hotelConfig = await getHotelConfig(hotelSlug).catch(async (error) => {
       console.error("Failed to load hotel config for room validation", { hotelSlug, error });
+      await logSystemError({
+        hotelId: hotel.id,
+        source: "guest_hub",
+        eventType: "guest_request_room_validation_config_failed",
+        message: "Guest request room validation config could not be loaded.",
+        error,
+        metadata: { hotelSlug },
+      });
       return null;
     });
 
@@ -148,6 +157,15 @@ export async function POST(req: NextRequest) {
       : [];
 
     if (validRoomNumbers.length > 0 && !validRoomNumbers.includes(room)) {
+      await logSystemEvent({
+        hotelId: hotel.id,
+        severity: "warning",
+        source: "guest_hub",
+        eventType: "guest_request_invalid_room_blocked",
+        message: "Guest request was blocked because the room number is not valid for the hotel.",
+        roomNumber: room,
+        metadata: { hotelSlug, rawType },
+      });
       return NextResponse.json(
         { ok: false, error: "Invalid room number", code: "INVALID_ROOM" },
         { status: 400 }
@@ -269,6 +287,16 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error || !data) {
+      await logSystemError({
+        hotelId: hotel.id,
+        source: "guest_hub",
+        eventType: "guest_request_insert_failed",
+        message: "Guest request could not be inserted in Supabase.",
+        roomNumber: room,
+        departmentId: department,
+        error: error || new Error("No guest request row returned after insert."),
+        metadata: { hotelSlug, rawType, normalizedType, requiresBilling, notifyDepartments },
+      });
       return NextResponse.json({ ok: false, error: error?.message || "Failed to create request" }, { status: 500 });
     }
 
@@ -279,8 +307,19 @@ export async function POST(req: NextRequest) {
         requestId: String(data.id),
         room: String(data.room_number_snapshot ?? room),
         requestTitle: staffTitleBg || typeLabel,
-      }).catch((pushError) => {
+      }).catch(async (pushError) => {
         console.error("Manager push notification failed", pushError);
+        await logSystemError({
+          hotelId: hotel.id,
+          source: "push",
+          eventType: "manager_push_failed_after_guest_request",
+          message: "Manager push notification failed after a guest request was created.",
+          roomNumber: room,
+          departmentId: "manager",
+          requestId: String(data.id),
+          error: pushError,
+          metadata: { hotelSlug, rawType, normalizedType },
+        });
       });
 
       const staffPushRoles = getStaffPushRolesForRequest({
@@ -296,8 +335,19 @@ export async function POST(req: NextRequest) {
           room: String(data.room_number_snapshot ?? room),
           requestTitle: staffTitleBg || typeLabel,
           targetRoles: staffPushRoles,
-        }).catch((pushError) => {
+        }).catch(async (pushError) => {
           console.error("Department staff push notification failed", pushError);
+          await logSystemError({
+            hotelId: hotel.id,
+            source: "push",
+            eventType: "department_push_failed_after_guest_request",
+            message: "Department push notification failed after a guest request was created.",
+            roomNumber: room,
+            departmentId: department,
+            requestId: String(data.id),
+            error: pushError,
+            metadata: { hotelSlug, rawType, normalizedType, staffPushRoles },
+          });
         });
       }
     }
@@ -336,6 +386,12 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("guest request-create POST error", error);
+    await logSystemError({
+      source: "api",
+      eventType: "guest_request_create_unexpected_error",
+      message: "Unexpected server error while creating a guest request.",
+      error,
+    });
     return NextResponse.json({ ok: false, error: "Unexpected server error" }, { status: 500 });
   }
 }

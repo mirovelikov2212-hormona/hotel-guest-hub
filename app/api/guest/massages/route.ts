@@ -18,6 +18,7 @@ import {
   MassageApiError,
   normalizeMassageHotelSlug,
 } from "@/lib/server/massage-api";
+import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -206,6 +207,14 @@ async function findExistingMassageStaffRequest(input: {
       massageBookingKey: input.massageBookingKey,
       error,
     });
+    await logSystemError({
+      hotelId: input.hotelId,
+      source: "massage",
+      eventType: "massage_staff_request_lookup_failed",
+      message: "Existing massage staff request lookup failed after calendar booking.",
+      error,
+      metadata: { massageBookingKey: input.massageBookingKey },
+    });
 
     throw new MassageApiError("Massage booking was saved, but staff notification could not be verified.", {
       statusCode: 502,
@@ -341,6 +350,22 @@ async function ensureMassageStaffRequest(input: {
       startTime: input.startTime,
       error,
     });
+    await logSystemError({
+      hotelId: hotel.id,
+      source: "massage",
+      eventType: "massage_staff_request_create_failed",
+      message: "Massage booking was saved, but the reception/manager staff request could not be created.",
+      roomNumber: input.roomNumber,
+      departmentId: "reception",
+      error: error || new Error("No massage staff request row returned after insert."),
+      metadata: {
+        hotelSlug: input.hotelSlug,
+        serviceId: input.serviceId,
+        date: input.date,
+        startTime: input.startTime,
+        massageBookingKey,
+      },
+    });
 
     throw new MassageApiError("Massage booking was saved, but reception notification could not be created.", {
       statusCode: 502,
@@ -354,8 +379,19 @@ async function ensureMassageStaffRequest(input: {
     requestId: String(data.id),
     room: String(data.room_number_snapshot ?? input.roomNumber),
     requestTitle: staffTitleBg || "Запазен масаж",
-  }).catch((pushError) => {
+  }).catch(async (pushError) => {
     console.error("Manager push notification failed for massage booking", pushError);
+    await logSystemError({
+      hotelId: hotel.id,
+      source: "push",
+      eventType: "manager_push_failed_after_massage_booking",
+      message: "Manager push notification failed after a massage booking staff request was created.",
+      roomNumber: input.roomNumber,
+      departmentId: "manager",
+      requestId: String(data.id),
+      error: pushError,
+      metadata: { hotelSlug: input.hotelSlug, serviceId: input.serviceId, date: input.date, startTime: input.startTime },
+    });
   });
 
   await sendStaffPushNotification({
@@ -365,8 +401,19 @@ async function ensureMassageStaffRequest(input: {
     room: String(data.room_number_snapshot ?? input.roomNumber),
     requestTitle: staffTitleBg || "Запазен масаж",
     targetRoles: ["reception"],
-  }).catch((pushError) => {
+  }).catch(async (pushError) => {
     console.error("Reception push notification failed for massage booking", pushError);
+    await logSystemError({
+      hotelId: hotel.id,
+      source: "push",
+      eventType: "reception_push_failed_after_massage_booking",
+      message: "Reception push notification failed after a massage booking staff request was created.",
+      roomNumber: input.roomNumber,
+      departmentId: "reception",
+      requestId: String(data.id),
+      error: pushError,
+      metadata: { hotelSlug: input.hotelSlug, serviceId: input.serviceId, date: input.date, startTime: input.startTime },
+    });
   });
 
   return {
@@ -483,10 +530,25 @@ export async function GET(req: NextRequest) {
     return json({ ok: false, code: "UNSUPPORTED_ACTION", error: "Unsupported massage action." }, 400);
   } catch (error) {
     if (error instanceof MassageApiError) {
+      if (error.statusCode >= 500) {
+        await logSystemError({
+          severity: "error",
+          source: "massage",
+          eventType: error.code || "massage_get_error",
+          message: "Massage GET request failed with a server-side massage error.",
+          error,
+        });
+      }
       return json({ ok: false, code: error.code, error: error.message }, error.statusCode);
     }
 
     console.error("guest massages GET error", error);
+    await logSystemError({
+      source: "massage",
+      eventType: "massage_get_unexpected_error",
+      message: "Unexpected server error while loading massage data.",
+      error,
+    });
     return json({ ok: false, code: "UNEXPECTED_ERROR", error: "Unexpected server error." }, 500);
   }
 }
@@ -504,6 +566,13 @@ export async function POST(req: NextRequest) {
     const productionBookingEnabled = isMassageBookingPostEnabled(hotelSlug);
 
     if (!controlledE2EEnabled && !productionBookingEnabled) {
+      await logSystemEvent({
+        severity: "warning",
+        source: "massage",
+        eventType: "massage_booking_post_disabled",
+        message: "Massage booking POST was attempted while booking submission is disabled for the hotel.",
+        metadata: { hotelSlug },
+      });
       return json(
         {
           ok: false,
@@ -603,10 +672,25 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     if (error instanceof MassageApiError) {
+      if (error.statusCode >= 500) {
+        await logSystemError({
+          severity: error.statusCode >= 500 ? "error" : "warning",
+          source: "massage",
+          eventType: error.code || "massage_post_error",
+          message: "Massage POST request failed with a server-side massage error.",
+          error,
+        });
+      }
       return json({ ok: false, code: error.code, error: error.message }, error.statusCode);
     }
 
     console.error("guest massages POST error", error);
+    await logSystemError({
+      source: "massage",
+      eventType: "massage_post_unexpected_error",
+      message: "Unexpected server error while creating a massage booking.",
+      error,
+    });
     return json({ ok: false, code: "UNEXPECTED_ERROR", error: "Unexpected server error." }, 500);
   }
 }

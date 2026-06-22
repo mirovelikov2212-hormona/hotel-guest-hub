@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
 import { translateGuestTextToStaffLanguages } from "@/lib/server/staff-translation";
 import { getTestDataFields, getTestDataMetadata, getTestRoomPolicy } from "@/lib/server/test-rooms";
+import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import {
   DAY3_SURVEY_VERSION,
   calculateSurveyActiveUntil,
@@ -55,6 +56,15 @@ export async function POST(req: NextRequest) {
     const hotel = await getHotelByAnySlugAdmin(hotelSlug);
     const roomValidation = await validateHotelRoom(hotelSlug, room);
     if (!roomValidation.ok) {
+      await logSystemEvent({
+        hotelId: hotel.id,
+        severity: "warning",
+        source: "survey",
+        eventType: "day3_survey_invalid_room_blocked",
+        message: "Day 3 survey submission was blocked because the room number is not valid for the hotel.",
+        roomNumber: room,
+        metadata: { hotelSlug, rating, code: roomValidation.error },
+      });
       return NextResponse.json(
         { ok: false, error: roomValidation.error, code: "INVALID_ROOM" },
         { status: 400, headers: NO_STORE_HEADERS },
@@ -141,6 +151,15 @@ export async function POST(req: NextRequest) {
 
     if (error || !data) {
       console.error("guest day3 survey insert error", error);
+      await logSystemError({
+        hotelId: hotel.id,
+        source: "survey",
+        eventType: "day3_survey_insert_failed",
+        message: "Day 3 survey could not be inserted in Supabase.",
+        roomNumber: room,
+        error: error || new Error("No guest survey row returned after insert."),
+        metadata: { hotelSlug, rating, selectedCategories, language, surveyVersion, targetDateKey },
+      });
       return NextResponse.json(
         { ok: false, error: error?.message || "Failed to save survey" },
         { status: 500, headers: NO_STORE_HEADERS },
@@ -158,8 +177,19 @@ export async function POST(req: NextRequest) {
       requestTitle: `Анкета Ден 3 · оценка ${rating}/5`,
       notificationTitle: "StayHub — Нова анкета",
       notificationUrl: `/staff/${hotel.slug}/manager?source=push&survey=${encodeURIComponent(survey.id)}`,
-      }).catch((pushError) => {
+      }).catch(async (pushError) => {
         console.error("Manager survey push notification failed", pushError);
+        await logSystemError({
+          hotelId: hotel.id,
+          source: "push",
+          eventType: "manager_push_failed_after_day3_survey",
+          message: "Manager push notification failed after a Day 3 survey was submitted.",
+          roomNumber: room,
+          departmentId: "manager",
+          surveyId: survey.id,
+          error: pushError,
+          metadata: { hotelSlug, rating, surveyVersion },
+        });
       });
     }
 
@@ -172,6 +202,12 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error("guest day3 survey POST error", error);
+    await logSystemError({
+      source: "api",
+      eventType: "day3_survey_unexpected_error",
+      message: "Unexpected server error while saving a Day 3 survey.",
+      error,
+    });
     return NextResponse.json(
       { ok: false, error: "Unexpected server error" },
       { status: 500, headers: NO_STORE_HEADERS },

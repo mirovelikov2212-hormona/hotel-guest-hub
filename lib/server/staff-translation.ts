@@ -1,6 +1,7 @@
 import "server-only";
 
 import OpenAI from "openai";
+import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 
 export type StaffTranslationTargetLanguage = "bg" | "en" | "de";
 
@@ -193,7 +194,20 @@ export async function translateGuestText(
   if (deterministic) return deterministic;
 
   const openai = getOpenAiClient();
-  if (!openai) return original;
+  if (!openai) {
+    await logSystemEvent({
+      severity: "warning",
+      source: "translation",
+      eventType: "translation_openai_not_configured",
+      message: "Guest text translation used original text because OPENAI_API_KEY is not configured.",
+      metadata: {
+        targetLanguage,
+        sourceLanguage: options?.sourceLanguage || null,
+        context: options?.context || null,
+      },
+    });
+    return original;
+  }
 
   const model = String(process.env.OPENAI_TRANSLATION_MODEL || process.env.OPENAI_HOTEL_MODEL || "gpt-5-mini").trim();
 
@@ -210,6 +224,18 @@ export async function translateGuestText(
       context: options?.context,
       error: responsesError,
     });
+    await logSystemError({
+      severity: "warning",
+      source: "translation",
+      eventType: "translation_responses_api_failed",
+      message: "Guest text translation via Responses API failed; falling back to chat completions.",
+      error: responsesError,
+      metadata: {
+        targetLanguage,
+        sourceLanguage: options?.sourceLanguage || null,
+        context: options?.context || null,
+      },
+    });
   }
 
   try {
@@ -224,6 +250,17 @@ export async function translateGuestText(
       targetLanguage,
       context: options?.context,
       error: chatError,
+    });
+    await logSystemError({
+      source: "translation",
+      eventType: "translation_chat_completions_failed",
+      message: "Guest text translation failed after all available translation attempts.",
+      error: chatError,
+      metadata: {
+        targetLanguage,
+        sourceLanguage: options?.sourceLanguage || null,
+        context: options?.context || null,
+      },
     });
     return original;
   }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getTestDataFields, getTestDataMetadata, getTestRoomPolicy } from "@/lib/server/test-rooms";
+import { logSystemError } from "@/lib/server/system-events";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -90,6 +91,15 @@ export async function POST(request: NextRequest) {
     // through the old columns instead of breaking the live hub.
     if (error && isLikelyMissingColumnError(error)) {
       console.warn("hub_events enriched insert failed; falling back to legacy payload:", error);
+      await logSystemError({
+        hotelId: body.hotelId ?? null,
+        source: "api",
+        eventType: "hub_events_enriched_insert_fallback",
+        message: "hub_events enriched insert failed and the API used the legacy payload fallback.",
+        roomNumber: roomNumber,
+        error,
+        metadata: { hotelSlug: body.hotelSlug, eventName: body.eventName },
+      });
 
       const fallback = await supabase
         .from("hub_events")
@@ -103,6 +113,15 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error("hub_events insert error:", error);
       console.error("hub_events payload:", enrichedPayload);
+      await logSystemError({
+        hotelId: body.hotelId ?? null,
+        source: "api",
+        eventType: "hub_events_insert_failed",
+        message: "hub_events insert failed after fallback handling.",
+        roomNumber: roomNumber,
+        error,
+        metadata: { hotelSlug: body.hotelSlug, eventName: body.eventName },
+      });
       return NextResponse.json(
         { ok: false, error: error.message },
         { status: 500 }
@@ -114,6 +133,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, data });
   } catch (error) {
     console.error("track route fatal error:", error);
+    await logSystemError({
+      source: "api",
+      eventType: "hub_events_track_route_unexpected_error",
+      message: "Unexpected server error while tracking a hub event.",
+      error,
+    });
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 }

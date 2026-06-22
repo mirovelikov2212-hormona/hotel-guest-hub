@@ -10,6 +10,7 @@ import {
   sendDay3SurveyGuestPush,
   type GuestPushSubscriptionRow,
 } from "@/lib/guest-push/web-push";
+import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -107,6 +108,12 @@ export async function GET(req: NextRequest) {
 
   if (hotelsError) {
     console.error("Failed to load hotels for day3 survey push cron", hotelsError);
+    await logSystemError({
+      source: "cron",
+      eventType: "day3_survey_push_cron_hotels_load_failed",
+      message: "Day 3 survey push cron could not load active hotels.",
+      error: hotelsError,
+    });
     return NextResponse.json(
       { ok: false, error: hotelsError.message },
       { status: 500, headers: NO_STORE_HEADERS },
@@ -131,6 +138,12 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error("Failed to load guest push subscriptions for day3 survey cron", error);
+    await logSystemError({
+      source: "cron",
+      eventType: "day3_survey_push_cron_subscriptions_load_failed",
+      message: "Day 3 survey push cron could not load guest push subscriptions.",
+      error,
+    });
     return NextResponse.json(
       { ok: false, error: error.message },
       { status: 500, headers: NO_STORE_HEADERS },
@@ -206,6 +219,15 @@ export async function GET(req: NextRequest) {
     if (delivery.expired) {
       expiredIds.push(row.id);
       results.expired += 1;
+      await logSystemEvent({
+        hotelId: row.hotel_id,
+        severity: "info",
+        source: "push",
+        eventType: "guest_push_subscription_expired",
+        message: "Expired guest push subscription was detected during Day 3 survey push cron.",
+        roomNumber: row.room_number,
+        metadata: { hotelSlug: hotel.slug, targetDateKey, statusCode: delivery.statusCode },
+      });
       continue;
     }
 
@@ -219,9 +241,33 @@ export async function GET(req: NextRequest) {
       })
       .eq("id", row.id);
     results.failed += 1;
+    await logSystemEvent({
+      hotelId: row.hotel_id,
+      severity: "warning",
+      source: "push",
+      eventType: "day3_survey_guest_push_failed",
+      message: "Day 3 survey guest push delivery failed.",
+      roomNumber: row.room_number,
+      metadata: {
+        hotelSlug: hotel.slug,
+        targetDateKey,
+        skipped: delivery.skipped,
+        statusCode: delivery.statusCode,
+        pushAttempts: nextAttempts,
+      },
+    });
   }
 
-  await disableGuestPushSubscriptions(expiredIds);
+  await disableGuestPushSubscriptions(expiredIds).catch(async (disableError) => {
+    console.error("Failed to disable expired guest push subscriptions", disableError);
+    await logSystemError({
+      source: "push",
+      eventType: "guest_push_expired_subscription_disable_failed",
+      message: "Expired guest push subscriptions could not be disabled after Day 3 survey push cron.",
+      error: disableError,
+      metadata: { expiredCount: expiredIds.length },
+    });
+  });
 
   return NextResponse.json(
     {

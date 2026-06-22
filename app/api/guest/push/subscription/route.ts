@@ -10,6 +10,7 @@ import {
   validateHotelRoom,
 } from "@/lib/server/day3-surveys";
 import { normalizeGuestPushLanguage } from "@/lib/guest-push/web-push";
+import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,6 +81,15 @@ export async function POST(req: NextRequest) {
     const hotel = await getHotelByAnySlugAdmin(hotelSlug);
     const roomValidation = await validateHotelRoom(hotelSlug, room);
     if (!roomValidation.ok) {
+      await logSystemEvent({
+        hotelId: hotel.id,
+        severity: "warning",
+        source: "push",
+        eventType: "guest_push_subscription_invalid_room_blocked",
+        message: "Guest push subscription was blocked because the room number is not valid for the hotel.",
+        roomNumber: room,
+        metadata: { hotelSlug, code: roomValidation.error },
+      });
       return NextResponse.json(
         { ok: false, error: roomValidation.error, code: "INVALID_ROOM" },
         { status: 400, headers: NO_STORE_HEADERS },
@@ -118,6 +128,15 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error("Failed to save guest push subscription", error);
+      await logSystemError({
+        hotelId: hotel.id,
+        source: "push",
+        eventType: "guest_push_subscription_upsert_failed",
+        message: "Guest push subscription could not be saved in Supabase.",
+        roomNumber: room,
+        error,
+        metadata: { hotelSlug, language, surveyVersion, targetDateKey },
+      });
       return NextResponse.json(
         { ok: false, error: error.message },
         { status: 500, headers: NO_STORE_HEADERS },
@@ -130,6 +149,14 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error("guest push subscription POST error", error);
+    await logSystemError({
+      source: "push",
+      eventType: "guest_push_subscription_post_unexpected_error",
+      message: "Unexpected server error while saving a guest push subscription.",
+      roomNumber: room,
+      error,
+      metadata: { hotelSlug, language, surveyVersion, targetDateKey },
+    });
     return NextResponse.json(
       { ok: false, error: "Unexpected server error" },
       { status: 500, headers: NO_STORE_HEADERS },
@@ -161,6 +188,15 @@ export async function DELETE(req: NextRequest) {
 
     if (error) {
       console.error("Failed to delete guest push subscription", error);
+      await logSystemError({
+        hotelId: hotel.id,
+        source: "push",
+        eventType: "guest_push_subscription_delete_failed",
+        message: "Guest push subscription could not be deleted from Supabase.",
+        roomNumber: room,
+        error,
+        metadata: { hotelSlug },
+      });
       return NextResponse.json(
         { ok: false, error: error.message },
         { status: 500, headers: NO_STORE_HEADERS },
@@ -170,6 +206,14 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ ok: true }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error("guest push subscription DELETE error", error);
+    await logSystemError({
+      source: "push",
+      eventType: "guest_push_subscription_delete_unexpected_error",
+      message: "Unexpected server error while deleting a guest push subscription.",
+      roomNumber: room,
+      error,
+      metadata: { hotelSlug },
+    });
     return NextResponse.json(
       { ok: false, error: "Unexpected server error" },
       { status: 500, headers: NO_STORE_HEADERS },

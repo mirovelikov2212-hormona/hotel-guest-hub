@@ -2,6 +2,7 @@ import "server-only";
 
 import webPush from "web-push";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 
 export type GuestPushLanguage = "bg" | "en" | "de" | "ro" | "cs" | "ru";
 
@@ -106,15 +107,35 @@ export function getDay3SurveyPushCopy(language: unknown) {
 
 export async function disableGuestPushSubscriptions(ids: string[]) {
   if (!ids.length) return;
-  await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from("guest_push_subscriptions")
     .update({ enabled: false, updated_at: new Date().toISOString(), last_push_status: "expired" })
     .in("id", ids);
+
+  if (error) {
+    console.error("Failed to disable expired guest push subscriptions", error);
+    await logSystemError({
+      source: "push",
+      eventType: "guest_push_expired_subscription_disable_failed",
+      message: "Expired guest push subscriptions could not be disabled.",
+      error,
+      metadata: { expiredCount: ids.length },
+    });
+  }
 }
 
 export async function sendDay3SurveyGuestPush(input: GuestSurveyPushInput) {
   if (!configureWebPush()) {
     console.warn("Guest survey push skipped: VAPID keys are not configured");
+    await logSystemEvent({
+      hotelId: input.subscription.hotel_id,
+      severity: "warning",
+      source: "push",
+      eventType: "guest_push_vapid_not_configured",
+      message: "Guest survey push was skipped because VAPID keys are not configured.",
+      roomNumber: input.subscription.room_number,
+      metadata: { hotelSlug: input.hotelSlug, surveyVersion: input.subscription.survey_version },
+    });
     return { sent: false, expired: false, skipped: true, statusCode: 0 };
   }
 
@@ -158,12 +179,31 @@ export async function sendDay3SurveyGuestPush(input: GuestSurveyPushInput) {
   } catch (error) {
     const statusCode = Number((error as { statusCode?: number })?.statusCode || 0);
     const expired = statusCode === 404 || statusCode === 410;
-    if (!expired) {
+    if (expired) {
+      await logSystemEvent({
+        hotelId: input.subscription.hotel_id,
+        severity: "info",
+        source: "push",
+        eventType: "guest_push_subscription_expired",
+        message: "Expired guest push subscription was detected during delivery.",
+        roomNumber: input.subscription.room_number,
+        metadata: { hotelSlug: input.hotelSlug, statusCode },
+      });
+    } else {
       console.error("Guest survey push delivery failed", {
         subscriptionId: input.subscription.id,
         room: input.subscription.room_number,
         statusCode,
         error,
+      });
+      await logSystemError({
+        hotelId: input.subscription.hotel_id,
+        source: "push",
+        eventType: "guest_push_delivery_failed",
+        message: "Guest survey push delivery failed for an active subscription.",
+        roomNumber: input.subscription.room_number,
+        error,
+        metadata: { hotelSlug: input.hotelSlug, statusCode },
       });
     }
     return { sent: false, expired, skipped: false, statusCode };

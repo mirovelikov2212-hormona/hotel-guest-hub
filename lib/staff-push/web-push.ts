@@ -1,6 +1,7 @@
 import "server-only";
 import webPush from "web-push";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import type { PushStaffRole } from "@/lib/staff-push/manager-auth";
 
 type StaffPushInput = {
@@ -61,10 +62,21 @@ function configureWebPush() {
 
 async function disableExpiredSubscriptions(ids: string[]) {
   if (!ids.length) return;
-  await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from("staff_push_subscriptions")
     .update({ enabled: false, updated_at: new Date().toISOString() })
     .in("id", ids);
+
+  if (error) {
+    console.error("Failed to disable expired staff push subscriptions", error);
+    await logSystemError({
+      source: "push",
+      eventType: "staff_push_expired_subscription_disable_failed",
+      message: "Expired staff push subscriptions could not be disabled.",
+      error,
+      metadata: { expiredCount: ids.length },
+    });
+  }
 }
 
 function getRoleNotificationTitle(role: PushStaffRole) {
@@ -85,6 +97,16 @@ function getDefaultNotificationUrl(input: {
 export async function sendStaffPushNotification(input: StaffPushInput) {
   if (!configureWebPush()) {
     console.warn("Staff push skipped: VAPID keys are not configured");
+    await logSystemEvent({
+      hotelId: input.hotelId,
+      severity: "warning",
+      source: "push",
+      eventType: "staff_push_vapid_not_configured",
+      message: "Staff push notification was skipped because VAPID keys are not configured.",
+      roomNumber: input.room,
+      requestId: input.requestId,
+      metadata: { hotelSlug: input.hotelSlug, targetRoles: input.targetRoles },
+    });
     return { sent: 0, failed: 0, skipped: true };
   }
 
@@ -100,6 +122,16 @@ export async function sendStaffPushNotification(input: StaffPushInput) {
 
   if (error) {
     console.error("Failed to load staff push subscriptions", error);
+    await logSystemError({
+      hotelId: input.hotelId,
+      source: "push",
+      eventType: "staff_push_subscriptions_load_failed",
+      message: "Staff push subscriptions could not be loaded before notification delivery.",
+      roomNumber: input.room,
+      requestId: input.requestId,
+      error,
+      metadata: { hotelSlug: input.hotelSlug, targetRoles },
+    });
     return { sent: 0, failed: 0, skipped: true };
   }
 
@@ -158,12 +190,34 @@ export async function sendStaffPushNotification(input: StaffPushInput) {
         const statusCode = Number((error as { statusCode?: number })?.statusCode || 0);
         if (statusCode === 404 || statusCode === 410) {
           expiredIds.push(subscription.id);
+          await logSystemEvent({
+            hotelId: input.hotelId,
+            severity: "info",
+            source: "push",
+            eventType: "staff_push_subscription_expired",
+            message: "Expired staff push subscription was detected during delivery.",
+            roomNumber: input.room,
+            departmentId: role,
+            requestId: input.requestId,
+            metadata: { hotelSlug: input.hotelSlug, statusCode },
+          });
         } else {
           console.error("Staff push delivery failed", {
             subscriptionId: subscription.id,
             role,
             statusCode,
             error,
+          });
+          await logSystemError({
+            hotelId: input.hotelId,
+            source: "push",
+            eventType: "staff_push_delivery_failed",
+            message: "Staff push delivery failed for an active subscription.",
+            roomNumber: input.room,
+            departmentId: role,
+            requestId: input.requestId,
+            error,
+            metadata: { hotelSlug: input.hotelSlug, statusCode },
           });
         }
       }

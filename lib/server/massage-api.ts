@@ -1,5 +1,7 @@
 import "server-only";
 
+import { logSystemError } from "@/lib/server/system-events";
+
 const MASSAGE_API_VERSION = "v12";
 const DEFAULT_TIMEOUT_MS = 22_000;
 
@@ -472,19 +474,45 @@ async function postMassageApi<T>(
 
       return data;
     } catch (error) {
-      if (error instanceof MassageApiError) throw error;
+      if (error instanceof MassageApiError) {
+        await logSystemError({
+          severity: error.statusCode >= 500 ? "error" : "warning",
+          source: "apps_script",
+          eventType: error.code || "massage_api_error",
+          message: "Massage Apps Script API returned or caused a controlled error.",
+          error,
+          metadata: { hotelSlug: config.hotelSlug, action: payload.action || null },
+        });
+        throw error;
+      }
 
       if (error instanceof Error && error.name === "AbortError") {
-        throw new MassageApiError("Massage calendar request timed out.", {
+        const timeoutError = new MassageApiError("Massage calendar request timed out.", {
           statusCode: 504,
           code: "MASSAGE_API_TIMEOUT",
         });
+        await logSystemError({
+          source: "apps_script",
+          eventType: timeoutError.code,
+          message: "Massage Apps Script API request timed out.",
+          error: timeoutError,
+          metadata: { hotelSlug: config.hotelSlug, action: payload.action || null },
+        });
+        throw timeoutError;
       }
 
-      throw new MassageApiError("Massage calendar service is temporarily unavailable.", {
+      const unavailableError = new MassageApiError("Massage calendar service is temporarily unavailable.", {
         statusCode: 502,
         code: "MASSAGE_API_UNAVAILABLE",
       });
+      await logSystemError({
+        source: "apps_script",
+        eventType: unavailableError.code,
+        message: "Massage Apps Script API request failed unexpectedly.",
+        error,
+        metadata: { hotelSlug: config.hotelSlug, action: payload.action || null },
+      });
+      throw unavailableError;
     } finally {
       clearTimeout(timeout);
     }
