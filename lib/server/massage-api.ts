@@ -224,16 +224,83 @@ function getEnvironmentSuffix(hotelSlug: string) {
   return hotelSlug.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
 }
 
+function addMassageSlugAliasCandidates(output: Set<string>, value: unknown) {
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+
+  if (!raw) return;
+
+  output.add(raw);
+  output.add(normalizeMassageHotelSlug(raw));
+  output.add(getMassageConfigHotelSlug(raw));
+
+  // Aquamarine is the public spelling, while the legacy internal slug is aquamarin.
+  // Try both for environment-variable and STAYHUB_MASSAGE_API_CONFIG_JSON keys.
+  if (raw === "aquamarin") output.add("aquamarine");
+  if (raw === "aquamarine") output.add("aquamarin");
+  if (raw === "aquamarin-test") {
+    output.add("aquamarine-test");
+    output.add("aquamarin");
+    output.add("aquamarine");
+  }
+  if (raw === "aquamarine-test") {
+    output.add("aquamarin-test");
+    output.add("aquamarin");
+    output.add("aquamarine");
+  }
+
+  // Generic future-hotel rule: a sandbox twin can reuse production massage read
+  // config unless its own sandbox config is explicitly provided.
+  if (raw.endsWith("-test")) {
+    const productionSlug = raw.replace(/-test$/, "");
+    if (productionSlug) {
+      output.add(productionSlug);
+      output.add(normalizeMassageHotelSlug(productionSlug));
+    }
+  }
+}
+
+function getMassageConfigSlugCandidates(inputHotelSlug: unknown) {
+  const candidates = new Set<string>();
+  addMassageSlugAliasCandidates(candidates, inputHotelSlug);
+  addMassageSlugAliasCandidates(candidates, getMassageConfigHotelSlug(inputHotelSlug));
+  return Array.from(candidates).filter(Boolean);
+}
+
+function getFirstHotelEnv(prefix: string, candidates: string[]) {
+  for (const candidate of candidates) {
+    const suffix = getEnvironmentSuffix(candidate);
+    const value = String(process.env[`${prefix}_${suffix}`] || "").trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+function getFirstConfiguredFlag(prefix: string, candidates: string[]) {
+  for (const candidate of candidates) {
+    const suffix = getEnvironmentSuffix(candidate);
+    const key = `${prefix}_${suffix}`;
+    if (process.env[key] !== undefined && String(process.env[key]).trim() !== "") {
+      return process.env[key];
+    }
+  }
+  return undefined;
+}
+
 export function getMassageHotelCode(inputHotelSlug: unknown) {
   const normalized = normalizeMassageHotelSlug(inputHotelSlug);
-  const suffix = getEnvironmentSuffix(normalized || "hotel");
+  const candidates = getMassageConfigSlugCandidates(inputHotelSlug);
   const configured = String(
-    process.env[`STAYHUB_MASSAGE_HOTEL_CODE_${suffix}`] ||
-      process.env[`STAYHUB_HOTEL_CODE_${suffix}`] ||
+    getFirstHotelEnv("STAYHUB_MASSAGE_HOTEL_CODE", candidates) ||
+      getFirstHotelEnv("STAYHUB_HOTEL_CODE", candidates) ||
       ""
   ).trim().toUpperCase();
 
-  return (configured || DEFAULT_MASSAGE_HOTEL_CODES[normalized] || "HT")
+  const fallbackSlug = candidates.find((candidate) => DEFAULT_MASSAGE_HOTEL_CODES[candidate]) || normalized;
+
+  return (configured || DEFAULT_MASSAGE_HOTEL_CODES[fallbackSlug] || "HT")
     .replace(/[^A-Z0-9]+/g, "")
     .slice(0, 6);
 }
@@ -254,11 +321,10 @@ function parseEnabledFlag(value: unknown) {
 }
 
 export function isMassageBookingPostEnabled(inputHotelSlug: unknown) {
-  const hotelSlug = getMassageConfigHotelSlug(inputHotelSlug);
-  if (!hotelSlug) return false;
+  const candidates = getMassageConfigSlugCandidates(inputHotelSlug);
+  if (!candidates.length) return false;
 
-  const suffix = getEnvironmentSuffix(hotelSlug);
-  const hotelSpecific = process.env[`STAYHUB_MASSAGE_BOOKING_ENABLED_${suffix}`];
+  const hotelSpecific = getFirstConfiguredFlag("STAYHUB_MASSAGE_BOOKING_ENABLED", candidates);
 
   if (hotelSpecific !== undefined && String(hotelSpecific).trim() !== "") {
     return parseEnabledFlag(hotelSpecific);
@@ -269,11 +335,10 @@ export function isMassageBookingPostEnabled(inputHotelSlug: unknown) {
 
 
 export function isMassageControlledE2EEnabled(inputHotelSlug: unknown) {
-  const hotelSlug = getMassageConfigHotelSlug(inputHotelSlug);
-  if (!hotelSlug) return false;
+  const candidates = getMassageConfigSlugCandidates(inputHotelSlug);
+  if (!candidates.length) return false;
 
-  const suffix = getEnvironmentSuffix(hotelSlug);
-  const hotelSpecific = process.env[`STAYHUB_MASSAGE_E2E_ENABLED_${suffix}`];
+  const hotelSpecific = getFirstConfiguredFlag("STAYHUB_MASSAGE_E2E_ENABLED", candidates);
 
   if (hotelSpecific !== undefined && String(hotelSpecific).trim() !== "") {
     return parseEnabledFlag(hotelSpecific);
@@ -345,28 +410,28 @@ function validateWebAppUrl(rawUrl: string) {
 
 function getMassageApiConfig(inputHotelSlug: unknown): MassageApiConfig {
   const hotelSlug = getMassageConfigHotelSlug(inputHotelSlug);
+  const candidates = getMassageConfigSlugCandidates(inputHotelSlug);
 
-  if (!hotelSlug) {
+  if (!hotelSlug || !candidates.length) {
     throw new MassageApiError("Hotel slug is required.", {
       statusCode: 400,
       code: "MISSING_HOTEL_SLUG",
     });
   }
 
-  const suffix = getEnvironmentSuffix(hotelSlug);
   const configMap = readConfigMap();
-  const mapped = configMap[hotelSlug] || configMap[String(inputHotelSlug || "").trim().toLowerCase()];
+  const mapped = candidates.map((candidate) => configMap[candidate]).find(Boolean);
 
   const rawUrl = String(
     mapped?.url ||
-      process.env[`STAYHUB_MASSAGE_API_URL_${suffix}`] ||
+      getFirstHotelEnv("STAYHUB_MASSAGE_API_URL", candidates) ||
       process.env.STAYHUB_MASSAGE_API_URL ||
       ""
   ).trim();
 
   const token = String(
     mapped?.token ||
-      process.env[`STAYHUB_MASSAGE_API_TOKEN_${suffix}`] ||
+      getFirstHotelEnv("STAYHUB_MASSAGE_API_TOKEN", candidates) ||
       process.env.STAYHUB_MASSAGE_API_TOKEN ||
       ""
   ).trim();
@@ -395,17 +460,17 @@ function getMassageApiConfig(inputHotelSlug: unknown): MassageApiConfig {
 
 function getMassageControlledE2EToken(inputHotelSlug: unknown) {
   const hotelSlug = getMassageConfigHotelSlug(inputHotelSlug);
+  const candidates = getMassageConfigSlugCandidates(inputHotelSlug);
 
-  if (!hotelSlug) {
+  if (!hotelSlug || !candidates.length) {
     throw new MassageApiError("Hotel slug is required.", {
       statusCode: 400,
       code: "MISSING_HOTEL_SLUG",
     });
   }
 
-  const suffix = getEnvironmentSuffix(hotelSlug);
   const token = String(
-    process.env[`STAYHUB_MASSAGE_E2E_TOKEN_${suffix}`] ||
+    getFirstHotelEnv("STAYHUB_MASSAGE_E2E_TOKEN", candidates) ||
       process.env.STAYHUB_MASSAGE_E2E_TOKEN ||
       ""
   ).trim();
