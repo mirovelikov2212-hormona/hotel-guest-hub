@@ -14,6 +14,38 @@ function normalizeText(value: unknown): string | null {
   return text ? text : null;
 }
 
+
+async function resolveTrackingHotelScope(input: { hotelId?: unknown; hotelSlug?: unknown }) {
+  const hotelId = normalizeText(input.hotelId);
+  const hotelSlug = normalizeText(input.hotelSlug);
+
+  if (hotelId) {
+    const { data, error } = await supabase
+      .from("hotels")
+      .select("id, slug, public_slug, active")
+      .eq("id", hotelId)
+      .eq("active", true)
+      .maybeSingle();
+
+    if (!error && data) {
+      return { id: data.id as string, slug: data.slug as string, publicSlug: data.public_slug as string | null };
+    }
+  }
+
+  if (!hotelSlug) return null;
+
+  const { data, error } = await supabase
+    .from("hotels")
+    .select("id, slug, public_slug, active")
+    .or(`slug.eq.${hotelSlug},public_slug.eq.${hotelSlug}`)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return { id: data.id as string, slug: data.slug as string, publicSlug: data.public_slug as string | null };
+}
+
 function isLikelyMissingColumnError(error: { message?: string; code?: string } | null | undefined) {
   const message = String(error?.message || "").toLowerCase();
   const code = String(error?.code || "").trim();
@@ -40,12 +72,19 @@ export async function POST(request: NextRequest) {
     };
 
     const roomNumber = body.roomNumber ?? null;
-    const testRoomPolicy = await getTestRoomPolicy(body.hotelId ?? null, roomNumber);
+    const hotelScope = await resolveTrackingHotelScope({
+      hotelId: body.hotelId,
+      hotelSlug: body.hotelSlug,
+    });
+    const resolvedHotelId = hotelScope?.id ?? body.hotelId ?? null;
+    const resolvedHotelSlug = hotelScope?.slug ?? body.hotelSlug ?? null;
+    const resolvedPublicSlug = hotelScope?.publicSlug ?? body.hotelAlias ?? null;
+    const testRoomPolicy = await getTestRoomPolicy(resolvedHotelId, roomNumber);
 
     const legacyPayload = {
-      hotel_id: body.hotelId ?? null,
-      hotel_slug: body.hotelSlug,
-      hotel_alias: body.hotelAlias,
+      hotel_id: resolvedHotelId,
+      hotel_slug: resolvedHotelSlug,
+      hotel_alias: resolvedPublicSlug,
       scan_session_id: body.scanSessionId ?? cookieScanSessionId,
       room_id: body.roomId ?? null,
       room_number: roomNumber,
@@ -92,13 +131,13 @@ export async function POST(request: NextRequest) {
     if (error && isLikelyMissingColumnError(error)) {
       console.warn("hub_events enriched insert failed; falling back to legacy payload:", error);
       await logSystemError({
-        hotelId: body.hotelId ?? null,
+        hotelId: resolvedHotelId,
         source: "api",
         eventType: "hub_events_enriched_insert_fallback",
         message: "hub_events enriched insert failed and the API used the legacy payload fallback.",
         roomNumber: roomNumber,
         error,
-        metadata: { hotelSlug: body.hotelSlug, eventName: body.eventName },
+        metadata: { hotelSlug: resolvedHotelSlug ?? body.hotelSlug, eventName: body.eventName },
       });
 
       const fallback = await supabase
@@ -114,13 +153,13 @@ export async function POST(request: NextRequest) {
       console.error("hub_events insert error:", error);
       console.error("hub_events payload:", enrichedPayload);
       await logSystemError({
-        hotelId: body.hotelId ?? null,
+        hotelId: resolvedHotelId,
         source: "api",
         eventType: "hub_events_insert_failed",
         message: "hub_events insert failed after fallback handling.",
         roomNumber: roomNumber,
         error,
-        metadata: { hotelSlug: body.hotelSlug, eventName: body.eventName },
+        metadata: { hotelSlug: resolvedHotelSlug ?? body.hotelSlug, eventName: body.eventName },
       });
       return NextResponse.json(
         { ok: false, error: error.message },

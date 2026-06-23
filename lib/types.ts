@@ -216,6 +216,8 @@ export type HotelConfig = {
   hotelId?: string;
   hotelSlug?: string;
   publicSlug?: string;
+  isSandbox?: boolean;
+  productionHotelId?: string | null;
   hotelName: string;
   coverImage: string;
   coverImagePosition?: string;

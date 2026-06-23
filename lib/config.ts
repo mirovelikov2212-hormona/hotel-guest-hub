@@ -605,10 +605,14 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
   const hotelLongitude = pickOptionalNumber(mergedConfig, "hotelLongitude");
 
   const cfg: HotelConfig = {
-    hotelId: pick(mergedConfig, "hotelId", ""),
-    hotelSlug: pick(mergedConfig, "hotelSlug", safeHotelSlug),
-    publicSlug: pick(mergedConfig, "hotelAlias", ""),
-    hotelName: pick(mergedConfig, "hotelName", "Hotel"),
+    // The Supabase hotel record is the source of truth for identity.
+    // This keeps sandbox hotels safe even when they reuse the production Google Sheet URLs.
+    hotelId: sheetSources.hotelId || pick(mergedConfig, "hotelId", ""),
+    hotelSlug: sheetSources.hotelSlug || safeHotelSlug,
+    publicSlug: sheetSources.publicSlug || pick(mergedConfig, "hotelAlias", ""),
+    isSandbox: Boolean(sheetSources.isSandbox),
+    productionHotelId: sheetSources.productionHotelId ?? null,
+    hotelName: pick(mergedConfig, "hotelName", sheetSources.hotelName || "Hotel"),
     coverImage: pick(mergedConfig, "coverImage", "/cover.jpg"),
     coverImagePosition: pick(mergedConfig, "coverImagePosition", "center center"),
     location: {
