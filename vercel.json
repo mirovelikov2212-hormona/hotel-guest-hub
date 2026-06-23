@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/day3-survey-push",
       "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/massage-reminders",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

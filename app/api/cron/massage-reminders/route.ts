@@ -45,11 +45,12 @@ type MassageRequestRow = {
 function isAuthorizedCronRequest(req: NextRequest) {
   const configuredSecret = String(process.env.CRON_SECRET || "").trim();
   const authorization = req.headers.get("authorization") || "";
-  const fromVercelCron = req.headers.get("x-vercel-cron") === "1";
 
-  if (configuredSecret && authorization === `Bearer ${configuredSecret}`) return true;
-  if (fromVercelCron) return true;
-  return false;
+  if (configuredSecret) {
+    return authorization === `Bearer ${configuredSecret}`;
+  }
+
+  return req.headers.get("x-vercel-cron") === "1";
 }
 
 function getMassageBookingMetadata(row: MassageRequestRow) {
