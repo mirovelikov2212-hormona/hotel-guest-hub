@@ -8,6 +8,26 @@ const DEFAULT_TIMEOUT_MS = 22_000;
 const HOTEL_SLUG_ALIASES: Record<string, string> = {
   aquamarine: "aquamarin",
   aquamarin: "aquamarin",
+  "aquamarine-test": "aquamarin-test",
+  "aquamarin-test": "aquamarin-test",
+};
+
+// Sandbox hotels keep their own hotel_id/analytics, but can safely read the
+// production massage catalogue/availability configuration unless a hotel-specific
+// sandbox massage API is explicitly configured later.
+const MASSAGE_CONFIG_SLUG_ALIASES: Record<string, string> = {
+  "aquamarine-test": "aquamarin",
+  "aquamarin-test": "aquamarin",
+};
+
+const DEFAULT_MASSAGE_HOTEL_CODES: Record<string, string> = {
+  aquamarin: "AM",
+  aquamarine: "AM",
+  "aquamarin-test": "AM",
+  "aquamarine-test": "AM",
+  "sunny-castle": "SC",
+  "sunny-castel": "SC",
+  sunnycastle: "SC",
 };
 
 
@@ -195,8 +215,36 @@ export function normalizeMassageHotelSlug(value: unknown) {
   return HOTEL_SLUG_ALIASES[normalized] || normalized;
 }
 
+function getMassageConfigHotelSlug(inputHotelSlug: unknown) {
+  const normalized = normalizeMassageHotelSlug(inputHotelSlug);
+  return MASSAGE_CONFIG_SLUG_ALIASES[normalized] || normalized;
+}
+
 function getEnvironmentSuffix(hotelSlug: string) {
   return hotelSlug.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+}
+
+export function getMassageHotelCode(inputHotelSlug: unknown) {
+  const normalized = normalizeMassageHotelSlug(inputHotelSlug);
+  const suffix = getEnvironmentSuffix(normalized || "hotel");
+  const configured = String(
+    process.env[`STAYHUB_MASSAGE_HOTEL_CODE_${suffix}`] ||
+      process.env[`STAYHUB_HOTEL_CODE_${suffix}`] ||
+      ""
+  ).trim().toUpperCase();
+
+  return (configured || DEFAULT_MASSAGE_HOTEL_CODES[normalized] || "HT")
+    .replace(/[^A-Z0-9]+/g, "")
+    .slice(0, 6);
+}
+
+export function buildMassageStayHubSheetRoomMarker(input: {
+  hotelSlug: unknown;
+  room: unknown;
+}) {
+  const room = String(input.room || "").trim();
+  const hotelCode = getMassageHotelCode(input.hotelSlug);
+  return [room, hotelCode, "SH"].filter(Boolean).join(" ");
 }
 
 function parseEnabledFlag(value: unknown) {
@@ -206,7 +254,7 @@ function parseEnabledFlag(value: unknown) {
 }
 
 export function isMassageBookingPostEnabled(inputHotelSlug: unknown) {
-  const hotelSlug = normalizeMassageHotelSlug(inputHotelSlug);
+  const hotelSlug = getMassageConfigHotelSlug(inputHotelSlug);
   if (!hotelSlug) return false;
 
   const suffix = getEnvironmentSuffix(hotelSlug);
@@ -221,7 +269,7 @@ export function isMassageBookingPostEnabled(inputHotelSlug: unknown) {
 
 
 export function isMassageControlledE2EEnabled(inputHotelSlug: unknown) {
-  const hotelSlug = normalizeMassageHotelSlug(inputHotelSlug);
+  const hotelSlug = getMassageConfigHotelSlug(inputHotelSlug);
   if (!hotelSlug) return false;
 
   const suffix = getEnvironmentSuffix(hotelSlug);
@@ -241,7 +289,7 @@ export function isApprovedMassageControlledE2ECandidate(input: {
   time: string;
   room: string;
 }) {
-  const hotelSlug = normalizeMassageHotelSlug(input.hotelSlug);
+  const hotelSlug = getMassageConfigHotelSlug(input.hotelSlug);
   const candidate = MASSAGE_CONTROLLED_E2E_CANDIDATES[hotelSlug];
 
   return Boolean(
@@ -296,7 +344,7 @@ function validateWebAppUrl(rawUrl: string) {
 }
 
 function getMassageApiConfig(inputHotelSlug: unknown): MassageApiConfig {
-  const hotelSlug = normalizeMassageHotelSlug(inputHotelSlug);
+  const hotelSlug = getMassageConfigHotelSlug(inputHotelSlug);
 
   if (!hotelSlug) {
     throw new MassageApiError("Hotel slug is required.", {
@@ -346,7 +394,7 @@ function getMassageApiConfig(inputHotelSlug: unknown): MassageApiConfig {
 
 
 function getMassageControlledE2EToken(inputHotelSlug: unknown) {
-  const hotelSlug = normalizeMassageHotelSlug(inputHotelSlug);
+  const hotelSlug = getMassageConfigHotelSlug(inputHotelSlug);
 
   if (!hotelSlug) {
     throw new MassageApiError("Hotel slug is required.", {
@@ -594,7 +642,7 @@ export async function getMassageBookableDates(input: {
 
 
 function invalidateMassageReadCacheForHotel(inputHotelSlug: unknown) {
-  const hotelSlug = normalizeMassageHotelSlug(inputHotelSlug);
+  const hotelSlug = getMassageConfigHotelSlug(inputHotelSlug);
   if (!hotelSlug) return;
 
   const prefix = `${hotelSlug}:`;
@@ -620,6 +668,12 @@ export async function createMassageBooking(input: {
       date: input.date,
       time: input.time,
       room: input.room,
+      stayhubRoomNumber: input.room,
+      stayhubHotelCode: getMassageHotelCode(input.hotelSlug),
+      stayhubRoomMarker: buildMassageStayHubSheetRoomMarker({
+        hotelSlug: input.hotelSlug,
+        room: input.room,
+      }),
       // Never accept browser-controlled test mode. This server path can only
       // request a real booking, and Apps Script still has its own write guard.
       testMode: false,
@@ -713,6 +767,12 @@ export async function createMassageControlledE2EBooking(input: {
       date: input.date,
       time: input.time,
       room: input.room,
+      stayhubRoomNumber: input.room,
+      stayhubHotelCode: getMassageHotelCode(input.hotelSlug),
+      stayhubRoomMarker: buildMassageStayHubSheetRoomMarker({
+        hotelSlug: input.hotelSlug,
+        room: input.room,
+      }),
     },
     { allowRejectedResult: true }
   );

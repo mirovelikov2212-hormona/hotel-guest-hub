@@ -16,6 +16,8 @@ import {
   isMassageBookingPostEnabled,
   isMassageControlledE2EEnabled,
   MassageApiError,
+  buildMassageStayHubSheetRoomMarker,
+  getMassageHotelCode,
   normalizeMassageHotelSlug,
 } from "@/lib/server/massage-api";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
@@ -260,6 +262,12 @@ async function ensureMassageStaffRequest(input: {
     .filter(Boolean)
     .join("\n");
 
+  const stayhubRoomMarker = buildMassageStayHubSheetRoomMarker({
+    hotelSlug: input.hotelSlug,
+    room: input.roomNumber,
+  });
+  const stayhubHotelCode = getMassageHotelCode(input.hotelSlug);
+
   const operationalMetadata = {
     department,
     notifyDepartments: ["reception", "manager"],
@@ -282,8 +290,12 @@ async function ensureMassageStaffRequest(input: {
       price: price || null,
       currency,
       roomNumber: input.roomNumber,
+      stayhubHotelCode,
+      stayhubRoomMarker,
       source: "stayhub",
     },
+    stayhubHotelCode,
+    stayhubRoomMarker,
   };
 
   const staffTitleBg = getOperationalRequestTitleBg({
@@ -476,6 +488,9 @@ async function readJsonObject(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  let requestHotelId: string | null = null;
+  let requestHotelMetadata: Record<string, unknown> = {};
+
   try {
     const params = req.nextUrl.searchParams;
     const hotelSlug = normalizeMassageHotelSlug(params.get("hotelSlug"));
@@ -488,31 +503,41 @@ export async function GET(req: NextRequest) {
       return json({ ok: false, code: "MISSING_HOTEL_SLUG", error: "Hotel slug is required." }, 400);
     }
 
+    const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
+    requestHotelId = hotel.id;
+    requestHotelMetadata = {
+      hotelSlug,
+      resolvedHotelSlug: hotel.slug,
+      publicSlug: hotel.public_slug || null,
+      isSandbox: Boolean(hotel.is_sandbox),
+      productionHotelId: hotel.production_hotel_id || null,
+    };
+
     if (action === "services") {
-      const result = await getMassageServices(hotelSlug);
-      return json({ ok: true, action, hotelSlug, result });
+      const result = await getMassageServices(hotel.slug);
+      return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), result });
     }
 
     if (action === "bootstrap") {
       const fromDate = requireDate(params.get("fromDate"), "fromDate");
       const daysAhead = requireDaysAhead(params.get("daysAhead"));
-      const result = await getMassageBootstrap({ hotelSlug, fromDate, daysAhead });
-      return json({ ok: true, action, hotelSlug, result });
+      const result = await getMassageBootstrap({ hotelSlug: hotel.slug, fromDate, daysAhead });
+      return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), result });
     }
 
     if (action === "bookable_dates") {
       const serviceId = requireServiceId(params.get("serviceId"));
       const fromDate = requireDate(params.get("fromDate"), "fromDate");
       const daysAhead = requireDaysAhead(params.get("daysAhead"));
-      const result = await getMassageBookableDates({ hotelSlug, serviceId, fromDate, daysAhead });
-      return json({ ok: true, action, hotelSlug, result });
+      const result = await getMassageBookableDates({ hotelSlug: hotel.slug, serviceId, fromDate, daysAhead });
+      return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), result });
     }
 
     if (action === "availability") {
       const serviceId = requireServiceId(params.get("serviceId"));
       const date = requireDate(params.get("date"), "date");
-      const result = await getMassageAvailability({ hotelSlug, serviceId, date });
-      return json({ ok: true, action, hotelSlug, result });
+      const result = await getMassageAvailability({ hotelSlug: hotel.slug, serviceId, date });
+      return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), result });
     }
 
     return json({ ok: false, code: "UNSUPPORTED_ACTION", error: "Unsupported massage action." }, 400);
@@ -520,11 +545,13 @@ export async function GET(req: NextRequest) {
     if (error instanceof MassageApiError) {
       if (error.statusCode >= 500) {
         await logSystemError({
+          hotelId: requestHotelId,
           severity: "critical",
           source: "massage",
           eventType: error.code || "massage_get_error",
           message: "Massage GET request failed with a server-side massage error.",
           error,
+          metadata: requestHotelMetadata,
         });
       }
       return json({ ok: false, code: error.code, error: error.message }, error.statusCode);
@@ -532,17 +559,22 @@ export async function GET(req: NextRequest) {
 
     console.error("guest massages GET error", error);
     await logSystemError({
+      hotelId: requestHotelId,
       severity: "critical",
       source: "massage",
       eventType: "massage_get_unexpected_error",
       message: "Unexpected server error while loading massage data.",
       error,
+      metadata: requestHotelMetadata,
     });
     return json({ ok: false, code: "UNEXPECTED_ERROR", error: "Unexpected server error." }, 500);
   }
 }
 
 export async function POST(req: NextRequest) {
+  let requestHotelId: string | null = null;
+  let requestHotelMetadata: Record<string, unknown> = {};
+
   try {
     const body = await readJsonObject(req);
     const hotelSlug = normalizeMassageHotelSlug(body.hotelSlug);
@@ -582,6 +614,18 @@ export async function POST(req: NextRequest) {
     await requireExistingHotelRoom(hotelSlug, room);
 
     const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
+    requestHotelId = hotel.id;
+    requestHotelMetadata = {
+      hotelSlug,
+      resolvedHotelSlug: hotel.slug,
+      publicSlug: hotel.public_slug || null,
+      isSandbox: Boolean(hotel.is_sandbox),
+      productionHotelId: hotel.production_hotel_id || null,
+      room,
+      serviceId,
+      date,
+      time,
+    };
     if (isSandboxHotel(hotel)) {
       const services = await getMassageServices(hotelSlug).catch(() => null);
       const service = services?.services?.find((item) => item.serviceId === serviceId) ?? null;
@@ -708,11 +752,13 @@ export async function POST(req: NextRequest) {
     if (error instanceof MassageApiError) {
       if (error.statusCode >= 500) {
         await logSystemError({
+          hotelId: requestHotelId,
           severity: "critical",
           source: "massage",
           eventType: error.code || "massage_post_error",
           message: "Massage POST request failed with a server-side massage error.",
           error,
+          metadata: requestHotelMetadata,
         });
       }
       return json({ ok: false, code: error.code, error: error.message }, error.statusCode);
@@ -720,11 +766,13 @@ export async function POST(req: NextRequest) {
 
     console.error("guest massages POST error", error);
     await logSystemError({
+      hotelId: requestHotelId,
       severity: "critical",
       source: "massage",
       eventType: "massage_post_unexpected_error",
       message: "Unexpected server error while creating a massage booking.",
       error,
+      metadata: requestHotelMetadata,
     });
     return json({ ok: false, code: "UNEXPECTED_ERROR", error: "Unexpected server error." }, 500);
   }

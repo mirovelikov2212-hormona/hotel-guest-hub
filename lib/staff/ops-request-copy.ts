@@ -56,17 +56,37 @@ function collectSignals(input: OperationalCopyInput) {
     .join(" | ");
 }
 
+function hasExactRequestSignal(input: OperationalCopyInput, expected: string) {
+  const metadata = input.metadata ?? {};
+  const exactSignals = [
+    input.requestType,
+    metadata.rawType,
+    metadata.sourceRequestDef,
+  ]
+    .map(normalizeText)
+    .filter(Boolean);
+
+  return exactSignals.includes(normalizeText(expected));
+}
+
 function detectSpecificKey(
   normalizedType: StaffRequestType,
   input: OperationalCopyInput
 ): string {
   const signals = collectSignals(input);
 
+  // A normal extra-pillow housekeeping request is translated as “pillow/perne/възглавница”
+  // in multiple guest languages. Never promote it to the paid pillow menu unless the
+  // original request definition explicitly says pillow_menu.
+  if (normalizedType === "extra_pillow" && !hasExactRequestSignal(input, "pillow_menu")) {
+    return "extra_pillow";
+  }
+
   if (/coffee_capsules|capsule|capsule_de_cafea|kafe_kapsuli|кафе_капсули/.test(signals)) {
     return "coffee_capsules";
   }
 
-  if (/pillow_menu|menu_vazglav|меню_възглавници|perne|polstar|polstare|vazglav/.test(signals)) {
+  if (hasExactRequestSignal(input, "pillow_menu") || /pillow_menu|menu_vazglav|меню_възглавници/.test(signals)) {
     return "pillow_menu";
   }
 

@@ -105,6 +105,151 @@ export function getDay3SurveyPushCopy(language: unknown) {
   };
 }
 
+
+export function getMassageReminderPushCopy(language: unknown, serviceName?: string | null, startTime?: string | null) {
+  const lang = normalizeGuestPushLanguage(language);
+  const service = String(serviceName || "").trim();
+  const time = String(startTime || "").trim();
+
+  if (lang === "bg") {
+    return {
+      title: "StayHub — Напомняне за масаж",
+      body: `${service || "Вашият масаж"}${time ? ` започва в ${time}` : " започва скоро"}.`,
+    };
+  }
+
+  if (lang === "de") {
+    return {
+      title: "StayHub — Massage-Erinnerung",
+      body: `${service || "Ihre Massage"}${time ? ` beginnt um ${time}` : " beginnt bald"}.`,
+    };
+  }
+
+  if (lang === "ro") {
+    return {
+      title: "StayHub — Memento pentru masaj",
+      body: `${service || "Masajul dvs."}${time ? ` începe la ${time}` : " începe în curând"}.`,
+    };
+  }
+
+  if (lang === "cs") {
+    return {
+      title: "StayHub — Připomenutí masáže",
+      body: `${service || "Vaše masáž"}${time ? ` začíná v ${time}` : " brzy začíná"}.`,
+    };
+  }
+
+  if (lang === "ru") {
+    return {
+      title: "StayHub — Напоминание о массаже",
+      body: `${service || "Ваш массаж"}${time ? ` начинается в ${time}` : " скоро начнётся"}.`,
+    };
+  }
+
+  return {
+    title: "StayHub — Massage reminder",
+    body: `${service || "Your massage"}${time ? ` starts at ${time}` : " starts soon"}.`,
+  };
+}
+
+export async function sendMassageReminderGuestPush(input: {
+  subscription: GuestPushSubscriptionRow;
+  hotelSlug: string;
+  requestId: string;
+  serviceName?: string | null;
+  startTime?: string | null;
+}) {
+  if (!configureWebPush()) {
+    console.warn("Massage reminder push skipped: VAPID keys are not configured");
+    await logSystemEvent({
+      hotelId: input.subscription.hotel_id,
+      severity: "warning",
+      source: "push",
+      eventType: "massage_reminder_push_vapid_not_configured",
+      message: "Massage reminder push was skipped because VAPID keys are not configured.",
+      roomNumber: input.subscription.room_number,
+      requestId: input.requestId,
+      metadata: { hotelSlug: input.hotelSlug },
+    });
+    return { sent: false, expired: false, skipped: true, statusCode: 0 };
+  }
+
+  const copy = getMassageReminderPushCopy(
+    input.subscription.language || "en",
+    input.serviceName,
+    input.startTime,
+  );
+  const targetUrl = `/h/${input.hotelSlug}?source=massage_reminder&request=${encodeURIComponent(input.requestId)}`;
+  const payload = JSON.stringify({
+    title: copy.title,
+    body: copy.body,
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    tag: `stayhub-massage-reminder-${input.requestId}`,
+    renotify: false,
+    requireInteraction: false,
+    data: {
+      url: targetUrl,
+      hotelSlug: input.hotelSlug,
+      room: input.subscription.room_number,
+      requestId: input.requestId,
+      source: "guest_massage_reminder_push",
+    },
+  });
+
+  try {
+    await webPush.sendNotification(
+      {
+        endpoint: input.subscription.endpoint,
+        keys: {
+          p256dh: input.subscription.p256dh,
+          auth: input.subscription.auth,
+        },
+      },
+      payload,
+      {
+        TTL: 3600,
+        urgency: "normal",
+      },
+    );
+
+    return { sent: true, expired: false, skipped: false, statusCode: 0 };
+  } catch (error) {
+    const statusCode = Number((error as { statusCode?: number })?.statusCode || 0);
+    const expired = statusCode === 404 || statusCode === 410;
+    if (expired) {
+      await logSystemEvent({
+        hotelId: input.subscription.hotel_id,
+        severity: "info",
+        source: "push",
+        eventType: "guest_push_subscription_expired",
+        message: "Expired guest push subscription was detected during massage reminder delivery.",
+        roomNumber: input.subscription.room_number,
+        requestId: input.requestId,
+        metadata: { hotelSlug: input.hotelSlug, statusCode },
+      });
+    } else {
+      console.error("Massage reminder push delivery failed", {
+        subscriptionId: input.subscription.id,
+        room: input.subscription.room_number,
+        statusCode,
+        error,
+      });
+      await logSystemError({
+        hotelId: input.subscription.hotel_id,
+        source: "push",
+        eventType: "massage_reminder_push_delivery_failed",
+        message: "Massage reminder push delivery failed for an active subscription.",
+        roomNumber: input.subscription.room_number,
+        requestId: input.requestId,
+        error,
+        metadata: { hotelSlug: input.hotelSlug, statusCode },
+      });
+    }
+    return { sent: false, expired, skipped: false, statusCode };
+  }
+}
+
 export async function disableGuestPushSubscriptions(ids: string[]) {
   if (!ids.length) return;
   const { error } = await supabaseAdmin
