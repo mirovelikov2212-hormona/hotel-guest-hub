@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
 import { translateGuestTextToStaffLanguages } from "@/lib/server/staff-translation";
-import { getTestDataFields, getTestDataMetadata, getTestRoomPolicy } from "@/lib/server/test-rooms";
+import { getTestRoomPolicy } from "@/lib/server/test-rooms";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
+import {
+  getOperationalIsolationFields,
+  getOperationalIsolationMetadata,
+  shouldSuppressLivePush,
+} from "@/lib/server/hotel-scope";
 import {
   DAY3_SURVEY_VERSION,
   calculateSurveyActiveUntil,
@@ -72,6 +77,9 @@ export async function POST(req: NextRequest) {
     }
 
     const testRoomPolicy = await getTestRoomPolicy(hotel.id, room);
+    const isolationFields = getOperationalIsolationFields({ hotel, testRoomPolicy });
+    const isolationMetadata = getOperationalIsolationMetadata({ hotel, testRoomPolicy });
+    const suppressLivePush = shouldSuppressLivePush({ hotel, testRoomPolicy });
     const timezone = String(body?.hotelTimezone || roomValidation.timezone || "Europe/Sofia").trim() || "Europe/Sofia";
     const submittedAt = new Date();
     const { hotelDateKey, activeUntil } = calculateSurveyActiveUntil(submittedAt, timezone);
@@ -125,8 +133,9 @@ export async function POST(req: NextRequest) {
         guest_submitted_at: submittedAt.toISOString(),
         active_until: activeUntil,
         manager_read_at: null,
-        ...getTestDataFields(testRoomPolicy),
+        ...isolationFields,
         metadata_json: {
+          ...isolationMetadata,
           hotelTimezone: timezone,
           source: "guest_hub",
           improvement_text_bg: improvementTranslations.bg || null,
@@ -141,7 +150,6 @@ export async function POST(req: NextRequest) {
           original_language: language,
           reception_read_at: null,
           reception_read_by: null,
-          ...getTestDataMetadata(testRoomPolicy),
         },
       })
       .select(
@@ -169,7 +177,7 @@ export async function POST(req: NextRequest) {
 
     const survey = mapSurveyRow(data as GuestSurveyRow);
 
-    if (!testRoomPolicy.isTest) {
+    if (!suppressLivePush) {
       await sendManagerPushNotification({
       hotelId: hotel.id,
       hotelSlug: hotel.slug,

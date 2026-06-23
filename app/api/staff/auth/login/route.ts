@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { verifyPin } from "@/lib/staff-auth/pin";
+import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import {
   createRawSessionToken,
   getSessionExpiryDate,
@@ -33,14 +34,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: hotel, error: hotelError } = await supabaseAdmin
-      .from("hotels")
-      .select("id, slug, active")
-      .eq("slug", hotelSlug)
-      .eq("active", true)
-      .maybeSingle();
+    const hotel = await resolveHotelByAnySlugAdmin(hotelSlug).catch(() => null);
 
-    if (hotelError || !hotel) {
+    if (!hotel) {
       return NextResponse.json(
         { ok: false, error: "Hotel not found" },
         { status: 404 }

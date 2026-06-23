@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
-import { getTestDataFields, getTestRoomPolicy } from "@/lib/server/test-rooms";
+import { getTestRoomPolicy } from "@/lib/server/test-rooms";
 import {
   DAY3_SURVEY_VERSION,
   addDaysToDateKey,
@@ -11,6 +11,7 @@ import {
 } from "@/lib/server/day3-surveys";
 import { normalizeGuestPushLanguage } from "@/lib/guest-push/web-push";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
+import { getOperationalIsolationFields } from "@/lib/server/hotel-scope";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -97,6 +98,7 @@ export async function POST(req: NextRequest) {
     }
 
     const testRoomPolicy = await getTestRoomPolicy(hotel.id, room);
+    const isolationFields = getOperationalIsolationFields({ hotel, testRoomPolicy });
     const now = new Date().toISOString();
 
     const { error } = await supabaseAdmin
@@ -121,7 +123,7 @@ export async function POST(req: NextRequest) {
           last_push_status: null,
           updated_at: now,
           last_seen_at: now,
-          ...getTestDataFields(testRoomPolicy),
+          ...isolationFields,
         },
         { onConflict: "hotel_id,endpoint" },
       );
@@ -144,7 +146,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { ok: true, room, language, targetDateKey, isTest: testRoomPolicy.isTest },
+      { ok: true, room, language, targetDateKey, isTest: Boolean(isolationFields.is_test) },
       { headers: NO_STORE_HEADERS },
     );
   } catch (error) {

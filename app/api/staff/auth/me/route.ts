@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import type { StaffRole } from "@/lib/staff-auth/cookie-name";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
 
 function isValidRole(value: string): value is StaffRole {
   return (
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
 
     const { data: hotel, error: hotelError } = await supabaseAdmin
       .from("hotels")
-      .select("id, slug, name, active")
+      .select("id, slug, public_slug, name, active")
       .eq("id", session.hotel_id)
       .eq("active", true)
       .maybeSingle();
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const hotelMatches = hotel.slug === hotelSlug;
+    const hotelMatches = hotelMatchesRequestedSlug(hotel, hotelSlug);
     const roleMatches = session.role === role;
 
     if (!hotelMatches || !roleMatches) {

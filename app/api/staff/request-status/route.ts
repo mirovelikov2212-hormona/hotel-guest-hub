@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import type { StaffRole } from "@/lib/staff-auth/cookie-name";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
 import type { StaffDepartment, StaffRequestStatus } from "@/lib/staff/types";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
@@ -22,7 +23,9 @@ type GuestRequestRow = {
 };
 
 function getHotelAliasFromSlug(hotelSlug: string) {
-  return hotelSlug === "aquamarin" ? "aquamarine" : hotelSlug;
+  if (hotelSlug === "aquamarin") return "aquamarine";
+  if (hotelSlug === "aquamarin-test") return "aquamarine-test";
+  return hotelSlug;
 }
 
 function getLifecycleEventName(status: StaffRequestStatus) {
@@ -58,7 +61,7 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
 
   const { data: hotel, error: hotelError } = await supabaseAdmin
     .from("hotels")
-    .select("id, slug, active")
+    .select("id, slug, public_slug, active")
     .eq("id", session.hotel_id)
     .eq("active", true)
     .maybeSingle();
@@ -67,7 +70,7 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
     return { error: NextResponse.json({ ok: false, error: "Hotel not found for session" }, { status: 401 }) };
   }
 
-  if (hotel.slug !== hotelSlug || session.role !== role) {
+  if (!hotelMatchesRequestedSlug(hotel, hotelSlug) || session.role !== role) {
     return {
       error: NextResponse.json(
         { ok: false, error: "Session does not match requested hotel/role" },

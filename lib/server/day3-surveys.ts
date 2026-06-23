@@ -5,6 +5,11 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import type { StaffRole } from "@/lib/staff-auth/cookie-name";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import type { Day3Survey, Day3SurveyResolutionStatus } from "@/lib/staff/survey-types";
+import {
+  hotelMatchesRequestedSlug,
+  resolveHotelByAnySlugAdmin,
+  type HotelScope,
+} from "@/lib/server/hotel-scope";
 
 export const DAY3_SURVEY_VERSION = "day3-v1";
 export const DEFAULT_SURVEY_TIMEZONE = "Europe/Sofia";
@@ -98,32 +103,8 @@ export function normalizeResolutionStatus(value: unknown): Day3SurveyResolutionS
   return null;
 }
 
-export function getHotelSlugCandidates(inputSlug: string) {
-  const slug = String(inputSlug || "").trim().toLowerCase();
-  const candidates = new Set([slug]);
-
-  if (slug === "aquamarine") candidates.add("aquamarin");
-  if (slug === "aquamarin") candidates.add("aquamarine");
-
-  return Array.from(candidates).filter(Boolean);
-}
-
 export async function getHotelByAnySlugAdmin(inputSlug: string) {
-  const candidates = getHotelSlugCandidates(inputSlug);
-
-  const { data, error } = await supabaseAdmin
-    .from("hotels")
-    .select("id, slug, name, active")
-    .in("slug", candidates)
-    .eq("active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !data) {
-    throw new Error(`Hotel not found for slug: ${candidates.join("|")}`);
-  }
-
-  return data as { id: string; slug: string; name?: string | null; active: boolean };
+  return resolveHotelByAnySlugAdmin(inputSlug) as Promise<HotelScope>;
 }
 
 export async function validateHotelRoom(hotelSlug: string, room: string) {
@@ -266,7 +247,7 @@ export async function resolveAuthorizedSurveyScope(hotelSlug: string, role: Staf
 
   const { data: hotel, error: hotelError } = await supabaseAdmin
     .from("hotels")
-    .select("id, slug, active")
+    .select("id, slug, public_slug, active")
     .eq("id", session.hotel_id)
     .eq("active", true)
     .maybeSingle();
@@ -275,8 +256,7 @@ export async function resolveAuthorizedSurveyScope(hotelSlug: string, role: Staf
     return { ok: false as const, status: 401, error: "Hotel not found for session" };
   }
 
-  const allowedSlugs = getHotelSlugCandidates(hotelSlug);
-  if (!allowedSlugs.includes(String(hotel.slug || "").trim().toLowerCase()) || session.role !== role) {
+  if (!hotelMatchesRequestedSlug(hotel, hotelSlug) || session.role !== role) {
     return { ok: false as const, status: 403, error: "Session does not match requested hotel/role" };
   }
 

@@ -9,8 +9,14 @@ import { sendManagerPushNotification, sendStaffPushNotification } from "@/lib/st
 import type { PushStaffRole } from "@/lib/staff-push/manager-auth";
 import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
 import { translateGuestText, translateGuestTextToBulgarian, hasBulgarianLetters } from "@/lib/server/staff-translation";
-import { getTestDataFields, getTestDataMetadata, getTestRoomPolicy } from "@/lib/server/test-rooms";
+import { getTestRoomPolicy } from "@/lib/server/test-rooms";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
+import {
+  getOperationalIsolationFields,
+  getOperationalIsolationMetadata,
+  resolveHotelByAnySlugAdmin,
+  shouldSuppressLivePush,
+} from "@/lib/server/hotel-scope";
 
 function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
@@ -51,34 +57,6 @@ function isBillableRequest(input: {
   return BILLABLE_REQUEST_KEYS.has(rawType) || BILLABLE_REQUEST_KEYS.has(sourceRequestDef);
 }
 
-function getHotelSlugCandidates(inputSlug: string) {
-  const slug = String(inputSlug || "").trim().toLowerCase();
-  const candidates = new Set([slug]);
-
-  // Aquamarine is the public spelling, while the first DB record was created as aquamarin.
-  if (slug === "aquamarine") candidates.add("aquamarin");
-  if (slug === "aquamarin") candidates.add("aquamarine");
-
-  return Array.from(candidates).filter(Boolean);
-}
-
-async function getHotelByAnySlugAdmin(inputSlug: string) {
-  const candidates = getHotelSlugCandidates(inputSlug);
-
-  const { data, error } = await supabaseAdmin
-    .from("hotels")
-    .select("id, slug, name, active")
-    .in("slug", candidates)
-    .eq("active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !data) {
-    throw new Error(`Hotel not found for slug: ${candidates.join("|")}`);
-  }
-
-  return data;
-}
 
 function getStaffPushRolesForRequest(input: {
   department: StaffDepartment;
@@ -137,7 +115,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Missing required fields" }, { status: 400 });
     }
 
-    const hotel = await getHotelByAnySlugAdmin(hotelSlug);
+    const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
 
     const hotelConfig = await getHotelConfig(hotelSlug).catch(async (error) => {
       console.error("Failed to load hotel config for room validation", { hotelSlug, error });
@@ -173,6 +151,9 @@ export async function POST(req: NextRequest) {
     }
 
     const testRoomPolicy = await getTestRoomPolicy(hotel.id, room);
+    const isolationFields = getOperationalIsolationFields({ hotel, testRoomPolicy });
+    const isolationMetadata = getOperationalIsolationMetadata({ hotel, testRoomPolicy });
+    const suppressLivePush = shouldSuppressLivePush({ hotel, testRoomPolicy });
     const normalizedType = normalizeStaffRequestType(rawType, departmentOverride);
     const department = departmentOverride ?? getDepartmentForRequestType(normalizedType);
     const translatedGuestNoteBg = note && !hasBulgarianLetters(note)
@@ -197,7 +178,7 @@ export async function POST(req: NextRequest) {
       guestNoteBg: translatedGuestNoteBg || null,
       rawType,
       billingStatus: requiresBilling ? "pending" : undefined,
-      ...getTestDataMetadata(testRoomPolicy),
+      ...isolationMetadata,
     };
     const staffTitleBg = getOperationalRequestTitleBg({
       requestType: normalizedType,
@@ -271,7 +252,7 @@ export async function POST(req: NextRequest) {
         message_en: staffNoteEn || messageBg,
         message_de: staffNoteDe || messageBg,
         status: "new",
-        ...getTestDataFields(testRoomPolicy),
+        ...isolationFields,
         metadata_json: {
           ...operationalMetadata,
           guestLanguage,
@@ -301,7 +282,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: error?.message || "Failed to create request" }, { status: 500 });
     }
 
-    if (!testRoomPolicy.isTest) {
+    if (!suppressLivePush) {
       await sendManagerPushNotification({
         hotelId: hotel.id,
         hotelSlug: hotel.slug,

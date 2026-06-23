@@ -1,0 +1,127 @@
+import "server-only";
+
+import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import type { TestRoomPolicy } from "@/lib/server/test-rooms";
+
+export type HotelScope = {
+  id: string;
+  slug: string;
+  public_slug?: string | null;
+  name?: string | null;
+  active?: boolean | null;
+  is_sandbox?: boolean | null;
+  production_hotel_id?: string | null;
+};
+
+function sanitizeSlug(value: unknown) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+}
+
+export function getHotelSlugCandidates(inputSlug: string) {
+  const slug = sanitizeSlug(inputSlug);
+  const candidates = new Set<string>();
+  if (slug) candidates.add(slug);
+
+  // Aquamarine is the public spelling, while the first DB record was created as aquamarin.
+  if (slug === "aquamarine") candidates.add("aquamarin");
+  if (slug === "aquamarin") candidates.add("aquamarine");
+  if (slug === "aquamarine-test") candidates.add("aquamarin-test");
+  if (slug === "aquamarin-test") candidates.add("aquamarine-test");
+
+  return Array.from(candidates).filter(Boolean);
+}
+
+function buildSlugOrFilter(candidates: string[]) {
+  const safe = candidates.map(sanitizeSlug).filter(Boolean);
+  return [
+    ...safe.map((slug) => `slug.eq.${slug}`),
+    ...safe.map((slug) => `public_slug.eq.${slug}`),
+  ].join(",");
+}
+
+export async function resolveHotelByAnySlugAdmin(inputSlug: string): Promise<HotelScope> {
+  const candidates = getHotelSlugCandidates(inputSlug);
+
+  if (!candidates.length) {
+    throw new Error("Missing hotel slug");
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("hotels")
+    .select("id, slug, public_slug, name, active, is_sandbox, production_hotel_id")
+    .or(buildSlugOrFilter(candidates))
+    .eq("active", true)
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    throw new Error(`Hotel not found for slug: ${candidates.join("|")}`);
+  }
+
+  return data as HotelScope;
+}
+
+export function hotelMatchesRequestedSlug(hotel: Pick<HotelScope, "slug" | "public_slug">, inputSlug: string) {
+  const candidates = getHotelSlugCandidates(inputSlug);
+  const canonicalSlug = sanitizeSlug(hotel.slug);
+  const publicSlug = sanitizeSlug(hotel.public_slug);
+
+  return candidates.includes(canonicalSlug) || (!!publicSlug && candidates.includes(publicSlug));
+}
+
+export function isSandboxHotel(hotel: Pick<HotelScope, "is_sandbox"> | null | undefined) {
+  return Boolean(hotel?.is_sandbox);
+}
+
+export function getOperationalIsolationFields(input: {
+  hotel: Pick<HotelScope, "slug" | "is_sandbox" | "production_hotel_id">;
+  testRoomPolicy: TestRoomPolicy;
+}) {
+  const sandbox = isSandboxHotel(input.hotel);
+
+  if (sandbox) {
+    return {
+      is_test: true,
+      test_expires_at: null,
+    };
+  }
+
+  return {
+    is_test: input.testRoomPolicy.isTest,
+    test_expires_at: input.testRoomPolicy.expiresAt,
+  };
+}
+
+export function getOperationalIsolationMetadata(input: {
+  hotel: Pick<HotelScope, "slug" | "is_sandbox" | "production_hotel_id">;
+  testRoomPolicy: TestRoomPolicy;
+}) {
+  const sandbox = isSandboxHotel(input.hotel);
+
+  if (sandbox) {
+    return {
+      isTest: true,
+      isSandbox: true,
+      sandboxHotelSlug: input.hotel.slug,
+      productionHotelId: input.hotel.production_hotel_id ?? null,
+    };
+  }
+
+  if (!input.testRoomPolicy.isTest) return { isTest: false };
+
+  return {
+    isTest: true,
+    testAutoDeleteAfterSeconds: input.testRoomPolicy.autoDeleteAfterSeconds,
+    testExpiresAt: input.testRoomPolicy.expiresAt,
+  };
+}
+
+export function shouldSuppressLivePush(input: {
+  hotel: Pick<HotelScope, "is_sandbox">;
+  testRoomPolicy?: TestRoomPolicy | null;
+}) {
+  return isSandboxHotel(input.hotel) || Boolean(input.testRoomPolicy?.isTest);
+}

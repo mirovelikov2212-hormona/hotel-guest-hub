@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import type { StaffRole } from "@/lib/staff-auth/cookie-name";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
@@ -275,7 +276,7 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
 
   const { data: hotel, error: hotelError } = await supabaseAdmin
     .from("hotels")
-    .select("id, slug, active")
+    .select("id, slug, public_slug, active")
     .eq("id", session.hotel_id)
     .eq("active", true)
     .maybeSingle();
@@ -284,7 +285,7 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
     return { error: NextResponse.json({ ok: false, error: "Hotel not found for session" }, { status: 401, headers: NO_STORE_HEADERS }) };
   }
 
-  if (hotel.slug !== hotelSlug || session.role !== role) {
+  if (!hotelMatchesRequestedSlug(hotel, hotelSlug) || session.role !== role) {
     return {
       error: NextResponse.json(
         { ok: false, error: "Session does not match requested hotel/role" },

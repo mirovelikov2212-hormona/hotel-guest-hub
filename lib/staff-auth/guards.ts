@@ -2,6 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
 
 export type StaffRole = "reception" | "housekeeping" | "maintenance" | "manager";
 
@@ -18,7 +19,7 @@ export async function requireStaffAccess(hotelSlug: string, role: StaffRole) {
 
   const { data: hotel, error } = await supabaseAdmin
     .from("hotels")
-    .select("id, slug, active")
+    .select("id, slug, public_slug, active")
     .eq("id", currentSession.hotel_id)
     .eq("active", true)
     .maybeSingle();
@@ -29,7 +30,7 @@ export async function requireStaffAccess(hotelSlug: string, role: StaffRole) {
 
   const currentHotel = hotel;
 
-  if (currentHotel.slug !== hotelSlug || currentSession.role !== role) {
+  if (!hotelMatchesRequestedSlug(currentHotel, hotelSlug) || currentSession.role !== role) {
     redirect(redirectPath);
   }
 

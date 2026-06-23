@@ -19,6 +19,14 @@ import {
   normalizeMassageHotelSlug,
 } from "@/lib/server/massage-api";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
+import { getTestRoomPolicy } from "@/lib/server/test-rooms";
+import {
+  getOperationalIsolationFields,
+  getOperationalIsolationMetadata,
+  isSandboxHotel,
+  resolveHotelByAnySlugAdmin,
+  shouldSuppressLivePush,
+} from "@/lib/server/hotel-scope";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -133,37 +141,6 @@ function normalizeRoomForComparison(value: unknown) {
 }
 
 
-function getHotelSlugCandidates(inputSlug: string) {
-  const slug = String(inputSlug || "").trim().toLowerCase();
-  const candidates = new Set([slug]);
-
-  // Aquamarine is the public spelling, while the first DB record was created as aquamarin.
-  if (slug === "aquamarine") candidates.add("aquamarin");
-  if (slug === "aquamarin") candidates.add("aquamarine");
-
-  return Array.from(candidates).filter(Boolean);
-}
-
-async function getHotelByAnySlugAdmin(inputSlug: string) {
-  const candidates = getHotelSlugCandidates(inputSlug);
-
-  const { data, error } = await supabaseAdmin
-    .from("hotels")
-    .select("id, slug, name, active")
-    .in("slug", candidates)
-    .eq("active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !data) {
-    throw new MassageApiError("Hotel not found for staff request creation.", {
-      statusCode: 500,
-      code: "MASSAGE_STAFF_HOTEL_NOT_FOUND",
-    });
-  }
-
-  return data as { id: string; slug: string; name?: string | null; active?: boolean | null };
-}
 
 function formatMassageStaffDate(dateIso: string) {
   const [year, month, day] = dateIso.split("-");
@@ -245,7 +222,11 @@ async function ensureMassageStaffRequest(input: {
   currency?: string | null;
   guestLanguage?: string | null;
 }) {
-  const hotel = await getHotelByAnySlugAdmin(input.hotelSlug);
+  const hotel = await resolveHotelByAnySlugAdmin(input.hotelSlug);
+  const testRoomPolicy = await getTestRoomPolicy(hotel.id, input.roomNumber);
+  const isolationFields = getOperationalIsolationFields({ hotel, testRoomPolicy });
+  const isolationMetadata = getOperationalIsolationMetadata({ hotel, testRoomPolicy });
+  const suppressLivePush = shouldSuppressLivePush({ hotel, testRoomPolicy });
   const massageBookingKey = buildMassageBookingKey(input);
   const existing = await findExistingMassageStaffRequest({
     hotelId: hotel.id,
@@ -332,8 +313,10 @@ async function ensureMassageStaffRequest(input: {
       title: "Запазен масаж",
       message: note,
       status: "new",
+      ...isolationFields,
       metadata_json: {
         ...operationalMetadata,
+        ...isolationMetadata,
         guestLanguage: String(input.guestLanguage || "bg").trim().toLowerCase() || "bg",
         staffTitleBg,
         staffNoteBg,
@@ -375,13 +358,14 @@ async function ensureMassageStaffRequest(input: {
     });
   }
 
-  await sendManagerPushNotification({
-    hotelId: hotel.id,
-    hotelSlug: hotel.slug,
-    requestId: String(data.id),
-    room: String(data.room_number_snapshot ?? input.roomNumber),
-    requestTitle: staffTitleBg || "Запазен масаж",
-  }).catch(async (pushError) => {
+  if (!suppressLivePush) {
+    await sendManagerPushNotification({
+      hotelId: hotel.id,
+      hotelSlug: hotel.slug,
+      requestId: String(data.id),
+      room: String(data.room_number_snapshot ?? input.roomNumber),
+      requestTitle: staffTitleBg || "Запазен масаж",
+    }).catch(async (pushError) => {
     console.error("Manager push notification failed for massage booking", pushError);
     await logSystemError({
       hotelId: hotel.id,
@@ -396,14 +380,14 @@ async function ensureMassageStaffRequest(input: {
     });
   });
 
-  await sendStaffPushNotification({
-    hotelId: hotel.id,
-    hotelSlug: hotel.slug,
-    requestId: String(data.id),
-    room: String(data.room_number_snapshot ?? input.roomNumber),
-    requestTitle: staffTitleBg || "Запазен масаж",
-    targetRoles: ["reception"],
-  }).catch(async (pushError) => {
+    await sendStaffPushNotification({
+      hotelId: hotel.id,
+      hotelSlug: hotel.slug,
+      requestId: String(data.id),
+      room: String(data.room_number_snapshot ?? input.roomNumber),
+      requestTitle: staffTitleBg || "Запазен масаж",
+      targetRoles: ["reception"],
+    }).catch(async (pushError) => {
     console.error("Reception push notification failed for massage booking", pushError);
     await logSystemError({
       hotelId: hotel.id,
@@ -417,6 +401,8 @@ async function ensureMassageStaffRequest(input: {
       metadata: { hotelSlug: input.hotelSlug, serviceId: input.serviceId, date: input.date, startTime: input.startTime },
     });
   });
+
+  }
 
   return {
     id: String(data.id),
@@ -594,6 +580,51 @@ export async function POST(req: NextRequest) {
     const room = requireRoom(body.room ?? body.roomNumber);
 
     await requireExistingHotelRoom(hotelSlug, room);
+
+    const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
+    if (isSandboxHotel(hotel)) {
+      const services = await getMassageServices(hotelSlug).catch(() => null);
+      const service = services?.services?.find((item) => item.serviceId === serviceId) ?? null;
+      const result = {
+        status: "BOOKING_WRITTEN" as const,
+        serviceId,
+        serviceNameBg: service?.nameBg ?? serviceId,
+        sheetValue: service?.nameBg ?? serviceId,
+        price: service?.price ?? null,
+        currency: service?.currency ?? null,
+        date,
+        startTime: time,
+        durationMinutes: service?.durationMinutes ?? null,
+        roomNumber: room,
+        writeVerified: true,
+        idempotentReplay: false,
+      };
+      const staffRequest = await ensureMassageStaffRequest({
+        hotelSlug: hotel.slug,
+        serviceId: result.serviceId,
+        date: result.date,
+        startTime: result.startTime,
+        roomNumber: result.roomNumber,
+        serviceNameBg: result.serviceNameBg,
+        sheetValue: result.sheetValue,
+        durationMinutes: result.durationMinutes,
+        price: result.price,
+        currency: result.currency,
+        guestLanguage: String(body.guestLanguage || "bg"),
+      });
+
+      return json(
+        {
+          ok: true,
+          action: "sandbox_book",
+          hotelSlug: hotel.slug,
+          sandbox: true,
+          result,
+          staffRequest,
+        },
+        201,
+      );
+    }
 
     if (controlledE2EEnabled) {
       const approved = isApprovedMassageControlledE2ECandidate({

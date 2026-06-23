@@ -2,6 +2,7 @@ import "server-only";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import type { StaffRole } from "@/lib/staff-auth/cookie-name";
+import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
 
 export type PushStaffRole = StaffRole;
 
@@ -27,13 +28,12 @@ export async function getAuthenticatedStaffHotel(
 
   const { data: hotel, error } = await supabaseAdmin
     .from("hotels")
-    .select("id, slug, name, active")
+    .select("id, slug, public_slug, name, active")
     .eq("id", session.hotel_id)
-    .eq("slug", hotelSlug)
     .eq("active", true)
     .maybeSingle();
 
-  if (error || !hotel) return null;
+  if (error || !hotel || !hotelMatchesRequestedSlug(hotel, hotelSlug)) return null;
 
   return {
     id: String(hotel.id),
