@@ -1,47 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
+import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false, autoRefreshToken: false } }
-);
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const STAFF_TARGETS: Record<
-  string,
-  Record<
-    string,
-    {
-      hotelId: string;
-      targetUrl: string;
-      qrCode: string;
-    }
-  >
-> = {
-  aquamarin: {
-    housekeeping: {
-      hotelId: "843ec551-786a-46c4-989b-9da98956cd19",
-      targetUrl: "https://www.stayhub.app/staff/aquamarin/housekeeping",
-      qrCode: "staff_housekeeping",
-    },
-    maintenance: {
-      hotelId: "843ec551-786a-46c4-989b-9da98956cd19",
-      targetUrl: "https://www.stayhub.app/staff/aquamarin/maintenance",
-      qrCode: "staff_maintenance",
-    },
-    reception: {
-      hotelId: "843ec551-786a-46c4-989b-9da98956cd19",
-      targetUrl: "https://www.stayhub.app/staff/aquamarin/reception",
-      qrCode: "staff_reception",
-    },
-    manager: {
-      hotelId: "843ec551-786a-46c4-989b-9da98956cd19",
-      targetUrl: "https://www.stayhub.app/staff/aquamarin/manager",
-      qrCode: "staff_manager",
-    },
-  },
-};
+const ALLOWED_STAFF_DEPARTMENTS = new Set([
+  "housekeeping",
+  "maintenance",
+  "reception",
+  "manager",
+]);
+
+function sanitizeSlug(value: unknown) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+}
+
+function getPublicAlias(hotel: { slug: string; public_slug?: string | null }) {
+  return sanitizeSlug(hotel.public_slug || hotel.slug);
+}
+
+function getStaffTargetUrl(hotelSlug: string, department: string) {
+  return `https://www.stayhub.app/staff/${hotelSlug}/${department}`;
+}
 
 function hashIp(ip: string) {
   const salt = process.env.QR_IP_HASH_SALT || "stayhub-default-salt-change-me";
@@ -83,10 +68,23 @@ export async function GET(
   context: { params: Promise<{ hotelSlug: string; department: string }> }
 ) {
   const { hotelSlug, department } = await context.params;
-  const hotelMap = STAFF_TARGETS[hotelSlug];
-  const target = hotelMap?.[department];
+  const requestedHotelSlug = sanitizeSlug(hotelSlug);
+  const normalizedDepartment = sanitizeSlug(department);
 
-  if (!target) {
+  if (!ALLOWED_STAFF_DEPARTMENTS.has(normalizedDepartment)) {
+    return NextResponse.redirect(new URL("https://www.stayhub.app"), 307);
+  }
+
+  let hotel;
+  try {
+    hotel = await resolveHotelByAnySlugAdmin(requestedHotelSlug);
+  } catch (error) {
+    console.error("staff qr hotel resolve error:", error);
+    return NextResponse.redirect(new URL("https://www.stayhub.app"), 307);
+  }
+
+  const publicAlias = getPublicAlias(hotel);
+  if (!hotel.id || !hotel.slug || !publicAlias) {
     return NextResponse.redirect(new URL("https://www.stayhub.app"), 307);
   }
 
@@ -97,16 +95,18 @@ export async function GET(
   const forwardedFor = request.headers.get("x-forwarded-for") || "";
   const ip = forwardedFor.split(",")[0]?.trim() || "0.0.0.0";
   const scanSessionId = crypto.randomUUID();
+  const qrCode = `staff_${normalizedDepartment}`;
+  const targetUrl = getStaffTargetUrl(hotel.slug, normalizedDepartment);
 
-  const { error } = await supabase.from("qr_scans").insert({
-    hotel_id: target.hotelId,
-    hotel_slug: hotelSlug,
-    hotel_alias: "aquamarine",
-    qr_code: target.qrCode,
+  const { error } = await supabaseAdmin.from("qr_scans").insert({
+    hotel_id: hotel.id,
+    hotel_slug: hotel.slug,
+    hotel_alias: publicAlias,
+    qr_code: qrCode,
     src,
     campaign: null,
     room_hint: null,
-    target_url: target.targetUrl,
+    target_url: targetUrl,
     scan_session_id: scanSessionId,
     ip_hash: hashIp(ip),
     device_type: getDeviceType(ua),
@@ -117,7 +117,11 @@ export async function GET(
     is_bot: isBot(ua),
     extra: {
       kind: "staff",
-      department,
+      requestedHotelSlug,
+      resolvedHotelSlug: hotel.slug,
+      resolvedPublicAlias: publicAlias,
+      isSandbox: Boolean(hotel.is_sandbox),
+      department: normalizedDepartment,
       path: url.pathname,
       query: Object.fromEntries(url.searchParams.entries()),
     },
@@ -127,7 +131,7 @@ export async function GET(
     console.error("staff qr_scans insert error:", error);
   }
 
-  const response = NextResponse.redirect(target.targetUrl, 307);
+  const response = NextResponse.redirect(targetUrl, 307);
 
   response.cookies.set("sh_staff_qr_sid", scanSessionId, {
     httpOnly: false,
@@ -137,7 +141,7 @@ export async function GET(
     maxAge: 60 * 60 * 24 * 30,
   });
 
-  response.cookies.set("sh_qr_code", target.qrCode, {
+  response.cookies.set("sh_qr_code", qrCode, {
     httpOnly: false,
     secure: true,
     sameSite: "lax",

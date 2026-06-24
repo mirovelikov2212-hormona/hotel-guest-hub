@@ -1,37 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
+import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false, autoRefreshToken: false } }
-);
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-// Immediate production-safe mapping for your current hotels.
-// Later you can move this mapping into Supabase.
-const HOTEL_REDIRECTS: Record<
-  string,
-  {
-    hotelId: string;
-    canonicalSlug: string;
-    publicAlias: string;
-    targetUrl: string;
-  }
-> = {
-  aquamarine: {
-    hotelId: "843ec551-786a-46c4-989b-9da98956cd19",
-    canonicalSlug: "aquamarin",
-    publicAlias: "aquamarine",
-    targetUrl: "https://aquamarine.stayhub.app",
-  },
-  demo: {
-    hotelId: "243c8e86-af66-455f-b664-ec2185d5f3f3",
-    canonicalSlug: "demo",
-    publicAlias: "demo",
-    targetUrl: "https://demo.stayhub.app",
-  },
-};
+function sanitizeSlug(value: unknown) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+}
+
+function getPublicAlias(hotel: { slug: string; public_slug?: string | null }) {
+  return sanitizeSlug(hotel.public_slug || hotel.slug);
+}
+
+function getGuestTargetBaseUrl(publicAlias: string) {
+  return `https://${publicAlias}.stayhub.app`;
+}
 
 function getDeviceType(ua: string) {
   const s = ua.toLowerCase();
@@ -73,9 +61,18 @@ export async function GET(
   context: { params: Promise<{ hotelAlias: string }> }
 ) {
   const { hotelAlias } = await context.params;
-  const hotel = HOTEL_REDIRECTS[hotelAlias];
+  const requestedAlias = sanitizeSlug(hotelAlias);
 
-  if (!hotel) {
+  let hotel;
+  try {
+    hotel = await resolveHotelByAnySlugAdmin(requestedAlias);
+  } catch (error) {
+    console.error("guest qr hotel resolve error:", error);
+    return NextResponse.redirect(new URL("https://www.stayhub.app"), 307);
+  }
+
+  const publicAlias = getPublicAlias(hotel);
+  if (!hotel.id || !hotel.slug || !publicAlias) {
     return NextResponse.redirect(new URL("https://www.stayhub.app"), 307);
   }
 
@@ -90,8 +87,7 @@ export async function GET(
   const ip = forwardedFor.split(",")[0]?.trim() || "0.0.0.0";
   const scanSessionId = crypto.randomUUID();
 
-  // Build redirect target
-  const target = new URL(hotel.targetUrl);
+  const target = new URL(getGuestTargetBaseUrl(publicAlias));
   target.searchParams.set("src", src);
   target.searchParams.set("qr", "1");
   target.searchParams.set("qsid", scanSessionId);
@@ -99,11 +95,10 @@ export async function GET(
   if (campaign) target.searchParams.set("campaign", campaign);
   if (roomHint) target.searchParams.set("room", roomHint);
 
-  // Best effort tracking insert
-  const { error } = await supabase.from("qr_scans").insert({
-    hotel_id: hotel.hotelId,
-    hotel_slug: hotel.canonicalSlug,
-    hotel_alias: hotel.publicAlias,
+  const { error } = await supabaseAdmin.from("qr_scans").insert({
+    hotel_id: hotel.id,
+    hotel_slug: hotel.slug,
+    hotel_alias: publicAlias,
     qr_code: qrCode,
     src,
     campaign,
@@ -118,6 +113,11 @@ export async function GET(
     user_agent: ua,
     is_bot: isBot(ua),
     extra: {
+      kind: "guest",
+      requestedAlias,
+      resolvedHotelSlug: hotel.slug,
+      resolvedPublicAlias: publicAlias,
+      isSandbox: Boolean(hotel.is_sandbox),
       path: url.pathname,
       query: Object.fromEntries(url.searchParams.entries()),
     },
