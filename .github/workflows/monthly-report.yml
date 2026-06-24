@@ -1,0 +1,34 @@
+name: Monthly Report
+
+on:
+  schedule:
+    - cron: "30 6 1 * *"
+  workflow_dispatch:
+
+jobs:
+  call-monthly-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call StayHub monthly report endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET is missing."
+            exit 1
+          fi
+
+          response=$(curl -sS -w "\n%{http_code}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "https://www.stayhub.app/api/cron/report-email?report=monthly-latest-completed")
+
+          body=$(echo "$response" | sed '$d')
+          status=$(echo "$response" | tail -n1)
+
+          echo "$body"
+
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            echo "Monthly report endpoint failed with HTTP $status"
+            exit 1
+          fi

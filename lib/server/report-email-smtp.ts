@@ -70,8 +70,9 @@ function safeBoundary() {
 function buildEmailMessage(input: SendReportEmailInput, from: string) {
   const boundary = safeBoundary();
   const headers = input.headers || {};
+  const reportHeaderValue = String(headers["X-StayHub-Report"] || headers["x-stayhub-report"] || "weekly");
   const extraHeaders = Object.entries(headers)
-    .filter(([key]) => /^[A-Za-z0-9-]+$/.test(key))
+    .filter(([key]) => /^[A-Za-z0-9-]+$/.test(key) && key.toLowerCase() !== "x-stayhub-report")
     .map(([key, value]) => `${key}: ${normalizeHeaderValue(String(value))}`);
 
   return [
@@ -80,7 +81,7 @@ function buildEmailMessage(input: SendReportEmailInput, from: string) {
     `Subject: ${encodeHeaderValue(input.subject)}`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    "X-StayHub-Report: weekly",
+    `X-StayHub-Report: ${normalizeHeaderValue(reportHeaderValue)}`,
     ...extraHeaders,
     "",
     `--${boundary}`,

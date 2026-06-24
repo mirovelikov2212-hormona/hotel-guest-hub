@@ -38,6 +38,11 @@ export type WeeklyReportRow = {
   report_payload_json?: unknown;
 };
 
+export type MonthlyReportRow = Omit<WeeklyReportRow, "week_start_date" | "week_end_date"> & {
+  month_start_date: string;
+  month_end_date: string;
+};
+
 type JsonRecord = Record<string, unknown>;
 
 const MAX_TEXT_ITEMS = 10;
@@ -340,4 +345,20 @@ export function buildWeeklyReportEmail(row: WeeklyReportRow) {
 </html>`;
 
   return { subject, text, html };
+}
+
+export function buildMonthlyReportEmail(row: MonthlyReportRow) {
+  const weeklyCompatibleRow: WeeklyReportRow = {
+    ...row,
+    week_start_date: row.month_start_date,
+    week_end_date: row.month_end_date,
+  };
+
+  const email = buildWeeklyReportEmail(weeklyCompatibleRow);
+
+  return {
+    subject: email.subject,
+    text: email.text.replace(/^Седмичен StayHub отчет/m, "Месечен StayHub отчет"),
+    html: email.html.replace("StayHub weekly report", "StayHub monthly report"),
+  };
 }
