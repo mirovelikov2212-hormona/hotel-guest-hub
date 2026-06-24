@@ -210,7 +210,6 @@ export function buildWeeklyReportEmail(row: WeeklyReportRow) {
     `- Отваряния на хъба: ${formatInteger(row.hub_opens_real)}`,
     `- Активни room-days: ${formatInteger(row.room_event_days_real)}`,
     `- Реални заявки: ${formatInteger(row.requests_real)}`,
-    `- Активни/отворени заявки: ${formatInteger(row.requests_open_or_active)}`,
     `- Upsell: ${formatMoney(row.upsell_amount_real)}`,
     `- Масажи: ${formatInteger(row.massage_bookings_count)} (${formatMoney(row.massage_amount_total)})`,
     `- AI въпроси: ${formatInteger(row.ai_questions_real)}`,
@@ -303,7 +302,6 @@ export function buildWeeklyReportEmail(row: WeeklyReportRow) {
       ${metricLabelValue("Отваряния на хъба", formatInteger(row.hub_opens_real))}
       ${metricLabelValue("Активни room-days", formatInteger(row.room_event_days_real))}
       ${metricLabelValue("Реални заявки", formatInteger(row.requests_real))}
-      ${metricLabelValue("Активни/отворени заявки", formatInteger(row.requests_open_or_active))}
       ${metricLabelValue("Upsell", formatMoney(row.upsell_amount_real))}
       ${metricLabelValue("Масажи", `${formatInteger(row.massage_bookings_count)} / ${formatMoney(row.massage_amount_total)}`)}
       ${metricLabelValue("AI въпроси", formatInteger(row.ai_questions_real))}
