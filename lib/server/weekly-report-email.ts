@@ -111,6 +111,24 @@ function getReportSubject(row: WeeklyReportRow) {
   );
 }
 
+function parseDateOnly(value: unknown) {
+  const text = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+  const [year, month, day] = text.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function isCurrentMonthToDateReport(row: MonthlyReportRow) {
+  const monthStart = parseDateOnly(row.month_start_date);
+  const monthEnd = parseDateOnly(row.month_end_date);
+  if (!monthStart || !monthEnd) return false;
+
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+  return today >= monthStart && today <= monthEnd;
+}
+
 function metricLabelValue(label: string, value: string) {
   return `<div style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:12px;background:#ffffff;">
     <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">${escapeHtml(label)}</div>
@@ -355,10 +373,28 @@ export function buildMonthlyReportEmail(row: MonthlyReportRow) {
   };
 
   const email = buildWeeklyReportEmail(weeklyCompatibleRow);
+  const isCurrentMonthToDate = isCurrentMonthToDateReport(row);
+  const monthlyTitle = isCurrentMonthToDate ? "Месечен StayHub отчет до момента" : "Месечен StayHub отчет";
+  const monthlyHeaderLabel = isCurrentMonthToDate ? "StayHub monthly report · to date" : "StayHub monthly report";
+  const currentMonthNote = "Данните са към датата на генериране.";
 
-  return {
-    subject: email.subject,
-    text: email.text.replace(/^Седмичен StayHub отчет/m, "Месечен StayHub отчет"),
-    html: email.html.replace("StayHub weekly report", "StayHub monthly report"),
-  };
+  let subject = email.subject.replace(/^Месечен StayHub отчет(?! до момента)/, monthlyTitle);
+  subject = subject.replace(/^Седмичен StayHub отчет/, monthlyTitle);
+
+  let text = email.text.replace(/^Седмичен StayHub отчет/m, monthlyTitle);
+  if (isCurrentMonthToDate && !text.includes(currentMonthNote)) {
+    text = text.replace(/^(Период: .+)$/m, `$1
+${currentMonthNote}`);
+  }
+
+  let html = email.html.replace("StayHub weekly report", monthlyHeaderLabel);
+  if (isCurrentMonthToDate && !html.includes(currentMonthNote)) {
+    html = html.replace(
+      /(<div style="font-size:16px;color:#e5e7eb;">[^<]*<\/div>)/,
+      `$1
+      <div style="font-size:13px;color:#cbd5e1;margin-top:6px;">${escapeHtml(currentMonthNote)}</div>`,
+    );
+  }
+
+  return { subject, text, html };
 }
