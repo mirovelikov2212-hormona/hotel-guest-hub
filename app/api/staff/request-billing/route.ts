@@ -3,6 +3,7 @@ import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import type { StaffRole } from "@/lib/staff-auth/cookie-name";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
+import { getPublicHotelAlias } from "@/lib/server/hotel-public-alias";
 import type { StaffBillingStatus } from "@/lib/staff/types";
 
 function isValidRole(value: string): value is StaffRole {
@@ -21,12 +22,6 @@ function isValidBillingStatus(value: string): value is StaffBillingStatus {
     value === "waived" ||
     value === "cancelled"
   );
-}
-
-function getHotelAliasFromSlug(hotelSlug: string) {
-  if (hotelSlug === "aquamarin") return "aquamarine";
-  if (hotelSlug === "aquamarin-test") return "aquamarine-test";
-  return hotelSlug;
 }
 
 async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
@@ -65,7 +60,7 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
     };
   }
 
-  return { hotelId: hotel.id, role };
+  return { hotelId: hotel.id, role, hotelSlug: hotel.slug, hotelAlias: getPublicHotelAlias(hotel) };
 }
 
 function isBillableMetadata(metadata: Record<string, unknown>) {
@@ -243,8 +238,8 @@ export async function POST(req: NextRequest) {
 
     const { error: eventError } = await supabaseAdmin.from("hub_events").insert({
       hotel_id: scope.hotelId,
-      hotel_slug: hotelSlug,
-      hotel_alias: getHotelAliasFromSlug(hotelSlug),
+      hotel_slug: scope.hotelSlug,
+      hotel_alias: scope.hotelAlias,
       scan_session_id: null,
       room_id: null,
       room_number: requestRow.room_number_snapshot ?? null,

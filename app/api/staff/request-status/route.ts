@@ -3,6 +3,7 @@ import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import type { StaffRole } from "@/lib/staff-auth/cookie-name";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
+import { getPublicHotelAlias } from "@/lib/server/hotel-public-alias";
 import type { StaffDepartment, StaffRequestStatus } from "@/lib/staff/types";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
@@ -21,12 +22,6 @@ type GuestRequestRow = {
     typeLabel?: string;
   } | null;
 };
-
-function getHotelAliasFromSlug(hotelSlug: string) {
-  if (hotelSlug === "aquamarin") return "aquamarine";
-  if (hotelSlug === "aquamarin-test") return "aquamarine-test";
-  return hotelSlug;
-}
 
 function getLifecycleEventName(status: StaffRequestStatus) {
   if (status === "in_progress") return "request_in_progress";
@@ -79,7 +74,7 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
     };
   }
 
-  return { hotelId: hotel.id, role };
+  return { hotelId: hotel.id, role, hotelSlug: hotel.slug, hotelAlias: getPublicHotelAlias(hotel) };
 }
 
 function canRoleUpdateDepartment(
@@ -188,14 +183,15 @@ export async function POST(req: NextRequest) {
     }
 
     const lifecycleEvents: Array<Record<string, unknown>> = [];
-    const hotelAlias = getHotelAliasFromSlug(hotelSlug);
+    const hotelSlugForEvents = scope.hotelSlug;
+    const hotelAlias = scope.hotelAlias;
     const roomNumber = requestData.room_number_snapshot ?? null;
     const typeLabel = requestData.metadata_json?.typeLabel ?? normalizedType;
 
     if (requestData.status === "new" && status !== "new") {
       lifecycleEvents.push({
         hotel_id: scope.hotelId,
-        hotel_slug: hotelSlug,
+        hotel_slug: hotelSlugForEvents,
         hotel_alias: hotelAlias,
         scan_session_id: null,
         room_id: null,
@@ -221,7 +217,7 @@ export async function POST(req: NextRequest) {
     if (lifecycleEventName) {
       lifecycleEvents.push({
         hotel_id: scope.hotelId,
-        hotel_slug: hotelSlug,
+        hotel_slug: hotelSlugForEvents,
         hotel_alias: hotelAlias,
         scan_session_id: null,
         room_id: null,
