@@ -56,7 +56,7 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
 
   const { data: hotel, error: hotelError } = await supabaseAdmin
     .from("hotels")
-    .select("id, slug, public_slug, active")
+    .select("id, slug, public_slug, active, is_sandbox")
     .eq("id", session.hotel_id)
     .eq("active", true)
     .maybeSingle();
@@ -74,7 +74,13 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
     };
   }
 
-  return { hotelId: hotel.id, role, hotelSlug: hotel.slug, hotelAlias: getPublicHotelAlias(hotel) };
+  return {
+    hotelId: hotel.id,
+    role,
+    hotelSlug: hotel.slug,
+    hotelAlias: getPublicHotelAlias(hotel),
+    environment: hotel.is_sandbox ? "sandbox" : "production",
+  };
 }
 
 function canRoleUpdateDepartment(
@@ -193,6 +199,7 @@ export async function POST(req: NextRequest) {
         hotel_id: scope.hotelId,
         hotel_slug: hotelSlugForEvents,
         hotel_alias: hotelAlias,
+        environment: scope.environment,
         scan_session_id: null,
         room_id: null,
         room_number: roomNumber,
@@ -219,6 +226,7 @@ export async function POST(req: NextRequest) {
         hotel_id: scope.hotelId,
         hotel_slug: hotelSlugForEvents,
         hotel_alias: hotelAlias,
+        environment: scope.environment,
         scan_session_id: null,
         room_id: null,
         room_number: roomNumber,
