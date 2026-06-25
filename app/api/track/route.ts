@@ -14,36 +14,103 @@ function normalizeText(value: unknown): string | null {
   return text ? text : null;
 }
 
+function sanitizeSlug(value: unknown): string | null {
+  const slug = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+  return slug ? slug : null;
+}
 
-async function resolveTrackingHotelScope(input: { hotelId?: unknown; hotelSlug?: unknown }) {
+type TrackingHotelScope = {
+  id: string;
+  slug: string;
+  publicSlug: string | null;
+  isSandbox: boolean;
+};
+
+function getSlugCandidates(...values: unknown[]) {
+  const candidates = new Set<string>();
+
+  for (const value of values) {
+    const slug = sanitizeSlug(value);
+    if (!slug) continue;
+    candidates.add(slug);
+
+    // Aquamarine was first created in Supabase as `aquamarin`, while the public alias is `aquamarine`.
+    // Keep this compatibility bridge here until aliases are fully managed from hotel metadata everywhere.
+    if (slug === "aquamarine") candidates.add("aquamarin");
+    if (slug === "aquamarin") candidates.add("aquamarine");
+    if (slug === "aquamarine-test") candidates.add("aquamarin-test");
+    if (slug === "aquamarin-test") candidates.add("aquamarine-test");
+  }
+
+  return Array.from(candidates);
+}
+
+function buildHotelOrFilter(candidates: string[]) {
+  return [
+    ...candidates.map((slug) => `slug.eq.${slug}`),
+    ...candidates.map((slug) => `public_slug.eq.${slug}`),
+  ].join(",");
+}
+
+async function resolveTrackingHotelScope(input: {
+  hotelId?: unknown;
+  hotelSlug?: unknown;
+  hotelAlias?: unknown;
+}): Promise<TrackingHotelScope | null> {
   const hotelId = normalizeText(input.hotelId);
-  const hotelSlug = normalizeText(input.hotelSlug);
 
   if (hotelId) {
     const { data, error } = await supabase
       .from("hotels")
-      .select("id, slug, public_slug, active")
+      .select("id, slug, public_slug, active, is_sandbox")
       .eq("id", hotelId)
       .eq("active", true)
       .maybeSingle();
 
     if (!error && data) {
-      return { id: data.id as string, slug: data.slug as string, publicSlug: data.public_slug as string | null };
+      return {
+        id: data.id as string,
+        slug: data.slug as string,
+        publicSlug: data.public_slug as string | null,
+        isSandbox: Boolean(data.is_sandbox),
+      };
     }
   }
 
-  if (!hotelSlug) return null;
+  const candidates = getSlugCandidates(input.hotelSlug, input.hotelAlias);
+  if (!candidates.length) return null;
 
   const { data, error } = await supabase
     .from("hotels")
-    .select("id, slug, public_slug, active")
-    .or(`slug.eq.${hotelSlug},public_slug.eq.${hotelSlug}`)
+    .select("id, slug, public_slug, active, is_sandbox")
+    .or(buildHotelOrFilter(candidates))
     .eq("active", true)
+    .limit(1)
     .maybeSingle();
 
   if (error || !data) return null;
 
-  return { id: data.id as string, slug: data.slug as string, publicSlug: data.public_slug as string | null };
+  return {
+    id: data.id as string,
+    slug: data.slug as string,
+    publicSlug: data.public_slug as string | null,
+    isSandbox: Boolean(data.is_sandbox),
+  };
+}
+
+function resolveTrackingEnvironment(input: { environment?: unknown; hotelScope: TrackingHotelScope | null }) {
+  if (input.hotelScope?.slug === "demo") return "demo";
+  if (input.hotelScope?.isSandbox) return "sandbox";
+
+  const normalized = normalizeText(input.environment);
+  if (normalized === "demo" || normalized === "sandbox" || normalized === "production") {
+    return normalized;
+  }
+
+  return "production";
 }
 
 function isLikelyMissingColumnError(error: { message?: string; code?: string } | null | undefined) {
@@ -75,10 +142,15 @@ export async function POST(request: NextRequest) {
     const hotelScope = await resolveTrackingHotelScope({
       hotelId: body.hotelId,
       hotelSlug: body.hotelSlug,
+      hotelAlias: body.hotelAlias,
     });
     const resolvedHotelId = hotelScope?.id ?? body.hotelId ?? null;
-    const resolvedHotelSlug = hotelScope?.slug ?? body.hotelSlug ?? null;
-    const resolvedPublicSlug = hotelScope?.publicSlug ?? body.hotelAlias ?? null;
+    const resolvedHotelSlug = hotelScope?.slug ?? sanitizeSlug(body.hotelSlug) ?? null;
+    const resolvedPublicSlug = hotelScope?.publicSlug ?? sanitizeSlug(body.hotelAlias) ?? resolvedHotelSlug;
+    const resolvedEnvironment = resolveTrackingEnvironment({
+      environment: body.environment,
+      hotelScope,
+    });
     const testRoomPolicy = await getTestRoomPolicy(resolvedHotelId, roomNumber);
 
     const legacyPayload = {
@@ -99,7 +171,7 @@ export async function POST(request: NextRequest) {
     const enrichedPayload = {
       ...legacyPayload,
       session_id: body.sessionId ?? body.userSessionId ?? null,
-      environment: normalizeText(body.environment),
+      environment: resolvedEnvironment,
       event_category: normalizeText(body.eventCategory),
       section_key: normalizeText(body.sectionKey ?? body.section),
       item_key: normalizeText(body.itemKey),

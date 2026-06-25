@@ -19,20 +19,23 @@ export type TrackHubPayload = {
   extra?: Record<string, unknown>;
 };
 
-type UiAlias = "aquamarine" | "demo";
-
-const ALIAS_TO_SLUG: Record<UiAlias, string> = {
-  aquamarine: "aquamarin",
-  demo: "demo",
-};
-
-const ALIAS_TO_HOTEL_ID: Record<UiAlias, string> = {
-  aquamarine: "843ec551-786a-46c4-989b-9da98956cd19",
-  demo: "243c8e86-af66-455f-b664-ec2185d5f3f3",
-};
-
 const ROOM_STATE_STORAGE_PREFIX = "guesthub_room_state";
 const TRACKING_SESSION_STORAGE_KEY = "sh_tracking_session_id";
+
+function sanitizeHotelSlug(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+}
+
+function inferTrackingEnvironment(hotelAlias: string): "production" | "sandbox" | "demo" {
+  const normalized = sanitizeHotelSlug(hotelAlias);
+  if (normalized === "demo") return "demo";
+  if (normalized.endsWith("-test")) return "sandbox";
+  return "production";
+}
+
 
 function readCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
@@ -56,12 +59,11 @@ function getHotelAlias(): string {
     host !== "www.stayhub.app" &&
     host !== "stayhub.app"
   ) {
-    return host.replace(".stayhub.app", "");
+    return sanitizeHotelSlug(host.replace(".stayhub.app", "")) || "aquamarine";
   }
 
   const match = window.location.pathname.match(/^\/h\/([^/]+)/);
-  if (match?.[1] === "aquamarin") return "aquamarine";
-  if (match?.[1]) return match[1];
+  if (match?.[1]) return sanitizeHotelSlug(match[1]) || "aquamarine";
 
   return "aquamarine";
 }
@@ -87,17 +89,10 @@ function getRoomStateLookupKeys(hotelAlias: string, hotelSlug: string) {
 }
 
 function getHotelSlug(alias: string): string {
-  if (alias in ALIAS_TO_SLUG) {
-    return ALIAS_TO_SLUG[alias as UiAlias];
-  }
-  return alias;
-}
-
-function getHotelId(alias: string): string | null {
-  if (alias in ALIAS_TO_HOTEL_ID) {
-    return ALIAS_TO_HOTEL_ID[alias as UiAlias];
-  }
-  return null;
+  // Client-side tracking deliberately sends the visible hotel slug/alias only.
+  // The API resolves it against Supabase hotels.slug/public_slug and stores the canonical DB slug.
+  // This avoids hardcoded hotel IDs/slugs in the guest bundle and keeps tracking multi-hotel ready.
+  return sanitizeHotelSlug(alias) || "aquamarine";
 }
 
 function getStoredValue(key: string): string | null {
@@ -279,9 +274,8 @@ export async function trackHubEvent(payload: TrackHubPayload) {
 
   const hotelAlias = getHotelAlias();
   const hotelSlug = getHotelSlug(hotelAlias);
-  const hotelId = getHotelId(hotelAlias);
   const { roomNumber, roomConfirmed, roomSource } = resolveRoomContext(payload, hotelAlias, hotelSlug);
-  const environment = hotelSlug === "demo" || hotelAlias === "demo" ? "demo" : "production";
+  const environment = inferTrackingEnvironment(hotelAlias);
   const sessionId = getOrCreateTrackingSessionId();
   const device = getDeviceInfo();
 
@@ -325,7 +319,7 @@ export async function trackHubEvent(payload: TrackHubPayload) {
   };
 
   const body = JSON.stringify({
-    hotelId,
+    hotelId: null,
     hotelSlug,
     hotelAlias,
     environment,
