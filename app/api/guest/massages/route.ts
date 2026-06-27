@@ -487,6 +487,109 @@ async function readJsonObject(req: NextRequest) {
   return payload as Record<string, unknown>;
 }
 
+
+function getMassageBookingMetadata(metadata: Record<string, unknown> | null | undefined) {
+  const booking = metadata?.massageBooking;
+  return booking && typeof booking === "object" && !Array.isArray(booking)
+    ? (booking as Record<string, unknown>)
+    : null;
+}
+
+function normalizeGuestMassageTime(value: unknown) {
+  const raw = String(value || "").trim();
+  const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return "";
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return "";
+  return `${hour}:${String(minute).padStart(2, "0")}`;
+}
+
+function normalizeGuestMassagePrice(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+async function getActiveGuestMassageBookings(input: {
+  hotelId: string;
+  hotelSlug: string;
+  publicSlug?: string | null;
+  room: string;
+}) {
+  const { data, error } = await supabaseAdmin
+    .from("guest_requests")
+    .select("id, room_number_snapshot, request_type, title, message, status, created_at, metadata_json")
+    .eq("hotel_id", input.hotelId)
+    .eq("room_number_snapshot", input.room)
+    .eq("request_type", "massage_booking")
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (error) {
+    throw new MassageApiError("Massage bookings could not be loaded.", {
+      statusCode: 500,
+      code: "MASSAGE_ACTIVE_BOOKINGS_LOAD_FAILED",
+    });
+  }
+
+  return (data || [])
+    .map((row: any) => {
+      const metadata = row.metadata_json && typeof row.metadata_json === "object"
+        ? (row.metadata_json as Record<string, unknown>)
+        : {};
+      const booking = getMassageBookingMetadata(metadata);
+      if (!booking) return null;
+
+      const date = String(booking.date || "").trim();
+      const time = normalizeGuestMassageTime(booking.startTime);
+      const room = String(booking.roomNumber || row.room_number_snapshot || input.room).trim();
+      const serviceId = String(booking.serviceId || "massage").trim().toLowerCase();
+      const serviceName = String(
+        booking.serviceName ||
+          booking.serviceNameBg ||
+          booking.sheetValue ||
+          metadata.currentSheetServiceName ||
+          "Масаж"
+      ).trim();
+      const durationMinutes = Number(booking.durationMinutes || 0);
+      const price = normalizeGuestMassagePrice(booking.price ?? metadata.price);
+      const currency = String(booking.currency || metadata.currency || "EUR").trim() || "EUR";
+      const manualSheetChanged = Boolean(metadata.manualSheetChanged || booking.manualSheetChanged);
+      const originalBooking = metadata.originalMassageBooking && typeof metadata.originalMassageBooking === "object"
+        ? (metadata.originalMassageBooking as Record<string, unknown>)
+        : null;
+      const originalServiceName = originalBooking
+        ? String(originalBooking.serviceName || originalBooking.serviceNameBg || originalBooking.sheetValue || "").trim()
+        : "";
+
+      if (!date || !time || !room || !serviceName) return null;
+
+      return {
+        requestId: String(row.id),
+        hotelSlug: input.publicSlug || input.hotelSlug,
+        room,
+        serviceId,
+        serviceName,
+        date,
+        time,
+        durationMinutes: Number.isFinite(durationMinutes) && durationMinutes > 0 ? durationMinutes : 0,
+        price,
+        currency,
+        confirmedAt: String(row.created_at || new Date().toISOString()),
+        status: row.status || null,
+        manualSheetChanged,
+        originalServiceName: originalServiceName || null,
+        changeNotice: manualSheetChanged
+          ? "Резервацията е променена от рецепция. Показаните данни са актуалните."
+          : null,
+        currentSheetServiceName: typeof metadata.currentSheetServiceName === "string" ? metadata.currentSheetServiceName : null,
+        currentSheetRoomMarker: typeof metadata.currentSheetRoomMarker === "string" ? metadata.currentSheetRoomMarker : null,
+      };
+    })
+    .filter(Boolean);
+}
+
 export async function GET(req: NextRequest) {
   let requestHotelId: string | null = null;
   let requestHotelMetadata: Record<string, unknown> = {};
@@ -512,6 +615,17 @@ export async function GET(req: NextRequest) {
       isSandbox: Boolean(hotel.is_sandbox),
       productionHotelId: hotel.production_hotel_id || null,
     };
+
+    if (action === "active_bookings") {
+      const room = requireRoom(params.get("room"));
+      const bookings = await getActiveGuestMassageBookings({
+        hotelId: hotel.id,
+        hotelSlug: hotel.slug,
+        publicSlug: hotel.public_slug || null,
+        room,
+      });
+      return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), bookings });
+    }
 
     if (action === "services") {
       const result = await getMassageServices(hotel.slug);

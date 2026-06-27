@@ -1024,6 +1024,31 @@ type StoredGuestRequestRef = {
 
 type StoredGuestMassageBooking = ConfirmedMassageBookingCard & {
   id: string;
+  requestId?: string;
+  manualSheetChanged?: boolean;
+  changeNotice?: string | null;
+  originalServiceName?: string | null;
+  currentSheetServiceName?: string | null;
+  currentSheetRoomMarker?: string | null;
+};
+
+type GuestMassageServerBooking = {
+  requestId?: string;
+  hotelSlug?: string;
+  room?: string;
+  serviceId?: string;
+  serviceName?: string;
+  date?: string;
+  time?: string;
+  durationMinutes?: number | null;
+  price?: number | null;
+  currency?: string | null;
+  confirmedAt?: string;
+  manualSheetChanged?: boolean;
+  changeNotice?: string | null;
+  originalServiceName?: string | null;
+  currentSheetServiceName?: string | null;
+  currentSheetRoomMarker?: string | null;
 };
 
 type GuestStatusRow = {
@@ -1265,6 +1290,68 @@ function upsertStoredGuestMassageBooking(booking: ConfirmedMassageBookingCard) {
   writeStoredGuestMassageBookings(next);
 
   return next;
+}
+
+function replaceStoredGuestMassageBookingsForRoom(input: {
+  hotelSlug: string;
+  room: string;
+  bookings: StoredGuestMassageBooking[];
+}) {
+  const normalizedHotelSlug = String(input.hotelSlug || "").trim().toLowerCase();
+  const normalizedRoom = String(input.room || "").trim();
+  const incoming = input.bookings.map((booking) => ({
+    ...booking,
+    hotelSlug: normalizedHotelSlug,
+    room: String(booking.room || normalizedRoom).trim(),
+    serviceId: String(booking.serviceId || "massage").trim().toLowerCase(),
+    id: massageBookingId({
+      hotelSlug: normalizedHotelSlug,
+      room: String(booking.room || normalizedRoom).trim(),
+      serviceId: String(booking.serviceId || "massage").trim().toLowerCase(),
+      date: booking.date,
+      time: booking.time,
+    }),
+  }));
+
+  const current = pruneStoredGuestMassageBookings();
+  const next = [
+    ...incoming,
+    ...current.filter(
+      (item) =>
+        String(item.hotelSlug || "").trim().toLowerCase() !== normalizedHotelSlug ||
+        String(item.room || "").trim() !== normalizedRoom
+    ),
+  ].slice(0, 20);
+
+  writeStoredGuestMassageBookings(next);
+  return next;
+}
+
+function formatGuestMassageDateLabel(dateIso: string, lang: LangKey) {
+  const match = String(dateIso || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return String(dateIso || "").trim();
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+
+  if (Number.isNaN(date.getTime())) return String(dateIso || "").trim();
+
+  const localeByLang: Record<LangKey, string> = {
+    bg: "bg-BG",
+    en: "en-GB",
+    de: "de-DE",
+    ro: "ro-RO",
+    cs: "cs-CZ",
+    ru: "ru-RU",
+  };
+
+  return new Intl.DateTimeFormat(localeByLang[lang] || "bg-BG", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+  }).format(date);
 }
 
 function getMassageReservationCopy(lang: LangKey) {
@@ -4861,9 +4948,101 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     [collapseGuestHubSectionsAfterAction, config.hotelSlug, hotelContentSlug]
   );
 
+  const refreshGuestMassageBookingsFromServer = useCallback(async () => {
+    if (!roomConfirmed || !room.trim()) return;
+
+    const normalizedHotelSlug = String(hotelContentSlug || config.hotelSlug || "")
+      .trim()
+      .toLowerCase();
+
+    if (!normalizedHotelSlug) return;
+
+    try {
+      const params = new URLSearchParams({
+        hotelSlug: normalizedHotelSlug,
+        action: "active_bookings",
+        room: room.trim(),
+      });
+
+      const response = await fetch(`/api/guest/massages?${params.toString()}`, {
+        method: "GET",
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        ok?: boolean;
+        bookings?: GuestMassageServerBooking[];
+      } | null;
+
+      if (!response.ok || !payload?.ok || !Array.isArray(payload.bookings)) return;
+
+      const serverBookings: StoredGuestMassageBooking[] = payload.bookings
+        .map((booking) => {
+          const date = String(booking.date || "").trim();
+          const time = String(booking.time || "").trim();
+          const serviceId = String(booking.serviceId || "massage").trim().toLowerCase();
+          const serviceNameValue = String(booking.serviceName || "").trim();
+          const bookingRoom = String(booking.room || room).trim();
+
+          if (!date || !time || !serviceNameValue || !bookingRoom) return null;
+
+          const normalized: StoredGuestMassageBooking = {
+            id: massageBookingId({
+              hotelSlug: normalizedHotelSlug,
+              room: bookingRoom,
+              serviceId,
+              date,
+              time,
+            }),
+            requestId: booking.requestId,
+            hotelSlug: normalizedHotelSlug,
+            room: bookingRoom,
+            serviceId,
+            serviceName: serviceNameValue,
+            date,
+            dateLabel: formatGuestMassageDateLabel(date, lang),
+            time,
+            durationMinutes: Number(booking.durationMinutes || 0),
+            price: Number(booking.price || 0),
+            currency: String(booking.currency || "EUR"),
+            confirmedAt: String(booking.confirmedAt || new Date().toISOString()),
+            manualSheetChanged: Boolean(booking.manualSheetChanged),
+            changeNotice: booking.changeNotice || null,
+            originalServiceName: booking.originalServiceName || null,
+            currentSheetServiceName: booking.currentSheetServiceName || null,
+            currentSheetRoomMarker: booking.currentSheetRoomMarker || null,
+          };
+
+          return normalized;
+        })
+        .filter((booking): booking is StoredGuestMassageBooking => Boolean(booking))
+        .filter((booking) => !isStoredMassageBookingExpired(booking));
+
+      const next = replaceStoredGuestMassageBookingsForRoom({
+        hotelSlug: normalizedHotelSlug,
+        room: room.trim(),
+        bookings: serverBookings,
+      });
+
+      setGuestMassageBookings(next);
+    } catch (error) {
+      console.error("Guest massage booking sync failed", error);
+    }
+  }, [config.hotelSlug, hotelContentSlug, lang, room, roomConfirmed]);
+
   useEffect(() => {
     setGuestMassageBookings(pruneStoredGuestMassageBookings());
   }, [room, roomConfirmed]);
+
+  useEffect(() => {
+    if (!roomConfirmed || !room.trim()) return;
+
+    void refreshGuestMassageBookingsFromServer();
+    const timer = window.setInterval(() => {
+      void refreshGuestMassageBookingsFromServer();
+    }, 2 * 60_000);
+
+    return () => window.clearInterval(timer);
+  }, [refreshGuestMassageBookingsFromServer, room, roomConfirmed]);
 
   // Aquamarine's Spa Center keeps only its venue information and working hours.
   // Massage selection moves into the separate top-level “Book a massage” section below.
@@ -7581,6 +7760,12 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                             .filter(Boolean)
                             .join(" • ")}
                         </div>
+
+                        {booking.manualSheetChanged && booking.changeNotice ? (
+                          <div className="mt-2 rounded-lg border border-sky-300/30 bg-sky-400/15 px-3 py-2 text-xs font-semibold text-sky-100">
+                            {booking.changeNotice}
+                          </div>
+                        ) : null}
 
                         {reminder ? (
                           <div className="mt-2 rounded-lg border border-amber-300/30 bg-amber-400/15 px-3 py-2 text-xs font-semibold text-amber-100">

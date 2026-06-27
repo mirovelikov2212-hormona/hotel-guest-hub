@@ -149,6 +149,34 @@ export type MassageBootstrapResult = {
   elapsedMs?: number;
 };
 
+export type MassageCalendarSnapshotBooking = {
+  date: string;
+  startTime: string;
+  roomNumber: string;
+  roomMarker: string;
+  hotelCode: string | null;
+  isStayHubMarker: boolean;
+  sheetValue: string;
+  serviceId?: string | null;
+  serviceNameBg?: string | null;
+  durationMinutes?: number | null;
+  price?: number | null;
+  currency?: string | null;
+  sheetName?: string | null;
+  rowNumber?: number | null;
+  massageCell?: string | null;
+  roomCell?: string | null;
+};
+
+export type MassageCalendarSnapshotResult = {
+  fromDate: string;
+  daysChecked: number;
+  count: number;
+  bookings: MassageCalendarSnapshotBooking[];
+  readMode?: string;
+  elapsedMs?: number;
+};
+
 export type MassageBookingResult = {
   status: "BOOKING_WRITTEN" | "BOOKING_ALREADY_CONFIRMED";
   serviceId: string;
@@ -498,6 +526,7 @@ function getMassageReadCacheTtl(payload: Record<string, unknown>) {
   if (action === "bootstrap") return 20 * 1000;
   if (action === "bookable_dates") return 20 * 1000;
   if (action === "availability") return 8 * 1000;
+  if (action === "calendar_snapshot") return 0;
   return 0;
 }
 
@@ -665,6 +694,20 @@ export async function getMassageBootstrap(input: {
   });
 
   return response.result as MassageBootstrapResult;
+}
+
+export async function getMassageCalendarSnapshot(input: {
+  hotelSlug: unknown;
+  fromDate: string;
+  daysAhead: number;
+}) {
+  const response = await postMassageApi<MassageCalendarSnapshotResult>(input.hotelSlug, {
+    action: "calendar_snapshot",
+    fromDate: input.fromDate,
+    daysAhead: input.daysAhead,
+  });
+
+  return response.result as MassageCalendarSnapshotResult;
 }
 
 export async function getMassageServices(hotelSlug: unknown) {
