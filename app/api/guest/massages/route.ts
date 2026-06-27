@@ -590,6 +590,12 @@ async function getActiveGuestMassageBookings(input: {
     .filter(Boolean);
 }
 
+function getMassageRouteErrorSeverity(error: MassageApiError) {
+  if (error.statusCode < 500) return null;
+  if (error.alreadyLogged) return null;
+  return error.monitoringSeverity || "critical";
+}
+
 export async function GET(req: NextRequest) {
   let requestHotelId: string | null = null;
   let requestHotelMetadata: Record<string, unknown> = {};
@@ -657,10 +663,11 @@ export async function GET(req: NextRequest) {
     return json({ ok: false, code: "UNSUPPORTED_ACTION", error: "Unsupported massage action." }, 400);
   } catch (error) {
     if (error instanceof MassageApiError) {
-      if (error.statusCode >= 500) {
+      const severity = getMassageRouteErrorSeverity(error);
+      if (severity) {
         await logSystemError({
           hotelId: requestHotelId,
-          severity: "critical",
+          severity,
           source: "massage",
           eventType: error.code || "massage_get_error",
           message: "Massage GET request failed with a server-side massage error.",
@@ -864,10 +871,11 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     if (error instanceof MassageApiError) {
-      if (error.statusCode >= 500) {
+      const severity = getMassageRouteErrorSeverity(error);
+      if (severity) {
         await logSystemError({
           hotelId: requestHotelId,
-          severity: "critical",
+          severity,
           source: "massage",
           eventType: error.code || "massage_post_error",
           message: "Massage POST request failed with a server-side massage error.",

@@ -1,9 +1,13 @@
 import "server-only";
 
 import { logSystemError } from "@/lib/server/system-events";
+import type { SystemEventSeverity } from "@/lib/server/system-events";
 
 const MASSAGE_API_VERSION = "v12";
-const DEFAULT_TIMEOUT_MS = 22_000;
+const DEFAULT_TIMEOUT_MS = 12_000;
+const MASSAGE_API_MAX_ATTEMPTS = 2;
+const MASSAGE_TRANSIENT_FAILURE_WINDOW_MS = 15 * 60 * 1000;
+const MASSAGE_TRANSIENT_CRITICAL_THRESHOLD = 3;
 
 const HOTEL_SLUG_ALIASES: Record<string, string> = {
   aquamarine: "aquamarin",
@@ -66,12 +70,20 @@ type MassageApiEnvelope<T> = {
 
 type MassageServerCacheEntry = {
   expiresAt: number;
+  staleUntil: number;
   value: MassageApiEnvelope<unknown>;
+};
+
+type MassageTransientFailureState = {
+  count: number;
+  firstAt: number;
+  lastAt: number;
 };
 
 type MassageServerCacheState = {
   values: Map<string, MassageServerCacheEntry>;
   inFlight: Map<string, Promise<MassageApiEnvelope<unknown>>>;
+  transientFailures: Map<string, MassageTransientFailureState>;
 };
 
 const globalMassageCache = globalThis as typeof globalThis & {
@@ -83,6 +95,7 @@ const massageServerCache =
   (globalMassageCache.__stayhubMassageApiCache = {
     values: new Map<string, MassageServerCacheEntry>(),
     inFlight: new Map<string, Promise<MassageApiEnvelope<unknown>>>(),
+    transientFailures: new Map<string, MassageTransientFailureState>(),
   });
 
 type MassageApiConfigMap = Record<
@@ -226,11 +239,24 @@ export class MassageApiError extends Error {
   readonly statusCode: number;
   readonly code: string;
 
-  constructor(message: string, options?: { statusCode?: number; code?: string }) {
+  readonly monitoringSeverity: SystemEventSeverity | null;
+  readonly alreadyLogged: boolean;
+
+  constructor(
+    message: string,
+    options?: {
+      statusCode?: number;
+      code?: string;
+      monitoringSeverity?: SystemEventSeverity | null;
+      alreadyLogged?: boolean;
+    }
+  ) {
     super(message);
     this.name = "MassageApiError";
     this.statusCode = options?.statusCode ?? 502;
     this.code = options?.code ?? "MASSAGE_API_ERROR";
+    this.monitoringSeverity = options?.monitoringSeverity ?? null;
+    this.alreadyLogged = options?.alreadyLogged === true;
   }
 }
 
@@ -530,8 +556,202 @@ function getMassageReadCacheTtl(payload: Record<string, unknown>) {
   return 0;
 }
 
+function getMassageStaleCacheTtl(payload: Record<string, unknown>) {
+  const action = String(payload.action || "").trim().toLowerCase();
+
+  // Stale data is used only as a short production-safety fallback when Google
+  // Apps Script/Sheets is slow. Booking writes and calendar snapshots never use it.
+  if (action === "services") return 24 * 60 * 60 * 1000;
+  if (action === "bootstrap") return 15 * 60 * 1000;
+  if (action === "bookable_dates") return 10 * 60 * 1000;
+  if (action === "availability") return 5 * 60 * 1000;
+  return 0;
+}
+
+function isMassageReadAction(payload: Record<string, unknown>) {
+  const action = String(payload.action || "").trim().toLowerCase();
+  return ["services", "bootstrap", "bookable_dates", "availability"].includes(action);
+}
+
+function isTransientMassageApiCode(code: string) {
+  return ["MASSAGE_API_TIMEOUT", "MASSAGE_API_UNAVAILABLE", "MASSAGE_API_HTTP_ERROR"].includes(code);
+}
+
 function getMassageReadCacheKey(hotelSlug: string, payload: Record<string, unknown>) {
   return `${hotelSlug}:${JSON.stringify(payload)}`;
+}
+
+function getMassageTransientFailureKey(input: {
+  hotelSlug: string;
+  action: unknown;
+  code: string;
+}) {
+  return [input.hotelSlug, String(input.action || "unknown"), input.code].join(":");
+}
+
+function recordMassageTransientFailure(input: {
+  hotelSlug: string;
+  action: unknown;
+  code: string;
+}) {
+  const key = getMassageTransientFailureKey(input);
+  const now = Date.now();
+  const previous = massageServerCache.transientFailures.get(key);
+  const shouldReset = !previous || now - previous.lastAt > MASSAGE_TRANSIENT_FAILURE_WINDOW_MS;
+  const state: MassageTransientFailureState = shouldReset
+    ? { count: 1, firstAt: now, lastAt: now }
+    : { count: previous.count + 1, firstAt: previous.firstAt, lastAt: now };
+
+  massageServerCache.transientFailures.set(key, state);
+  return state;
+}
+
+function clearMassageTransientFailure(input: {
+  hotelSlug: string;
+  action: unknown;
+}) {
+  const action = String(input.action || "unknown");
+  for (const key of massageServerCache.transientFailures.keys()) {
+    if (key.startsWith(`${input.hotelSlug}:${action}:`)) {
+      massageServerCache.transientFailures.delete(key);
+    }
+  }
+}
+
+async function logMassageApiReadFailure(input: {
+  hotelSlug: string;
+  payload: Record<string, unknown>;
+  error: MassageApiError;
+  staleFallbackUsed: boolean;
+  attemptCount: number;
+}) {
+  const transient = isTransientMassageApiCode(input.error.code) && isMassageReadAction(input.payload);
+  let severity: SystemEventSeverity = input.error.statusCode >= 500 ? "critical" : "warning";
+  let transientState: MassageTransientFailureState | null = null;
+
+  if (transient) {
+    transientState = recordMassageTransientFailure({
+      hotelSlug: input.hotelSlug,
+      action: input.payload.action,
+      code: input.error.code,
+    });
+    severity = transientState.count >= MASSAGE_TRANSIENT_CRITICAL_THRESHOLD ? "critical" : "warning";
+  }
+
+  if (input.staleFallbackUsed) {
+    severity = transientState && transientState.count >= MASSAGE_TRANSIENT_CRITICAL_THRESHOLD
+      ? "critical"
+      : "warning";
+  }
+
+  await logSystemError({
+    severity,
+    source: "apps_script",
+    eventType: input.error.code || "massage_api_error",
+    message: input.staleFallbackUsed
+      ? "Massage Apps Script API request failed, but StayHub served the last successful cached response."
+      : transient
+        ? "Massage Apps Script API request failed for a read action after retry/stability handling."
+        : "Massage Apps Script API returned or caused a controlled error.",
+    error: input.error,
+    metadata: {
+      hotelSlug: input.hotelSlug,
+      action: input.payload.action || null,
+      attemptCount: input.attemptCount,
+      transientFailureCount: transientState ? transientState.count : null,
+      transientCriticalThreshold: transient ? MASSAGE_TRANSIENT_CRITICAL_THRESHOLD : null,
+      staleFallbackUsed: input.staleFallbackUsed,
+      staleFallbackAvailable: input.staleFallbackUsed,
+    },
+  });
+
+  return severity;
+}
+
+async function fetchMassageApiOnce<T>(input: {
+  config: MassageApiConfig;
+  payload: Record<string, unknown>;
+  options: PostMassageApiOptions;
+}): Promise<MassageApiEnvelope<T>> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(input.config.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...input.payload,
+        apiToken: input.config.token,
+      }),
+      cache: "no-store",
+      redirect: "follow",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new MassageApiError("Massage calendar service is temporarily unavailable.", {
+        statusCode: 502,
+        code: "MASSAGE_API_HTTP_ERROR",
+      });
+    }
+
+    const data = (await response.json().catch(() => null)) as MassageApiEnvelope<T> | null;
+
+    if (!data || typeof data !== "object") {
+      throw new MassageApiError("Massage calendar returned an invalid response.", {
+        statusCode: 502,
+        code: "INVALID_MASSAGE_API_RESPONSE",
+      });
+    }
+
+    if (data.apiVersion && data.apiVersion !== MASSAGE_API_VERSION) {
+      throw new MassageApiError("Massage calendar API version is not supported.", {
+        statusCode: 502,
+        code: "UNSUPPORTED_MASSAGE_API_VERSION",
+      });
+    }
+
+    if (!data.ok || !data.result) {
+      const isUnauthorized = data.status === "API_UNAUTHORIZED" || data.code === "INVALID_API_TOKEN";
+
+      if (input.options.allowRejectedResult && data.result && !isUnauthorized) {
+        return data;
+      }
+
+      throw new MassageApiError(
+        isUnauthorized
+          ? "Massage calendar authorization failed."
+          : "Massage calendar could not complete the request.",
+        {
+          statusCode: isUnauthorized ? 502 : 409,
+          code: String(data.code || data.status || "MASSAGE_API_REJECTED"),
+        }
+      );
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof MassageApiError) {
+      throw error;
+    }
+
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new MassageApiError("Massage calendar request timed out.", {
+        statusCode: 504,
+        code: "MASSAGE_API_TIMEOUT",
+      });
+    }
+
+    throw new MassageApiError("Massage calendar service is temporarily unavailable.", {
+      statusCode: 502,
+      code: "MASSAGE_API_UNAVAILABLE",
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function postMassageApi<T>(
@@ -541,6 +761,7 @@ async function postMassageApi<T>(
 ): Promise<MassageApiEnvelope<T>> {
   const config = getMassageApiConfig(hotelSlug);
   const cacheTtl = getMassageReadCacheTtl(payload);
+  const staleCacheTtl = getMassageStaleCacheTtl(payload);
   const cacheKey = getMassageReadCacheKey(config.hotelSlug, payload);
   const now = Date.now();
   const cached = massageServerCache.values.get(cacheKey);
@@ -549,117 +770,94 @@ async function postMassageApi<T>(
     return cached.value as MassageApiEnvelope<T>;
   }
 
-  if (cached) massageServerCache.values.delete(cacheKey);
+  if (cached && cached.staleUntil <= now) {
+    massageServerCache.values.delete(cacheKey);
+  }
 
   const existing = massageServerCache.inFlight.get(cacheKey);
   if (existing) return existing as Promise<MassageApiEnvelope<T>>;
 
   const request = (async () => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+    let lastError: MassageApiError | null = null;
+    const maxAttempts = isMassageReadAction(payload) ? MASSAGE_API_MAX_ATTEMPTS : 1;
 
-    try {
-      const response = await fetch(config.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...payload,
-          apiToken: config.token,
-        }),
-        cache: "no-store",
-        redirect: "follow",
-        signal: controller.signal,
-      });
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const result = await fetchMassageApiOnce<T>({ config, payload, options });
+        clearMassageTransientFailure({ hotelSlug: config.hotelSlug, action: payload.action });
+        return result;
+      } catch (error) {
+        const massageError = error instanceof MassageApiError
+          ? error
+          : new MassageApiError("Massage calendar service is temporarily unavailable.", {
+              statusCode: 502,
+              code: "MASSAGE_API_UNAVAILABLE",
+            });
+        lastError = massageError;
 
-      if (!response.ok) {
-        throw new MassageApiError("Massage calendar service is temporarily unavailable.", {
-          statusCode: 502,
-          code: "MASSAGE_API_HTTP_ERROR",
-        });
-      }
+        const staleCached =
+          isMassageReadAction(payload) &&
+          isTransientMassageApiCode(massageError.code) &&
+          cached &&
+          cached.staleUntil > Date.now()
+            ? cached
+            : null;
 
-      const data = (await response.json().catch(() => null)) as MassageApiEnvelope<T> | null;
-
-      if (!data || typeof data !== "object") {
-        throw new MassageApiError("Massage calendar returned an invalid response.", {
-          statusCode: 502,
-          code: "INVALID_MASSAGE_API_RESPONSE",
-        });
-      }
-
-      if (data.apiVersion && data.apiVersion !== MASSAGE_API_VERSION) {
-        throw new MassageApiError("Massage calendar API version is not supported.", {
-          statusCode: 502,
-          code: "UNSUPPORTED_MASSAGE_API_VERSION",
-        });
-      }
-
-      if (!data.ok || !data.result) {
-        const isUnauthorized = data.status === "API_UNAUTHORIZED" || data.code === "INVALID_API_TOKEN";
-
-        if (options.allowRejectedResult && data.result && !isUnauthorized) {
-          return data;
+        if (staleCached) {
+          await logMassageApiReadFailure({
+            hotelSlug: config.hotelSlug,
+            payload,
+            error: massageError,
+            staleFallbackUsed: true,
+            attemptCount: attempt,
+          });
+          return staleCached.value as MassageApiEnvelope<T>;
         }
 
-        throw new MassageApiError(
-          isUnauthorized
-            ? "Massage calendar authorization failed."
-            : "Massage calendar could not complete the request.",
-          {
-            statusCode: isUnauthorized ? 502 : 409,
-            code: String(data.code || data.status || "MASSAGE_API_REJECTED"),
-          }
-        );
-      }
+        const shouldRetry =
+          attempt < maxAttempts &&
+          isMassageReadAction(payload) &&
+          isTransientMassageApiCode(massageError.code);
 
-      return data;
-    } catch (error) {
-      if (error instanceof MassageApiError) {
-        await logSystemError({
-          severity: error.statusCode >= 500 ? "critical" : "warning",
-          source: "apps_script",
-          eventType: error.code || "massage_api_error",
-          message: "Massage Apps Script API returned or caused a controlled error.",
-          error,
-          metadata: { hotelSlug: config.hotelSlug, action: payload.action || null },
-        });
-        throw error;
-      }
+        if (shouldRetry) {
+          continue;
+        }
 
-      if (error instanceof Error && error.name === "AbortError") {
-        const timeoutError = new MassageApiError("Massage calendar request timed out.", {
-          statusCode: 504,
-          code: "MASSAGE_API_TIMEOUT",
+        const severity = await logMassageApiReadFailure({
+          hotelSlug: config.hotelSlug,
+          payload,
+          error: massageError,
+          staleFallbackUsed: false,
+          attemptCount: attempt,
         });
-        await logSystemError({
-          severity: "critical",
-          source: "apps_script",
-          eventType: timeoutError.code,
-          message: "Massage Apps Script API request timed out.",
-          error: timeoutError,
-          metadata: { hotelSlug: config.hotelSlug, action: payload.action || null },
-        });
-        throw timeoutError;
-      }
 
-      const unavailableError = new MassageApiError("Massage calendar service is temporarily unavailable.", {
-        statusCode: 502,
-        code: "MASSAGE_API_UNAVAILABLE",
-      });
-      await logSystemError({
-        severity: "critical",
-        source: "apps_script",
-        eventType: unavailableError.code,
-        message: "Massage Apps Script API request failed unexpectedly.",
-        error,
-        metadata: { hotelSlug: config.hotelSlug, action: payload.action || null },
-      });
-      throw unavailableError;
-    } finally {
-      clearTimeout(timeout);
+        throw new MassageApiError(massageError.message, {
+          statusCode: massageError.statusCode,
+          code: massageError.code,
+          monitoringSeverity: severity,
+          alreadyLogged: true,
+        });
+      }
     }
+
+    const fallbackError = lastError || new MassageApiError("Massage calendar service is temporarily unavailable.", {
+      statusCode: 502,
+      code: "MASSAGE_API_UNAVAILABLE",
+    });
+    const severity = await logMassageApiReadFailure({
+      hotelSlug: config.hotelSlug,
+      payload,
+      error: fallbackError,
+      staleFallbackUsed: false,
+      attemptCount: maxAttempts,
+    });
+
+    throw new MassageApiError(fallbackError.message, {
+      statusCode: fallbackError.statusCode,
+      code: fallbackError.code,
+      monitoringSeverity: severity,
+      alreadyLogged: true,
+    });
   })();
 
   massageServerCache.inFlight.set(
@@ -669,9 +867,10 @@ async function postMassageApi<T>(
 
   try {
     const result = await request;
-    if (cacheTtl > 0) {
+    if (cacheTtl > 0 || staleCacheTtl > 0) {
       massageServerCache.values.set(cacheKey, {
         expiresAt: Date.now() + cacheTtl,
+        staleUntil: Date.now() + Math.max(cacheTtl, staleCacheTtl),
         value: result as MassageApiEnvelope<unknown>,
       });
     }
