@@ -539,6 +539,7 @@ export default function MassageBookingSection({
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const servicesLoadPromiseRef = useRef<Promise<void> | null>(null);
+  const datesLoadPromiseRef = useRef<Map<string, Promise<BookableDatesResult>>>(new Map());
 
   const selectedService = useMemo(
     () => services.find((service) => service.serviceId === selectedServiceId) || null,
@@ -600,6 +601,83 @@ export default function MassageBookingSection({
     return task;
   }, [hotelSlug]);
 
+  const loadBookableDates = useCallback((serviceId: string, options?: { silent?: boolean }) => {
+    const fromDate = getSofiaIsoDate();
+    const cacheKey = datesCacheKey(hotelSlug, serviceId, fromDate);
+    const cached = readMassageCache<BookableDatesResult>(cacheKey);
+
+    if (cached) {
+      setAvailabilityByService((current) => (
+        current[serviceId] ? current : { ...current, [serviceId]: cached }
+      ));
+      return Promise.resolve(cached);
+    }
+
+    const requestKey = `${serviceId}:${fromDate}`;
+    const existing = datesLoadPromiseRef.current.get(requestKey);
+    if (existing) return existing;
+
+    const task = fetchMassageApi<BookableDatesResult>(
+      new URLSearchParams({
+        hotelSlug,
+        action: "bookable_dates",
+        serviceId,
+        fromDate,
+        daysAhead: "14",
+      })
+    )
+      .then((result) => {
+        setAvailabilityByService((current) => ({
+          ...current,
+          [serviceId]: result,
+        }));
+        writeMassageCache(cacheKey, result, CACHE_TTL.dates);
+
+        for (const item of result.dates || []) {
+          if (!Array.isArray(item.availableTimes) || item.availableTimes.length === 0) continue;
+          writeMassageCache(
+            timesCacheKey(hotelSlug, serviceId, item.date),
+            item.availableTimes,
+            CACHE_TTL.times
+          );
+        }
+
+        return result;
+      })
+      .catch((loadError) => {
+        if (!options?.silent) {
+          setError(loadError instanceof Error ? loadError.message : "Unable to load dates.");
+        }
+        throw loadError;
+      })
+      .finally(() => {
+        datesLoadPromiseRef.current.delete(requestKey);
+      });
+
+    datesLoadPromiseRef.current.set(requestKey, task);
+    return task;
+  }, [hotelSlug]);
+
+  useEffect(() => {
+    if (!open || !servicesLoaded || services.length === 0) return;
+
+    let cancelled = false;
+    const timerIds: number[] = [];
+
+    services.forEach((service, index) => {
+      const timerId = window.setTimeout(() => {
+        if (cancelled) return;
+        void loadBookableDates(service.serviceId, { silent: true }).catch(() => undefined);
+      }, 250 + index * 300);
+      timerIds.push(timerId);
+    });
+
+    return () => {
+      cancelled = true;
+      timerIds.forEach((timerId) => window.clearTimeout(timerId));
+    };
+  }, [loadBookableDates, open, services, servicesLoaded]);
+
   useEffect(() => {
     if (forceOpenToken <= 0) return;
     setOpen(true);
@@ -652,25 +730,8 @@ export default function MassageBookingSection({
     if (available) return;
 
     try {
-      const result = await fetchMassageApi<BookableDatesResult>(
-        new URLSearchParams({
-          hotelSlug,
-          action: "bookable_dates",
-          serviceId,
-          fromDate,
-          daysAhead: "14",
-        })
-      );
+      const result = await loadBookableDates(serviceId);
       setDates(result.dates || []);
-      setAvailabilityByService((current) => ({
-        ...current,
-        [serviceId]: result,
-      }));
-      writeMassageCache(
-        datesCacheKey(hotelSlug, serviceId, fromDate),
-        result,
-        CACHE_TTL.dates
-      );
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load dates.");
     } finally {
