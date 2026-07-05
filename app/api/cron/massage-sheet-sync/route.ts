@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMassageCalendarSnapshot, type MassageCalendarSnapshotBooking } from "@/lib/server/massage-api";
+import {
+  getMassageCalendarSnapshot,
+  MassageApiError,
+  type MassageCalendarSnapshotBooking,
+} from "@/lib/server/massage-api";
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
@@ -663,17 +667,29 @@ export async function GET(req: NextRequest) {
       { status: results.errors === 0 ? 200 : 207, headers: NO_STORE_HEADERS },
     );
   } catch (error) {
-    await logSystemError({
-      severity: "critical",
-      source: "cron",
-      eventType: "massage_sheet_sync_failed",
-      message: "Massage Sheet manual-change sync failed before completing its run.",
-      error,
-      metadata: { results },
-    });
+    const massageError = error instanceof MassageApiError ? error : null;
+    const severity = massageError?.monitoringSeverity || "critical";
+
+    if (!massageError?.alreadyLogged || severity === "critical") {
+      await logSystemError({
+        severity,
+        source: "cron",
+        eventType: "massage_sheet_sync_failed",
+        message: severity === "critical"
+          ? "Massage Sheet manual-change sync failed before completing its run."
+          : "Massage Sheet manual-change sync skipped because the massage calendar was temporarily unavailable.",
+        error,
+        metadata: {
+          results,
+          upstreamCode: massageError?.code || null,
+          upstreamAlreadyLogged: massageError?.alreadyLogged === true,
+        },
+      });
+    }
+
     return NextResponse.json(
       { ok: false, error: "Massage Sheet sync failed", results },
-      { status: 500, headers: NO_STORE_HEADERS },
+      { status: severity === "critical" ? 500 : 503, headers: NO_STORE_HEADERS },
     );
   }
 }

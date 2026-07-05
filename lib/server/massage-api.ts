@@ -570,7 +570,7 @@ function getMassageStaleCacheTtl(payload: Record<string, unknown>) {
 
 function isMassageReadAction(payload: Record<string, unknown>) {
   const action = String(payload.action || "").trim().toLowerCase();
-  return ["services", "bootstrap", "bookable_dates", "availability"].includes(action);
+  return ["services", "bootstrap", "bookable_dates", "availability", "calendar_snapshot"].includes(action);
 }
 
 function isTransientMassageApiCode(code: string) {

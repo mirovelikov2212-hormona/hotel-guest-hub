@@ -644,26 +644,16 @@ export default function MassageBookingSection({
     return task;
   }, [hotelSlug]);
 
-  // Warm the massage catalogue shortly after the Guest Hub mounts.
-  // The first Apps Script call can have cold-start latency, so doing it in
-  // the background makes the first visible section opening feel immediate.
-  useEffect(() => {
-    if (servicesLoaded) return;
-
-    const timerId = window.setTimeout(() => {
-      void loadServices();
-    }, 60);
-
-    return () => window.clearTimeout(timerId);
-  }, [loadServices, servicesLoaded]);
-
   useEffect(() => {
     if (forceOpenToken <= 0) return;
     setOpen(true);
+    if (!servicesLoaded) {
+      void loadServices();
+    }
     window.setTimeout(() => {
       sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
-  }, [forceOpenToken]);
+  }, [forceOpenToken, loadServices, servicesLoaded]);
 
   useEffect(() => {
     if (collapseToken <= 0) return;
