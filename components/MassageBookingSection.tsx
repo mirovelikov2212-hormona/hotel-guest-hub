@@ -655,7 +655,7 @@ export default function MassageBookingSection({
       const result = await fetchMassageApi<BookableDatesResult>(
         new URLSearchParams({
           hotelSlug,
-          action: "bookable_dates_summary",
+          action: "bookable_dates",
           serviceId,
           fromDate,
           daysAhead: "14",
