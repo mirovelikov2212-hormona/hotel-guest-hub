@@ -21,9 +21,9 @@ type MassageService = {
 
 type BookableDate = {
   date: string;
-  availableCount: number;
-  firstAvailableTime: string;
-  lastAvailableTime: string;
+  availableCount?: number;
+  firstAvailableTime?: string;
+  lastAvailableTime?: string;
   availableTimes?: string[];
 };
 
@@ -655,7 +655,7 @@ export default function MassageBookingSection({
       const result = await fetchMassageApi<BookableDatesResult>(
         new URLSearchParams({
           hotelSlug,
-          action: "bookable_dates",
+          action: "bookable_dates_summary",
           serviceId,
           fromDate,
           daysAhead: "14",
@@ -1090,7 +1090,9 @@ export default function MassageBookingSection({
                 <div className="mt-3 rounded-xl border p-3" style={selectedCardStyle}>
                   <div className="font-bold">{formatDate(selectedDate, lang)}</div>
                   <div className="mt-1 text-xs opacity-90">
-                    {selectedDateInfo.firstAvailableTime}–{selectedDateInfo.lastAvailableTime}
+                    {selectedDateInfo.firstAvailableTime && selectedDateInfo.lastAvailableTime
+                      ? `${selectedDateInfo.firstAvailableTime}–${selectedDateInfo.lastAvailableTime}`
+                      : copy.chooseTime}
                   </div>
                 </div>
               ) : loadingDates ? (
@@ -1108,9 +1110,11 @@ export default function MassageBookingSection({
                         style={active ? selectedCardStyle : normalCardStyle}
                       >
                         <div className="font-bold">{formatDate(item.date, lang)}</div>
-                        <div className="mt-1 text-[11px] opacity-75">
-                          {item.firstAvailableTime}–{item.lastAvailableTime}
-                        </div>
+                        {item.firstAvailableTime && item.lastAvailableTime ? (
+                          <div className="mt-1 text-[11px] opacity-75">
+                            {item.firstAvailableTime}–{item.lastAvailableTime}
+                          </div>
+                        ) : null}
                       </button>
                     );
                   })}

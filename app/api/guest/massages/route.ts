@@ -9,6 +9,7 @@ import {
   createMassageBooking,
   createMassageControlledE2EBooking,
   getMassageAvailability,
+  getMassageBookableDateSummary,
   getMassageBookableDates,
   getMassageBootstrap,
   getMassageServices,
@@ -650,6 +651,14 @@ export async function GET(req: NextRequest) {
       const fromDate = requireDate(params.get("fromDate"), "fromDate");
       const daysAhead = requireDaysAhead(params.get("daysAhead"));
       const result = await getMassageBookableDates({ hotelSlug: hotel.slug, serviceId, fromDate, daysAhead });
+      return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), result });
+    }
+
+    if (action === "bookable_dates_summary") {
+      const serviceId = requireServiceId(params.get("serviceId"));
+      const fromDate = requireDate(params.get("fromDate"), "fromDate");
+      const daysAhead = requireDaysAhead(params.get("daysAhead"));
+      const result = await getMassageBookableDateSummary({ hotelSlug: hotel.slug, serviceId, fromDate, daysAhead });
       return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), result });
     }
 

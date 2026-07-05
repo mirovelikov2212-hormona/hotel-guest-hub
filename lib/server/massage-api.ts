@@ -138,9 +138,9 @@ export type MassageAvailabilityResult = {
 
 export type MassageBookableDate = {
   date: string;
-  availableCount: number;
-  firstAvailableTime: string;
-  lastAvailableTime: string;
+  availableCount?: number;
+  firstAvailableTime?: string;
+  lastAvailableTime?: string;
   availableTimes?: string[];
 };
 
@@ -551,6 +551,7 @@ function getMassageReadCacheTtl(payload: Record<string, unknown>) {
   if (action === "services") return 30 * 60 * 1000;
   if (action === "bootstrap") return 20 * 1000;
   if (action === "bookable_dates") return 20 * 1000;
+  if (action === "bookable_dates_summary") return 20 * 1000;
   if (action === "availability") return 8 * 1000;
   if (action === "calendar_snapshot") return 0;
   return 0;
@@ -564,13 +565,14 @@ function getMassageStaleCacheTtl(payload: Record<string, unknown>) {
   if (action === "services") return 24 * 60 * 60 * 1000;
   if (action === "bootstrap") return 15 * 60 * 1000;
   if (action === "bookable_dates") return 10 * 60 * 1000;
+  if (action === "bookable_dates_summary") return 10 * 60 * 1000;
   if (action === "availability") return 5 * 60 * 1000;
   return 0;
 }
 
 function isMassageReadAction(payload: Record<string, unknown>) {
   const action = String(payload.action || "").trim().toLowerCase();
-  return ["services", "bootstrap", "bookable_dates", "availability", "calendar_snapshot"].includes(action);
+  return ["services", "bootstrap", "bookable_dates", "bookable_dates_summary", "availability", "calendar_snapshot"].includes(action);
 }
 
 function isTransientMassageApiCode(code: string) {
@@ -939,6 +941,22 @@ export async function getMassageBookableDates(input: {
 }) {
   const response = await postMassageApi<MassageBookableDatesResult>(input.hotelSlug, {
     action: "bookable_dates",
+    serviceId: input.serviceId,
+    fromDate: input.fromDate,
+    daysAhead: input.daysAhead,
+  });
+
+  return response.result as MassageBookableDatesResult;
+}
+
+export async function getMassageBookableDateSummary(input: {
+  hotelSlug: unknown;
+  serviceId: string;
+  fromDate: string;
+  daysAhead: number;
+}) {
+  const response = await postMassageApi<MassageBookableDatesResult>(input.hotelSlug, {
+    action: "bookable_dates_summary",
     serviceId: input.serviceId,
     fromDate: input.fromDate,
     daysAhead: input.daysAhead,
