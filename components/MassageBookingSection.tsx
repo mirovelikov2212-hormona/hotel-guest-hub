@@ -469,15 +469,15 @@ function writeMassageCache<T>(key: string, value: T, ttlMs: number) {
 }
 
 function servicesCacheKey(hotelSlug: string) {
-  return `stayhub:massage:v3:services:${hotelSlug}`;
+  return `stayhub:massage:v4:services:${hotelSlug}`;
 }
 
 function datesCacheKey(hotelSlug: string, serviceId: string, fromDate: string) {
-  return `stayhub:massage:v3:dates:${hotelSlug}:${serviceId}:${fromDate}`;
+  return `stayhub:massage:v4:dates:${hotelSlug}:${serviceId}:${fromDate}`;
 }
 
 function timesCacheKey(hotelSlug: string, serviceId: string, date: string) {
-  return `stayhub:massage:v3:times:${hotelSlug}:${serviceId}:${date}`;
+  return `stayhub:massage:v4:times:${hotelSlug}:${serviceId}:${date}`;
 }
 
 const normalCardStyle = {
@@ -683,7 +683,7 @@ export default function MassageBookingSection({
 
     const selectedDateOption = dates.find((item) => item.date === date);
     const cacheKey = timesCacheKey(hotelSlug, selectedServiceId, date);
-    const embeddedTimes = Array.isArray(selectedDateOption?.availableTimes)
+    const embeddedTimes = Array.isArray(selectedDateOption?.availableTimes) && selectedDateOption.availableTimes.length > 0
       ? selectedDateOption.availableTimes
       : null;
     const cachedTimes = readMassageCache<string[]>(cacheKey);
