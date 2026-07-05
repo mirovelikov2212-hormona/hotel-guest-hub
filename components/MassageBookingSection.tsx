@@ -77,15 +77,6 @@ type BookableDatesResult = {
   dates: BookableDate[];
 };
 
-type MassageBootstrapResult = {
-  fromDate: string;
-  daysChecked: number;
-  services: ServicesResult;
-  availabilityByService: Record<string, BookableDatesResult>;
-  readMode?: string;
-  elapsedMs?: number;
-};
-
 type AvailabilityResult = {
   serviceId: string;
   date: string | null;
@@ -481,10 +472,6 @@ function servicesCacheKey(hotelSlug: string) {
   return `stayhub:massage:v3:services:${hotelSlug}`;
 }
 
-function bootstrapCacheKey(hotelSlug: string, fromDate: string) {
-  return `stayhub:massage:v3:bootstrap:${hotelSlug}:${fromDate}`;
-}
-
 function datesCacheKey(hotelSlug: string, serviceId: string, fromDate: string) {
   return `stayhub:massage:v3:dates:${hotelSlug}:${serviceId}:${fromDate}`;
 }
@@ -573,13 +560,11 @@ export default function MassageBookingSection({
     }
 
     const task = (async () => {
-      const fromDate = getSofiaIsoDate();
-      const cacheKey = bootstrapCacheKey(hotelSlug, fromDate);
-      const cached = readMassageCache<MassageBootstrapResult>(cacheKey);
+      const cacheKey = servicesCacheKey(hotelSlug);
+      const cached = readMassageCache<ServicesResult>(cacheKey);
 
       if (cached) {
-        setServices(cached.services?.services || []);
-        setAvailabilityByService(cached.availabilityByService || {});
+        setServices(cached.services || []);
         setServicesLoaded(true);
         return;
       }
@@ -588,48 +573,19 @@ export default function MassageBookingSection({
       setError("");
 
       try {
-        const result = await fetchMassageApi<MassageBootstrapResult>(
+        const result = await fetchMassageApi<ServicesResult>(
           new URLSearchParams({
             hotelSlug,
-            action: "bootstrap",
-            fromDate,
-            daysAhead: "14",
+            action: "services",
           }),
           signal
         );
 
-        const nextServices = result.services?.services || [];
-        const nextAvailability = result.availabilityByService || {};
+        const nextServices = result.services || [];
 
         setServices(nextServices);
-        setAvailabilityByService(nextAvailability);
         setServicesLoaded(true);
-        writeMassageCache(cacheKey, result, CACHE_TTL.dates);
-        writeMassageCache(
-          servicesCacheKey(hotelSlug),
-          result.services,
-          CACHE_TTL.services
-        );
-
-        for (const service of nextServices) {
-          const serviceAvailability = nextAvailability[service.serviceId];
-          if (!serviceAvailability) continue;
-
-          writeMassageCache(
-            datesCacheKey(hotelSlug, service.serviceId, fromDate),
-            serviceAvailability,
-            CACHE_TTL.dates
-          );
-
-          for (const item of serviceAvailability.dates || []) {
-            if (!Array.isArray(item.availableTimes)) continue;
-            writeMassageCache(
-              timesCacheKey(hotelSlug, service.serviceId, item.date),
-              item.availableTimes,
-              CACHE_TTL.times
-            );
-          }
-        }
+        writeMassageCache(cacheKey, result, CACHE_TTL.services);
       } catch (loadError) {
         if (loadError instanceof DOMException && loadError.name === "AbortError") return;
         setError(loadError instanceof Error ? loadError.message : "Unable to load massages.");
