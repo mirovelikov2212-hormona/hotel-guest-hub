@@ -20,6 +20,13 @@ type GuestRequestRow = {
     department?: StaffDepartment;
     serviceTime?: string;
     typeLabel?: string;
+    requiresBilling?: boolean;
+    price?: string | number | null;
+    billingStatus?: string | null;
+    billingChargedAt?: string | null;
+    billingChargedByRole?: string | null;
+    billingUpdatedAt?: string | null;
+    billingUpdatedByRole?: string | null;
   } | null;
 };
 
@@ -46,6 +53,27 @@ function isValidRole(value: string): value is StaffRole {
     value === "maintenance" ||
     value === "manager"
   );
+}
+
+function isBillableMetadata(metadata: GuestRequestRow["metadata_json"]) {
+  if (!metadata) return false;
+  if (metadata.requiresBilling === true) return true;
+  return String(metadata.price ?? "").trim().length > 0;
+}
+
+function shouldAutoChargeOnCompletion(input: {
+  role: StaffRole;
+  status: StaffRequestStatus;
+  department: StaffDepartment | undefined;
+  metadata: GuestRequestRow["metadata_json"];
+}) {
+  if (input.status !== "completed") return false;
+  if (input.role !== "reception" && input.role !== "manager") return false;
+  if (input.department !== "reception") return false;
+  if (!isBillableMetadata(input.metadata)) return false;
+
+  const billingStatus = String(input.metadata?.billingStatus ?? "pending").trim().toLowerCase();
+  return billingStatus === "" || billingStatus === "pending";
 }
 
 async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
@@ -164,15 +192,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const payload: Record<string, string> = { status };
+    const payload: Record<string, unknown> = { status };
+    let autoChargedAt: string | null = null;
 
     if (status === "in_progress") {
       payload.started_at = new Date().toISOString();
     }
 
     if (status === "completed") {
-      payload.resolved_at = new Date().toISOString();
-      payload.closed_at = new Date().toISOString();
+      const completedAt = new Date().toISOString();
+      payload.resolved_at = completedAt;
+      payload.closed_at = completedAt;
+
+      if (
+        shouldAutoChargeOnCompletion({
+          role,
+          status,
+          department,
+          metadata: requestData.metadata_json,
+        })
+      ) {
+        autoChargedAt = completedAt;
+        payload.metadata_json = {
+          ...(requestData.metadata_json ?? {}),
+          requiresBilling: true,
+          billingStatus: "charged",
+          billingChargedAt: requestData.metadata_json?.billingChargedAt ?? completedAt,
+          billingChargedByRole: requestData.metadata_json?.billingChargedByRole ?? role,
+          billingUpdatedAt: completedAt,
+          billingUpdatedByRole: role,
+        };
+      }
     }
 
     const { error: updateError } = await supabaseAdmin
@@ -243,6 +293,33 @@ export async function POST(req: NextRequest) {
           previousStatus: requestData.status,
           nextStatus: status,
           serviceTime: serviceTime ?? null,
+        },
+      });
+    }
+
+    if (autoChargedAt) {
+      lifecycleEvents.push({
+        hotel_id: scope.hotelId,
+        hotel_slug: hotelSlugForEvents,
+        hotel_alias: hotelAlias,
+        environment: scope.environment,
+        scan_session_id: null,
+        room_id: null,
+        room_number: roomNumber,
+        user_session_id: null,
+        event_name: "request_billing_charged",
+        section: role,
+        label: normalizedType,
+        value: typeLabel,
+        is_test: Boolean(requestData.is_test),
+        test_expires_at: requestData.test_expires_at ?? null,
+        extra: {
+          requestId,
+          billingStatus: "charged",
+          price: requestData.metadata_json?.price ?? null,
+          autoChargedOnCompletion: true,
+          changedAt: autoChargedAt,
+          role,
         },
       });
     }
