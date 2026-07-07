@@ -50,6 +50,10 @@ type SurveyCopy = {
   notNow: string;
   skip: string;
   selectRating: string;
+  selectCategory: string;
+  writeImprovement: string;
+  writeProblem: string;
+  selectResolution: string;
   submitting: string;
   staffSignalTitle: string;
 };
@@ -128,6 +132,10 @@ const SURVEY_COPY: Record<string, SurveyCopy> = {
     notNow: "Не сега",
     skip: "Пропусни",
     selectRating: "Моля, изберете оценка.",
+    selectCategory: "Моля, изберете поне една категория.",
+    writeImprovement: "Моля, напишете кратко какво да подобрим.",
+    writeProblem: "Моля, напишете кратко какъв е проблемът. Ако няма конкретен проблем, напишете „нямаше проблем“.",
+    selectResolution: "Моля, посочете дали проблемът е решен.",
     submitting: "Изпращане...",
     staffSignalTitle: "Обратна връзка от гост",
   },
@@ -184,6 +192,10 @@ const SURVEY_COPY: Record<string, SurveyCopy> = {
     notNow: "Not now",
     skip: "Skip",
     selectRating: "Please choose a rating.",
+    selectCategory: "Please select at least one category.",
+    writeImprovement: "Please write briefly what we should improve.",
+    writeProblem: "Please briefly describe the problem. If there was no specific problem, write “no problem”.",
+    selectResolution: "Please indicate whether the problem was resolved.",
     submitting: "Sending...",
     staffSignalTitle: "Guest feedback",
   },
@@ -240,6 +252,10 @@ const SURVEY_COPY: Record<string, SurveyCopy> = {
     notNow: "Nicht jetzt",
     skip: "Überspringen",
     selectRating: "Bitte wählen Sie eine Bewertung.",
+    selectCategory: "Bitte wählen Sie mindestens eine Kategorie aus.",
+    writeImprovement: "Bitte schreiben Sie kurz, was wir verbessern sollten.",
+    writeProblem: "Bitte beschreiben Sie kurz das Problem. Wenn es kein konkretes Problem gab, schreiben Sie „kein Problem“.",
+    selectResolution: "Bitte geben Sie an, ob das Problem gelöst wurde.",
     submitting: "Wird gesendet...",
     staffSignalTitle: "Gästefeedback",
   },
@@ -296,6 +312,10 @@ const SURVEY_COPY: Record<string, SurveyCopy> = {
     notNow: "Nu acum",
     skip: "Omite",
     selectRating: "Vă rugăm să alegeți o notă.",
+    selectCategory: "Vă rugăm să selectați cel puțin o categorie.",
+    writeImprovement: "Vă rugăm să scrieți pe scurt ce ar trebui să îmbunătățim.",
+    writeProblem: "Vă rugăm să descrieți pe scurt problema. Dacă nu a existat o problemă concretă, scrieți „nicio problemă”.",
+    selectResolution: "Vă rugăm să indicați dacă problema a fost rezolvată.",
     submitting: "Se trimite...",
     staffSignalTitle: "Feedback de la oaspete",
   },
@@ -352,6 +372,10 @@ const SURVEY_COPY: Record<string, SurveyCopy> = {
     notNow: "Teď ne",
     skip: "Přeskočit",
     selectRating: "Vyberte prosím hodnocení.",
+    selectCategory: "Vyberte prosím alespoň jednu kategorii.",
+    writeImprovement: "Napište prosím krátce, co bychom měli zlepšit.",
+    writeProblem: "Stručně prosím popište problém. Pokud žádný konkrétní problém nebyl, napište „žádný problém“.",
+    selectResolution: "Uveďte prosím, zda byl problém vyřešen.",
     submitting: "Odesílání...",
     staffSignalTitle: "Zpětná vazba hosta",
   },
@@ -408,6 +432,10 @@ const SURVEY_COPY: Record<string, SurveyCopy> = {
     notNow: "Не сейчас",
     skip: "Пропустить",
     selectRating: "Пожалуйста, выберите оценку.",
+    selectCategory: "Пожалуйста, выберите хотя бы одну категорию.",
+    writeImprovement: "Пожалуйста, кратко напишите, что нам следует улучшить.",
+    writeProblem: "Пожалуйста, кратко опишите проблему. Если конкретной проблемы не было, напишите «проблем не было».",
+    selectResolution: "Пожалуйста, укажите, была ли проблема решена.",
     submitting: "Отправка...",
     staffSignalTitle: "Отзыв гостя",
   },
@@ -675,6 +703,7 @@ export default function Day3GuestSurvey({
   }, [onTrack, resetSurveyUi, step, storageKey]);
 
   const toggleCategory = useCallback((category: string) => {
+    setSubmitError("");
     setSelectedCategories((current) =>
       current.includes(category)
         ? current.filter((item) => item !== category)
@@ -683,6 +712,7 @@ export default function Day3GuestSurvey({
   }, []);
 
   const handleRatingSelect = useCallback((value: number) => {
+    setSubmitError("");
     setRating(value);
     onTrack({
       eventName: "day3_survey_rating_selected",
@@ -696,13 +726,75 @@ export default function Day3GuestSurvey({
     setStep(value >= 1 && value <= 4 ? "areas" : "improvement");
   }, [onTrack]);
 
+  const requireSurveyDetails = useCallback(() => {
+    if (rating === null) {
+      setSubmitError(copy.selectRating);
+      return false;
+    }
+
+    if (rating <= 4 && selectedCategories.length === 0) {
+      setSubmitError(copy.selectCategory);
+      setStep("areas");
+      return false;
+    }
+
+    if (rating <= 4 && !improvementText.trim()) {
+      setSubmitError(copy.writeImprovement);
+      setStep("improvement");
+      return false;
+    }
+
+    if (rating <= 3 && !problemText.trim()) {
+      setSubmitError(copy.writeProblem);
+      setStep("problem");
+      return false;
+    }
+
+    if (rating <= 3 && !resolutionStatus) {
+      setSubmitError(copy.selectResolution);
+      setStep("problem");
+      return false;
+    }
+
+    setSubmitError("");
+    return true;
+  }, [
+    copy.selectCategory,
+    copy.selectRating,
+    copy.selectResolution,
+    copy.writeImprovement,
+    copy.writeProblem,
+    improvementText,
+    problemText,
+    rating,
+    resolutionStatus,
+    selectedCategories.length,
+  ]);
+
+  const goToImprovementStep = useCallback(() => {
+    if (rating !== null && rating <= 4 && selectedCategories.length === 0) {
+      setSubmitError(copy.selectCategory);
+      return;
+    }
+
+    setSubmitError("");
+    setStep("improvement");
+  }, [copy.selectCategory, rating, selectedCategories.length]);
+
+  const goToProblemStep = useCallback(() => {
+    if (rating !== null && rating <= 4 && !improvementText.trim()) {
+      setSubmitError(copy.writeImprovement);
+      return;
+    }
+
+    setSubmitError("");
+    setStep("problem");
+  }, [copy.writeImprovement, improvementText, rating]);
+
   const submitSurvey = useCallback(async () => {
     if (submitting) return;
 
-    if (rating === null) {
-      setSubmitError(copy.selectRating);
-      return;
-    }
+    if (!requireSurveyDetails()) return;
 
     setSubmitting(true);
     setSubmitError("");
@@ -769,6 +861,7 @@ export default function Day3GuestSurvey({
     onTrack,
     problemText,
     rating,
+    requireSurveyDetails,
     resetSurveyUi,
     resolutionNote,
     resolutionStatus,
@@ -869,6 +962,12 @@ export default function Day3GuestSurvey({
                   })}
                 </div>
 
+                {submitError ? (
+                  <div className="mt-4 rounded-xl border border-rose-300/30 bg-rose-300/10 px-3 py-2 text-sm font-semibold text-rose-900">
+                    {submitError}
+                  </div>
+                ) : null}
+
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -879,7 +978,7 @@ export default function Day3GuestSurvey({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setStep("improvement")}
+                    onClick={goToImprovementStep}
                     className="rounded-xl px-4 py-3 text-sm font-semibold"
                     style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}
                   >
@@ -895,11 +994,19 @@ export default function Day3GuestSurvey({
                 <p className="mt-2 text-sm leading-6 text-[#4f5b5f]">{copy.q2Hint}</p>
                 <textarea
                   value={improvementText}
-                  onChange={(event) => setImprovementText(event.target.value.slice(0, 400))}
+                  onChange={(event) => {
+                    setSubmitError("");
+                    setImprovementText(event.target.value.slice(0, 400));
+                  }}
                   placeholder={copy.q2Placeholder}
                   rows={4}
                   className="mt-3 w-full rounded-xl border border-[#d7dcde] bg-white px-4 py-3 text-sm leading-6 text-[#202627] outline-none placeholder:text-[#7b8588] focus:border-[#43baad]"
                 />
+                {submitError ? (
+                  <div className="mt-4 rounded-xl border border-rose-300/30 bg-rose-300/10 px-3 py-2 text-sm font-semibold text-rose-900">
+                    {submitError}
+                  </div>
+                ) : null}
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -910,7 +1017,7 @@ export default function Day3GuestSurvey({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setStep("problem")}
+                    onClick={goToProblemStep}
                     className="rounded-xl px-4 py-3 text-sm font-semibold"
                     style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}
                   >
@@ -926,7 +1033,10 @@ export default function Day3GuestSurvey({
                 <p className="mt-2 text-sm leading-6 text-[#4f5b5f]">{copy.q3Hint}</p>
                 <textarea
                   value={problemText}
-                  onChange={(event) => setProblemText(event.target.value.slice(0, 400))}
+                  onChange={(event) => {
+                    setSubmitError("");
+                    setProblemText(event.target.value.slice(0, 400));
+                  }}
                   placeholder={copy.q3Placeholder}
                   rows={3}
                   className="mt-3 w-full rounded-xl border border-[#d7dcde] bg-white px-4 py-3 text-sm leading-6 text-[#202627] outline-none placeholder:text-[#7b8588] focus:border-[#43baad]"
@@ -939,7 +1049,10 @@ export default function Day3GuestSurvey({
                       <button
                         key={key}
                         type="button"
-                        onClick={() => setResolutionStatus(key)}
+                        onClick={() => {
+                          setSubmitError("");
+                          setResolutionStatus(key);
+                        }}
                         className={clsx(
                           "rounded-xl border px-3 py-2 text-left text-sm font-semibold transition",
                           resolutionStatus === key
@@ -957,7 +1070,10 @@ export default function Day3GuestSurvey({
                   <label className="text-sm font-semibold text-[#202627]">{copy.resolutionNote}</label>
                   <textarea
                     value={resolutionNote}
-                    onChange={(event) => setResolutionNote(event.target.value.slice(0, 400))}
+                    onChange={(event) => {
+                      setSubmitError("");
+                      setResolutionNote(event.target.value.slice(0, 400));
+                    }}
                     placeholder={copy.resolutionPlaceholder}
                     rows={3}
                     className="mt-2 w-full rounded-xl border border-[#d7dcde] bg-white px-4 py-3 text-sm leading-6 text-[#202627] outline-none placeholder:text-[#7b8588] focus:border-[#43baad]"

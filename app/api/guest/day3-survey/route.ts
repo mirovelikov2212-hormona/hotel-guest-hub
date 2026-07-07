@@ -35,6 +35,13 @@ function normalizeRating(value: unknown) {
   return rounded >= 1 && rounded <= 5 ? rounded : null;
 }
 
+function validationError(error: string, code: string) {
+  return NextResponse.json(
+    { ok: false, error, code },
+    { status: 400, headers: NO_STORE_HEADERS },
+  );
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
@@ -56,6 +63,22 @@ export async function POST(req: NextRequest) {
         { ok: false, error: "Missing hotelSlug, room or rating" },
         { status: 400, headers: NO_STORE_HEADERS },
       );
+    }
+
+    if (rating <= 4 && selectedCategories.length === 0) {
+      return validationError("At least one survey category is required.", "MISSING_SURVEY_CATEGORY");
+    }
+
+    if (rating <= 4 && !improvementText) {
+      return validationError("Improvement feedback is required.", "MISSING_SURVEY_IMPROVEMENT");
+    }
+
+    if (rating <= 3 && !problemText) {
+      return validationError("Problem feedback is required for critical surveys.", "MISSING_SURVEY_PROBLEM");
+    }
+
+    if (rating <= 3 && !resolutionStatus) {
+      return validationError("Resolution status is required for critical surveys.", "MISSING_SURVEY_RESOLUTION_STATUS");
     }
 
     const hotel = await getHotelByAnySlugAdmin(hotelSlug);
