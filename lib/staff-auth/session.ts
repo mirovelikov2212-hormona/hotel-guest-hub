@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { getStaffSessionCookieName, type StaffRole } from "@/lib/staff-auth/cookie-name";
 
 export const STAFF_SESSION_COOKIE = "stayhub_staff_session";
-const STAFF_SESSION_TTL_HOURS = 8;
+const DEFAULT_STAFF_SESSION_TTL_HOURS = 24 * 30;
 
 function getSessionSecret(): string {
   const secret = process.env.STAFF_SESSION_SECRET;
@@ -29,7 +29,13 @@ export function hashSessionToken(rawToken: string): string {
 
 export function getSessionExpiryDate(): Date {
   const now = new Date();
-  now.setHours(now.getHours() + STAFF_SESSION_TTL_HOURS);
+  const configuredTtlHours = Number(process.env.STAFF_SESSION_TTL_HOURS);
+  const ttlHours =
+    Number.isFinite(configuredTtlHours) && configuredTtlHours > 0
+      ? configuredTtlHours
+      : DEFAULT_STAFF_SESSION_TTL_HOURS;
+
+  now.setHours(now.getHours() + ttlHours);
   return now;
 }
 
