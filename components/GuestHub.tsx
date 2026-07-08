@@ -7430,7 +7430,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   return (
     <div className="mx-auto min-h-screen max-w-md" style={themeStyle}>
       <div className="relative">
-        <div className="relative h-[220px] sm:h-[260px] md:h-[300px] w-full overflow-hidden bg-neutral-800">
+        <div className="relative h-[220px] sm:h-[260px] md:h-[300px] w-full overflow-hidden rounded-b-[2rem] bg-neutral-800 shadow-lg">
           <img
             src={config.coverImage}
             alt={config.hotelName}
@@ -7479,12 +7479,14 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         </div>
       </div>
 
-      <div className="mt-3 px-4">
-        <InstallAppButton
-          lang={lang}
-          label={String(tUI("install_app") || "Инсталирай приложението")}
-        />
-      </div>
+      {roomConfirmed ? (
+        <div className="mt-3 px-4">
+          <InstallAppButton
+            lang={lang}
+            label={String(tUI("install_app") || "Инсталирай приложението")}
+          />
+        </div>
+      ) : null}
 
       {showGuestIntro ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4">
@@ -7529,7 +7531,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
       {!roomConfirmed ? (
         <div id="stayhub-room-confirmation" className="mt-3 scroll-mt-4 px-4">
-          <div className="rounded-2xl stayhub-panel stayhub-room-panel p-4">
+          <div className="rounded-[1.75rem] stayhub-panel stayhub-room-panel stayhub-modern-card p-4">
             <h2 className="text-base font-semibold" style={{ color: "#202627" }}>{roomCopy.cardTitle}</h2>
             <p className="mt-2 text-sm leading-6" style={{ color: "#202627" }}>{roomCopy.cardText}</p>
 
@@ -7829,7 +7831,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         <div className="space-y-3">
           {quickServiceSections.length ? (
             <section aria-label={guestNavigationLabel("quick_services_title", guestNavCopy.quickServices)}>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 {quickServiceSections.map((section) => {
                   const isLocked = !roomConfirmed && roomRequiredSectionIds.has(section.id);
                   const isSelected = openQuickServiceId === section.id;
@@ -7855,10 +7857,10 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                         });
                       }}
                       className={clsx(
-                        "min-h-[92px] rounded-2xl px-3 py-4 text-left transition active:scale-[0.99]",
+                        "stayhub-home-tile min-h-[86px] rounded-2xl px-2 py-3 text-center transition active:scale-[0.99]",
                         usePreRoomWhiteStyle
                           ? "border shadow-sm"
-                          : "stayhub-section-header",
+                          : "stayhub-home-tile-active",
                         !usePreRoomWhiteStyle && (isSelected ? "ring-2 ring-white/70" : "ring-1 ring-white/10"),
                         usePreRoomWhiteStyle && isSelected ? "ring-2 ring-neutral-900/20" : ""
                       )}
@@ -7872,12 +7874,12 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                           : undefined
                       }
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-sm font-semibold leading-5">
+                      <div className="flex h-full flex-col items-center justify-between gap-2">
+                        <span className="text-[13px] font-bold leading-4">
                           {withSectionIcon(String(section.title), section.id)}
                         </span>
                         <span
-                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-semibold"
+                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold"
                           style={
                             usePreRoomWhiteStyle
                               ? { borderColor: "#202627", color: "#202627" }
@@ -8007,7 +8009,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             </SectionGroupAccordion>
           ) : null}
 
-          {emergencyAction && emergencyAction.kind === "link" && emergencyAction.href ? (
+          {roomConfirmed && emergencyAction && emergencyAction.kind === "link" && emergencyAction.href ? (
             <a
               href={emergencyAction.href}
               onClick={() => {
@@ -8042,21 +8044,20 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         type="button"
         onClick={openAiPanel}
         className={clsx(
-          "fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold shadow-2xl transition hover:opacity-95 active:scale-[0.98]",
-          roomConfirmed ? "ring-1 ring-white/25" : "border"
+          "fixed bottom-5 left-1/2 z-40 inline-flex w-[min(92vw,24rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-2xl transition hover:opacity-95 active:scale-[0.98]",
+          roomConfirmed ? "stayhub-ai-dock ring-1 ring-white/25" : "border"
         )}
         style={
           roomConfirmed
             ? {
-                backgroundColor: "var(--stayhub-action)",
-                color: "var(--stayhub-text)",
-                right: "max(1.25rem, calc((100vw - 28rem) / 2 + 1.25rem))",
+                backgroundColor: "var(--stayhub-soft)",
+                color: "#202627",
+                borderColor: "var(--stayhub-action)",
               }
             : {
                 backgroundColor: "#F5F5F5",
                 borderColor: "#202627",
                 color: "#202627",
-                right: "max(1.25rem, calc((100vw - 28rem) / 2 + 1.25rem))",
               }
         }
         aria-label={getCurrentGuestUiText("ai_open") || guestNavCopy.askAi}

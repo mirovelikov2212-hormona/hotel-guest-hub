@@ -174,3 +174,76 @@ input.stayhub-card::placeholder {
   background: color-mix(in srgb, var(--stayhub-action, #43b5a1) 86%, var(--stayhub-soft, #f5f5f5) 14%) !important;
   color: #202627 !important;
 }
+
+/* StayHub 2026 home refresh: soft cards with Aquamarine wave accent. */
+.stayhub-modern-card,
+.stayhub-home-tile,
+.stayhub-section-shell,
+.stayhub-card,
+.stayhub-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.stayhub-modern-card::after,
+.stayhub-home-tile::after,
+.stayhub-section-shell::after,
+.stayhub-card::after {
+  content: "";
+  position: absolute;
+  left: -12%;
+  right: -12%;
+  bottom: -30px;
+  height: 72px;
+  pointer-events: none;
+  background:
+    radial-gradient(110% 90% at 20% 25%, color-mix(in srgb, var(--stayhub-action, #43b5a1) 20%, transparent) 0%, transparent 62%),
+    radial-gradient(110% 100% at 78% 10%, color-mix(in srgb, var(--stayhub-action, #43b5a1) 16%, transparent) 0%, transparent 64%),
+    linear-gradient(135deg, color-mix(in srgb, var(--stayhub-action, #43b5a1) 18%, transparent), transparent 72%);
+  opacity: 0.85;
+  border-radius: 50% 50% 0 0;
+}
+
+.stayhub-home-tile {
+  background: #f8fbfa;
+  border: 1px solid color-mix(in srgb, var(--stayhub-action, #43b5a1) 24%, #ffffff 76%);
+  color: #202627;
+  box-shadow: 0 10px 22px rgba(32, 38, 39, 0.08);
+}
+
+.stayhub-home-tile-active {
+  background: #f8fbfa;
+  border: 1px solid color-mix(in srgb, var(--stayhub-action, #43b5a1) 32%, #ffffff 68%);
+  color: #0f3f3d;
+  box-shadow: 0 10px 22px rgba(32, 38, 39, 0.08);
+}
+
+.stayhub-home-tile > *,
+.stayhub-modern-card > *,
+.stayhub-section-shell > *,
+.stayhub-card > *,
+.stayhub-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.stayhub-ai-dock {
+  border: 1px solid color-mix(in srgb, var(--stayhub-action, #43b5a1) 74%, #ffffff 26%);
+  backdrop-filter: blur(14px);
+}
+
+.stayhub-section-shell {
+  border-radius: 1.5rem;
+  border-color: color-mix(in srgb, var(--stayhub-action, #43b5a1) 32%, #ffffff 68%);
+  box-shadow: 0 12px 26px rgba(32, 38, 39, 0.08);
+}
+
+.stayhub-section-header {
+  background: #f8fbfa;
+  color: #0f3f3d;
+  border-bottom: 1px solid color-mix(in srgb, var(--stayhub-action, #43b5a1) 24%, #ffffff 76%);
+}
+
+.stayhub-section-body {
+  background: #f8fbfa;
+}
