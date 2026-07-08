@@ -7315,6 +7315,196 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     ? quickServiceSections.find((section) => section.id === openQuickServiceId) || null
     : null;
 
+  type GuestHomeTile = {
+    id: string;
+    icon: string;
+    title: string;
+    subtitle?: string;
+    section?: HubSection | null;
+    sections?: HubSection[];
+    kind?: "massage";
+    requiresRoom?: boolean;
+  };
+
+  const homeCopy = useMemo(() => {
+    const safeLang = ["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang)) ? String(lang) : "en";
+    const copy: Record<string, {
+      info: string;
+      contact: string;
+      massage: string;
+      nearby: string;
+      weather: string;
+      reviews: string;
+      more: string;
+      confirmedSubtitle: string;
+      lockedTile: string;
+    }> = {
+      bg: {
+        info: "Инфо",
+        contact: "Свържи се с нас",
+        massage: "Запази масаж",
+        nearby: "Около хотела",
+        weather: "Времето",
+        reviews: "Отзиви",
+        more: "Още",
+        confirmedSubtitle: "Благодарим! Насладете се на престоя си.",
+        lockedTile: "Отключва се след стая",
+      },
+      en: {
+        info: "Info",
+        contact: "Contact us",
+        massage: "Book massage",
+        nearby: "Around hotel",
+        weather: "Weather",
+        reviews: "Reviews",
+        more: "More",
+        confirmedSubtitle: "Thank you. Enjoy your stay.",
+        lockedTile: "Unlocks after room",
+      },
+      de: {
+        info: "Info",
+        contact: "Kontakt",
+        massage: "Massage buchen",
+        nearby: "Rund ums Hotel",
+        weather: "Wetter",
+        reviews: "Bewertungen",
+        more: "Mehr",
+        confirmedSubtitle: "Danke. Genießen Sie Ihren Aufenthalt.",
+        lockedTile: "Nach Zimmerbestätigung",
+      },
+      ro: {
+        info: "Informații",
+        contact: "Contactați-ne",
+        massage: "Rezervă masaj",
+        nearby: "În jurul hotelului",
+        weather: "Vremea",
+        reviews: "Recenzii",
+        more: "Mai mult",
+        confirmedSubtitle: "Vă mulțumim. Bucurați-vă de sejur.",
+        lockedTile: "Disponibil după cameră",
+      },
+      cs: {
+        info: "Informace",
+        contact: "Kontaktujte nás",
+        massage: "Rezervovat masáž",
+        nearby: "Okolí hotelu",
+        weather: "Počasí",
+        reviews: "Hodnocení",
+        more: "Více",
+        confirmedSubtitle: "Děkujeme. Užijte si pobyt.",
+        lockedTile: "Odemkne se po pokoji",
+      },
+      ru: {
+        info: "Информация",
+        contact: "Связаться с нами",
+        massage: "Записаться на массаж",
+        nearby: "Вокруг отеля",
+        weather: "Погода",
+        reviews: "Отзывы",
+        more: "Еще",
+        confirmedSubtitle: "Спасибо. Приятного проживания.",
+        lockedTile: "Доступно после номера",
+      },
+    };
+    return copy[safeLang] || copy.en;
+  }, [lang]);
+
+  const wifiHomeSection = quickServiceSections.find((section) => section.id === "wifi") || null;
+  const contactHomeSections = quickServiceSections.filter((section) => section.id !== "wifi");
+  const weatherHomeSection = hotelStaySections.find((section) => section.id === "weather") || null;
+  const infoHomeSections = [
+    ...(wifiHomeSection ? [wifiHomeSection] : []),
+    ...hotelStaySections.filter((section) => section.id !== "weather"),
+  ];
+  const reviewHomeSections = reviewSocialSections;
+
+  const homeTiles: GuestHomeTile[] = [];
+
+  if (infoHomeSections.length) {
+    homeTiles.push({
+      id: "info_home",
+      icon: "ℹ️",
+      title: homeCopy.info,
+      sections: infoHomeSections,
+    });
+  }
+
+  if (contactHomeSections.length) {
+    homeTiles.push({
+      id: "contact_home",
+      icon: "☎️",
+      title: homeCopy.contact,
+      sections: contactHomeSections,
+    });
+  }
+
+  if (foodEntertainmentSections.length) {
+    homeTiles.push({
+      id: "food_entertainment",
+      icon: "🍽️",
+      title: guestNavigationLabel("food_entertainment_title", guestNavCopy.foodEntertainment),
+      sections: foodEntertainmentSections,
+    });
+  }
+
+  if (massageBookingPreviewVisible) {
+    homeTiles.push({
+      id: "massage_booking",
+      icon: "💆",
+      title: homeCopy.massage,
+      kind: "massage",
+      requiresRoom: true,
+    });
+  }
+
+  if (exploreHubSection) {
+    homeTiles.push({
+      id: "explore",
+      icon: "🗺️",
+      title: homeCopy.nearby,
+      section: exploreHubSection,
+    });
+  }
+
+  if (weatherHomeSection) {
+    homeTiles.push({
+      id: "weather",
+      icon: "🌤️",
+      title: homeCopy.weather,
+      section: weatherHomeSection,
+    });
+  }
+
+  if (reviewHomeSections.length) {
+    homeTiles.push({
+      id: "reviews_social",
+      icon: "⭐",
+      title: homeCopy.reviews,
+      sections: reviewHomeSections,
+    });
+  }
+
+  if (remainingSections.length) {
+    homeTiles.push({
+      id: "more_services",
+      icon: "➕",
+      title: homeCopy.more,
+      sections: remainingSections,
+    });
+  }
+
+  const isGuestHomeTileLocked = (tile: GuestHomeTile) => {
+    if (roomConfirmed) return false;
+    if (tile.requiresRoom) return true;
+    if (tile.section && roomRequiredSectionIds.has(tile.section.id)) return true;
+    if (tile.sections?.length && tile.sections.every((section) => roomRequiredSectionIds.has(section.id))) return true;
+    return false;
+  };
+
+  const selectedHomeTile = openQuickServiceId
+    ? homeTiles.find((tile) => tile.id === openQuickServiceId) || null
+    : null;
+
   const renderHubSection = (
     sec: HubSection,
     options?: { defaultOpen?: boolean; hideHeader?: boolean; keyPrefix?: string }
@@ -7577,6 +7767,20 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         </div>
       ) : null}
 
+      {roomConfirmed && room.trim() ? (
+        <div className="mt-3 px-4">
+          <div className="stayhub-room-confirmed-card flex items-center gap-3 rounded-2xl px-4 py-3 shadow-sm">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg" aria-hidden="true">
+              ✅
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-bold">{roomCopy.confirmedState.replace("{room}", room)}</div>
+              <div className="mt-0.5 text-xs leading-5 opacity-80">{homeCopy.confirmedSubtitle}</div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {submittingRequest || showRequestSuccess ? (
         <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 w-[min(92vw,560px)] -translate-x-1/2 px-4">
           {submittingRequest ? (
@@ -7829,74 +8033,99 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
       <div className="px-4 pb-28 pt-3">
         <div className="space-y-3">
-          {quickServiceSections.length ? (
+          {homeTiles.length ? (
             <section aria-label={guestNavigationLabel("quick_services_title", guestNavCopy.quickServices)}>
               <div className="grid grid-cols-3 gap-2">
-                {quickServiceSections.map((section) => {
-                  const isLocked = !roomConfirmed && roomRequiredSectionIds.has(section.id);
-                  const isSelected = openQuickServiceId === section.id;
-                  const usePreRoomWhiteStyle = !roomConfirmed;
+                {homeTiles.map((tile) => {
+                  const isLocked = isGuestHomeTileLocked(tile);
+                  const isSelected = openQuickServiceId === tile.id;
 
                   return (
                     <button
-                      key={`quick-${section.id}`}
+                      key={`home-${tile.id}`}
                       type="button"
                       onClick={() => {
                         if (isLocked && !ensureConfirmedRoom()) return;
 
-                        const nextId = isSelected ? null : section.id;
+                        const nextId = isSelected ? null : tile.id;
                         setOpenQuickServiceId(nextId);
                         trackGuestEvent({
                           eventName: nextId ? "section_opened" : "section_closed",
                           eventCategory: "navigation",
-                          section: section.id,
-                          sectionKey: section.id,
-                          buttonKey: "quick_service",
-                          label: String(section.title || section.id),
+                          section: tile.id,
+                          sectionKey: tile.id,
+                          buttonKey: "home_tile",
+                          label: tile.title,
                           value: nextId ? "open" : "closed",
                         });
                       }}
                       className={clsx(
-                        "stayhub-home-tile min-h-[86px] rounded-2xl px-2 py-3 text-center transition active:scale-[0.99]",
-                        usePreRoomWhiteStyle
-                          ? "border shadow-sm"
-                          : "stayhub-home-tile-active",
-                        !usePreRoomWhiteStyle && (isSelected ? "ring-2 ring-white/70" : "ring-1 ring-white/10"),
-                        usePreRoomWhiteStyle && isSelected ? "ring-2 ring-neutral-900/20" : ""
+                        "stayhub-home-tile min-h-[88px] rounded-2xl px-2 py-3 text-center transition active:scale-[0.99]",
+                        isSelected ? "stayhub-home-tile-selected" : ""
                       )}
-                      style={
-                        usePreRoomWhiteStyle
-                          ? {
-                              backgroundColor: "#F5F5F5",
-                              borderColor: "#202627",
-                              color: "#202627",
-                            }
-                          : undefined
-                      }
+                      aria-expanded={isSelected}
                     >
-                      <div className="flex h-full flex-col items-center justify-between gap-2">
-                        <span className="text-[13px] font-bold leading-4">
-                          {withSectionIcon(String(section.title), section.id)}
-                        </span>
-                        <span
-                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold"
-                          style={
-                            usePreRoomWhiteStyle
-                              ? { borderColor: "#202627", color: "#202627" }
-                              : { borderColor: "rgba(255,255,255,0.35)", color: "var(--stayhub-text)" }
-                          }
-                          aria-hidden="true"
-                        >
-                          {isLocked ? "🔒" : isSelected ? "▴" : "▾"}
-                        </span>
-                      </div>
+                      <span className="text-2xl leading-none" aria-hidden="true">{tile.icon}</span>
+                      <span className="mt-2 block text-[13px] font-bold leading-4">{tile.title}</span>
+                      <span className="mt-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full border px-1 text-[11px] font-bold">
+                        {isLocked ? "🔒" : isSelected ? "▴" : "›"}
+                      </span>
                     </button>
                   );
                 })}
               </div>
 
-              {selectedQuickServiceSection ? (
-                <div className="mt-2 space-y-2">
+              {selectedHomeTile ? (
+                <div className="stayhub-home-detail mt-3 space-y-2 rounded-[1.5rem] p-3">
+                  {selectedHomeTile.kind === "massage" ? (
+                    roomConfirmed && room.trim() ? (
+                      <MassageBookingSection
+                        hotelSlug={hotelContentSlug}
+                        language={lang}
+                        room={room}
+                        roomConfirmed={roomConfirmed}
+                        protectedSubmissionEnabled={true}
+                        forceOpenToken={
+                          aiRequestNavigation?.sectionId === "massage_booking"
+                            ? aiRequestNavigation.nonce
+                            : 0
+                        }
+                        collapseToken={guestSectionsCollapseToken}
+                        onBookingConfirmed={handleMassageBookingConfirmed}
+                        onRequireRoomConfirmation={() => {
+                          window.alert(roomCopy.lockedActionAlert);
+                          window.setTimeout(() => {
+                            document
+                              .getElementById("stayhub-room-confirmation")
+                              ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }, 0);
+                        }}
+                        onTrack={trackGuestEvent}
+                      />
+                    ) : (
+                      <div id="stayhub-massage-booking" className="scroll-mt-4">
+                        <LockedSectionCard
+                          title={`💆 ${homeCopy.massage}`}
+                          message={roomCopy.lockedSectionMessage}
+                        />
+                      </div>
+                    )
+                  ) : selectedHomeTile.section ? (
+                    renderHubSection(selectedHomeTile.section, {
+                      defaultOpen: true,
+                      hideHeader: false,
+                      keyPrefix: `home-${selectedHomeTile.id}`,
+                    })
+                  ) : selectedHomeTile.sections?.length ? (
+                    selectedHomeTile.sections.map((section) =>
+                      renderHubSection(section, {
+                        keyPrefix: `home-${selectedHomeTile.id}`,
+                      })
+                    )
+                  ) : null}
+                </div>
+              ) : selectedQuickServiceSection ? (
+                <div className="stayhub-home-detail mt-3 space-y-2 rounded-[1.5rem] p-3">
                   {selectedQuickServiceSection.subtitle ? (
                     <div className="rounded-xl stayhub-card px-3 py-3 text-sm leading-5">
                       {selectedQuickServiceSection.subtitle}
@@ -7910,103 +8139,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 </div>
               ) : null}
             </section>
-          ) : null}
-
-          {massageBookingPreviewVisible ? (
-            roomConfirmed && room.trim() ? (
-              <MassageBookingSection
-                hotelSlug={hotelContentSlug}
-                language={lang}
-                room={room}
-                roomConfirmed={roomConfirmed}
-                protectedSubmissionEnabled={true}
-                forceOpenToken={
-                  aiRequestNavigation?.sectionId === "massage_booking"
-                    ? aiRequestNavigation.nonce
-                    : 0
-                }
-                collapseToken={guestSectionsCollapseToken}
-                onBookingConfirmed={handleMassageBookingConfirmed}
-                onRequireRoomConfirmation={() => {
-                  window.alert(roomCopy.lockedActionAlert);
-                  window.setTimeout(() => {
-                    document
-                      .getElementById("stayhub-room-confirmation")
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 0);
-                }}
-                onTrack={trackGuestEvent}
-              />
-            ) : (
-              <div id="stayhub-massage-booking" className="scroll-mt-4">
-                <LockedSectionCard
-                  title={`💆 ${
-                    massageBookingDef
-                      ? getRequestDefTitle(massageBookingDef)
-                      : String(tUI("massage_booking") || "Book a massage")
-                  }`}
-                  message={roomCopy.lockedSectionMessage}
-                />
-              </div>
-            )
-          ) : null}
-
-          {hotelStaySections.length ? (
-            <SectionGroupAccordion
-              id="hotel_stay"
-              title={`🏨 ${guestNavigationLabel("hotel_stay_title", guestNavCopy.hotelStay)}`}
-              forceOpenToken={aiRequestNavigation?.groupId === "hotel_stay" ? aiRequestNavigation.nonce : 0}
-              collapseToken={guestSectionsCollapseToken}
-              onTrack={trackGuestEvent}
-            >
-              {hotelStaySections.map((section) => renderHubSection(section, { keyPrefix: "hotel-stay" }))}
-            </SectionGroupAccordion>
-          ) : null}
-
-          {foodEntertainmentSections.length ? (
-            <SectionGroupAccordion
-              id="food_entertainment"
-              title={`🍽️ ${guestNavigationLabel("food_entertainment_title", guestNavCopy.foodEntertainment)}`}
-              forceOpenToken={aiRequestNavigation?.groupId === "food_entertainment" ? aiRequestNavigation.nonce : 0}
-              collapseToken={guestSectionsCollapseToken}
-              onTrack={trackGuestEvent}
-            >
-              {foodEntertainmentSections.map((section) =>
-                renderHubSection(section, { keyPrefix: "food-entertainment" })
-              )}
-            </SectionGroupAccordion>
-          ) : null}
-
-          {exploreHubSection
-            ? renderHubSection(exploreHubSection, { keyPrefix: "explore" })
-            : null}
-
-          {reviewSocialSections.length ? (
-            <SectionGroupAccordion
-              id="reviews_social"
-              title={`⭐ ${guestNavigationLabel("reviews_social_title", guestNavCopy.reviewsSocial)}`}
-              forceOpenToken={aiRequestNavigation?.groupId === "reviews_social" ? aiRequestNavigation.nonce : 0}
-              collapseToken={guestSectionsCollapseToken}
-              onTrack={trackGuestEvent}
-            >
-              {reviewSocialSections.map((section) =>
-                renderHubSection(section, { keyPrefix: "reviews-social" })
-              )}
-            </SectionGroupAccordion>
-          ) : null}
-
-          {remainingSections.length ? (
-            <SectionGroupAccordion
-              id="more_services"
-              title={`➕ ${guestNavigationLabel("more_services_title", guestNavCopy.more)}`}
-              forceOpenToken={aiRequestNavigation?.groupId === "more_services" ? aiRequestNavigation.nonce : 0}
-              collapseToken={guestSectionsCollapseToken}
-              onTrack={trackGuestEvent}
-            >
-              {remainingSections.map((section) =>
-                renderHubSection(section, { keyPrefix: "more" })
-              )}
-            </SectionGroupAccordion>
           ) : null}
 
           {roomConfirmed && emergencyAction && emergencyAction.kind === "link" && emergencyAction.href ? (

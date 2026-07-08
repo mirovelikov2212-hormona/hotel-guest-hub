@@ -175,56 +175,67 @@ input.stayhub-card::placeholder {
   color: #202627 !important;
 }
 
-/* StayHub 2026 home refresh: soft cards with Aquamarine wave accent. */
+/* StayHub 2026 home refresh: compact cards with Aquamarine wave accent. */
 .stayhub-modern-card,
 .stayhub-home-tile,
-.stayhub-section-shell,
-.stayhub-card,
-.stayhub-panel {
+.stayhub-home-detail,
+.stayhub-room-confirmed-card,
+.stayhub-ai-dock {
   position: relative;
   overflow: hidden;
 }
 
 .stayhub-modern-card::after,
 .stayhub-home-tile::after,
-.stayhub-section-shell::after,
-.stayhub-card::after {
+.stayhub-home-detail::after,
+.stayhub-room-confirmed-card::after,
+.stayhub-ai-dock::after {
   content: "";
   position: absolute;
   left: -12%;
   right: -12%;
-  bottom: -30px;
-  height: 72px;
+  bottom: -34px;
+  height: 78px;
   pointer-events: none;
   background:
-    radial-gradient(110% 90% at 20% 25%, color-mix(in srgb, var(--stayhub-action, #43b5a1) 20%, transparent) 0%, transparent 62%),
-    radial-gradient(110% 100% at 78% 10%, color-mix(in srgb, var(--stayhub-action, #43b5a1) 16%, transparent) 0%, transparent 64%),
+    radial-gradient(115% 95% at 16% 20%, color-mix(in srgb, var(--stayhub-action, #43b5a1) 22%, transparent) 0%, transparent 62%),
+    radial-gradient(115% 105% at 82% 10%, color-mix(in srgb, var(--stayhub-action, #43b5a1) 17%, transparent) 0%, transparent 64%),
     linear-gradient(135deg, color-mix(in srgb, var(--stayhub-action, #43b5a1) 18%, transparent), transparent 72%);
-  opacity: 0.85;
+  opacity: 0.88;
   border-radius: 50% 50% 0 0;
 }
 
-.stayhub-home-tile {
+.stayhub-home-tile,
+.stayhub-home-detail,
+.stayhub-room-confirmed-card {
   background: #f8fbfa;
-  border: 1px solid color-mix(in srgb, var(--stayhub-action, #43b5a1) 24%, #ffffff 76%);
-  color: #202627;
-  box-shadow: 0 10px 22px rgba(32, 38, 39, 0.08);
-}
-
-.stayhub-home-tile-active {
-  background: #f8fbfa;
-  border: 1px solid color-mix(in srgb, var(--stayhub-action, #43b5a1) 32%, #ffffff 68%);
+  border: 1px solid color-mix(in srgb, var(--stayhub-action, #43b5a1) 26%, #ffffff 74%);
   color: #0f3f3d;
   box-shadow: 0 10px 22px rgba(32, 38, 39, 0.08);
 }
 
+.stayhub-home-tile-selected {
+  border-color: color-mix(in srgb, var(--stayhub-action, #43b5a1) 66%, #ffffff 34%);
+  box-shadow: 0 12px 26px rgba(32, 38, 39, 0.12);
+}
+
 .stayhub-home-tile > *,
+.stayhub-home-detail > *,
 .stayhub-modern-card > *,
-.stayhub-section-shell > *,
-.stayhub-card > *,
-.stayhub-panel > * {
+.stayhub-room-confirmed-card > *,
+.stayhub-ai-dock > * {
   position: relative;
   z-index: 1;
+}
+
+.stayhub-home-tile span:last-child {
+  border-color: color-mix(in srgb, var(--stayhub-action, #43b5a1) 54%, #202627 46%);
+  color: #202627;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.stayhub-room-confirmed-card span:first-child {
+  background: color-mix(in srgb, var(--stayhub-action, #43b5a1) 16%, #ffffff 84%);
 }
 
 .stayhub-ai-dock {
