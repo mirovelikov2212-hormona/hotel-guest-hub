@@ -39,9 +39,9 @@ type Copy = {
 
 const COPY: Record<string, Copy> = {
   bg: {
-    title: "Включете известията",
-    text: "Получавайте важна информация по време на престоя си.",
-    enable: "Включете известията",
+    title: "Известия от хотела",
+    text: "",
+    enable: "Разреши известия",
     disable: "Изключи известията",
     enabled: "Известията са активни на това устройство.",
     denied: "Известията са блокирани. Разрешете ги от настройките на телефона за това приложение.",
@@ -52,8 +52,8 @@ const COPY: Record<string, Copy> = {
     installHint: "На iPhone: първо добавете хъба към началния екран, после разрешете известията.",
   },
   en: {
-    title: "Enable notifications",
-    text: "Receive important information during your stay.",
+    title: "Hotel notifications",
+    text: "",
     enable: "Enable notifications",
     disable: "Disable notifications",
     enabled: "Notifications are active on this device.",
@@ -65,8 +65,8 @@ const COPY: Record<string, Copy> = {
     installHint: "On iPhone: first add the hub to your Home Screen, then enable notifications.",
   },
   de: {
-    title: "Mitteilungen aktivieren",
-    text: "Erhalten Sie wichtige Informationen während Ihres Aufenthalts.",
+    title: "Hotel-Mitteilungen",
+    text: "",
     enable: "Mitteilungen aktivieren",
     disable: "Mitteilungen deaktivieren",
     enabled: "Mitteilungen sind auf diesem Gerät aktiv.",
@@ -78,8 +78,8 @@ const COPY: Record<string, Copy> = {
     installHint: "Auf dem iPhone: zuerst den Hub zum Home-Bildschirm hinzufügen, dann Mitteilungen aktivieren.",
   },
   ro: {
-    title: "Activează notificările",
-    text: "Primiți informații importante în timpul sejurului.",
+    title: "Notificări de la hotel",
+    text: "",
     enable: "Activează notificările",
     disable: "Dezactivează notificările",
     enabled: "Notificările sunt active pe acest dispozitiv.",
@@ -91,8 +91,8 @@ const COPY: Record<string, Copy> = {
     installHint: "Pe iPhone: adăugați mai întâi hub-ul pe ecranul principal, apoi activați notificările.",
   },
   cs: {
-    title: "Povolit oznámení",
-    text: "Dostávejte důležité informace během pobytu.",
+    title: "Hotelová oznámení",
+    text: "",
     enable: "Povolit oznámení",
     disable: "Vypnout oznámení",
     enabled: "Oznámení jsou na tomto zařízení aktivní.",
@@ -104,8 +104,8 @@ const COPY: Record<string, Copy> = {
     installHint: "Na iPhonu: nejprve přidejte hub na plochu, potom povolte oznámení.",
   },
   ru: {
-    title: "Разрешить уведомления",
-    text: "Получайте важную информацию во время проживания.",
+    title: "Уведомления от отеля",
+    text: "",
     enable: "Разрешить уведомления",
     disable: "Отключить уведомления",
     enabled: "Уведомления активны на этом устройстве.",
@@ -121,25 +121,6 @@ const COPY: Record<string, Copy> = {
 function normalizeLang(value: LangKey | string): keyof typeof COPY {
   const key = String(value || "").trim().toLowerCase();
   return key in COPY ? key : "en";
-}
-
-
-function NotificationBellIcon({ className = "h-6 w-6" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M18 9.5a6 6 0 1 0-12 0c0 7-2.5 7.5-2.5 7.5h17S18 16.5 18 9.5Z" />
-      <path d="M10 20a2.2 2.2 0 0 0 4 0" />
-    </svg>
-  );
 }
 
 function normalizeRoomNumber(value: unknown) {
@@ -449,46 +430,41 @@ export default function GuestSurveyPushControls({
 
   return (
     <div className="mt-3 px-4">
-      <div className="stayhub-modern-card rounded-2xl border border-[#43baad]/35 bg-white px-4 py-3 text-[#202627] shadow-sm">
-        <div className="flex items-center gap-3">
-          <span className="stayhub-notification-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#43baad]/15 text-[#168176]">
-            <NotificationBellIcon className="h-6 w-6" />
+      <div className="rounded-2xl border border-[#43baad]/35 bg-white px-4 py-3 text-[#202627] shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#43baad]/15 text-lg">
+            🔔
           </span>
-
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-bold text-[#0f3f3d]">{copy.title}</div>
-            {copy.text ? <div className="mt-1 text-xs leading-5 text-[#4b5b5c]">{copy.text}</div> : null}
-            {message && status !== "enabled" ? <div className="mt-1 text-xs font-semibold text-rose-700">{message}</div> : null}
-          </div>
 
           {status === "ready" || status === "checking" || status === "error" ? (
             <button
               type="button"
               onClick={() => void enable()}
               disabled={busy}
-              className="shrink-0 rounded-xl bg-[#43baad] px-3 py-2 text-xs font-bold text-white disabled:opacity-60"
+              className="rounded-xl bg-[#43baad] px-5 py-3 text-sm font-bold text-white disabled:opacity-60"
             >
               {busy ? copy.checking : copy.enable}
             </button>
           ) : null}
 
           {status === "enabled" ? (
-            <button
-              type="button"
-              onClick={() => void disable()}
-              disabled={busy}
-              className="shrink-0 rounded-xl border border-[#d7dcde] bg-white px-3 py-2 text-xs font-bold text-[#202627] disabled:opacity-60"
-              title={message || copy.enabled}
-            >
-              {copy.disable}
-            </button>
+            <>
+              <p className="text-xs font-semibold text-[#277b73]">{message || copy.enabled}</p>
+              <button
+                type="button"
+                onClick={() => void disable()}
+                disabled={busy}
+                className="rounded-xl border border-[#d7dcde] bg-white px-4 py-2 text-xs font-bold text-[#202627] disabled:opacity-60"
+              >
+                {copy.disable}
+              </button>
+            </>
           ) : null}
-        </div>
 
-        {status === "enabled" ? <p className="mt-2 text-xs font-semibold text-[#277b73]">{message || copy.enabled}</p> : null}
-        {status === "denied" ? <p className="mt-2 text-xs font-semibold text-rose-700">{copy.denied}</p> : null}
-        {status === "unsupported" ? <p className="mt-2 text-xs font-semibold text-amber-700">{copy.unsupported}</p> : null}
-        {status === "not_configured" ? <p className="mt-2 text-xs font-semibold text-amber-700">{copy.notConfigured}</p> : null}
+          {status === "denied" ? <p className="text-xs font-semibold text-rose-700">{copy.denied}</p> : null}
+          {status === "unsupported" ? <p className="text-xs font-semibold text-amber-700">{copy.unsupported}</p> : null}
+          {status === "not_configured" ? <p className="text-xs font-semibold text-amber-700">{copy.notConfigured}</p> : null}
+        </div>
       </div>
     </div>
   );

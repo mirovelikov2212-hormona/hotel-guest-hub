@@ -119,155 +119,6 @@ function clsx(...xs: Array<string | false | undefined | null>) {
   return xs.filter(Boolean).join(" ");
 }
 
-
-type StayHubIconName =
-  | "info"
-  | "contact"
-  | "food"
-  | "massage"
-  | "map"
-  | "weather"
-  | "reviews"
-  | "more"
-  | "lock"
-  | "chevronRight"
-  | "chevronUp"
-  | "check"
-  | "bot"
-  | "phone";
-
-function StayHubLineIcon({
-  name,
-  className = "h-6 w-6",
-}: {
-  name: StayHubIconName;
-  className?: string;
-}) {
-  const common = {
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    className,
-    "aria-hidden": true,
-  };
-
-  switch (name) {
-    case "info":
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 10.8v5" />
-          <path d="M12 7.4h.01" />
-        </svg>
-      );
-    case "contact":
-    case "phone":
-      return (
-        <svg {...common}>
-          <path d="M6.6 4.8 8.7 4a1.5 1.5 0 0 1 1.8.7l1 2a1.5 1.5 0 0 1-.3 1.7l-1 1a11.2 11.2 0 0 0 4.4 4.4l1-1a1.5 1.5 0 0 1 1.7-.3l2 1a1.5 1.5 0 0 1 .7 1.8l-.8 2.1a2.2 2.2 0 0 1-2.3 1.4C10 17.9 6.1 14 5.2 7.1a2.2 2.2 0 0 1 1.4-2.3Z" />
-        </svg>
-      );
-    case "food":
-      return (
-        <svg {...common}>
-          <path d="M7 3v8" />
-          <path d="M5 3v4.5" />
-          <path d="M9 3v4.5" />
-          <path d="M7 11v10" />
-          <path d="M17 3c-1.7 1.9-2.6 4.2-2.6 6.8 0 2 1.1 3.2 2.6 3.2" />
-          <path d="M17 3v18" />
-        </svg>
-      );
-    case "massage":
-      return (
-        <svg {...common}>
-          <path d="M4 15.5c3.6-1 6.2-.7 8 .8 1.8-1.5 4.4-1.8 8-.8" />
-          <path d="M5.5 18h13" />
-          <path d="M9 12.5c-1.7-.8-2.6-2-2.7-3.6 1.7-.2 3.1.3 4.1 1.5" />
-          <path d="M12 13c.2-3.2 1.8-5.3 4.8-6.4.3 2.7-.6 4.8-2.8 6.3" />
-          <path d="M11.8 5.2c.5.6.8 1.3.8 2.1" />
-        </svg>
-      );
-    case "map":
-      return (
-        <svg {...common}>
-          <path d="M12 21s6-5.3 6-11a6 6 0 1 0-12 0c0 5.7 6 11 6 11Z" />
-          <circle cx="12" cy="10" r="2.2" />
-        </svg>
-      );
-    case "weather":
-      return (
-        <svg {...common}>
-          <path d="M8 14.5a4.5 4.5 0 0 1 8.7-1.5h.8a3.5 3.5 0 1 1 0 7H8.4A3.4 3.4 0 0 1 8 13.2" />
-          <path d="M5 9.5h1.5" />
-          <path d="M8.2 5.7 7.1 4.6" />
-          <path d="M12.5 4v1.5" />
-          <path d="M16.8 5.7 17.9 4.6" />
-          <path d="M18.5 9.5H20" />
-          <path d="M8.7 10a3.8 3.8 0 0 1 6.7-2.3" />
-        </svg>
-      );
-    case "reviews":
-      return (
-        <svg {...common}>
-          <path d="m12 4 2.2 4.5 5 .7-3.6 3.5.8 5-4.4-2.3-4.4 2.3.8-5-3.6-3.5 5-.7L12 4Z" />
-        </svg>
-      );
-    case "more":
-      return (
-        <svg {...common}>
-          <path d="M12 5v14" />
-          <path d="M5 12h14" />
-          <path d="M5 5h3" />
-          <path d="M16 19h3" />
-        </svg>
-      );
-    case "lock":
-      return (
-        <svg {...common}>
-          <rect x="5" y="10" width="14" height="10" rx="2" />
-          <path d="M8 10V8a4 4 0 0 1 8 0v2" />
-          <path d="M12 14v2" />
-        </svg>
-      );
-    case "chevronUp":
-      return (
-        <svg {...common}>
-          <path d="m7 14 5-5 5 5" />
-        </svg>
-      );
-    case "chevronRight":
-      return (
-        <svg {...common}>
-          <path d="m9 6 6 6-6 6" />
-        </svg>
-      );
-    case "check":
-      return (
-        <svg {...common}>
-          <path d="m5 12 4 4L19 6" />
-        </svg>
-      );
-    case "bot":
-      return (
-        <svg {...common}>
-          <rect x="5" y="8" width="14" height="10" rx="3" />
-          <path d="M12 8V5" />
-          <path d="M9 13h.01" />
-          <path d="M15 13h.01" />
-          <path d="M9.5 16h5" />
-          <path d="M3.5 12v3" />
-          <path d="M20.5 12v3" />
-        </svg>
-      );
-    default:
-      return null;
-  }
-}
-
 const reDate = /^(0[1-9]|[12]\d|3[01])\.(0[1-9]|1[0-2])\.(\d{4})$/; // DD.MM.YYYY
 const reTime = /^([01]\d|2[0-3]):([0-5]\d)$/; // HH:MM
 
@@ -7464,210 +7315,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     ? quickServiceSections.find((section) => section.id === openQuickServiceId) || null
     : null;
 
-  type GuestHomeTile = {
-    id: string;
-    icon: StayHubIconName;
-    title: string;
-    subtitle?: string;
-    section?: HubSection | null;
-    sections?: HubSection[];
-    kind?: "massage";
-    requiresRoom?: boolean;
-  };
-
-  const homeCopy = useMemo(() => {
-    const safeLang = ["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang)) ? String(lang) : "en";
-    const copy: Record<string, {
-      welcome: string;
-      welcomeSubtitle: string;
-      info: string;
-      contact: string;
-      massage: string;
-      nearby: string;
-      weather: string;
-      reviews: string;
-      more: string;
-      confirmedSubtitle: string;
-      lockedTile: string;
-    }> = {
-      bg: {
-        welcome: "Добре дошли",
-        welcomeSubtitle: "Насладете се на престоя си",
-        info: "Инфо",
-        contact: "Свържи се с нас",
-        massage: "Запази масаж",
-        nearby: "Около хотела",
-        weather: "Времето",
-        reviews: "Отзиви",
-        more: "Още",
-        confirmedSubtitle: "Благодарим! Насладете се на престоя си.",
-        lockedTile: "Отключва се след стая",
-      },
-      en: {
-        welcome: "Welcome",
-        welcomeSubtitle: "Enjoy your stay",
-        info: "Info",
-        contact: "Contact us",
-        massage: "Book massage",
-        nearby: "Around hotel",
-        weather: "Weather",
-        reviews: "Reviews",
-        more: "More",
-        confirmedSubtitle: "Thank you. Enjoy your stay.",
-        lockedTile: "Unlocks after room",
-      },
-      de: {
-        welcome: "Willkommen",
-        welcomeSubtitle: "Genießen Sie Ihren Aufenthalt",
-        info: "Info",
-        contact: "Kontakt",
-        massage: "Massage buchen",
-        nearby: "Rund ums Hotel",
-        weather: "Wetter",
-        reviews: "Bewertungen",
-        more: "Mehr",
-        confirmedSubtitle: "Danke. Genießen Sie Ihren Aufenthalt.",
-        lockedTile: "Nach Zimmerbestätigung",
-      },
-      ro: {
-        welcome: "Bine ați venit",
-        welcomeSubtitle: "Bucurați-vă de sejur",
-        info: "Informații",
-        contact: "Contactați-ne",
-        massage: "Rezervă masaj",
-        nearby: "În jurul hotelului",
-        weather: "Vremea",
-        reviews: "Recenzii",
-        more: "Mai mult",
-        confirmedSubtitle: "Vă mulțumim. Bucurați-vă de sejur.",
-        lockedTile: "Disponibil după cameră",
-      },
-      cs: {
-        welcome: "Vítejte",
-        welcomeSubtitle: "Užijte si pobyt",
-        info: "Informace",
-        contact: "Kontaktujte nás",
-        massage: "Rezervovat masáž",
-        nearby: "Okolí hotelu",
-        weather: "Počasí",
-        reviews: "Hodnocení",
-        more: "Více",
-        confirmedSubtitle: "Děkujeme. Užijte si pobyt.",
-        lockedTile: "Odemkne se po pokoji",
-      },
-      ru: {
-        welcome: "Добро пожаловать",
-        welcomeSubtitle: "Наслаждайтесь отдыхом",
-        info: "Информация",
-        contact: "Связаться с нами",
-        massage: "Записаться на массаж",
-        nearby: "Вокруг отеля",
-        weather: "Погода",
-        reviews: "Отзывы",
-        more: "Еще",
-        confirmedSubtitle: "Спасибо. Приятного проживания.",
-        lockedTile: "Доступно после номера",
-      },
-    };
-    return copy[safeLang] || copy.en;
-  }, [lang]);
-
-  const wifiHomeSection = quickServiceSections.find((section) => section.id === "wifi") || null;
-  const contactHomeSections = quickServiceSections.filter((section) => section.id !== "wifi");
-  const weatherHomeSection = hotelStaySections.find((section) => section.id === "weather") || null;
-  const infoHomeSections = [
-    ...(wifiHomeSection ? [wifiHomeSection] : []),
-    ...hotelStaySections.filter((section) => section.id !== "weather"),
-  ];
-  const reviewHomeSections = reviewSocialSections;
-
-  const homeTiles: GuestHomeTile[] = [];
-
-  if (infoHomeSections.length) {
-    homeTiles.push({
-      id: "info_home",
-      icon: "info",
-      title: homeCopy.info,
-      sections: infoHomeSections,
-    });
-  }
-
-  if (contactHomeSections.length) {
-    homeTiles.push({
-      id: "contact_home",
-      icon: "contact",
-      title: homeCopy.contact,
-      sections: contactHomeSections,
-    });
-  }
-
-  if (foodEntertainmentSections.length) {
-    homeTiles.push({
-      id: "food_entertainment",
-      icon: "food",
-      title: guestNavigationLabel("food_entertainment_title", guestNavCopy.foodEntertainment),
-      sections: foodEntertainmentSections,
-    });
-  }
-
-  if (massageBookingPreviewVisible) {
-    homeTiles.push({
-      id: "massage_booking",
-      icon: "massage",
-      title: homeCopy.massage,
-      kind: "massage",
-      requiresRoom: true,
-    });
-  }
-
-  if (exploreHubSection) {
-    homeTiles.push({
-      id: "explore",
-      icon: "map",
-      title: homeCopy.nearby,
-      section: exploreHubSection,
-    });
-  }
-
-  if (weatherHomeSection) {
-    homeTiles.push({
-      id: "weather",
-      icon: "weather",
-      title: homeCopy.weather,
-      section: weatherHomeSection,
-    });
-  }
-
-  if (reviewHomeSections.length) {
-    homeTiles.push({
-      id: "reviews_social",
-      icon: "reviews",
-      title: homeCopy.reviews,
-      sections: reviewHomeSections,
-    });
-  }
-
-  if (remainingSections.length) {
-    homeTiles.push({
-      id: "more_services",
-      icon: "more",
-      title: homeCopy.more,
-      sections: remainingSections,
-    });
-  }
-
-  const isGuestHomeTileLocked = (tile: GuestHomeTile) => {
-    if (roomConfirmed) return false;
-    if (tile.requiresRoom) return true;
-    if (tile.section && roomRequiredSectionIds.has(tile.section.id)) return true;
-    if (tile.sections?.length && tile.sections.every((section) => roomRequiredSectionIds.has(section.id))) return true;
-    return false;
-  };
-
-  const selectedHomeTile = openQuickServiceId
-    ? homeTiles.find((tile) => tile.id === openQuickServiceId) || null
-    : null;
-
   const renderHubSection = (
     sec: HubSection,
     options?: { defaultOpen?: boolean; hideHeader?: boolean; keyPrefix?: string }
@@ -7781,28 +7428,45 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   );
 
   return (
-    <div className="mx-auto min-h-screen max-w-md stayhub-guest-shell" style={themeStyle}>
+    <div className="mx-auto min-h-screen max-w-md" style={themeStyle}>
       <div className="relative">
-        <div className="relative h-[230px] sm:h-[270px] md:h-[310px] w-full overflow-hidden rounded-b-[2rem] bg-neutral-800 shadow-lg">
+        <div className="relative h-[220px] sm:h-[260px] md:h-[300px] w-full overflow-hidden bg-neutral-800">
           <img
             src={config.coverImage}
             alt={config.hotelName}
             className="h-full w-full object-cover"
             style={{ objectPosition: config.coverImagePosition || "center center" }}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-white/82 via-white/10 to-neutral-950/62" />
-          <div className="stayhub-hero-glow absolute inset-0" />
+        </div>
 
-          <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-3">
-            <div className="stayhub-wordmark" aria-label="StayHub">
-              <div className="stayhub-wordmark-title">StayHub</div>
-              <div className="stayhub-wordmark-subtitle">Your hotel hub</div>
+        <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-neutral-950/20 to-transparent" />
+
+        <div className="absolute bottom-0 left-0 right-0 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-semibold leading-tight text-white drop-shadow-md">{config.hotelName}</h1>
+              <p className="mt-1 text-sm text-neutral-200">{tUI("hero_subtitle")}</p>
+
+              {room ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <div className="inline-flex rounded-full bg-neutral-900/70 px-3 py-1 text-xs font-semibold text-neutral-100 ring-1 ring-neutral-700">
+                    {roomCopy.roomBadge.replace("{room}", room)}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={startRoomChangeFlow}
+                    className="inline-flex rounded-full bg-neutral-900/70 px-3 py-1 text-xs font-semibold text-neutral-100 ring-1 ring-neutral-700 transition hover:bg-neutral-900/90"
+                  >
+                    {roomCopy.changeRoom}
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <select
               value={String(lang)}
               onChange={(e) => setLang(e.target.value as LangKey)}
-              className="stayhub-language-select rounded-2xl px-3 py-2 text-sm font-bold outline-none"
+              className="rounded-xl bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none ring-1 ring-neutral-700"
               aria-label="Language"
             >
               {config.languages.map((l) => (
@@ -7812,39 +7476,15 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               ))}
             </select>
           </div>
-
-          <div className="absolute bottom-0 left-0 right-0 px-4 pb-5">
-            <h1 className="stayhub-hero-title text-[2.35rem] font-semibold leading-none text-white drop-shadow-md">
-              {homeCopy.welcome}
-            </h1>
-            <p className="mt-2 text-base font-medium text-white/90 drop-shadow-sm">{homeCopy.welcomeSubtitle}</p>
-
-            {room ? (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <div className="stayhub-hero-pill inline-flex rounded-full px-3 py-1 text-xs font-bold">
-                  {roomCopy.roomBadge.replace("{room}", room)}
-                </div>
-                <button
-                  type="button"
-                  onClick={startRoomChangeFlow}
-                  className="stayhub-hero-pill inline-flex rounded-full px-3 py-1 text-xs font-bold transition active:scale-[0.99]"
-                >
-                  {roomCopy.changeRoom}
-                </button>
-              </div>
-            ) : null}
-          </div>
         </div>
       </div>
 
-      {roomConfirmed ? (
-        <div className="mt-3 px-4">
-          <InstallAppButton
-            lang={lang}
-            label={String(tUI("install_app") || "Инсталирай приложението")}
-          />
-        </div>
-      ) : null}
+      <div className="mt-3 px-4">
+        <InstallAppButton
+          lang={lang}
+          label={String(tUI("install_app") || "Инсталирай приложението")}
+        />
+      </div>
 
       {showGuestIntro ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4">
@@ -7889,7 +7529,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
       {!roomConfirmed ? (
         <div id="stayhub-room-confirmation" className="mt-3 scroll-mt-4 px-4">
-          <div className="rounded-[1.75rem] stayhub-panel stayhub-room-panel stayhub-modern-card p-4">
+          <div className="rounded-2xl stayhub-panel stayhub-room-panel p-4">
             <h2 className="text-base font-semibold" style={{ color: "#202627" }}>{roomCopy.cardTitle}</h2>
             <p className="mt-2 text-sm leading-6" style={{ color: "#202627" }}>{roomCopy.cardText}</p>
 
@@ -7930,20 +7570,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
             <div className="mt-3 rounded-xl stayhub-card px-3 py-3 text-sm text-[color:var(--stayhub-soft)]">
               {roomCopy.lockedNotice}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {roomConfirmed && room.trim() ? (
-        <div className="mt-3 px-4">
-          <div className="stayhub-room-confirmed-card flex items-center gap-3 rounded-2xl px-4 py-3 shadow-sm">
-            <span className="stayhub-room-confirmed-icon" aria-hidden="true">
-              <StayHubLineIcon name="check" className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <div className="text-sm font-bold">{roomCopy.confirmedState.replace("{room}", room)}</div>
-              <div className="mt-0.5 text-xs leading-5 opacity-80">{homeCopy.confirmedSubtitle}</div>
             </div>
           </div>
         </div>
@@ -8201,108 +7827,74 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
       <div className="px-4 pb-28 pt-3">
         <div className="space-y-3">
-          {homeTiles.length ? (
+          {quickServiceSections.length ? (
             <section aria-label={guestNavigationLabel("quick_services_title", guestNavCopy.quickServices)}>
-              <div className="grid grid-cols-3 gap-3">
-                {homeTiles.map((tile) => {
-                  const isLocked = isGuestHomeTileLocked(tile);
-                  const isSelected = openQuickServiceId === tile.id;
+              <div className="grid grid-cols-2 gap-3">
+                {quickServiceSections.map((section) => {
+                  const isLocked = !roomConfirmed && roomRequiredSectionIds.has(section.id);
+                  const isSelected = openQuickServiceId === section.id;
+                  const usePreRoomWhiteStyle = !roomConfirmed;
 
                   return (
                     <button
-                      key={`home-${tile.id}`}
+                      key={`quick-${section.id}`}
                       type="button"
                       onClick={() => {
                         if (isLocked && !ensureConfirmedRoom()) return;
 
-                        const nextId = isSelected ? null : tile.id;
+                        const nextId = isSelected ? null : section.id;
                         setOpenQuickServiceId(nextId);
                         trackGuestEvent({
                           eventName: nextId ? "section_opened" : "section_closed",
                           eventCategory: "navigation",
-                          section: tile.id,
-                          sectionKey: tile.id,
-                          buttonKey: "home_tile",
-                          label: tile.title,
+                          section: section.id,
+                          sectionKey: section.id,
+                          buttonKey: "quick_service",
+                          label: String(section.title || section.id),
                           value: nextId ? "open" : "closed",
                         });
                       }}
                       className={clsx(
-                        "stayhub-home-tile min-h-[112px] rounded-[1.35rem] px-2.5 py-3 text-center transition active:scale-[0.99]",
-                        isSelected ? "stayhub-home-tile-selected" : "",
-                        isLocked ? "stayhub-home-tile-locked" : ""
+                        "min-h-[92px] rounded-2xl px-3 py-4 text-left transition active:scale-[0.99]",
+                        usePreRoomWhiteStyle
+                          ? "border shadow-sm"
+                          : "stayhub-section-header",
+                        !usePreRoomWhiteStyle && (isSelected ? "ring-2 ring-white/70" : "ring-1 ring-white/10"),
+                        usePreRoomWhiteStyle && isSelected ? "ring-2 ring-neutral-900/20" : ""
                       )}
-                      aria-expanded={isSelected}
+                      style={
+                        usePreRoomWhiteStyle
+                          ? {
+                              backgroundColor: "#F5F5F5",
+                              borderColor: "#202627",
+                              color: "#202627",
+                            }
+                          : undefined
+                      }
                     >
-                      <span className="stayhub-home-icon" aria-hidden="true">
-                        <StayHubLineIcon name={tile.icon} className="h-7 w-7" />
-                      </span>
-                      <span className="stayhub-home-title">{tile.title}</span>
-                      <span className="stayhub-home-indicator" aria-hidden="true">
-                        {isLocked ? (
-                          <StayHubLineIcon name="lock" className="h-3.5 w-3.5" />
-                        ) : isSelected ? (
-                          <StayHubLineIcon name="chevronUp" className="h-4 w-4" />
-                        ) : (
-                          <StayHubLineIcon name="chevronRight" className="h-4 w-4" />
-                        )}
-                      </span>
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-sm font-semibold leading-5">
+                          {withSectionIcon(String(section.title), section.id)}
+                        </span>
+                        <span
+                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-semibold"
+                          style={
+                            usePreRoomWhiteStyle
+                              ? { borderColor: "#202627", color: "#202627" }
+                              : { borderColor: "rgba(255,255,255,0.35)", color: "var(--stayhub-text)" }
+                          }
+                          aria-hidden="true"
+                        >
+                          {isLocked ? "🔒" : isSelected ? "▴" : "▾"}
+                        </span>
+                      </div>
                     </button>
                   );
                 })}
               </div>
 
-              {selectedHomeTile ? (
-                <div className="stayhub-home-detail mt-3 space-y-2 rounded-[1.5rem] p-3">
-                  {selectedHomeTile.kind === "massage" ? (
-                    roomConfirmed && room.trim() ? (
-                      <MassageBookingSection
-                        hotelSlug={hotelContentSlug}
-                        language={lang}
-                        room={room}
-                        roomConfirmed={roomConfirmed}
-                        protectedSubmissionEnabled={true}
-                        forceOpenToken={
-                          aiRequestNavigation?.sectionId === "massage_booking"
-                            ? aiRequestNavigation.nonce
-                            : 0
-                        }
-                        collapseToken={guestSectionsCollapseToken}
-                        onBookingConfirmed={handleMassageBookingConfirmed}
-                        onRequireRoomConfirmation={() => {
-                          window.alert(roomCopy.lockedActionAlert);
-                          window.setTimeout(() => {
-                            document
-                              .getElementById("stayhub-room-confirmation")
-                              ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                          }, 0);
-                        }}
-                        onTrack={trackGuestEvent}
-                      />
-                    ) : (
-                      <div id="stayhub-massage-booking" className="scroll-mt-4">
-                        <LockedSectionCard
-                          title={homeCopy.massage}
-                          message={roomCopy.lockedSectionMessage}
-                        />
-                      </div>
-                    )
-                  ) : selectedHomeTile.section ? (
-                    renderHubSection(selectedHomeTile.section, {
-                      defaultOpen: true,
-                      hideHeader: false,
-                      keyPrefix: `home-${selectedHomeTile.id}`,
-                    })
-                  ) : selectedHomeTile.sections?.length ? (
-                    selectedHomeTile.sections.map((section) =>
-                      renderHubSection(section, {
-                        keyPrefix: `home-${selectedHomeTile.id}`,
-                      })
-                    )
-                  ) : null}
-                </div>
-              ) : selectedQuickServiceSection ? (
-                <div className="stayhub-home-detail mt-3 space-y-2 rounded-[1.5rem] p-3">
+              {selectedQuickServiceSection ? (
+                <div className="mt-2 space-y-2">
                   {selectedQuickServiceSection.subtitle ? (
                     <div className="rounded-xl stayhub-card px-3 py-3 text-sm leading-5">
                       {selectedQuickServiceSection.subtitle}
@@ -8318,7 +7910,104 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             </section>
           ) : null}
 
-          {roomConfirmed && emergencyAction && emergencyAction.kind === "link" && emergencyAction.href ? (
+          {massageBookingPreviewVisible ? (
+            roomConfirmed && room.trim() ? (
+              <MassageBookingSection
+                hotelSlug={hotelContentSlug}
+                language={lang}
+                room={room}
+                roomConfirmed={roomConfirmed}
+                protectedSubmissionEnabled={true}
+                forceOpenToken={
+                  aiRequestNavigation?.sectionId === "massage_booking"
+                    ? aiRequestNavigation.nonce
+                    : 0
+                }
+                collapseToken={guestSectionsCollapseToken}
+                onBookingConfirmed={handleMassageBookingConfirmed}
+                onRequireRoomConfirmation={() => {
+                  window.alert(roomCopy.lockedActionAlert);
+                  window.setTimeout(() => {
+                    document
+                      .getElementById("stayhub-room-confirmation")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 0);
+                }}
+                onTrack={trackGuestEvent}
+              />
+            ) : (
+              <div id="stayhub-massage-booking" className="scroll-mt-4">
+                <LockedSectionCard
+                  title={`💆 ${
+                    massageBookingDef
+                      ? getRequestDefTitle(massageBookingDef)
+                      : String(tUI("massage_booking") || "Book a massage")
+                  }`}
+                  message={roomCopy.lockedSectionMessage}
+                />
+              </div>
+            )
+          ) : null}
+
+          {hotelStaySections.length ? (
+            <SectionGroupAccordion
+              id="hotel_stay"
+              title={`🏨 ${guestNavigationLabel("hotel_stay_title", guestNavCopy.hotelStay)}`}
+              forceOpenToken={aiRequestNavigation?.groupId === "hotel_stay" ? aiRequestNavigation.nonce : 0}
+              collapseToken={guestSectionsCollapseToken}
+              onTrack={trackGuestEvent}
+            >
+              {hotelStaySections.map((section) => renderHubSection(section, { keyPrefix: "hotel-stay" }))}
+            </SectionGroupAccordion>
+          ) : null}
+
+          {foodEntertainmentSections.length ? (
+            <SectionGroupAccordion
+              id="food_entertainment"
+              title={`🍽️ ${guestNavigationLabel("food_entertainment_title", guestNavCopy.foodEntertainment)}`}
+              forceOpenToken={aiRequestNavigation?.groupId === "food_entertainment" ? aiRequestNavigation.nonce : 0}
+              collapseToken={guestSectionsCollapseToken}
+              onTrack={trackGuestEvent}
+            >
+              {foodEntertainmentSections.map((section) =>
+                renderHubSection(section, { keyPrefix: "food-entertainment" })
+              )}
+            </SectionGroupAccordion>
+          ) : null}
+
+          {exploreHubSection
+            ? renderHubSection(exploreHubSection, { keyPrefix: "explore" })
+            : null}
+
+          {reviewSocialSections.length ? (
+            <SectionGroupAccordion
+              id="reviews_social"
+              title={`⭐ ${guestNavigationLabel("reviews_social_title", guestNavCopy.reviewsSocial)}`}
+              forceOpenToken={aiRequestNavigation?.groupId === "reviews_social" ? aiRequestNavigation.nonce : 0}
+              collapseToken={guestSectionsCollapseToken}
+              onTrack={trackGuestEvent}
+            >
+              {reviewSocialSections.map((section) =>
+                renderHubSection(section, { keyPrefix: "reviews-social" })
+              )}
+            </SectionGroupAccordion>
+          ) : null}
+
+          {remainingSections.length ? (
+            <SectionGroupAccordion
+              id="more_services"
+              title={`➕ ${guestNavigationLabel("more_services_title", guestNavCopy.more)}`}
+              forceOpenToken={aiRequestNavigation?.groupId === "more_services" ? aiRequestNavigation.nonce : 0}
+              collapseToken={guestSectionsCollapseToken}
+              onTrack={trackGuestEvent}
+            >
+              {remainingSections.map((section) =>
+                renderHubSection(section, { keyPrefix: "more" })
+              )}
+            </SectionGroupAccordion>
+          ) : null}
+
+          {emergencyAction && emergencyAction.kind === "link" && emergencyAction.href ? (
             <a
               href={emergencyAction.href}
               onClick={() => {
@@ -8341,7 +8030,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 </div>
                 <div className="mt-1 text-xs opacity-85">{emergencyAction.label}</div>
               </div>
-              <span className="stayhub-emergency-icon" aria-hidden="true"><StayHubLineIcon name="phone" className="h-5 w-5" /></span>
+              <span className="text-xl">☎️</span>
             </a>
           ) : null}
         </div>
@@ -8353,25 +8042,26 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         type="button"
         onClick={openAiPanel}
         className={clsx(
-          "fixed bottom-5 left-1/2 z-40 inline-flex w-[min(92vw,24rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-2xl transition hover:opacity-95 active:scale-[0.98]",
-          roomConfirmed ? "stayhub-ai-dock ring-1 ring-white/25" : "border"
+          "fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold shadow-2xl transition hover:opacity-95 active:scale-[0.98]",
+          roomConfirmed ? "ring-1 ring-white/25" : "border"
         )}
         style={
           roomConfirmed
             ? {
-                backgroundColor: "var(--stayhub-soft)",
-                color: "#202627",
-                borderColor: "var(--stayhub-action)",
+                backgroundColor: "var(--stayhub-action)",
+                color: "var(--stayhub-text)",
+                right: "max(1.25rem, calc((100vw - 28rem) / 2 + 1.25rem))",
               }
             : {
                 backgroundColor: "#F5F5F5",
                 borderColor: "#202627",
                 color: "#202627",
+                right: "max(1.25rem, calc((100vw - 28rem) / 2 + 1.25rem))",
               }
         }
         aria-label={getCurrentGuestUiText("ai_open") || guestNavCopy.askAi}
       >
-        <span className="stayhub-ai-icon" aria-hidden="true"><StayHubLineIcon name="bot" className="h-5 w-5" /></span>
+        <span className="text-lg">🤖</span>
         <span>{guestNavigationLabel("ask_ai", guestNavCopy.askAi)}</span>
         {!roomConfirmed ? (
           <span
@@ -8379,7 +8069,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             style={{ borderColor: "#202627", color: "#202627" }}
             aria-hidden="true"
           >
-            <StayHubLineIcon name="lock" className="h-3.5 w-3.5" />
+            🔒
           </span>
         ) : null}
       </button>
