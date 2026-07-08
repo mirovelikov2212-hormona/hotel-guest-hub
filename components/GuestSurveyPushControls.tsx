@@ -123,6 +123,25 @@ function normalizeLang(value: LangKey | string): keyof typeof COPY {
   return key in COPY ? key : "en";
 }
 
+
+function NotificationBellIcon({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M18 9.5a6 6 0 1 0-12 0c0 7-2.5 7.5-2.5 7.5h17S18 16.5 18 9.5Z" />
+      <path d="M10 20a2.2 2.2 0 0 0 4 0" />
+    </svg>
+  );
+}
+
 function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
 }
@@ -432,8 +451,8 @@ export default function GuestSurveyPushControls({
     <div className="mt-3 px-4">
       <div className="stayhub-modern-card rounded-2xl border border-[#43baad]/35 bg-white px-4 py-3 text-[#202627] shadow-sm">
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#43baad]/15 text-xl">
-            🔔
+          <span className="stayhub-notification-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#43baad]/15 text-[#168176]">
+            <NotificationBellIcon className="h-6 w-6" />
           </span>
 
           <div className="min-w-0 flex-1">

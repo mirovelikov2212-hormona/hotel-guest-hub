@@ -119,6 +119,155 @@ function clsx(...xs: Array<string | false | undefined | null>) {
   return xs.filter(Boolean).join(" ");
 }
 
+
+type StayHubIconName =
+  | "info"
+  | "contact"
+  | "food"
+  | "massage"
+  | "map"
+  | "weather"
+  | "reviews"
+  | "more"
+  | "lock"
+  | "chevronRight"
+  | "chevronUp"
+  | "check"
+  | "bot"
+  | "phone";
+
+function StayHubLineIcon({
+  name,
+  className = "h-6 w-6",
+}: {
+  name: StayHubIconName;
+  className?: string;
+}) {
+  const common = {
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    className,
+    "aria-hidden": true,
+  };
+
+  switch (name) {
+    case "info":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 10.8v5" />
+          <path d="M12 7.4h.01" />
+        </svg>
+      );
+    case "contact":
+    case "phone":
+      return (
+        <svg {...common}>
+          <path d="M6.6 4.8 8.7 4a1.5 1.5 0 0 1 1.8.7l1 2a1.5 1.5 0 0 1-.3 1.7l-1 1a11.2 11.2 0 0 0 4.4 4.4l1-1a1.5 1.5 0 0 1 1.7-.3l2 1a1.5 1.5 0 0 1 .7 1.8l-.8 2.1a2.2 2.2 0 0 1-2.3 1.4C10 17.9 6.1 14 5.2 7.1a2.2 2.2 0 0 1 1.4-2.3Z" />
+        </svg>
+      );
+    case "food":
+      return (
+        <svg {...common}>
+          <path d="M7 3v8" />
+          <path d="M5 3v4.5" />
+          <path d="M9 3v4.5" />
+          <path d="M7 11v10" />
+          <path d="M17 3c-1.7 1.9-2.6 4.2-2.6 6.8 0 2 1.1 3.2 2.6 3.2" />
+          <path d="M17 3v18" />
+        </svg>
+      );
+    case "massage":
+      return (
+        <svg {...common}>
+          <path d="M4 15.5c3.6-1 6.2-.7 8 .8 1.8-1.5 4.4-1.8 8-.8" />
+          <path d="M5.5 18h13" />
+          <path d="M9 12.5c-1.7-.8-2.6-2-2.7-3.6 1.7-.2 3.1.3 4.1 1.5" />
+          <path d="M12 13c.2-3.2 1.8-5.3 4.8-6.4.3 2.7-.6 4.8-2.8 6.3" />
+          <path d="M11.8 5.2c.5.6.8 1.3.8 2.1" />
+        </svg>
+      );
+    case "map":
+      return (
+        <svg {...common}>
+          <path d="M12 21s6-5.3 6-11a6 6 0 1 0-12 0c0 5.7 6 11 6 11Z" />
+          <circle cx="12" cy="10" r="2.2" />
+        </svg>
+      );
+    case "weather":
+      return (
+        <svg {...common}>
+          <path d="M8 14.5a4.5 4.5 0 0 1 8.7-1.5h.8a3.5 3.5 0 1 1 0 7H8.4A3.4 3.4 0 0 1 8 13.2" />
+          <path d="M5 9.5h1.5" />
+          <path d="M8.2 5.7 7.1 4.6" />
+          <path d="M12.5 4v1.5" />
+          <path d="M16.8 5.7 17.9 4.6" />
+          <path d="M18.5 9.5H20" />
+          <path d="M8.7 10a3.8 3.8 0 0 1 6.7-2.3" />
+        </svg>
+      );
+    case "reviews":
+      return (
+        <svg {...common}>
+          <path d="m12 4 2.2 4.5 5 .7-3.6 3.5.8 5-4.4-2.3-4.4 2.3.8-5-3.6-3.5 5-.7L12 4Z" />
+        </svg>
+      );
+    case "more":
+      return (
+        <svg {...common}>
+          <path d="M12 5v14" />
+          <path d="M5 12h14" />
+          <path d="M5 5h3" />
+          <path d="M16 19h3" />
+        </svg>
+      );
+    case "lock":
+      return (
+        <svg {...common}>
+          <rect x="5" y="10" width="14" height="10" rx="2" />
+          <path d="M8 10V8a4 4 0 0 1 8 0v2" />
+          <path d="M12 14v2" />
+        </svg>
+      );
+    case "chevronUp":
+      return (
+        <svg {...common}>
+          <path d="m7 14 5-5 5 5" />
+        </svg>
+      );
+    case "chevronRight":
+      return (
+        <svg {...common}>
+          <path d="m9 6 6 6-6 6" />
+        </svg>
+      );
+    case "check":
+      return (
+        <svg {...common}>
+          <path d="m5 12 4 4L19 6" />
+        </svg>
+      );
+    case "bot":
+      return (
+        <svg {...common}>
+          <rect x="5" y="8" width="14" height="10" rx="3" />
+          <path d="M12 8V5" />
+          <path d="M9 13h.01" />
+          <path d="M15 13h.01" />
+          <path d="M9.5 16h5" />
+          <path d="M3.5 12v3" />
+          <path d="M20.5 12v3" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
 const reDate = /^(0[1-9]|[12]\d|3[01])\.(0[1-9]|1[0-2])\.(\d{4})$/; // DD.MM.YYYY
 const reTime = /^([01]\d|2[0-3]):([0-5]\d)$/; // HH:MM
 
@@ -7317,7 +7466,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
   type GuestHomeTile = {
     id: string;
-    icon: string;
+    icon: StayHubIconName;
     title: string;
     subtitle?: string;
     section?: HubSection | null;
@@ -7329,6 +7478,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   const homeCopy = useMemo(() => {
     const safeLang = ["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang)) ? String(lang) : "en";
     const copy: Record<string, {
+      welcome: string;
+      welcomeSubtitle: string;
       info: string;
       contact: string;
       massage: string;
@@ -7340,6 +7491,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       lockedTile: string;
     }> = {
       bg: {
+        welcome: "Добре дошли",
+        welcomeSubtitle: "Насладете се на престоя си",
         info: "Инфо",
         contact: "Свържи се с нас",
         massage: "Запази масаж",
@@ -7351,6 +7504,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         lockedTile: "Отключва се след стая",
       },
       en: {
+        welcome: "Welcome",
+        welcomeSubtitle: "Enjoy your stay",
         info: "Info",
         contact: "Contact us",
         massage: "Book massage",
@@ -7362,6 +7517,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         lockedTile: "Unlocks after room",
       },
       de: {
+        welcome: "Willkommen",
+        welcomeSubtitle: "Genießen Sie Ihren Aufenthalt",
         info: "Info",
         contact: "Kontakt",
         massage: "Massage buchen",
@@ -7373,6 +7530,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         lockedTile: "Nach Zimmerbestätigung",
       },
       ro: {
+        welcome: "Bine ați venit",
+        welcomeSubtitle: "Bucurați-vă de sejur",
         info: "Informații",
         contact: "Contactați-ne",
         massage: "Rezervă masaj",
@@ -7384,6 +7543,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         lockedTile: "Disponibil după cameră",
       },
       cs: {
+        welcome: "Vítejte",
+        welcomeSubtitle: "Užijte si pobyt",
         info: "Informace",
         contact: "Kontaktujte nás",
         massage: "Rezervovat masáž",
@@ -7395,6 +7556,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         lockedTile: "Odemkne se po pokoji",
       },
       ru: {
+        welcome: "Добро пожаловать",
+        welcomeSubtitle: "Наслаждайтесь отдыхом",
         info: "Информация",
         contact: "Связаться с нами",
         massage: "Записаться на массаж",
@@ -7423,7 +7586,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   if (infoHomeSections.length) {
     homeTiles.push({
       id: "info_home",
-      icon: "ℹ️",
+      icon: "info",
       title: homeCopy.info,
       sections: infoHomeSections,
     });
@@ -7432,7 +7595,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   if (contactHomeSections.length) {
     homeTiles.push({
       id: "contact_home",
-      icon: "☎️",
+      icon: "contact",
       title: homeCopy.contact,
       sections: contactHomeSections,
     });
@@ -7441,7 +7604,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   if (foodEntertainmentSections.length) {
     homeTiles.push({
       id: "food_entertainment",
-      icon: "🍽️",
+      icon: "food",
       title: guestNavigationLabel("food_entertainment_title", guestNavCopy.foodEntertainment),
       sections: foodEntertainmentSections,
     });
@@ -7450,7 +7613,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   if (massageBookingPreviewVisible) {
     homeTiles.push({
       id: "massage_booking",
-      icon: "💆",
+      icon: "massage",
       title: homeCopy.massage,
       kind: "massage",
       requiresRoom: true,
@@ -7460,7 +7623,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   if (exploreHubSection) {
     homeTiles.push({
       id: "explore",
-      icon: "🗺️",
+      icon: "map",
       title: homeCopy.nearby,
       section: exploreHubSection,
     });
@@ -7469,7 +7632,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   if (weatherHomeSection) {
     homeTiles.push({
       id: "weather",
-      icon: "🌤️",
+      icon: "weather",
       title: homeCopy.weather,
       section: weatherHomeSection,
     });
@@ -7478,7 +7641,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   if (reviewHomeSections.length) {
     homeTiles.push({
       id: "reviews_social",
-      icon: "⭐",
+      icon: "reviews",
       title: homeCopy.reviews,
       sections: reviewHomeSections,
     });
@@ -7487,7 +7650,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   if (remainingSections.length) {
     homeTiles.push({
       id: "more_services",
-      icon: "➕",
+      icon: "more",
       title: homeCopy.more,
       sections: remainingSections,
     });
@@ -7618,45 +7781,28 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   );
 
   return (
-    <div className="mx-auto min-h-screen max-w-md" style={themeStyle}>
+    <div className="mx-auto min-h-screen max-w-md stayhub-guest-shell" style={themeStyle}>
       <div className="relative">
-        <div className="relative h-[220px] sm:h-[260px] md:h-[300px] w-full overflow-hidden rounded-b-[2rem] bg-neutral-800 shadow-lg">
+        <div className="relative h-[230px] sm:h-[270px] md:h-[310px] w-full overflow-hidden rounded-b-[2rem] bg-neutral-800 shadow-lg">
           <img
             src={config.coverImage}
             alt={config.hotelName}
             className="h-full w-full object-cover"
             style={{ objectPosition: config.coverImagePosition || "center center" }}
           />
-        </div>
+          <div className="absolute inset-0 bg-gradient-to-b from-white/82 via-white/10 to-neutral-950/62" />
+          <div className="stayhub-hero-glow absolute inset-0" />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-neutral-950/20 to-transparent" />
-
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-semibold leading-tight text-white drop-shadow-md">{config.hotelName}</h1>
-              <p className="mt-1 text-sm text-neutral-200">{tUI("hero_subtitle")}</p>
-
-              {room ? (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <div className="inline-flex rounded-full bg-neutral-900/70 px-3 py-1 text-xs font-semibold text-neutral-100 ring-1 ring-neutral-700">
-                    {roomCopy.roomBadge.replace("{room}", room)}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={startRoomChangeFlow}
-                    className="inline-flex rounded-full bg-neutral-900/70 px-3 py-1 text-xs font-semibold text-neutral-100 ring-1 ring-neutral-700 transition hover:bg-neutral-900/90"
-                  >
-                    {roomCopy.changeRoom}
-                  </button>
-                </div>
-              ) : null}
+          <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-3">
+            <div className="stayhub-wordmark" aria-label="StayHub">
+              <div className="stayhub-wordmark-title">StayHub</div>
+              <div className="stayhub-wordmark-subtitle">Your hotel hub</div>
             </div>
 
             <select
               value={String(lang)}
               onChange={(e) => setLang(e.target.value as LangKey)}
-              className="rounded-xl bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none ring-1 ring-neutral-700"
+              className="stayhub-language-select rounded-2xl px-3 py-2 text-sm font-bold outline-none"
               aria-label="Language"
             >
               {config.languages.map((l) => (
@@ -7665,6 +7811,28 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="absolute bottom-0 left-0 right-0 px-4 pb-5">
+            <h1 className="stayhub-hero-title text-[2.35rem] font-semibold leading-none text-white drop-shadow-md">
+              {homeCopy.welcome}
+            </h1>
+            <p className="mt-2 text-base font-medium text-white/90 drop-shadow-sm">{homeCopy.welcomeSubtitle}</p>
+
+            {room ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <div className="stayhub-hero-pill inline-flex rounded-full px-3 py-1 text-xs font-bold">
+                  {roomCopy.roomBadge.replace("{room}", room)}
+                </div>
+                <button
+                  type="button"
+                  onClick={startRoomChangeFlow}
+                  className="stayhub-hero-pill inline-flex rounded-full px-3 py-1 text-xs font-bold transition active:scale-[0.99]"
+                >
+                  {roomCopy.changeRoom}
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -7770,8 +7938,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       {roomConfirmed && room.trim() ? (
         <div className="mt-3 px-4">
           <div className="stayhub-room-confirmed-card flex items-center gap-3 rounded-2xl px-4 py-3 shadow-sm">
-            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg" aria-hidden="true">
-              ✅
+            <span className="stayhub-room-confirmed-icon" aria-hidden="true">
+              <StayHubLineIcon name="check" className="h-5 w-5" />
             </span>
             <div className="min-w-0">
               <div className="text-sm font-bold">{roomCopy.confirmedState.replace("{room}", room)}</div>
@@ -8035,7 +8203,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         <div className="space-y-3">
           {homeTiles.length ? (
             <section aria-label={guestNavigationLabel("quick_services_title", guestNavCopy.quickServices)}>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-3">
                 {homeTiles.map((tile) => {
                   const isLocked = isGuestHomeTileLocked(tile);
                   const isSelected = openQuickServiceId === tile.id;
@@ -8060,15 +8228,24 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                         });
                       }}
                       className={clsx(
-                        "stayhub-home-tile min-h-[88px] rounded-2xl px-2 py-3 text-center transition active:scale-[0.99]",
-                        isSelected ? "stayhub-home-tile-selected" : ""
+                        "stayhub-home-tile min-h-[112px] rounded-[1.35rem] px-2.5 py-3 text-center transition active:scale-[0.99]",
+                        isSelected ? "stayhub-home-tile-selected" : "",
+                        isLocked ? "stayhub-home-tile-locked" : ""
                       )}
                       aria-expanded={isSelected}
                     >
-                      <span className="text-2xl leading-none" aria-hidden="true">{tile.icon}</span>
-                      <span className="mt-2 block text-[13px] font-bold leading-4">{tile.title}</span>
-                      <span className="mt-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full border px-1 text-[11px] font-bold">
-                        {isLocked ? "🔒" : isSelected ? "▴" : "›"}
+                      <span className="stayhub-home-icon" aria-hidden="true">
+                        <StayHubLineIcon name={tile.icon} className="h-7 w-7" />
+                      </span>
+                      <span className="stayhub-home-title">{tile.title}</span>
+                      <span className="stayhub-home-indicator" aria-hidden="true">
+                        {isLocked ? (
+                          <StayHubLineIcon name="lock" className="h-3.5 w-3.5" />
+                        ) : isSelected ? (
+                          <StayHubLineIcon name="chevronUp" className="h-4 w-4" />
+                        ) : (
+                          <StayHubLineIcon name="chevronRight" className="h-4 w-4" />
+                        )}
                       </span>
                     </button>
                   );
@@ -8105,7 +8282,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                     ) : (
                       <div id="stayhub-massage-booking" className="scroll-mt-4">
                         <LockedSectionCard
-                          title={`💆 ${homeCopy.massage}`}
+                          title={homeCopy.massage}
                           message={roomCopy.lockedSectionMessage}
                         />
                       </div>
@@ -8164,7 +8341,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 </div>
                 <div className="mt-1 text-xs opacity-85">{emergencyAction.label}</div>
               </div>
-              <span className="text-xl">☎️</span>
+              <span className="stayhub-emergency-icon" aria-hidden="true"><StayHubLineIcon name="phone" className="h-5 w-5" /></span>
             </a>
           ) : null}
         </div>
@@ -8194,7 +8371,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         }
         aria-label={getCurrentGuestUiText("ai_open") || guestNavCopy.askAi}
       >
-        <span className="text-lg">🤖</span>
+        <span className="stayhub-ai-icon" aria-hidden="true"><StayHubLineIcon name="bot" className="h-5 w-5" /></span>
         <span>{guestNavigationLabel("ask_ai", guestNavCopy.askAi)}</span>
         {!roomConfirmed ? (
           <span
@@ -8202,7 +8379,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             style={{ borderColor: "#202627", color: "#202627" }}
             aria-hidden="true"
           >
-            🔒
+            <StayHubLineIcon name="lock" className="h-3.5 w-3.5" />
           </span>
         ) : null}
       </button>
