@@ -430,41 +430,48 @@ export default function GuestSurveyPushControls({
 
   return (
     <div className="mt-3 px-4">
-      <div className="rounded-2xl border border-[#43baad]/35 bg-white px-4 py-3 text-[#202627] shadow-sm">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#43baad]/15 text-lg">
-            🔔
-          </span>
+      <div className="stayhub-premium-push-card">
+        <div className="stayhub-premium-push-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
+            <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+          </svg>
+        </div>
 
-          {status === "ready" || status === "checking" || status === "error" ? (
-            <button
-              type="button"
-              onClick={() => void enable()}
-              disabled={busy}
-              className="rounded-xl bg-[#43baad] px-5 py-3 text-sm font-bold text-white disabled:opacity-60"
-            >
-              {busy ? copy.checking : copy.enable}
-            </button>
-          ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="stayhub-premium-push-title">{copy.title}</div>
+          {copy.text ? <p className="stayhub-premium-push-text">{copy.text}</p> : null}
 
           {status === "enabled" ? (
-            <>
-              <p className="text-xs font-semibold text-[#277b73]">{message || copy.enabled}</p>
-              <button
-                type="button"
-                onClick={() => void disable()}
-                disabled={busy}
-                className="rounded-xl border border-[#d7dcde] bg-white px-4 py-2 text-xs font-bold text-[#202627] disabled:opacity-60"
-              >
-                {copy.disable}
-              </button>
-            </>
+            <p className="stayhub-premium-push-state">{message || copy.enabled}</p>
           ) : null}
 
-          {status === "denied" ? <p className="text-xs font-semibold text-rose-700">{copy.denied}</p> : null}
-          {status === "unsupported" ? <p className="text-xs font-semibold text-amber-700">{copy.unsupported}</p> : null}
-          {status === "not_configured" ? <p className="text-xs font-semibold text-amber-700">{copy.notConfigured}</p> : null}
+          {status === "denied" ? <p className="stayhub-premium-push-warning">{copy.denied}</p> : null}
+          {status === "unsupported" ? <p className="stayhub-premium-push-warning">{copy.unsupported}</p> : null}
+          {status === "not_configured" ? <p className="stayhub-premium-push-warning">{copy.notConfigured}</p> : null}
         </div>
+
+        {status === "ready" || status === "checking" || status === "error" ? (
+          <button
+            type="button"
+            onClick={() => void enable()}
+            disabled={busy}
+            className="stayhub-premium-push-button disabled:opacity-60"
+          >
+            {busy ? copy.checking : copy.enable}
+          </button>
+        ) : null}
+
+        {status === "enabled" ? (
+          <button
+            type="button"
+            onClick={() => void disable()}
+            disabled={busy}
+            className="stayhub-premium-push-secondary disabled:opacity-60"
+          >
+            {copy.disable}
+          </button>
+        ) : null}
       </div>
     </div>
   );

@@ -94,6 +94,116 @@ function withLinkIcon(label: string, linkKey: keyof typeof LINK_ICON_PREFIXES): 
   return `${LINK_ICON_PREFIXES[linkKey]} ${raw}`;
 }
 
+
+function stripLeadingVisualIcon(value: string): string {
+  return String(value || "")
+    .replace(/^[\p{Extended_Pictographic}\u2600-\u27BF\uFE0F\s]+/u, "")
+    .trim();
+}
+
+function PremiumSectionIcon({ id }: { id?: string }) {
+  const key = String(id || "").toLowerCase();
+  const commonProps = {
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.9,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+
+  if (key.includes("reception") || key.includes("contact")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M22 16.92v2a2 2 0 0 1-2.18 2 19.74 19.74 0 0 1-8.59-3.06 19.26 19.26 0 0 1-5.92-5.92A19.74 19.74 0 0 1 2.25 3.4 2 2 0 0 1 4.23 1.2h2a2 2 0 0 1 2 1.72c.12.9.32 1.77.6 2.61a2 2 0 0 1-.45 2.11L7.5 8.52a16 16 0 0 0 7.98 7.98l.88-.88a2 2 0 0 1 2.11-.45c.84.28 1.71.48 2.61.6A2 2 0 0 1 22 16.92Z" />
+      </svg>
+    );
+  }
+
+  if (key.includes("housekeeping")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M7 21h10" />
+        <path d="M9 21V9a3 3 0 0 1 6 0v12" />
+        <path d="M5 12h14" />
+        <path d="M6 12l1.2 6" />
+        <path d="M18 12l-1.2 6" />
+      </svg>
+    );
+  }
+
+  if (key.includes("maintenance")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.4 2.4-2.9-.8-.8-2.9 2.4-2.4Z" />
+      </svg>
+    );
+  }
+
+  if (key.includes("wifi")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M5 13a10 10 0 0 1 14 0" />
+        <path d="M8.5 16.5a5 5 0 0 1 7 0" />
+        <path d="M12 20h.01" />
+      </svg>
+    );
+  }
+
+  if (key.includes("weather")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M12 3v2" />
+        <path d="M4.9 4.9l1.4 1.4" />
+        <path d="M3 12h2" />
+        <path d="M19 12h2" />
+        <path d="M17.7 6.3l1.4-1.4" />
+        <path d="M8 16a4 4 0 1 1 7.4-2.1A3.6 3.6 0 1 1 16 21H8a3 3 0 0 1 0-6Z" />
+      </svg>
+    );
+  }
+
+  if (key.includes("review") || key.includes("social")) {
+    return (
+      <svg {...commonProps}>
+        <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.2 6.4 20.2 7.5 14 3 9.6l6.2-.9L12 3Z" />
+      </svg>
+    );
+  }
+
+  if (key.includes("explore") || key.includes("nearby")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M12 21s7-5.3 7-12a7 7 0 0 0-14 0c0 6.7 7 12 7 12Z" />
+        <circle cx="12" cy="9" r="2.4" />
+      </svg>
+    );
+  }
+
+  if (key.includes("outlet") || key.includes("restaurant") || key.includes("food")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M7 3v8" />
+        <path d="M5 3v8" />
+        <path d="M9 3v8" />
+        <path d="M5 11h4" />
+        <path d="M7 11v10" />
+        <path d="M17 3v18" />
+        <path d="M14 3h3a3 3 0 0 1 3 3v5h-3" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...commonProps}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8h.01" />
+      <path d="M11 12h1v5h1" />
+    </svg>
+  );
+}
+
 // END_STAYHUB_SECTION_ICON_HELPERS
 
 
@@ -7428,9 +7538,9 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   );
 
   return (
-    <div className="mx-auto min-h-screen max-w-md" style={themeStyle}>
+    <div className="stayhub-premium-screen mx-auto min-h-screen max-w-md" style={themeStyle}>
       <div className="relative">
-        <div className="relative h-[220px] sm:h-[260px] md:h-[300px] w-full overflow-hidden bg-neutral-800">
+        <div className="stayhub-premium-hero relative h-[246px] sm:h-[270px] md:h-[300px] w-full overflow-hidden">
           <img
             src={config.coverImage}
             alt={config.hotelName}
@@ -7439,23 +7549,24 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           />
         </div>
 
-        <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-neutral-950/20 to-transparent" />
+        <div className="stayhub-premium-hero-overlay absolute inset-0" />
 
         <div className="absolute bottom-0 left-0 right-0 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h1 className="text-xl font-semibold leading-tight text-white drop-shadow-md">{config.hotelName}</h1>
-              <p className="mt-1 text-sm text-neutral-200">{tUI("hero_subtitle")}</p>
+              <div className="stayhub-wordmark mb-10" aria-label="StayHub"><span>Stay</span><span>Hub</span></div>
+              <h1 className="stayhub-hero-title text-xl leading-tight drop-shadow-md">{config.hotelName}</h1>
+              <p className="stayhub-hero-subtitle mt-1 text-sm">{tUI("hero_subtitle")}</p>
 
               {room ? (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <div className="inline-flex rounded-full bg-neutral-900/70 px-3 py-1 text-xs font-semibold text-neutral-100 ring-1 ring-neutral-700">
+                  <div className="stayhub-hero-pill inline-flex rounded-full px-3 py-1 text-xs">
                     {roomCopy.roomBadge.replace("{room}", room)}
                   </div>
                   <button
                     type="button"
                     onClick={startRoomChangeFlow}
-                    className="inline-flex rounded-full bg-neutral-900/70 px-3 py-1 text-xs font-semibold text-neutral-100 ring-1 ring-neutral-700 transition hover:bg-neutral-900/90"
+                    className="stayhub-hero-pill inline-flex rounded-full px-3 py-1 text-xs transition"
                   >
                     {roomCopy.changeRoom}
                   </button>
@@ -7466,7 +7577,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             <select
               value={String(lang)}
               onChange={(e) => setLang(e.target.value as LangKey)}
-              className="rounded-xl bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none ring-1 ring-neutral-700"
+              className="stayhub-language-select rounded-xl px-3 py-2 text-sm outline-none"
               aria-label="Language"
             >
               {config.languages.map((l) => (
@@ -7479,12 +7590,23 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         </div>
       </div>
 
-      <div className="mt-3 px-4">
-        <InstallAppButton
-          lang={lang}
-          label={String(tUI("install_app") || "Инсталирай приложението")}
-        />
-      </div>
+      {roomConfirmed && room.trim() ? (
+        <div className="stayhub-confirmed-room-wrap px-4">
+          <div className="stayhub-confirmed-room-card">
+            <span className="stayhub-confirmed-room-icon" aria-hidden="true">✓</span>
+            <span>{roomCopy.confirmedState.replace("{room}", room)}</span>
+          </div>
+        </div>
+      ) : null}
+
+      {roomConfirmed ? (
+        <div className="mt-3 px-4">
+          <InstallAppButton
+            lang={lang}
+            label={String(tUI("install_app") || "Инсталирай приложението")}
+          />
+        </div>
+      ) : null}
 
       {showGuestIntro ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4">
@@ -7530,11 +7652,11 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       {!roomConfirmed ? (
         <div id="stayhub-room-confirmation" className="mt-3 scroll-mt-4 px-4">
           <div className="rounded-2xl stayhub-panel stayhub-room-panel p-4">
-            <h2 className="text-base font-semibold" style={{ color: "#202627" }}>{roomCopy.cardTitle}</h2>
+            <h2 className="text-base font-medium" style={{ color: "#202627" }}>{roomCopy.cardTitle}</h2>
             <p className="mt-2 text-sm leading-6" style={{ color: "#202627" }}>{roomCopy.cardText}</p>
 
             <div className="mt-4">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: "#202627" }}>
+              <label className="mb-2 block text-xs font-medium uppercase tracking-[0.16em]" style={{ color: "#202627" }}>
                 {roomCopy.inputLabel}
               </label>
               <input
@@ -7579,14 +7701,14 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 w-[min(92vw,560px)] -translate-x-1/2 px-4">
           {submittingRequest ? (
             <div className="rounded-2xl border border-sky-400/25 bg-sky-400/10 px-4 py-4 text-sky-50 shadow-2xl backdrop-blur">
-              <div className="text-sm font-semibold">{roomCopy.requestSendingTitle}</div>
+              <div className="text-sm font-medium">{roomCopy.requestSendingTitle}</div>
               <p className="mt-1 text-sm leading-6 text-sky-100/90">
                 {roomCopy.requestSendingText.replace("{typeLabel}", submittingRequestLabel || "...")}
               </p>
             </div>
           ) : (
             <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-4 text-emerald-50 shadow-2xl backdrop-blur">
-              <div className="text-sm font-semibold">{roomCopy.requestAcceptedTitle}</div>
+              <div className="text-sm font-medium">{roomCopy.requestAcceptedTitle}</div>
               <p className="mt-1 text-sm leading-6 text-emerald-100/90">
                 {roomCopy.requestAcceptedText}
               </p>
@@ -7729,7 +7851,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               <h2 className="text-base font-semibold text-white">
                 {getMassageReservationCopy(lang).title}
               </h2>
-              <span className="rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-100">
+              <span className="rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-xs font-medium uppercase tracking-wide text-emerald-100">
                 {getMassageReservationCopy(lang).confirmed}
               </span>
             </div>
@@ -7829,11 +7951,10 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         <div className="space-y-3">
           {quickServiceSections.length ? (
             <section aria-label={guestNavigationLabel("quick_services_title", guestNavCopy.quickServices)}>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="stayhub-premium-grid grid grid-cols-3 gap-3">
                 {quickServiceSections.map((section) => {
                   const isLocked = !roomConfirmed && roomRequiredSectionIds.has(section.id);
                   const isSelected = openQuickServiceId === section.id;
-                  const usePreRoomWhiteStyle = !roomConfirmed;
 
                   return (
                     <button
@@ -7855,39 +7976,21 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                         });
                       }}
                       className={clsx(
-                        "min-h-[92px] rounded-2xl px-3 py-4 text-left transition active:scale-[0.99]",
-                        usePreRoomWhiteStyle
-                          ? "border shadow-sm"
-                          : "stayhub-section-header",
-                        !usePreRoomWhiteStyle && (isSelected ? "ring-2 ring-white/70" : "ring-1 ring-white/10"),
-                        usePreRoomWhiteStyle && isSelected ? "ring-2 ring-neutral-900/20" : ""
+                        "stayhub-premium-tile text-center transition active:scale-[0.99]",
+                        isSelected ? "stayhub-premium-tile-active" : "",
+                        isLocked ? "stayhub-premium-tile-locked" : ""
                       )}
-                      style={
-                        usePreRoomWhiteStyle
-                          ? {
-                              backgroundColor: "#F5F5F5",
-                              borderColor: "#202627",
-                              color: "#202627",
-                            }
-                          : undefined
-                      }
+                      
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-sm font-semibold leading-5">
-                          {withSectionIcon(String(section.title), section.id)}
-                        </span>
-                        <span
-                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-semibold"
-                          style={
-                            usePreRoomWhiteStyle
-                              ? { borderColor: "#202627", color: "#202627" }
-                              : { borderColor: "rgba(255,255,255,0.35)", color: "var(--stayhub-text)" }
-                          }
-                          aria-hidden="true"
-                        >
-                          {isLocked ? "🔒" : isSelected ? "▴" : "▾"}
-                        </span>
-                      </div>
+                      <span className="stayhub-premium-tile-arrow" aria-hidden="true">
+                        {isLocked ? "⌕" : "›"}
+                      </span>
+                      <span className="stayhub-premium-tile-icon" aria-hidden="true">
+                        <PremiumSectionIcon id={section.id} />
+                      </span>
+                      <span className="stayhub-premium-tile-label">
+                        {stripLeadingVisualIcon(String(section.title))}
+                      </span>
                     </button>
                   );
                 })}
@@ -8025,7 +8128,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               className="flex items-center justify-between gap-3 rounded-2xl border border-rose-300/40 bg-rose-500/20 px-4 py-4 text-left shadow-sm transition active:scale-[0.99]"
             >
               <div>
-                <div className="text-base font-semibold">
+                <div className="text-base font-medium">
                   {String(emergencyHubSection?.title || `🚨 ${String(tUI("emergency_title") || "Emergency")}`)}
                 </div>
                 <div className="mt-1 text-xs opacity-85">{emergencyAction.label}</div>
@@ -8300,7 +8403,7 @@ function SectionGroupAccordion({
         }
         className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left stayhub-section-header"
       >
-        <span className="text-base font-semibold">{title}</span>
+        <span className="text-base font-medium">{title}</span>
         <span className="text-lg">{open ? "▴" : "▾"}</span>
       </button>
 
@@ -8448,7 +8551,7 @@ function Accordion({
           className="w-full px-4 py-4 text-left stayhub-section-header flex items-center justify-between gap-3"
         >
           <div>
-            <div className="text-base font-semibold">{withSectionIcon(section.title, (section as any).id || (section as any).key || (section as any).type || (section as any).section)}</div>
+            <div className="text-base font-medium">{withSectionIcon(section.title, (section as any).id || (section as any).key || (section as any).type || (section as any).section)}</div>
             {section.subtitle ? (
               <div className="mt-1 text-xs font-medium opacity-80">
                 {section.subtitle}
@@ -8532,7 +8635,7 @@ function Accordion({
                           }}
                           className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
                         >
-                          <span className="font-semibold text-white">{it.label}</span>
+                          <span className="font-medium text-white">{it.label}</span>
                           <span className="text-base text-white/80">{isInfoOpen ? "▴" : "▾"}</span>
                         </button>
 
@@ -8551,7 +8654,7 @@ function Accordion({
                       className="rounded-xl stayhub-card p-3 text-sm"
                     >
                       {it.label ? (
-                        <div className="font-semibold text-white">{it.label}</div>
+                        <div className="font-medium text-white">{it.label}</div>
                       ) : null}
                       <div className={clsx("whitespace-pre-wrap", it.label ? "mt-1 text-neutral-300" : "text-neutral-100")}>
                         {it.info}
@@ -8596,7 +8699,7 @@ function Accordion({
                         }}
                         className="w-full px-3 py-3 text-left flex items-center justify-between gap-3"
                       >
-                        <span className="font-semibold text-white">
+                        <span className="font-medium text-white">
                           {icon ? `${icon} ` : ""}{title}
                         </span>
                         <span className="text-white/80">▾</span>
@@ -8678,13 +8781,13 @@ function Accordion({
                                           className="mb-3 h-32 w-full rounded-xl bg-white/90 object-contain p-2"
                                         />
                                       ) : null}
-                                      <div className="text-sm font-semibold">{option}</div>
+                                      <div className="text-sm font-medium">{option}</div>
                                       {optionInfo ? (
                                         <div className="mt-2 whitespace-pre-wrap text-[12px] font-medium leading-5 opacity-85">
                                           {optionInfo}
                                         </div>
                                       ) : null}
-                                      <div className="mt-1 text-[11px] font-bold uppercase tracking-wide opacity-80">
+                                      <div className="mt-1 text-[11px] font-medium uppercase tracking-wide opacity-80">
                                         {getRequestActionLabel(lang)}
                                       </div>
                                     </button>
@@ -8870,7 +8973,7 @@ function LockedSectionCard({
       aria-disabled="true"
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="text-base font-semibold" style={{ color: "#202627" }}>
+        <div className="text-base font-medium" style={{ color: "#202627" }}>
           {title}
         </div>
         <div
@@ -9072,7 +9175,7 @@ function OutletsAccordion({
           }}
           className="w-full px-3 py-3 text-left flex items-center justify-between gap-3"
         >
-          <span className="font-semibold text-white">{icon ? `${icon} ` : ""}{title}</span>
+          <span className="font-medium text-white">{icon ? `${icon} ` : ""}{title}</span>
           <span className="text-white/80">▾</span>
         </button>
 
@@ -9153,13 +9256,13 @@ function OutletsAccordion({
                             className="mb-3 h-32 w-full rounded-xl bg-white/90 object-contain p-2"
                           />
                         ) : null}
-                        <div className="text-sm font-semibold">{option}</div>
+                        <div className="text-sm font-medium">{option}</div>
                         {optionInfo ? (
                           <div className="mt-2 whitespace-pre-wrap text-[12px] font-medium leading-5 opacity-85">
                             {optionInfo}
                           </div>
                         ) : null}
-                        <div className="mt-1 text-[11px] font-bold uppercase tracking-wide opacity-80">
+                        <div className="mt-1 text-[11px] font-medium uppercase tracking-wide opacity-80">
                           {getRequestActionLabel(lang)}
                         </div>
                       </button>
@@ -9245,14 +9348,14 @@ function OutletsAccordion({
 
         {cuisine ? (
           <div className="rounded-xl stayhub-card p-3 text-sm">
-            <span className="font-semibold">{String(tUI("cuisine") || "Cuisine")}:</span>{" "}
+            <span className="font-medium">{String(tUI("cuisine") || "Cuisine")}:</span>{" "}
             {cuisine}
           </div>
         ) : null}
 
         {hoursText ? (
           <div className="rounded-xl stayhub-card p-3 text-sm">
-            <div className="font-semibold">{String(tUI("hours") || "Hours")}:</div>
+            <div className="font-medium">{String(tUI("hours") || "Hours")}:</div>
             <div className="mt-1 whitespace-pre-line">
               {hoursText}
             </div>
@@ -9261,21 +9364,21 @@ function OutletsAccordion({
 
         {location ? (
           <div className="rounded-xl stayhub-card p-3 text-sm">
-            <span className="font-semibold">{String(tUI("location") || "Location")}:</span>{" "}
+            <span className="font-medium">{String(tUI("location") || "Location")}:</span>{" "}
             {location}
           </div>
         ) : null}
 
         {ageGroup ? (
           <div className="rounded-xl stayhub-card p-3 text-sm">
-            <span className="font-semibold">{String(tUI("age_group") || "Age group")}:</span>{" "}
+            <span className="font-medium">{String(tUI("age_group") || "Age group")}:</span>{" "}
             {ageGroup}
           </div>
         ) : null}
 
         {programText ? (
           <div className="rounded-xl stayhub-card p-3 text-sm">
-            <span className="font-semibold">{String(tUI("program") || "Program")}:</span>{" "}
+            <span className="font-medium">{String(tUI("program") || "Program")}:</span>{" "}
             {programText}
           </div>
         ) : null}
@@ -9376,7 +9479,7 @@ function OutletsAccordion({
         }
         className="w-full px-4 py-4 text-left stayhub-section-header flex items-center justify-between gap-3"
       >
-        <div className="text-base font-semibold">{withSectionIcon(section.title, (section as any).id || (section as any).key || (section as any).type || (section as any).section)}</div>
+        <div className="text-base font-medium">{withSectionIcon(section.title, (section as any).id || (section as any).key || (section as any).type || (section as any).section)}</div>
         <div className="text-lg">▾</div>
       </button>
 
@@ -9416,7 +9519,7 @@ function OutletsAccordion({
                     className="w-full px-3 py-3 text-left flex items-center justify-between gap-3 active:scale-[0.99] transition"
                   >
                     <div>
-                      <div className="font-semibold text-white">
+                      <div className="font-medium text-white">
                         {groupIcon} {groupTitle}
                       </div>
                       {groupSubtitle ? (
@@ -9460,7 +9563,7 @@ function OutletsAccordion({
                                 className="w-full px-3 py-3 text-left flex items-center justify-between gap-3"
                               >
                                 <div>
-                                  <div className="font-semibold text-white">{venueTitle}</div>
+                                  <div className="font-medium text-white">{venueTitle}</div>
                                   {venueSubtitle ? (
                                     <div className="mt-1 text-xs text-neutral-300">
                                       {venueSubtitle}
