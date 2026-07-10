@@ -39,9 +39,9 @@ type Copy = {
 
 const COPY: Record<string, Copy> = {
   bg: {
-    title: "Известия от хотела",
+    title: "Включете известията",
     text: "",
-    enable: "Разреши известия",
+    enable: "Включи",
     disable: "Изключи известията",
     enabled: "Известията са активни на това устройство.",
     denied: "Известията са блокирани. Разрешете ги от настройките на телефона за това приложение.",
@@ -429,7 +429,7 @@ export default function GuestSurveyPushControls({
   if (!roomConfirmed || !normalizeRoomNumber(room)) return null;
 
   return (
-    <div className="mt-3 px-4">
+    <div className="stayhub-premium-push-wrap">
       <div className="stayhub-premium-push-card">
         <div className="stayhub-premium-push-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">

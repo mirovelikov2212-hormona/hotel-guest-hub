@@ -1785,3 +1785,182 @@ input.stayhub-card::placeholder {
 .stayhub-premium-tile .stayhub-premium-tile-label {
   transform: translateY(-0.08rem);
 }
+
+/* === v4.6 closer to approved mockup: compact cards, exact-style icons, two post-confirm cards === */
+.stayhub-post-confirm-actions {
+  margin-top: 0.72rem !important;
+}
+
+.stayhub-post-confirm-actions-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr) !important;
+  gap: 0.5rem !important;
+  align-items: stretch !important;
+}
+
+.stayhub-post-confirm-action-card,
+.stayhub-premium-push-wrap {
+  min-width: 0 !important;
+  height: 100% !important;
+}
+
+.stayhub-post-confirm-action-card > *,
+.stayhub-post-confirm-action-card button,
+.stayhub-post-confirm-action-card a,
+.stayhub-premium-push-card {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 96px !important;
+  border-radius: 17px !important;
+  background: rgba(255,255,255,0.9) !important;
+  border: 1px solid rgba(67,186,173,0.22) !important;
+  box-shadow: 0 12px 24px rgba(7,82,85,0.08) !important;
+}
+
+.stayhub-premium-push-wrap {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.stayhub-premium-push-card {
+  padding: 0.74rem 0.62rem !important;
+  display: grid !important;
+  grid-template-columns: 2.55rem minmax(0,1fr) !important;
+  grid-template-areas: "icon body" "icon action" !important;
+  column-gap: 0.56rem !important;
+  row-gap: 0.36rem !important;
+  align-content: center !important;
+}
+
+.stayhub-premium-push-icon {
+  grid-area: icon !important;
+  width: 2.45rem !important;
+  height: 2.45rem !important;
+  margin: 0 !important;
+  align-self: start !important;
+  border-radius: 999px !important;
+  background: rgba(67,186,173,0.12) !important;
+  color: #0d8580 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.stayhub-premium-push-icon svg {
+  width: 1.42rem !important;
+  height: 1.42rem !important;
+  stroke-width: 1.7 !important;
+}
+
+.stayhub-premium-push-card .min-w-0 {
+  grid-area: body !important;
+}
+
+.stayhub-premium-push-title {
+  font-size: 0.82rem !important;
+  line-height: 1.12 !important;
+  font-weight: 650 !important;
+  color: #0b5558 !important;
+}
+
+.stayhub-premium-push-text,
+.stayhub-premium-push-state,
+.stayhub-premium-push-warning {
+  margin-top: 0.28rem !important;
+  font-size: 0.66rem !important;
+  line-height: 1.25 !important;
+  color: rgba(30,55,57,0.72) !important;
+}
+
+.stayhub-premium-push-button,
+.stayhub-premium-push-secondary {
+  grid-area: action !important;
+  justify-self: start !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #0d8580 !important;
+  font-size: 0.66rem !important;
+  font-weight: 650 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+}
+
+.stayhub-post-confirm-action-card > * {
+  margin: 0 !important;
+}
+
+.stayhub-post-confirm-action-card button,
+.stayhub-post-confirm-action-card a {
+  display: grid !important;
+  grid-template-columns: 2.55rem minmax(0,1fr) auto !important;
+  align-items: center !important;
+  gap: 0.6rem !important;
+  padding: 0.74rem 0.62rem !important;
+  color: #0b5558 !important;
+  font-size: 0.82rem !important;
+  line-height: 1.15 !important;
+  font-weight: 650 !important;
+  text-align: left !important;
+}
+
+.stayhub-premium-grid {
+  gap: 0.62rem !important;
+}
+
+.stayhub-premium-tile {
+  min-height: 104px !important;
+  border-radius: 13px !important;
+  padding: 0.62rem 0.42rem 0.45rem !important;
+  justify-content: flex-start !important;
+  background: rgba(255,255,255,0.92) !important;
+  box-shadow: 0 8px 18px rgba(7,82,85,0.075) !important;
+}
+
+.stayhub-premium-tile::after {
+  height: 21% !important;
+  opacity: 0.92 !important;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 82' preserveAspectRatio='none'%3E%3Cpath d='M0 47 C42 31 74 30 112 43 C152 57 184 59 222 42 C252 29 278 30 300 40 L300 82 L0 82 Z' fill='%239feade' fill-opacity='0.42'/%3E%3Cpath d='M0 58 C46 43 83 43 120 53 C160 64 193 65 231 53 C260 44 283 45 300 52 L300 82 L0 82 Z' fill='%2343baad' fill-opacity='0.13'/%3E%3C/svg%3E") bottom center / 100% 100% no-repeat !important;
+}
+
+.stayhub-premium-tile-icon {
+  width: 3.75rem !important;
+  height: 3.75rem !important;
+  margin: 0 auto 0.42rem !important;
+  color: #0b8580 !important;
+}
+
+.stayhub-premium-tile-icon svg {
+  width: 3.05rem !important;
+  height: 3.05rem !important;
+  stroke-width: 1.55 !important;
+  filter: drop-shadow(0 8px 10px rgba(7,82,85,0.08)) !important;
+}
+
+.stayhub-premium-tile-label {
+  min-height: 2.2rem !important;
+  font-size: 0.7rem !important;
+  line-height: 1.1 !important;
+  font-weight: 650 !important;
+  color: #0b5558 !important;
+  max-width: 96% !important;
+}
+
+.stayhub-section-window-icon svg,
+.stayhub-section-header-icon svg {
+  stroke-width: 1.55 !important;
+}
+
+.stayhub-section-header::after,
+.stayhub-section-window .stayhub-card::after,
+.stayhub-section-window .stayhub-action-card::after,
+.stayhub-section-window .stayhub-section-shell::after {
+  height: 20% !important;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 82' preserveAspectRatio='none'%3E%3Cpath d='M0 48 C42 31 73 30 111 43 C148 56 184 58 222 42 C250 30 276 29 300 40 L300 82 L0 82 Z' fill='%239feade' fill-opacity='0.34'/%3E%3Cpath d='M0 59 C48 45 83 43 121 54 C159 65 193 66 231 54 C260 44 283 46 300 52 L300 82 L0 82 Z' fill='%2343baad' fill-opacity='0.10'/%3E%3C/svg%3E") bottom center / 100% 100% no-repeat !important;
+}
+
+@media (max-width: 380px) {
+  .stayhub-post-confirm-actions-grid { gap: 0.42rem !important; }
+  .stayhub-premium-tile { min-height: 98px !important; }
+  .stayhub-premium-tile-icon { width: 3.35rem !important; height: 3.35rem !important; }
+  .stayhub-premium-tile-icon svg { width: 2.65rem !important; height: 2.65rem !important; }
+  .stayhub-premium-tile-label { font-size: 0.63rem !important; }
+}

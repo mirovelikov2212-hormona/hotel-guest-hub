@@ -119,46 +119,19 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
-    strokeWidth: 1.9,
+    strokeWidth: 1.55,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
     "aria-hidden": true,
   };
 
-  if (key.includes("massage") || key.includes("spa") || key.includes("масаж")) {
+  if (key.includes("contact") || key.includes("свържи")) {
     return (
       <svg {...commonProps}>
-        <circle cx="11" cy="5.2" r="1.7" />
-        <path d="M7 20h10" />
-        <path d="M5.2 16.4h13.6" />
-        <path d="M6.7 16.4v3.6" />
-        <path d="M17.3 16.4v3.6" />
-        <path d="M8.2 11.6c1.4-1 3.8-1 5.6 0" />
-        <path d="M14.8 8.1c1.9.5 3.1 1.8 3.5 3.8" />
-        <path d="M16.7 12.2l2.7-1.8" />
-      </svg>
-    );
-  }
-
-  if (key.includes("pillow") || key.includes("възглав")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M5 10.5c0-2.2 1.8-4 4-4h6c2.2 0 4 1.8 4 4v3c0 2.2-1.8 4-4 4H9c-2.2 0-4-1.8-4-4v-3Z" />
-        <path d="M7.4 8.7c.9 1.3.9 5.3 0 6.6" />
-        <path d="M16.6 8.7c-.9 1.3-.9 5.3 0 6.6" />
-      </svg>
-    );
-  }
-
-  if (key.includes("coffee") || key.includes("каф")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M7 8h9v6a4 4 0 0 1-4 4h-1a4 4 0 0 1-4-4V8Z" />
-        <path d="M16 10h1.5a2 2 0 0 1 0 4H16" />
-        <path d="M8 21h8" />
-        <path d="M9 3v2" />
-        <path d="M12 3v2" />
-        <path d="M15 3v2" />
+        <circle cx="9" cy="8" r="2.6" />
+        <circle cx="15.5" cy="8.7" r="2.1" />
+        <path d="M3.8 19c.7-3.6 3-5.6 5.2-5.6s4.5 2 5.2 5.6" />
+        <path d="M12.8 14.2c2.4.1 4.5 1.8 5.1 4.8" />
       </svg>
     );
   }
@@ -166,8 +139,25 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("policy") || key.includes("policies") || key.includes("политик")) {
     return (
       <svg {...commonProps}>
-        <path d="M12 3 5 6v5c0 4.5 3 8.2 7 10 4-1.8 7-5.5 7-10V6l-7-3Z" />
-        <path d="M9 12l2 2 4-5" />
+        <path d="M7 3.5h7.2L18 7.3V20.5H7V3.5Z" />
+        <path d="M14 3.7V8h4" />
+        <path d="M9.4 11h5.2" />
+        <path d="M9.4 14.2h5.2" />
+        <path d="M9.4 17.4h3.4" />
+      </svg>
+    );
+  }
+
+  if (key.includes("outlet") || key.includes("restaurant") || key.includes("food") || key.includes("ресторан") || key.includes("храна")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M4.5 4v7.2" />
+        <path d="M6.6 4v7.2" />
+        <path d="M8.7 4v7.2" />
+        <path d="M4.5 11.2h4.2" />
+        <path d="M6.6 11.2v8.8" />
+        <circle cx="14.7" cy="11.5" r="5.2" />
+        <path d="M19.8 4v16" />
       </svg>
     );
   }
@@ -175,10 +165,10 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("bar") || key.includes("бар")) {
     return (
       <svg {...commonProps}>
-        <path d="M6 4h12l-2 7a4 4 0 0 1-8 0L6 4Z" />
-        <path d="M12 15v5" />
-        <path d="M8.5 20h7" />
-        <path d="M9 8h6" />
+        <path d="M5.7 5h12.6l-4.1 6.2a3.6 3.6 0 0 1-4.4 0L5.7 5Z" />
+        <path d="M12 12v7" />
+        <path d="M8.4 19h7.2" />
+        <circle cx="16.2" cy="4.6" r="1.5" />
       </svg>
     );
   }
@@ -186,15 +176,87 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("animation") || key.includes("entertainment") || key.includes("забав")) {
     return (
       <svg {...commonProps}>
-        <path d="m12 3 2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.56 6.3 20.56l1.09-6.35-4.62-4.5 6.38-.93L12 3Z" />
+        <path d="M7 4v9" />
+        <path d="M7 4l8-1.5v8" />
+        <circle cx="5.8" cy="15.2" r="2.1" />
+        <circle cx="14.8" cy="12.1" r="2.1" />
+        <path d="M15.8 16.5c1.1-.9 2.9-.8 4 .4" />
+        <path d="M15 19.4c1.6 1 3.6 1 5.2 0" />
+        <path d="M16 14.8c.7-.5 2.7-.5 3.5 0" />
       </svg>
     );
   }
 
-  if (key.includes("reception") || key.includes("contact") || key.includes("свържи")) {
+  if (key.includes("massage") || key.includes("spa") || key.includes("масаж")) {
     return (
       <svg {...commonProps}>
-        <path d="M22 16.92v2a2 2 0 0 1-2.18 2 19.74 19.74 0 0 1-8.59-3.06 19.26 19.26 0 0 1-5.92-5.92A19.74 19.74 0 0 1 2.25 3.4 2 2 0 0 1 4.23 1.2h2a2 2 0 0 1 2 1.72c.12.9.32 1.77.6 2.61a2 2 0 0 1-.45 2.11L7.5 8.52a16 16 0 0 0 7.98 7.98l.88-.88a2 2 0 0 1 2.11-.45c.84.28 1.71.48 2.61.6A2 2 0 0 1 22 16.92Z" />
+        <circle cx="8.4" cy="6" r="2.1" />
+        <path d="M5.6 16.8h12.8" />
+        <path d="M6.6 20h10.8" />
+        <path d="M7.4 16.8v3.2" />
+        <path d="M16.6 16.8v3.2" />
+        <path d="M8 11.8c2.1-1.5 5.4-1.1 7.2.8" />
+        <path d="M15 8.2c2.2.6 3.7 2.2 4.2 4.6" />
+      </svg>
+    );
+  }
+
+  if (key.includes("pillow") || key.includes("възглав")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M5.2 8.2c1.2-1.2 2.9-1.2 4.1-.3 1.4-1.1 3.9-1.1 5.4 0 1.2-.9 2.9-.9 4.1.3-1 1.2-1 6.4 0 7.6-1.2 1.2-2.9 1.2-4.1.3-1.4 1.1-3.9 1.1-5.4 0-1.2.9-2.9.9-4.1-.3 1-1.2 1-6.4 0-7.6Z" />
+      </svg>
+    );
+  }
+
+  if (key.includes("coffee") || key.includes("каф")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M7.2 9h8.5v5.2a4 4 0 0 1-4 4h-.5a4 4 0 0 1-4-4V9Z" />
+        <path d="M15.7 11h1.5a2 2 0 0 1 0 4h-1.5" />
+        <path d="M8.5 20h7" />
+        <path d="M9.3 4.2v2" />
+        <path d="M12 4.2v2" />
+        <path d="M14.7 4.2v2" />
+      </svg>
+    );
+  }
+
+  if (key.includes("weather") || key.includes("врем")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M12 3.5v2" />
+        <path d="M5.3 6.3l1.4 1.4" />
+        <path d="M18.7 6.3l-1.4 1.4" />
+        <path d="M8 16.4a3.8 3.8 0 1 1 7-2.1A3.3 3.3 0 1 1 15.5 21H8a2.8 2.8 0 1 1 0-5.6Z" />
+        <path d="M19.3 12h1.5" />
+      </svg>
+    );
+  }
+
+  if (key.includes("review") || key.includes("social") || key.includes("отзив")) {
+    return (
+      <svg {...commonProps}>
+        <path d="m12 3.3 2.6 5.3 5.8.9-4.2 4.1 1 5.8L12 16.6 6.8 19.4l1-5.8-4.2-4.1 5.8-.9L12 3.3Z" />
+      </svg>
+    );
+  }
+
+  if (key.includes("explore") || key.includes("nearby") || key.includes("около")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M12 21s6.6-5 6.6-11.5a6.6 6.6 0 1 0-13.2 0C5.4 16 12 21 12 21Z" />
+        <circle cx="12" cy="9.3" r="2.2" />
+      </svg>
+    );
+  }
+
+  if (key.includes("wifi") || key.includes("wi-fi")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M5 12.5a10 10 0 0 1 14 0" />
+        <path d="M8.4 15.8a5.1 5.1 0 0 1 7.2 0" />
+        <path d="M12 19h.01" />
       </svg>
     );
   }
@@ -219,69 +281,11 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     );
   }
 
-  if (key.includes("wifi") || key.includes("wi-fi")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M5 13a10 10 0 0 1 14 0" />
-        <path d="M8.5 16.5a5 5 0 0 1 7 0" />
-        <path d="M12 20h.01" />
-      </svg>
-    );
-  }
-
-  if (key.includes("weather") || key.includes("врем")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M12 3v2" />
-        <path d="M4.9 4.9l1.4 1.4" />
-        <path d="M3 12h2" />
-        <path d="M19 12h2" />
-        <path d="M17.7 6.3l1.4-1.4" />
-        <path d="M8 16a4 4 0 1 1 7.4-2.1A3.6 3.6 0 1 1 16 21H8a3 3 0 0 1 0-6Z" />
-      </svg>
-    );
-  }
-
-  if (key.includes("review") || key.includes("social") || key.includes("отзив")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M5 6.5h14a2 2 0 0 1 2 2v6.2a2 2 0 0 1-2 2H10l-4.5 3.2v-3.2H5a2 2 0 0 1-2-2V8.5a2 2 0 0 1 2-2Z" />
-        <path d="M8 11.5h.01" />
-        <path d="M12 11.5h.01" />
-        <path d="M16 11.5h.01" />
-      </svg>
-    );
-  }
-
-  if (key.includes("explore") || key.includes("nearby") || key.includes("около")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M12 21s7-5.3 7-12a7 7 0 0 0-14 0c0 6.7 7 12 7 12Z" />
-        <circle cx="12" cy="9" r="2.4" />
-      </svg>
-    );
-  }
-
-  if (key.includes("outlet") || key.includes("restaurant") || key.includes("food") || key.includes("ресторан") || key.includes("храна")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M7 3v8" />
-        <path d="M5 3v8" />
-        <path d="M9 3v8" />
-        <path d="M5 11h4" />
-        <path d="M7 11v10" />
-        <path d="M17 3v18" />
-        <path d="M14 3h3a3 3 0 0 1 3 3v5h-3" />
-        <path d="M17 11h3" />
-      </svg>
-    );
-  }
-
   return (
     <svg {...commonProps}>
-      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="7.8" />
       <path d="M12 8h.01" />
-      <path d="M11 12h1v5h1" />
+      <path d="M11.1 11.6H12v5.1h1" />
     </svg>
   );
 }
@@ -7885,11 +7889,22 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       ) : null}
 
       {roomConfirmed ? (
-        <div className="mt-3 px-4">
-          <InstallAppButton
-            lang={lang}
-            label={String(tUI("install_app") || "Инсталирай приложението")}
-          />
+        <div className="stayhub-post-confirm-actions px-4">
+          <div className="stayhub-post-confirm-actions-grid">
+            <div className="stayhub-post-confirm-action-card">
+              <InstallAppButton
+                lang={lang}
+                label={String(tUI("install_app") || "Инсталирай приложението")}
+              />
+            </div>
+            <GuestSurveyPushControls
+              hotelSlug={String(config.hotelSlug || hotelContentSlug || "aquamarin")}
+              room={room}
+              roomConfirmed={roomConfirmed}
+              lang={lang}
+              timezone={hotelTimezone}
+            />
+          </div>
         </div>
       ) : null}
 
@@ -8153,23 +8168,14 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       ) : null}
 
       {roomConfirmed ? (
-        <>
-          <GuestSurveyPushControls
-            hotelSlug={String(config.hotelSlug || hotelContentSlug || "aquamarin")}
-            room={room}
-            roomConfirmed={roomConfirmed}
-            lang={lang}
-            timezone={hotelTimezone}
-          />
-          <Day3GuestSurvey
-            hotelSlug={String(config.hotelSlug || hotelContentSlug || "aquamarin")}
-            room={room}
-            roomConfirmed={roomConfirmed}
-            lang={lang}
-            timezone={hotelTimezone}
-            onTrack={trackGuestEvent}
-          />
-        </>
+        <Day3GuestSurvey
+          hotelSlug={String(config.hotelSlug || hotelContentSlug || "aquamarin")}
+          room={room}
+          roomConfirmed={roomConfirmed}
+          lang={lang}
+          timezone={hotelTimezone}
+          onTrack={trackGuestEvent}
+        />
       ) : null}
 
       {roomConfirmed && activeGuestMassageBookings.length > 0 ? (
