@@ -101,6 +101,18 @@ function stripLeadingVisualIcon(value: string): string {
     .trim();
 }
 
+function getPremiumWelcomeTitle(lang: LangKey | string): string {
+  const key = String(lang || "").toLowerCase();
+
+  if (key === "bg") return "Добре дошли";
+  if (key === "de") return "Willkommen";
+  if (key === "ro") return "Bine ați venit";
+  if (key === "cs") return "Vítejte";
+  if (key === "ru") return "Добро пожаловать";
+
+  return "Welcome";
+}
+
 function PremiumSectionIcon({ id }: { id?: string }) {
   const key = String(id || "").toLowerCase();
   const commonProps = {
@@ -112,6 +124,73 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     strokeLinejoin: "round" as const,
     "aria-hidden": true,
   };
+
+  if (key.includes("massage") || key.includes("spa")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M7 19c3.8-.7 7.2-3.1 9.2-6.5" />
+        <path d="M5 16c2.8-.5 5.3-2.2 6.8-4.7" />
+        <path d="M12 5c2.2.7 3.8 2.2 4.8 4.3" />
+        <path d="M9.5 8.2c1.1.2 2.1.8 2.8 1.7" />
+        <path d="M6.2 12.8c.9-.2 1.8-.6 2.5-1.2" />
+      </svg>
+    );
+  }
+
+  if (key.includes("pillow")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M6 8.5c0-1.4 1.1-2.5 2.5-2.5h7c1.4 0 2.5 1.1 2.5 2.5v7c0 1.4-1.1 2.5-2.5 2.5h-7A2.5 2.5 0 0 1 6 15.5v-7Z" />
+        <path d="M8 8c1.2 1.2 1.2 6.8 0 8" />
+        <path d="M16 8c-1.2 1.2-1.2 6.8 0 8" />
+      </svg>
+    );
+  }
+
+  if (key.includes("coffee")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M7 8h9v6a4 4 0 0 1-4 4h-1a4 4 0 0 1-4-4V8Z" />
+        <path d="M16 10h1.5a2 2 0 0 1 0 4H16" />
+        <path d="M8 21h8" />
+        <path d="M9 3v2" />
+        <path d="M12 3v2" />
+        <path d="M15 3v2" />
+      </svg>
+    );
+  }
+
+  if (key.includes("policy") || key.includes("policies")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M12 3 5 6v5c0 4.5 3 8.2 7 10 4-1.8 7-5.5 7-10V6l-7-3Z" />
+        <path d="M9 12l2 2 4-5" />
+      </svg>
+    );
+  }
+
+  if (key.includes("bar")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M6 4h12l-2 7a4 4 0 0 1-8 0L6 4Z" />
+        <path d="M12 15v5" />
+        <path d="M8.5 20h7" />
+        <path d="M9 8h6" />
+      </svg>
+    );
+  }
+
+  if (key.includes("animation") || key.includes("entertainment")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M5 18c4-1 5-5 7-5s3 4 7 5" />
+        <path d="M8 10h.01" />
+        <path d="M16 10h.01" />
+        <path d="M7 6c3-2 7-2 10 0" />
+        <path d="M12 13v2" />
+      </svg>
+    );
+  }
 
   if (key.includes("reception") || key.includes("contact")) {
     return (
@@ -7551,27 +7630,10 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
         <div className="stayhub-premium-hero-overlay absolute inset-0" />
 
-        <div className="absolute bottom-0 left-0 right-0 p-4">
+        <div className="stayhub-premium-hero-content absolute inset-0 z-10 flex flex-col p-4">
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="stayhub-wordmark mb-10" aria-label="StayHub"><span>Stay</span><span>Hub</span></div>
-              <h1 className="stayhub-hero-title text-xl leading-tight drop-shadow-md">{config.hotelName}</h1>
-              <p className="stayhub-hero-subtitle mt-1 text-sm">{tUI("hero_subtitle")}</p>
-
-              {room ? (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <div className="stayhub-hero-pill inline-flex rounded-full px-3 py-1 text-xs">
-                    {roomCopy.roomBadge.replace("{room}", room)}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={startRoomChangeFlow}
-                    className="stayhub-hero-pill inline-flex rounded-full px-3 py-1 text-xs transition"
-                  >
-                    {roomCopy.changeRoom}
-                  </button>
-                </div>
-              ) : null}
+            <div className="stayhub-wordmark" aria-label="StayHub">
+              <span>Stay</span><span>Hub</span>
             </div>
 
             <select
@@ -7586,6 +7648,11 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="stayhub-hero-welcome mt-auto text-center">
+            <h1 className="stayhub-hero-title leading-tight drop-shadow-md">{getPremiumWelcomeTitle(lang)}</h1>
+            <p className="stayhub-hero-subtitle mt-1 text-sm">{tUI("hero_subtitle")}</p>
           </div>
         </div>
       </div>
@@ -8403,8 +8470,13 @@ function SectionGroupAccordion({
         }
         className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left stayhub-section-header"
       >
-        <span className="text-base font-medium">{title}</span>
-        <span className="text-lg">{open ? "▴" : "▾"}</span>
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="stayhub-section-header-icon" aria-hidden="true">
+            <PremiumSectionIcon id={id} />
+          </span>
+          <span className="truncate text-base font-medium">{stripLeadingVisualIcon(title)}</span>
+        </span>
+        <span className="stayhub-section-header-chevron">{open ? "▴" : "▾"}</span>
       </button>
 
       {open ? (
@@ -8963,26 +9035,21 @@ function LockedSectionCard({
   message?: string;
 }) {
   return (
-    <div
-      className="rounded-2xl border px-4 py-4 shadow-sm"
-      style={{
-        backgroundColor: "#F5F5F5",
-        borderColor: "#202627",
-        color: "#202627",
-      }}
-      aria-disabled="true"
-    >
+    <div className="stayhub-premium-locked-card" aria-disabled="true">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-base font-medium" style={{ color: "#202627" }}>
-          {title}
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="stayhub-section-header-icon" aria-hidden="true">
+            <PremiumSectionIcon id={title} />
+          </span>
+          <div className="truncate text-base font-medium">
+            {stripLeadingVisualIcon(title)}
+          </div>
         </div>
-        <div
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-sm"
-          style={{ borderColor: "#202627", color: "#202627" }}
-          aria-label="Locked"
-          title="Locked"
-        >
-          🔒
+        <div className="stayhub-premium-lock-dot" aria-label="Locked" title="Locked">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="5" y="10" width="14" height="10" rx="2" />
+            <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+          </svg>
         </div>
       </div>
     </div>

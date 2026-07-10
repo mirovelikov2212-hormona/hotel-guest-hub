@@ -554,3 +554,289 @@ input.stayhub-card::placeholder {
     width: 100%;
   }
 }
+
+/* v4.1 preview correction — closer to approved mockup: real StayHub mark, compact cards, no heavy text. */
+.stayhub-premium-screen {
+  --stayhub-premium-ink: #06484a;
+  --stayhub-premium-muted: rgba(6, 72, 74, 0.66);
+  --stayhub-premium-line: rgba(67, 186, 173, 0.32);
+  --stayhub-premium-teal: var(--stayhub-action, #43baad);
+  background:
+    linear-gradient(180deg, #f7fffc 0%, #eef9f6 54%, #f9fffd 100%);
+  font-weight: 400;
+}
+
+.stayhub-premium-screen .font-bold,
+.stayhub-premium-screen .font-semibold,
+.stayhub-premium-screen .font-medium {
+  font-weight: 400 !important;
+}
+
+.stayhub-premium-hero {
+  height: 250px !important;
+  border-bottom-left-radius: 28px;
+  border-bottom-right-radius: 28px;
+  overflow: hidden;
+}
+
+.stayhub-premium-hero img {
+  filter: saturate(1.08) contrast(1.04) brightness(1.02);
+  transform: scale(1.01);
+}
+
+.stayhub-premium-hero-overlay {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.64) 0%, rgba(255,255,255,0.18) 42%, rgba(255,255,255,0.58) 100%),
+    radial-gradient(ellipse at 50% 105%, rgba(67, 186, 173, 0.32), rgba(67, 186, 173, 0.12) 42%, transparent 72%);
+}
+
+.stayhub-premium-hero::after {
+  content: "";
+  position: absolute;
+  left: -12%;
+  right: -12%;
+  bottom: -38%;
+  height: 56%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(67, 186, 173, 0.22), rgba(67, 186, 173, 0.08) 52%, transparent 72%);
+  border-radius: 50% 50% 0 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.stayhub-premium-hero-content {
+  pointer-events: none;
+}
+
+.stayhub-premium-hero-content select,
+.stayhub-premium-hero-content button {
+  pointer-events: auto;
+}
+
+.stayhub-wordmark {
+  top: 17px;
+  left: 20px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: 0.19em;
+  color: #0a5d62;
+  text-transform: uppercase;
+  text-shadow: 0 1px 10px rgba(255,255,255,0.88);
+}
+
+.stayhub-wordmark::after {
+  content: "";
+  display: block;
+  width: 46px;
+  height: 10px;
+  margin: 3px auto 0;
+  opacity: 0.78;
+  background: no-repeat center / contain
+    url("data:image/svg+xml,%3Csvg width='72' height='14' viewBox='0 0 72 14' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 7c8 6 16 6 24 0s16-6 24 0 12 6 16 3' fill='none' stroke='%2343baad' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M18 11c6 3 13 2 21-2s14-4 20-1' fill='none' stroke='%238bd8ce' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.stayhub-language-select {
+  top: 14px;
+  right: 18px;
+  min-width: 64px;
+  height: 38px;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.82);
+  color: #06484a;
+  border: 1px solid rgba(67, 186, 173, 0.36);
+  box-shadow: 0 8px 18px rgba(10, 70, 72, 0.10);
+}
+
+.stayhub-hero-welcome {
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 3;
+}
+
+.stayhub-hero-title {
+  font-size: clamp(1.82rem, 7.2vw, 2.32rem) !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.02em;
+}
+
+.stayhub-hero-subtitle {
+  font-size: 0.92rem;
+  font-weight: 400 !important;
+}
+
+.stayhub-confirmed-room-card {
+  font-weight: 400 !important;
+  font-size: 0.76rem;
+  padding: 0.42rem 0.72rem;
+}
+
+.stayhub-confirmed-room-icon {
+  height: 1.18rem;
+  width: 1.18rem;
+  font-size: 0.72rem;
+}
+
+.stayhub-premium-grid {
+  gap: 0.55rem !important;
+}
+
+.stayhub-premium-tile {
+  min-height: 86px;
+  border-radius: 16px;
+  gap: 0.28rem;
+  padding: 0.58rem 0.34rem 0.52rem;
+  box-shadow: 0 8px 18px rgba(10, 70, 72, 0.075);
+}
+
+.stayhub-premium-tile::after,
+.stayhub-premium-screen .stayhub-section-shell::after,
+.stayhub-premium-screen .stayhub-panel::after,
+.stayhub-premium-screen .stayhub-card::after,
+.stayhub-premium-screen .stayhub-action-card::after,
+.stayhub-premium-push-card::after,
+.stayhub-premium-locked-card::after {
+  left: -16%;
+  right: -16%;
+  bottom: -48%;
+  height: 78%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(67, 186, 173, 0.28), rgba(67, 186, 173, 0.11) 46%, transparent 74%);
+}
+
+.stayhub-premium-tile-icon,
+.stayhub-section-header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(67, 186, 173, 0.10);
+  border: 1px solid rgba(67, 186, 173, 0.25);
+  color: #137e79;
+}
+
+.stayhub-premium-tile-icon {
+  height: 44px;
+  width: 44px;
+}
+
+.stayhub-premium-tile-icon svg {
+  width: 23px;
+  height: 23px;
+}
+
+.stayhub-premium-tile-label {
+  font-size: 0.68rem;
+  line-height: 0.82rem;
+  font-weight: 400 !important;
+  letter-spacing: -0.01em;
+}
+
+.stayhub-premium-tile-arrow {
+  top: 0.48rem;
+  right: 0.48rem;
+  height: 24px;
+  width: 24px;
+  font-size: 1.05rem;
+  background: rgba(255,255,255,0.78);
+}
+
+.stayhub-premium-tile-locked .stayhub-premium-tile-arrow {
+  color: #d79a00;
+  border-color: rgba(215, 154, 0, 0.38);
+}
+
+.stayhub-section-header-icon {
+  height: 38px;
+  width: 38px;
+  flex: 0 0 auto;
+}
+
+.stayhub-section-header-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.stayhub-section-header-chevron {
+  color: #06484a;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.stayhub-premium-screen .stayhub-section-shell,
+.stayhub-premium-screen .stayhub-panel,
+.stayhub-premium-screen .stayhub-card,
+.stayhub-premium-screen .stayhub-action-card,
+.stayhub-premium-push-card,
+.stayhub-premium-locked-card {
+  border-radius: 22px !important;
+  background: rgba(255,255,255,0.90) !important;
+  color: #06484a !important;
+}
+
+.stayhub-premium-screen .stayhub-section-header {
+  min-height: 70px;
+  border-bottom: 0 !important;
+}
+
+.stayhub-premium-locked-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--stayhub-premium-line);
+  padding: 1rem;
+  box-shadow: 0 10px 22px rgba(10, 70, 72, 0.08);
+}
+
+.stayhub-premium-locked-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.stayhub-premium-lock-dot {
+  display: inline-flex;
+  height: 30px;
+  width: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #d79a00;
+  border: 1px solid rgba(215, 154, 0, 0.35);
+  background: rgba(255,255,255,0.78);
+}
+
+.stayhub-premium-lock-dot svg {
+  height: 15px;
+  width: 15px;
+}
+
+.stayhub-premium-push-card {
+  min-height: 82px;
+  border-radius: 22px;
+  padding: 0.82rem;
+}
+
+.stayhub-premium-push-title,
+.stayhub-premium-push-button,
+.stayhub-premium-push-secondary {
+  font-weight: 400 !important;
+}
+
+@media (max-width: 380px) {
+  .stayhub-premium-hero {
+    height: 232px !important;
+  }
+
+  .stayhub-premium-tile {
+    min-height: 80px;
+    border-radius: 15px;
+  }
+
+  .stayhub-premium-tile-icon {
+    height: 40px;
+    width: 40px;
+  }
+
+  .stayhub-premium-tile-icon svg {
+    width: 21px;
+    height: 21px;
+  }
+}
