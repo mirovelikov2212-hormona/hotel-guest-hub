@@ -125,31 +125,32 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     "aria-hidden": true,
   };
 
-  if (key.includes("massage") || key.includes("spa")) {
+  if (key.includes("massage") || key.includes("spa") || key.includes("масаж")) {
     return (
       <svg {...commonProps}>
-        <circle cx="9" cy="7" r="2.2" />
-        <path d="M5 20h14" />
-        <path d="M7 15.5h10" />
-        <path d="M8.2 11.2c1.2-.9 3.8-.9 5 0" />
-        <path d="M6.5 15.5v4.5" />
-        <path d="M17.5 15.5v4.5" />
-        <path d="M13.4 7.5c2 0 3.6 1.2 4.1 3" />
-        <path d="M15.7 10.6 19 8.8" />
+        <circle cx="11" cy="5.2" r="1.7" />
+        <path d="M7 20h10" />
+        <path d="M5.2 16.4h13.6" />
+        <path d="M6.7 16.4v3.6" />
+        <path d="M17.3 16.4v3.6" />
+        <path d="M8.2 11.6c1.4-1 3.8-1 5.6 0" />
+        <path d="M14.8 8.1c1.9.5 3.1 1.8 3.5 3.8" />
+        <path d="M16.7 12.2l2.7-1.8" />
       </svg>
     );
   }
 
-  if (key.includes("pillow")) {
+  if (key.includes("pillow") || key.includes("възглав")) {
     return (
       <svg {...commonProps}>
-        <path d="M5 10.5c0-2.5 2-4.5 4.5-4.5h5c2.5 0 4.5 2 4.5 4.5v3c0 2.5-2 4.5-4.5 4.5h-5C7 18 5 16 5 13.5v-3Z" />
-        <path d="M7 10.5c0-.9.7-1.5 1.5-1.5h7c.8 0 1.5.6 1.5 1.5v3c0 .9-.7 1.5-1.5 1.5h-7c-.8 0-1.5-.6-1.5-1.5v-3Z" />
+        <path d="M5 10.5c0-2.2 1.8-4 4-4h6c2.2 0 4 1.8 4 4v3c0 2.2-1.8 4-4 4H9c-2.2 0-4-1.8-4-4v-3Z" />
+        <path d="M7.4 8.7c.9 1.3.9 5.3 0 6.6" />
+        <path d="M16.6 8.7c-.9 1.3-.9 5.3 0 6.6" />
       </svg>
     );
   }
 
-  if (key.includes("coffee")) {
+  if (key.includes("coffee") || key.includes("каф")) {
     return (
       <svg {...commonProps}>
         <path d="M7 8h9v6a4 4 0 0 1-4 4h-1a4 4 0 0 1-4-4V8Z" />
@@ -162,7 +163,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     );
   }
 
-  if (key.includes("policy") || key.includes("policies")) {
+  if (key.includes("policy") || key.includes("policies") || key.includes("политик")) {
     return (
       <svg {...commonProps}>
         <path d="M12 3 5 6v5c0 4.5 3 8.2 7 10 4-1.8 7-5.5 7-10V6l-7-3Z" />
@@ -171,7 +172,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     );
   }
 
-  if (key.includes("bar")) {
+  if (key.includes("bar") || key.includes("бар")) {
     return (
       <svg {...commonProps}>
         <path d="M6 4h12l-2 7a4 4 0 0 1-8 0L6 4Z" />
@@ -182,7 +183,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     );
   }
 
-  if (key.includes("animation") || key.includes("entertainment")) {
+  if (key.includes("animation") || key.includes("entertainment") || key.includes("забав")) {
     return (
       <svg {...commonProps}>
         <path d="m12 3 2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.56 6.3 20.56l1.09-6.35-4.62-4.5 6.38-.93L12 3Z" />
@@ -190,7 +191,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     );
   }
 
-  if (key.includes("reception") || key.includes("contact")) {
+  if (key.includes("reception") || key.includes("contact") || key.includes("свържи")) {
     return (
       <svg {...commonProps}>
         <path d="M22 16.92v2a2 2 0 0 1-2.18 2 19.74 19.74 0 0 1-8.59-3.06 19.26 19.26 0 0 1-5.92-5.92A19.74 19.74 0 0 1 2.25 3.4 2 2 0 0 1 4.23 1.2h2a2 2 0 0 1 2 1.72c.12.9.32 1.77.6 2.61a2 2 0 0 1-.45 2.11L7.5 8.52a16 16 0 0 0 7.98 7.98l.88-.88a2 2 0 0 1 2.11-.45c.84.28 1.71.48 2.61.6A2 2 0 0 1 22 16.92Z" />
@@ -198,7 +199,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     );
   }
 
-  if (key.includes("housekeeping")) {
+  if (key.includes("housekeeping") || key.includes("хаус")) {
     return (
       <svg {...commonProps}>
         <path d="M7 21h10" />
@@ -210,7 +211,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     );
   }
 
-  if (key.includes("maintenance")) {
+  if (key.includes("maintenance") || key.includes("поддр") || key.includes("техничес")) {
     return (
       <svg {...commonProps}>
         <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.4 2.4-2.9-.8-.8-2.9 2.4-2.4Z" />
@@ -218,7 +219,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     );
   }
 
-  if (key.includes("wifi")) {
+  if (key.includes("wifi") || key.includes("wi-fi")) {
     return (
       <svg {...commonProps}>
         <path d="M5 13a10 10 0 0 1 14 0" />
@@ -228,7 +229,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     );
   }
 
-  if (key.includes("weather")) {
+  if (key.includes("weather") || key.includes("врем")) {
     return (
       <svg {...commonProps}>
         <path d="M12 3v2" />
@@ -241,7 +242,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     );
   }
 
-  if (key.includes("review") || key.includes("social")) {
+  if (key.includes("review") || key.includes("social") || key.includes("отзив")) {
     return (
       <svg {...commonProps}>
         <path d="M5 6.5h14a2 2 0 0 1 2 2v6.2a2 2 0 0 1-2 2H10l-4.5 3.2v-3.2H5a2 2 0 0 1-2-2V8.5a2 2 0 0 1 2-2Z" />
@@ -252,7 +253,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     );
   }
 
-  if (key.includes("explore") || key.includes("nearby")) {
+  if (key.includes("explore") || key.includes("nearby") || key.includes("около")) {
     return (
       <svg {...commonProps}>
         <path d="M12 21s7-5.3 7-12a7 7 0 0 0-14 0c0 6.7 7 12 7 12Z" />
@@ -261,7 +262,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     );
   }
 
-  if (key.includes("outlet") || key.includes("restaurant") || key.includes("food")) {
+  if (key.includes("outlet") || key.includes("restaurant") || key.includes("food") || key.includes("ресторан") || key.includes("храна")) {
     return (
       <svg {...commonProps}>
         <path d="M7 3v8" />
@@ -271,6 +272,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
         <path d="M7 11v10" />
         <path d="M17 3v18" />
         <path d="M14 3h3a3 3 0 0 1 3 3v5h-3" />
+        <path d="M17 11h3" />
       </svg>
     );
   }
@@ -7875,7 +7877,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               setShowRoomSwitchCard((prev) => !prev);
               setManualRoomInput("");
             }}
-            className="stayhub-room-switch-link"
+            className="stayhub-confirmed-room-card stayhub-room-switch-link"
           >
             {lang === "bg" ? "Смяна на стаята" : lang === "de" ? "Zimmer wechseln" : lang === "ru" ? "Смена номера" : "Change room"}
           </button>
@@ -8316,66 +8318,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                     </button>
                   );
                 })}
-              </div>
-
-              {selectedPremiumTile ? (
-                <div className="mt-3 space-y-2">
-                  {(selectedPremiumTile as any).special === "massage" ? (
-                    roomConfirmed && room.trim() ? (
-                      <MassageBookingSection
-                        hotelSlug={hotelContentSlug}
-                        language={lang}
-                        room={room}
-                        roomConfirmed={roomConfirmed}
-                        protectedSubmissionEnabled={true}
-                        forceOpenToken={1}
-                        collapseToken={guestSectionsCollapseToken}
-                        onBookingConfirmed={handleMassageBookingConfirmed}
-                        onRequireRoomConfirmation={() => {
-                          window.alert(roomCopy.lockedActionAlert);
-                          window.setTimeout(() => {
-                            document
-                              .getElementById("stayhub-room-confirmation")
-                              ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                          }, 0);
-                        }}
-                        onTrack={trackGuestEvent}
-                      />
-                    ) : (
-                      <LockedSectionCard
-                        title={String(selectedPremiumTile.title)}
-                        message={roomCopy.lockedSectionMessage}
-                      />
-                    )
-                  ) : selectedPremiumTile.id === "contact" ? (
-                    <div className="space-y-2">
-                      {quickServiceSections
-                        .filter((section) => section.id !== "wifi")
-                        .map((section) =>
-                          renderHubSection(section, {
-                            defaultOpen: false,
-                            keyPrefix: "contact-detail",
-                          })
-                        )}
-                    </div>
-                  ) : selectedPremiumTile.section ? (
-                    selectedPremiumTile.section.id === "outlets" ? (
-                      renderHubSection(selectedPremiumTile.section, {
-                        defaultOpen: true,
-                        keyPrefix: `premium-${selectedPremiumTile.id}`,
-                        outletCategories: (selectedPremiumTile as any).outletCategories,
-                        outletTitle: String(selectedPremiumTile.title),
-                      })
-                    ) : (
-                      renderHubSection(selectedPremiumTile.section, {
-                        defaultOpen: true,
-                        keyPrefix: `premium-${selectedPremiumTile.id}`,
-                      })
-                    )
-                  ) : null}
-                </div>
-              ) : null}
-            </section>
+              </div>            </section>
           ) : null}
 
           {remainingSections.length ? (
@@ -8416,6 +8359,86 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
         <p className="mt-6 text-center text-xs text-neutral-400">{tUI("notice")}</p>
       </div>
+
+
+      {selectedPremiumTile ? (
+        <div className="stayhub-section-window-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-3 sm:items-center">
+          <div className="stayhub-section-window w-full max-w-md rounded-[24px] p-3 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between gap-3 px-1">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="stayhub-section-window-icon" aria-hidden="true">
+                  <PremiumSectionIcon id={selectedPremiumTile.iconId || selectedPremiumTile.id || String(selectedPremiumTile.title)} />
+                </span>
+                <div className="truncate text-base font-semibold">{stripLeadingVisualIcon(String(selectedPremiumTile.title))}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpenQuickServiceId(null)}
+                className="stayhub-section-window-close"
+                aria-label={guestNavigationLabel("close", guestNavCopy.close)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="stayhub-section-window-body max-h-[72vh] overflow-y-auto pr-1">
+              {(selectedPremiumTile as any).special === "massage" ? (
+                roomConfirmed && room.trim() ? (
+                  <MassageBookingSection
+                    hotelSlug={hotelContentSlug}
+                    language={lang}
+                    room={room}
+                    roomConfirmed={roomConfirmed}
+                    protectedSubmissionEnabled={true}
+                    forceOpenToken={1}
+                    collapseToken={guestSectionsCollapseToken}
+                    onBookingConfirmed={handleMassageBookingConfirmed}
+                    onRequireRoomConfirmation={() => {
+                      window.alert(roomCopy.lockedActionAlert);
+                      window.setTimeout(() => {
+                        document
+                          .getElementById("stayhub-room-confirmation")
+                          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }, 0);
+                    }}
+                    onTrack={trackGuestEvent}
+                  />
+                ) : (
+                  <LockedSectionCard
+                    title={String(selectedPremiumTile.title)}
+                    message={roomCopy.lockedSectionMessage}
+                  />
+                )
+              ) : selectedPremiumTile.id === "contact" ? (
+                <div className="space-y-2">
+                  {quickServiceSections
+                    .filter((section) => section.id !== "wifi")
+                    .map((section) =>
+                      renderHubSection(section, {
+                        defaultOpen: false,
+                        keyPrefix: "contact-detail",
+                      })
+                    )}
+                </div>
+              ) : selectedPremiumTile.section ? (
+                selectedPremiumTile.section.id === "outlets" ? (
+                  renderHubSection(selectedPremiumTile.section, {
+                    defaultOpen: true,
+                    keyPrefix: `premium-${selectedPremiumTile.id}`,
+                    outletCategories: (selectedPremiumTile as any).outletCategories,
+                    outletTitle: String(selectedPremiumTile.title),
+                  })
+                ) : (
+                  renderHubSection(selectedPremiumTile.section, {
+                    defaultOpen: true,
+                    keyPrefix: `premium-${selectedPremiumTile.id}`,
+                  })
+                )
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="px-4 pb-7">
       <button
@@ -9773,7 +9796,12 @@ function OutletsAccordion({
         }
         className="w-full px-4 py-4 text-left stayhub-section-header flex items-center justify-between gap-3"
       >
-        <div className="text-base font-medium">{withSectionIcon(section.title, (section as any).id || (section as any).key || (section as any).type || (section as any).section)}</div>
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="stayhub-section-header-icon" aria-hidden="true">
+            <PremiumSectionIcon id={String(section.title || section.id || 'outlets')} />
+          </span>
+          <span className="truncate text-base font-medium">{stripLeadingVisualIcon(String(section.title || ''))}</span>
+        </span>
         <div className="text-lg">▾</div>
       </button>
 
@@ -9786,7 +9814,6 @@ function OutletsAccordion({
               const catKey = group.category;
               const catOpen = openCategory === catKey;
               const singleVenue = group.venues.length === 1 ? group.venues[0] : null;
-              const groupIcon = singleVenue?.icon || group.meta.icon;
               const groupTitle = singleVenue ? getVenueText(singleVenue, "name", lang) : getCategoryDisplayTitle(catKey, tUI);
               const groupSubtitle = singleVenue ? getVenueText(singleVenue, "shortDescription", lang) : "";
 
@@ -9812,13 +9839,16 @@ function OutletsAccordion({
                     }}
                     className="w-full px-3 py-3 text-left flex items-center justify-between gap-3 active:scale-[0.99] transition"
                   >
-                    <div>
-                      <div className="font-medium text-white">
-                        {groupIcon} {groupTitle}
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="stayhub-section-header-icon stayhub-section-header-icon-inline" aria-hidden="true">
+                        <PremiumSectionIcon id={`${catKey} ${groupTitle}`} />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="font-medium text-white">{groupTitle}</div>
+                        {groupSubtitle ? (
+                          <div className="mt-1 text-xs text-neutral-300">{groupSubtitle}</div>
+                        ) : null}
                       </div>
-                      {groupSubtitle ? (
-                        <div className="mt-1 text-xs text-neutral-300">{groupSubtitle}</div>
-                      ) : null}
                     </div>
                     <div className="text-neutral-300">▾</div>
                   </button>

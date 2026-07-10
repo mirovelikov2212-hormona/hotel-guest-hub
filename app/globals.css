@@ -1630,3 +1630,158 @@ input.stayhub-card::placeholder {
   bottom: -20% !important;
   height: 32% !important;
 }
+
+/* === v4.5 section window + icon system refinements === */
+.stayhub-confirmed-room-wrap {
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  flex-wrap: wrap !important;
+}
+
+.stayhub-confirmed-room-card,
+.stayhub-room-switch-link.stayhub-confirmed-room-card {
+  min-height: 36px !important;
+  padding: 0.45rem 0.85rem !important;
+  border-radius: 16px !important;
+  background: rgba(236,255,241,0.94) !important;
+  border: 1px solid rgba(56,166,95,0.28) !important;
+  color: #126b43 !important;
+  box-shadow: 0 9px 20px rgba(36,113,60,0.13) !important;
+  text-decoration: none !important;
+  outline: none !important;
+  font-size: 0.86rem !important;
+  font-weight: 500 !important;
+}
+
+.stayhub-room-switch-link.stayhub-confirmed-room-card:focus,
+.stayhub-room-switch-link.stayhub-confirmed-room-card:focus-visible,
+.stayhub-premium-tile:focus,
+.stayhub-premium-tile:focus-visible {
+  outline: none !important;
+  box-shadow: 0 9px 20px rgba(36,113,60,0.13), 0 0 0 2px rgba(67,186,173,0.18) !important;
+}
+
+.stayhub-section-window-backdrop {
+  backdrop-filter: blur(4px);
+}
+
+.stayhub-section-window {
+  border: 1px solid rgba(67,186,173,0.34) !important;
+  background: rgba(247,255,253,0.96) !important;
+  color: #075255 !important;
+  box-shadow: 0 24px 70px rgba(7,82,85,0.24) !important;
+}
+
+.stayhub-section-window-icon {
+  width: 2.15rem !important;
+  height: 2.15rem !important;
+  color: #11857f !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 2.15rem;
+}
+
+.stayhub-section-window-icon svg {
+  width: 1.85rem !important;
+  height: 1.85rem !important;
+  stroke-width: 2.05 !important;
+}
+
+.stayhub-section-window-close {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid rgba(67,186,173,0.28);
+  background: rgba(255,255,255,0.86);
+  color: #0b6668;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.stayhub-section-window-body .stayhub-section-shell {
+  box-shadow: none !important;
+}
+
+.stayhub-premium-tile::after {
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: 37% !important;
+  border-radius: 0 !important;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 105' preserveAspectRatio='none'%3E%3Cpath d='M0 64 C42 36 73 34 111 55 C148 76 184 79 221 53 C249 34 275 32 300 45 L300 105 L0 105 Z' fill='%239ce8dc' fill-opacity='0.48'/%3E%3Cpath d='M0 73 C46 50 82 48 119 66 C158 84 191 85 230 63 C258 47 282 48 300 57 L300 105 L0 105 Z' fill='%2343baad' fill-opacity='0.13'/%3E%3C/svg%3E") bottom center / 100% 100% no-repeat !important;
+}
+
+.stayhub-premium-screen .stayhub-panel::after,
+.stayhub-premium-screen .stayhub-section-shell::after,
+.stayhub-premium-screen .stayhub-card::after,
+.stayhub-premium-screen .stayhub-action-card::after,
+.stayhub-premium-push-card::after,
+.stayhub-premium-locked-card::after {
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: 26% !important;
+  border-radius: 0 !important;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 105' preserveAspectRatio='none'%3E%3Cpath d='M0 64 C42 36 73 34 111 55 C148 76 184 79 221 53 C249 34 275 32 300 45 L300 105 L0 105 Z' fill='%239ce8dc' fill-opacity='0.35'/%3E%3Cpath d='M0 76 C44 58 86 55 124 70 C164 86 194 87 231 68 C259 54 282 55 300 62 L300 105 L0 105 Z' fill='%2343baad' fill-opacity='0.10'/%3E%3C/svg%3E") bottom center / 100% 100% no-repeat !important;
+}
+
+.stayhub-premium-tile-icon {
+  width: 4.25rem !important;
+  height: 4.25rem !important;
+  margin: 0 auto 0.42rem !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #0d8580 !important;
+}
+
+.stayhub-premium-tile-icon svg {
+  width: 3rem !important;
+  height: 3rem !important;
+  stroke-width: 1.95 !important;
+  filter: drop-shadow(0 8px 10px rgba(7,82,85,0.10));
+}
+
+.stayhub-premium-tile-label {
+  font-size: 0.72rem !important;
+  line-height: 1.12 !important;
+  font-weight: 600 !important;
+}
+
+.stayhub-section-header-icon,
+.stayhub-section-window-icon,
+.stayhub-section-header-icon-inline {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.stayhub-section-header-icon {
+  width: 2.75rem !important;
+  height: 2.75rem !important;
+  color: #0d8580 !important;
+}
+
+.stayhub-section-header-icon svg {
+  width: 2.35rem !important;
+  height: 2.35rem !important;
+  stroke-width: 1.95 !important;
+}
+
+.stayhub-section-header-icon-inline {
+  width: 2.6rem !important;
+  height: 2.6rem !important;
+}
+
+.stayhub-section-header-icon-inline svg {
+  width: 2.2rem !important;
+  height: 2.2rem !important;
+}
+
+.stayhub-premium-tile .stayhub-premium-tile-icon,
+.stayhub-premium-tile .stayhub-premium-tile-label {
+  transform: translateY(-0.08rem);
+}
