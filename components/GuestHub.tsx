@@ -128,11 +128,13 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("massage") || key.includes("spa")) {
     return (
       <svg {...commonProps}>
-        <path d="M7 19c3.8-.7 7.2-3.1 9.2-6.5" />
-        <path d="M5 16c2.8-.5 5.3-2.2 6.8-4.7" />
-        <path d="M12 5c2.2.7 3.8 2.2 4.8 4.3" />
-        <path d="M9.5 8.2c1.1.2 2.1.8 2.8 1.7" />
-        <path d="M6.2 12.8c.9-.2 1.8-.6 2.5-1.2" />
+        <circle cx="12" cy="5" r="2" />
+        <path d="M9.3 9.2c1.2-.8 4.2-.8 5.4 0" />
+        <path d="M8 12h8" />
+        <path d="M5 16h14" />
+        <path d="M5 20h14" />
+        <path d="M7 16v4" />
+        <path d="M17 16v4" />
       </svg>
     );
   }
@@ -183,11 +185,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("animation") || key.includes("entertainment")) {
     return (
       <svg {...commonProps}>
-        <path d="M5 18c4-1 5-5 7-5s3 4 7 5" />
-        <path d="M8 10h.01" />
-        <path d="M16 10h.01" />
-        <path d="M7 6c3-2 7-2 10 0" />
-        <path d="M12 13v2" />
+        <path d="m12 3 2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.56 6.3 20.56l1.09-6.35-4.62-4.5 6.38-.93L12 3Z" />
       </svg>
     );
   }
@@ -246,7 +244,10 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("review") || key.includes("social")) {
     return (
       <svg {...commonProps}>
-        <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.2 6.4 20.2 7.5 14 3 9.6l6.2-.9L12 3Z" />
+        <path d="M5 6.5h14a2 2 0 0 1 2 2v6.2a2 2 0 0 1-2 2H10l-4.5 3.2v-3.2H5a2 2 0 0 1-2-2V8.5a2 2 0 0 1 2-2Z" />
+        <path d="M8 11.5h.01" />
+        <path d="M12 11.5h.01" />
+        <path d="M16 11.5h.01" />
       </svg>
     );
   }
@@ -7656,6 +7657,12 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     };
   })();
 
+  const reviewsDisplaySection: HubSection = reviewsCombinedSection || {
+    id: "reviews",
+    title: String(tUI("reviews_title") || (lang === "bg" ? "Отзиви" : "Reviews")),
+    items: [],
+  };
+
   const premiumTiles = [
     { id: "info", iconId: "info", title: lang === "bg" ? "Инфо" : "Info", section: infoCombinedSection, requiresRoom: false },
     { id: "contact", iconId: "contact", title: contactCombinedSection?.title || (lang === "bg" ? "Свържи се с нас" : "Contact us"), section: contactCombinedSection, requiresRoom: true },
@@ -7668,7 +7675,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     { id: "coffee_capsules", iconId: "coffee", title: lang === "bg" ? "Поръчай кафе капсули" : String(tUI("coffee_capsules") || "Coffee capsules"), section: coffeeCapsulesSection, requiresRoom: true },
     { id: "explore", iconId: "explore", title: String(exploreHubSection?.title || (lang === "bg" ? "Около хотела" : "Around the hotel")), section: exploreHubSection, requiresRoom: false },
     { id: "weather", iconId: "weather", title: String(weatherSection.title || (lang === "bg" ? "Времето" : "Weather")), section: weatherSection, requiresRoom: false },
-    { id: "reviews", iconId: "reviews", title: reviewsCombinedSection?.title || (lang === "bg" ? "Отзиви" : "Reviews"), section: reviewsCombinedSection, requiresRoom: false },
+    { id: "reviews", iconId: "reviews", title: reviewsDisplaySection.title, section: reviewsDisplaySection, requiresRoom: false },
   ].filter((tile) => tile.section || tile.special === "massage");
 
   const selectedPremiumTile = openQuickServiceId
@@ -7983,8 +7990,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       ) : null}
 
       {roomModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
+        <div className="stayhub-room-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="stayhub-room-modal w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
             <div className="text-lg font-semibold text-white">
               {isRoomSwitchConfirmation
                 ? lang === "bg"
@@ -8246,9 +8253,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                         isLocked ? "stayhub-premium-tile-locked" : ""
                       )}
                     >
-                      <span className="stayhub-premium-tile-arrow" aria-hidden="true">
-                        {isLocked ? "⌕" : "›"}
-                      </span>
                       <span className="stayhub-premium-tile-icon" aria-hidden="true">
                         <PremiumSectionIcon id={tile.iconId} />
                       </span>
@@ -8382,7 +8386,17 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         }
         aria-label={getCurrentGuestUiText("ai_open") || guestNavCopy.askAi}
       >
-        <span className="text-lg">🤖</span>
+        <span className="stayhub-ai-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="8" width="14" height="11" rx="3" />
+            <path d="M12 5v3" />
+            <circle cx="9" cy="13" r="1" />
+            <circle cx="15" cy="13" r="1" />
+            <path d="M9.5 16h5" />
+            <path d="M4 12H2.8" />
+            <path d="M21.2 12H20" />
+          </svg>
+        </span>
         <span>{guestNavigationLabel("ask_ai", guestNavCopy.askAi)}</span>
         {!roomConfirmed ? (
           <span
@@ -8399,7 +8413,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-3 sm:items-center">
           <div className="w-full max-w-md rounded-2xl stayhub-section-shell p-4 shadow-2xl">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="mr-auto text-lg font-semibold">🤖 {String(tUI("ai_title") || "AI Concierge")}</div>
+              <div className="mr-auto flex items-center gap-2 text-lg font-semibold"><span className="stayhub-ai-icon stayhub-ai-icon-small" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 5v3"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/><path d="M9.5 16h5"/></svg></span>{String(tUI("ai_title") || "AI Concierge")}</div>
               <div className="flex items-center gap-2">
                 {aiHistory.length || aiQ.trim() ? (
                   <button
