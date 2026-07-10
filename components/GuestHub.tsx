@@ -5018,6 +5018,49 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         } as any;
       });
   }
+
+
+  function buildStandaloneRequestDefHubItem(def: RequestDef): HubItem {
+    const title = getRequestDefTitle(def) || String(def.id || def.requestType || "request").replace(/_/g, " ");
+    const icon = getRequestDefButtonIcon(def);
+    const label = icon ? `${icon} ${title}` : title;
+    const href = getRequestDefHref(def);
+
+    if (def.type === "request" && (def.requestKind === "selection" || def.requestKind === "quantity" || def.requiresQuantity)) {
+      return {
+        label,
+        kind: "request_def" as const,
+        requestDef: def,
+      } as any;
+    }
+
+    if (href && (def.type === "pdf" || def.type === "external_link" || def.type === "link")) {
+      return {
+        label,
+        kind: "link" as const,
+        href,
+        newTab: true,
+      };
+    }
+
+    return {
+      label,
+      kind: "link" as const,
+      onClick: () => handleRequestDefClick(def),
+      requestDef: def,
+    } as any;
+  }
+
+  function findRequestDefByIds(ids: string[]): RequestDef | null {
+    const normalizedIds = new Set(ids.map((id) => String(id || "").trim().toLowerCase()).filter(Boolean));
+
+    return requestDefs.find((def) => {
+      const defId = String(def.id || "").trim().toLowerCase();
+      const requestType = String(def.requestType || "").trim().toLowerCase();
+      return normalizedIds.has(defId) || normalizedIds.has(requestType);
+    }) || null;
+  }
+
   const taxiProviders = config.taxiProviders ?? [];
 
   const hotelContentSlug = String((config as any)?.hotelSlug || "").trim().toLowerCase();
@@ -6537,7 +6580,7 @@ EN: ${helpMsg}` : opsMsg,
   );
 
   const isHotelInfoGroup = useCallback(
-    (item: any, group: "wifi" | "emergency" | "explore" | "reviews" | "animation" | "world_cup") => {
+    (item: any, group: "wifi" | "emergency" | "explore" | "reviews" | "animation" | "world_cup" | "policy") => {
       const identity = getHotelInfoIdentity(item);
 
       if (group === "wifi") {
@@ -6562,6 +6605,10 @@ EN: ${helpMsg}` : opsMsg,
 
       if (group === "world_cup") {
         return /world.?cup|fifa|световно|mondial|ms ve fotbale|wm 2026/.test(identity);
+      }
+
+      if (group === "policy") {
+        return /policy|политик|правил|towel|кърп|хавли|beach|плаж|sunbed|шезлон|umbrella|чадър|gift|charity|кауза|donation|spende|prosoape|șezlong|plaj|ručník|pláž|lehát|полотенц|пляж|шезлонг/.test(identity);
       }
 
       return false;
@@ -6700,7 +6747,8 @@ EN: ${helpMsg}` : opsMsg,
           !isHotelInfoGroup(item, "explore") &&
           !isHotelInfoGroup(item, "reviews") &&
           !isHotelInfoGroup(item, "animation") &&
-          !isHotelInfoGroup(item, "world_cup")
+          !isHotelInfoGroup(item, "world_cup") &&
+          !isHotelInfoGroup(item, "policy")
       )
       .map(toHotelInfoHubItem)
       .filter((item) => item.label || (item.kind === "info" && Boolean(item.info)));
@@ -7472,10 +7520,160 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     ...(emergencySection ? [emergencySection] : []),
   ].filter((section) => section.id === "outlets" || (section.items && section.items.length > 0));
 
+  const sectionById = (id: string) => sections.find((section) => section.id === id) || null;
   const quickServiceIds = ["wifi", "reception", "housekeeping", "maintenance"];
   const quickServiceSections = quickServiceIds
-    .map((id) => sections.find((section) => section.id === id))
+    .map((id) => sectionById(id))
     .filter((section): section is HubSection => Boolean(section));
+
+  const hotelInfoPolicyItems = hotelInfoItems
+    .filter((item) => isHotelInfoGroup(item, "policy"))
+    .map(toHotelInfoHubItem)
+    .filter((item) => item.label || (item.kind === "info" && Boolean(item.info)));
+
+  const infoCombinedSection: HubSection | null = (() => {
+    const items = [
+      ...(wifiSection ? wifiSection.items : []),
+      ...(hotelInfoSection ? hotelInfoSection.items : []),
+    ];
+
+    if (!items.length) return null;
+
+    return {
+      id: "info",
+      title: String(tUI("hotel_info_title") || tUI("section_info_title") || "Инфо"),
+      items,
+    };
+  })();
+
+  const contactCombinedSection: HubSection | null = quickServiceSections.length
+    ? {
+        id: "contact",
+        title:
+          lang === "bg"
+            ? "Свържи се с нас"
+            : lang === "de"
+              ? "Kontakt"
+              : lang === "ro"
+                ? "Contactați-ne"
+                : lang === "cs"
+                  ? "Kontaktujte nás"
+                  : lang === "ru"
+                    ? "Свяжитесь с нами"
+                    : "Contact us",
+        items: [],
+      }
+    : null;
+
+  const policyCombinedSection: HubSection | null = {
+    id: "hotel_policies",
+    title:
+      lang === "bg"
+        ? "Политика на хотела"
+        : lang === "de"
+          ? "Hotelrichtlinien"
+          : lang === "ro"
+            ? "Politica hotelului"
+            : lang === "cs"
+              ? "Pravidla hotelu"
+              : lang === "ru"
+                ? "Правила отеля"
+                : "Hotel policies",
+    items: hotelInfoPolicyItems.length
+      ? hotelInfoPolicyItems
+      : (hotelInfoSection ? hotelInfoSection.items.slice(0, 6) : []),
+  };
+
+  const restaurantOutletSection = outletsSection
+    ? { ...outletsSection, title: lang === "bg" ? "Ресторант" : lang === "de" ? "Restaurant" : lang === "ro" ? "Restaurant" : lang === "cs" ? "Restaurace" : lang === "ru" ? "Ресторан" : "Restaurant" }
+    : null;
+
+  const barsOutletSection = outletsSection
+    ? { ...outletsSection, title: lang === "bg" ? "Барове" : lang === "de" ? "Bars" : lang === "ro" ? "Baruri" : lang === "cs" ? "Bary" : lang === "ru" ? "Бары" : "Bars" }
+    : null;
+
+  const otherEntertainmentSection = outletsSection
+    ? { ...outletsSection, title: lang === "bg" ? "Други забавления" : lang === "de" ? "Weitere Unterhaltung" : lang === "ro" ? "Alte distracții" : lang === "cs" ? "Další zábava" : lang === "ru" ? "Другие развлечения" : "Other entertainment" }
+    : animationSection;
+
+  const pillowMenuDef = findRequestDefByIds(["pillow_menu", "pillow_menu_request"]);
+  const coffeeCapsulesDef = findRequestDefByIds(["coffee_capsules", "coffee_capsules_request"]);
+
+  const pillowMenuSection: HubSection = {
+    id: "pillow_menu",
+    title: String(tUI("pillow_menu") || (lang === "bg" ? "Вземи възглавница" : "Pillow menu")),
+    items: pillowMenuDef
+      ? [buildStandaloneRequestDefHubItem(pillowMenuDef)]
+      : [
+          {
+            label: String(tUI("pillow_menu") || (lang === "bg" ? "Вземи възглавница" : "Pillow menu")),
+            kind: "link" as const,
+            onClick: () =>
+              submitGuestRequest({
+                type: "pillow_menu",
+                typeLabel: String(tUI("pillow_menu") || "Pillow menu"),
+                requiresBilling: true,
+                notifyDepartments: ["reception"],
+              }),
+          },
+        ],
+  };
+
+  const coffeeCapsulesSection: HubSection = {
+    id: "coffee_capsules",
+    title: String(tUI("coffee_capsules") || (lang === "bg" ? "Поръчай кафе капсули" : "Coffee capsules")),
+    items: coffeeCapsulesDef
+      ? [buildStandaloneRequestDefHubItem(coffeeCapsulesDef)]
+      : [
+          {
+            label: String(tUI("coffee_capsules") || (lang === "bg" ? "Поръчай кафе капсули" : "Coffee capsules")),
+            kind: "link" as const,
+            onClick: () =>
+              submitGuestRequest({
+                type: "coffee_capsules",
+                typeLabel: String(tUI("coffee_capsules") || "Coffee capsules"),
+                price: coffeeCapsulesPrice,
+                currency: coffeeCapsulesCurrency,
+                requiresBilling: true,
+                notifyDepartments: ["reception"],
+              }),
+          },
+        ],
+  };
+
+  const exploreHubSection = sectionById("explore");
+
+  const reviewsCombinedSection: HubSection | null = (() => {
+    const items = [
+      ...(reviewsSection ? reviewsSection.items : []),
+      ...(socialSection ? socialSection.items : []),
+    ];
+    if (!items.length) return null;
+    return {
+      id: "reviews",
+      title: String(tUI("reviews_title") || (lang === "bg" ? "Отзиви" : "Reviews")),
+      items,
+    };
+  })();
+
+  const premiumTiles = [
+    { id: "info", iconId: "info", title: lang === "bg" ? "Инфо" : "Info", section: infoCombinedSection, requiresRoom: false },
+    { id: "contact", iconId: "contact", title: contactCombinedSection?.title || (lang === "bg" ? "Свържи се с нас" : "Contact us"), section: contactCombinedSection, requiresRoom: true },
+    { id: "hotel_policies", iconId: "policy", title: policyCombinedSection.title, section: policyCombinedSection, requiresRoom: false },
+    { id: "restaurants", iconId: "restaurant", title: restaurantOutletSection?.title || (lang === "bg" ? "Ресторант" : "Restaurant"), section: restaurantOutletSection, requiresRoom: false, outletCategories: ["restaurants"] },
+    { id: "bars", iconId: "bars", title: barsOutletSection?.title || (lang === "bg" ? "Барове" : "Bars"), section: barsOutletSection, requiresRoom: false, outletCategories: ["bars"] },
+    { id: "entertainment", iconId: "entertainment", title: otherEntertainmentSection?.title || (lang === "bg" ? "Други забавления" : "Other entertainment"), section: otherEntertainmentSection, requiresRoom: false, outletCategories: ["kids", "entertainment", "gym", "spa", "other", "room_service"] },
+    { id: "massage_booking", iconId: "massage", title: massageBookingDef ? getRequestDefTitle(massageBookingDef) : String(tUI("massage_booking") || (lang === "bg" ? "Запази масаж" : "Book massage")), section: null, requiresRoom: true, special: "massage" as const },
+    { id: "pillow_menu", iconId: "pillow", title: lang === "bg" ? "Вземи възглавница" : String(tUI("pillow_menu") || "Pillow menu"), section: pillowMenuSection, requiresRoom: true },
+    { id: "coffee_capsules", iconId: "coffee", title: lang === "bg" ? "Поръчай кафе капсули" : String(tUI("coffee_capsules") || "Coffee capsules"), section: coffeeCapsulesSection, requiresRoom: true },
+    { id: "explore", iconId: "explore", title: String(exploreHubSection?.title || (lang === "bg" ? "Около хотела" : "Around the hotel")), section: exploreHubSection, requiresRoom: false },
+    { id: "weather", iconId: "weather", title: String(weatherSection.title || (lang === "bg" ? "Времето" : "Weather")), section: weatherSection, requiresRoom: false },
+    { id: "reviews", iconId: "reviews", title: reviewsCombinedSection?.title || (lang === "bg" ? "Отзиви" : "Reviews"), section: reviewsCombinedSection, requiresRoom: false },
+  ].filter((tile) => tile.section || tile.special === "massage");
+
+  const selectedPremiumTile = openQuickServiceId
+    ? premiumTiles.find((tile) => tile.id === openQuickServiceId) || null
+    : null;
 
   const hotelStaySectionIds = new Set(["info", "weather"]);
   const foodEntertainmentSectionIds = new Set([
@@ -7492,21 +7690,20 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     "explore",
     "ai",
     "emergency",
+    "pillow_menu",
+    "coffee_capsules",
+    "massage_booking",
   ]);
 
-  const hotelStaySections = sections.filter((section) => hotelStaySectionIds.has(section.id));
-  const foodEntertainmentSections = sections.filter((section) => foodEntertainmentSectionIds.has(section.id));
-  const reviewSocialSections = sections.filter((section) => reviewSocialSectionIds.has(section.id));
-  const exploreHubSection = sections.find((section) => section.id === "explore") || null;
+  const hotelStaySections: HubSection[] = [];
+  const foodEntertainmentSections: HubSection[] = [];
+  const reviewSocialSections: HubSection[] = [];
+  const exploreHubSectionForLegacy = null;
   const emergencyHubSection = sections.find((section) => section.id === "emergency") || null;
   const remainingSections = sections.filter((section) => !reservedSectionIds.has(section.id));
-  const selectedQuickServiceSection = openQuickServiceId
-    ? quickServiceSections.find((section) => section.id === openQuickServiceId) || null
-    : null;
-
   const renderHubSection = (
     sec: HubSection,
-    options?: { defaultOpen?: boolean; hideHeader?: boolean; keyPrefix?: string }
+    options?: { defaultOpen?: boolean; hideHeader?: boolean; keyPrefix?: string; outletCategories?: string[]; outletTitle?: string }
   ) => {
     const isLocked = !roomConfirmed && roomRequiredSectionIds.has(sec.id);
     const key = `${options?.keyPrefix || "section"}-${sec.id}`;
@@ -7525,8 +7722,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       return (
         <OutletsAccordion
           key={key}
-          section={sec}
-          groups={groupedOutlets}
+          section={options?.outletTitle ? { ...sec, title: options.outletTitle } : sec}
+          groups={options?.outletCategories ? groupedOutlets.filter((group) => options.outletCategories?.includes(group.category)) : groupedOutlets}
           tUI={tUI}
           lang={lang}
           onReserve={openVenueReservation}
@@ -7546,6 +7743,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           focusRequestDefId={aiRequestNavigation?.sectionId === sec.id ? aiRequestNavigation.targetId : null}
           focusRequestNonce={aiRequestNavigation?.sectionId === sec.id ? aiRequestNavigation.nonce : 0}
           collapseToken={guestSectionsCollapseToken}
+          defaultOpen={options?.defaultOpen}
           onTrack={trackGuestEvent}
         />
       );
@@ -8016,29 +8214,29 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
       <div className="px-4 pb-28 pt-3">
         <div className="space-y-3">
-          {quickServiceSections.length ? (
+          {premiumTiles.length ? (
             <section aria-label={guestNavigationLabel("quick_services_title", guestNavCopy.quickServices)}>
-              <div className="stayhub-premium-grid grid grid-cols-3 gap-3">
-                {quickServiceSections.map((section) => {
-                  const isLocked = !roomConfirmed && roomRequiredSectionIds.has(section.id);
-                  const isSelected = openQuickServiceId === section.id;
+              <div className="stayhub-premium-grid grid grid-cols-3 gap-2.5">
+                {premiumTiles.map((tile) => {
+                  const isLocked = Boolean(tile.requiresRoom) && !roomConfirmed;
+                  const isSelected = openQuickServiceId === tile.id;
 
                   return (
                     <button
-                      key={`quick-${section.id}`}
+                      key={`premium-${tile.id}`}
                       type="button"
                       onClick={() => {
                         if (isLocked && !ensureConfirmedRoom()) return;
 
-                        const nextId = isSelected ? null : section.id;
+                        const nextId = isSelected ? null : tile.id;
                         setOpenQuickServiceId(nextId);
                         trackGuestEvent({
                           eventName: nextId ? "section_opened" : "section_closed",
                           eventCategory: "navigation",
-                          section: section.id,
-                          sectionKey: section.id,
-                          buttonKey: "quick_service",
-                          label: String(section.title || section.id),
+                          section: tile.id,
+                          sectionKey: tile.id,
+                          buttonKey: "premium_home_tile",
+                          label: String(tile.title || tile.id),
                           value: nextId ? "open" : "closed",
                         });
                       }}
@@ -8047,134 +8245,87 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                         isSelected ? "stayhub-premium-tile-active" : "",
                         isLocked ? "stayhub-premium-tile-locked" : ""
                       )}
-                      
                     >
                       <span className="stayhub-premium-tile-arrow" aria-hidden="true">
                         {isLocked ? "⌕" : "›"}
                       </span>
                       <span className="stayhub-premium-tile-icon" aria-hidden="true">
-                        <PremiumSectionIcon id={section.id} />
+                        <PremiumSectionIcon id={tile.iconId} />
                       </span>
                       <span className="stayhub-premium-tile-label">
-                        {stripLeadingVisualIcon(String(section.title))}
+                        {stripLeadingVisualIcon(String(tile.title))}
                       </span>
                     </button>
                   );
                 })}
               </div>
 
-              {selectedQuickServiceSection ? (
-                <div className="mt-2 space-y-2">
-                  {selectedQuickServiceSection.subtitle ? (
-                    <div className="rounded-xl stayhub-card px-3 py-3 text-sm leading-5">
-                      {selectedQuickServiceSection.subtitle}
+              {selectedPremiumTile ? (
+                <div className="mt-3 space-y-2">
+                  {(selectedPremiumTile as any).special === "massage" ? (
+                    roomConfirmed && room.trim() ? (
+                      <MassageBookingSection
+                        hotelSlug={hotelContentSlug}
+                        language={lang}
+                        room={room}
+                        roomConfirmed={roomConfirmed}
+                        protectedSubmissionEnabled={true}
+                        forceOpenToken={1}
+                        collapseToken={guestSectionsCollapseToken}
+                        onBookingConfirmed={handleMassageBookingConfirmed}
+                        onRequireRoomConfirmation={() => {
+                          window.alert(roomCopy.lockedActionAlert);
+                          window.setTimeout(() => {
+                            document
+                              .getElementById("stayhub-room-confirmation")
+                              ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }, 0);
+                        }}
+                        onTrack={trackGuestEvent}
+                      />
+                    ) : (
+                      <LockedSectionCard
+                        title={String(selectedPremiumTile.title)}
+                        message={roomCopy.lockedSectionMessage}
+                      />
+                    )
+                  ) : selectedPremiumTile.id === "contact" ? (
+                    <div className="space-y-2">
+                      {quickServiceSections
+                        .filter((section) => section.id !== "wifi")
+                        .map((section) =>
+                          renderHubSection(section, {
+                            defaultOpen: false,
+                            keyPrefix: "contact-detail",
+                          })
+                        )}
                     </div>
+                  ) : selectedPremiumTile.section ? (
+                    selectedPremiumTile.section.id === "outlets" ? (
+                      renderHubSection(selectedPremiumTile.section, {
+                        defaultOpen: true,
+                        keyPrefix: `premium-${selectedPremiumTile.id}`,
+                        outletCategories: (selectedPremiumTile as any).outletCategories,
+                        outletTitle: String(selectedPremiumTile.title),
+                      })
+                    ) : (
+                      renderHubSection(selectedPremiumTile.section, {
+                        defaultOpen: true,
+                        keyPrefix: `premium-${selectedPremiumTile.id}`,
+                      })
+                    )
                   ) : null}
-                  {renderHubSection(selectedQuickServiceSection, {
-                    defaultOpen: true,
-                    hideHeader: true,
-                    keyPrefix: "quick-detail",
-                  })}
                 </div>
               ) : null}
             </section>
           ) : null}
 
-          {massageBookingPreviewVisible ? (
-            roomConfirmed && room.trim() ? (
-              <MassageBookingSection
-                hotelSlug={hotelContentSlug}
-                language={lang}
-                room={room}
-                roomConfirmed={roomConfirmed}
-                protectedSubmissionEnabled={true}
-                forceOpenToken={
-                  aiRequestNavigation?.sectionId === "massage_booking"
-                    ? aiRequestNavigation.nonce
-                    : 0
-                }
-                collapseToken={guestSectionsCollapseToken}
-                onBookingConfirmed={handleMassageBookingConfirmed}
-                onRequireRoomConfirmation={() => {
-                  window.alert(roomCopy.lockedActionAlert);
-                  window.setTimeout(() => {
-                    document
-                      .getElementById("stayhub-room-confirmation")
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 0);
-                }}
-                onTrack={trackGuestEvent}
-              />
-            ) : (
-              <div id="stayhub-massage-booking" className="scroll-mt-4">
-                <LockedSectionCard
-                  title={`💆 ${
-                    massageBookingDef
-                      ? getRequestDefTitle(massageBookingDef)
-                      : String(tUI("massage_booking") || "Book a massage")
-                  }`}
-                  message={roomCopy.lockedSectionMessage}
-                />
-              </div>
-            )
-          ) : null}
-
-          {hotelStaySections.length ? (
-            <SectionGroupAccordion
-              id="hotel_stay"
-              title={`🏨 ${guestNavigationLabel("hotel_stay_title", guestNavCopy.hotelStay)}`}
-              forceOpenToken={aiRequestNavigation?.groupId === "hotel_stay" ? aiRequestNavigation.nonce : 0}
-              collapseToken={guestSectionsCollapseToken}
-              onTrack={trackGuestEvent}
-            >
-              {hotelStaySections.map((section) => renderHubSection(section, { keyPrefix: "hotel-stay" }))}
-            </SectionGroupAccordion>
-          ) : null}
-
-          {foodEntertainmentSections.length ? (
-            <SectionGroupAccordion
-              id="food_entertainment"
-              title={`🍽️ ${guestNavigationLabel("food_entertainment_title", guestNavCopy.foodEntertainment)}`}
-              forceOpenToken={aiRequestNavigation?.groupId === "food_entertainment" ? aiRequestNavigation.nonce : 0}
-              collapseToken={guestSectionsCollapseToken}
-              onTrack={trackGuestEvent}
-            >
-              {foodEntertainmentSections.map((section) =>
-                renderHubSection(section, { keyPrefix: "food-entertainment" })
-              )}
-            </SectionGroupAccordion>
-          ) : null}
-
-          {exploreHubSection
-            ? renderHubSection(exploreHubSection, { keyPrefix: "explore" })
-            : null}
-
-          {reviewSocialSections.length ? (
-            <SectionGroupAccordion
-              id="reviews_social"
-              title={`⭐ ${guestNavigationLabel("reviews_social_title", guestNavCopy.reviewsSocial)}`}
-              forceOpenToken={aiRequestNavigation?.groupId === "reviews_social" ? aiRequestNavigation.nonce : 0}
-              collapseToken={guestSectionsCollapseToken}
-              onTrack={trackGuestEvent}
-            >
-              {reviewSocialSections.map((section) =>
-                renderHubSection(section, { keyPrefix: "reviews-social" })
-              )}
-            </SectionGroupAccordion>
-          ) : null}
-
           {remainingSections.length ? (
-            <SectionGroupAccordion
-              id="more_services"
-              title={`➕ ${guestNavigationLabel("more_services_title", guestNavCopy.more)}`}
-              forceOpenToken={aiRequestNavigation?.groupId === "more_services" ? aiRequestNavigation.nonce : 0}
-              collapseToken={guestSectionsCollapseToken}
-              onTrack={trackGuestEvent}
-            >
+            <div className="space-y-2">
               {remainingSections.map((section) =>
                 renderHubSection(section, { keyPrefix: "more" })
               )}
-            </SectionGroupAccordion>
+            </div>
           ) : null}
 
           {emergencyAction && emergencyAction.kind === "link" && emergencyAction.href ? (
@@ -8430,6 +8581,7 @@ function SectionGroupAccordion({
   children,
   forceOpenToken = 0,
   collapseToken = 0,
+  defaultOpen = false,
   onTrack,
 }: {
   id: string;
@@ -8437,9 +8589,10 @@ function SectionGroupAccordion({
   children: ReactNode;
   forceOpenToken?: number;
   collapseToken?: number;
+  defaultOpen?: boolean;
   onTrack: (payload: TrackHubPayload) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   useEffect(() => {
     if (forceOpenToken > 0) setOpen(true);
@@ -9078,6 +9231,7 @@ function OutletsAccordion({
   focusRequestDefId = null,
   focusRequestNonce = 0,
   collapseToken = 0,
+  defaultOpen = false,
   onTrack,
 }: {
   section: HubSection;
@@ -9105,11 +9259,16 @@ function OutletsAccordion({
   focusRequestDefId?: string | null;
   focusRequestNonce?: number;
   collapseToken?: number;
+  defaultOpen?: boolean;
   onTrack: (payload: TrackHubPayload) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [openVenue, setOpenVenue] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (defaultOpen) setOpen(true);
+  }, [defaultOpen]);
   const [openSpaRequestDefId, setOpenSpaRequestDefId] = useState<string | null>(null);
   const pathname = usePathname();
 
