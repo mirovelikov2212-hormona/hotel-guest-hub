@@ -128,13 +128,14 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("massage") || key.includes("spa")) {
     return (
       <svg {...commonProps}>
-        <circle cx="12" cy="5" r="2" />
-        <path d="M9.3 9.2c1.2-.8 4.2-.8 5.4 0" />
-        <path d="M8 12h8" />
-        <path d="M5 16h14" />
+        <circle cx="9" cy="7" r="2.2" />
         <path d="M5 20h14" />
-        <path d="M7 16v4" />
-        <path d="M17 16v4" />
+        <path d="M7 15.5h10" />
+        <path d="M8.2 11.2c1.2-.9 3.8-.9 5 0" />
+        <path d="M6.5 15.5v4.5" />
+        <path d="M17.5 15.5v4.5" />
+        <path d="M13.4 7.5c2 0 3.6 1.2 4.1 3" />
+        <path d="M15.7 10.6 19 8.8" />
       </svg>
     );
   }
@@ -142,9 +143,8 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("pillow")) {
     return (
       <svg {...commonProps}>
-        <path d="M6 8.5c0-1.4 1.1-2.5 2.5-2.5h7c1.4 0 2.5 1.1 2.5 2.5v7c0 1.4-1.1 2.5-2.5 2.5h-7A2.5 2.5 0 0 1 6 15.5v-7Z" />
-        <path d="M8 8c1.2 1.2 1.2 6.8 0 8" />
-        <path d="M16 8c-1.2 1.2-1.2 6.8 0 8" />
+        <path d="M5 10.5c0-2.5 2-4.5 4.5-4.5h5c2.5 0 4.5 2 4.5 4.5v3c0 2.5-2 4.5-4.5 4.5h-5C7 18 5 16 5 13.5v-3Z" />
+        <path d="M7 10.5c0-.9.7-1.5 1.5-1.5h7c.8 0 1.5.6 1.5 1.5v3c0 .9-.7 1.5-1.5 1.5h-7c-.8 0-1.5-.6-1.5-1.5v-3Z" />
       </svg>
     );
   }
@@ -2374,6 +2374,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const aiConversationRef = useRef<HTMLDivElement | null>(null);
   const aiRequestSeqRef = useRef(0);
   const [openQuickServiceId, setOpenQuickServiceId] = useState<string | null>(null);
+  const [showRoomSwitchCard, setShowRoomSwitchCard] = useState(false);
   const [aiRequestNavigation, setAiRequestNavigation] = useState<{
     targetId: string;
     sectionId: string;
@@ -3421,6 +3422,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     setRoomConfirmed(true);
     setRoomModal(null);
     setPendingRoomChangeFrom(null);
+    setShowRoomSwitchCard(false);
 
     const confirmedRoomUrl = new URL(window.location.href);
     confirmedRoomUrl.searchParams.set("room", nextRoom);
@@ -7865,9 +7867,18 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       {roomConfirmed && room.trim() ? (
         <div className="stayhub-confirmed-room-wrap px-4">
           <div className="stayhub-confirmed-room-card">
-            <span className="stayhub-confirmed-room-icon" aria-hidden="true">✓</span>
             <span>{roomCopy.confirmedState.replace("{room}", room)}</span>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowRoomSwitchCard((prev) => !prev);
+              setManualRoomInput("");
+            }}
+            className="stayhub-room-switch-link"
+          >
+            {lang === "bg" ? "Смяна на стаята" : lang === "de" ? "Zimmer wechseln" : lang === "ru" ? "Смена номера" : "Change room"}
+          </button>
         </div>
       ) : null}
 
@@ -7877,6 +7888,49 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             lang={lang}
             label={String(tUI("install_app") || "Инсталирай приложението")}
           />
+        </div>
+      ) : null}
+
+      {roomConfirmed && showRoomSwitchCard ? (
+        <div className="mt-3 px-4">
+          <div className="rounded-2xl stayhub-panel stayhub-room-panel p-4">
+            <h2 className="text-base font-medium" style={{ color: "#202627" }}>
+              {lang === "bg" ? "Смяна на стаята" : lang === "de" ? "Zimmer wechseln" : lang === "ru" ? "Смена номера" : "Change room"}
+            </h2>
+            <p className="mt-2 text-sm leading-6" style={{ color: "#202627" }}>
+              {lang === "bg" ? "Въведете новия номер на стаята и го потвърдете два пъти през защитния прозорец." : lang === "de" ? "Geben Sie die neue Zimmernummer ein und bestätigen Sie den Wechsel im Sicherheitsfenster." : lang === "ru" ? "Введите новый номер комнаты и подтвердите смену в защитном окне." : "Enter the new room number and confirm the change in the security modal."}
+            </p>
+            <div className="mt-4">
+              <label className="mb-2 block text-xs font-medium uppercase tracking-[0.16em]" style={{ color: "#202627" }}>
+                {roomCopy.inputLabel}
+              </label>
+              <input
+                value={manualRoomInput}
+                onChange={(e) => setManualRoomInput(e.target.value)}
+                placeholder={roomCopy.inputPlaceholder}
+                inputMode="numeric"
+                autoComplete="off"
+                className="w-full rounded-xl stayhub-card px-4 py-3 text-sm outline-none placeholder:text-[color:var(--stayhub-muted)]"
+              />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowRoomSwitchCard(false); setManualRoomInput(""); }}
+                className="stayhub-room-switch-secondary rounded-xl px-4 py-3 text-sm font-medium transition active:scale-[0.99]"
+              >
+                {lang === "bg" ? "Отказ" : lang === "de" ? "Abbrechen" : lang === "ru" ? "Отмена" : "Cancel"}
+              </button>
+              <button
+                type="button"
+                onClick={confirmManualRoom}
+                className="rounded-xl px-4 py-3 text-sm font-semibold transition hover:opacity-95 active:scale-[0.99]"
+                style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}
+              >
+                {lang === "bg" ? "Потвърди новата стая" : lang === "de" ? "Neues Zimmer bestätigen" : lang === "ru" ? "Подтвердить новый номер" : "Confirm new room"}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -8363,25 +8417,24 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         <p className="mt-6 text-center text-xs text-neutral-400">{tUI("notice")}</p>
       </div>
 
+      <div className="px-4 pb-7">
       <button
         type="button"
         onClick={openAiPanel}
         className={clsx(
-          "fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold shadow-2xl transition hover:opacity-95 active:scale-[0.98]",
+          "stayhub-ai-trigger w-full inline-flex items-center gap-3 rounded-[24px] px-5 py-4 text-sm font-semibold shadow-lg transition hover:opacity-95 active:scale-[0.98]",
           roomConfirmed ? "ring-1 ring-white/25" : "border"
         )}
         style={
           roomConfirmed
             ? {
-                backgroundColor: "var(--stayhub-action)",
-                color: "var(--stayhub-text)",
-                right: "max(1.25rem, calc((100vw - 28rem) / 2 + 1.25rem))",
+                backgroundColor: "rgba(255,255,255,0.92)",
+                color: "#0b6668",
               }
             : {
                 backgroundColor: "#F5F5F5",
-                borderColor: "#202627",
-                color: "#202627",
-                right: "max(1.25rem, calc((100vw - 28rem) / 2 + 1.25rem))",
+                borderColor: "#7ccfc6",
+                color: "#0b6668",
               }
         }
         aria-label={getCurrentGuestUiText("ai_open") || guestNavCopy.askAi}
@@ -8397,7 +8450,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             <path d="M21.2 12H20" />
           </svg>
         </span>
-        <span>{guestNavigationLabel("ask_ai", guestNavCopy.askAi)}</span>
+        <span className="flex-1 text-center">{guestNavigationLabel("ask_ai", guestNavCopy.askAi)}</span>
         {!roomConfirmed ? (
           <span
             className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs"
@@ -8408,6 +8461,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           </span>
         ) : null}
       </button>
+      </div>
 
       {aiPanelOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-3 sm:items-center">

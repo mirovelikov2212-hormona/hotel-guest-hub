@@ -1456,3 +1456,177 @@ input.stayhub-card::placeholder {
   .stayhub-premium-tile-icon svg { width: 1.68rem !important; height: 1.68rem !important; }
   .stayhub-premium-tile-label { font-size: 0.58rem !important; line-height: 1.08 !important; }
 }
+
+/* === v4.4 targeted refinements === */
+.stayhub-premium-hero-content {
+  padding: 0.8rem 1rem 1rem !important;
+}
+
+.stayhub-wordmark {
+  margin-top: -0.18rem !important;
+  margin-left: -0.1rem !important;
+  padding-bottom: 0.9rem !important;
+  font-size: 1.62rem !important;
+}
+
+.stayhub-wordmark::after {
+  left: 1.75rem !important;
+  bottom: 0.18rem !important;
+  width: 3.8rem !important;
+}
+
+.stayhub-hero-title,
+.stayhub-hero-subtitle {
+  font-family: Georgia, 'Times New Roman', serif !important;
+}
+
+.stayhub-hero-subtitle {
+  color: rgba(7,82,85,0.9) !important;
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.015em !important;
+}
+
+.stayhub-confirmed-room-wrap {
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 0.4rem !important;
+}
+
+.stayhub-confirmed-room-card {
+  gap: 0 !important;
+  justify-content: center !important;
+}
+
+.stayhub-confirmed-room-icon {
+  display: none !important;
+}
+
+.stayhub-room-switch-link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #0b6668;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.stayhub-room-switch-secondary {
+  background: rgba(236, 245, 244, 0.95) !important;
+  color: #0b6668 !important;
+  border: 1px solid rgba(67,186,173,0.3) !important;
+}
+
+.stayhub-room-modal,
+.stayhub-room-modal .text-white,
+.stayhub-room-modal .text-neutral-200,
+.stayhub-room-modal .text-neutral-100,
+.stayhub-room-modal p,
+.stayhub-room-modal div,
+.stayhub-room-modal span,
+.stayhub-room-modal button,
+.stayhub-intro-modal,
+.stayhub-intro-modal .text-white,
+.stayhub-intro-modal .text-neutral-200,
+.stayhub-intro-modal .text-neutral-100 {
+  color: #ffffff !important;
+}
+
+.stayhub-room-modal {
+  background: rgba(5, 16, 18, 0.96) !important;
+  border-color: rgba(255,255,255,0.16) !important;
+}
+
+.stayhub-room-modal button:first-of-type {
+  color: #ffffff !important;
+}
+
+.stayhub-premium-grid {
+  gap: 0.65rem !important;
+}
+
+.stayhub-premium-tile {
+  min-height: 108px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  position: relative !important;
+  padding: 0.6rem 0.35rem 0.7rem !important;
+}
+
+.stayhub-premium-tile::after {
+  left: 8% !important;
+  right: 8% !important;
+  bottom: -15% !important;
+  height: 28% !important;
+  border-radius: 56% 56% 0 0 !important;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.68), transparent 58%),
+    linear-gradient(180deg, rgba(219,250,245,0.18), rgba(154,234,223,0.5)) !important;
+}
+
+.stayhub-premium-tile > * {
+  position: relative;
+  z-index: 1;
+}
+
+.stayhub-premium-tile-icon {
+  width: 4rem !important;
+  height: 4rem !important;
+  margin: 0 auto 0.55rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  align-self: center !important;
+}
+
+.stayhub-premium-tile-icon svg {
+  width: 2.08rem !important;
+  height: 2.08rem !important;
+}
+
+.stayhub-premium-tile-label {
+  min-height: 2.45rem !important;
+  text-align: center !important;
+  font-size: 0.68rem !important;
+  line-height: 1.15 !important;
+  max-width: 92%;
+}
+
+.stayhub-ai-trigger {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(67,186,173,0.4) !important;
+  box-shadow: 0 12px 28px rgba(7,82,85,0.12) !important;
+}
+
+.stayhub-ai-trigger .stayhub-ai-icon {
+  width: 2.65rem !important;
+  height: 2.65rem !important;
+  border-radius: 999px;
+  background: rgba(67,186,173,0.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stayhub-ai-trigger .stayhub-ai-icon svg {
+  width: 1.35rem !important;
+  height: 1.35rem !important;
+}
+
+.stayhub-premium-screen .stayhub-panel::after,
+.stayhub-premium-screen .stayhub-section-shell::after,
+.stayhub-premium-screen .stayhub-card::after,
+.stayhub-premium-screen .stayhub-action-card::after,
+.stayhub-premium-push-card::after,
+.stayhub-premium-locked-card::after {
+  left: 6% !important;
+  right: 6% !important;
+  bottom: -20% !important;
+  height: 32% !important;
+}
