@@ -2273,3 +2273,34 @@ input.stayhub-card::placeholder {
     font-size: 0.67rem !important;
   }
 }
+
+/* === Exact premium icon assets extracted from the approved icon sheet === */
+.stayhub-premium-icon-image {
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.stayhub-premium-tile-icon .stayhub-premium-icon-image {
+  width: 4rem !important;
+  height: 4rem !important;
+}
+
+.stayhub-section-header-icon .stayhub-premium-icon-image,
+.stayhub-section-window-icon .stayhub-premium-icon-image {
+  width: 2.75rem !important;
+  height: 2.75rem !important;
+}
+
+.stayhub-section-header-icon-inline .stayhub-premium-icon-image {
+  width: 2.6rem !important;
+  height: 2.6rem !important;
+}
+
+@media (max-width: 380px) {
+  .stayhub-premium-tile-icon .stayhub-premium-icon-image {
+    width: 3.55rem !important;
+    height: 3.55rem !important;
+  }
+}
