@@ -39,7 +39,7 @@ type Copy = {
 
 const COPY: Record<string, Copy> = {
   bg: {
-    title: "Включете известията",
+    title: "Включи известията",
     text: "",
     enable: "Включи",
     disable: "Изключи известията",
@@ -184,11 +184,6 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...rawData].map((character) => character.charCodeAt(0)));
 }
 
-function isIosDevice() {
-  const userAgent = window.navigator.userAgent.toLowerCase();
-  return /iphone|ipad|ipod/.test(userAgent) ||
-    (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
-}
 
 async function waitForGuestServiceWorker(timeoutMs = 4000): Promise<ServiceWorkerRegistration | null> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
@@ -287,7 +282,6 @@ export default function GuestSurveyPushControls({
   const [status, setStatus] = useState<Status>("ready");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [ios, setIos] = useState(false);
   const storageKey = useMemo(() => getSurveyStorageKey(hotelSlug, room), [hotelSlug, room]);
 
   const surveyDates = useMemo(() => {
@@ -321,8 +315,6 @@ export default function GuestSurveyPushControls({
       setStatus("unsupported");
       return;
     }
-
-    setIos(isIosDevice());
 
     if (Notification.permission === "denied") {
       setStatus("denied");
@@ -432,7 +424,7 @@ export default function GuestSurveyPushControls({
     <div className="stayhub-premium-push-wrap">
       <div className="stayhub-premium-push-card">
         <div className="stayhub-premium-push-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
             <path d="M13.7 21a2 2 0 0 1-3.4 0" />
           </svg>

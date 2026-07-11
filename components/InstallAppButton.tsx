@@ -4,6 +4,32 @@ import { useEffect, useState } from "react";
 
 type UiLang = "bg" | "en" | "de" | "ro" | "cs" | "ru";
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+};
+
+function InstallDeviceIcon() {
+  return (
+    <span className="stayhub-install-icon" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.55"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="7" y="2.8" width="10" height="18.4" rx="2.1" />
+        <path d="M10.7 5.4h2.6" />
+        <path d="M12 8.2v7.1" />
+        <path d="m9.6 12.9 2.4 2.4 2.4-2.4" />
+        <path d="M10.2 18.2h3.6" />
+      </svg>
+    </span>
+  );
+}
+
 export default function InstallAppButton({
   label,
   lang = "bg",
@@ -11,103 +37,94 @@ export default function InstallAppButton({
   label?: string;
   lang?: string;
 }) {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isIOS] = useState(() =>
+    typeof window !== "undefined" && /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase())
+  );
+  const [isStandalone] = useState(() =>
+    typeof window !== "undefined" &&
+    (window.matchMedia("(display-mode: standalone)").matches ||
+      Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone))
+  );
 
   useEffect(() => {
-    const ua = window.navigator.userAgent.toLowerCase();
-    const ios = /iphone|ipad|ipod/.test(ua);
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true;
-
-    setIsIOS(ios);
-    setIsStandalone(standalone);
-
-    const handler = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setDeferredPrompt(event as BeforeInstallPromptEvent);
     };
 
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
   }, []);
 
   const handleInstall = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
-      setDeferredPrompt(null);
-    }
+    if (!deferredPrompt) return;
+
+    await deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    setDeferredPrompt(null);
   };
 
-  if (isStandalone) return null;
 
   const resolvedLang: UiLang =
     lang === "de" || lang === "en" || lang === "ro" || lang === "cs" || lang === "ru"
       ? lang
       : "bg";
 
-  const installCopy: Record<UiLang, { title: string; hint: string; button: string }> = {
+  const installCopy: Record<UiLang, { title: string; iosHint: string }> = {
     bg: {
-      title: "Инсталирай като App",
-      hint: "Споделяне → Добавяне към началния екран",
-      button: "Инсталирай като App",
+      title: "Изтегли приложението",
+      iosHint: "Споделяне → Добавяне към началния екран",
     },
     en: {
-      title: "Install as App",
-      hint: "Share → Add to Home Screen",
-      button: "Install App",
+      title: "Download the app",
+      iosHint: "Share → Add to Home Screen",
     },
     de: {
-      title: "Als App installieren",
-      hint: "Teilen → Zum Home-Bildschirm",
-      button: "Als App installieren",
+      title: "App herunterladen",
+      iosHint: "Teilen → Zum Home-Bildschirm",
     },
     ro: {
-      title: "Instalează ca aplicație",
-      hint: "Partajare → Adăugați pe ecranul principal",
-      button: "Instalează aplicația",
+      title: "Descarcă aplicația",
+      iosHint: "Partajare → Adăugați pe ecranul principal",
     },
     cs: {
-      title: "Nainstalovat jako aplikaci",
-      hint: "Sdílet → Přidat na plochu",
-      button: "Nainstalovat aplikaci",
+      title: "Stáhnout aplikaci",
+      iosHint: "Sdílet → Přidat na plochu",
     },
     ru: {
-      title: "Установить как приложение",
-      hint: "Поделиться → На экран «Домой»",
-      button: "Установить приложение",
+      title: "Скачать приложение",
+      iosHint: "Поделиться → На экран «Домой»",
     },
   };
 
-  const iosInstallTitle = installCopy[resolvedLang].title;
-  const iosInstallHint = installCopy[resolvedLang].hint;
-  const androidLabel = label ?? installCopy[resolvedLang].button;
-
-  if (isIOS) {
-    return (
-      <div className="w-full rounded-2xl px-4 py-4 text-center shadow-[0_8px_30px_rgba(0,0,0,0.25)] stayhub-card">
-        <div className="text-lg font-semibold">{iosInstallTitle}</div>
-        <div className="mt-1 text-sm leading-5 stayhub-muted-text">
-          {iosInstallHint}
-        </div>
-      </div>
-    );
-  }
+  const copy = installCopy[resolvedLang];
+  const title = label || copy.title;
+  const content = (
+    <>
+      <InstallDeviceIcon />
+      <span className="stayhub-install-copy">
+        <span className="stayhub-install-title">{title}</span>
+        {isIOS && !isStandalone ? <span className="stayhub-install-hint">{copy.iosHint}</span> : null}
+      </span>
+    </>
+  );
 
   if (deferredPrompt) {
     return (
       <button
         type="button"
         onClick={handleInstall}
-        className="w-full rounded-2xl px-4 py-4 text-center text-lg font-semibold shadow-[0_8px_30px_rgba(0,0,0,0.25)] stayhub-card hover:opacity-95 active:scale-[0.99] transition"
+        className="stayhub-install-card stayhub-install-card-button"
       >
-        {androidLabel}
+        {content}
       </button>
     );
   }
 
-  return null;
+  return (
+    <div className="stayhub-install-card" role="note">
+      {content}
+    </div>
+  );
 }

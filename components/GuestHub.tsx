@@ -261,6 +261,21 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     );
   }
 
+  if (key === "ai" || key.includes("concierge") || key.includes("консиерж")) {
+    return (
+      <svg {...commonProps}>
+        <rect x="5" y="8" width="14" height="10.5" rx="3" />
+        <path d="M12 4.8V8" />
+        <circle cx="12" cy="4" r=".8" />
+        <path d="M5 12H3.6" />
+        <path d="M20.4 12H19" />
+        <path d="M8.4 13.1c.5-.7 1.4-.7 1.9 0" />
+        <path d="M13.7 13.1c.5-.7 1.4-.7 1.9 0" />
+        <path d="M9.6 16c1.5 1 3.3 1 4.8 0" />
+      </svg>
+    );
+  }
+
   if (key.includes("housekeeping") || key.includes("хаус")) {
     return (
       <svg {...commonProps}>
@@ -7530,10 +7545,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   ].filter((section) => section.id === "outlets" || (section.items && section.items.length > 0));
 
   const sectionById = (id: string) => sections.find((section) => section.id === id) || null;
-  const quickServiceIds = ["wifi", "reception", "housekeeping", "maintenance"];
-  const quickServiceSections = quickServiceIds
-    .map((id) => sectionById(id))
-    .filter((section): section is HubSection => Boolean(section));
 
   const hotelInfoPolicyItems = hotelInfoItems
     .filter((item) => isHotelInfoGroup(item, "policy"))
@@ -7554,25 +7565,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       items,
     };
   })();
-
-  const contactCombinedSection: HubSection | null = quickServiceSections.length
-    ? {
-        id: "contact",
-        title:
-          lang === "bg"
-            ? "Свържи се с нас"
-            : lang === "de"
-              ? "Kontakt"
-              : lang === "ro"
-                ? "Contactați-ne"
-                : lang === "cs"
-                  ? "Kontaktujte nás"
-                  : lang === "ru"
-                    ? "Свяжитесь с нами"
-                    : "Contact us",
-        items: [],
-      }
-    : null;
 
   const policyCombinedSection: HubSection | null = {
     id: "hotel_policies",
@@ -7651,6 +7643,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   };
 
   const exploreHubSection = sectionById("explore");
+  const aiHubSection = sectionById("ai");
 
   const reviewsCombinedSection: HubSection | null = (() => {
     const items = [
@@ -7672,19 +7665,104 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   };
 
   const premiumTiles = [
-    { id: "info", iconId: "info", title: lang === "bg" ? "Инфо" : "Info", section: infoCombinedSection, requiresRoom: false },
-    { id: "contact", iconId: "contact", title: contactCombinedSection?.title || (lang === "bg" ? "Свържи се с нас" : "Contact us"), section: contactCombinedSection, requiresRoom: true },
-    { id: "hotel_policies", iconId: "policy", title: policyCombinedSection.title, section: policyCombinedSection, requiresRoom: false },
-    { id: "restaurants", iconId: "restaurant", title: restaurantOutletSection?.title || (lang === "bg" ? "Ресторант" : "Restaurant"), section: restaurantOutletSection, requiresRoom: false, outletCategories: ["restaurants"] },
-    { id: "bars", iconId: "bars", title: barsOutletSection?.title || (lang === "bg" ? "Барове" : "Bars"), section: barsOutletSection, requiresRoom: false, outletCategories: ["bars"] },
-    { id: "entertainment", iconId: "entertainment", title: otherEntertainmentSection?.title || (lang === "bg" ? "Други забавления" : "Other entertainment"), section: otherEntertainmentSection, requiresRoom: false, outletCategories: ["kids", "entertainment", "gym", "spa", "other", "room_service"] },
-    { id: "massage_booking", iconId: "massage", title: massageBookingDef ? getRequestDefTitle(massageBookingDef) : String(tUI("massage_booking") || (lang === "bg" ? "Запази масаж" : "Book massage")), section: null, requiresRoom: true, special: "massage" as const },
-    { id: "pillow_menu", iconId: "pillow", title: lang === "bg" ? "Вземи възглавница" : String(tUI("pillow_menu") || "Pillow menu"), section: pillowMenuSection, requiresRoom: true },
-    { id: "coffee_capsules", iconId: "coffee", title: lang === "bg" ? "Поръчай кафе капсули" : String(tUI("coffee_capsules") || "Coffee capsules"), section: coffeeCapsulesSection, requiresRoom: true },
-    { id: "explore", iconId: "explore", title: String(exploreHubSection?.title || (lang === "bg" ? "Около хотела" : "Around the hotel")), section: exploreHubSection, requiresRoom: false },
-    { id: "weather", iconId: "weather", title: String(weatherSection.title || (lang === "bg" ? "Времето" : "Weather")), section: weatherSection, requiresRoom: false },
-    { id: "reviews", iconId: "reviews", title: reviewsDisplaySection.title, section: reviewsDisplaySection, requiresRoom: false },
-  ].filter((tile) => tile.section || tile.special === "massage");
+    {
+      id: "info",
+      iconId: "info",
+      title: lang === "bg" ? "Информация" : String(infoCombinedSection?.title || "Information"),
+      section: infoCombinedSection,
+      requiresRoom: false,
+    },
+    {
+      id: "hotel_policies",
+      iconId: "policy",
+      title: policyCombinedSection.title,
+      section: policyCombinedSection,
+      requiresRoom: false,
+    },
+    {
+      id: "restaurants",
+      iconId: "restaurant",
+      title: restaurantOutletSection?.title || (lang === "bg" ? "Ресторант" : "Restaurant"),
+      section: restaurantOutletSection,
+      requiresRoom: false,
+      outletCategories: ["restaurants"],
+    },
+    {
+      id: "bars",
+      iconId: "bars",
+      title: barsOutletSection?.title || (lang === "bg" ? "Барове" : "Bars"),
+      section: barsOutletSection,
+      requiresRoom: false,
+      outletCategories: ["bars"],
+    },
+    {
+      id: "entertainment",
+      iconId: "entertainment",
+      title:
+        lang === "bg"
+          ? "Забавления"
+          : String(otherEntertainmentSection?.title || "Entertainment"),
+      section: otherEntertainmentSection,
+      requiresRoom: false,
+      outletCategories: ["kids", "entertainment", "gym", "spa", "other", "room_service"],
+    },
+    {
+      id: "ai",
+      iconId: "ai",
+      title: String(tUI("ai_title") || (lang === "bg" ? "AI Консиерж" : "AI Concierge")),
+      section: aiHubSection,
+      requiresRoom: true,
+      special: "ai" as const,
+    },
+    {
+      id: "massage_booking",
+      iconId: "massage",
+      title: massageBookingDef
+        ? getRequestDefTitle(massageBookingDef)
+        : String(tUI("massage_booking") || (lang === "bg" ? "Запази масаж" : "Book massage")),
+      section: null,
+      requiresRoom: true,
+      special: "massage" as const,
+    },
+    {
+      id: "pillow_menu",
+      iconId: "pillow",
+      title: lang === "bg" ? "Меню възглавници" : String(tUI("pillow_menu") || "Pillow menu"),
+      section: pillowMenuSection,
+      requiresRoom: true,
+    },
+    {
+      id: "coffee_capsules",
+      iconId: "coffee",
+      title: lang === "bg" ? "Кафе капсули" : String(tUI("coffee_capsules") || "Coffee capsules"),
+      section: coffeeCapsulesSection,
+      requiresRoom: true,
+    },
+    {
+      id: "explore",
+      iconId: "explore",
+      title:
+        lang === "bg"
+          ? "Около нас"
+          : String(exploreHubSection?.title || "Around the hotel"),
+      section: exploreHubSection,
+      requiresRoom: false,
+    },
+    {
+      id: "weather",
+      iconId: "weather",
+      title: String(weatherSection.title || (lang === "bg" ? "Времето" : "Weather")),
+      section: weatherSection,
+      requiresRoom: false,
+    },
+    {
+      id: "reviews",
+      iconId: "reviews",
+      title: lang === "bg" ? "Оцени престоя" : reviewsDisplaySection.title,
+      section: reviewsDisplaySection,
+      requiresRoom: false,
+    },
+  ].filter((tile) => tile.section || tile.special === "massage" || tile.special === "ai");
 
   const selectedPremiumTile = openQuickServiceId
     ? premiumTiles.find((tile) => tile.id === openQuickServiceId) || null
@@ -7698,7 +7776,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   ]);
   const reviewSocialSectionIds = new Set(["reviews", "social"]);
   const reservedSectionIds = new Set([
-    ...quickServiceIds,
+    "wifi",
     ...hotelStaySectionIds,
     ...foodEntertainmentSectionIds,
     ...reviewSocialSectionIds,
@@ -7873,6 +7951,11 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       {roomConfirmed && room.trim() ? (
         <div className="stayhub-confirmed-room-wrap px-4">
           <div className="stayhub-confirmed-room-card">
+            <span className="stayhub-confirmed-room-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m7 12.5 3.1 3.1L17.5 8" />
+              </svg>
+            </span>
             <span>{roomCopy.confirmedState.replace("{room}", room)}</span>
           </div>
           <button
@@ -8297,6 +8380,11 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                       onClick={() => {
                         if (isLocked && !ensureConfirmedRoom()) return;
 
+                        if (tile.special === "ai") {
+                          openAiPanel();
+                          return;
+                        }
+
                         const nextId = isSelected ? null : tile.id;
                         setOpenQuickServiceId(nextId);
                         trackGuestEvent({
@@ -8415,17 +8503,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                     message={roomCopy.lockedSectionMessage}
                   />
                 )
-              ) : selectedPremiumTile.id === "contact" ? (
-                <div className="space-y-2">
-                  {quickServiceSections
-                    .filter((section) => section.id !== "wifi")
-                    .map((section) =>
-                      renderHubSection(section, {
-                        defaultOpen: false,
-                        keyPrefix: "contact-detail",
-                      })
-                    )}
-                </div>
               ) : selectedPremiumTile.section ? (
                 selectedPremiumTile.section.id === "outlets" ? (
                   renderHubSection(selectedPremiumTile.section, {
@@ -8446,51 +8523,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         </div>
       ) : null}
 
-      <div className="px-4 pb-7">
-      <button
-        type="button"
-        onClick={openAiPanel}
-        className={clsx(
-          "stayhub-ai-trigger w-full inline-flex items-center gap-3 rounded-[24px] px-5 py-4 text-sm font-semibold shadow-lg transition hover:opacity-95 active:scale-[0.98]",
-          roomConfirmed ? "ring-1 ring-white/25" : "border"
-        )}
-        style={
-          roomConfirmed
-            ? {
-                backgroundColor: "rgba(255,255,255,0.92)",
-                color: "#0b6668",
-              }
-            : {
-                backgroundColor: "#F5F5F5",
-                borderColor: "#7ccfc6",
-                color: "#0b6668",
-              }
-        }
-        aria-label={getCurrentGuestUiText("ai_open") || guestNavCopy.askAi}
-      >
-        <span className="stayhub-ai-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="5" y="8" width="14" height="11" rx="3" />
-            <path d="M12 5v3" />
-            <circle cx="9" cy="13" r="1" />
-            <circle cx="15" cy="13" r="1" />
-            <path d="M9.5 16h5" />
-            <path d="M4 12H2.8" />
-            <path d="M21.2 12H20" />
-          </svg>
-        </span>
-        <span className="flex-1 text-center">{guestNavigationLabel("ask_ai", guestNavCopy.askAi)}</span>
-        {!roomConfirmed ? (
-          <span
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs"
-            style={{ borderColor: "#202627", color: "#202627" }}
-            aria-hidden="true"
-          >
-            🔒
-          </span>
-        ) : null}
-      </button>
-      </div>
+      {/* AI Concierge is opened from the premium navigation tile. */}
 
       {aiPanelOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-3 sm:items-center">
