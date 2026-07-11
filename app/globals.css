@@ -2304,3 +2304,66 @@ input.stayhub-card::placeholder {
     height: 3.55rem !important;
   }
 }
+
+/* === Compact premium home tiles: larger approved icon assets, shorter cards === */
+.stayhub-premium-grid {
+  gap: 0.54rem !important;
+}
+
+.stayhub-premium-tile {
+  min-height: 106px !important;
+  border-radius: 17px !important;
+  padding: 0.38rem 0.32rem 0.44rem !important;
+}
+
+.stayhub-premium-tile::after {
+  height: 27% !important;
+}
+
+.stayhub-premium-tile-icon {
+  width: 4.25rem !important;
+  height: 4.25rem !important;
+  flex: 0 0 4.25rem !important;
+  margin: -0.08rem auto 0 !important;
+}
+
+.stayhub-premium-tile-icon .stayhub-premium-icon-image {
+  width: 4.8rem !important;
+  height: 4.8rem !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.stayhub-premium-tile-label {
+  min-height: 1.78rem !important;
+  margin-top: -0.08rem !important;
+  font-size: 0.72rem !important;
+  line-height: 1.08 !important;
+}
+
+@media (max-width: 380px) {
+  .stayhub-premium-grid {
+    gap: 0.44rem !important;
+  }
+
+  .stayhub-premium-tile {
+    min-height: 100px !important;
+    padding: 0.32rem 0.2rem 0.38rem !important;
+  }
+
+  .stayhub-premium-tile-icon {
+    width: 3.95rem !important;
+    height: 3.95rem !important;
+    flex-basis: 3.95rem !important;
+  }
+
+  .stayhub-premium-tile-icon .stayhub-premium-icon-image {
+    width: 4.45rem !important;
+    height: 4.45rem !important;
+  }
+
+  .stayhub-premium-tile-label {
+    min-height: 1.72rem !important;
+    font-size: 0.64rem !important;
+  }
+}
