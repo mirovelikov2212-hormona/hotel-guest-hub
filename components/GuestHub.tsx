@@ -139,11 +139,11 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("policy") || key.includes("policies") || key.includes("политик")) {
     return (
       <svg {...commonProps}>
-        <path d="M7 3.5h7.2L18 7.3V20.5H7V3.5Z" />
-        <path d="M14 3.7V8h4" />
-        <path d="M9.4 11h5.2" />
-        <path d="M9.4 14.2h5.2" />
-        <path d="M9.4 17.4h3.4" />
+        <path d="M7 3.7h7.5L18 7.2v13.1H7V3.7Z" />
+        <path d="M14.4 3.9V7.9H18" />
+        <path d="M9.5 11h5.2" />
+        <path d="M9.5 14.2h5.2" />
+        <path d="M9.5 17.4h3.6" />
       </svg>
     );
   }
@@ -151,13 +151,13 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("outlet") || key.includes("restaurant") || key.includes("food") || key.includes("ресторан") || key.includes("храна")) {
     return (
       <svg {...commonProps}>
-        <path d="M4.5 4v7.2" />
-        <path d="M6.6 4v7.2" />
-        <path d="M8.7 4v7.2" />
-        <path d="M4.5 11.2h4.2" />
-        <path d="M6.6 11.2v8.8" />
-        <circle cx="14.7" cy="11.5" r="5.2" />
-        <path d="M19.8 4v16" />
+        <path d="M5.3 4.1v7.1" />
+        <path d="M7.2 4.1v7.1" />
+        <path d="M9.1 4.1v7.1" />
+        <path d="M5.3 11h3.8" />
+        <path d="M7.2 11v8.8" />
+        <circle cx="14.8" cy="11.6" r="5.1" />
+        <path d="M20 4.1v15.8" />
       </svg>
     );
   }
@@ -165,10 +165,11 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("bar") || key.includes("бар")) {
     return (
       <svg {...commonProps}>
-        <path d="M5.7 5h12.6l-4.1 6.2a3.6 3.6 0 0 1-4.4 0L5.7 5Z" />
-        <path d="M12 12v7" />
-        <path d="M8.4 19h7.2" />
-        <circle cx="16.2" cy="4.6" r="1.5" />
+        <path d="M5 5.4h14l-4.6 5.8a3 3 0 0 1-4.8 0L5 5.4Z" />
+        <path d="M12 11.2v7.6" />
+        <path d="M8.4 18.8h7.2" />
+        <path d="M15.2 5.3 18.1 2" />
+        <circle cx="15.9" cy="5.9" r="1.35" />
       </svg>
     );
   }
@@ -176,13 +177,14 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("animation") || key.includes("entertainment") || key.includes("забав")) {
     return (
       <svg {...commonProps}>
-        <path d="M7 4v9" />
-        <path d="M7 4l8-1.5v8" />
-        <circle cx="5.8" cy="15.2" r="2.1" />
-        <circle cx="14.8" cy="12.1" r="2.1" />
-        <path d="M15.8 16.5c1.1-.9 2.9-.8 4 .4" />
-        <path d="M15 19.4c1.6 1 3.6 1 5.2 0" />
-        <path d="M16 14.8c.7-.5 2.7-.5 3.5 0" />
+        <path d="M6 4.3v7.6" />
+        <path d="M6 4.3 13.5 3v7.1" />
+        <circle cx="4.8" cy="14.3" r="1.9" />
+        <circle cx="12.3" cy="11.8" r="1.9" />
+        <path d="M13.9 11.8c1.4-.9 3.6-.8 4.8.2" />
+        <path d="M14.6 14.8c1.4-1 3.7-.8 4.8.4" />
+        <path d="M14.5 18c1.5.8 3.4.8 4.9 0" />
+        <path d="M15.1 13.9c.7.5 1.6.8 2.5.8.8 0 1.6-.2 2.3-.7" />
       </svg>
     );
   }
@@ -190,13 +192,14 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("massage") || key.includes("spa") || key.includes("масаж")) {
     return (
       <svg {...commonProps}>
-        <circle cx="8.4" cy="6" r="2.1" />
-        <path d="M5.6 16.8h12.8" />
-        <path d="M6.6 20h10.8" />
-        <path d="M7.4 16.8v3.2" />
-        <path d="M16.6 16.8v3.2" />
-        <path d="M8 11.8c2.1-1.5 5.4-1.1 7.2.8" />
-        <path d="M15 8.2c2.2.6 3.7 2.2 4.2 4.6" />
+        <circle cx="9.1" cy="5.6" r="2" />
+        <path d="M5.3 16.8h13.8" />
+        <path d="M6.6 19.8h10.8" />
+        <path d="M8 16.8v3" />
+        <path d="M16 16.8v3" />
+        <path d="M9.2 11.2c1.4-.6 2.9-.4 4 .7l2.1 2.1" />
+        <circle cx="18.7" cy="13.1" r="1.6" />
+        <path d="M7.1 13.8h6.7" />
       </svg>
     );
   }
@@ -204,7 +207,9 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("pillow") || key.includes("възглав")) {
     return (
       <svg {...commonProps}>
-        <path d="M5.2 8.2c1.2-1.2 2.9-1.2 4.1-.3 1.4-1.1 3.9-1.1 5.4 0 1.2-.9 2.9-.9 4.1.3-1 1.2-1 6.4 0 7.6-1.2 1.2-2.9 1.2-4.1.3-1.4 1.1-3.9 1.1-5.4 0-1.2.9-2.9.9-4.1-.3 1-1.2 1-6.4 0-7.6Z" />
+        <path d="M6 8.4c1.2-1.1 2.8-1.1 3.9-.2 1.2-.7 2.9-.7 4.1 0 1.1-.9 2.7-.9 3.9.2.9 1.1.9 6.1 0 7.2-1.2 1.1-2.8 1.1-3.9.2-1.2.8-2.9.8-4.1 0-1.1.9-2.7.9-3.9-.2-.9-1.1-.9-6.1 0-7.2Z" />
+        <path d="M8.2 9.7c-.8 1-.8 4.7 0 5.7" />
+        <path d="M15.8 9.7c.8 1 .8 4.7 0 5.7" />
       </svg>
     );
   }
@@ -212,12 +217,12 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("coffee") || key.includes("каф")) {
     return (
       <svg {...commonProps}>
-        <path d="M7.2 9h8.5v5.2a4 4 0 0 1-4 4h-.5a4 4 0 0 1-4-4V9Z" />
-        <path d="M15.7 11h1.5a2 2 0 0 1 0 4h-1.5" />
-        <path d="M8.5 20h7" />
-        <path d="M9.3 4.2v2" />
-        <path d="M12 4.2v2" />
-        <path d="M14.7 4.2v2" />
+        <path d="M7.1 8.8h8.8v5.4a4 4 0 0 1-4 4h-.8a4 4 0 0 1-4-4V8.8Z" />
+        <path d="M15.9 10.7H18a2.2 2.2 0 0 1 0 4.4h-2.1" />
+        <path d="M8.3 20h8.7" />
+        <path d="M8.7 4.2c0 1-.8 1.3-.8 2.4" />
+        <path d="M12 4.2c0 1-.8 1.3-.8 2.4" />
+        <path d="M15.3 4.2c0 1-.8 1.3-.8 2.4" />
       </svg>
     );
   }
@@ -225,11 +230,12 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("weather") || key.includes("врем")) {
     return (
       <svg {...commonProps}>
-        <path d="M12 3.5v2" />
-        <path d="M5.3 6.3l1.4 1.4" />
-        <path d="M18.7 6.3l-1.4 1.4" />
-        <path d="M8 16.4a3.8 3.8 0 1 1 7-2.1A3.3 3.3 0 1 1 15.5 21H8a2.8 2.8 0 1 1 0-5.6Z" />
-        <path d="M19.3 12h1.5" />
+        <path d="M14.5 4.2v2" />
+        <path d="M9.2 6.2 7.8 4.8" />
+        <path d="M18.8 6.2 20.2 4.8" />
+        <path d="M20.3 10.6h-1.8" />
+        <path d="M15.8 6.3a4.2 4.2 0 0 1 1.8 7.9" />
+        <path d="M8.6 18.2a3.4 3.4 0 1 1 .5-6.7 4.2 4.2 0 0 1 8 .8 2.8 2.8 0 1 1 .4 5.9H8.6Z" />
       </svg>
     );
   }
@@ -237,7 +243,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("review") || key.includes("social") || key.includes("отзив")) {
     return (
       <svg {...commonProps}>
-        <path d="m12 3.3 2.6 5.3 5.8.9-4.2 4.1 1 5.8L12 16.6 6.8 19.4l1-5.8-4.2-4.1 5.8-.9L12 3.3Z" />
+        <path d="m12 3.4 2.5 5.2 5.8.8-4.2 4.1 1 5.8L12 16.6 6.9 19.3l1-5.8-4.2-4.1 5.8-.8L12 3.4Z" />
       </svg>
     );
   }
@@ -245,8 +251,24 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   if (key.includes("explore") || key.includes("nearby") || key.includes("около")) {
     return (
       <svg {...commonProps}>
-        <path d="M12 21s6.6-5 6.6-11.5a6.6 6.6 0 1 0-13.2 0C5.4 16 12 21 12 21Z" />
-        <circle cx="12" cy="9.3" r="2.2" />
+        <path d="M12 20.6s6-4.8 6-11a6 6 0 1 0-12 0c0 6.2 6 11 6 11Z" />
+        <circle cx="12" cy="9.6" r="2.2" />
+        <path d="M8.1 20.5c1-.9 2.3-1.3 3.9-1.3s2.9.4 3.9 1.3" />
+      </svg>
+    );
+  }
+
+  if (key.includes("ai") || key.includes("concierge") || key.includes("robot") || key.includes("консиерж")) {
+    return (
+      <svg {...commonProps}>
+        <rect x="5.1" y="7.5" width="13.8" height="11.2" rx="3.1" />
+        <path d="M12 4.2v2.1" />
+        <circle cx="12" cy="3.3" r="1" />
+        <path d="M5.1 11.5H3.7v3.2h1.4" />
+        <path d="M18.9 11.5h1.4v3.2h-1.4" />
+        <path d="M9.2 12.9c0-.8.6-1.3 1.3-1.3s1.3.5 1.3 1.3" />
+        <path d="M12.2 12.9c0-.8.6-1.3 1.3-1.3s1.3.5 1.3 1.3" />
+        <path d="M9.2 15.6c.8.8 1.8 1.2 2.8 1.2s2-.4 2.8-1.2" />
       </svg>
     );
   }
@@ -257,21 +279,6 @@ function PremiumSectionIcon({ id }: { id?: string }) {
         <path d="M5 12.5a10 10 0 0 1 14 0" />
         <path d="M8.4 15.8a5.1 5.1 0 0 1 7.2 0" />
         <path d="M12 19h.01" />
-      </svg>
-    );
-  }
-
-  if (key === "ai" || key.includes("concierge") || key.includes("консиерж")) {
-    return (
-      <svg {...commonProps}>
-        <rect x="5" y="8" width="14" height="10.5" rx="3" />
-        <path d="M12 4.8V8" />
-        <circle cx="12" cy="4" r=".8" />
-        <path d="M5 12H3.6" />
-        <path d="M20.4 12H19" />
-        <path d="M8.4 13.1c.5-.7 1.4-.7 1.9 0" />
-        <path d="M13.7 13.1c.5-.7 1.4-.7 1.9 0" />
-        <path d="M9.6 16c1.5 1 3.3 1 4.8 0" />
       </svg>
     );
   }
@@ -7545,6 +7552,10 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   ].filter((section) => section.id === "outlets" || (section.items && section.items.length > 0));
 
   const sectionById = (id: string) => sections.find((section) => section.id === id) || null;
+  const quickServiceIds = ["wifi", "reception", "housekeeping", "maintenance"];
+  const quickServiceSections = quickServiceIds
+    .map((id) => sectionById(id))
+    .filter((section): section is HubSection => Boolean(section));
 
   const hotelInfoPolicyItems = hotelInfoItems
     .filter((item) => isHotelInfoGroup(item, "policy"))
@@ -7565,6 +7576,25 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       items,
     };
   })();
+
+  const contactCombinedSection: HubSection | null = quickServiceSections.length
+    ? {
+        id: "contact",
+        title:
+          lang === "bg"
+            ? "Свържи се с нас"
+            : lang === "de"
+              ? "Kontakt"
+              : lang === "ro"
+                ? "Contactați-ne"
+                : lang === "cs"
+                  ? "Kontaktujte nás"
+                  : lang === "ru"
+                    ? "Свяжитесь с нами"
+                    : "Contact us",
+        items: [],
+      }
+    : null;
 
   const policyCombinedSection: HubSection | null = {
     id: "hotel_policies",
@@ -7643,7 +7673,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   };
 
   const exploreHubSection = sectionById("explore");
-  const aiHubSection = sectionById("ai");
 
   const reviewsCombinedSection: HubSection | null = (() => {
     const items = [
@@ -7665,104 +7694,19 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   };
 
   const premiumTiles = [
-    {
-      id: "info",
-      iconId: "info",
-      title: lang === "bg" ? "Информация" : String(infoCombinedSection?.title || "Information"),
-      section: infoCombinedSection,
-      requiresRoom: false,
-    },
-    {
-      id: "hotel_policies",
-      iconId: "policy",
-      title: policyCombinedSection.title,
-      section: policyCombinedSection,
-      requiresRoom: false,
-    },
-    {
-      id: "restaurants",
-      iconId: "restaurant",
-      title: restaurantOutletSection?.title || (lang === "bg" ? "Ресторант" : "Restaurant"),
-      section: restaurantOutletSection,
-      requiresRoom: false,
-      outletCategories: ["restaurants"],
-    },
-    {
-      id: "bars",
-      iconId: "bars",
-      title: barsOutletSection?.title || (lang === "bg" ? "Барове" : "Bars"),
-      section: barsOutletSection,
-      requiresRoom: false,
-      outletCategories: ["bars"],
-    },
-    {
-      id: "entertainment",
-      iconId: "entertainment",
-      title:
-        lang === "bg"
-          ? "Забавления"
-          : String(otherEntertainmentSection?.title || "Entertainment"),
-      section: otherEntertainmentSection,
-      requiresRoom: false,
-      outletCategories: ["kids", "entertainment", "gym", "spa", "other", "room_service"],
-    },
-    {
-      id: "ai",
-      iconId: "ai",
-      title: String(tUI("ai_title") || (lang === "bg" ? "AI Консиерж" : "AI Concierge")),
-      section: aiHubSection,
-      requiresRoom: true,
-      special: "ai" as const,
-    },
-    {
-      id: "massage_booking",
-      iconId: "massage",
-      title: massageBookingDef
-        ? getRequestDefTitle(massageBookingDef)
-        : String(tUI("massage_booking") || (lang === "bg" ? "Запази масаж" : "Book massage")),
-      section: null,
-      requiresRoom: true,
-      special: "massage" as const,
-    },
-    {
-      id: "pillow_menu",
-      iconId: "pillow",
-      title: lang === "bg" ? "Меню възглавници" : String(tUI("pillow_menu") || "Pillow menu"),
-      section: pillowMenuSection,
-      requiresRoom: true,
-    },
-    {
-      id: "coffee_capsules",
-      iconId: "coffee",
-      title: lang === "bg" ? "Кафе капсули" : String(tUI("coffee_capsules") || "Coffee capsules"),
-      section: coffeeCapsulesSection,
-      requiresRoom: true,
-    },
-    {
-      id: "explore",
-      iconId: "explore",
-      title:
-        lang === "bg"
-          ? "Около нас"
-          : String(exploreHubSection?.title || "Around the hotel"),
-      section: exploreHubSection,
-      requiresRoom: false,
-    },
-    {
-      id: "weather",
-      iconId: "weather",
-      title: String(weatherSection.title || (lang === "bg" ? "Времето" : "Weather")),
-      section: weatherSection,
-      requiresRoom: false,
-    },
-    {
-      id: "reviews",
-      iconId: "reviews",
-      title: lang === "bg" ? "Оцени престоя" : reviewsDisplaySection.title,
-      section: reviewsDisplaySection,
-      requiresRoom: false,
-    },
-  ].filter((tile) => tile.section || tile.special === "massage" || tile.special === "ai");
+    { id: "info", iconId: "info", title: lang === "bg" ? "Инфо" : "Info", section: infoCombinedSection, requiresRoom: false },
+    { id: "contact", iconId: "contact", title: contactCombinedSection?.title || (lang === "bg" ? "Свържи се с нас" : "Contact us"), section: contactCombinedSection, requiresRoom: true },
+    { id: "hotel_policies", iconId: "policy", title: policyCombinedSection.title, section: policyCombinedSection, requiresRoom: false },
+    { id: "restaurants", iconId: "restaurant", title: restaurantOutletSection?.title || (lang === "bg" ? "Ресторант" : "Restaurant"), section: restaurantOutletSection, requiresRoom: false, outletCategories: ["restaurants"] },
+    { id: "bars", iconId: "bars", title: barsOutletSection?.title || (lang === "bg" ? "Барове" : "Bars"), section: barsOutletSection, requiresRoom: false, outletCategories: ["bars"] },
+    { id: "entertainment", iconId: "entertainment", title: otherEntertainmentSection?.title || (lang === "bg" ? "Други забавления" : "Other entertainment"), section: otherEntertainmentSection, requiresRoom: false, outletCategories: ["kids", "entertainment", "gym", "spa", "other", "room_service"] },
+    { id: "massage_booking", iconId: "massage", title: massageBookingDef ? getRequestDefTitle(massageBookingDef) : String(tUI("massage_booking") || (lang === "bg" ? "Запази масаж" : "Book massage")), section: null, requiresRoom: true, special: "massage" as const },
+    { id: "pillow_menu", iconId: "pillow", title: lang === "bg" ? "Вземи възглавница" : String(tUI("pillow_menu") || "Pillow menu"), section: pillowMenuSection, requiresRoom: true },
+    { id: "coffee_capsules", iconId: "coffee", title: lang === "bg" ? "Поръчай кафе капсули" : String(tUI("coffee_capsules") || "Coffee capsules"), section: coffeeCapsulesSection, requiresRoom: true },
+    { id: "explore", iconId: "explore", title: String(exploreHubSection?.title || (lang === "bg" ? "Около хотела" : "Around the hotel")), section: exploreHubSection, requiresRoom: false },
+    { id: "weather", iconId: "weather", title: String(weatherSection.title || (lang === "bg" ? "Времето" : "Weather")), section: weatherSection, requiresRoom: false },
+    { id: "reviews", iconId: "reviews", title: reviewsDisplaySection.title, section: reviewsDisplaySection, requiresRoom: false },
+  ].filter((tile) => tile.section || tile.special === "massage");
 
   const selectedPremiumTile = openQuickServiceId
     ? premiumTiles.find((tile) => tile.id === openQuickServiceId) || null
@@ -7776,7 +7720,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   ]);
   const reviewSocialSectionIds = new Set(["reviews", "social"]);
   const reservedSectionIds = new Set([
-    "wifi",
+    ...quickServiceIds,
     ...hotelStaySectionIds,
     ...foodEntertainmentSectionIds,
     ...reviewSocialSectionIds,
@@ -7951,11 +7895,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       {roomConfirmed && room.trim() ? (
         <div className="stayhub-confirmed-room-wrap px-4">
           <div className="stayhub-confirmed-room-card">
-            <span className="stayhub-confirmed-room-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m7 12.5 3.1 3.1L17.5 8" />
-              </svg>
-            </span>
             <span>{roomCopy.confirmedState.replace("{room}", room)}</span>
           </div>
           <button
@@ -8380,11 +8319,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                       onClick={() => {
                         if (isLocked && !ensureConfirmedRoom()) return;
 
-                        if (tile.special === "ai") {
-                          openAiPanel();
-                          return;
-                        }
-
                         const nextId = isSelected ? null : tile.id;
                         setOpenQuickServiceId(nextId);
                         trackGuestEvent({
@@ -8503,6 +8437,17 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                     message={roomCopy.lockedSectionMessage}
                   />
                 )
+              ) : selectedPremiumTile.id === "contact" ? (
+                <div className="space-y-2">
+                  {quickServiceSections
+                    .filter((section) => section.id !== "wifi")
+                    .map((section) =>
+                      renderHubSection(section, {
+                        defaultOpen: false,
+                        keyPrefix: "contact-detail",
+                      })
+                    )}
+                </div>
               ) : selectedPremiumTile.section ? (
                 selectedPremiumTile.section.id === "outlets" ? (
                   renderHubSection(selectedPremiumTile.section, {
@@ -8523,7 +8468,51 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         </div>
       ) : null}
 
-      {/* AI Concierge is opened from the premium navigation tile. */}
+      <div className="px-4 pb-7">
+      <button
+        type="button"
+        onClick={openAiPanel}
+        className={clsx(
+          "stayhub-ai-trigger w-full inline-flex items-center gap-3 rounded-[24px] px-5 py-4 text-sm font-semibold shadow-lg transition hover:opacity-95 active:scale-[0.98]",
+          roomConfirmed ? "ring-1 ring-white/25" : "border"
+        )}
+        style={
+          roomConfirmed
+            ? {
+                backgroundColor: "rgba(255,255,255,0.92)",
+                color: "#0b6668",
+              }
+            : {
+                backgroundColor: "#F5F5F5",
+                borderColor: "#7ccfc6",
+                color: "#0b6668",
+              }
+        }
+        aria-label={getCurrentGuestUiText("ai_open") || guestNavCopy.askAi}
+      >
+        <span className="stayhub-ai-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="8" width="14" height="11" rx="3" />
+            <path d="M12 5v3" />
+            <circle cx="9" cy="13" r="1" />
+            <circle cx="15" cy="13" r="1" />
+            <path d="M9.5 16h5" />
+            <path d="M4 12H2.8" />
+            <path d="M21.2 12H20" />
+          </svg>
+        </span>
+        <span className="flex-1 text-center">{guestNavigationLabel("ask_ai", guestNavCopy.askAi)}</span>
+        {!roomConfirmed ? (
+          <span
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs"
+            style={{ borderColor: "#202627", color: "#202627" }}
+            aria-hidden="true"
+          >
+            🔒
+          </span>
+        ) : null}
+      </button>
+      </div>
 
       {aiPanelOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-3 sm:items-center">
