@@ -424,10 +424,13 @@ export default function GuestSurveyPushControls({
     <div className="stayhub-premium-push-wrap">
       <div className="stayhub-premium-push-card">
         <div className="stayhub-premium-push-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
-            <path d="M13.7 21a2 2 0 0 1-3.4 0" />
-          </svg>
+          <img
+            src="/icons/guesthub-premium/notifications.png"
+            alt=""
+            draggable={false}
+            decoding="async"
+            className="stayhub-action-icon-image"
+          />
         </div>
 
         <div className="min-w-0 flex-1">

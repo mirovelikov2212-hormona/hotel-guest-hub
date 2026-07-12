@@ -7760,9 +7760,13 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
         <div className="stayhub-premium-hero-content absolute inset-0 z-10 flex flex-col p-4">
           <div className="flex items-start justify-between gap-3">
-            <div className="stayhub-wordmark" aria-label="StayHub">
-              <span>Stay</span><span>Hub</span>
-            </div>
+            <img
+              src="/icons/guesthub-premium/stayhub-logo.png"
+              alt="StayHub"
+              className="stayhub-wordmark-image"
+              draggable={false}
+              decoding="async"
+            />
 
             <select
               value={String(lang)}

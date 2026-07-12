@@ -12,20 +12,13 @@ type BeforeInstallPromptEvent = Event & {
 function InstallDeviceIcon() {
   return (
     <span className="stayhub-install-icon" aria-hidden="true">
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.55"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <rect x="7" y="2.8" width="10" height="18.4" rx="2.1" />
-        <path d="M10.7 5.4h2.6" />
-        <path d="M12 8.2v7.1" />
-        <path d="m9.6 12.9 2.4 2.4 2.4-2.4" />
-        <path d="M10.2 18.2h3.6" />
-      </svg>
+      <img
+        src="/icons/guesthub-premium/install.png"
+        alt=""
+        draggable={false}
+        decoding="async"
+        className="stayhub-action-icon-image"
+      />
     </span>
   );
 }
