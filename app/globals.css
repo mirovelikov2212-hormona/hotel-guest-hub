@@ -2303,3 +2303,24 @@ input.stayhub-card::placeholder {
     height: 0.5rem !important;
   }
 }
+
+
+/* === StayHub full brand logo — top-left only === */
+.stayhub-brand-logo {
+  display: block !important;
+  width: 8.6rem !important;
+  height: auto !important;
+  max-height: 4.65rem !important;
+  object-fit: contain !important;
+  object-position: left top !important;
+  flex: 0 0 auto !important;
+  user-select: none !important;
+  filter: drop-shadow(0 1px 8px rgba(255,255,255,0.34));
+}
+
+@media (max-width: 380px) {
+  .stayhub-brand-logo {
+    width: 7.75rem !important;
+    max-height: 4.2rem !important;
+  }
+}
