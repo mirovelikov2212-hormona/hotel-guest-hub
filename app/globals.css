@@ -2274,53 +2274,21 @@ input.stayhub-card::placeholder {
   }
 }
 
-/* === v4.6 wordmark polish: match welcome title color and restore wave === */
-.stayhub-wordmark {
-  color: #075255 !important;
-  text-shadow: 0 1px 10px rgba(255,255,255,0.55) !important;
-}
-
-.stayhub-wordmark::after {
+/* === v4.8 full StayHub logo in hero top-left === */
+.stayhub-full-brand-logo {
   display: block !important;
-  content: '' !important;
-  position: absolute !important;
-  left: 2.08rem !important;
-  bottom: 0.08rem !important;
-  width: 3.65rem !important;
-  height: 0.56rem !important;
-  background:
-    radial-gradient(ellipse at 26% 72%, rgba(67,186,173,0.34) 0 19%, transparent 22%),
-    radial-gradient(ellipse at 64% 34%, rgba(67,186,173,0.24) 0 22%, transparent 25%);
-  border-bottom: 2px solid rgba(67,186,173,0.44) !important;
-  border-radius: 50% !important;
-  transform: rotate(-3deg) !important;
-}
-
-@media (max-width: 380px) {
-  .stayhub-wordmark::after {
-    left: 1.82rem !important;
-    width: 3.2rem !important;
-    height: 0.5rem !important;
-  }
-}
-
-
-/* === StayHub full brand logo — top-left only === */
-.stayhub-brand-logo {
-  display: block !important;
-  width: 8.6rem !important;
+  width: clamp(7.8rem, 35vw, 9.2rem) !important;
   height: auto !important;
-  max-height: 4.65rem !important;
   object-fit: contain !important;
-  object-position: left top !important;
+  margin-top: 0.1rem !important;
+  margin-left: 0.02rem !important;
   flex: 0 0 auto !important;
   user-select: none !important;
-  filter: drop-shadow(0 1px 8px rgba(255,255,255,0.34));
+  -webkit-user-drag: none !important;
 }
 
 @media (max-width: 380px) {
-  .stayhub-brand-logo {
-    width: 7.75rem !important;
-    max-height: 4.2rem !important;
+  .stayhub-full-brand-logo {
+    width: clamp(7.2rem, 36vw, 8.4rem) !important;
   }
 }
