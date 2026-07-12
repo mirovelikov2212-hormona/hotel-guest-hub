@@ -195,7 +195,7 @@ input.stayhub-card::placeholder {
 .stayhub-premium-screen .font-bold,
 .stayhub-premium-screen .font-semibold,
 .stayhub-premium-screen .font-medium {
-  font-weight: 500 !important;
+  font-weight: 400 !important;
 }
 
 .stayhub-premium-screen .text-white,
@@ -2451,5 +2451,47 @@ input.stayhub-card::placeholder {
   .stayhub-premium-push-icon .stayhub-action-icon-image {
     width: 2.72rem !important;
     height: 2.72rem !important;
+  }
+}
+
+/* === StayHub wordmark fix: clean transparent vector, no raster box === */
+.stayhub-wordmark-svg {
+  display: block !important;
+  width: clamp(7.8rem, 31vw, 10.2rem) !important;
+  height: auto !important;
+  overflow: visible !important;
+  flex: 0 0 auto !important;
+  filter:
+    drop-shadow(0 1px 2px rgba(255,255,255,0.72))
+    drop-shadow(0 3px 8px rgba(4,76,78,0.16)) !important;
+  user-select: none !important;
+}
+
+.stayhub-wordmark-svg-text {
+  font-family: Georgia, "Times New Roman", serif !important;
+  font-size: 36px !important;
+  font-weight: 400 !important;
+  letter-spacing: 2.5px !important;
+  fill: #087f7a !important;
+  stroke: rgba(255,255,255,0.72) !important;
+  stroke-width: 0.55px !important;
+  paint-order: stroke fill !important;
+}
+
+.stayhub-wordmark-svg-wave {
+  fill: rgba(40,183,174,0.26) !important;
+  stroke: rgba(255,255,255,0.55) !important;
+  stroke-width: 0.45px !important;
+  paint-order: stroke fill !important;
+}
+
+@media (max-width: 380px) {
+  .stayhub-wordmark-svg {
+    width: 7.45rem !important;
+  }
+
+  .stayhub-wordmark-svg-text {
+    font-size: 35px !important;
+    letter-spacing: 2.2px !important;
   }
 }
