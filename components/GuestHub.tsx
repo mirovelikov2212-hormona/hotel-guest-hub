@@ -113,8 +113,49 @@ function getPremiumWelcomeTitle(lang: LangKey | string): string {
   return "Welcome";
 }
 
+const PREMIUM_ICON_ASSET_BASE = "/icons/guesthub-premium";
+
+function getPremiumIconAsset(id?: string): string | null {
+  const key = String(id || "").toLowerCase().trim();
+
+  if (!key) return null;
+  if (key.includes("contact") || key.includes("свържи")) return "contact.png";
+  if (key.includes("policy") || key.includes("policies") || key.includes("политик")) return "policy.png";
+  if (key.includes("restaurant") || key.includes("ресторан") || key.includes("food")) return "restaurant.png";
+  if (key.includes("bar") || key.includes("бар")) return "bars.png";
+  if (key.includes("animation") || key.includes("entertainment") || key.includes("забав")) return "entertainment.png";
+  if (key.includes("massage") || key.includes("spa") || key.includes("масаж")) return "massage.png";
+  if (key.includes("pillow") || key.includes("възглав")) return "pillow.png";
+  if (key.includes("coffee") || key.includes("каф")) return "coffee.png";
+  if (key.includes("weather") || key.includes("врем")) return "weather.png";
+  if (key.includes("review") || key.includes("social") || key.includes("отзив")) return "reviews.png";
+  if (key.includes("explore") || key.includes("nearby") || key.includes("около")) return "nearby.png";
+  if (key === "ai" || key.includes("ai_concierge") || key.includes("concierge") || key.includes("robot") || key.includes("консиерж")) return "ai-concierge.png";
+  if (key.includes("install") || key.includes("download") || key.includes("изтегли")) return "install.png";
+  if (key.includes("notification") || key.includes("извести")) return "notifications.png";
+  if (key.includes("phone") || key.includes("call") || key.includes("обади")) return "phone.png";
+  if (key === "info" || key.includes("information") || key.includes("инфо")) return "info.png";
+
+  return null;
+}
+
 function PremiumSectionIcon({ id }: { id?: string }) {
   const key = String(id || "").toLowerCase();
+  const asset = getPremiumIconAsset(id);
+
+  if (asset) {
+    return (
+      <img
+        src={`${PREMIUM_ICON_ASSET_BASE}/${asset}`}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        decoding="async"
+        className="stayhub-premium-icon-image"
+      />
+    );
+  }
+
   const commonProps = {
     viewBox: "0 0 24 24",
     fill: "none",
@@ -124,154 +165,6 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     strokeLinejoin: "round" as const,
     "aria-hidden": true,
   };
-
-  if (key.includes("contact") || key.includes("свържи")) {
-    return (
-      <svg {...commonProps}>
-        <circle cx="9" cy="8" r="2.6" />
-        <circle cx="15.5" cy="8.7" r="2.1" />
-        <path d="M3.8 19c.7-3.6 3-5.6 5.2-5.6s4.5 2 5.2 5.6" />
-        <path d="M12.8 14.2c2.4.1 4.5 1.8 5.1 4.8" />
-      </svg>
-    );
-  }
-
-  if (key.includes("policy") || key.includes("policies") || key.includes("политик")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M7 3.7h7.5L18 7.2v13.1H7V3.7Z" />
-        <path d="M14.4 3.9V7.9H18" />
-        <path d="M9.5 11h5.2" />
-        <path d="M9.5 14.2h5.2" />
-        <path d="M9.5 17.4h3.6" />
-      </svg>
-    );
-  }
-
-  if (key.includes("outlet") || key.includes("restaurant") || key.includes("food") || key.includes("ресторан") || key.includes("храна")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M5.3 4.1v7.1" />
-        <path d="M7.2 4.1v7.1" />
-        <path d="M9.1 4.1v7.1" />
-        <path d="M5.3 11h3.8" />
-        <path d="M7.2 11v8.8" />
-        <circle cx="14.8" cy="11.6" r="5.1" />
-        <path d="M20 4.1v15.8" />
-      </svg>
-    );
-  }
-
-  if (key.includes("bar") || key.includes("бар")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M5 5.4h14l-4.6 5.8a3 3 0 0 1-4.8 0L5 5.4Z" />
-        <path d="M12 11.2v7.6" />
-        <path d="M8.4 18.8h7.2" />
-        <path d="M15.2 5.3 18.1 2" />
-        <circle cx="15.9" cy="5.9" r="1.35" />
-      </svg>
-    );
-  }
-
-  if (key.includes("animation") || key.includes("entertainment") || key.includes("забав")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M6 4.3v7.6" />
-        <path d="M6 4.3 13.5 3v7.1" />
-        <circle cx="4.8" cy="14.3" r="1.9" />
-        <circle cx="12.3" cy="11.8" r="1.9" />
-        <path d="M13.9 11.8c1.4-.9 3.6-.8 4.8.2" />
-        <path d="M14.6 14.8c1.4-1 3.7-.8 4.8.4" />
-        <path d="M14.5 18c1.5.8 3.4.8 4.9 0" />
-        <path d="M15.1 13.9c.7.5 1.6.8 2.5.8.8 0 1.6-.2 2.3-.7" />
-      </svg>
-    );
-  }
-
-  if (key.includes("massage") || key.includes("spa") || key.includes("масаж")) {
-    return (
-      <svg {...commonProps}>
-        <circle cx="9.1" cy="5.6" r="2" />
-        <path d="M5.3 16.8h13.8" />
-        <path d="M6.6 19.8h10.8" />
-        <path d="M8 16.8v3" />
-        <path d="M16 16.8v3" />
-        <path d="M9.2 11.2c1.4-.6 2.9-.4 4 .7l2.1 2.1" />
-        <circle cx="18.7" cy="13.1" r="1.6" />
-        <path d="M7.1 13.8h6.7" />
-      </svg>
-    );
-  }
-
-  if (key.includes("pillow") || key.includes("възглав")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M6 8.4c1.2-1.1 2.8-1.1 3.9-.2 1.2-.7 2.9-.7 4.1 0 1.1-.9 2.7-.9 3.9.2.9 1.1.9 6.1 0 7.2-1.2 1.1-2.8 1.1-3.9.2-1.2.8-2.9.8-4.1 0-1.1.9-2.7.9-3.9-.2-.9-1.1-.9-6.1 0-7.2Z" />
-        <path d="M8.2 9.7c-.8 1-.8 4.7 0 5.7" />
-        <path d="M15.8 9.7c.8 1 .8 4.7 0 5.7" />
-      </svg>
-    );
-  }
-
-  if (key.includes("coffee") || key.includes("каф")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M7.1 8.8h8.8v5.4a4 4 0 0 1-4 4h-.8a4 4 0 0 1-4-4V8.8Z" />
-        <path d="M15.9 10.7H18a2.2 2.2 0 0 1 0 4.4h-2.1" />
-        <path d="M8.3 20h8.7" />
-        <path d="M8.7 4.2c0 1-.8 1.3-.8 2.4" />
-        <path d="M12 4.2c0 1-.8 1.3-.8 2.4" />
-        <path d="M15.3 4.2c0 1-.8 1.3-.8 2.4" />
-      </svg>
-    );
-  }
-
-  if (key.includes("weather") || key.includes("врем")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M14.5 4.2v2" />
-        <path d="M9.2 6.2 7.8 4.8" />
-        <path d="M18.8 6.2 20.2 4.8" />
-        <path d="M20.3 10.6h-1.8" />
-        <path d="M15.8 6.3a4.2 4.2 0 0 1 1.8 7.9" />
-        <path d="M8.6 18.2a3.4 3.4 0 1 1 .5-6.7 4.2 4.2 0 0 1 8 .8 2.8 2.8 0 1 1 .4 5.9H8.6Z" />
-      </svg>
-    );
-  }
-
-  if (key.includes("review") || key.includes("social") || key.includes("отзив")) {
-    return (
-      <svg {...commonProps}>
-        <path d="m12 3.4 2.5 5.2 5.8.8-4.2 4.1 1 5.8L12 16.6 6.9 19.3l1-5.8-4.2-4.1 5.8-.8L12 3.4Z" />
-      </svg>
-    );
-  }
-
-  if (key.includes("explore") || key.includes("nearby") || key.includes("около")) {
-    return (
-      <svg {...commonProps}>
-        <path d="M12 20.6s6-4.8 6-11a6 6 0 1 0-12 0c0 6.2 6 11 6 11Z" />
-        <circle cx="12" cy="9.6" r="2.2" />
-        <path d="M8.1 20.5c1-.9 2.3-1.3 3.9-1.3s2.9.4 3.9 1.3" />
-      </svg>
-    );
-  }
-
-  if (key.includes("ai") || key.includes("concierge") || key.includes("robot") || key.includes("консиерж")) {
-    return (
-      <svg {...commonProps}>
-        <rect x="5.1" y="7.5" width="13.8" height="11.2" rx="3.1" />
-        <path d="M12 4.2v2.1" />
-        <circle cx="12" cy="3.3" r="1" />
-        <path d="M5.1 11.5H3.7v3.2h1.4" />
-        <path d="M18.9 11.5h1.4v3.2h-1.4" />
-        <path d="M9.2 12.9c0-.8.6-1.3 1.3-1.3s1.3.5 1.3 1.3" />
-        <path d="M12.2 12.9c0-.8.6-1.3 1.3-1.3s1.3.5 1.3 1.3" />
-        <path d="M9.2 15.6c.8.8 1.8 1.2 2.8 1.2s2-.4 2.8-1.2" />
-      </svg>
-    );
-  }
 
   if (key.includes("wifi") || key.includes("wi-fi")) {
     return (
@@ -7867,31 +7760,20 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
         <div className="stayhub-premium-hero-content absolute inset-0 z-10 flex flex-col p-4">
           <div className="flex items-start justify-between gap-3">
-            <div className="stayhub-wordmark" aria-label="StayHub">
-              <span className="stayhub-wordmark-text">StayHub</span>
-              <svg
-                className="stayhub-wordmark-wave"
-                viewBox="0 0 120 22"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-                preserveAspectRatio="none"
-              >
-                <path
-                  d="M4 12.7C18 6.8 30.2 6.4 41 10.9C51.1 15.1 60.4 16 69.6 13C78.4 10.1 87.3 9.2 97 10.7C104.5 11.8 111.1 13.7 116 15.2"
-                  stroke="currentColor"
-                  strokeWidth="2.8"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M14.8 14.8C26.3 10.1 37.5 9.6 47.9 13.1C57.6 16.4 67 16.9 76.5 13.9C85.6 11 94.6 10.8 104.8 12.4"
-                  stroke="currentColor"
-                  strokeOpacity="0.35"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
+            <svg
+              className="stayhub-wordmark-svg"
+              viewBox="0 0 230 64"
+              role="img"
+              aria-label="StayHub"
+            >
+              <text x="4" y="40" className="stayhub-wordmark-svg-text">
+                StayHub
+              </text>
+              <path
+                className="stayhub-wordmark-svg-wave"
+                d="M91 51c12-3.8 26-3.8 38 0-10.5 3.5-27 4.1-38 0Z"
+              />
+            </svg>
 
             <select
               value={String(lang)}
@@ -8038,45 +7920,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
       {!roomConfirmed ? (
         <div id="stayhub-room-confirmation" className="mt-3 scroll-mt-4 px-4">
-          <div className="stayhub-premium-intro-card rounded-2xl p-4">
-            <div className="flex items-start gap-3">
-              <div className="stayhub-premium-intro-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4.8 11.6a7.2 7.2 0 1 1 14.4 0v1.4l1.4 2.3a1 1 0 0 1-.8 1.5H4.2a1 1 0 0 1-.8-1.5L4.8 13v-1.4Z" />
-                  <path d="M9.6 18.4a2.4 2.4 0 0 0 4.8 0" />
-                </svg>
-              </div>
-              <div className="min-w-0">
-                <h2 className="stayhub-premium-intro-title">
-                  {lang === "bg"
-                    ? "С нашия дигитален консиерж"
-                    : lang === "de"
-                      ? "Mit unserem digitalen Concierge"
-                      : lang === "ro"
-                        ? "Cu concierge-ul nostru digital"
-                        : lang === "cs"
-                          ? "S naším digitálním concierge"
-                          : lang === "ru"
-                            ? "С нашим цифровым консьержем"
-                            : "With our digital concierge"}
-                </h2>
-                <p className="stayhub-premium-intro-text">
-                  {lang === "bg"
-                    ? "Открийте бързо полезна информация за хотела, услугите и удобствата и получете съдействие по време на престоя си."
-                    : lang === "de"
-                      ? "Hier finden Sie schnell nützliche Informationen über das Hotel, die Services und Annehmlichkeiten und erhalten Unterstützung während Ihres Aufenthalts."
-                      : lang === "ro"
-                        ? "Descoperiți rapid informații utile despre hotel, servicii și facilități și primiți asistență în timpul sejurului dumneavoastră."
-                        : lang === "cs"
-                          ? "Rychle zde najdete užitečné informace o hotelu, službách a vybavení a získáte pomoc během pobytu."
-                          : lang === "ru"
-                            ? "Здесь вы быстро найдете полезную информацию об отеле, услугах и удобствах и получите помощь во время проживания."
-                            : "Quickly find useful information about the hotel, services and amenities and get assistance during your stay."}
-                </p>
-              </div>
-            </div>
-          </div>
-
           <div className="rounded-2xl stayhub-panel stayhub-room-panel p-4">
             <h2 className="text-base font-medium" style={{ color: "#202627" }}>{roomCopy.cardTitle}</h2>
             <p className="mt-2 text-sm leading-6" style={{ color: "#202627" }}>{roomCopy.cardText}</p>
