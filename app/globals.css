@@ -2274,14 +2274,108 @@ input.stayhub-card::placeholder {
   }
 }
 
-/* === v4.8 full StayHub logo in hero top-left === */
+/* === Exact premium icon assets extracted from the approved icon sheet === */
+.stayhub-premium-icon-image {
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.stayhub-premium-tile-icon .stayhub-premium-icon-image {
+  width: 4rem !important;
+  height: 4rem !important;
+}
+
+.stayhub-section-header-icon .stayhub-premium-icon-image,
+.stayhub-section-window-icon .stayhub-premium-icon-image {
+  width: 2.75rem !important;
+  height: 2.75rem !important;
+}
+
+.stayhub-section-header-icon-inline .stayhub-premium-icon-image {
+  width: 2.6rem !important;
+  height: 2.6rem !important;
+}
+
+@media (max-width: 380px) {
+  .stayhub-premium-tile-icon .stayhub-premium-icon-image {
+    width: 3.55rem !important;
+    height: 3.55rem !important;
+  }
+}
+
+/* === Compact premium home tiles: larger approved icon assets, shorter cards === */
+.stayhub-premium-grid {
+  gap: 0.54rem !important;
+}
+
+.stayhub-premium-tile {
+  min-height: 106px !important;
+  border-radius: 17px !important;
+  padding: 0.38rem 0.32rem 0.44rem !important;
+}
+
+.stayhub-premium-tile::after {
+  height: 27% !important;
+}
+
+.stayhub-premium-tile-icon {
+  width: 4.25rem !important;
+  height: 4.25rem !important;
+  flex: 0 0 4.25rem !important;
+  margin: -0.08rem auto 0 !important;
+}
+
+.stayhub-premium-tile-icon .stayhub-premium-icon-image {
+  width: 4.8rem !important;
+  height: 4.8rem !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.stayhub-premium-tile-label {
+  min-height: 1.78rem !important;
+  margin-top: -0.08rem !important;
+  font-size: 0.72rem !important;
+  line-height: 1.08 !important;
+}
+
+@media (max-width: 380px) {
+  .stayhub-premium-grid {
+    gap: 0.44rem !important;
+  }
+
+  .stayhub-premium-tile {
+    min-height: 100px !important;
+    padding: 0.32rem 0.2rem 0.38rem !important;
+  }
+
+  .stayhub-premium-tile-icon {
+    width: 3.95rem !important;
+    height: 3.95rem !important;
+    flex-basis: 3.95rem !important;
+  }
+
+  .stayhub-premium-tile-icon .stayhub-premium-icon-image {
+    width: 4.45rem !important;
+    height: 4.45rem !important;
+  }
+
+  .stayhub-premium-tile-label {
+    min-height: 1.72rem !important;
+    font-size: 0.64rem !important;
+  }
+}
+
+/* === v4.9 keep premium PNG icons, smaller room circle, smaller top-left logo === */
 .stayhub-full-brand-logo {
   display: block !important;
-  width: clamp(6.4rem, 28vw, 7.8rem) !important;
+  width: clamp(5.75rem, 23vw, 6.7rem) !important;
   height: auto !important;
   object-fit: contain !important;
-  margin-top: 0.32rem !important;
-  margin-left: 0.18rem !important;
+  margin-top: 0.16rem !important;
+  margin-left: -0.06rem !important;
   flex: 0 0 auto !important;
   user-select: none !important;
   -webkit-user-drag: none !important;
@@ -2289,8 +2383,18 @@ input.stayhub-card::placeholder {
 
 @media (max-width: 380px) {
   .stayhub-full-brand-logo {
-    width: clamp(5.9rem, 30vw, 7rem) !important;
-    margin-top: 0.22rem !important;
-    margin-left: 0.12rem !important;
+    width: clamp(5.3rem, 24vw, 6.15rem) !important;
+    margin-top: 0.1rem !important;
+    margin-left: -0.08rem !important;
   }
+}
+
+.stayhub-room-panel h2::before {
+  width: 1.46rem !important;
+  height: 1.46rem !important;
+  flex: 0 0 1.46rem !important;
+}
+
+.stayhub-room-panel h2 {
+  gap: 0.44rem !important;
 }
