@@ -2530,3 +2530,51 @@ input.stayhub-card::placeholder {
     font-size: 0.78rem !important;
   }
 }
+
+/* === v5.2 room card width, room copy visibility, clean inner sections === */
+.stayhub-confirmed-room-wrap {
+  gap: 0.5rem !important;
+}
+
+.stayhub-confirmed-room-card,
+.stayhub-room-switch-link.stayhub-confirmed-room-card,
+.stayhub-confirmed-room-card:not(.stayhub-room-switch-link) {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.stayhub-room-panel h2,
+.stayhub-room-panel p,
+.stayhub-room-panel label,
+.stayhub-room-panel .stayhub-card,
+.stayhub-room-panel .stayhub-card * {
+  color: #075255 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.stayhub-room-panel input.stayhub-card {
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+}
+
+.stayhub-room-panel input.stayhub-card::placeholder {
+  color: rgba(7, 82, 85, 0.52) !important;
+  -webkit-text-fill-color: rgba(7, 82, 85, 0.52) !important;
+  opacity: 1 !important;
+}
+
+.stayhub-section-window .stayhub-section-shell::after,
+.stayhub-section-window .stayhub-panel::after,
+.stayhub-section-window .stayhub-card::after,
+.stayhub-section-window .stayhub-action-card::after,
+.stayhub-section-window-body .stayhub-section-shell::after,
+.stayhub-section-window-body .stayhub-panel::after,
+.stayhub-section-window-body .stayhub-card::after,
+.stayhub-section-window-body .stayhub-action-card::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+}
