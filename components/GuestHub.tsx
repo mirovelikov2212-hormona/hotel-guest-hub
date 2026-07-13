@@ -8413,7 +8413,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
       {aiPanelOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-3 sm:items-center">
-          <div className="w-full max-w-md rounded-2xl stayhub-section-shell p-4 shadow-2xl">
+          <div className="stayhub-ai-panel-shell w-full max-w-md rounded-2xl stayhub-section-shell p-4 shadow-2xl">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="mr-auto flex items-center gap-2 text-lg font-semibold"><span className="stayhub-ai-icon stayhub-ai-icon-small" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 5v3"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/><path d="M9.5 16h5"/></svg></span>{String(tUI("ai_title") || "AI Concierge")}</div>
               <div className="flex items-center gap-2">
@@ -8764,7 +8764,12 @@ function Accordion({
   }, [focusRequestDefId, focusRequestNonce, section.id]);
 
   return (
-    <div className="rounded-2xl overflow-hidden stayhub-section-shell">
+    <div
+      className={clsx(
+        "rounded-2xl overflow-hidden stayhub-section-shell",
+        section.id === "ai" && "stayhub-ai-section"
+      )}
+    >
       {!hideHeader ? (
         <button
           type="button"

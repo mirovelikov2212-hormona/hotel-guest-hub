@@ -2601,3 +2601,19 @@ input.stayhub-card::placeholder {
   background-position: right 0.62rem center !important;
   background-size: 0.78rem auto !important;
 }
+
+/* === v5.4 clean AI section: no decorative wave overlays === */
+.stayhub-ai-section::after,
+.stayhub-ai-section .stayhub-section-shell::after,
+.stayhub-ai-section .stayhub-panel::after,
+.stayhub-ai-section .stayhub-card::after,
+.stayhub-ai-section .stayhub-action-card::after,
+.stayhub-ai-panel-shell::after,
+.stayhub-ai-panel-shell .stayhub-section-shell::after,
+.stayhub-ai-panel-shell .stayhub-panel::after,
+.stayhub-ai-panel-shell .stayhub-card::after,
+.stayhub-ai-panel-shell .stayhub-action-card::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+}
