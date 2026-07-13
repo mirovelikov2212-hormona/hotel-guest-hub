@@ -2398,3 +2398,45 @@ input.stayhub-card::placeholder {
 .stayhub-room-panel h2 {
   gap: 0.44rem !important;
 }
+
+
+/* === v5.0 final polish: smaller corner logo, smaller room circle, room pills match === */
+.stayhub-full-brand-logo {
+  width: clamp(4.95rem, 20vw, 5.8rem) !important;
+  margin-top: 0.06rem !important;
+  margin-left: -0.18rem !important;
+}
+
+@media (max-width: 380px) {
+  .stayhub-full-brand-logo {
+    width: clamp(4.6rem, 21vw, 5.35rem) !important;
+    margin-top: 0.02rem !important;
+    margin-left: -0.22rem !important;
+  }
+}
+
+.stayhub-room-panel h2 {
+  gap: 0.38rem !important;
+}
+
+.stayhub-room-panel h2::before {
+  width: 1.08rem !important;
+  height: 1.08rem !important;
+  flex: 0 0 1.08rem !important;
+}
+
+.stayhub-confirmed-room-card,
+.stayhub-room-switch-link.stayhub-confirmed-room-card,
+.stayhub-confirmed-room-card:not(.stayhub-room-switch-link) {
+  min-height: 36px !important;
+  padding: 0.45rem 0.85rem !important;
+  border-radius: 16px !important;
+  background: rgba(236,255,241,0.94) !important;
+  border: 1px solid rgba(56,166,95,0.28) !important;
+  color: #126b43 !important;
+  box-shadow: 0 9px 20px rgba(36,113,60,0.13) !important;
+  text-decoration: none !important;
+  outline: none !important;
+  font-size: 0.86rem !important;
+  font-weight: 500 !important;
+}
