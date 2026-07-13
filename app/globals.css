@@ -2277,11 +2277,11 @@ input.stayhub-card::placeholder {
 /* === v4.8 full StayHub logo in hero top-left === */
 .stayhub-full-brand-logo {
   display: block !important;
-  width: clamp(7.8rem, 35vw, 9.2rem) !important;
+  width: clamp(6.4rem, 28vw, 7.8rem) !important;
   height: auto !important;
   object-fit: contain !important;
-  margin-top: 0.1rem !important;
-  margin-left: 0.02rem !important;
+  margin-top: 0.32rem !important;
+  margin-left: 0.18rem !important;
   flex: 0 0 auto !important;
   user-select: none !important;
   -webkit-user-drag: none !important;
@@ -2289,6 +2289,8 @@ input.stayhub-card::placeholder {
 
 @media (max-width: 380px) {
   .stayhub-full-brand-logo {
-    width: clamp(7.2rem, 36vw, 8.4rem) !important;
+    width: clamp(5.9rem, 30vw, 7rem) !important;
+    margin-top: 0.22rem !important;
+    margin-left: 0.12rem !important;
   }
 }
