@@ -2578,3 +2578,26 @@ input.stayhub-card::placeholder {
   content: none !important;
   background: none !important;
 }
+
+/* === v5.3 room confirmation copy + compact language selector === */
+.stayhub-premium-screen .stayhub-room-modal p,
+.stayhub-premium-screen .stayhub-room-modal p.text-neutral-200 {
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.stayhub-language-select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 4.5rem !important;
+  min-width: 4.5rem !important;
+  max-width: 4.5rem !important;
+  padding: 0 1.65rem 0 0.8rem !important;
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M2 2l5 5 5-5' fill='none' stroke='%23075255' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.62rem center !important;
+  background-size: 0.78rem auto !important;
+}
