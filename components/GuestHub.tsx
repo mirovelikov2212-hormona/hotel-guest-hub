@@ -119,6 +119,10 @@ function getPremiumIconAsset(id?: string): string | null {
   const key = String(id || "").toLowerCase().trim();
 
   if (!key) return null;
+  if (key.includes("reception") || key.includes("рецепц")) return "reception.png";
+  if (key.includes("housekeeping") || key.includes("хаус")) return "housekeeping.png";
+  if (key.includes("maintenance") || key.includes("technical") || key.includes("техн")) return "maintenance.png";
+  if (key.includes("emergency") || key.includes("спеш")) return "emergency-call.png";
   if (key.includes("contact") || key.includes("свържи")) return "contact.png";
   if (key.includes("policy") || key.includes("policies") || key.includes("политик")) return "policy.png";
   if (key.includes("restaurant") || key.includes("ресторан") || key.includes("food")) return "restaurant.png";
@@ -7594,9 +7598,9 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   const premiumTiles = [
     { id: "info", iconId: "info", title: lang === "bg" ? "Инфо" : "Info", section: infoCombinedSection, requiresRoom: false },
     { id: "hotel_policies", iconId: "policy", title: lang === "bg" ? "Политики" : policyCombinedSection.title, section: policyCombinedSection, requiresRoom: false },
-    { id: "emergency", iconId: "phone", title: lang === "bg" ? "Спешно повикване" : String(emergencyTileSection?.title || "Emergency call"), section: emergencyTileSection, requiresRoom: false, special: "emergency" as const },
+    { id: "emergency", iconId: "emergency", title: lang === "bg" ? "Спешно повикване" : String(emergencyTileSection?.title || "Emergency call"), section: emergencyTileSection, requiresRoom: false, special: "emergency" as const },
 
-    { id: "reception", iconId: "contact", title: lang === "bg" ? "Рецепция" : String(receptionHubSection?.title || "Reception"), section: receptionHubSection, requiresRoom: true },
+    { id: "reception", iconId: "reception", title: lang === "bg" ? "Рецепция" : String(receptionHubSection?.title || "Reception"), section: receptionHubSection, requiresRoom: true },
     { id: "housekeeping", iconId: "housekeeping", title: lang === "bg" ? "Хаускипинг" : String(housekeepingHubSection?.title || "Housekeeping"), section: housekeepingHubSection, requiresRoom: true },
     { id: "maintenance", iconId: "maintenance", title: lang === "bg" ? "Техн. отдел" : String(maintenanceHubSection?.title || "Technical department"), section: maintenanceHubSection, requiresRoom: true },
 
@@ -8261,7 +8265,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                       className={clsx(
                         "stayhub-premium-tile text-center transition active:scale-[0.99]",
                         isSelected ? "stayhub-premium-tile-active" : "",
-                        isLocked ? "stayhub-premium-tile-locked" : ""
+                        isLocked ? "stayhub-premium-tile-locked" : "",
+                        (tile as any).special === "emergency" ? "stayhub-premium-tile-emergency" : ""
                       )}
                     >
                       <span className="stayhub-premium-tile-icon" aria-hidden="true">
@@ -8270,6 +8275,21 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                       <span className="stayhub-premium-tile-label">
                         {stripLeadingVisualIcon(String(tile.title))}
                       </span>
+                      {isLocked ? (
+                        <span className="stayhub-premium-tile-lock" aria-hidden="true">
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <rect x="5.5" y="10" width="13" height="10" rx="2.4" />
+                            <path d="M8.5 10V7.3a3.5 3.5 0 0 1 7 0V10" />
+                          </svg>
+                        </span>
+                      ) : null}
                     </button>
                   );
                 })}

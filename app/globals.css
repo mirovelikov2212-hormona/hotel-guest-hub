@@ -2617,3 +2617,50 @@ input.stayhub-card::placeholder {
   content: none !important;
   background: none !important;
 }
+
+/* === v5.5 department icons, locked tile badges, emergency tone, white room cards === */
+.stayhub-premium-tile-lock {
+  position: absolute !important;
+  top: 0.52rem !important;
+  right: 0.52rem !important;
+  z-index: 3 !important;
+  width: 1.52rem !important;
+  height: 1.52rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(7, 82, 85, 0.34) !important;
+  color: #0b6668 !important;
+  box-shadow: 0 5px 12px rgba(7, 82, 85, 0.10) !important;
+  pointer-events: none !important;
+}
+
+.stayhub-premium-tile-lock svg {
+  width: 0.86rem !important;
+  height: 0.86rem !important;
+}
+
+.stayhub-premium-tile-emergency {
+  background: rgba(255, 246, 247, 0.97) !important;
+  border-color: rgba(239, 111, 129, 0.34) !important;
+  box-shadow: 0 10px 22px rgba(171, 70, 87, 0.10) !important;
+}
+
+.stayhub-premium-tile-emergency::after {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 90' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='r1' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23ef6f81' stop-opacity='.24'/%3E%3Cstop offset='.5' stop-color='%23ffdfe4' stop-opacity='.12'/%3E%3Cstop offset='1' stop-color='%23ef6f81' stop-opacity='.24'/%3E%3C/linearGradient%3E%3ClinearGradient id='r2' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23ffc7d0' stop-opacity='.36'/%3E%3Cstop offset='.5' stop-color='%23fff1f3' stop-opacity='.16'/%3E%3Cstop offset='1' stop-color='%23ffc7d0' stop-opacity='.36'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 45 C44 28 76 28 112 42 C151 58 188 58 224 42 C254 28 279 29 300 38 L300 90 L0 90 Z' fill='url(%23r2)'/%3E%3Cpath d='M0 61 C48 46 84 45 122 56 C162 68 194 69 232 57 C261 48 284 48 300 54 L300 90 L0 90 Z' fill='url(%23r1)'/%3E%3C/svg%3E") bottom center / 100% 100% no-repeat !important;
+}
+
+.stayhub-premium-tile-emergency .stayhub-premium-tile-label {
+  color: #a34f5d !important;
+}
+
+.stayhub-confirmed-room-card,
+.stayhub-room-switch-link.stayhub-confirmed-room-card,
+.stayhub-confirmed-room-card:not(.stayhub-room-switch-link) {
+  background: rgba(255, 255, 255, 0.97) !important;
+  border-color: rgba(67, 186, 173, 0.28) !important;
+  color: #0b6668 !important;
+  box-shadow: 0 9px 20px rgba(7, 82, 85, 0.10) !important;
+}
