@@ -7586,20 +7586,32 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     items: [],
   };
 
+  const receptionHubSection = sectionById("reception");
+  const housekeepingHubSection = sectionById("housekeeping");
+  const maintenanceHubSection = sectionById("maintenance");
+  const emergencyTileSection = sectionById("emergency");
+
   const premiumTiles = [
     { id: "info", iconId: "info", title: lang === "bg" ? "Инфо" : "Info", section: infoCombinedSection, requiresRoom: false },
-    { id: "contact", iconId: "contact", title: contactCombinedSection?.title || (lang === "bg" ? "Свържи се с нас" : "Contact us"), section: contactCombinedSection, requiresRoom: true },
-    { id: "hotel_policies", iconId: "policy", title: policyCombinedSection.title, section: policyCombinedSection, requiresRoom: false },
-    { id: "restaurants", iconId: "restaurant", title: restaurantOutletSection?.title || (lang === "bg" ? "Ресторант" : "Restaurant"), section: restaurantOutletSection, requiresRoom: false, outletCategories: ["restaurants"] },
-    { id: "bars", iconId: "bars", title: barsOutletSection?.title || (lang === "bg" ? "Барове" : "Bars"), section: barsOutletSection, requiresRoom: false, outletCategories: ["bars"] },
-    { id: "entertainment", iconId: "entertainment", title: otherEntertainmentSection?.title || (lang === "bg" ? "Други забавления" : "Other entertainment"), section: otherEntertainmentSection, requiresRoom: false, outletCategories: ["kids", "entertainment", "gym", "spa", "other", "room_service"] },
-    { id: "massage_booking", iconId: "massage", title: massageBookingDef ? getRequestDefTitle(massageBookingDef) : String(tUI("massage_booking") || (lang === "bg" ? "Запази масаж" : "Book massage")), section: null, requiresRoom: true, special: "massage" as const },
-    { id: "pillow_menu", iconId: "pillow", title: lang === "bg" ? "Вземи възглавница" : String(tUI("pillow_menu") || "Pillow menu"), section: pillowMenuSection, requiresRoom: true },
-    { id: "coffee_capsules", iconId: "coffee", title: lang === "bg" ? "Поръчай кафе капсули" : String(tUI("coffee_capsules") || "Coffee capsules"), section: coffeeCapsulesSection, requiresRoom: true },
-    { id: "explore", iconId: "explore", title: String(exploreHubSection?.title || (lang === "bg" ? "Около хотела" : "Around the hotel")), section: exploreHubSection, requiresRoom: false },
-    { id: "weather", iconId: "weather", title: String(weatherSection.title || (lang === "bg" ? "Времето" : "Weather")), section: weatherSection, requiresRoom: false },
-    { id: "reviews", iconId: "reviews", title: reviewsDisplaySection.title, section: reviewsDisplaySection, requiresRoom: false },
-  ].filter((tile) => tile.section || tile.special === "massage");
+    { id: "hotel_policies", iconId: "policy", title: lang === "bg" ? "Политики" : policyCombinedSection.title, section: policyCombinedSection, requiresRoom: false },
+    { id: "emergency", iconId: "phone", title: lang === "bg" ? "Спешно повикване" : String(emergencyTileSection?.title || "Emergency call"), section: emergencyTileSection, requiresRoom: false, special: "emergency" as const },
+
+    { id: "reception", iconId: "contact", title: lang === "bg" ? "Рецепция" : String(receptionHubSection?.title || "Reception"), section: receptionHubSection, requiresRoom: true },
+    { id: "housekeeping", iconId: "housekeeping", title: lang === "bg" ? "Хаускипинг" : String(housekeepingHubSection?.title || "Housekeeping"), section: housekeepingHubSection, requiresRoom: true },
+    { id: "maintenance", iconId: "maintenance", title: lang === "bg" ? "Техн. отдел" : String(maintenanceHubSection?.title || "Technical department"), section: maintenanceHubSection, requiresRoom: true },
+
+    { id: "massage_booking", iconId: "massage", title: lang === "bg" ? "Масажи" : (massageBookingDef ? getRequestDefTitle(massageBookingDef) : String(tUI("massage_booking") || "Book massage")), section: null, requiresRoom: true, special: "massage" as const },
+    { id: "pillow_menu", iconId: "pillow", title: lang === "bg" ? "Възглавници" : String(tUI("pillow_menu") || "Pillow menu"), section: pillowMenuSection, requiresRoom: true },
+    { id: "coffee_capsules", iconId: "coffee", title: lang === "bg" ? "Кафе капсули" : String(tUI("coffee_capsules") || "Coffee capsules"), section: coffeeCapsulesSection, requiresRoom: true },
+
+    { id: "restaurants", iconId: "restaurant", title: lang === "bg" ? "Ресторант" : String(restaurantOutletSection?.title || "Restaurant"), section: restaurantOutletSection, requiresRoom: false, outletCategories: ["restaurants"] },
+    { id: "bars", iconId: "bars", title: lang === "bg" ? "Бар" : String(barsOutletSection?.title || "Bars"), section: barsOutletSection, requiresRoom: false, outletCategories: ["bars"] },
+    { id: "entertainment", iconId: "entertainment", title: lang === "bg" ? "Други" : String(otherEntertainmentSection?.title || "Other entertainment"), section: otherEntertainmentSection, requiresRoom: false, outletCategories: ["kids", "entertainment", "gym", "spa", "other", "room_service"] },
+
+    { id: "explore", iconId: "explore", title: lang === "bg" ? "Около хотела" : String(exploreHubSection?.title || "Around the hotel"), section: exploreHubSection, requiresRoom: false },
+    { id: "weather", iconId: "weather", title: lang === "bg" ? "Времето" : String(weatherSection.title || "Weather"), section: weatherSection, requiresRoom: false },
+    { id: "reviews", iconId: "reviews", title: lang === "bg" ? "Отзиви" : reviewsDisplaySection.title, section: reviewsDisplaySection, requiresRoom: false },
+  ].filter((tile) => tile.section || tile.special === "massage" || tile.special === "emergency");
 
   const selectedPremiumTile = openQuickServiceId
     ? premiumTiles.find((tile) => tile.id === openQuickServiceId) || null
@@ -8214,6 +8226,24 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                       key={`premium-${tile.id}`}
                       type="button"
                       onClick={() => {
+                        if ((tile as any).special === "emergency") {
+                          if (!emergencyAction || emergencyAction.kind !== "link" || !emergencyAction.href) return;
+
+                          trackGuestEvent({
+                            eventName: "phone_link_clicked",
+                            eventCategory: "emergency",
+                            section: "emergency",
+                            sectionKey: "emergency",
+                            buttonKey: "call_reception",
+                            label: String(emergencyHubSection?.title || tUI("emergency_title") || "Emergency"),
+                            value: "tel",
+                            extra: { href: emergencyAction.href },
+                          });
+
+                          window.location.href = emergencyAction.href;
+                          return;
+                        }
+
                         if (isLocked && !ensureConfirmedRoom()) return;
 
                         const nextId = isSelected ? null : tile.id;
@@ -8254,32 +8284,6 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             </div>
           ) : null}
 
-          {emergencyAction && emergencyAction.kind === "link" && emergencyAction.href ? (
-            <a
-              href={emergencyAction.href}
-              onClick={() => {
-                trackGuestEvent({
-                  eventName: "phone_link_clicked",
-                  eventCategory: "emergency",
-                  section: "emergency",
-                  sectionKey: "emergency",
-                  buttonKey: "call_reception",
-                  label: String(emergencyHubSection?.title || tUI("emergency_title") || "Emergency"),
-                  value: "tel",
-                  extra: { href: emergencyAction.href },
-                });
-              }}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-rose-300/40 bg-rose-500/20 px-4 py-4 text-left shadow-sm transition active:scale-[0.99]"
-            >
-              <div>
-                <div className="text-base font-medium">
-                  {String(emergencyHubSection?.title || `🚨 ${String(tUI("emergency_title") || "Emergency")}`)}
-                </div>
-                <div className="mt-1 text-xs opacity-85">{emergencyAction.label}</div>
-              </div>
-              <span className="text-xl">☎️</span>
-            </a>
-          ) : null}
         </div>
 
         <p className="mt-6 text-center text-xs text-neutral-400">{tUI("notice")}</p>
@@ -8398,7 +8402,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             <path d="M21.2 12H20" />
           </svg>
         </span>
-        <span className="flex-1 text-center">{guestNavigationLabel("ask_ai", guestNavCopy.askAi)}</span>
+        <span className="flex-1 text-center">{String(tUI("ai_title") || "AI Concierge")}</span>
         {!roomConfirmed ? (
           <span
             className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs"
