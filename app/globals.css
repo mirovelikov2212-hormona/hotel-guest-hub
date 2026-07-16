@@ -2223,7 +2223,7 @@ input.stayhub-card::placeholder {
 }
 
 .stayhub-premium-tile-locked {
-  opacity: 0.72 !important;
+  opacity: 1 !important;
 }
 
 @media (max-width: 380px) {
