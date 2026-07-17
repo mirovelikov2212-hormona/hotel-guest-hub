@@ -2664,3 +2664,45 @@ input.stayhub-card::placeholder {
   color: #0b6668 !important;
   box-shadow: 0 9px 20px rgba(7, 82, 85, 0.10) !important;
 }
+
+/* === v5.6 intro language pills + white room confirmation actions === */
+.stayhub-intro-body {
+  text-align: justify !important;
+  text-align-last: left !important;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.stayhub-language-pill {
+  background: #ffffff !important;
+  color: #0b8580 !important;
+  -webkit-text-fill-color: #0b8580 !important;
+  border: 1px solid rgba(11, 133, 128, 0.42) !important;
+  box-shadow: 0 4px 10px rgba(7, 82, 85, 0.06) !important;
+}
+
+.stayhub-language-pill-active {
+  background: #ffffff !important;
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  border: 2px solid #075255 !important;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.96),
+    0 4px 10px rgba(7, 82, 85, 0.08) !important;
+}
+
+.stayhub-room-modal button:first-of-type,
+.stayhub-room-modal button:last-of-type {
+  background: #ffffff !important;
+  color: #126b43 !important;
+  -webkit-text-fill-color: #126b43 !important;
+  border: 1px solid rgba(56, 166, 95, 0.38) !important;
+  box-shadow: 0 9px 20px rgba(7, 82, 85, 0.08) !important;
+}
+
+.stayhub-room-modal button:first-of-type:hover,
+.stayhub-room-modal button:last-of-type:hover {
+  background: #ffffff !important;
+  border-color: rgba(56, 166, 95, 0.58) !important;
+  box-shadow: 0 11px 24px rgba(7, 82, 85, 0.11) !important;
+}
