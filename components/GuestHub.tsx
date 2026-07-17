@@ -119,8 +119,8 @@ function getPremiumIconAsset(id?: string): string | null {
   const key = String(id || "").toLowerCase().trim();
 
   if (!key) return null;
-  if (key.includes("reception") || key.includes("рецепц")) return "reception-premium-v2.png";
-  if (key.includes("housekeeping") || key.includes("хаус")) return "housekeeping-premium-v2.png";
+  if (key.includes("reception") || key.includes("рецепц")) return "reception-premium-v4.png";
+  if (key.includes("housekeeping") || key.includes("хаус")) return "housekeeping-premium-v4.png";
   if (key.includes("maintenance") || key.includes("technical") || key.includes("техн")) return "maintenance.png";
   if (key.includes("emergency") || key.includes("спеш")) return "emergency-call.png";
   if (key.includes("contact") || key.includes("свържи")) return "contact.png";
