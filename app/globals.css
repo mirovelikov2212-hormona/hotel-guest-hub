@@ -2843,13 +2843,15 @@ input.stayhub-card::placeholder {
 
 /* sandbox hero clean v4 */
 .stayhub-premium-hero-sandbox {
-  height: auto !important;
+  height: 226px !important;
 }
 
 .stayhub-premium-hero-image-sandbox {
   display: block;
-  width: 100% !important;
+  width: 50% !important;
+  max-width: 50% !important;
   height: auto !important;
+  margin: 0 auto !important;
   object-fit: contain !important;
   filter: none !important;
 }
