@@ -2930,3 +2930,11 @@ input.stayhub-card::placeholder {
   transform: none !important;
 }
 /* STAYHUB_SANDBOX_HERO_V6_END */
+
+/* STAYHUB_SANDBOX_HERO_CONTROLS_OFFSET_START */
+/* Sandbox only: keep the approved hero image unchanged and lower only the logo and language selector. */
+.stayhub-premium-hero-wrap-sandbox .stayhub-full-brand-logo,
+.stayhub-premium-hero-wrap-sandbox .stayhub-language-select {
+  transform: translateY(30px) !important;
+}
+/* STAYHUB_SANDBOX_HERO_CONTROLS_OFFSET_END */
