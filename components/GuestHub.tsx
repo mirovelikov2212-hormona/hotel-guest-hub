@@ -3442,6 +3442,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     onConfirm?: () => void;
     onCancel?: () => void;
   }) => {
+    setOpenQuickServiceId(null);
     setRequestDialog({
       title,
       message,

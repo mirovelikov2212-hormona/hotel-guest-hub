@@ -2786,3 +2786,57 @@ input.stayhub-card::placeholder {
   border-color: rgba(7, 82, 85, 0.56) !important;
   box-shadow: 0 11px 24px rgba(7, 82, 85, 0.11) !important;
 }
+/* === v5.9 premium request cards + dialog handoff === */
+.stayhub-section-window [data-stayhub-request-def-id] {
+  background: #ffffff !important;
+  color: #075255 !important;
+  border: 1px solid rgba(67, 186, 173, 0.34) !important;
+  box-shadow: 0 8px 18px rgba(7, 82, 85, 0.07) !important;
+}
+
+.stayhub-section-window [data-stayhub-request-def-id] > button:first-child {
+  background: #ffffff !important;
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.stayhub-section-window [data-stayhub-request-def-id] > button:first-child:focus,
+.stayhub-section-window [data-stayhub-request-def-id] > button:first-child:focus-visible {
+  outline: 2px solid rgba(67, 186, 173, 0.58) !important;
+  outline-offset: -2px !important;
+  box-shadow: none !important;
+}
+
+.stayhub-section-window [data-stayhub-request-def-id],
+.stayhub-section-window [data-stayhub-request-def-id] span,
+.stayhub-section-window [data-stayhub-request-def-id] div,
+.stayhub-section-window [data-stayhub-request-def-id] p {
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  opacity: 1 !important;
+}
+
+.stayhub-section-window [data-stayhub-request-def-id] .stayhub-action-card,
+.stayhub-section-window [data-stayhub-request-def-id] div[style*="background-color"] {
+  background: #ffffff !important;
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  border: 1px solid rgba(67, 186, 173, 0.34) !important;
+  box-shadow: 0 7px 16px rgba(7, 82, 85, 0.06) !important;
+}
+
+.stayhub-section-window [data-stayhub-request-def-id] .stayhub-action-card:focus,
+.stayhub-section-window [data-stayhub-request-def-id] .stayhub-action-card:focus-visible {
+  outline: 2px solid rgba(67, 186, 173, 0.58) !important;
+  outline-offset: 2px !important;
+  box-shadow: none !important;
+}
+
+.stayhub-section-window .stayhub-action-card:focus,
+.stayhub-section-window .stayhub-action-card:focus-visible {
+  outline: 2px solid rgba(67, 186, 173, 0.58) !important;
+  outline-offset: 2px !important;
+}
