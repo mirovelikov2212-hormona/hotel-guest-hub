@@ -511,7 +511,7 @@ const RU_BUILTIN_UI: Record<string, string> = {
   pillow_menu: "Меню подушек",
   special_occasion: "Особый повод",
   minibar: "Пополнение мини-бара",
-  coffee_machine: "Кофемашина",
+  coffee_machine: "Проблем с кофемашиной",
   ac_issue: "Кондиционер / отопление",
   water_issue: "Проблема с водой",
   something_broken: "Что-то сломано",
@@ -689,6 +689,71 @@ function getGuestNavCopy(lang: LangKey | string) {
   return GUEST_NAV_COPY[safeLang] || GUEST_NAV_COPY.en;
 }
 
+const PREMIUM_SECTION_COPY: Record<string, {
+  hotelInfo: string;
+  onlineReception: string;
+  onlineHousekeeping: string;
+  onlineMaintenance: string;
+  otherEntertainment: string;
+  coffeeMachineIssue: string;
+}> = {
+  bg: {
+    hotelInfo: "Информация за хотела",
+    onlineReception: "Онлайн рецепция",
+    onlineHousekeeping: "Онлайн хаускипинг",
+    onlineMaintenance: "Онлайн технически отдел",
+    otherEntertainment: "Други Забавления",
+    coffeeMachineIssue: "Проблем с кафе машината",
+  },
+  en: {
+    hotelInfo: "Hotel information",
+    onlineReception: "Online reception",
+    onlineHousekeeping: "Online housekeeping",
+    onlineMaintenance: "Online technical support",
+    otherEntertainment: "Other entertainment",
+    coffeeMachineIssue: "Coffee machine issue",
+  },
+  de: {
+    hotelInfo: "Hotelinformationen",
+    onlineReception: "Online-Rezeption",
+    onlineHousekeeping: "Online-Housekeeping",
+    onlineMaintenance: "Online-Technikservice",
+    otherEntertainment: "Weitere Unterhaltung",
+    coffeeMachineIssue: "Problem mit der Kaffeemaschine",
+  },
+  ro: {
+    hotelInfo: "Informații despre hotel",
+    onlineReception: "Recepție online",
+    onlineHousekeeping: "Housekeeping online",
+    onlineMaintenance: "Serviciu tehnic online",
+    otherEntertainment: "Alte distracții",
+    coffeeMachineIssue: "Problemă cu aparatul de cafea",
+  },
+  cs: {
+    hotelInfo: "Informace o hotelu",
+    onlineReception: "Online recepce",
+    onlineHousekeeping: "Online housekeeping",
+    onlineMaintenance: "Online technická podpora",
+    otherEntertainment: "Další zábava",
+    coffeeMachineIssue: "Problém s kávovarem",
+  },
+  ru: {
+    hotelInfo: "Информация об отеле",
+    onlineReception: "Онлайн-рецепция",
+    onlineHousekeeping: "Онлайн-хаускипинг",
+    onlineMaintenance: "Онлайн-техническая служба",
+    otherEntertainment: "Другие развлечения",
+    coffeeMachineIssue: "Проблем с кофемашиной",
+  },
+};
+
+function getPremiumSectionCopy(lang: LangKey | string) {
+  const safeLang = ["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang))
+    ? String(lang)
+    : "en";
+  return PREMIUM_SECTION_COPY[safeLang] || PREMIUM_SECTION_COPY.en;
+}
+
 
 type GuestWeatherDay = {
   date: string;
@@ -833,7 +898,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       pillow_menu: "Меню възглавници",
       special_occasion: "Специален повод",
       minibar: "Зареждане минибар",
-      coffee_machine: "Кафе машина",
+      coffee_machine: "Проблем с кафе машината",
       ac_issue: "Климатик / отопление",
       water_issue: "Проблем с водата",
       something_broken: "Нещо е счупено",
@@ -892,7 +957,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       pillow_menu: "Kissenmenü",
       special_occasion: "Besonderer Anlass",
       minibar: "Minibar auffüllen",
-      coffee_machine: "Kaffeemaschine",
+      coffee_machine: "Problem mit der Kaffeemaschine",
       ac_issue: "Klima / Heizung",
       water_issue: "Wasserproblem",
       something_broken: "Etwas ist kaputt",
@@ -956,7 +1021,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       pillow_menu: "Pillow menu",
       special_occasion: "Special occasion",
       minibar: "Refill minibar",
-      coffee_machine: "Coffee machine",
+      coffee_machine: "Coffee machine issue",
       ac_issue: "AC / heating",
       water_issue: "Water issue",
       something_broken: "Something broken",
@@ -1020,7 +1085,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       pillow_menu: "Meniu perne",
       special_occasion: "Ocazie specială",
       minibar: "Reumplere minibar",
-      coffee_machine: "Aparat de cafea",
+      coffee_machine: "Problemă cu aparatul de cafea",
       ac_issue: "Aer condiționat / încălzire",
       water_issue: "Problemă cu apa",
       something_broken: "Ceva este stricat",
@@ -1084,7 +1149,7 @@ function getBuiltinUiText(lang: LangKey | string, key: string) {
       pillow_menu: "Menu polštářů",
       special_occasion: "Zvláštní příležitost",
       minibar: "Doplnit minibar",
-      coffee_machine: "Kávovar",
+      coffee_machine: "Problém s kávovarem",
       ac_issue: "Klimatizace / topení",
       water_issue: "Problém s vodou",
       something_broken: "Něco je rozbité",
@@ -1665,17 +1730,8 @@ function getGuestRequestIcon(type: StaffRequestType | string): string {
   }
 }
 
-function formatGuestRequestLabel(type: StaffRequestType | string, label: string) {
-  const text = String(label || "").trim();
-  const icon = getGuestRequestIcon(type);
-
-  if (!text) return icon === "•" ? "" : icon;
-  if (!icon || icon === "•") return text;
-
-  // Avoid duplicating icons when the label already starts with an emoji/symbol.
-  if (/^[^\p{L}\p{N}]/u.test(text)) return text;
-
-  return `${icon} ${text}`;
+function formatGuestRequestLabel(_type: StaffRequestType | string, label: string) {
+  return stripLeadingVisualIcon(String(label || ""));
 }
 
 function cleanRequestTitle(value: string) {
@@ -3785,12 +3841,19 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const getRequestDefTitle = useCallback(
     (def?: RequestDef | null) => {
       if (!def) return "";
+
+      const defId = String(def.id || "").trim().toLowerCase();
+      const requestType = String(def.requestType || "").trim().toLowerCase();
+      if (defId === "coffee_machine" || requestType === "coffee_machine") {
+        return getPremiumSectionCopy(lang).coffeeMachineIssue;
+      }
+
       const title = String(getRequestDefField(def, "title") || "").trim();
       const junkValues = new Set(["true", "false", "yes", "no", "eur", "bgn", "usd", "none"]);
       if (!title || junkValues.has(title.toLowerCase())) return "";
       return title;
     },
-    [getRequestDefField]
+    [getRequestDefField, lang]
   );
 
   const getRequestDefHref = useCallback(
@@ -6537,7 +6600,7 @@ EN: ${helpMsg}` : opsMsg,
       }
 
       if (group === "policy") {
-        return /policy|политик|правил|towel|кърп|хавли|beach|плаж|sunbed|шезлон|umbrella|чадър|gift|charity|кауза|donation|spende|prosoape|șezlong|plaj|ručník|pláž|lehát|полотенц|пляж|шезлонг/.test(identity);
+        return /policy|политик|правил|towel|кърп|хавли|beach|плаж|sunbed|шезлон|umbrella|чадър|prosoape|șezlong|plaj|ručník|pláž|lehát|полотенц|пляж|шезлонг/.test(identity);
       }
 
       return false;
@@ -6666,19 +6729,32 @@ EN: ${helpMsg}` : opsMsg,
     [lang]
   );
 
+  const premiumSectionCopy = getPremiumSectionCopy(lang);
+
   const hotelInfoSection = useMemo(() => {
-    const infoRequestDefItems = buildRequestDefItems("info");
+    const isAllowedHotelInfoIdentity = (identity: string) =>
+      /check[\s-]?(?:in|out)|arrival|departure|настан|напуск|anreise|abreise|cazare|plecare|ubytov|odjezd|заезд|выезд|parking|паркинг|parkplatz|parcare|parkování|парков|animation|анимац|animație|animace|gift|charity|кауза|подар|благотвор|spende|cadou|charit/i.test(identity);
+
+    const infoRequestDefItems = buildRequestDefItems("info").filter((item) => {
+      const def = (item as any)?.requestDef as RequestDef | undefined;
+      if (!def) return false;
+
+      const identity = [
+        def.id,
+        def.requestType,
+        getRequestDefField(def, "title"),
+        getRequestDefField(def, "description"),
+        getRequestDefField(def, "policy"),
+      ]
+        .map((value) => String(value || "").trim().toLowerCase())
+        .filter(Boolean)
+        .join(" ");
+
+      return isAllowedHotelInfoIdentity(identity);
+    });
+
     const infoItems = hotelInfoItems
-      .filter(
-        (item) =>
-          !isHotelInfoGroup(item, "wifi") &&
-          !isHotelInfoGroup(item, "emergency") &&
-          !isHotelInfoGroup(item, "explore") &&
-          !isHotelInfoGroup(item, "reviews") &&
-          !isHotelInfoGroup(item, "animation") &&
-          !isHotelInfoGroup(item, "world_cup") &&
-          !isHotelInfoGroup(item, "policy")
-      )
+      .filter((item) => isAllowedHotelInfoIdentity(getHotelInfoIdentity(item)))
       .map(toHotelInfoHubItem)
       .filter((item) => item.label || (item.kind === "info" && Boolean(item.info)));
 
@@ -6688,13 +6764,17 @@ EN: ${helpMsg}` : opsMsg,
 
     return {
       id: "info",
-      title:
-        String(tUI("hotel_info_title") || tUI("section_info_title") || "").trim() ||
-        (lang === "bg" ? "ℹ️ Инфо" : lang === "de" ? "ℹ️ Info" : lang === "ro" ? "Informații" : lang === "cs" ? "Informace" : lang === "ru" ? "ℹ️ Информация" : "ℹ️ Info"),
+      title: premiumSectionCopy.hotelInfo,
       items,
     } satisfies HubSection;
-  }, [buildRequestDefItems, hotelInfoItems, isHotelInfoGroup, lang, tUI, toAnimationHubItem]);
-
+  }, [
+    buildRequestDefItems,
+    getHotelInfoIdentity,
+    getRequestDefField,
+    hotelInfoItems,
+    premiumSectionCopy.hotelInfo,
+    toHotelInfoHubItem,
+  ]);
   const animationSection = useMemo(() => {
     const hotelAnimationItems = hotelInfoItems
       .filter((item) => isHotelInfoGroup(item, "animation"))
@@ -6748,11 +6828,6 @@ EN: ${helpMsg}` : opsMsg,
   const guestNavigationLabel = (key: string, fallback: string) =>
     getCurrentGuestUiText(key) || fallback;
 
-  const configuredHousekeepingTitle = getCurrentGuestUiText("housekeeping_title");
-  const housekeepingTitle =
-    (String(lang) === "ru" && /^housekeeping$/i.test(configuredHousekeepingTitle))
-      ? guestNavCopy.housekeeping
-      : configuredHousekeepingTitle || guestNavCopy.housekeeping;
 
   const brandBackground = String(config.theme?.background || "#202627");
   const brandPrimary = String(config.theme?.primary || "#3C8476");
@@ -7050,7 +7125,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     weatherSection,
     {
       id: "reception",
-      title: tUI("reception_title") || "Reception",
+      title: premiumSectionCopy.onlineReception,
       subtitle: getDepartmentSectionIntro(lang, "reception"),
       items: [
         ...buildRequestDefItems("reception"),
@@ -7138,10 +7213,16 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     },
     {
       id: "housekeeping",
-      title: housekeepingTitle,
+      title: premiumSectionCopy.onlineHousekeeping,
       subtitle: getDepartmentSectionIntro(lang, "housekeeping"),
       items: [
-        ...buildRequestDefItems("housekeeping"),
+        ...buildRequestDefItems("housekeeping").filter((item) => {
+          const def = (item as any)?.requestDef as RequestDef | undefined;
+          const defId = String(def?.id || "").trim().toLowerCase();
+          const requestType = String(def?.requestType || "").trim().toLowerCase();
+          return !["coffee_capsules", "coffee_capsules_request", "pillow_menu", "pillow_menu_request"].includes(defId) &&
+            !["coffee_capsules", "pillow_menu"].includes(requestType);
+        }),
         ...(!requestDefIds.has("towels")
           ? [
             {
@@ -7182,7 +7263,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           ]
           : []),
         ...hkExtras
-          .filter((x) => !["towels", "toilet_paper", "extra_pillow"].includes(String(x.key || "").trim().toLowerCase()))
+          .filter((x) => !["towels", "toilet_paper", "extra_pillow", "coffee_capsules", "pillow_menu", "pillow-menu"].includes(String(x.key || "").trim().toLowerCase()))
           .filter((x) => !requestDefIds.has(x.key === "blanket" ? "extra_blanket" : x.key === "minibar" ? "minibar_refill" : x.key))
           .map((x) => {
             const action = housekeepingExtraActions[x.key];
@@ -7248,7 +7329,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     },
     {
       id: "maintenance",
-      title: tUI("maintenance_title") || "Maintenance",
+      title: premiumSectionCopy.onlineMaintenance,
       subtitle: getDepartmentSectionIntro(lang, "maintenance"),
       items: [
         ...buildRequestDefItems("maintenance"),
@@ -7398,12 +7479,12 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         ...(!requestDefIds.has("coffee_machine")
           ? [
             {
-              label: formatGuestRequestLabel("coffee_machine", String(tUI("coffee_machine") || "Coffee machine")),
+              label: premiumSectionCopy.coffeeMachineIssue,
               kind: "link" as const,
               onClick: () =>
                 submitGuestRequest({
                   type: "other_technical_issue",
-                  typeLabel: String(tUI("coffee_machine") || "Coffee machine issue"),
+                  typeLabel: premiumSectionCopy.coffeeMachineIssue,
                 }),
             },
           ]
@@ -7470,7 +7551,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
     return {
       id: "info",
-      title: String(tUI("hotel_info_title") || tUI("section_info_title") || "Инфо"),
+      title: premiumSectionCopy.hotelInfo,
       items,
     };
   })();
@@ -7494,25 +7575,24 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       }
     : null;
 
-  const policyCombinedSection: HubSection | null = {
-    id: "hotel_policies",
-    title:
-      lang === "bg"
-        ? "Политика на хотела"
-        : lang === "de"
-          ? "Hotelrichtlinien"
-          : lang === "ro"
-            ? "Politica hotelului"
-            : lang === "cs"
-              ? "Pravidla hotelu"
-              : lang === "ru"
-                ? "Правила отеля"
-                : "Hotel policies",
-    items: hotelInfoPolicyItems.length
-      ? hotelInfoPolicyItems
-      : (hotelInfoSection ? hotelInfoSection.items.slice(0, 6) : []),
-  };
-
+  const policyCombinedSection: HubSection | null = hotelInfoPolicyItems.length
+    ? {
+        id: "hotel_policies",
+        title:
+          lang === "bg"
+            ? "Политика на хотела"
+            : lang === "de"
+              ? "Hotelrichtlinien"
+              : lang === "ro"
+                ? "Politica hotelului"
+                : lang === "cs"
+                  ? "Pravidla hotelu"
+                  : lang === "ru"
+                    ? "Правила отеля"
+                    : "Hotel policies",
+        items: hotelInfoPolicyItems,
+      }
+    : null;
   const restaurantOutletSection = outletsSection
     ? { ...outletsSection, title: lang === "bg" ? "Ресторант" : lang === "de" ? "Restaurant" : lang === "ro" ? "Restaurant" : lang === "cs" ? "Restaurace" : lang === "ru" ? "Ресторан" : "Restaurant" }
     : null;
@@ -7522,8 +7602,10 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     : null;
 
   const otherEntertainmentSection = outletsSection
-    ? { ...outletsSection, title: lang === "bg" ? "Други забавления" : lang === "de" ? "Weitere Unterhaltung" : lang === "ro" ? "Alte distracții" : lang === "cs" ? "Další zábava" : lang === "ru" ? "Другие развлечения" : "Other entertainment" }
-    : animationSection;
+    ? { ...outletsSection, title: premiumSectionCopy.otherEntertainment }
+    : animationSection
+      ? { ...animationSection, title: premiumSectionCopy.otherEntertainment }
+      : null;
 
   const pillowMenuDef = findRequestDefByIds(["pillow_menu", "pillow_menu_request"]);
   const coffeeCapsulesDef = findRequestDefByIds(["coffee_capsules", "coffee_capsules_request"]);
@@ -7597,13 +7679,13 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   const emergencyTileSection = sectionById("emergency");
 
   const premiumTiles = [
-    { id: "info", iconId: "info", title: lang === "bg" ? "Инфо" : "Info", section: infoCombinedSection, requiresRoom: false },
-    { id: "hotel_policies", iconId: "policy", title: lang === "bg" ? "Политики" : policyCombinedSection.title, section: policyCombinedSection, requiresRoom: false },
+    { id: "info", iconId: "info", title: premiumSectionCopy.hotelInfo, section: infoCombinedSection, requiresRoom: false },
+    { id: "hotel_policies", iconId: "policy", title: lang === "bg" ? "Политики" : String(policyCombinedSection?.title || "Hotel policies"), section: policyCombinedSection, requiresRoom: false },
     { id: "emergency", iconId: "emergency", title: lang === "bg" ? "Спешно повикване" : String(emergencyTileSection?.title || "Emergency call"), section: emergencyTileSection, requiresRoom: false, special: "emergency" as const },
 
-    { id: "reception", iconId: "reception", title: lang === "bg" ? "Рецепция" : String(receptionHubSection?.title || "Reception"), section: receptionHubSection, requiresRoom: true },
-    { id: "housekeeping", iconId: "housekeeping", title: lang === "bg" ? "Хаускипинг" : String(housekeepingHubSection?.title || "Housekeeping"), section: housekeepingHubSection, requiresRoom: true },
-    { id: "maintenance", iconId: "maintenance", title: lang === "bg" ? "Техн. отдел" : String(maintenanceHubSection?.title || "Technical department"), section: maintenanceHubSection, requiresRoom: true },
+    { id: "reception", iconId: "reception", title: premiumSectionCopy.onlineReception, section: receptionHubSection, requiresRoom: true },
+    { id: "housekeeping", iconId: "housekeeping", title: premiumSectionCopy.onlineHousekeeping, section: housekeepingHubSection, requiresRoom: true },
+    { id: "maintenance", iconId: "maintenance", title: premiumSectionCopy.onlineMaintenance, section: maintenanceHubSection, requiresRoom: true },
 
     { id: "massage_booking", iconId: "massage", title: lang === "bg" ? "Масажи" : (massageBookingDef ? getRequestDefTitle(massageBookingDef) : String(tUI("massage_booking") || "Book massage")), section: null, requiresRoom: true, special: "massage" as const },
     { id: "pillow_menu", iconId: "pillow", title: lang === "bg" ? "Възглавници" : String(tUI("pillow_menu") || "Pillow menu"), section: pillowMenuSection, requiresRoom: true },
@@ -7611,7 +7693,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
     { id: "restaurants", iconId: "restaurant", title: lang === "bg" ? "Ресторант" : String(restaurantOutletSection?.title || "Restaurant"), section: restaurantOutletSection, requiresRoom: false, outletCategories: ["restaurants"] },
     { id: "bars", iconId: "bars", title: lang === "bg" ? "Бар" : String(barsOutletSection?.title || "Bars"), section: barsOutletSection, requiresRoom: false, outletCategories: ["bars"] },
-    { id: "entertainment", iconId: "entertainment", title: lang === "bg" ? "Други" : String(otherEntertainmentSection?.title || "Other entertainment"), section: otherEntertainmentSection, requiresRoom: false, outletCategories: ["kids", "entertainment", "gym", "spa", "other", "room_service"] },
+    { id: "entertainment", iconId: "entertainment", title: premiumSectionCopy.otherEntertainment, section: otherEntertainmentSection, requiresRoom: false, outletCategories: ["kids", "entertainment", "gym", "spa", "pool", "other", "room_service"] },
 
     { id: "explore", iconId: "explore", title: lang === "bg" ? "Около хотела" : String(exploreHubSection?.title || "Around the hotel"), section: exploreHubSection, requiresRoom: false },
     { id: "weather", iconId: "weather", title: lang === "bg" ? "Времето" : String(weatherSection.title || "Weather"), section: weatherSection, requiresRoom: false },
@@ -8903,7 +8985,7 @@ function Accordion({
                           }}
                           className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
                         >
-                          <span className="font-medium text-white">{it.label}</span>
+                          <span className="font-medium text-white">{stripLeadingVisualIcon(String(it.label || ""))}</span>
                           <span className="text-base text-white/80">{isInfoOpen ? "▴" : "▾"}</span>
                         </button>
 
@@ -8922,7 +9004,7 @@ function Accordion({
                       className="rounded-xl stayhub-card p-3 text-sm"
                     >
                       {it.label ? (
-                        <div className="font-medium text-white">{it.label}</div>
+                        <div className="font-medium text-white">{stripLeadingVisualIcon(String(it.label || ""))}</div>
                       ) : null}
                       <div className={clsx("whitespace-pre-wrap", it.label ? "mt-1 text-neutral-300" : "text-neutral-100")}>
                         {it.info}
@@ -8935,7 +9017,6 @@ function Accordion({
                 if (requestDefItem.kind === "request_def" && requestDefItem.requestDef) {
                   const def = requestDefItem.requestDef as RequestDef;
                   const title = getRequestDefTitle(def) || String(requestDefItem.label || def.id.replace(/_/g, " "));
-                  const icon = getRequestDefButtonIcon(def);
                   const message = getRequestDefMessage(def);
                   const priceHint = getRequestDefPriceHint(def);
                   const localizedOptions = getRequestDefOptions(def);
@@ -8968,7 +9049,7 @@ function Accordion({
                         className="w-full px-3 py-3 text-left flex items-center justify-between gap-3"
                       >
                         <span className="font-medium text-white">
-                          {icon ? `${icon} ` : ""}{title}
+                          {stripLeadingVisualIcon(title)}
                         </span>
                         <span className="text-white/80">▾</span>
                       </button>
@@ -9147,7 +9228,7 @@ function Accordion({
                           : "stayhub-action-card active:scale-[0.99]"
                       )}
                     >
-                      {it.label}
+                      {stripLeadingVisualIcon(String(it.label || ""))}
                     </button>
                   );
                 }
@@ -9174,7 +9255,7 @@ function Accordion({
                       }}
                       className="rounded-xl px-3 py-3 text-sm font-semibold stayhub-action-card active:scale-[0.99] transition"
                     >
-                      {it.label}
+                      {stripLeadingVisualIcon(String(it.label || ""))}
                     </a>
                   );
                 }
@@ -9184,7 +9265,7 @@ function Accordion({
                     key={idx}
                     className="rounded-xl stayhub-card p-3 text-sm text-[color:var(--stayhub-muted)]"
                   >
-                    {it.label}
+                    {stripLeadingVisualIcon(String(it.label || ""))}
                   </div>
                 );
               })
@@ -9411,7 +9492,6 @@ function OutletsAccordion({
 
     const def = requestDefItem.requestDef as RequestDef;
     const title = getRequestDefTitle(def) || String(requestDefItem.label || def.id.replace(/_/g, " "));
-    const icon = getRequestDefButtonIcon(def);
     const message = getRequestDefMessage(def);
     const priceHint = getRequestDefPriceHint(def);
     const localizedOptions = getRequestDefOptions(def);
@@ -9444,7 +9524,7 @@ function OutletsAccordion({
           }}
           className="w-full px-3 py-3 text-left flex items-center justify-between gap-3"
         >
-          <span className="font-medium text-white">{icon ? `${icon} ` : ""}{title}</span>
+          <span className="font-medium text-white">{stripLeadingVisualIcon(title)}</span>
           <span className="text-white/80">▾</span>
         </button>
 
@@ -9796,7 +9876,7 @@ function OutletsAccordion({
                         <PremiumSectionIcon id={`${catKey} ${groupTitle}`} />
                       </span>
                       <div className="min-w-0">
-                        <div className="font-medium text-white">{groupTitle}</div>
+                        <div className="font-medium text-white">{stripLeadingVisualIcon(String(groupTitle || ""))}</div>
                         {groupSubtitle ? (
                           <div className="mt-1 text-xs text-neutral-300">{groupSubtitle}</div>
                         ) : null}
@@ -9814,7 +9894,7 @@ function OutletsAccordion({
                           const venueKey = `${catKey}-${venue.name || getVenueText(venue, "name", lang)}-${idx}`;
                           const venueOpen = openVenue === venueKey;
                           const venueName = getVenueText(venue, "name", lang) || venue.name;
-                          const venueTitle = venue.icon ? `${venue.icon} ${venueName}` : venueName;
+                          const venueTitle = stripLeadingVisualIcon(String(venueName || ""));
                           const venueSubtitle = getVenueText(venue, "shortDescription", lang);
 
                           return (

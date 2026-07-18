@@ -1047,7 +1047,7 @@ export default function MassageBookingSection({
         aria-controls="stayhub-massage-booking-body"
       >
         <div>
-          <div className="text-base font-semibold">💆 {copy.sectionTitle}</div>
+          <div className="text-base font-semibold">{copy.sectionTitle}</div>
           <div className="mt-1 text-xs opacity-85">{sectionSubtitle}</div>
         </div>
         <div className="text-lg">{open ? "▴" : "▾"}</div>
