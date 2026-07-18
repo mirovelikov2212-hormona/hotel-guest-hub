@@ -127,6 +127,8 @@ function getPremiumIconAsset(id?: string): string | null {
   if (key.includes("policy") || key.includes("policies") || key.includes("политик")) return "policy.png";
   if (key.includes("restaurant") || key.includes("ресторан") || key.includes("food")) return "restaurant.png";
   if (key.includes("bar") || key.includes("бар")) return "bars.png";
+  if (key.includes("kids") || key.includes("kid") || key.includes("child") || key.includes("kinder") || key.includes("детск") || key.includes("pool") || key.includes("басейн") || key.includes("piscin") || key.includes("bazén") || key.includes("бассейн")) return "entertainment.png"; // STAYHUB_KIDS_POOL_HOME_ICON
+
   if (key.includes("animation") || key.includes("entertainment") || key.includes("забав")) return "entertainment.png";
   if (key.includes("massage") || key.includes("spa") || key.includes("масаж")) return "massage.png";
   if (key.includes("pillow") || key.includes("възглав")) return "pillow.png";
@@ -2319,6 +2321,8 @@ function writeGuestLang(nextLang: LangKey) {
 }
 
 export default function GuestHub({ config }: { config: HotelConfig }) {
+  const guestHubPathname = usePathname();
+  const isAquamarineTestHub = /\/h\/aquamarine-test(?:\/|$)/i.test(guestHubPathname);
   // Keep the first server/client render identical. Browser, URL and localStorage
   // language detection runs after hydration to avoid React hydration error #418.
   const [lang, setLangState] = useState<LangKey>(() =>
@@ -7848,7 +7852,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       <div className="relative">
         <div className="stayhub-premium-hero relative h-[246px] sm:h-[270px] md:h-[300px] w-full overflow-hidden">
           <img
-            src={config.coverImage}
+            src={isAquamarineTestHub ? "/images/aquamarine-test-hero-v2.jpg" : config.coverImage}
             alt={config.hotelName}
             className="h-full w-full object-cover"
             style={{ objectPosition: config.coverImagePosition || "center center" }}
@@ -8900,13 +8904,29 @@ function Accordion({
           }
           className="w-full px-4 py-4 text-left stayhub-section-header flex items-center justify-between gap-3"
         >
-          <div>
-            <div className="text-base font-medium">{withSectionIcon(section.title, (section as any).id || (section as any).key || (section as any).type || (section as any).section)}</div>
-            {section.subtitle ? (
-              <div className="mt-1 text-xs font-medium opacity-80">
-                {section.subtitle}
+          <div className="flex min-w-0 items-center gap-3">
+            {/* STAYHUB_INTERNAL_PREMIUM_SECTION_HEADER */}
+            <span className="stayhub-section-header-icon" aria-hidden="true">
+              <PremiumSectionIcon
+                id={String(
+                  (section as any).id ||
+                    (section as any).key ||
+                    (section as any).type ||
+                    (section as any).section ||
+                    section.title
+                )}
+              />
+            </span>
+            <div className="min-w-0">
+              <div className="truncate text-base font-medium">
+                {stripLeadingVisualIcon(section.title)}
               </div>
-            ) : null}
+              {section.subtitle ? (
+                <div className="mt-1 text-xs font-medium opacity-80">
+                  {stripLeadingVisualIcon(section.subtitle)}
+                </div>
+              ) : null}
+            </div>
           </div>
           <div className="text-lg">▾</div>
         </button>
