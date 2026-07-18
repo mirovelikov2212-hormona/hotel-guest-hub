@@ -2721,3 +2721,68 @@ input.stayhub-card::placeholder {
   border-color: rgba(11, 133, 128, 0.62) !important;
   box-shadow: 0 10px 22px rgba(7, 82, 85, 0.11) !important;
 }
+/* === v5.8 unified brand colors for intro and request modal === */
+.stayhub-intro-title,
+.stayhub-intro-body,
+.stayhub-language-pill,
+.stayhub-language-pill-active,
+.stayhub-intro-modal > button[type="button"] {
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+}
+
+.stayhub-language-pill,
+.stayhub-language-pill-active,
+.stayhub-intro-modal > button[type="button"] {
+  background: #ffffff !important;
+}
+
+.stayhub-language-pill {
+  border-color: rgba(7, 82, 85, 0.34) !important;
+}
+
+.stayhub-language-pill-active {
+  border-color: #075255 !important;
+}
+
+.stayhub-intro-modal > button[type="button"] {
+  border-color: rgba(7, 82, 85, 0.34) !important;
+}
+
+.stayhub-request-modal-backdrop {
+  background: rgba(7, 38, 40, 0.28) !important;
+  backdrop-filter: blur(5px) !important;
+  -webkit-backdrop-filter: blur(5px) !important;
+}
+
+.stayhub-request-modal {
+  background: #ffffff !important;
+  border: 1px solid rgba(67, 186, 173, 0.32) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 24px 64px rgba(7, 82, 85, 0.20) !important;
+}
+
+.stayhub-request-modal-title,
+.stayhub-request-modal-message {
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  opacity: 1 !important;
+}
+
+.stayhub-request-modal-cancel,
+.stayhub-request-modal-confirm {
+  min-height: 44px !important;
+  background: #ffffff !important;
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  border: 1px solid rgba(7, 82, 85, 0.34) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 9px 20px rgba(7, 82, 85, 0.08) !important;
+}
+
+.stayhub-request-modal-cancel:hover,
+.stayhub-request-modal-confirm:hover {
+  background: #ffffff !important;
+  border-color: rgba(7, 82, 85, 0.56) !important;
+  box-shadow: 0 11px 24px rgba(7, 82, 85, 0.11) !important;
+}

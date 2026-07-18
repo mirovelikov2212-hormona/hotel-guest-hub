@@ -8062,13 +8062,13 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       ) : null}
 
       {requestDialog ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
-            <div className="text-lg font-semibold text-white">
+        <div className="stayhub-request-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="stayhub-request-modal w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
+            <div className="stayhub-request-modal-title text-lg font-semibold text-white">
               {requestDialog.title}
             </div>
 
-            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-neutral-200">
+            <p className="stayhub-request-modal-message mt-3 whitespace-pre-line text-sm leading-6 text-neutral-200">
               {requestDialog.message}
             </p>
 
@@ -8077,7 +8077,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 <button
                   type="button"
                   onClick={closeRequestDialog}
-                  className="rounded-xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white"
+                  className="stayhub-request-modal-cancel rounded-xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white"
                 >
                   {requestDialog.cancelLabel}
                 </button>
@@ -8088,7 +8088,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               <button
                 type="button"
                 onClick={requestDialog.onConfirm ? confirmRequestDialog : closeRequestDialog}
-                className="rounded-xl px-4 py-3 text-sm font-semibold"
+                className="stayhub-request-modal-confirm rounded-xl px-4 py-3 text-sm font-semibold"
                 style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}
               >
                 {requestDialog.confirmLabel ||
