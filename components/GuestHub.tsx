@@ -7850,16 +7850,16 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   return (
     <div className="stayhub-premium-screen mx-auto min-h-screen max-w-md" style={themeStyle}>
       <div className="relative">
-        <div className="stayhub-premium-hero relative h-[246px] sm:h-[270px] md:h-[300px] w-full overflow-hidden">
+        <div className={isAquamarineTestHub ? "stayhub-premium-hero stayhub-premium-hero-sandbox relative w-full overflow-hidden" : "stayhub-premium-hero relative h-[246px] sm:h-[270px] md:h-[300px] w-full overflow-hidden"}>
           <img
-            src={isAquamarineTestHub ? "/images/aquamarine-test-hero-v3.jpg" : config.coverImage}
+            src={isAquamarineTestHub ? "/images/aquamarine-test-hero-v4.jpg" : config.coverImage}
             alt={config.hotelName}
-            className="h-full w-full object-cover"
-            style={{ objectPosition: config.coverImagePosition || "center center" }}
+            className={isAquamarineTestHub ? "stayhub-premium-hero-image-sandbox w-full h-auto object-contain" : "h-full w-full object-cover"}
+            style={isAquamarineTestHub ? { objectPosition: "center top" } : { objectPosition: config.coverImagePosition || "center center" }}
           />
         </div>
 
-        <div className="stayhub-premium-hero-overlay absolute inset-0" />
+        <div className={isAquamarineTestHub ? "stayhub-premium-hero-overlay stayhub-premium-hero-overlay-sandbox absolute inset-0" : "stayhub-premium-hero-overlay absolute inset-0"} />
 
         <div className="stayhub-premium-hero-content absolute inset-0 z-10 flex flex-col p-4">
           <div className="flex items-start justify-between gap-3">

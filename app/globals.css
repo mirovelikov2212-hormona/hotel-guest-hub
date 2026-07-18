@@ -2840,3 +2840,20 @@ input.stayhub-card::placeholder {
   outline: 2px solid rgba(67, 186, 173, 0.58) !important;
   outline-offset: 2px !important;
 }
+
+/* sandbox hero clean v4 */
+.stayhub-premium-hero-sandbox {
+  height: auto !important;
+}
+
+.stayhub-premium-hero-image-sandbox {
+  display: block;
+  width: 100% !important;
+  height: auto !important;
+  object-fit: contain !important;
+  filter: none !important;
+}
+
+.stayhub-premium-hero-overlay-sandbox {
+  background: transparent !important;
+}
