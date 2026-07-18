@@ -2843,19 +2843,27 @@ input.stayhub-card::placeholder {
 
 /* sandbox hero clean v4 */
 .stayhub-premium-hero-sandbox {
-  height: 226px !important;
+  height: 246px !important;
+  position: relative !important;
+  overflow: hidden !important;
 }
 
 .stayhub-premium-hero-image-sandbox {
   display: block;
-  width: 50% !important;
-  max-width: 50% !important;
-  height: auto !important;
-  margin: 0 auto !important;
-  object-fit: contain !important;
-  filter: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center center !important;
+  transform: scale(1.3) !important;
+  transform-origin: center center !important;
+  filter: blur(2px) brightness(0.9) !important;
 }
 
 .stayhub-premium-hero-overlay-sandbox {
-  background: transparent !important;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.50) 0%,
+    rgba(255, 255, 255, 0.58) 45%,
+    rgba(255, 255, 255, 0.72) 100%
+  ) !important;
 }
