@@ -2706,3 +2706,18 @@ input.stayhub-card::placeholder {
   border-color: rgba(56, 166, 95, 0.58) !important;
   box-shadow: 0 11px 24px rgba(7, 82, 85, 0.11) !important;
 }
+
+/* === v5.7 white intro continue action + original room-change flow wiring === */
+.stayhub-intro-modal > button[type="button"] {
+  background: #ffffff !important;
+  color: #0b8580 !important;
+  -webkit-text-fill-color: #0b8580 !important;
+  border: 1px solid rgba(11, 133, 128, 0.42) !important;
+  box-shadow: 0 8px 18px rgba(7, 82, 85, 0.08) !important;
+}
+
+.stayhub-intro-modal > button[type="button"]:hover {
+  background: #ffffff !important;
+  border-color: rgba(11, 133, 128, 0.62) !important;
+  box-shadow: 0 10px 22px rgba(7, 82, 85, 0.11) !important;
+}

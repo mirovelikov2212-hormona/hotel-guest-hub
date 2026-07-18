@@ -7812,10 +7812,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           </div>
           <button
             type="button"
-            onClick={() => {
-              setShowRoomSwitchCard((prev) => !prev);
-              setManualRoomInput("");
-            }}
+            onClick={startRoomChangeFlow}
             className="stayhub-confirmed-room-card stayhub-room-switch-link"
           >
             {lang === "bg" ? "Смяна на стаята" : lang === "de" ? "Zimmer wechseln" : lang === "ru" ? "Смена номера" : "Change room"}
