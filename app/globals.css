@@ -2846,6 +2846,7 @@ input.stayhub-card::placeholder {
   height: 246px !important;
   position: relative !important;
   overflow: hidden !important;
+  background: #4f93dc !important;
 }
 
 .stayhub-premium-hero-image-sandbox {
