@@ -7849,13 +7849,13 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
   return (
     <div className="stayhub-premium-screen mx-auto min-h-screen max-w-md" style={themeStyle}>
-      <div className="relative">
+      <div className={isAquamarineTestHub ? "relative stayhub-premium-hero-wrap-sandbox" : "relative"}>
         <div className={isAquamarineTestHub ? "stayhub-premium-hero stayhub-premium-hero-sandbox relative w-full overflow-hidden" : "stayhub-premium-hero relative h-[246px] sm:h-[270px] md:h-[300px] w-full overflow-hidden"}>
           <img
-            src={isAquamarineTestHub ? "/images/aquamarine-test-hero-v4.jpg" : config.coverImage}
+            src={isAquamarineTestHub ? "/images/aquamarine-test-hero-v6.jpg" : config.coverImage}
             alt={config.hotelName}
-            className={isAquamarineTestHub ? "stayhub-premium-hero-image-sandbox w-full h-auto object-contain" : "h-full w-full object-cover"}
-            style={isAquamarineTestHub ? { objectPosition: "center top" } : { objectPosition: config.coverImagePosition || "center center" }}
+            className={isAquamarineTestHub ? "stayhub-premium-hero-image-sandbox" : "h-full w-full object-cover"}
+            style={isAquamarineTestHub ? undefined : { objectPosition: config.coverImagePosition || "center center" }}
           />
         </div>
 

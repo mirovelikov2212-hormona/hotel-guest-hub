@@ -2898,3 +2898,35 @@ input.stayhub-card::placeholder {
 .stayhub-premium-hero-sandbox ~ .stayhub-premium-hero-content .stayhub-hero-welcome {
   transform: translateY(40px);
 }
+
+/* STAYHUB_SANDBOX_HERO_V6_START */
+/* Sandbox only: use the supplied hotel photo, remove the top strip, and keep the hotel slightly lower. */
+.stayhub-premium-hero-wrap-sandbox {
+  margin-top: -28px !important;
+  padding-top: 0 !important;
+}
+
+.stayhub-premium-hero-wrap-sandbox .stayhub-premium-hero-sandbox {
+  height: 246px !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  overflow: hidden !important;
+  border-top: 0 !important;
+  background-color: transparent !important;
+  background-image: url("/images/aquamarine-test-hero-v6.jpg") !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  background-position: center top !important;
+}
+
+.stayhub-premium-hero-wrap-sandbox .stayhub-premium-hero-image-sandbox {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: none !important;
+}
+/* STAYHUB_SANDBOX_HERO_V6_END */
