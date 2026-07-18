@@ -7852,7 +7852,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       <div className="relative">
         <div className="stayhub-premium-hero relative h-[246px] sm:h-[270px] md:h-[300px] w-full overflow-hidden">
           <img
-            src={isAquamarineTestHub ? "/images/aquamarine-test-hero-v2.jpg" : config.coverImage}
+            src={isAquamarineTestHub ? "/images/aquamarine-test-hero-v3.jpg" : config.coverImage}
             alt={config.hotelName}
             className="h-full w-full object-cover"
             style={{ objectPosition: config.coverImagePosition || "center center" }}
