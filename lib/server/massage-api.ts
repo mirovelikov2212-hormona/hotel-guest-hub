@@ -549,10 +549,10 @@ function getMassageControlledE2EToken(inputHotelSlug: unknown) {
 function getMassageReadCacheTtl(payload: Record<string, unknown>) {
   const action = String(payload.action || "").trim().toLowerCase();
   if (action === "services") return 30 * 60 * 1000;
-  if (action === "bootstrap") return 20 * 1000;
-  if (action === "bookable_dates") return 20 * 1000;
-  if (action === "bookable_dates_summary") return 20 * 1000;
-  if (action === "availability") return 8 * 1000;
+  if (action === "bootstrap") return 2 * 60 * 1000;
+  if (action === "bookable_dates") return 30 * 1000;
+  if (action === "bookable_dates_summary") return 2 * 60 * 1000;
+  if (action === "availability") return 15 * 1000;
   if (action === "calendar_snapshot") return 0;
   return 0;
 }

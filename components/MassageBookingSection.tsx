@@ -77,6 +77,15 @@ type BookableDatesResult = {
   dates: BookableDate[];
 };
 
+type MassageBootstrapResult = {
+  fromDate: string;
+  daysChecked: number;
+  services: ServicesResult;
+  availabilityByService: Record<string, BookableDatesResult>;
+  readMode?: string;
+  elapsedMs?: number;
+};
+
 type AvailabilityResult = {
   serviceId: string;
   date: string | null;
@@ -413,8 +422,9 @@ async function fetchMassageApi<T>(params: URLSearchParams, signal?: AbortSignal)
 
 const CACHE_TTL = {
   services: 30 * 60 * 1000,
-  dates: 30 * 1000,
-  times: 15 * 1000,
+  bootstrap: 2 * 60 * 1000,
+  dates: 2 * 60 * 1000,
+  times: 30 * 1000,
 };
 
 type CacheEntry<T> = {
@@ -472,12 +482,98 @@ function servicesCacheKey(hotelSlug: string) {
   return `stayhub:massage:v4:services:${hotelSlug}`;
 }
 
+function bootstrapCacheKey(hotelSlug: string, fromDate: string) {
+  return `stayhub:massage:v5:bootstrap:${hotelSlug}:${fromDate}`;
+}
+
 function datesCacheKey(hotelSlug: string, serviceId: string, fromDate: string) {
   return `stayhub:massage:v4:dates:${hotelSlug}:${serviceId}:${fromDate}`;
 }
 
 function timesCacheKey(hotelSlug: string, serviceId: string, date: string) {
   return `stayhub:massage:v4:times:${hotelSlug}:${serviceId}:${date}`;
+}
+
+const bootstrapLoadPromises = new Map<string, Promise<MassageBootstrapResult>>();
+
+function hydrateMassageBootstrapCache(
+  hotelSlug: string,
+  result: MassageBootstrapResult
+) {
+  const fromDate = result.fromDate || getSofiaIsoDate();
+  const servicesResult = result.services || { count: 0, services: [] };
+  const availabilityByService = result.availabilityByService || {};
+
+  writeMassageCache(
+    servicesCacheKey(hotelSlug),
+    servicesResult,
+    CACHE_TTL.services
+  );
+  writeMassageCache(
+    bootstrapCacheKey(hotelSlug, fromDate),
+    result,
+    CACHE_TTL.bootstrap
+  );
+
+  for (const [serviceId, datesResult] of Object.entries(availabilityByService)) {
+    if (!datesResult) continue;
+
+    writeMassageCache(
+      datesCacheKey(hotelSlug, serviceId, fromDate),
+      datesResult,
+      CACHE_TTL.dates
+    );
+
+    for (const item of datesResult.dates || []) {
+      if (!Array.isArray(item.availableTimes) || item.availableTimes.length === 0) {
+        continue;
+      }
+
+      writeMassageCache(
+        timesCacheKey(hotelSlug, serviceId, item.date),
+        item.availableTimes,
+        CACHE_TTL.times
+      );
+    }
+  }
+}
+
+export async function prefetchMassageBookingData(
+  hotelSlugInput: string
+): Promise<MassageBootstrapResult | null> {
+  const hotelSlug = String(hotelSlugInput || "").trim().toLowerCase();
+  if (!hotelSlug || typeof window === "undefined") return null;
+
+  const fromDate = getSofiaIsoDate();
+  const cacheKey = bootstrapCacheKey(hotelSlug, fromDate);
+  const cached = readMassageCache<MassageBootstrapResult>(cacheKey);
+
+  if (cached) {
+    hydrateMassageBootstrapCache(hotelSlug, cached);
+    return cached;
+  }
+
+  const existing = bootstrapLoadPromises.get(cacheKey);
+  if (existing) return existing;
+
+  const task = fetchMassageApi<MassageBootstrapResult>(
+    new URLSearchParams({
+      hotelSlug,
+      action: "bootstrap",
+      fromDate,
+      daysAhead: "14",
+    })
+  )
+    .then((result) => {
+      hydrateMassageBootstrapCache(hotelSlug, result);
+      return result;
+    })
+    .finally(() => {
+      bootstrapLoadPromises.delete(cacheKey);
+    });
+
+  bootstrapLoadPromises.set(cacheKey, task);
+  return task;
 }
 
 const normalCardStyle = {
@@ -620,7 +716,7 @@ export default function MassageBookingSection({
     const task = fetchMassageApi<BookableDatesResult>(
       new URLSearchParams({
         hotelSlug,
-        action: "bookable_dates",
+        action: "bookable_dates_summary",
         serviceId,
         fromDate,
         daysAhead: "14",

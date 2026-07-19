@@ -220,7 +220,10 @@ import type { HotelConfig, LangKey, HubSection, DepartmentKey, HubItem, RequestD
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { persistQrContextFromUrl, trackHubEvent, type TrackHubPayload } from "@/lib/trackHubEvent";
 import InstallAppButton from "@/components/InstallAppButton";
-import MassageBookingSection, { type ConfirmedMassageBookingCard } from "@/components/MassageBookingSection";
+import MassageBookingSection, {
+  prefetchMassageBookingData,
+  type ConfirmedMassageBookingCard,
+} from "@/components/MassageBookingSection";
 import Day3GuestSurvey from "@/components/Day3GuestSurvey";
 import GuestSurveyPushControls from "@/components/GuestSurveyPushControls";
 import {
@@ -5264,6 +5267,24 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const massageBookingDef = requestDefs.find((def) => isMassageRequestDef(def)) || null;
   const massageBookingPreviewVisible =
     Boolean(massageBookingDef) && Boolean(hotelContentSlug) && isAquamarineHotel;
+
+  useEffect(() => {
+    if (!massageBookingPreviewVisible || !hotelContentSlug) return;
+
+    let cancelled = false;
+    const timerId = window.setTimeout(() => {
+      if (cancelled) return;
+
+      void prefetchMassageBookingData(hotelContentSlug).catch(() => {
+        // The normal on-demand flow remains available if background prefetch fails.
+      });
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timerId);
+    };
+  }, [hotelContentSlug, massageBookingPreviewVisible]);
 
   const activeGuestMassageBookings = useMemo(() => {
     if (!roomConfirmed || !room.trim()) return [];
