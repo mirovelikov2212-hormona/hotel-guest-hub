@@ -150,14 +150,13 @@ function PremiumSectionIcon({ id }: { id?: string }) {
   const asset = getPremiumIconAsset(id);
 
   if (asset) {
+    const maskUrl = `${PREMIUM_ICON_ASSET_BASE}/${asset}`;
+
     return (
-      <img
-        src={`${PREMIUM_ICON_ASSET_BASE}/${asset}`}
-        alt=""
+      <span
         aria-hidden="true"
-        draggable={false}
-        decoding="async"
-        className="stayhub-premium-icon-image"
+        className="stayhub-premium-icon-image stayhub-premium-icon-mask"
+        style={{ "--stayhub-icon-mask": `url("${maskUrl}")` } as CSSProperties}
       />
     );
   }
@@ -214,7 +213,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
 // END_STAYHUB_SECTION_ICON_HELPERS
 
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { StaffDepartment, StaffRequestType, StaffServiceTime, StaffRequestStatus } from "@/lib/staff/types";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { HotelConfig, LangKey, HubSection, DepartmentKey, HubItem, RequestDef } from "@/lib/types";
