@@ -2995,81 +2995,13 @@ input.stayhub-card::placeholder {
 }
 /* STAYHUB_LANGUAGE_AND_TILE_QA_END */
 
-/* STAYHUB_INNER_BRAND_COLORS_START */
+/* STAYHUB_CLEAN_APPROVED_ICON_PACK_START */
 /*
- * Use each hotel's configured primary brand color inside opened sections.
- * The premium home-screen icons and labels keep their approved dark-green tone.
+ * Approved raster icon shapes from public/icons/guesthub-premium.
+ * Brand color is scoped ONLY to home-screen icons.
+ * Names, labels, hero, modals, buttons, AI panel and inner-section colors stay unchanged.
  */
-.stayhub-premium-icon-mask {
-  display: block !important;
-  background-color: currentColor !important;
-  -webkit-mask-image: var(--stayhub-icon-mask);
-  mask-image: var(--stayhub-icon-mask);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-}
-
-.stayhub-premium-grid .stayhub-premium-tile-icon {
-  color: #0d8580 !important;
-}
-
-.stayhub-premium-grid .stayhub-premium-tile-label {
-  color: #355b60 !important;
-  -webkit-text-fill-color: #355b60 !important;
-}
-
-.stayhub-section-window,
-.stayhub-ai-panel-shell {
-  --stayhub-inner-brand: var(--stayhub-primary);
-  color: var(--stayhub-inner-brand) !important;
-  -webkit-text-fill-color: var(--stayhub-inner-brand) !important;
-}
-
-.stayhub-section-window .stayhub-section-window-icon,
-.stayhub-section-window .stayhub-section-header-icon,
-.stayhub-section-window .stayhub-section-header-icon-inline,
-.stayhub-section-window .stayhub-section-window-close,
-.stayhub-ai-panel-shell .stayhub-section-header-icon,
-.stayhub-ai-panel-shell .stayhub-ai-icon {
-  color: var(--stayhub-inner-brand) !important;
-  -webkit-text-fill-color: var(--stayhub-inner-brand) !important;
-}
-
-.stayhub-section-window .stayhub-section-header,
-.stayhub-section-window .stayhub-section-header *,
-.stayhub-section-window .stayhub-section-body,
-.stayhub-section-window .stayhub-policy-copy,
-.stayhub-section-window .stayhub-department-intro,
-.stayhub-section-window .stayhub-card,
-.stayhub-section-window .stayhub-card > *,
-.stayhub-section-window .stayhub-action-card,
-.stayhub-section-window .stayhub-action-card > *,
-.stayhub-section-window [data-stayhub-request-def-id],
-.stayhub-section-window [data-stayhub-request-def-id] span,
-.stayhub-section-window [data-stayhub-request-def-id] div,
-.stayhub-section-window [data-stayhub-request-def-id] p,
-.stayhub-ai-panel-shell .stayhub-section-header,
-.stayhub-ai-panel-shell .stayhub-section-body,
-.stayhub-ai-panel-shell .stayhub-card,
-.stayhub-ai-panel-shell .stayhub-action-card {
-  color: var(--stayhub-inner-brand) !important;
-  -webkit-text-fill-color: var(--stayhub-inner-brand) !important;
-}
-
-.stayhub-section-window svg,
-.stayhub-ai-panel-shell svg {
-  color: var(--stayhub-inner-brand);
-  stroke: currentColor;
-}
-/* STAYHUB_INNER_BRAND_COLORS_END */
-
-/* STAYHUB_BRAND_ICON_PACK_START */
-/* One shared icon pack. Existing section names, translations and grid remain unchanged. */
-.stayhub-action-icon-mask {
+.stayhub-approved-icon-mask {
   display: block !important;
   width: 100% !important;
   height: 100% !important;
@@ -3089,8 +3021,15 @@ input.stayhub-card::placeholder {
   -webkit-text-fill-color: var(--stayhub-primary) !important;
 }
 
-.stayhub-premium-grid .stayhub-premium-tile-emergency .stayhub-premium-tile-icon {
+.stayhub-premium-grid .stayhub-premium-tile-label {
+  color: #355b60 !important;
+  -webkit-text-fill-color: #355b60 !important;
+}
+
+.stayhub-premium-grid
+  .stayhub-premium-tile-emergency
+  .stayhub-premium-tile-icon {
   color: #ef6f81 !important;
   -webkit-text-fill-color: #ef6f81 !important;
 }
-/* STAYHUB_BRAND_ICON_PACK_END */
+/* STAYHUB_CLEAN_APPROVED_ICON_PACK_END */

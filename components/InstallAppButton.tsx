@@ -13,10 +13,12 @@ function InstallDeviceIcon() {
   return (
     <span className="stayhub-install-icon" aria-hidden="true">
       <span
-        className="stayhub-action-icon-image stayhub-action-icon-mask"
+        className="stayhub-action-icon-image stayhub-approved-icon-mask"
         style={{
-          WebkitMaskImage: 'url("/icons/guesthub-premium-brand/install.svg")',
-          maskImage: 'url("/icons/guesthub-premium-brand/install.svg")',
+          WebkitMaskImage:
+            'url("/icons/guesthub-premium-brand-png/install.png")',
+          maskImage:
+            'url("/icons/guesthub-premium-brand-png/install.png")',
         }}
       />
     </span>

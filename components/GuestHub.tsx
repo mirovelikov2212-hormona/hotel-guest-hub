@@ -113,33 +113,33 @@ function getPremiumWelcomeTitle(lang: LangKey | string): string {
   return "Welcome";
 }
 
-const PREMIUM_ICON_ASSET_BASE = "/icons/guesthub-premium-brand";
+const PREMIUM_ICON_ASSET_BASE = "/icons/guesthub-premium-brand-png";
 
 function getPremiumIconAsset(id?: string): string | null {
   const key = String(id || "").toLowerCase().trim();
 
   if (!key) return null;
-  if (key.includes("reception") || key.includes("рецепц")) return "reception.svg";
-  if (key.includes("housekeeping") || key.includes("хаус")) return "housekeeping.svg";
-  if (key.includes("maintenance") || key.includes("technical") || key.includes("техн")) return "maintenance.svg";
-  if (key.includes("emergency") || key.includes("спеш")) return "emergency.svg";
-  if (key.includes("contact") || key.includes("свържи")) return "contact.svg";
-  if (key.includes("policy") || key.includes("policies") || key.includes("политик")) return "policy.svg";
-  if (key.includes("restaurant") || key.includes("ресторан") || key.includes("food")) return "restaurant.svg";
-  if (key.includes("bar") || key.includes("бар")) return "bars.svg";
-  if (key.includes("kids") || key.includes("kid") || key.includes("child") || key.includes("kinder") || key.includes("детск") || key.includes("pool") || key.includes("басейн") || key.includes("piscin") || key.includes("bazén") || key.includes("бассейн")) return "entertainment.svg";
-  if (key.includes("animation") || key.includes("entertainment") || key.includes("забав")) return "entertainment.svg";
-  if (key.includes("massage") || key.includes("spa") || key.includes("масаж")) return "massage.svg";
-  if (key.includes("pillow") || key.includes("възглав")) return "pillow.svg";
-  if (key.includes("coffee") || key.includes("каф")) return "coffee.svg";
-  if (key.includes("weather") || key.includes("врем")) return "weather.svg";
-  if (key.includes("review") || key.includes("social") || key.includes("отзив")) return "reviews.svg";
-  if (key.includes("explore") || key.includes("nearby") || key.includes("около")) return "nearby.svg";
-  if (key === "ai" || key.includes("ai_concierge") || key.includes("concierge") || key.includes("robot") || key.includes("консиерж")) return "ai.svg";
-  if (key.includes("install") || key.includes("download") || key.includes("изтегли")) return "install.svg";
-  if (key.includes("notification") || key.includes("извести")) return "notifications.svg";
-  if (key.includes("phone") || key.includes("call") || key.includes("обади")) return "phone.svg";
-  if (key === "info" || key.includes("information") || key.includes("инфо")) return "info.svg";
+  if (key.includes("reception") || key.includes("рецепц")) return "reception-premium-v4.png";
+  if (key.includes("housekeeping") || key.includes("хаус")) return "housekeeping-premium-v4.png";
+  if (key.includes("maintenance") || key.includes("technical") || key.includes("техн")) return "maintenance.png";
+  if (key.includes("emergency") || key.includes("спеш")) return "emergency-call.png";
+  if (key.includes("contact") || key.includes("свържи")) return "contact.png";
+  if (key.includes("policy") || key.includes("policies") || key.includes("политик")) return "policy.png";
+  if (key.includes("restaurant") || key.includes("ресторан") || key.includes("food")) return "restaurant.png";
+  if (key.includes("bar") || key.includes("бар")) return "bars.png";
+  if (key.includes("kids") || key.includes("kid") || key.includes("child") || key.includes("kinder") || key.includes("детск") || key.includes("pool") || key.includes("басейн") || key.includes("piscin") || key.includes("bazén") || key.includes("бассейн")) return "entertainment.png";
+  if (key.includes("animation") || key.includes("entertainment") || key.includes("забав")) return "entertainment.png";
+  if (key.includes("massage") || key.includes("spa") || key.includes("масаж")) return "massage.png";
+  if (key.includes("pillow") || key.includes("възглав")) return "pillow.png";
+  if (key.includes("coffee") || key.includes("каф")) return "coffee.png";
+  if (key.includes("weather") || key.includes("врем")) return "weather.png";
+  if (key.includes("review") || key.includes("social") || key.includes("отзив")) return "reviews.png";
+  if (key.includes("explore") || key.includes("nearby") || key.includes("около")) return "nearby.png";
+  if (key === "ai" || key.includes("ai_concierge") || key.includes("concierge") || key.includes("robot") || key.includes("консиерж")) return "ai-concierge.png";
+  if (key.includes("install") || key.includes("download") || key.includes("изтегли")) return "install.png";
+  if (key.includes("notification") || key.includes("извести")) return "notifications.png";
+  if (key.includes("phone") || key.includes("call") || key.includes("обади")) return "phone.png";
+  if (key === "info" || key.includes("information") || key.includes("инфо")) return "info.png";
 
   return null;
 }
