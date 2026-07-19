@@ -756,6 +756,67 @@ function getPremiumSectionCopy(lang: LangKey | string) {
   return PREMIUM_SECTION_COPY[safeLang] || PREMIUM_SECTION_COPY.en;
 }
 
+/* STAYHUB_PREMIUM_SERVICE_TITLES_START */
+type PremiumServiceTitleKey =
+  | "hotelPolicy"
+  | "bookMassage"
+  | "sleepPillows"
+  | "orderCoffeeCapsules";
+
+const PREMIUM_SERVICE_TITLES: Record<
+  LangKey,
+  Record<PremiumServiceTitleKey, string>
+> = {
+  bg: {
+    hotelPolicy: "Политика на хотела",
+    bookMassage: "Резервирай масаж",
+    sleepPillows: "Възглавници за пълноценен сън",
+    orderCoffeeCapsules: "Поръчай кафе капсули",
+  },
+  en: {
+    hotelPolicy: "Hotel policy",
+    bookMassage: "Book a massage",
+    sleepPillows: "Pillows for restful sleep",
+    orderCoffeeCapsules: "Order coffee capsules",
+  },
+  de: {
+    hotelPolicy: "Hotelrichtlinien",
+    bookMassage: "Massage reservieren",
+    sleepPillows: "Kissen für erholsamen Schlaf",
+    orderCoffeeCapsules: "Kaffeekapseln bestellen",
+  },
+  ro: {
+    hotelPolicy: "Politica hotelului",
+    bookMassage: "Rezervă un masaj",
+    sleepPillows: "Perne pentru un somn odihnitor",
+    orderCoffeeCapsules: "Comandă capsule de cafea",
+  },
+  cs: {
+    hotelPolicy: "Pravidla hotelu",
+    bookMassage: "Rezervovat masáž",
+    sleepPillows: "Polštáře pro kvalitní spánek",
+    orderCoffeeCapsules: "Objednat kávové kapsle",
+  },
+  ru: {
+    hotelPolicy: "Правила отеля",
+    bookMassage: "Забронировать массаж",
+    sleepPillows: "Подушки для полноценного сна",
+    orderCoffeeCapsules: "Заказать кофейные капсулы",
+  },
+};
+
+function getPremiumServiceTitle(
+  lang: LangKey | string,
+  key: PremiumServiceTitleKey
+): string {
+  const safeLang = (["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang))
+    ? String(lang)
+    : "en") as LangKey;
+
+  return PREMIUM_SERVICE_TITLES[safeLang]?.[key] || PREMIUM_SERVICE_TITLES.en[key];
+}
+/* STAYHUB_PREMIUM_SERVICE_TITLES_END */
+
 
 type GuestWeatherDay = {
   date: string;
@@ -7616,7 +7677,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
   const pillowMenuSection: HubSection = {
     id: "pillow_menu",
-    title: String(tUI("pillow_menu") || (lang === "bg" ? "Вземи възглавница" : "Pillow menu")),
+    title: getPremiumServiceTitle(lang, "sleepPillows"),
     items: pillowMenuDef
       ? [buildStandaloneRequestDefHubItem(pillowMenuDef)]
       : [
@@ -7636,7 +7697,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
   const coffeeCapsulesSection: HubSection = {
     id: "coffee_capsules",
-    title: String(tUI("coffee_capsules") || (lang === "bg" ? "Поръчай кафе капсули" : "Coffee capsules")),
+    title: getPremiumServiceTitle(lang, "orderCoffeeCapsules"),
     items: coffeeCapsulesDef
       ? [buildStandaloneRequestDefHubItem(coffeeCapsulesDef)]
       : [
@@ -7684,14 +7745,14 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
   const premiumTiles = [
     { id: "info", iconId: "info", title: premiumSectionCopy.hotelInfo, section: infoCombinedSection, requiresRoom: false },
-    { id: "hotel_policies", iconId: "policy", title: lang === "bg" ? "Политики" : String(policyCombinedSection?.title || "Hotel policies"), section: policyCombinedSection, requiresRoom: false },
+    { id: "hotel_policies", iconId: "policy", title: getPremiumServiceTitle(lang, "hotelPolicy"), section: policyCombinedSection, requiresRoom: false },
     { id: "emergency", iconId: "emergency", title: lang === "bg" ? "Спешно повикване" : String(emergencyTileSection?.title || "Emergency call"), section: emergencyTileSection, requiresRoom: false, special: "emergency" as const },
 
     { id: "reception", iconId: "reception", title: premiumSectionCopy.onlineReception, section: receptionHubSection, requiresRoom: true },
     { id: "housekeeping", iconId: "housekeeping", title: premiumSectionCopy.onlineHousekeeping, section: housekeepingHubSection, requiresRoom: true },
     { id: "maintenance", iconId: "maintenance", title: premiumSectionCopy.onlineMaintenance, section: maintenanceHubSection, requiresRoom: true },
 
-    { id: "massage_booking", iconId: "massage", title: lang === "bg" ? "Масажи" : (massageBookingDef ? getRequestDefTitle(massageBookingDef) : String(tUI("massage_booking") || "Book massage")), section: null, requiresRoom: true, special: "massage" as const },
+    { id: "massage_booking", iconId: "massage", title: getPremiumServiceTitle(lang, "bookMassage"), section: null, requiresRoom: true, special: "massage" as const },
     { id: "pillow_menu", iconId: "pillow", title: lang === "bg" ? "Възглавници" : String(tUI("pillow_menu") || "Pillow menu"), section: pillowMenuSection, requiresRoom: true },
     { id: "coffee_capsules", iconId: "coffee", title: lang === "bg" ? "Кафе капсули" : String(tUI("coffee_capsules") || "Coffee capsules"), section: coffeeCapsulesSection, requiresRoom: true },
 
@@ -8978,14 +9039,17 @@ function Accordion({
               section.items.map((it, idx) => {
                 if (it.kind === "info") {
                   const infoItemKey = `${String(section.id || "section")}-${idx}`;
-                  const isInfoAccordion = section.id === "info" && Boolean(it.label);
+                  const isInfoAccordion = (section.id === "info" || section.id === "hotel_policies") && Boolean(it.label);
                   const isInfoOpen = openInfoItemKey === infoItemKey;
 
                   if (isInfoAccordion) {
                     return (
                       <div
                         key={infoItemKey}
-                        className="overflow-hidden rounded-xl stayhub-card text-sm"
+                        className={clsx(
+                          "overflow-hidden rounded-xl stayhub-card text-sm",
+                          section.id === "hotel_policies" && "stayhub-policy-item"
+                        )}
                       >
                         <button
                           type="button"
@@ -8996,8 +9060,8 @@ function Accordion({
                             onTrack({
                               eventName: nextOpen ? "info_item_opened" : "info_item_closed",
                               eventCategory: "navigation",
-                              section: "info",
-                              sectionKey: "info",
+                              section: String(section.id || "info"),
+                              sectionKey: String(section.id || "info"),
                               itemKey: infoItemKey,
                               label: String(it.label || "info"),
                               value: nextOpen ? "open" : "closed",
@@ -9010,7 +9074,10 @@ function Accordion({
                         </button>
 
                         {isInfoOpen ? (
-                          <div className="whitespace-pre-wrap border-t border-white/10 px-3 pb-3 pt-3 text-neutral-100">
+                          <div className={clsx(
+                              "whitespace-pre-wrap border-t border-white/10 px-3 pb-3 pt-3 text-neutral-100",
+                              section.id === "hotel_policies" && "stayhub-policy-copy"
+                            )}>
                             {it.info}
                           </div>
                         ) : null}

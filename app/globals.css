@@ -2938,3 +2938,24 @@ input.stayhub-card::placeholder {
   transform: translateY(30px) !important;
 }
 /* STAYHUB_SANDBOX_HERO_CONTROLS_OFFSET_END */
+
+/* STAYHUB_FINAL_DESIGN_POLISH_START */
+/* Final premium design polish: room controls below hero and compact policy accordions. */
+.stayhub-premium-screen .stayhub-confirmed-room-wrap {
+  margin-top: 12px !important;
+  margin-bottom: 4px !important;
+}
+
+.stayhub-premium-screen .stayhub-policy-item {
+  width: 100% !important;
+  margin-inline: 0 !important;
+}
+
+.stayhub-premium-screen .stayhub-policy-copy {
+  line-height: 1.6 !important;
+  text-align: justify;
+  text-align-last: left;
+  text-justify: inter-word;
+  hyphens: auto;
+}
+/* STAYHUB_FINAL_DESIGN_POLISH_END */
