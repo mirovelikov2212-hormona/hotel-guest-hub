@@ -3120,3 +3120,23 @@ input.stayhub-card::placeholder {
   border-color: #075255 !important;
 }
 /* STAYHUB_FINAL_REQUEST_CARD_POLISH_END */
+
+/* STAYHUB_REFRESH_BORDER_MATCH_START */
+/* Refresh button border should match the softer contour of the accepted badge. */
+.stayhub-refresh-button {
+  background: #43BAAD !important;
+  background-color: #43BAAD !important;
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  border: 1px solid rgba(7, 82, 85, 0.18) !important;
+  box-shadow: none !important;
+}
+
+.stayhub-refresh-button:hover {
+  background: #43BAAD !important;
+  background-color: #43BAAD !important;
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  border: 1px solid rgba(7, 82, 85, 0.18) !important;
+}
+/* STAYHUB_REFRESH_BORDER_MATCH_END */
