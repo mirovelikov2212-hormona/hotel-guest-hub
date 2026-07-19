@@ -8117,7 +8117,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               <button
                 type="button"
                 onClick={confirmManualRoom}
-                className="rounded-xl px-4 py-3 text-sm font-semibold transition hover:opacity-95 active:scale-[0.99]"
+                className="rounded-xl px-4 py-3 text-sm font-semibold transition hover:opacity-95 active:scale-[0.99] stayhub-final-brand-cta"
                 style={{ backgroundColor: "var(--stayhub-action)", color: "#ffffff" }}
               >
                 {roomSwitchCopy.confirm}
@@ -8157,7 +8157,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             <button
               type="button"
               onClick={closeGuestIntro}
-              className="mt-5 w-full rounded-xl px-4 py-3 text-sm font-semibold transition hover:opacity-95 active:scale-[0.99]"
+              className="mt-5 w-full rounded-xl px-4 py-3 text-sm font-semibold transition hover:opacity-95 active:scale-[0.99] stayhub-final-brand-cta"
               style={{ backgroundColor: "var(--stayhub-action)", color: "#ffffff" }}
             >
               {guestIntroCopy.button}

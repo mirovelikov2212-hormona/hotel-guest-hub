@@ -3019,3 +3019,26 @@ input.stayhub-card::placeholder {
   -webkit-text-fill-color: #355b60 !important;
 }
 /* STAYHUB_FINAL_DIRECT_ICON_FIX_END */
+
+/* STAYHUB_FINAL_LIGHT_BRAND_CTA_START */
+/*
+ * Final CTA treatment:
+ * light hotel brand background, white text, no inherited gradient.
+ */
+.stayhub-final-brand-cta {
+  background: var(--stayhub-primary) !important;
+  background-color: var(--stayhub-primary) !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border: 1px solid color-mix(in srgb, var(--stayhub-primary) 84%, #075255 16%) !important;
+  box-shadow: 0 10px 22px rgba(7, 82, 85, 0.14) !important;
+}
+
+.stayhub-final-brand-cta:hover {
+  background: color-mix(in srgb, var(--stayhub-primary) 92%, #075255 8%) !important;
+  background-color: color-mix(in srgb, var(--stayhub-primary) 92%, #075255 8%) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+/* STAYHUB_FINAL_LIGHT_BRAND_CTA_END */
