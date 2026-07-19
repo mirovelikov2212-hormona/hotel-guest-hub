@@ -3052,3 +3052,58 @@ input.stayhub-card::placeholder {
   border-color: rgba(7, 82, 85, 0.18) !important;
 }
 /* STAYHUB_ROOM_CONFIRM_CTA_EXACT_END */
+
+/* STAYHUB_FINAL_REQUEST_UI_FIX_START */
+/* Final request UI polish: readable toasts, unified accepted badge and shared lock icon. */
+.stayhub-premium-screen .stayhub-request-status-badge {
+  background: #43BAAD !important;
+  background-color: #43BAAD !important;
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  border-color: rgba(7, 82, 85, 0.20) !important;
+  box-shadow: 0 5px 12px rgba(7, 82, 85, 0.10) !important;
+  opacity: 1 !important;
+}
+
+.stayhub-premium-screen .stayhub-ai-trigger .stayhub-ai-lock-dot {
+  height: 30px !important;
+  width: 30px !important;
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  border-color: rgba(7, 82, 85, 0.34) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+}
+
+.stayhub-premium-screen .stayhub-ai-trigger .stayhub-ai-lock-dot svg {
+  height: 15px !important;
+  width: 15px !important;
+}
+
+.stayhub-premium-screen .stayhub-request-toast {
+  border-color: rgba(67, 186, 173, 0.58) !important;
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 18px 44px rgba(7, 82, 85, 0.22) !important;
+}
+
+.stayhub-premium-screen .stayhub-request-toast-sending {
+  background: rgba(248, 255, 254, 0.99) !important;
+  background-color: rgba(248, 255, 254, 0.99) !important;
+}
+
+.stayhub-premium-screen .stayhub-request-toast-success {
+  background: rgba(225, 248, 244, 0.99) !important;
+  background-color: rgba(225, 248, 244, 0.99) !important;
+}
+
+.stayhub-premium-screen .stayhub-request-toast,
+.stayhub-premium-screen .stayhub-request-toast * {
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+/* STAYHUB_FINAL_REQUEST_UI_FIX_END */

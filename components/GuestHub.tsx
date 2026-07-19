@@ -8220,14 +8220,14 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       {submittingRequest || showRequestSuccess ? (
         <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 w-[min(92vw,560px)] -translate-x-1/2 px-4">
           {submittingRequest ? (
-            <div className="rounded-2xl border border-sky-400/25 bg-sky-400/10 px-4 py-4 text-sky-50 shadow-2xl backdrop-blur">
+            <div className="stayhub-request-toast stayhub-request-toast-sending rounded-2xl border px-4 py-4 shadow-2xl">
               <div className="text-sm font-medium">{roomCopy.requestSendingTitle}</div>
               <p className="mt-1 text-sm leading-6 text-sky-100/90">
                 {roomCopy.requestSendingText.replace("{typeLabel}", submittingRequestLabel || "...")}
               </p>
             </div>
           ) : (
-            <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-4 text-emerald-50 shadow-2xl backdrop-blur">
+            <div className="stayhub-request-toast stayhub-request-toast-success rounded-2xl border px-4 py-4 shadow-2xl">
               <div className="text-sm font-medium">{roomCopy.requestAcceptedTitle}</div>
               <p className="mt-1 text-sm leading-6 text-emerald-100/90">
                 {roomCopy.requestAcceptedText}
@@ -8668,11 +8668,22 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         <span className="flex-1 text-center">{String(tUI("ai_title") || "AI Concierge")}</span>
         {!roomConfirmed ? (
           <span
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs"
-            style={{ borderColor: "#202627", color: "#202627" }}
-            aria-hidden="true"
+            className="stayhub-premium-lock-dot stayhub-ai-lock-dot"
+            aria-label="Locked"
+            title="Locked"
           >
-            🔒
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="5" y="10" width="14" height="10" rx="2" />
+              <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+            </svg>
           </span>
         ) : null}
       </button>
@@ -9487,7 +9498,7 @@ function StatusBadge({
   return (
     <div
       className={clsx(
-        "rounded-full border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap",
+        "stayhub-request-status-badge rounded-full border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap",
         classes[status]
       )}
     >
