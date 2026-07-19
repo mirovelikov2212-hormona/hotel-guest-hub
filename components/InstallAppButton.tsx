@@ -12,14 +12,12 @@ type BeforeInstallPromptEvent = Event & {
 function InstallDeviceIcon() {
   return (
     <span className="stayhub-install-icon" aria-hidden="true">
-      <span
-        className="stayhub-action-icon-image stayhub-approved-icon-mask"
-        style={{
-          WebkitMaskImage:
-            'url("/icons/guesthub-premium-brand-png/install.png")',
-          maskImage:
-            'url("/icons/guesthub-premium-brand-png/install.png")',
-        }}
+      <img
+        src="/icons/guesthub-premium/install.png?v=20260719-final-icons"
+        alt=""
+        draggable={false}
+        decoding="async"
+        className="stayhub-action-icon-image stayhub-action-icon-brand"
       />
     </span>
   );

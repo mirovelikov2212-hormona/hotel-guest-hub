@@ -2995,41 +2995,27 @@ input.stayhub-card::placeholder {
 }
 /* STAYHUB_LANGUAGE_AND_TILE_QA_END */
 
-/* STAYHUB_CLEAN_APPROVED_ICON_PACK_START */
+/* STAYHUB_FINAL_DIRECT_ICON_FIX_START */
 /*
- * Approved raster icon shapes from public/icons/guesthub-premium.
- * Brand color is scoped ONLY to home-screen icons.
- * Names, labels, hero, modals, buttons, AI panel and inner-section colors stay unchanged.
+ * Real PNG assets rendered as images, never as masks.
+ * The filter recolors only the approved icon pixels to the hotel brand color.
+ * Text, hero, buttons, modals, language selector and AI panel keep their approved colors.
  */
-.stayhub-approved-icon-mask {
+.stayhub-premium-icon-brand,
+.stayhub-action-icon-brand {
   display: block !important;
-  width: 100% !important;
-  height: 100% !important;
-  background-color: currentColor !important;
-  -webkit-mask-repeat: no-repeat !important;
-  mask-repeat: no-repeat !important;
-  -webkit-mask-position: center !important;
-  mask-position: center !important;
-  -webkit-mask-size: contain !important;
-  mask-size: contain !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  object-fit: contain !important;
+  filter: brightness(0) saturate(100%) invert(67%) sepia(30%) saturate(1335%) hue-rotate(124deg) brightness(117%) contrast(39%) !important;
 }
 
-.stayhub-premium-grid .stayhub-premium-tile-icon,
-.stayhub-install-icon,
-.stayhub-premium-push-icon {
-  color: var(--stayhub-primary) !important;
-  -webkit-text-fill-color: var(--stayhub-primary) !important;
+.stayhub-premium-tile-emergency .stayhub-premium-icon-brand {
+  filter: none !important;
 }
 
 .stayhub-premium-grid .stayhub-premium-tile-label {
   color: #355b60 !important;
   -webkit-text-fill-color: #355b60 !important;
 }
-
-.stayhub-premium-grid
-  .stayhub-premium-tile-emergency
-  .stayhub-premium-tile-icon {
-  color: #ef6f81 !important;
-  -webkit-text-fill-color: #ef6f81 !important;
-}
-/* STAYHUB_CLEAN_APPROVED_ICON_PACK_END */
+/* STAYHUB_FINAL_DIRECT_ICON_FIX_END */
