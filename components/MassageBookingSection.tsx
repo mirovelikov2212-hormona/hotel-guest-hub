@@ -481,15 +481,15 @@ function timesCacheKey(hotelSlug: string, serviceId: string, date: string) {
 }
 
 const normalCardStyle = {
-  backgroundColor: "color-mix(in srgb, var(--stayhub-soft) 92%, white 8%)",
-  borderColor: "color-mix(in srgb, var(--stayhub-action) 42%, transparent)",
-  color: "#202627",
+  backgroundColor: "#ffffff",
+  borderColor: "color-mix(in srgb, var(--stayhub-action) 48%, transparent)",
+  color: "var(--stayhub-primary)",
 };
 
 const selectedCardStyle = {
-  backgroundColor: "var(--stayhub-action)",
-  borderColor: "#202627",
-  color: "var(--stayhub-text)",
+  backgroundColor: "#ffffff",
+  borderColor: "var(--stayhub-action)",
+  color: "var(--stayhub-primary)",
 };
 
 export default function MassageBookingSection({
@@ -1072,8 +1072,8 @@ export default function MassageBookingSection({
             className="rounded-2xl border p-3"
             style={{
               borderColor: "var(--stayhub-action)",
-              backgroundColor: "var(--stayhub-soft)",
-              color: "#202627",
+              backgroundColor: "#ffffff",
+              color: "var(--stayhub-primary)",
             }}
             aria-busy={loadingServices || loadingDates}
           >
@@ -1131,7 +1131,7 @@ export default function MassageBookingSection({
           {selectedService ? (
             <section
               className="mt-3 rounded-2xl border p-3"
-              style={{ borderColor: "var(--stayhub-action)", backgroundColor: "var(--stayhub-soft)", color: "#202627" }}
+              style={{ borderColor: "var(--stayhub-action)", backgroundColor: "#ffffff", color: "var(--stayhub-primary)" }}
             >
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-sm font-bold">{copy.chooseDate}</h3>
@@ -1189,7 +1189,7 @@ export default function MassageBookingSection({
           {selectedDate ? (
             <section
               className="mt-3 rounded-2xl border p-3"
-              style={{ borderColor: "var(--stayhub-action)", backgroundColor: "var(--stayhub-soft)", color: "#202627" }}
+              style={{ borderColor: "var(--stayhub-action)", backgroundColor: "#ffffff", color: "var(--stayhub-primary)" }}
             >
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-sm font-bold">{copy.chooseTime}</h3>
@@ -1290,7 +1290,8 @@ export default function MassageBookingSection({
               <button
                 type="button"
                 onClick={resetSelection}
-                className="mt-2 w-full rounded-xl border border-white/60 bg-transparent px-4 py-2 text-sm font-bold text-white"
+                className="mt-2 w-full rounded-xl border bg-white px-4 py-2 text-sm font-bold"
+                style={{ borderColor: "var(--stayhub-action)", color: "var(--stayhub-primary)" }}
               >
                 {copy.reset}
               </button>
