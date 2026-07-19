@@ -3021,24 +3021,21 @@ input.stayhub-card::placeholder {
 /* STAYHUB_FINAL_DIRECT_ICON_FIX_END */
 
 /* STAYHUB_FINAL_LIGHT_BRAND_CTA_START */
-/*
- * Final CTA treatment:
- * light hotel brand background, white text, no inherited gradient.
- */
+/* Final CTA color only: exact brand background and dark-green text. */
 .stayhub-final-brand-cta {
-  background: var(--stayhub-primary) !important;
-  background-color: var(--stayhub-primary) !important;
+  background: #43BAAD !important;
+  background-color: #43BAAD !important;
   background-image: none !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  border: 1px solid color-mix(in srgb, var(--stayhub-primary) 84%, #075255 16%) !important;
-  box-shadow: 0 10px 22px rgba(7, 82, 85, 0.14) !important;
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  border: 1px solid rgba(7, 82, 85, 0.18) !important;
+  box-shadow: 0 10px 22px rgba(7, 82, 85, 0.12) !important;
 }
 
 .stayhub-final-brand-cta:hover {
-  background: color-mix(in srgb, var(--stayhub-primary) 92%, #075255 8%) !important;
-  background-color: color-mix(in srgb, var(--stayhub-primary) 92%, #075255 8%) !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+  background: #43BAAD !important;
+  background-color: #43BAAD !important;
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
 }
 /* STAYHUB_FINAL_LIGHT_BRAND_CTA_END */
