@@ -3107,3 +3107,16 @@ input.stayhub-card::placeholder {
   text-shadow: none !important;
 }
 /* STAYHUB_FINAL_REQUEST_UI_FIX_END */
+
+/* STAYHUB_FINAL_REQUEST_CARD_POLISH_START */
+/* Final polish for My Requests: plain request card and dark-green refresh outline. */
+.stayhub-premium-screen .stayhub-guest-request-card::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+}
+
+.stayhub-premium-screen .stayhub-refresh-button {
+  border-color: #075255 !important;
+}
+/* STAYHUB_FINAL_REQUEST_CARD_POLISH_END */

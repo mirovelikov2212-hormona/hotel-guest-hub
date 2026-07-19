@@ -8435,7 +8435,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 {activeGuestRequests.map((item) => (
                   <div
                     key={item.id}
-                    className="rounded-xl stayhub-card px-3 py-3"
+                    className="stayhub-guest-request-card rounded-xl stayhub-card px-3 py-3"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
