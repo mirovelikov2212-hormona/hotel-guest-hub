@@ -424,12 +424,12 @@ export default function GuestSurveyPushControls({
     <div className="stayhub-premium-push-wrap">
       <div className="stayhub-premium-push-card">
         <div className="stayhub-premium-push-icon" aria-hidden="true">
-          <img
-            src="/icons/guesthub-premium/notifications.png"
-            alt=""
-            draggable={false}
-            decoding="async"
-            className="stayhub-action-icon-image"
+          <span
+            className="stayhub-action-icon-image stayhub-action-icon-mask"
+            style={{
+              WebkitMaskImage: 'url("/icons/guesthub-premium-brand/notifications.svg")',
+              maskImage: 'url("/icons/guesthub-premium-brand/notifications.svg")',
+            }}
           />
         </div>
 

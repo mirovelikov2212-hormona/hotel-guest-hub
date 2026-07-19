@@ -3066,3 +3066,31 @@ input.stayhub-card::placeholder {
   stroke: currentColor;
 }
 /* STAYHUB_INNER_BRAND_COLORS_END */
+
+/* STAYHUB_BRAND_ICON_PACK_START */
+/* One shared icon pack. Existing section names, translations and grid remain unchanged. */
+.stayhub-action-icon-mask {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  background-color: currentColor !important;
+  -webkit-mask-repeat: no-repeat !important;
+  mask-repeat: no-repeat !important;
+  -webkit-mask-position: center !important;
+  mask-position: center !important;
+  -webkit-mask-size: contain !important;
+  mask-size: contain !important;
+}
+
+.stayhub-premium-grid .stayhub-premium-tile-icon,
+.stayhub-install-icon,
+.stayhub-premium-push-icon {
+  color: var(--stayhub-primary) !important;
+  -webkit-text-fill-color: var(--stayhub-primary) !important;
+}
+
+.stayhub-premium-grid .stayhub-premium-tile-emergency .stayhub-premium-tile-icon {
+  color: #ef6f81 !important;
+  -webkit-text-fill-color: #ef6f81 !important;
+}
+/* STAYHUB_BRAND_ICON_PACK_END */
