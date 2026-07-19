@@ -2959,3 +2959,38 @@ input.stayhub-card::placeholder {
   hyphens: auto;
 }
 /* STAYHUB_FINAL_DESIGN_POLISH_END */
+
+/* STAYHUB_LANGUAGE_AND_TILE_QA_START */
+/* Translation-safe premium tile labels and justified department descriptions. */
+.stayhub-premium-screen .stayhub-department-intro {
+  line-height: 1.45 !important;
+  text-align: justify !important;
+  text-align-last: left !important;
+  text-justify: inter-word;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.stayhub-premium-screen
+  [data-stayhub-premium-tile="pillow_menu"],
+.stayhub-premium-screen
+  [data-stayhub-premium-tile="coffee_capsules"] {
+  min-height: 122px !important;
+}
+
+.stayhub-premium-screen
+  [data-stayhub-premium-tile="pillow_menu"]
+  .stayhub-premium-tile-label,
+.stayhub-premium-screen
+  [data-stayhub-premium-tile="coffee_capsules"]
+  .stayhub-premium-tile-label {
+  display: block !important;
+  min-height: 2.45rem !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+}
+/* STAYHUB_LANGUAGE_AND_TILE_QA_END */

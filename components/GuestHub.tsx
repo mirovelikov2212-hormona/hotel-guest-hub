@@ -817,6 +817,68 @@ function getPremiumServiceTitle(
 }
 /* STAYHUB_PREMIUM_SERVICE_TITLES_END */
 
+/* STAYHUB_ROOM_SWITCH_COPY_START */
+type RoomSwitchCopy = {
+  title: string;
+  description: string;
+  cancel: string;
+  confirm: string;
+};
+
+const ROOM_SWITCH_COPY: Record<LangKey, RoomSwitchCopy> = {
+  bg: {
+    title: "Смяна на стаята",
+    description:
+      "Въведете новия номер на стаята и го потвърдете два пъти през защитния прозорец.",
+    cancel: "Отказ",
+    confirm: "Потвърди новата стая",
+  },
+  en: {
+    title: "Change room",
+    description:
+      "Enter the new room number and confirm the change in the security window.",
+    cancel: "Cancel",
+    confirm: "Confirm new room",
+  },
+  de: {
+    title: "Zimmer wechseln",
+    description:
+      "Geben Sie die neue Zimmernummer ein und bestätigen Sie den Wechsel im Sicherheitsfenster.",
+    cancel: "Abbrechen",
+    confirm: "Neues Zimmer bestätigen",
+  },
+  ro: {
+    title: "Schimbă camera",
+    description:
+      "Introduceți noul număr al camerei și confirmați schimbarea în fereastra de securitate.",
+    cancel: "Anulează",
+    confirm: "Confirmă noua cameră",
+  },
+  cs: {
+    title: "Změnit pokoj",
+    description:
+      "Zadejte nové číslo pokoje a potvrďte změnu v bezpečnostním okně.",
+    cancel: "Zrušit",
+    confirm: "Potvrdit nový pokoj",
+  },
+  ru: {
+    title: "Смена номера",
+    description:
+      "Введите новый номер комнаты и подтвердите смену в защищённом окне.",
+    cancel: "Отмена",
+    confirm: "Подтвердить новый номер",
+  },
+};
+
+function getRoomSwitchCopy(lang: LangKey | string): RoomSwitchCopy {
+  const safeLang = (["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang))
+    ? String(lang)
+    : "en") as LangKey;
+
+  return ROOM_SWITCH_COPY[safeLang] || ROOM_SWITCH_COPY.en;
+}
+/* STAYHUB_ROOM_SWITCH_COPY_END */
+
 
 type GuestWeatherDay = {
   date: string;
@@ -6884,6 +6946,7 @@ EN: ${helpMsg}` : opsMsg,
   }, [buildRequestDefItems, getTextMapValue, isRenderableRequestDef, requestDefsByCategory, tUI]);
 
   const guestNavCopy = getGuestNavCopy(lang);
+  const roomSwitchCopy = getRoomSwitchCopy(lang);
   const getCurrentGuestUiText = (key: string) => {
     const value = config.i18n?.[String(lang)]?.[key];
     return value && String(value).trim() && String(value).trim() !== key
@@ -6951,16 +7014,50 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   const nearbyRestaurantsQuery = `restaurants near ${nearbyAnchorQuery}`;
   const nearbyPharmacyQuery = `pharmacy near ${nearbyAnchorQuery}`;
 
+  const recommendedPlaceLang = (["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang))
+    ? String(lang)
+    : "en") as LangKey;
+
+  const aquamarineRecommendedPlaceLabels: Record<
+    LangKey,
+    { delMar: string; izvora: string }
+  > = {
+    bg: {
+      delMar: "Del Mar Fish Restaurant & BBQ",
+      izvora: "Ресторант Извора",
+    },
+    en: {
+      delMar: "Del Mar Fish Restaurant & BBQ",
+      izvora: "Restaurant Izvora",
+    },
+    de: {
+      delMar: "Del Mar Fish Restaurant & BBQ",
+      izvora: "Restaurant Izvora",
+    },
+    ro: {
+      delMar: "Del Mar Fish Restaurant & BBQ",
+      izvora: "Restaurant Izvora",
+    },
+    cs: {
+      delMar: "Del Mar Fish Restaurant & BBQ",
+      izvora: "Restaurace Izvora",
+    },
+    ru: {
+      delMar: "Del Mar Fish Restaurant & BBQ",
+      izvora: "Ресторан «Извора»",
+    },
+  };
+
   const aquamarineRecommendedPlaces: HubItem[] = isAquamarineHotel
     ? [
         {
-          label: "📍 Del Mar Fish Restaurant & BBQ",
+          label: `📍 ${aquamarineRecommendedPlaceLabels[recommendedPlaceLang].delMar}`,
           kind: "link" as const,
           href: "https://www.facebook.com/p/Del-Mar-Fish-Restaurant-BBQ-100040199001878/",
           newTab: true,
         },
         {
-          label: "📍 Ресторант Извора",
+          label: `📍 ${aquamarineRecommendedPlaceLabels[recommendedPlaceLang].izvora}`,
           kind: "link" as const,
           href: "https://izvora-kranevo.com/",
           newTab: true,
@@ -7753,8 +7850,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     { id: "maintenance", iconId: "maintenance", title: premiumSectionCopy.onlineMaintenance, section: maintenanceHubSection, requiresRoom: true },
 
     { id: "massage_booking", iconId: "massage", title: getPremiumServiceTitle(lang, "bookMassage"), section: null, requiresRoom: true, special: "massage" as const },
-    { id: "pillow_menu", iconId: "pillow", title: lang === "bg" ? "Възглавници" : String(tUI("pillow_menu") || "Pillow menu"), section: pillowMenuSection, requiresRoom: true },
-    { id: "coffee_capsules", iconId: "coffee", title: lang === "bg" ? "Кафе капсули" : String(tUI("coffee_capsules") || "Coffee capsules"), section: coffeeCapsulesSection, requiresRoom: true },
+    { id: "pillow_menu", iconId: "pillow", title: getPremiumServiceTitle(lang, "sleepPillows"), section: pillowMenuSection, requiresRoom: true },
+    { id: "coffee_capsules", iconId: "coffee", title: getPremiumServiceTitle(lang, "orderCoffeeCapsules"), section: coffeeCapsulesSection, requiresRoom: true },
 
     { id: "restaurants", iconId: "restaurant", title: lang === "bg" ? "Ресторант" : String(restaurantOutletSection?.title || "Restaurant"), section: restaurantOutletSection, requiresRoom: false, outletCategories: ["restaurants"] },
     { id: "bars", iconId: "bars", title: lang === "bg" ? "Бар" : String(barsOutletSection?.title || "Bars"), section: barsOutletSection, requiresRoom: false, outletCategories: ["bars"] },
@@ -7963,7 +8060,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             onClick={startRoomChangeFlow}
             className="stayhub-confirmed-room-card stayhub-room-switch-link"
           >
-            {lang === "bg" ? "Смяна на стаята" : lang === "de" ? "Zimmer wechseln" : lang === "ru" ? "Смена номера" : "Change room"}
+            {roomSwitchCopy.title}
           </button>
         </div>
       ) : null}
@@ -7992,10 +8089,10 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         <div className="mt-3 px-4">
           <div className="rounded-2xl stayhub-panel stayhub-room-panel p-4">
             <h2 className="text-base font-medium" style={{ color: "#202627" }}>
-              {lang === "bg" ? "Смяна на стаята" : lang === "de" ? "Zimmer wechseln" : lang === "ru" ? "Смена номера" : "Change room"}
+              {roomSwitchCopy.title}
             </h2>
             <p className="mt-2 text-sm leading-6" style={{ color: "#202627" }}>
-              {lang === "bg" ? "Въведете новия номер на стаята и го потвърдете два пъти през защитния прозорец." : lang === "de" ? "Geben Sie die neue Zimmernummer ein und bestätigen Sie den Wechsel im Sicherheitsfenster." : lang === "ru" ? "Введите новый номер комнаты и подтвердите смену в защитном окне." : "Enter the new room number and confirm the change in the security modal."}
+              {roomSwitchCopy.description}
             </p>
             <div className="mt-4">
               <label className="mb-2 block text-xs font-medium uppercase tracking-[0.16em]" style={{ color: "#202627" }}>
@@ -8016,7 +8113,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 onClick={() => { setShowRoomSwitchCard(false); setManualRoomInput(""); }}
                 className="stayhub-room-switch-secondary rounded-xl px-4 py-3 text-sm font-medium transition active:scale-[0.99]"
               >
-                {lang === "bg" ? "Отказ" : lang === "de" ? "Abbrechen" : lang === "ru" ? "Отмена" : "Cancel"}
+                {roomSwitchCopy.cancel}
               </button>
               <button
                 type="button"
@@ -8024,7 +8121,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 className="rounded-xl px-4 py-3 text-sm font-semibold transition hover:opacity-95 active:scale-[0.99]"
                 style={{ backgroundColor: "var(--stayhub-action)", color: "var(--stayhub-text)" }}
               >
-                {lang === "bg" ? "Потвърди новата стая" : lang === "de" ? "Neues Zimmer bestätigen" : lang === "ru" ? "Подтвердить новый номер" : "Confirm new room"}
+                {roomSwitchCopy.confirm}
               </button>
             </div>
           </div>
@@ -8373,6 +8470,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                   return (
                     <button
                       key={`premium-${tile.id}`}
+                      data-stayhub-premium-tile={tile.id}
                       type="button"
                       onClick={() => {
                         if ((tile as any).special === "emergency") {
@@ -8983,7 +9081,13 @@ function Accordion({
                 {stripLeadingVisualIcon(section.title)}
               </div>
               {section.subtitle ? (
-                <div className="mt-1 text-xs font-medium opacity-80">
+                <div
+                  className={clsx(
+                    "mt-1 text-xs font-medium opacity-80",
+                    ["reception", "housekeeping", "maintenance"].includes(String(section.id)) &&
+                      "stayhub-department-intro"
+                  )}
+                >
                   {stripLeadingVisualIcon(section.subtitle)}
                 </div>
               ) : null}
