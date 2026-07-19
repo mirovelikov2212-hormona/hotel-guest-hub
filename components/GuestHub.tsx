@@ -8196,6 +8196,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
             <button
               type="button"
+              data-stayhub-room-confirm-cta="true"
               onClick={confirmManualRoom}
               className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition hover:opacity-95 active:scale-[0.99]"
               style={{ backgroundColor: "var(--stayhub-action)", color: "#ffffff" }}

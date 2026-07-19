@@ -3039,3 +3039,16 @@ input.stayhub-card::placeholder {
   -webkit-text-fill-color: #075255 !important;
 }
 /* STAYHUB_FINAL_LIGHT_BRAND_CTA_END */
+
+/* STAYHUB_ROOM_CONFIRM_CTA_EXACT_START */
+/* Exact final color for the visible room-confirmation button only. */
+.stayhub-premium-screen
+  button[data-stayhub-room-confirm-cta="true"] {
+  background: #43BAAD !important;
+  background-color: #43BAAD !important;
+  background-image: none !important;
+  color: #075255 !important;
+  -webkit-text-fill-color: #075255 !important;
+  border-color: rgba(7, 82, 85, 0.18) !important;
+}
+/* STAYHUB_ROOM_CONFIRM_CTA_EXACT_END */
