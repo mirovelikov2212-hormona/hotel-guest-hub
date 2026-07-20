@@ -20,7 +20,10 @@ type StoredSurveyState = {
   firstConfirmedDateKey?: string;
   submittedAt?: string;
   dismissedAt?: string;
+  snoozedUntil?: string;
+  lastSnoozedAt?: string;
   lastShownAt?: string;
+  shownCount?: number;
 };
 
 type Copy = {
@@ -40,7 +43,7 @@ type Copy = {
 const COPY: Record<string, Copy> = {
   bg: {
     title: "Включи известията",
-    text: "",
+    text: "Получавайте важни съобщения от хотела и кратката анкета за престоя.",
     enable: "Включи",
     disable: "Изключи известията",
     enabled: "Известията са активни на това устройство.",
@@ -53,7 +56,7 @@ const COPY: Record<string, Copy> = {
   },
   en: {
     title: "Hotel notifications",
-    text: "",
+    text: "Receive important hotel messages and the short stay survey.",
     enable: "Enable notifications",
     disable: "Disable notifications",
     enabled: "Notifications are active on this device.",
@@ -66,7 +69,7 @@ const COPY: Record<string, Copy> = {
   },
   de: {
     title: "Hotel-Mitteilungen",
-    text: "",
+    text: "Erhalten Sie wichtige Hotelmitteilungen und die kurze Umfrage zu Ihrem Aufenthalt.",
     enable: "Mitteilungen aktivieren",
     disable: "Mitteilungen deaktivieren",
     enabled: "Mitteilungen sind auf diesem Gerät aktiv.",
@@ -79,7 +82,7 @@ const COPY: Record<string, Copy> = {
   },
   ro: {
     title: "Notificări de la hotel",
-    text: "",
+    text: "Primiți mesaje importante de la hotel și scurtul chestionar despre sejur.",
     enable: "Activează notificările",
     disable: "Dezactivează notificările",
     enabled: "Notificările sunt active pe acest dispozitiv.",
@@ -92,7 +95,7 @@ const COPY: Record<string, Copy> = {
   },
   cs: {
     title: "Hotelová oznámení",
-    text: "",
+    text: "Dostávejte důležité zprávy z hotelu a krátký dotazník k pobytu.",
     enable: "Povolit oznámení",
     disable: "Vypnout oznámení",
     enabled: "Oznámení jsou na tomto zařízení aktivní.",
@@ -105,7 +108,7 @@ const COPY: Record<string, Copy> = {
   },
   ru: {
     title: "Уведомления от отеля",
-    text: "",
+    text: "Получайте важные сообщения от отеля и короткую анкету о пребывании.",
     enable: "Разрешить уведомления",
     disable: "Отключить уведомления",
     enabled: "Уведомления активны на этом устройстве.",

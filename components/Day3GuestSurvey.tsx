@@ -6,7 +6,8 @@ import type { TrackHubPayload } from "@/lib/trackHubEvent";
 
 const SURVEY_VERSION = "day3-v1";
 const SURVEY_STORAGE_PREFIX = "stayhub_day3_guest_survey";
-const SURVEY_TARGET_MINUTES = 21 * 60 + 30;
+const SURVEY_WINDOW_DAYS = 3;
+const SURVEY_SNOOZE_MS = 2 * 60 * 60 * 1000;
 
 type SurveyStep = "rating" | "areas" | "improvement" | "problem" | "thanks";
 type ResolutionStatus = "fully_resolved" | "partially_resolved" | "not_resolved" | "not_informed" | "";
@@ -16,7 +17,16 @@ type StoredSurveyState = {
   firstConfirmedDateKey?: string;
   submittedAt?: string;
   dismissedAt?: string;
+  snoozedUntil?: string;
+  lastSnoozedAt?: string;
   lastShownAt?: string;
+  shownCount?: number;
+};
+
+type SurveyLaunchContext = {
+  source: "automatic" | "guest_push" | "manual_force";
+  bypassWindow: boolean;
+  bypassSnooze: boolean;
 };
 
 type SurveyCopy = {
@@ -513,10 +523,33 @@ function addDaysToDateKey(dateKey: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-function isForceSurveyEnabled() {
-  if (typeof window === "undefined") return false;
-  const value = new URLSearchParams(window.location.search).get("survey");
-  return ["1", "true", "yes", "force", "test"].includes(String(value || "").trim().toLowerCase());
+function getSurveyLaunchContext(): SurveyLaunchContext {
+  if (typeof window === "undefined") {
+    return { source: "automatic", bypassWindow: false, bypassSnooze: false };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const surveyValue = String(params.get("survey") || "").trim().toLowerCase();
+  const sourceValue = String(params.get("source") || "").trim().toLowerCase();
+  const isGuestPush = sourceValue === "guest_survey_push" && ["1", "true", "yes"].includes(surveyValue);
+  const isManualForce = ["force", "test"].includes(surveyValue) || (
+    ["1", "true", "yes"].includes(surveyValue) && !isGuestPush
+  );
+
+  if (isGuestPush) {
+    return { source: "guest_push", bypassWindow: false, bypassSnooze: true };
+  }
+
+  if (isManualForce) {
+    return { source: "manual_force", bypassWindow: true, bypassSnooze: true };
+  }
+
+  return { source: "automatic", bypassWindow: false, bypassSnooze: false };
+}
+
+function isDateKeyWithinWindow(dateKey: string, startDateKey: string, endDateKey: string) {
+  if (!dateKey || !startDateKey || !endDateKey) return false;
+  return dateKey >= startDateKey && dateKey <= endDateKey;
 }
 
 function buildStaffNoteBg(input: {
@@ -591,7 +624,11 @@ export default function Day3GuestSurvey({
   const storageKey = useMemo(() => getSurveyStorageKey(hotelSlug, room), [hotelSlug, room]);
   const [storedState, setStoredState] = useState<StoredSurveyState>({});
   const [clockTick, setClockTick] = useState(0);
-  const [forceSurvey, setForceSurvey] = useState(false);
+  const [launchContext, setLaunchContext] = useState<SurveyLaunchContext>({
+    source: "automatic",
+    bypassWindow: false,
+    bypassSnooze: false,
+  });
   const [step, setStep] = useState<SurveyStep>("rating");
   const [rating, setRating] = useState<number | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -604,7 +641,7 @@ export default function Day3GuestSurvey({
   const shownTrackedRef = useRef<string>("");
 
   useEffect(() => {
-    setForceSurvey(isForceSurveyEnabled());
+    setLaunchContext(getSurveyLaunchContext());
   }, []);
 
   useEffect(() => {
@@ -619,14 +656,19 @@ export default function Day3GuestSurvey({
     }
 
     const existing = readStoredSurveyState(storageKey);
+    const { dismissedAt: _legacyDismissedAt, ...migratedExisting } = existing;
+
     if (existing.firstConfirmedDateKey) {
-      setStoredState(existing);
+      if (existing.dismissedAt) {
+        writeStoredSurveyState(storageKey, migratedExisting);
+      }
+      setStoredState(migratedExisting);
       return;
     }
 
     const hotelNow = getHotelTimeParts(timezone);
     const next = {
-      ...existing,
+      ...migratedExisting,
       firstConfirmedAt: existing.firstConfirmedAt || new Date().toISOString(),
       firstConfirmedDateKey: hotelNow.dateKey,
     };
@@ -639,28 +681,75 @@ export default function Day3GuestSurvey({
     [storedState.firstConfirmedDateKey]
   );
 
+  const surveyWindowEndDateKey = useMemo(
+    () => addDaysToDateKey(targetDateKey, SURVEY_WINDOW_DAYS - 1),
+    [targetDateKey]
+  );
+
   const isEligible = useMemo(() => {
     if (!roomConfirmed || !normalizeRoomNumber(room) || !storedState.firstConfirmedDateKey) return false;
-    if (storedState.submittedAt || storedState.dismissedAt) return false;
-    if (forceSurvey) return true;
+    if (storedState.submittedAt) return false;
 
     const hotelNow = getHotelTimeParts(timezone);
-    return hotelNow.dateKey === targetDateKey && hotelNow.minutes >= SURVEY_TARGET_MINUTES;
-  }, [clockTick, forceSurvey, room, roomConfirmed, storedState, targetDateKey, timezone]);
+    const insideWindow = isDateKeyWithinWindow(
+      hotelNow.dateKey,
+      targetDateKey,
+      surveyWindowEndDateKey
+    );
+
+    if (!insideWindow && !launchContext.bypassWindow) return false;
+
+    const snoozedUntilMs = Date.parse(String(storedState.snoozedUntil || ""));
+    const isSnoozed = Number.isFinite(snoozedUntilMs) && snoozedUntilMs > Date.now();
+
+    return launchContext.bypassSnooze || !isSnoozed;
+  }, [
+    clockTick,
+    launchContext,
+    room,
+    roomConfirmed,
+    storedState.firstConfirmedDateKey,
+    storedState.snoozedUntil,
+    storedState.submittedAt,
+    surveyWindowEndDateKey,
+    targetDateKey,
+    timezone,
+  ]);
 
   useEffect(() => {
-    if (!isEligible || !storageKey) return;
+    if (!isEligible || !storageKey) {
+      shownTrackedRef.current = "";
+      return;
+    }
 
-    const marker = `${storageKey}:${targetDateKey}`;
-    if (shownTrackedRef.current === marker) return;
-    shownTrackedRef.current = marker;
+    const visibilityMarker = `${storageKey}:${targetDateKey}:${storedState.snoozedUntil || "initial"}:${launchContext.source}`;
+    if (shownTrackedRef.current === visibilityMarker) return;
+    shownTrackedRef.current = visibilityMarker;
 
-    const next = { ...readStoredSurveyState(storageKey), lastShownAt: new Date().toISOString() };
+    const previous = readStoredSurveyState(storageKey);
+    const previousShownCount = Math.max(
+      Number(previous.shownCount || 0),
+      previous.lastShownAt ? 1 : 0
+    );
+    const shownCount = previousShownCount + 1;
+    const next = {
+      ...previous,
+      dismissedAt: undefined,
+      lastShownAt: new Date().toISOString(),
+      shownCount,
+    };
     writeStoredSurveyState(storageKey, next);
     setStoredState(next);
 
+    const eventName = shownCount > 1 ? "day3_survey_reopened" : "day3_survey_shown";
+    const showReason = launchContext.source === "guest_push"
+      ? "push"
+      : shownCount > 1
+        ? "reopened"
+        : "automatic";
+
     onTrack({
-      eventName: "day3_survey_shown",
+      eventName,
       eventCategory: "survey",
       section: "day3_survey",
       sectionKey: "day3_survey",
@@ -668,11 +757,25 @@ export default function Day3GuestSurvey({
       value: targetDateKey,
       metadata: {
         surveyVersion: SURVEY_VERSION,
+        firstConfirmedDateKey: storedState.firstConfirmedDateKey || null,
         targetDateKey,
-        forceSurvey,
+        surveyWindowEndDateKey,
+        launchSource: launchContext.source,
+        forceSurvey: launchContext.bypassWindow || launchContext.source === "guest_push",
+        showReason,
+        shownCount,
       },
     });
-  }, [forceSurvey, isEligible, onTrack, storageKey, targetDateKey]);
+  }, [
+    isEligible,
+    launchContext.source,
+    onTrack,
+    storageKey,
+    storedState.firstConfirmedDateKey,
+    storedState.snoozedUntil,
+    surveyWindowEndDateKey,
+    targetDateKey,
+  ]);
 
   const resetSurveyUi = useCallback(() => {
     setStep("rating");
@@ -687,20 +790,34 @@ export default function Day3GuestSurvey({
   }, []);
 
   const dismissSurvey = useCallback(() => {
-    const next = { ...readStoredSurveyState(storageKey), dismissedAt: new Date().toISOString() };
+    const snoozedAt = new Date();
+    const snoozedUntil = new Date(snoozedAt.getTime() + SURVEY_SNOOZE_MS).toISOString();
+    const previous = readStoredSurveyState(storageKey);
+    const next = {
+      ...previous,
+      dismissedAt: undefined,
+      lastSnoozedAt: snoozedAt.toISOString(),
+      snoozedUntil,
+    };
     writeStoredSurveyState(storageKey, next);
     setStoredState(next);
-    resetSurveyUi();
 
     onTrack({
-      eventName: "day3_survey_dismissed",
+      eventName: "day3_survey_snoozed",
       eventCategory: "survey",
       section: "day3_survey",
       sectionKey: "day3_survey",
       label: SURVEY_VERSION,
-      metadata: { surveyVersion: SURVEY_VERSION, step },
+      metadata: {
+        surveyVersion: SURVEY_VERSION,
+        step,
+        targetDateKey,
+        surveyWindowEndDateKey,
+        snoozedUntil,
+        snoozeMinutes: SURVEY_SNOOZE_MS / 60_000,
+      },
     });
-  }, [onTrack, resetSurveyUi, step, storageKey]);
+  }, [onTrack, step, storageKey, surveyWindowEndDateKey, targetDateKey]);
 
   const toggleCategory = useCallback((category: string) => {
     setSubmitError("");
@@ -809,6 +926,9 @@ export default function Day3GuestSurvey({
       resolutionNote: resolutionNote.trim(),
       targetDateKey,
       firstConfirmedDateKey: storedState.firstConfirmedDateKey || null,
+      surveyWindowEndDateKey,
+      launchSource: launchContext.source,
+      shownCount: Number(storedState.shownCount || 0),
       hotelTimezone: timezone,
     };
 
@@ -844,7 +964,12 @@ export default function Day3GuestSurvey({
         },
       });
 
-      const next = { ...readStoredSurveyState(storageKey), submittedAt: new Date().toISOString() };
+      const next = {
+        ...readStoredSurveyState(storageKey),
+        submittedAt: new Date().toISOString(),
+        snoozedUntil: undefined,
+        dismissedAt: undefined,
+      };
       writeStoredSurveyState(storageKey, next);
       setStoredState(next);
       resetSurveyUi();
@@ -870,8 +995,11 @@ export default function Day3GuestSurvey({
     storageKey,
     storedState.firstConfirmedDateKey,
     submitting,
+    surveyWindowEndDateKey,
     targetDateKey,
     timezone,
+    launchContext.source,
+    storedState.shownCount,
   ]);
 
   if (!isEligible) return null;

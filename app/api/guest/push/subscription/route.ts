@@ -120,7 +120,9 @@ export async function POST(req: NextRequest) {
             ? new Date(body.subscription.expirationTime).toISOString()
             : null,
           survey_push_sent_at: null,
+          last_push_attempt_at: null,
           last_push_status: null,
+          push_attempts: 0,
           updated_at: now,
           last_seen_at: now,
           ...isolationFields,

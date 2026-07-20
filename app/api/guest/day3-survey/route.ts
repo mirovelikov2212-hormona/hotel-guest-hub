@@ -99,6 +99,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (targetDateKey) {
+      const { data: existingSurvey, error: existingSurveyError } = await supabaseAdmin
+        .from("guest_surveys")
+        .select("id")
+        .eq("hotel_id", hotel.id)
+        .eq("room_number", room)
+        .eq("survey_type", "day3_guest_survey")
+        .eq("survey_version", surveyVersion)
+        .eq("target_date_key", targetDateKey)
+        .order("guest_submitted_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingSurveyError) {
+        await logSystemError({
+          hotelId: hotel.id,
+          source: "survey",
+          eventType: "day3_survey_duplicate_check_failed",
+          message: "Day 3 survey duplicate protection could not verify an existing response.",
+          roomNumber: room,
+          error: existingSurveyError,
+          metadata: { hotelSlug, surveyVersion, targetDateKey },
+        });
+      } else if (existingSurvey?.id) {
+        return NextResponse.json(
+          { ok: true, survey: { id: existingSurvey.id }, duplicate: true },
+          { headers: NO_STORE_HEADERS },
+        );
+      }
+    }
+
     const testRoomPolicy = await getTestRoomPolicy(hotel.id, room);
     const isolationFields = getOperationalIsolationFields({ hotel, testRoomPolicy });
     const isolationMetadata = getOperationalIsolationMetadata({ hotel, testRoomPolicy });

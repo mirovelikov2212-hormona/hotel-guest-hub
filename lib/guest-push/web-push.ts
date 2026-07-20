@@ -29,6 +29,7 @@ export type GuestPushSubscriptionRow = {
 type GuestSurveyPushInput = {
   subscription: GuestPushSubscriptionRow;
   hotelSlug: string;
+  surveyDayNumber?: number;
 };
 
 function getVapidConfig() {
@@ -61,48 +62,65 @@ export function normalizeGuestPushLanguage(value: unknown): GuestPushLanguage {
   return "en";
 }
 
-export function getDay3SurveyPushCopy(language: unknown) {
+export function getDay3SurveyPushCopy(language: unknown, surveyDayNumber = 3) {
   const lang = normalizeGuestPushLanguage(language);
+  const isFinalReminder = surveyDayNumber >= 5;
+  const isReminder = surveyDayNumber >= 4;
 
   if (lang === "bg") {
-    return {
-      title: "StayHub — Кратък въпрос към Вас",
-      body: "Вашата анкета за престоя е готова. Отнема около минута и помага на хотела да реагира навреме.",
-    };
+    return isFinalReminder
+      ? { title: "StayHub — Последно напомняне", body: "Днес е последният ден за кратката анкета за престоя. Отнема около минута." }
+      : isReminder
+        ? { title: "StayHub — Напомняне за анкетата", body: "Вашата кратка анкета все още Ви очаква. Отнема около минута." }
+        : { title: "StayHub — Кратък въпрос към Вас", body: "Вашата анкета за престоя е готова. Отнема около минута и помага на хотела да реагира навреме." };
   }
 
   if (lang === "de") {
-    return {
-      title: "StayHub — Eine kurze Frage",
-      body: "Ihre Umfrage zum Aufenthalt ist bereit. Sie dauert etwa eine Minute und hilft dem Hotel, rechtzeitig zu reagieren.",
-    };
+    return isFinalReminder
+      ? { title: "StayHub — Letzte Erinnerung", body: "Heute ist der letzte Tag für die kurze Umfrage zu Ihrem Aufenthalt. Sie dauert etwa eine Minute." }
+      : isReminder
+        ? { title: "StayHub — Erinnerung an Ihre Umfrage", body: "Ihre kurze Umfrage wartet noch auf Sie. Sie dauert etwa eine Minute." }
+        : { title: "StayHub — Eine kurze Frage", body: "Ihre Umfrage zum Aufenthalt ist bereit. Sie dauert etwa eine Minute und hilft dem Hotel, rechtzeitig zu reagieren." };
   }
 
   if (lang === "ro") {
-    return {
-      title: "StayHub — O întrebare scurtă",
-      body: "Chestionarul despre sejur este gata. Durează aproximativ un minut și ajută hotelul să reacționeze la timp.",
-    };
+    return isFinalReminder
+      ? { title: "StayHub — Ultima reamintire", body: "Astăzi este ultima zi pentru scurtul chestionar despre sejur. Durează aproximativ un minut." }
+      : isReminder
+        ? { title: "StayHub — Reamintire pentru chestionar", body: "Scurtul chestionar încă vă așteaptă. Durează aproximativ un minut." }
+        : { title: "StayHub — O întrebare scurtă", body: "Chestionarul despre sejur este gata. Durează aproximativ un minut și ajută hotelul să reacționeze la timp." };
   }
 
   if (lang === "cs") {
-    return {
-      title: "StayHub — Krátká otázka",
-      body: "Váš dotazník k pobytu je připraven. Zabere přibližně jednu minutu a pomůže hotelu včas reagovat.",
-    };
+    return isFinalReminder
+      ? { title: "StayHub — Poslední připomenutí", body: "Dnes je poslední den pro krátký dotazník k pobytu. Zabere přibližně jednu minutu." }
+      : isReminder
+        ? { title: "StayHub — Připomenutí dotazníku", body: "Krátký dotazník na vás stále čeká. Zabere přibližně jednu minutu." }
+        : { title: "StayHub — Krátká otázka", body: "Váš dotazník k pobytu je připraven. Zabere přibližně jednu minutu a pomůže hotelu včas reagovat." };
   }
 
   if (lang === "ru") {
-    return {
-      title: "StayHub — Короткий вопрос",
-      body: "Ваша анкета о пребывании готова. Это займет около минуты и поможет отелю вовремя отреагировать.",
-    };
+    return isFinalReminder
+      ? { title: "StayHub — Последнее напоминание", body: "Сегодня последний день для короткой анкеты о пребывании. Это займет около минуты." }
+      : isReminder
+        ? { title: "StayHub — Напоминание об анкете", body: "Короткая анкета всё ещё ждёт вас. Это займет около минуты." }
+        : { title: "StayHub — Короткий вопрос", body: "Ваша анкета о пребывании готова. Это займет около минуты и поможет отелю вовремя отреагировать." };
   }
 
-  return {
-    title: "StayHub — A quick question",
-    body: "Your stay survey is ready. It takes about one minute and helps the hotel react in time.",
-  };
+  return isFinalReminder
+    ? {
+        title: "StayHub — Final reminder",
+        body: "Today is the last day for the short stay survey. It takes about one minute.",
+      }
+    : isReminder
+      ? {
+          title: "StayHub — Survey reminder",
+          body: "Your short survey is still waiting. It takes about one minute.",
+        }
+      : {
+          title: "StayHub — A quick question",
+          body: "Your stay survey is ready. It takes about one minute and helps the hotel react in time.",
+        };
 }
 
 
@@ -284,15 +302,17 @@ export async function sendDay3SurveyGuestPush(input: GuestSurveyPushInput) {
     return { sent: false, expired: false, skipped: true, statusCode: 0 };
   }
 
-  const copy = getDay3SurveyPushCopy(input.subscription.language || "en");
-  const targetUrl = `/h/${input.hotelSlug}?source=guest_survey_push&survey=1`;
+  const surveyDayNumber = Math.min(5, Math.max(3, Number(input.surveyDayNumber || 3)));
+  const reminderNumber = Math.max(1, surveyDayNumber - 2);
+  const copy = getDay3SurveyPushCopy(input.subscription.language || "en", surveyDayNumber);
+  const targetUrl = `/h/${input.hotelSlug}?source=guest_survey_push&survey=1&room=${encodeURIComponent(input.subscription.room_number)}&surveyTarget=${encodeURIComponent(input.subscription.target_date_key || "")}&surveyReminder=${reminderNumber}`;
   const payload = JSON.stringify({
     title: copy.title,
     body: copy.body,
     icon: "/icons/icon-192.png",
     badge: "/icons/icon-192.png",
-    tag: `stayhub-day3-survey-${input.subscription.hotel_id}-${input.subscription.room_number}`,
-    renotify: false,
+    tag: `stayhub-day3-survey-${input.subscription.hotel_id}-${input.subscription.room_number}-${input.subscription.target_date_key || "target"}-r${reminderNumber}`,
+    renotify: true,
     requireInteraction: false,
     data: {
       url: targetUrl,
@@ -300,6 +320,8 @@ export async function sendDay3SurveyGuestPush(input: GuestSurveyPushInput) {
       room: input.subscription.room_number,
       surveyVersion: input.subscription.survey_version || "day3-v1",
       targetDateKey: input.subscription.target_date_key || null,
+      surveyDayNumber,
+      reminderNumber,
       source: "guest_day3_survey_push",
     },
   });
@@ -315,8 +337,8 @@ export async function sendDay3SurveyGuestPush(input: GuestSurveyPushInput) {
       },
       payload,
       {
-        TTL: 3600,
-        urgency: "normal",
+        TTL: 18 * 60 * 60,
+        urgency: "high",
       },
     );
 

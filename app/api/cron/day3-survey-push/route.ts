@@ -15,8 +15,9 @@ import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SURVEY_TARGET_MINUTES = 21 * 60 + 30;
-const MAX_ROWS_PER_RUN = 200;
+const SURVEY_PUSH_START_MINUTES = 8 * 60;
+const SURVEY_WINDOW_DAYS = 3;
+const MAX_ROWS_PER_RUN = 500;
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
@@ -39,9 +40,11 @@ function isAuthorizedCronRequest(req: NextRequest) {
   const authorization = req.headers.get("authorization") || "";
   const fromVercelCron = req.headers.get("x-vercel-cron") === "1";
 
-  if (configuredSecret && authorization === `Bearer ${configuredSecret}`) return true;
-  if (fromVercelCron) return true;
-  return false;
+  if (configuredSecret) {
+    return authorization === `Bearer ${configuredSecret}`;
+  }
+
+  return fromVercelCron;
 }
 
 function getHotelTimeParts(timezone: string, date: Date) {
@@ -69,6 +72,20 @@ function normalizeTargetDateKey(row: GuestPushSubscriptionRow) {
   if (row.target_date_key) return row.target_date_key;
   if (row.first_confirmed_date_key) return addDaysToDateKey(row.first_confirmed_date_key, 2);
   return "";
+}
+
+function getSurveyDayNumber(targetDateKey: string, hotelDateKey: string) {
+  const target = Date.parse(`${targetDateKey}T00:00:00.000Z`);
+  const current = Date.parse(`${hotelDateKey}T00:00:00.000Z`);
+  if (!Number.isFinite(target) || !Number.isFinite(current)) return 3;
+  return 3 + Math.max(0, Math.round((current - target) / 86_400_000));
+}
+
+function wasSurveyPushSentToday(row: GuestPushSubscriptionRow, timezone: string, hotelDateKey: string) {
+  if (!row.last_push_attempt_at || !String(row.last_push_status || "").startsWith("sent:")) return false;
+  const lastAttempt = new Date(row.last_push_attempt_at);
+  if (Number.isNaN(lastAttempt.getTime())) return false;
+  return getHotelTimeParts(timezone, lastAttempt).dateKey === hotelDateKey;
 }
 
 async function hasSubmittedSurvey(row: GuestPushSubscriptionRow, targetDateKey: string) {
@@ -125,15 +142,20 @@ export async function GET(req: NextRequest) {
     hotelById.set(hotel.id, hotel);
   }
 
+  const utcToday = now.toISOString().slice(0, 10);
+  const queryStartDate = addDaysToDateKey(utcToday, -3);
+  const queryEndDate = addDaysToDateKey(utcToday, 1);
+
   const { data, error } = await supabaseAdmin
     .from("guest_push_subscriptions")
     .select(
       "id, hotel_id, room_number, language, hotel_timezone, survey_version, first_confirmed_date_key, target_date_key, endpoint, p256dh, auth, enabled, survey_push_sent_at, last_push_attempt_at, last_push_status, push_attempts, is_test",
     )
     .eq("enabled", true)
-    .is("survey_push_sent_at", null)
     .eq("survey_version", DAY3_SURVEY_VERSION)
-    .order("updated_at", { ascending: true })
+    .gte("target_date_key", queryStartDate)
+    .lte("target_date_key", queryEndDate)
+    .order("last_push_attempt_at", { ascending: true, nullsFirst: true })
     .limit(MAX_ROWS_PER_RUN);
 
   if (error) {
@@ -156,6 +178,7 @@ export async function GET(req: NextRequest) {
     checked: rows.length,
     sent: 0,
     skippedNotDue: 0,
+    skippedAlreadySentToday: 0,
     skippedSubmitted: 0,
     skippedTest: 0,
     skippedMissingHotel: 0,
@@ -179,8 +202,21 @@ export async function GET(req: NextRequest) {
     const targetDateKey = normalizeTargetDateKey(row);
     const hotelNow = getHotelTimeParts(timezone, now);
 
-    if (!targetDateKey || hotelNow.dateKey !== targetDateKey || hotelNow.minutes < SURVEY_TARGET_MINUTES) {
+    const surveyWindowEndDateKey = addDaysToDateKey(targetDateKey, SURVEY_WINDOW_DAYS - 1);
+    const insideSurveyWindow = Boolean(
+      targetDateKey &&
+      surveyWindowEndDateKey &&
+      hotelNow.dateKey >= targetDateKey &&
+      hotelNow.dateKey <= surveyWindowEndDateKey
+    );
+
+    if (!insideSurveyWindow || hotelNow.minutes < SURVEY_PUSH_START_MINUTES) {
       results.skippedNotDue += 1;
+      continue;
+    }
+
+    if (wasSurveyPushSentToday(row, timezone, hotelNow.dateKey)) {
+      results.skippedAlreadySentToday += 1;
       continue;
     }
 
@@ -198,7 +234,30 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    const delivery = await sendDay3SurveyGuestPush({ subscription: row, hotelSlug: hotel.slug });
+    const surveyDayNumber = getSurveyDayNumber(targetDateKey, hotelNow.dateKey);
+    const claimStatus = `sending_day${surveyDayNumber}_${hotelNow.dateKey}`;
+    const { data: claimedRow, error: claimError } = await supabaseAdmin
+      .from("guest_push_subscriptions")
+      .update({
+        last_push_attempt_at: now.toISOString(),
+        last_push_status: claimStatus,
+        updated_at: now.toISOString(),
+      })
+      .eq("id", row.id)
+      .or(`last_push_status.is.null,last_push_status.neq.${claimStatus}`)
+      .select("id")
+      .maybeSingle();
+
+    if (claimError || !claimedRow) {
+      results.skippedAlreadySentToday += 1;
+      continue;
+    }
+
+    const delivery = await sendDay3SurveyGuestPush({
+      subscription: row,
+      hotelSlug: hotel.slug,
+      surveyDayNumber,
+    });
     const nextAttempts = Number(row.push_attempts || 0) + 1;
 
     if (delivery.sent) {
@@ -207,7 +266,7 @@ export async function GET(req: NextRequest) {
         .update({
           survey_push_sent_at: now.toISOString(),
           last_push_attempt_at: now.toISOString(),
-          last_push_status: "sent",
+          last_push_status: `sent:day${surveyDayNumber}`,
           push_attempts: nextAttempts,
           updated_at: now.toISOString(),
         })
@@ -226,7 +285,7 @@ export async function GET(req: NextRequest) {
         eventType: "guest_push_subscription_expired",
         message: "Expired guest push subscription was detected during Day 3 survey push cron.",
         roomNumber: row.room_number,
-        metadata: { hotelSlug: hotel.slug, targetDateKey, statusCode: delivery.statusCode },
+        metadata: { hotelSlug: hotel.slug, targetDateKey, surveyDayNumber, statusCode: delivery.statusCode },
       });
       continue;
     }
@@ -251,6 +310,7 @@ export async function GET(req: NextRequest) {
       metadata: {
         hotelSlug: hotel.slug,
         targetDateKey,
+        surveyDayNumber,
         skipped: delivery.skipped,
         statusCode: delivery.statusCode,
         pushAttempts: nextAttempts,
