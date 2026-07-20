@@ -226,6 +226,7 @@ import MassageBookingSection, {
 } from "@/components/MassageBookingSection";
 import Day3GuestSurvey from "@/components/Day3GuestSurvey";
 import GuestSurveyPushControls from "@/components/GuestSurveyPushControls";
+import LocalizedStayDatePicker from "@/components/LocalizedStayDatePicker";
 import {
   GUEST_STAY_DEVICE_STORAGE_KEY,
   addDaysToStayDateKey,
@@ -8568,30 +8569,32 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                 <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em]" style={{ color: "#202627" }}>
                   {stayCopy.checkInLabel}
                 </label>
-                <input
-                  type="date"
+                <LocalizedStayDatePicker
                   value={checkInDate}
                   max={hotelTodayDateKey}
-                  onChange={(event) => {
-                    const next = normalizeStayDateKey(event.target.value);
+                  todayDateKey={hotelTodayDateKey}
+                  lang={lang}
+                  ariaLabel={stayCopy.checkInLabel}
+                  onChange={(nextValue) => {
+                    const next = normalizeStayDateKey(nextValue);
                     setCheckInDate(next);
                     if (checkOutDate && next && checkOutDate <= next) {
                       setCheckOutDate(addDaysToStayDateKey(next, 1));
                     }
                   }}
-                  className="w-full rounded-xl stayhub-card px-3 py-3 text-sm outline-none"
                 />
               </div>
               <div>
                 <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em]" style={{ color: "#202627" }}>
                   {stayCopy.checkOutLabel}
                 </label>
-                <input
-                  type="date"
+                <LocalizedStayDatePicker
                   value={checkOutDate}
                   min={checkInDate ? addDaysToStayDateKey(checkInDate, 1) : hotelTodayDateKey}
-                  onChange={(event) => setCheckOutDate(normalizeStayDateKey(event.target.value))}
-                  className="w-full rounded-xl stayhub-card px-3 py-3 text-sm outline-none"
+                  todayDateKey={hotelTodayDateKey}
+                  lang={lang}
+                  ariaLabel={stayCopy.checkOutLabel}
+                  onChange={(nextValue) => setCheckOutDate(normalizeStayDateKey(nextValue))}
                 />
               </div>
             </div>
