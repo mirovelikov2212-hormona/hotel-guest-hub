@@ -552,6 +552,28 @@ function isDateKeyWithinWindow(dateKey: string, startDateKey: string, endDateKey
   return dateKey >= startDateKey && dateKey <= endDateKey;
 }
 
+function clearSurveyLaunchParamsFromUrl() {
+  if (typeof window === "undefined") return;
+
+  try {
+    const url = new URL(window.location.href);
+    const source = String(url.searchParams.get("source") || "").trim().toLowerCase();
+
+    url.searchParams.delete("survey");
+    url.searchParams.delete("surveyTarget");
+    url.searchParams.delete("surveyReminder");
+
+    if (source === "guest_survey_push") {
+      url.searchParams.delete("source");
+    }
+
+    const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+    window.history.replaceState(window.history.state, "", nextUrl);
+  } catch {
+    // Closing the survey must still work even if URL cleanup is unavailable.
+  }
+}
+
 function buildStaffNoteBg(input: {
   room: string;
   rating: number | null;
@@ -801,6 +823,13 @@ export default function Day3GuestSurvey({
     };
     writeStoredSurveyState(storageKey, next);
     setStoredState(next);
+    setLaunchContext({
+      source: "automatic",
+      bypassWindow: false,
+      bypassSnooze: false,
+    });
+    clearSurveyLaunchParamsFromUrl();
+    resetSurveyUi();
 
     onTrack({
       eventName: "day3_survey_snoozed",
@@ -817,7 +846,7 @@ export default function Day3GuestSurvey({
         snoozeMinutes: SURVEY_SNOOZE_MS / 60_000,
       },
     });
-  }, [onTrack, step, storageKey, surveyWindowEndDateKey, targetDateKey]);
+  }, [onTrack, resetSurveyUi, step, storageKey, surveyWindowEndDateKey, targetDateKey]);
 
   const toggleCategory = useCallback((category: string) => {
     setSubmitError("");
