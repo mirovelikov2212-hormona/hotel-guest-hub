@@ -3,10 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LangKey } from "@/lib/types";
 import type { TrackHubPayload } from "@/lib/trackHubEvent";
+import {
+  addDaysToStayDateKey,
+  getGuestSurveyWindow,
+  isDateInsideGuestSurveyWindow,
+} from "@/lib/guest-stays/shared";
 
 const SURVEY_VERSION = "day3-v1";
 const SURVEY_STORAGE_PREFIX = "stayhub_day3_guest_survey";
-const SURVEY_WINDOW_DAYS = 3;
 const SURVEY_SNOOZE_MS = 2 * 60 * 60 * 1000;
 
 type SurveyStep = "rating" | "areas" | "improvement" | "problem" | "thanks";
@@ -464,10 +468,12 @@ function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
 }
 
-function getSurveyStorageKey(hotelSlug: string, room: string) {
+function getSurveyStorageKey(hotelSlug: string, room: string, stayId: string, stayDeviceId: string) {
   const hotel = String(hotelSlug || "default").trim().toLowerCase() || "default";
   const safeRoom = normalizeRoomNumber(room) || "unknown";
-  return `${SURVEY_STORAGE_PREFIX}:${SURVEY_VERSION}:${hotel}:${safeRoom}`;
+  const stay = String(stayId || "unknown").trim() || "unknown";
+  const device = String(stayDeviceId || "unknown").trim() || "unknown";
+  return `${SURVEY_STORAGE_PREFIX}:${SURVEY_VERSION}:${hotel}:${safeRoom}:${stay}:${device}`;
 }
 
 function readStoredSurveyState(key: string): StoredSurveyState {
@@ -523,7 +529,7 @@ function addDaysToDateKey(dateKey: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-function getSurveyLaunchContext(): SurveyLaunchContext {
+function getSurveyLaunchContext(stayId: string, stayDeviceId: string): SurveyLaunchContext {
   if (typeof window === "undefined") {
     return { source: "automatic", bypassWindow: false, bypassSnooze: false };
   }
@@ -531,7 +537,16 @@ function getSurveyLaunchContext(): SurveyLaunchContext {
   const params = new URLSearchParams(window.location.search);
   const surveyValue = String(params.get("survey") || "").trim().toLowerCase();
   const sourceValue = String(params.get("source") || "").trim().toLowerCase();
-  const isGuestPush = sourceValue === "guest_survey_push" && ["1", "true", "yes"].includes(surveyValue);
+  const pushStayId = String(params.get("surveyStay") || "").trim();
+  const pushStayDeviceId = String(params.get("surveyDevice") || "").trim();
+  const pushMatchesCurrentStay =
+    Boolean(stayId && stayDeviceId) &&
+    pushStayId === stayId &&
+    pushStayDeviceId === stayDeviceId;
+  const isGuestPush =
+    sourceValue === "guest_survey_push" &&
+    ["1", "true", "yes"].includes(surveyValue) &&
+    pushMatchesCurrentStay;
   const isManualForce = ["force", "test"].includes(surveyValue) || (
     ["1", "true", "yes"].includes(surveyValue) && !isGuestPush
   );
@@ -562,6 +577,8 @@ function clearSurveyLaunchParamsFromUrl() {
     url.searchParams.delete("survey");
     url.searchParams.delete("surveyTarget");
     url.searchParams.delete("surveyReminder");
+    url.searchParams.delete("surveyStay");
+    url.searchParams.delete("surveyDevice");
 
     if (source === "guest_survey_push") {
       url.searchParams.delete("source");
@@ -633,6 +650,10 @@ export default function Day3GuestSurvey({
   roomConfirmed,
   lang,
   timezone,
+  stayId,
+  stayDeviceId,
+  checkInDate,
+  checkOutDate,
   onTrack,
 }: {
   hotelSlug: string;
@@ -640,10 +661,17 @@ export default function Day3GuestSurvey({
   roomConfirmed: boolean;
   lang: LangKey;
   timezone: string;
+  stayId: string;
+  stayDeviceId: string;
+  checkInDate: string;
+  checkOutDate: string;
   onTrack: (payload: TrackHubPayload) => void;
 }) {
   const copy = SURVEY_COPY[normalizeLang(lang)] || SURVEY_COPY.en;
-  const storageKey = useMemo(() => getSurveyStorageKey(hotelSlug, room), [hotelSlug, room]);
+  const storageKey = useMemo(
+    () => getSurveyStorageKey(hotelSlug, room, stayId, stayDeviceId),
+    [hotelSlug, room, stayDeviceId, stayId],
+  );
   const [storedState, setStoredState] = useState<StoredSurveyState>({});
   const [clockTick, setClockTick] = useState(0);
   const [launchContext, setLaunchContext] = useState<SurveyLaunchContext>({
@@ -663,8 +691,8 @@ export default function Day3GuestSurvey({
   const shownTrackedRef = useRef<string>("");
 
   useEffect(() => {
-    setLaunchContext(getSurveyLaunchContext());
-  }, []);
+    setLaunchContext(getSurveyLaunchContext(stayId, stayDeviceId));
+  }, [stayDeviceId, stayId]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockTick((value) => value + 1), 60_000);
@@ -672,52 +700,43 @@ export default function Day3GuestSurvey({
   }, []);
 
   useEffect(() => {
-    if (!roomConfirmed || !normalizeRoomNumber(room) || !storageKey) {
+    if (!roomConfirmed || !normalizeRoomNumber(room) || !stayId || !stayDeviceId || !storageKey) {
       setStoredState({});
       return;
     }
 
     const existing = readStoredSurveyState(storageKey);
     const { dismissedAt: _legacyDismissedAt, ...migratedExisting } = existing;
-
-    if (existing.firstConfirmedDateKey) {
-      if (existing.dismissedAt) {
-        writeStoredSurveyState(storageKey, migratedExisting);
-      }
-      setStoredState(migratedExisting);
-      return;
-    }
-
-    const hotelNow = getHotelTimeParts(timezone);
     const next = {
       ...migratedExisting,
-      firstConfirmedAt: existing.firstConfirmedAt || new Date().toISOString(),
-      firstConfirmedDateKey: hotelNow.dateKey,
+      firstConfirmedAt: migratedExisting.firstConfirmedAt || new Date().toISOString(),
+      firstConfirmedDateKey: checkInDate,
     };
     writeStoredSurveyState(storageKey, next);
     setStoredState(next);
-  }, [room, roomConfirmed, storageKey, timezone]);
+  }, [checkInDate, room, roomConfirmed, stayDeviceId, stayId, storageKey]);
 
   const targetDateKey = useMemo(
-    () => addDaysToDateKey(storedState.firstConfirmedDateKey || "", 2),
-    [storedState.firstConfirmedDateKey]
+    () => addDaysToStayDateKey(checkInDate, 2),
+    [checkInDate]
   );
 
   const surveyWindowEndDateKey = useMemo(
-    () => addDaysToDateKey(targetDateKey, SURVEY_WINDOW_DAYS - 1),
-    [targetDateKey]
+    () => getGuestSurveyWindow(checkInDate, checkOutDate).endDateKey,
+    [checkInDate, checkOutDate]
   );
 
   const isEligible = useMemo(() => {
-    if (!roomConfirmed || !normalizeRoomNumber(room) || !storedState.firstConfirmedDateKey) return false;
-    if (storedState.submittedAt) return false;
+    if (!roomConfirmed || !normalizeRoomNumber(room) || !stayId || !stayDeviceId) return false;
+    if (!checkInDate || !checkOutDate || storedState.submittedAt) return false;
 
     const hotelNow = getHotelTimeParts(timezone);
-    const insideWindow = isDateKeyWithinWindow(
-      hotelNow.dateKey,
-      targetDateKey,
-      surveyWindowEndDateKey
-    );
+    const insideWindow = isDateInsideGuestSurveyWindow({
+      checkInDate,
+      checkOutDate,
+      hotelDateKey: hotelNow.dateKey,
+      hotelMinutes: hotelNow.minutes,
+    });
 
     if (!insideWindow && !launchContext.bypassWindow) return false;
 
@@ -726,15 +745,16 @@ export default function Day3GuestSurvey({
 
     return launchContext.bypassSnooze || !isSnoozed;
   }, [
+    checkInDate,
+    checkOutDate,
     clockTick,
     launchContext,
     room,
     roomConfirmed,
-    storedState.firstConfirmedDateKey,
+    stayDeviceId,
+    stayId,
     storedState.snoozedUntil,
     storedState.submittedAt,
-    surveyWindowEndDateKey,
-    targetDateKey,
     timezone,
   ]);
 
@@ -777,9 +797,15 @@ export default function Day3GuestSurvey({
       sectionKey: "day3_survey",
       label: SURVEY_VERSION,
       value: targetDateKey,
+      stayId,
+      stayDeviceId,
       metadata: {
         surveyVersion: SURVEY_VERSION,
-        firstConfirmedDateKey: storedState.firstConfirmedDateKey || null,
+        firstConfirmedDateKey: checkInDate || null,
+        checkInDate,
+        checkOutDate,
+        stayId,
+        stayDeviceId,
         targetDateKey,
         surveyWindowEndDateKey,
         launchSource: launchContext.source,
@@ -793,7 +819,10 @@ export default function Day3GuestSurvey({
     launchContext.source,
     onTrack,
     storageKey,
-    storedState.firstConfirmedDateKey,
+    checkInDate,
+    checkOutDate,
+    stayDeviceId,
+    stayId,
     storedState.snoozedUntil,
     surveyWindowEndDateKey,
     targetDateKey,
@@ -840,13 +869,17 @@ export default function Day3GuestSurvey({
       metadata: {
         surveyVersion: SURVEY_VERSION,
         step,
+        stayId,
+        stayDeviceId,
+        checkInDate,
+        checkOutDate,
         targetDateKey,
         surveyWindowEndDateKey,
         snoozedUntil,
         snoozeMinutes: SURVEY_SNOOZE_MS / 60_000,
       },
     });
-  }, [onTrack, resetSurveyUi, step, storageKey, surveyWindowEndDateKey, targetDateKey]);
+  }, [checkInDate, checkOutDate, onTrack, resetSurveyUi, stayDeviceId, stayId, step, storageKey, surveyWindowEndDateKey, targetDateKey]);
 
   const toggleCategory = useCallback((category: string) => {
     setSubmitError("");
@@ -954,7 +987,11 @@ export default function Day3GuestSurvey({
       resolutionStatus: resolutionStatus || null,
       resolutionNote: resolutionNote.trim(),
       targetDateKey,
-      firstConfirmedDateKey: storedState.firstConfirmedDateKey || null,
+      firstConfirmedDateKey: checkInDate || null,
+      checkInDate,
+      checkOutDate,
+      stayId,
+      stayDeviceId,
       surveyWindowEndDateKey,
       launchSource: launchContext.source,
       shownCount: Number(storedState.shownCount || 0),
@@ -987,6 +1024,8 @@ export default function Day3GuestSurvey({
         label: SURVEY_VERSION,
         value: String(rating),
         requestId: result.survey?.id ? `survey-${result.survey.id}` : undefined,
+        stayId,
+        stayDeviceId,
         metadata: {
           ...payload,
           surveyId: result.survey?.id || null,
@@ -1022,7 +1061,10 @@ export default function Day3GuestSurvey({
     room,
     selectedCategories,
     storageKey,
-    storedState.firstConfirmedDateKey,
+    checkInDate,
+    checkOutDate,
+    stayDeviceId,
+    stayId,
     submitting,
     surveyWindowEndDateKey,
     targetDateKey,

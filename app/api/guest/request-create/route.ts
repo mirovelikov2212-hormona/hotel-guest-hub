@@ -11,6 +11,7 @@ import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
 import { translateGuestText, translateGuestTextToBulgarian, hasBulgarianLetters } from "@/lib/server/staff-translation";
 import { getTestRoomPolicy } from "@/lib/server/test-rooms";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
+import { markLateCheckoutRequested, validateGuestStayIdentity } from "@/lib/server/guest-stays";
 import {
   getOperationalIsolationFields,
   getOperationalIsolationMetadata,
@@ -110,6 +111,11 @@ export async function POST(req: NextRequest) {
       ? uniqueLowercaseList([...rawNotifyDepartments, "reception"])
       : rawNotifyDepartments;
     const guestLanguage = body?.guestLanguage ? String(body.guestLanguage).trim().toLowerCase() : "en";
+    const stayId = body?.stayId ? String(body.stayId).trim() : "";
+    const stayDeviceId = body?.stayDeviceId ? String(body.stayDeviceId).trim() : "";
+    const lateCheckoutRequestedTime = body?.lateCheckoutRequestedTime
+      ? String(body.lateCheckoutRequestedTime).trim()
+      : null;
 
     if (!hotelSlug || !room || !rawType) {
       return NextResponse.json({ ok: false, error: "Missing required fields" }, { status: 400 });
@@ -154,6 +160,19 @@ export async function POST(req: NextRequest) {
     const isolationFields = getOperationalIsolationFields({ hotel, testRoomPolicy });
     const isolationMetadata = getOperationalIsolationMetadata({ hotel, testRoomPolicy });
     const suppressLivePush = shouldSuppressLivePush({ hotel, testRoomPolicy });
+    const stayIdentity = await validateGuestStayIdentity({
+      hotelId: hotel.id,
+      room,
+      stayId,
+      stayDeviceId,
+    });
+    if (!stayIdentity) {
+      return NextResponse.json(
+        { ok: false, error: "A confirmed stay is required", code: "STAY_REQUIRED" },
+        { status: 401 },
+      );
+    }
+
     const normalizedType = normalizeStaffRequestType(rawType, departmentOverride);
     const department = departmentOverride ?? getDepartmentForRequestType(normalizedType);
     const translatedGuestNoteBg = note && !hasBulgarianLetters(note)
@@ -178,6 +197,9 @@ export async function POST(req: NextRequest) {
       guestNoteBg: translatedGuestNoteBg || null,
       rawType,
       billingStatus: requiresBilling ? "pending" : undefined,
+      stayId: stayIdentity?.stay.id ?? null,
+      stayDeviceId: stayIdentity?.device.id ?? null,
+      lateCheckoutRequestedTime: normalizedType === "late_checkout" ? lateCheckoutRequestedTime : null,
       ...isolationMetadata,
     };
     const staffTitleBg = getOperationalRequestTitleBg({
@@ -234,6 +256,8 @@ export async function POST(req: NextRequest) {
       .from("guest_requests")
       .insert({
         hotel_id: hotel.id,
+        stay_id: stayIdentity?.stay.id ?? null,
+        stay_device_id: stayIdentity?.device.id ?? null,
         room_number_snapshot: room,
         source: "guest_hub",
         channel: "pwa",
@@ -280,6 +304,25 @@ export async function POST(req: NextRequest) {
         metadata: { hotelSlug, rawType, normalizedType, requiresBilling, notifyDepartments },
       });
       return NextResponse.json({ ok: false, error: error?.message || "Failed to create request" }, { status: 500 });
+    }
+
+    if (normalizedType === "late_checkout" && lateCheckoutRequestedTime) {
+      await markLateCheckoutRequested({
+        stayId: stayIdentity.stay.id,
+        requestId: String(data.id),
+        requestedTime: lateCheckoutRequestedTime,
+      }).catch(async (lateCheckoutError) => {
+        await logSystemError({
+          hotelId: hotel.id,
+          source: "guest_hub",
+          eventType: "late_checkout_stay_pending_update_failed",
+          message: "Late checkout request was created, but the stay could not be marked as pending.",
+          roomNumber: room,
+          requestId: String(data.id),
+          error: lateCheckoutError,
+          metadata: { hotelSlug, stayId: stayIdentity.stay.id, lateCheckoutRequestedTime },
+        });
+      });
     }
 
     if (!suppressLivePush) {

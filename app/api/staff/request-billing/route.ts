@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
 import { getPublicHotelAlias } from "@/lib/server/hotel-public-alias";
 import type { StaffBillingStatus } from "@/lib/staff/types";
+import { applyLateCheckoutDecision } from "@/lib/server/guest-stays";
 
 function isValidRole(value: string): value is StaffRole {
   return (
@@ -189,7 +190,7 @@ export async function POST(req: NextRequest) {
 
     const { data: requestRow, error: requestError } = await supabaseAdmin
       .from("guest_requests")
-      .select("id, hotel_id, request_type, room_number_snapshot, title, status, is_test, test_expires_at, metadata_json")
+      .select("id, hotel_id, stay_id, stay_device_id, request_type, room_number_snapshot, title, status, is_test, test_expires_at, metadata_json")
       .eq("id", requestId)
       .eq("hotel_id", scope.hotelId)
       .maybeSingle();
@@ -242,6 +243,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let lateCheckoutUpdate: Awaited<ReturnType<typeof applyLateCheckoutDecision>> | null = null;
+    if (billingStatus === "charged" || billingStatus === "waived" || billingStatus === "cancelled") {
+      lateCheckoutUpdate = await applyLateCheckoutDecision({
+        hotelId: scope.hotelId,
+        requestId,
+        room: requestRow.room_number_snapshot,
+        requestType: requestRow.request_type,
+        metadata: nextMetadata,
+        stayId: requestRow.stay_id,
+        decision: billingStatus === "cancelled" ? "rejected" : "approved",
+      });
+    }
+
     const { error: eventError } = await supabaseAdmin.from("hub_events").insert({
       hotel_id: scope.hotelId,
       hotel_slug: scope.hotelSlug,
@@ -250,6 +264,8 @@ export async function POST(req: NextRequest) {
       scan_session_id: null,
       room_id: null,
       room_number: requestRow.room_number_snapshot ?? null,
+      stay_id: requestRow.stay_id ?? null,
+      stay_device_id: requestRow.stay_device_id ?? null,
       user_session_id: null,
       event_name: `request_billing_${billingStatus}`,
       section: role,
@@ -266,6 +282,8 @@ export async function POST(req: NextRequest) {
         changedAt,
         closedByBilling: shouldCloseBillingRequest,
         massageBookingDetected: wasRecognizedAsMassageRequest,
+        lateCheckoutStayUpdated: Boolean(lateCheckoutUpdate?.updated),
+        lateCheckoutEffectiveCheckOutAt: lateCheckoutUpdate?.updated ? lateCheckoutUpdate.effectiveCheckOutAt : null,
       },
     });
 
@@ -277,6 +295,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       metadata: nextMetadata,
       requestClosed: shouldCloseBillingRequest,
+      lateCheckout: lateCheckoutUpdate,
     });
   } catch (error) {
     console.error("staff request-billing POST error", error);

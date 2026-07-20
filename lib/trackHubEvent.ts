@@ -15,6 +15,8 @@ export type TrackHubPayload = {
   page?: string | null;
   pagePath?: string | null;
   requestId?: string | null;
+  stayId?: string | null;
+  stayDeviceId?: string | null;
   metadata?: Record<string, unknown>;
   extra?: Record<string, unknown>;
 };
@@ -338,6 +340,8 @@ export async function trackHubEvent(payload: TrackHubPayload) {
     value: payload.value ?? null,
     language: payload.language ?? null,
     requestId: payload.requestId ?? null,
+    stayId: payload.stayId ?? null,
+    stayDeviceId: payload.stayDeviceId ?? null,
     roomSource,
     roomConfirmed,
     deviceType: device.deviceType,

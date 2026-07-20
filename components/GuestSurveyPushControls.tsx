@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LangKey } from "@/lib/types";
+import { addDaysToStayDateKey } from "@/lib/guest-stays/shared";
 
 const SURVEY_VERSION = "day3-v1";
-const SURVEY_STORAGE_PREFIX = "stayhub_day3_guest_survey";
-
 type Status =
   | "checking"
   | "unsupported"
@@ -14,17 +13,6 @@ type Status =
   | "enabled"
   | "denied"
   | "error";
-
-type StoredSurveyState = {
-  firstConfirmedAt?: string;
-  firstConfirmedDateKey?: string;
-  submittedAt?: string;
-  dismissedAt?: string;
-  snoozedUntil?: string;
-  lastSnoozedAt?: string;
-  lastShownAt?: string;
-  shownCount?: number;
-};
 
 type Copy = {
   title: string;
@@ -130,56 +118,6 @@ function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
 }
 
-function getSurveyStorageKey(hotelSlug: string, room: string) {
-  const hotel = String(hotelSlug || "default").trim().toLowerCase() || "default";
-  const safeRoom = normalizeRoomNumber(room) || "unknown";
-  return `${SURVEY_STORAGE_PREFIX}:${SURVEY_VERSION}:${hotel}:${safeRoom}`;
-}
-
-function readStoredSurveyState(key: string): StoredSurveyState {
-  if (typeof window === "undefined" || !key) return {};
-
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as StoredSurveyState;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeStoredSurveyState(key: string, state: StoredSurveyState) {
-  if (typeof window === "undefined" || !key) return;
-
-  try {
-    window.localStorage.setItem(key, JSON.stringify(state));
-  } catch (error) {
-    console.error("write guest survey push state failed", error);
-  }
-}
-
-function getHotelDateKey(timezone: string) {
-  const safeTimezone = String(timezone || "Europe/Sofia").trim() || "Europe/Sofia";
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: safeTimezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-
-  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${map.year}-${map.month}-${map.day}`;
-}
-
-function addDaysToDateKey(dateKey: string, days: number) {
-  const match = String(dateKey || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return "";
-
-  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + days));
-  return date.toISOString().slice(0, 10);
-}
-
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -226,6 +164,11 @@ async function saveGuestSubscription(input: {
   hotelTimezone: string;
   firstConfirmedDateKey: string | null;
   targetDateKey: string | null;
+  checkInDate: string;
+  checkOutDate: string;
+  stayId: string;
+  stayDeviceId: string;
+  deviceToken: string;
   subscription: PushSubscription;
 }) {
   const response = await fetch("/api/guest/push/subscription", {
@@ -240,6 +183,11 @@ async function saveGuestSubscription(input: {
       surveyVersion: SURVEY_VERSION,
       firstConfirmedDateKey: input.firstConfirmedDateKey,
       targetDateKey: input.targetDateKey,
+      checkInDate: input.checkInDate,
+      checkOutDate: input.checkOutDate,
+      stayId: input.stayId,
+      stayDeviceId: input.stayDeviceId,
+      deviceToken: input.deviceToken,
       subscription: input.subscription.toJSON(),
     }),
   });
@@ -274,42 +222,34 @@ export default function GuestSurveyPushControls({
   roomConfirmed,
   lang,
   timezone,
+  stayId,
+  stayDeviceId,
+  deviceToken,
+  checkInDate,
+  checkOutDate,
 }: {
   hotelSlug: string;
   room: string;
   roomConfirmed: boolean;
   lang: LangKey;
   timezone: string;
+  stayId: string;
+  stayDeviceId: string;
+  deviceToken: string;
+  checkInDate: string;
+  checkOutDate: string;
 }) {
   const copy = COPY[normalizeLang(lang)] || COPY.en;
   const [status, setStatus] = useState<Status>("ready");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const storageKey = useMemo(() => getSurveyStorageKey(hotelSlug, room), [hotelSlug, room]);
-
-  const surveyDates = useMemo(() => {
-    if (typeof window === "undefined" || !storageKey) {
-      return { firstConfirmedDateKey: null as string | null, targetDateKey: null as string | null };
-    }
-
-    const existing = readStoredSurveyState(storageKey);
-    const firstConfirmedDateKey = existing.firstConfirmedDateKey || getHotelDateKey(timezone);
-    if (!existing.firstConfirmedDateKey) {
-      writeStoredSurveyState(storageKey, {
-        ...existing,
-        firstConfirmedAt: existing.firstConfirmedAt || new Date().toISOString(),
-        firstConfirmedDateKey,
-      });
-    }
-
-    return {
-      firstConfirmedDateKey,
-      targetDateKey: addDaysToDateKey(firstConfirmedDateKey, 2) || null,
-    };
-  }, [storageKey, timezone]);
+  const surveyDates = useMemo(() => ({
+    firstConfirmedDateKey: checkInDate || null,
+    targetDateKey: checkInDate ? addDaysToStayDateKey(checkInDate, 2) || null : null,
+  }), [checkInDate]);
 
   const refreshStatus = useCallback(async () => {
-    if (!roomConfirmed || !normalizeRoomNumber(room)) {
+    if (!roomConfirmed || !normalizeRoomNumber(room) || !stayId || !stayDeviceId || !deviceToken || !checkInDate || !checkOutDate) {
       setStatus("unsupported");
       return;
     }
@@ -337,8 +277,39 @@ export default function GuestSurveyPushControls({
 
     const registration = await waitForGuestServiceWorker(2500);
     const subscription = await registration?.pushManager.getSubscription().catch(() => null);
+    if (subscription) {
+      await saveGuestSubscription({
+        hotelSlug,
+        room,
+        language: String(lang),
+        hotelTimezone: timezone,
+        firstConfirmedDateKey: surveyDates.firstConfirmedDateKey,
+        targetDateKey: surveyDates.targetDateKey,
+        checkInDate,
+        checkOutDate,
+        stayId,
+        stayDeviceId,
+        deviceToken,
+        subscription,
+      }).catch((error) => {
+        console.error("guest survey push stay sync failed", error);
+      });
+    }
     setStatus(subscription ? "enabled" : "ready");
-  }, [room, roomConfirmed]);
+  }, [
+    checkInDate,
+    checkOutDate,
+    deviceToken,
+    hotelSlug,
+    lang,
+    room,
+    roomConfirmed,
+    stayDeviceId,
+    stayId,
+    surveyDates.firstConfirmedDateKey,
+    surveyDates.targetDateKey,
+    timezone,
+  ]);
 
   useEffect(() => {
     void refreshStatus().catch((error) => {
@@ -385,6 +356,11 @@ export default function GuestSurveyPushControls({
         hotelTimezone: timezone,
         firstConfirmedDateKey: surveyDates.firstConfirmedDateKey,
         targetDateKey: surveyDates.targetDateKey,
+        checkInDate,
+        checkOutDate,
+        stayId,
+        stayDeviceId,
+        deviceToken,
         subscription,
       });
 
@@ -397,7 +373,7 @@ export default function GuestSurveyPushControls({
     } finally {
       setBusy(false);
     }
-  }, [busy, copy.enabled, copy.error, hotelSlug, lang, room, surveyDates.firstConfirmedDateKey, surveyDates.targetDateKey, timezone]);
+  }, [busy, checkInDate, checkOutDate, copy.enabled, copy.error, deviceToken, hotelSlug, lang, room, stayDeviceId, stayId, surveyDates.firstConfirmedDateKey, surveyDates.targetDateKey, timezone]);
 
   const disable = useCallback(async () => {
     if (busy) return;
@@ -421,7 +397,7 @@ export default function GuestSurveyPushControls({
     }
   }, [busy, copy.error, hotelSlug, room]);
 
-  if (!roomConfirmed || !normalizeRoomNumber(room)) return null;
+  if (!roomConfirmed || !normalizeRoomNumber(room) || !stayId || !stayDeviceId || !deviceToken) return null;
 
   return (
     <div className="stayhub-premium-push-wrap">

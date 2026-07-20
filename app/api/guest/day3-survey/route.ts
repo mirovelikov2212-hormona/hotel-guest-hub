@@ -21,6 +21,11 @@ import {
   type GuestSurveyRow,
   mapSurveyRow,
 } from "@/lib/server/day3-surveys";
+import { getHotelTimeParts, validateGuestStayIdentity } from "@/lib/server/guest-stays";
+import {
+  addDaysToStayDateKey,
+  isDateInsideGuestSurveyWindow,
+} from "@/lib/guest-stays/shared";
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
@@ -35,11 +40,28 @@ function normalizeRating(value: unknown) {
   return rounded >= 1 && rounded <= 5 ? rounded : null;
 }
 
-function validationError(error: string, code: string) {
+function validationError(error: string, code: string, status = 400) {
   return NextResponse.json(
     { ok: false, error, code },
-    { status: 400, headers: NO_STORE_HEADERS },
+    { status, headers: NO_STORE_HEADERS },
   );
+}
+
+async function findExistingStayDeviceSurvey(input: {
+  stayId: string;
+  stayDeviceId: string;
+}) {
+  const { data, error } = await supabaseAdmin
+    .from("guest_surveys")
+    .select("id")
+    .eq("stay_id", input.stayId)
+    .eq("stay_device_id", input.stayDeviceId)
+    .eq("survey_type", "day3_guest_survey")
+    .order("guest_submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return { data, error };
 }
 
 export async function POST(req: NextRequest) {
@@ -47,6 +69,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();
     const room = normalizeRoomNumber(body?.room);
+    const stayId = String(body?.stayId || "").trim();
+    const stayDeviceId = String(body?.stayDeviceId || "").trim();
+    const launchSource = normalizeSurveyText(body?.launchSource, 40) || "automatic";
     const rating = normalizeRating(body?.rating);
     const selectedCategories = normalizeSurveyCategories(body?.selectedCategories);
     const improvementText = normalizeSurveyText(body?.improvementText, 1000);
@@ -55,13 +80,11 @@ export async function POST(req: NextRequest) {
     const resolutionNote = normalizeSurveyText(body?.resolutionNote, 1000);
     const language = String(body?.language || body?.guestLanguage || "bg").trim().toLowerCase().slice(0, 8) || "bg";
     const surveyVersion = normalizeSurveyText(body?.surveyVersion, 40) || DAY3_SURVEY_VERSION;
-    const targetDateKey = normalizeSurveyText(body?.targetDateKey, 20) || null;
-    const firstConfirmedDateKey = normalizeSurveyText(body?.firstConfirmedDateKey, 20) || null;
 
-    if (!hotelSlug || !room || rating === null) {
-      return NextResponse.json(
-        { ok: false, error: "Missing hotelSlug, room or rating" },
-        { status: 400, headers: NO_STORE_HEADERS },
+    if (!hotelSlug || !room || !stayId || !stayDeviceId || rating === null) {
+      return validationError(
+        "Missing hotelSlug, room, stay identity or rating",
+        "MISSING_SURVEY_IDENTITY",
       );
     }
 
@@ -93,49 +116,65 @@ export async function POST(req: NextRequest) {
         roomNumber: room,
         metadata: { hotelSlug, rating, code: roomValidation.error },
       });
-      return NextResponse.json(
-        { ok: false, error: roomValidation.error, code: "INVALID_ROOM" },
-        { status: 400, headers: NO_STORE_HEADERS },
-      );
-    }
-
-    if (targetDateKey) {
-      const { data: existingSurvey, error: existingSurveyError } = await supabaseAdmin
-        .from("guest_surveys")
-        .select("id")
-        .eq("hotel_id", hotel.id)
-        .eq("room_number", room)
-        .eq("survey_type", "day3_guest_survey")
-        .eq("survey_version", surveyVersion)
-        .eq("target_date_key", targetDateKey)
-        .order("guest_submitted_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (existingSurveyError) {
-        await logSystemError({
-          hotelId: hotel.id,
-          source: "survey",
-          eventType: "day3_survey_duplicate_check_failed",
-          message: "Day 3 survey duplicate protection could not verify an existing response.",
-          roomNumber: room,
-          error: existingSurveyError,
-          metadata: { hotelSlug, surveyVersion, targetDateKey },
-        });
-      } else if (existingSurvey?.id) {
-        return NextResponse.json(
-          { ok: true, survey: { id: existingSurvey.id }, duplicate: true },
-          { headers: NO_STORE_HEADERS },
-        );
-      }
+      return validationError(roomValidation.error, "INVALID_ROOM");
     }
 
     const testRoomPolicy = await getTestRoomPolicy(hotel.id, room);
     const isolationFields = getOperationalIsolationFields({ hotel, testRoomPolicy });
     const isolationMetadata = getOperationalIsolationMetadata({ hotel, testRoomPolicy });
     const suppressLivePush = shouldSuppressLivePush({ hotel, testRoomPolicy });
+
+    const stayIdentity = await validateGuestStayIdentity({
+      hotelId: hotel.id,
+      room,
+      stayId,
+      stayDeviceId,
+    });
+    if (!stayIdentity) {
+      return validationError("A confirmed stay is required.", "STAY_REQUIRED", 401);
+    }
+
+    const checkInDate = String(stayIdentity.stay.check_in_date || "");
+    const checkOutDate = String(stayIdentity.stay.check_out_date || "");
+    const targetDateKey = addDaysToStayDateKey(checkInDate, 2);
+    const firstConfirmedDateKey = checkInDate;
     const timezone = String(body?.hotelTimezone || roomValidation.timezone || "Europe/Sofia").trim() || "Europe/Sofia";
     const submittedAt = new Date();
+    const hotelNow = getHotelTimeParts(timezone, submittedAt);
+    const insideSurveyWindow = isDateInsideGuestSurveyWindow({
+      checkInDate,
+      checkOutDate,
+      hotelDateKey: hotelNow.dateKey,
+      hotelMinutes: hotelNow.minutes,
+    });
+    const allowSandboxForce = launchSource === "manual_force" && Boolean(hotel.is_sandbox || isolationFields.is_test);
+
+    if (!insideSurveyWindow && !allowSandboxForce) {
+      return validationError(
+        "The mid-stay survey is not active for this stay today.",
+        "SURVEY_NOT_ACTIVE",
+        409,
+      );
+    }
+
+    const existing = await findExistingStayDeviceSurvey({ stayId, stayDeviceId });
+    if (existing.error) {
+      await logSystemError({
+        hotelId: hotel.id,
+        source: "survey",
+        eventType: "day3_survey_duplicate_check_failed",
+        message: "Day 3 survey duplicate protection could not verify an existing response.",
+        roomNumber: room,
+        error: existing.error,
+        metadata: { hotelSlug, surveyVersion, targetDateKey, stayId, stayDeviceId },
+      });
+    } else if (existing.data?.id) {
+      return NextResponse.json(
+        { ok: true, survey: { id: existing.data.id }, duplicate: true },
+        { headers: NO_STORE_HEADERS },
+      );
+    }
+
     const { hotelDateKey, activeUntil } = calculateSurveyActiveUntil(submittedAt, timezone);
     const [improvementTranslations, problemTranslations, resolutionNoteTranslations] = await Promise.all([
       translateGuestTextToStaffLanguages(improvementText, {
@@ -155,61 +194,82 @@ export async function POST(req: NextRequest) {
       }),
     ]);
 
-    const { data, error } = await supabaseAdmin
-      .from("guest_surveys")
-      .insert({
-        hotel_id: hotel.id,
-        room_number: room,
-        survey_type: "day3_guest_survey",
-        rating,
-        selected_categories: selectedCategories,
-        improvement_text: improvementText,
-        improvement_text_original: improvementText || null,
+    const insertPayload = {
+      hotel_id: hotel.id,
+      room_number: room,
+      stay_id: stayId,
+      stay_device_id: stayDeviceId,
+      check_in_date: checkInDate,
+      check_out_date: checkOutDate,
+      survey_type: "day3_guest_survey",
+      rating,
+      selected_categories: selectedCategories,
+      improvement_text: improvementText,
+      improvement_text_original: improvementText || null,
+      improvement_text_bg: improvementTranslations.bg || null,
+      improvement_text_en: improvementTranslations.en || null,
+      improvement_text_de: improvementTranslations.de || null,
+      problem_text: problemText,
+      problem_text_original: problemText || null,
+      problem_text_bg: problemTranslations.bg || null,
+      problem_text_en: problemTranslations.en || null,
+      problem_text_de: problemTranslations.de || null,
+      resolution_status: resolutionStatus,
+      resolution_note: resolutionNote,
+      resolution_note_original: resolutionNote || null,
+      resolution_note_bg: resolutionNoteTranslations.bg || null,
+      resolution_note_en: resolutionNoteTranslations.en || null,
+      resolution_note_de: resolutionNoteTranslations.de || null,
+      language,
+      survey_version: surveyVersion,
+      hotel_date_key: hotelDateKey,
+      target_date_key: targetDateKey,
+      first_confirmed_date_key: firstConfirmedDateKey,
+      guest_submitted_at: submittedAt.toISOString(),
+      active_until: activeUntil,
+      manager_read_at: null,
+      ...isolationFields,
+      metadata_json: {
+        ...isolationMetadata,
+        hotelTimezone: timezone,
+        source: "guest_hub",
+        launchSource,
+        stayId,
+        stayDeviceId,
+        checkInDate,
+        checkOutDate,
         improvement_text_bg: improvementTranslations.bg || null,
         improvement_text_en: improvementTranslations.en || null,
         improvement_text_de: improvementTranslations.de || null,
-        problem_text: problemText,
-        problem_text_original: problemText || null,
         problem_text_bg: problemTranslations.bg || null,
         problem_text_en: problemTranslations.en || null,
         problem_text_de: problemTranslations.de || null,
-        resolution_status: resolutionStatus,
-        resolution_note: resolutionNote,
-        resolution_note_original: resolutionNote || null,
         resolution_note_bg: resolutionNoteTranslations.bg || null,
         resolution_note_en: resolutionNoteTranslations.en || null,
         resolution_note_de: resolutionNoteTranslations.de || null,
-        language,
-        survey_version: surveyVersion,
-        hotel_date_key: hotelDateKey,
-        target_date_key: targetDateKey,
-        first_confirmed_date_key: firstConfirmedDateKey,
-        guest_submitted_at: submittedAt.toISOString(),
-        active_until: activeUntil,
-        manager_read_at: null,
-        ...isolationFields,
-        metadata_json: {
-          ...isolationMetadata,
-          hotelTimezone: timezone,
-          source: "guest_hub",
-          improvement_text_bg: improvementTranslations.bg || null,
-          improvement_text_en: improvementTranslations.en || null,
-          improvement_text_de: improvementTranslations.de || null,
-          problem_text_bg: problemTranslations.bg || null,
-          problem_text_en: problemTranslations.en || null,
-          problem_text_de: problemTranslations.de || null,
-          resolution_note_bg: resolutionNoteTranslations.bg || null,
-          resolution_note_en: resolutionNoteTranslations.en || null,
-          resolution_note_de: resolutionNoteTranslations.de || null,
-          original_language: language,
-          reception_read_at: null,
-          reception_read_by: null,
-        },
-      })
+        original_language: language,
+        reception_read_at: null,
+        reception_read_by: null,
+      },
+    };
+
+    let { data, error } = await supabaseAdmin
+      .from("guest_surveys")
+      .insert(insertPayload)
       .select(
         "id, hotel_id, room_number, survey_type, rating, selected_categories, improvement_text, improvement_text_original, improvement_text_bg, improvement_text_en, improvement_text_de, problem_text, problem_text_original, problem_text_bg, problem_text_en, problem_text_de, resolution_status, resolution_note, resolution_note_original, resolution_note_bg, resolution_note_en, resolution_note_de, language, survey_version, hotel_date_key, target_date_key, first_confirmed_date_key, guest_submitted_at, active_until, manager_read_at, is_test, test_expires_at, metadata_json, created_at",
       )
       .single();
+
+    if (error?.code === "23505") {
+      const duplicate = await findExistingStayDeviceSurvey({ stayId, stayDeviceId });
+      if (duplicate.data?.id) {
+        return NextResponse.json(
+          { ok: true, survey: { id: duplicate.data.id }, duplicate: true },
+          { headers: NO_STORE_HEADERS },
+        );
+      }
+    }
 
     if (error || !data) {
       console.error("guest day3 survey insert error", error);
@@ -221,7 +281,7 @@ export async function POST(req: NextRequest) {
         message: "Day 3 survey could not be inserted in Supabase.",
         roomNumber: room,
         error: error || new Error("No guest survey row returned after insert."),
-        metadata: { hotelSlug, rating, selectedCategories, language, surveyVersion, targetDateKey },
+        metadata: { hotelSlug, rating, selectedCategories, language, surveyVersion, targetDateKey, stayId, stayDeviceId },
       });
       return NextResponse.json(
         { ok: false, error: error?.message || "Failed to save survey" },
@@ -233,13 +293,13 @@ export async function POST(req: NextRequest) {
 
     if (!suppressLivePush) {
       await sendManagerPushNotification({
-      hotelId: hotel.id,
-      hotelSlug: hotel.slug,
-      requestId: `survey-${survey.id}`,
-      room,
-      requestTitle: `Анкета Ден 3 · оценка ${rating}/5`,
-      notificationTitle: "StayHub — Нова анкета",
-      notificationUrl: `/staff/${hotel.slug}/manager?source=push&survey=${encodeURIComponent(survey.id)}`,
+        hotelId: hotel.id,
+        hotelSlug: hotel.slug,
+        requestId: `survey-${survey.id}`,
+        room,
+        requestTitle: `Анкета Ден 3 · оценка ${rating}/5`,
+        notificationTitle: "StayHub — Нова анкета",
+        notificationUrl: `/staff/${hotel.slug}/manager?source=push&survey=${encodeURIComponent(survey.id)}`,
       }).catch(async (pushError) => {
         console.error("Manager survey push notification failed", pushError);
         await logSystemError({
@@ -251,18 +311,12 @@ export async function POST(req: NextRequest) {
           departmentId: "manager",
           surveyId: survey.id,
           error: pushError,
-          metadata: { hotelSlug, rating, surveyVersion },
+          metadata: { hotelSlug, rating, surveyVersion, stayId, stayDeviceId },
         });
       });
     }
 
-    return NextResponse.json(
-      {
-        ok: true,
-        survey,
-      },
-      { headers: NO_STORE_HEADERS },
-    );
+    return NextResponse.json({ ok: true, survey }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error("guest day3 survey POST error", error);
     await logSystemError({

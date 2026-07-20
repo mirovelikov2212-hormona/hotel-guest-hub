@@ -8,10 +8,13 @@ import type { StaffDepartment, StaffRequestStatus } from "@/lib/staff/types";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
+import { applyLateCheckoutDecision } from "@/lib/server/guest-stays";
 
 type GuestRequestRow = {
   id: string;
   hotel_id: string;
+  stay_id?: string | null;
+  stay_device_id?: string | null;
   status: StaffRequestStatus;
   room_number_snapshot?: string | null;
   is_test?: boolean | null;
@@ -27,6 +30,7 @@ type GuestRequestRow = {
     billingChargedByRole?: string | null;
     billingUpdatedAt?: string | null;
     billingUpdatedByRole?: string | null;
+    [key: string]: unknown;
   } | null;
 };
 
@@ -163,7 +167,7 @@ export async function POST(req: NextRequest) {
 
     const { data: requestRow, error: requestError } = await supabaseAdmin
       .from("guest_requests")
-      .select("id, hotel_id, status, metadata_json, request_type, room_number_snapshot, is_test, test_expires_at")
+      .select("id, hotel_id, stay_id, stay_device_id, status, metadata_json, request_type, room_number_snapshot, is_test, test_expires_at")
       .eq("id", requestId)
       .eq("hotel_id", scope.hotelId)
       .maybeSingle();
@@ -238,6 +242,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let lateCheckoutUpdate: Awaited<ReturnType<typeof applyLateCheckoutDecision>> | null = null;
+    if (status === "completed") {
+      lateCheckoutUpdate = await applyLateCheckoutDecision({
+        hotelId: scope.hotelId,
+        requestId,
+        room: requestData.room_number_snapshot,
+        requestType: requestData.request_type,
+        metadata: (payload.metadata_json as Record<string, unknown> | undefined) ?? requestData.metadata_json,
+        stayId: requestData.stay_id,
+        decision: "approved",
+      });
+    }
+
     const lifecycleEvents: Array<Record<string, unknown>> = [];
     const hotelSlugForEvents = scope.hotelSlug;
     const hotelAlias = scope.hotelAlias;
@@ -253,6 +270,8 @@ export async function POST(req: NextRequest) {
         scan_session_id: null,
         room_id: null,
         room_number: roomNumber,
+        stay_id: requestData.stay_id ?? null,
+        stay_device_id: requestData.stay_device_id ?? null,
         user_session_id: null,
         event_name: "request_seen_by_staff",
         section: department ?? role,
@@ -266,6 +285,8 @@ export async function POST(req: NextRequest) {
           previousStatus: requestData.status,
           nextStatus: status,
           serviceTime: serviceTime ?? null,
+          lateCheckoutStayUpdated: Boolean(lateCheckoutUpdate?.updated),
+          lateCheckoutEffectiveCheckOutAt: lateCheckoutUpdate?.updated ? lateCheckoutUpdate.effectiveCheckOutAt : null,
         },
       });
     }
@@ -280,6 +301,8 @@ export async function POST(req: NextRequest) {
         scan_session_id: null,
         room_id: null,
         room_number: roomNumber,
+        stay_id: requestData.stay_id ?? null,
+        stay_device_id: requestData.stay_device_id ?? null,
         user_session_id: null,
         event_name: lifecycleEventName,
         section: department ?? role,
@@ -293,6 +316,8 @@ export async function POST(req: NextRequest) {
           previousStatus: requestData.status,
           nextStatus: status,
           serviceTime: serviceTime ?? null,
+          lateCheckoutStayUpdated: Boolean(lateCheckoutUpdate?.updated),
+          lateCheckoutEffectiveCheckOutAt: lateCheckoutUpdate?.updated ? lateCheckoutUpdate.effectiveCheckOutAt : null,
         },
       });
     }
@@ -306,6 +331,8 @@ export async function POST(req: NextRequest) {
         scan_session_id: null,
         room_id: null,
         room_number: roomNumber,
+        stay_id: requestData.stay_id ?? null,
+        stay_device_id: requestData.stay_device_id ?? null,
         user_session_id: null,
         event_name: "request_billing_charged",
         section: role,
@@ -334,7 +361,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, lateCheckout: lateCheckoutUpdate });
   } catch (error) {
     console.error("staff request-status POST error", error);
     return NextResponse.json(

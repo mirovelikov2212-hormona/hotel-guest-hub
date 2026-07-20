@@ -186,6 +186,8 @@ export async function POST(request: NextRequest) {
       room_confirmed: Boolean(body.roomConfirmed),
       page_path: normalizeText(body.pagePath ?? body.page),
       request_id: normalizeText(body.requestId),
+      stay_id: normalizeText(body.stayId),
+      stay_device_id: normalizeText(body.stayDeviceId),
       metadata_json: {
         ...(body.metadata ?? {}),
         ...getTestDataMetadata(testRoomPolicy),

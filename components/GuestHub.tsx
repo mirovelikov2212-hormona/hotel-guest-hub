@@ -227,6 +227,14 @@ import MassageBookingSection, {
 import Day3GuestSurvey from "@/components/Day3GuestSurvey";
 import GuestSurveyPushControls from "@/components/GuestSurveyPushControls";
 import {
+  GUEST_STAY_DEVICE_STORAGE_KEY,
+  addDaysToStayDateKey,
+  getStayLengthNights,
+  normalizeLateCheckoutTime,
+  normalizeStayDateKey,
+  type GuestStaySummary,
+} from "@/lib/guest-stays/shared";
+import {
   buildWhatsAppLink,
   isAfterCutoffLocal,
   isWithinHoursLocal,
@@ -1397,12 +1405,19 @@ type GuestRequestSubmissionInput = {
   price?: string;
   currency?: string;
   sourceRequestDef?: string;
+  lateCheckoutRequestedTime?: string;
 };
 
 type StoredGuestRoomState = {
   manualRoomInput: string;
   room: string;
   roomConfirmed: boolean;
+  checkInDate: string;
+  checkOutDate: string;
+  stayId: string;
+  stayDeviceId: string;
+  deviceToken: string;
+  effectiveCheckOutAt: string;
 };
 
 const GUEST_REQUEST_REFS_STORAGE_KEY = "guesthub_guest_request_refs";
@@ -1426,6 +1441,12 @@ function readStoredGuestRoomState(hotelSlug: string): StoredGuestRoomState | nul
       manualRoomInput: typeof candidate.manualRoomInput === "string" ? candidate.manualRoomInput : "",
       room: typeof candidate.room === "string" ? candidate.room : "",
       roomConfirmed: Boolean(candidate.roomConfirmed),
+      checkInDate: normalizeStayDateKey(candidate.checkInDate),
+      checkOutDate: normalizeStayDateKey(candidate.checkOutDate),
+      stayId: typeof candidate.stayId === "string" ? candidate.stayId : "",
+      stayDeviceId: typeof candidate.stayDeviceId === "string" ? candidate.stayDeviceId : "",
+      deviceToken: typeof candidate.deviceToken === "string" ? candidate.deviceToken : "",
+      effectiveCheckOutAt: typeof candidate.effectiveCheckOutAt === "string" ? candidate.effectiveCheckOutAt : "",
     };
   } catch {
     return null;
@@ -1443,6 +1464,32 @@ function writeStoredGuestRoomState(hotelSlug: string, state: StoredGuestRoomStat
   } catch (error) {
     console.error("writeStoredGuestRoomState failed", error);
   }
+}
+
+function getOrCreateGuestStayDeviceToken() {
+  if (typeof window === "undefined") return "";
+  try {
+    const existing = String(window.localStorage.getItem(GUEST_STAY_DEVICE_STORAGE_KEY) || "").trim();
+    if (existing) return existing;
+    const next = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `staydev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+    window.localStorage.setItem(GUEST_STAY_DEVICE_STORAGE_KEY, next);
+    return next;
+  } catch {
+    return `staydev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+  }
+}
+
+function getDateKeyInClientTimezone(timezone: string, date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone || "Europe/Sofia",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day}`;
 }
 
 function readStoredGuestRequestRefs(): StoredGuestRequestRef[] {
@@ -2546,6 +2593,14 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const [manualRoomInput, setManualRoomInput] = useState(qrRoom);
   const [room, setRoom] = useState("");
   const [roomConfirmed, setRoomConfirmed] = useState(false);
+  const [checkInDate, setCheckInDate] = useState("");
+  const [checkOutDate, setCheckOutDate] = useState("");
+  const [activeStayId, setActiveStayId] = useState("");
+  const [stayDeviceId, setStayDeviceId] = useState("");
+  const [stayDeviceToken, setStayDeviceToken] = useState("");
+  const [effectiveCheckOutAt, setEffectiveCheckOutAt] = useState("");
+  const [stayConfirming, setStayConfirming] = useState(false);
+  const stayExpiredNotifiedRef = useRef(false);
   const [ignoredQrRoom, setIgnoredQrRoom] = useState<string | null>(null);
   const [roomModal, setRoomModal] = useState<{
     mode: "confirm" | "switch";
@@ -2627,12 +2682,34 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
     const storedRoomState = readStoredGuestRoomState(roomStateKey);
     const storedRoom = normalizeRoomNumber(storedRoomState?.room);
-    const storedConfirmed = Boolean(storedRoomState?.roomConfirmed);
+    const storedCheckInDate = normalizeStayDateKey(storedRoomState?.checkInDate);
+    const storedCheckOutDate = normalizeStayDateKey(storedRoomState?.checkOutDate);
+    const storedStayId = String(storedRoomState?.stayId || "").trim();
+    const storedStayDeviceId = String(storedRoomState?.stayDeviceId || "").trim();
+    const storedDeviceToken = String(storedRoomState?.deviceToken || "").trim() || getOrCreateGuestStayDeviceToken();
+    const hasCompleteStay = Boolean(
+      storedRoomState?.roomConfirmed &&
+      storedRoom &&
+      storedCheckInDate &&
+      storedCheckOutDate &&
+      storedStayId &&
+      storedStayDeviceId &&
+      storedDeviceToken
+    );
 
-    if (storedConfirmed && storedRoom && !isKnownHotelRoom(storedRoom)) {
+    setCheckInDate(storedCheckInDate);
+    setCheckOutDate(storedCheckOutDate);
+    setActiveStayId(storedStayId);
+    setStayDeviceId(storedStayDeviceId);
+    setStayDeviceToken(storedDeviceToken);
+    setEffectiveCheckOutAt(String(storedRoomState?.effectiveCheckOutAt || ""));
+
+    if (hasCompleteStay && !isKnownHotelRoom(storedRoom)) {
       setManualRoomInput("");
       setRoom("");
       setRoomConfirmed(false);
+      setActiveStayId("");
+      setStayDeviceId("");
       setIgnoredQrRoom(null);
       setRoomModal(null);
       setRoomStateHydrated(true);
@@ -2640,12 +2717,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     }
 
     if (!qrRoom) {
-      if (storedConfirmed && storedRoom) {
+      if (hasCompleteStay) {
         setManualRoomInput(storedRoom);
         setRoom(storedRoom);
         setRoomConfirmed(true);
       } else {
-        setManualRoomInput("");
+        setManualRoomInput(storedRoom || "");
         setRoom("");
         setRoomConfirmed(false);
       }
@@ -2656,7 +2733,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       return;
     }
 
-    if (storedConfirmed && storedRoom && storedRoom !== qrRoom) {
+    if (hasCompleteStay && storedRoom !== qrRoom) {
       setManualRoomInput(storedRoom);
       setRoom(storedRoom);
       setRoomConfirmed(true);
@@ -2676,7 +2753,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       return;
     }
 
-    if (storedConfirmed && storedRoom === qrRoom) {
+    if (hasCompleteStay && storedRoom === qrRoom) {
       setManualRoomInput(qrRoom);
       setRoom(qrRoom);
       setRoomConfirmed(true);
@@ -2686,15 +2763,16 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       return;
     }
 
+    // A room number from the QR is only a prefill. The guest must still enter
+    // the stay dates so the device can be linked to the correct hotel stay.
     setManualRoomInput(qrRoom);
     setRoom("");
     setRoomConfirmed(false);
+    setActiveStayId("");
+    setStayDeviceId("");
+    setEffectiveCheckOutAt("");
     setIgnoredQrRoom(null);
-    setRoomModal({
-      mode: "confirm",
-      nextRoom: qrRoom,
-      source: "url_param",
-    });
+    setRoomModal(null);
     setRoomStateHydrated(true);
   }, [roomStateKey, qrRoom, ignoredQrRoom, isKnownHotelRoom]);
 
@@ -2721,9 +2799,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       roomConfirmed: payload.roomConfirmed ?? (roomConfirmed && Boolean(room)),
       roomSource: payload.roomSource ?? (roomConfirmed && room ? "confirmed" : undefined),
       language: payload.language ?? String(lang),
+      stayId: (payload.stayId ?? activeStayId) || undefined,
+      stayDeviceId: (payload.stayDeviceId ?? stayDeviceId) || undefined,
       page: payload.page ?? (typeof window !== "undefined" ? window.location.pathname + window.location.search : undefined),
     });
-  }, [lang, room, roomConfirmed]);
+  }, [activeStayId, lang, room, roomConfirmed, stayDeviceId]);
 
   useEffect(() => {
     if (!roomModal?.nextRoom) return;
@@ -2758,8 +2838,27 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       manualRoomInput,
       room,
       roomConfirmed,
+      checkInDate,
+      checkOutDate,
+      stayId: activeStayId,
+      stayDeviceId,
+      deviceToken: stayDeviceToken,
+      effectiveCheckOutAt,
     });
-  }, [roomStateKey, roomStateHydrated, manualRoomInput, room, roomConfirmed, roomModal]);
+  }, [
+    activeStayId,
+    checkInDate,
+    checkOutDate,
+    effectiveCheckOutAt,
+    manualRoomInput,
+    room,
+    roomConfirmed,
+    roomModal,
+    roomStateHydrated,
+    roomStateKey,
+    stayDeviceId,
+    stayDeviceToken,
+  ]);
 
   const [guestRequests, setGuestRequests] = useState<GuestStatusItem[]>([]);
   const [guestRequestsLoading, setGuestRequestsLoading] = useState(false);
@@ -2818,6 +2917,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       rawConfig.hotelTimezone ??
       "Europe/Sofia"
   ).trim() || "Europe/Sofia";
+
+  const hotelTodayDateKey = getDateKeyInClientTimezone(hotelTimezone);
+
 
   const [weatherData, setWeatherData] = useState<GuestWeatherPayload | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
@@ -2998,6 +3100,156 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const helperEnabled = Boolean(config.staffHelperEnabled);
   const helperLang = (config.staffHelperLanguage ?? "en") as LangKey;
   const tHELP = useCallback((key: string) => translateFromI18n(helperLang, key), [helperLang, translateFromI18n]);
+
+  const stayCopy = useMemo(() => {
+    const copy = {
+      bg: {
+        checkInLabel: "Дата на настаняване",
+        checkOutLabel: "Дата на напускане",
+        stayHelp: "Настаняване след 15:00 · Напускане до 12:00",
+        missingDates: "Моля, въведете датите на настаняване и напускане.",
+        invalidDates: "Датата на напускане трябва да е след датата на настаняване.",
+        currentStayOnly: "Въведете датите на текущия си престой.",
+        stayTooLong: "Проверете датите на престоя. Максималният период е 30 нощувки.",
+        confirmLine: "Престой: {checkIn} – {checkOut}",
+        confirmedLine: "{checkIn} – {checkOut}",
+        confirming: "Потвърждаване…",
+        confirmFailed: "Престоят не беше потвърден. Моля, проверете данните и опитайте отново.",
+        expired: "Предишният престой е приключил. Моля, въведете данните за текущия престой.",
+      },
+      en: {
+        checkInLabel: "Check-in date",
+        checkOutLabel: "Check-out date",
+        stayHelp: "Check-in after 15:00 · Check-out by 12:00",
+        missingDates: "Please enter your check-in and check-out dates.",
+        invalidDates: "The check-out date must be after the check-in date.",
+        currentStayOnly: "Please enter the dates of your current stay.",
+        stayTooLong: "Please check the stay dates. The maximum period is 30 nights.",
+        confirmLine: "Stay: {checkIn} – {checkOut}",
+        confirmedLine: "{checkIn} – {checkOut}",
+        confirming: "Confirming…",
+        confirmFailed: "The stay could not be confirmed. Please check the details and try again.",
+        expired: "The previous stay has ended. Please enter the details of the current stay.",
+      },
+      de: {
+        checkInLabel: "Anreisedatum",
+        checkOutLabel: "Abreisedatum",
+        stayHelp: "Check-in ab 15:00 · Check-out bis 12:00",
+        missingDates: "Bitte geben Sie Anreise- und Abreisedatum ein.",
+        invalidDates: "Das Abreisedatum muss nach dem Anreisedatum liegen.",
+        currentStayOnly: "Bitte geben Sie die Daten Ihres aktuellen Aufenthalts ein.",
+        stayTooLong: "Bitte prüfen Sie die Aufenthaltsdaten. Maximal sind 30 Nächte möglich.",
+        confirmLine: "Aufenthalt: {checkIn} – {checkOut}",
+        confirmedLine: "{checkIn} – {checkOut}",
+        confirming: "Wird bestätigt…",
+        confirmFailed: "Der Aufenthalt konnte nicht bestätigt werden. Bitte prüfen Sie die Angaben.",
+        expired: "Der vorherige Aufenthalt ist beendet. Bitte geben Sie die Daten des aktuellen Aufenthalts ein.",
+      },
+      ro: {
+        checkInLabel: "Data sosirii",
+        checkOutLabel: "Data plecării",
+        stayHelp: "Cazare după 15:00 · Eliberare până la 12:00",
+        missingDates: "Introduceți datele sosirii și plecării.",
+        invalidDates: "Data plecării trebuie să fie după data sosirii.",
+        currentStayOnly: "Introduceți datele sejurului curent.",
+        stayTooLong: "Verificați datele sejurului. Perioada maximă este de 30 de nopți.",
+        confirmLine: "Sejur: {checkIn} – {checkOut}",
+        confirmedLine: "{checkIn} – {checkOut}",
+        confirming: "Se confirmă…",
+        confirmFailed: "Sejurul nu a putut fi confirmat. Verificați datele și încercați din nou.",
+        expired: "Sejurul anterior s-a încheiat. Introduceți datele sejurului curent.",
+      },
+      cs: {
+        checkInLabel: "Datum příjezdu",
+        checkOutLabel: "Datum odjezdu",
+        stayHelp: "Ubytování po 15:00 · Odjezd do 12:00",
+        missingDates: "Zadejte datum příjezdu a odjezdu.",
+        invalidDates: "Datum odjezdu musí být po datu příjezdu.",
+        currentStayOnly: "Zadejte data aktuálního pobytu.",
+        stayTooLong: "Zkontrolujte data pobytu. Maximální délka je 30 nocí.",
+        confirmLine: "Pobyt: {checkIn} – {checkOut}",
+        confirmedLine: "{checkIn} – {checkOut}",
+        confirming: "Potvrzování…",
+        confirmFailed: "Pobyt se nepodařilo potvrdit. Zkontrolujte údaje a zkuste to znovu.",
+        expired: "Předchozí pobyt skončil. Zadejte údaje aktuálního pobytu.",
+      },
+      ru: {
+        checkInLabel: "Дата заезда",
+        checkOutLabel: "Дата выезда",
+        stayHelp: "Заселение после 15:00 · Выезд до 12:00",
+        missingDates: "Введите даты заезда и выезда.",
+        invalidDates: "Дата выезда должна быть позже даты заезда.",
+        currentStayOnly: "Введите даты текущего проживания.",
+        stayTooLong: "Проверьте даты проживания. Максимальный срок — 30 ночей.",
+        confirmLine: "Проживание: {checkIn} – {checkOut}",
+        confirmedLine: "{checkIn} – {checkOut}",
+        confirming: "Подтверждение…",
+        confirmFailed: "Не удалось подтвердить проживание. Проверьте данные и повторите попытку.",
+        expired: "Предыдущее проживание завершено. Введите данные текущего проживания.",
+      },
+    } as const;
+    return copy[lang as keyof typeof copy] || copy.en;
+  }, [lang]);
+
+  useEffect(() => {
+    if (!roomStateHydrated || !roomConfirmed || !activeStayId || !stayDeviceId || !stayDeviceToken) return;
+
+    let cancelled = false;
+    const refreshStay = async () => {
+      try {
+        const response = await fetch("/api/guest/stay/status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+          body: JSON.stringify({
+            hotelSlug: String(config.hotelSlug || roomStateKey || "aquamarin"),
+            stayId: activeStayId,
+            stayDeviceId,
+            deviceToken: stayDeviceToken,
+          }),
+        });
+        const payload = await response.json().catch(() => null) as { ok?: boolean; stay?: GuestStaySummary } | null;
+        if (cancelled || !response.ok || !payload?.ok || !payload.stay) return;
+
+        setEffectiveCheckOutAt(payload.stay.effectiveCheckOutAt);
+        if (payload.stay.active) return;
+
+        setRoomConfirmed(false);
+        setRoom("");
+        setActiveStayId("");
+        setStayDeviceId("");
+        setEffectiveCheckOutAt("");
+        setManualRoomInput(qrRoom || "");
+        if (!stayExpiredNotifiedRef.current) {
+          stayExpiredNotifiedRef.current = true;
+          window.alert(stayCopy.expired);
+        }
+      } catch (error) {
+        console.error("guest stay status refresh failed", error);
+      }
+    };
+
+    void refreshStay();
+    const handleFocus = () => void refreshStay();
+    const interval = window.setInterval(() => void refreshStay(), 5 * 60_000);
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [
+    activeStayId,
+    config.hotelSlug,
+    qrRoom,
+    roomConfirmed,
+    roomStateHydrated,
+    roomStateKey,
+    stayCopy.expired,
+    stayDeviceId,
+    stayDeviceToken,
+  ]);
+
 
   const roomCopy = useMemo(() => {
     const copy = {
@@ -3457,6 +3709,32 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     return false;
   };
 
+  const validateGuestStayDates = useCallback(() => {
+    const normalizedCheckIn = normalizeStayDateKey(checkInDate);
+    const normalizedCheckOut = normalizeStayDateKey(checkOutDate);
+
+    if (!normalizedCheckIn || !normalizedCheckOut) {
+      window.alert(stayCopy.missingDates);
+      return null;
+    }
+
+    const nights = getStayLengthNights(normalizedCheckIn, normalizedCheckOut);
+    if (nights < 1) {
+      window.alert(stayCopy.invalidDates);
+      return null;
+    }
+    if (nights > 30) {
+      window.alert(stayCopy.stayTooLong);
+      return null;
+    }
+    if (normalizedCheckIn > hotelTodayDateKey || normalizedCheckOut < hotelTodayDateKey) {
+      window.alert(stayCopy.currentStayOnly);
+      return null;
+    }
+
+    return { checkInDate: normalizedCheckIn, checkOutDate: normalizedCheckOut };
+  }, [checkInDate, checkOutDate, hotelTodayDateKey, stayCopy]);
+
   const confirmManualRoom = async () => {
     const candidate = normalizeRoomNumber(manualRoomInput);
 
@@ -3474,12 +3752,14 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       return;
     }
 
+    if (!validateGuestStayDates()) return;
+
     setManualRoomInput(candidate);
     setGeoMessage(null);
 
     const storedRoomState = readStoredGuestRoomState(roomStateKey);
     const storedRoom = normalizeRoomNumber(storedRoomState?.room);
-    const storedConfirmed = Boolean(storedRoomState?.roomConfirmed);
+    const storedConfirmed = Boolean(storedRoomState?.roomConfirmed && storedRoomState?.stayId);
 
     const activeRoom = normalizeRoomNumber(room || storedRoom);
     const hasConfirmedActiveRoom = Boolean((roomConfirmed || storedConfirmed) && activeRoom);
@@ -3508,10 +3788,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const isRoomSwitchConfirmation = roomModal?.mode === "switch";
 
-  const acceptRoomConfirmation = () => {
-    if (!roomModal?.nextRoom) return;
+  const acceptRoomConfirmation = async () => {
+    if (!roomModal?.nextRoom || stayConfirming) return;
 
     const nextRoom = normalizeRoomNumber(roomModal.nextRoom);
+    const dates = validateGuestStayDates();
+    if (!dates) return;
 
     if (!isKnownHotelRoom(nextRoom)) {
       window.alert(roomCopy.invalidRoomAlert);
@@ -3523,46 +3805,84 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       return;
     }
 
-    const previousRoom = roomModal.currentRoom || pendingRoomChangeFrom;
-    const isRoomChange = Boolean(previousRoom && previousRoom !== nextRoom);
+    const deviceToken = stayDeviceToken || getOrCreateGuestStayDeviceToken();
+    if (!deviceToken) {
+      window.alert(stayCopy.confirmFailed);
+      return;
+    }
 
-    setIgnoredQrRoom(null);
-    setManualRoomInput(nextRoom);
-    setRoom(nextRoom);
-    setRoomConfirmed(true);
-    setRoomModal(null);
-    setPendingRoomChangeFrom(null);
-    setShowRoomSwitchCard(false);
+    try {
+      setStayConfirming(true);
+      const response = await fetch("/api/guest/stay/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hotelSlug: String(config.hotelSlug || hotelContentSlug || "aquamarin"),
+          room: nextRoom,
+          checkInDate: dates.checkInDate,
+          checkOutDate: dates.checkOutDate,
+          deviceToken,
+          language: String(lang),
+        }),
+      });
+      const payload = await response.json().catch(() => null) as { ok?: boolean; stay?: GuestStaySummary; error?: string } | null;
+      if (!response.ok || !payload?.ok || !payload.stay) {
+        throw new Error(payload?.error || "STAY_CONFIRM_FAILED");
+      }
 
-    const confirmedRoomUrl = new URL(window.location.href);
-    confirmedRoomUrl.searchParams.set("room", nextRoom);
+      const confirmedStay = payload.stay;
+      const previousRoom = roomModal.currentRoom || pendingRoomChangeFrom;
+      const isRoomChange = Boolean(previousRoom && previousRoom !== nextRoom);
 
-    window.history.replaceState(
-      window.history.state,
-      "",
-      `${confirmedRoomUrl.pathname}${confirmedRoomUrl.search}${confirmedRoomUrl.hash}`
-    );
+      setIgnoredQrRoom(null);
+      setManualRoomInput(nextRoom);
+      setRoom(nextRoom);
+      setRoomConfirmed(true);
+      setCheckInDate(confirmedStay.checkInDate);
+      setCheckOutDate(confirmedStay.checkOutDate);
+      setActiveStayId(confirmedStay.id);
+      setStayDeviceId(confirmedStay.stayDeviceId);
+      setStayDeviceToken(confirmedStay.deviceToken);
+      setEffectiveCheckOutAt(confirmedStay.effectiveCheckOutAt);
+      setRoomModal(null);
+      setPendingRoomChangeFrom(null);
+      setShowRoomSwitchCard(false);
 
-    trackGuestEvent({
-      eventName: isRoomChange ? "room_changed" : "room_confirmed",
-      eventCategory: "room",
-      section: "room",
-      sectionKey: "room",
-      label: isRoomChange ? "room_changed" : "room_confirmed",
-      value: nextRoom,
-      roomNumber: nextRoom,
-      roomConfirmed: true,
-      roomSource: "confirmed",
-      extra: isRoomChange
-        ? {
-          fromRoom: previousRoom,
+      const confirmedRoomUrl = new URL(window.location.href);
+      confirmedRoomUrl.searchParams.set("room", nextRoom);
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${confirmedRoomUrl.pathname}${confirmedRoomUrl.search}${confirmedRoomUrl.hash}`
+      );
+
+      trackGuestEvent({
+        eventName: isRoomChange ? "room_changed" : "room_confirmed",
+        eventCategory: "room",
+        section: "room",
+        sectionKey: "room",
+        label: isRoomChange ? "room_changed" : "room_confirmed",
+        value: nextRoom,
+        roomNumber: nextRoom,
+        roomConfirmed: true,
+        roomSource: "confirmed",
+        stayId: confirmedStay.id,
+        stayDeviceId: confirmedStay.stayDeviceId,
+        extra: {
+          fromRoom: isRoomChange ? previousRoom : null,
           toRoom: nextRoom,
           modalSource: roomModal.source || null,
-        }
-        : {
-          modalSource: roomModal.source || null,
+          checkInDate: confirmedStay.checkInDate,
+          checkOutDate: confirmedStay.checkOutDate,
+          effectiveCheckOutAt: confirmedStay.effectiveCheckOutAt,
         },
-    });
+      });
+    } catch (error) {
+      console.error("guest stay confirmation failed", error);
+      window.alert(stayCopy.confirmFailed);
+    } finally {
+      setStayConfirming(false);
+    }
   };
 
   const cancelRoomConfirmation = () => {
@@ -5512,6 +5832,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     price,
     currency,
     sourceRequestDef,
+    lateCheckoutRequestedTime,
   }: GuestRequestSubmissionInput) => {
     const roomValue = room.trim();
     const signatureLabel = cleanRequestTitle(typeLabel).toLowerCase() || String(type || "request");
@@ -5586,6 +5907,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         extra: {
           serviceTime,
           sourceRequestDef: sourceRequestDef || null,
+          stayId: activeStayId || null,
+          stayDeviceId: stayDeviceId || null,
+          lateCheckoutRequestedTime: lateCheckoutRequestedTime || null,
         },
       });
 
@@ -5610,6 +5934,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           price,
           currency,
           sourceRequestDef,
+          lateCheckoutRequestedTime: lateCheckoutRequestedTime || null,
+          stayId: activeStayId || null,
+          stayDeviceId: stayDeviceId || null,
           guestLanguage: String(lang),
         }),
       });
@@ -5664,6 +5991,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           requestId: created.id,
           serviceTime,
           sourceRequestDef: sourceRequestDef || null,
+          stayId: activeStayId || null,
+          stayDeviceId: stayDeviceId || null,
+          lateCheckoutRequestedTime: lateCheckoutRequestedTime || null,
         },
       });
 
@@ -5686,6 +6016,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         extra: {
           serviceTime,
           sourceRequestDef: sourceRequestDef || null,
+          stayId: activeStayId || null,
+          stayDeviceId: stayDeviceId || null,
+          lateCheckoutRequestedTime: lateCheckoutRequestedTime || null,
         },
       });
       delete recentSubmissionRef.current[signature];
@@ -5973,9 +6306,17 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           },
         });
 
+        const lateCheckoutRequestedTime = input.lateCheckoutRequestedTime || (
+          normalizedType.toLowerCase() === "late_checkout" ||
+          String(input.sourceRequestDef || "").trim().toLowerCase() === "late_checkout"
+            ? normalizeLateCheckoutTime(input.note)
+            : ""
+        );
+
         void performGuestRequestSubmission({
           ...input,
           typeLabel: safeTypeLabel,
+          lateCheckoutRequestedTime: lateCheckoutRequestedTime || undefined,
         });
       },
     });
@@ -7345,6 +7686,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                     price: "25,00",
                     currency: "€",
                     sourceRequestDef: "late_checkout",
+                    lateCheckoutRequestedTime: slot,
                   });
                 };
 
@@ -8072,8 +8414,9 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
       {roomConfirmed && room.trim() ? (
         <div className="stayhub-confirmed-room-wrap px-4">
-          <div className="stayhub-confirmed-room-card">
+          <div className="stayhub-confirmed-room-card stayhub-confirmed-stay-card">
             <span>{roomCopy.confirmedState.replace("{room}", room)}</span>
+            <small>{stayCopy.confirmedLine.replace("{checkIn}", checkInDate).replace("{checkOut}", checkOutDate)}</small>
           </div>
           <button
             type="button"
@@ -8100,6 +8443,11 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               roomConfirmed={roomConfirmed}
               lang={lang}
               timezone={hotelTimezone}
+              stayId={activeStayId}
+              stayDeviceId={stayDeviceId}
+              deviceToken={stayDeviceToken}
+              checkInDate={checkInDate}
+              checkOutDate={checkOutDate}
             />
           </div>
         </div>
@@ -8215,14 +8563,49 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               />
             </div>
 
+            <div className="mt-3 grid grid-cols-2 gap-3 stayhub-stay-date-grid">
+              <div>
+                <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em]" style={{ color: "#202627" }}>
+                  {stayCopy.checkInLabel}
+                </label>
+                <input
+                  type="date"
+                  value={checkInDate}
+                  max={hotelTodayDateKey}
+                  onChange={(event) => {
+                    const next = normalizeStayDateKey(event.target.value);
+                    setCheckInDate(next);
+                    if (checkOutDate && next && checkOutDate <= next) {
+                      setCheckOutDate(addDaysToStayDateKey(next, 1));
+                    }
+                  }}
+                  className="w-full rounded-xl stayhub-card px-3 py-3 text-sm outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em]" style={{ color: "#202627" }}>
+                  {stayCopy.checkOutLabel}
+                </label>
+                <input
+                  type="date"
+                  value={checkOutDate}
+                  min={checkInDate ? addDaysToStayDateKey(checkInDate, 1) : hotelTodayDateKey}
+                  onChange={(event) => setCheckOutDate(normalizeStayDateKey(event.target.value))}
+                  className="w-full rounded-xl stayhub-card px-3 py-3 text-sm outline-none"
+                />
+              </div>
+            </div>
+            <p className="mt-2 text-xs leading-5" style={{ color: "#4f6668" }}>{stayCopy.stayHelp}</p>
+
             <button
               type="button"
               data-stayhub-room-confirm-cta="true"
               onClick={confirmManualRoom}
-              className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition hover:opacity-95 active:scale-[0.99]"
+              disabled={stayConfirming}
+              className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition hover:opacity-95 active:scale-[0.99] disabled:opacity-60"
               style={{ backgroundColor: "var(--stayhub-action)", color: "#ffffff" }}
             >
-              {roomCopy.confirmButton}
+              {stayConfirming ? stayCopy.confirming : roomCopy.confirmButton}
             </button>
 
             {geoMessage ? (
@@ -8288,7 +8671,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                     : lang === "ru"
                       ? `Сейчас устройство привязано к номеру ${roomModal.currentRoom}. Меняйте номер только в том случае, если вас действительно переселили. Вы уверены, что хотите перейти к номеру ${roomModal.nextRoom}?`
                       : `This device is currently active for room ${roomModal.currentRoom}. Change the room only if you have actually been moved to another room. Are you sure you want to switch to room ${roomModal.nextRoom}?`
-                : roomCopy.confirmMessage.replace("{room}", roomModal.nextRoom)}
+                : `${roomCopy.confirmMessage.replace("{room}", roomModal.nextRoom)}
+${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", checkOutDate)}`}
             </p>
 
             <div className="mt-5 grid grid-cols-2 gap-3">
@@ -8302,12 +8686,15 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
               <button
                 type="button"
-                onClick={acceptRoomConfirmation}
-                className="rounded-xl px-4 py-3 text-sm font-semibold"
+                onClick={() => void acceptRoomConfirmation()}
+                disabled={stayConfirming}
+                className="rounded-xl px-4 py-3 text-sm font-semibold disabled:opacity-60"
                 style={{ backgroundColor: "var(--stayhub-action)", color: "#ffffff" }}
               >
-                {isRoomSwitchConfirmation
-                  ? lang === "bg"
+                {stayConfirming
+                  ? stayCopy.confirming
+                  : isRoomSwitchConfirmation
+                    ? lang === "bg"
                     ? "Смени стаята"
                     : lang === "de"
                       ? "Zimmer wechseln"
@@ -8372,6 +8759,10 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           roomConfirmed={roomConfirmed}
           lang={lang}
           timezone={hotelTimezone}
+          stayId={activeStayId}
+          stayDeviceId={stayDeviceId}
+          checkInDate={checkInDate}
+          checkOutDate={checkOutDate}
           onTrack={trackGuestEvent}
         />
       ) : null}

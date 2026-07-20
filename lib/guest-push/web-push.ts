@@ -10,6 +10,10 @@ export type GuestPushSubscriptionRow = {
   id: string;
   hotel_id: string;
   room_number: string;
+  stay_id: string | null;
+  stay_device_id: string | null;
+  check_in_date: string | null;
+  check_out_date: string | null;
   language: string | null;
   hotel_timezone: string | null;
   survey_version: string | null;
@@ -30,6 +34,7 @@ type GuestSurveyPushInput = {
   subscription: GuestPushSubscriptionRow;
   hotelSlug: string;
   surveyDayNumber?: number;
+  isFinalReminder?: boolean;
 };
 
 function getVapidConfig() {
@@ -304,20 +309,34 @@ export async function sendDay3SurveyGuestPush(input: GuestSurveyPushInput) {
 
   const surveyDayNumber = Math.min(5, Math.max(3, Number(input.surveyDayNumber || 3)));
   const reminderNumber = Math.max(1, surveyDayNumber - 2);
-  const copy = getDay3SurveyPushCopy(input.subscription.language || "en", surveyDayNumber);
-  const targetUrl = `/h/${input.hotelSlug}?source=guest_survey_push&survey=1&room=${encodeURIComponent(input.subscription.room_number)}&surveyTarget=${encodeURIComponent(input.subscription.target_date_key || "")}&surveyReminder=${reminderNumber}`;
+  const copyDayNumber = input.isFinalReminder ? 5 : surveyDayNumber;
+  const copy = getDay3SurveyPushCopy(input.subscription.language || "en", copyDayNumber);
+  const targetParams = new URLSearchParams({
+    source: "guest_survey_push",
+    survey: "1",
+    room: input.subscription.room_number,
+    surveyTarget: input.subscription.target_date_key || "",
+    surveyReminder: String(reminderNumber),
+  });
+  if (input.subscription.stay_id) targetParams.set("surveyStay", input.subscription.stay_id);
+  if (input.subscription.stay_device_id) targetParams.set("surveyDevice", input.subscription.stay_device_id);
+  const targetUrl = `/h/${input.hotelSlug}?${targetParams.toString()}`;
   const payload = JSON.stringify({
     title: copy.title,
     body: copy.body,
     icon: "/icons/icon-192.png",
     badge: "/icons/icon-192.png",
-    tag: `stayhub-day3-survey-${input.subscription.hotel_id}-${input.subscription.room_number}-${input.subscription.target_date_key || "target"}-r${reminderNumber}`,
+    tag: `stayhub-day3-survey-${input.subscription.stay_id || `${input.subscription.hotel_id}-${input.subscription.room_number}`}-${input.subscription.stay_device_id || "device"}-r${reminderNumber}`,
     renotify: true,
     requireInteraction: false,
     data: {
       url: targetUrl,
       hotelSlug: input.hotelSlug,
       room: input.subscription.room_number,
+      stayId: input.subscription.stay_id || null,
+      stayDeviceId: input.subscription.stay_device_id || null,
+      checkInDate: input.subscription.check_in_date || null,
+      checkOutDate: input.subscription.check_out_date || null,
       surveyVersion: input.subscription.survey_version || "day3-v1",
       targetDateKey: input.subscription.target_date_key || null,
       surveyDayNumber,

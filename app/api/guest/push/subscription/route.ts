@@ -12,6 +12,7 @@ import {
 import { normalizeGuestPushLanguage } from "@/lib/guest-push/web-push";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import { getOperationalIsolationFields } from "@/lib/server/hotel-scope";
+import { validateGuestStayIdentity } from "@/lib/server/guest-stays";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,6 +31,11 @@ type GuestSubscriptionBody = {
   surveyVersion?: string;
   firstConfirmedDateKey?: string | null;
   targetDateKey?: string | null;
+  checkInDate?: string | null;
+  checkOutDate?: string | null;
+  stayId?: string | null;
+  stayDeviceId?: string | null;
+  deviceToken?: string | null;
   subscription?: {
     endpoint?: string;
     expirationTime?: number | null;
@@ -56,9 +62,13 @@ export async function POST(req: NextRequest) {
   const room = normalizeRoomNumber(body?.room);
   const language = normalizeGuestPushLanguage(body?.language || "en");
   const surveyVersion = normalizeSurveyText(body?.surveyVersion, 40) || DAY3_SURVEY_VERSION;
-  const firstConfirmedDateKey = normalizeDateKey(body?.firstConfirmedDateKey);
-  const targetDateKey = normalizeDateKey(body?.targetDateKey) || (firstConfirmedDateKey ? addDaysToDateKey(firstConfirmedDateKey, 2) : null);
+  const requestedFirstConfirmedDateKey = normalizeDateKey(body?.firstConfirmedDateKey);
+  const requestedTargetDateKey = normalizeDateKey(body?.targetDateKey) || (requestedFirstConfirmedDateKey ? addDaysToDateKey(requestedFirstConfirmedDateKey, 2) : null);
   const hotelTimezone = normalizeSurveyText(body?.hotelTimezone, 80) || "Europe/Sofia";
+  const stayId = String(body?.stayId || "").trim();
+  const stayDeviceId = String(body?.stayDeviceId || "").trim();
+  const requestedCheckInDate = normalizeDateKey(body?.checkInDate);
+  const requestedCheckOutDate = normalizeDateKey(body?.checkOutDate);
 
   if (!hotelSlug || !room) {
     return NextResponse.json(
@@ -97,15 +107,57 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const stayIdentity = await validateGuestStayIdentity({
+      hotelId: hotel.id,
+      room,
+      stayId,
+      stayDeviceId,
+    });
+    if (!stayIdentity) {
+      return NextResponse.json(
+        { ok: false, error: "Missing or invalid stay identity" },
+        { status: 400, headers: NO_STORE_HEADERS },
+      );
+    }
+
+    const checkInDate = String(stayIdentity.stay.check_in_date || requestedCheckInDate || "");
+    const checkOutDate = String(stayIdentity.stay.check_out_date || requestedCheckOutDate || "");
+    const firstConfirmedDateKey = checkInDate || requestedFirstConfirmedDateKey;
+    const targetDateKey = checkInDate
+      ? addDaysToDateKey(checkInDate, 2)
+      : requestedTargetDateKey;
+
     const testRoomPolicy = await getTestRoomPolicy(hotel.id, room);
     const isolationFields = getOperationalIsolationFields({ hotel, testRoomPolicy });
     const now = new Date().toISOString();
+
+    const { data: existingSubscription, error: existingSubscriptionError } = await supabaseAdmin
+      .from("guest_push_subscriptions")
+      .select("stay_id, stay_device_id, survey_push_sent_at, last_push_attempt_at, last_push_status, push_attempts")
+      .eq("hotel_id", hotel.id)
+      .eq("endpoint", endpoint)
+      .maybeSingle();
+
+    if (existingSubscriptionError) {
+      throw existingSubscriptionError;
+    }
+
+    const stayChanged = Boolean(
+      existingSubscription && (
+        existingSubscription.stay_id !== stayIdentity.stay.id ||
+        existingSubscription.stay_device_id !== stayIdentity.device.id
+      )
+    );
 
     const { error } = await supabaseAdmin
       .from("guest_push_subscriptions")
       .upsert(
         {
           hotel_id: hotel.id,
+          stay_id: stayIdentity.stay.id,
+          stay_device_id: stayIdentity.device.id,
+          check_in_date: checkInDate,
+          check_out_date: checkOutDate,
           room_number: room,
           language,
           hotel_timezone: hotelTimezone,
@@ -119,10 +171,10 @@ export async function POST(req: NextRequest) {
           expiration_time: body?.subscription?.expirationTime
             ? new Date(body.subscription.expirationTime).toISOString()
             : null,
-          survey_push_sent_at: null,
-          last_push_attempt_at: null,
-          last_push_status: null,
-          push_attempts: 0,
+          survey_push_sent_at: stayChanged ? null : existingSubscription?.survey_push_sent_at ?? null,
+          last_push_attempt_at: stayChanged ? null : existingSubscription?.last_push_attempt_at ?? null,
+          last_push_status: stayChanged ? null : existingSubscription?.last_push_status ?? null,
+          push_attempts: stayChanged ? 0 : Number(existingSubscription?.push_attempts || 0),
           updated_at: now,
           last_seen_at: now,
           ...isolationFields,
@@ -159,7 +211,7 @@ export async function POST(req: NextRequest) {
       message: "Unexpected server error while saving a guest push subscription.",
       roomNumber: room,
       error,
-      metadata: { hotelSlug, language, surveyVersion, targetDateKey },
+      metadata: { hotelSlug, language, surveyVersion, targetDateKey: requestedTargetDateKey },
     });
     return NextResponse.json(
       { ok: false, error: "Unexpected server error" },

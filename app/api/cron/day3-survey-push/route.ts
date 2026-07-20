@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
-import {
-  DAY3_SURVEY_VERSION,
-  addDaysToDateKey,
-  getDateKeyInTimezone,
-} from "@/lib/server/day3-surveys";
+import { getDateKeyInTimezone } from "@/lib/server/day3-surveys";
 import {
   disableGuestPushSubscriptions,
   sendDay3SurveyGuestPush,
   type GuestPushSubscriptionRow,
 } from "@/lib/guest-push/web-push";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
+import {
+  addDaysToStayDateKey,
+  getGuestSurveyWindow,
+  getStayDayNumber,
+} from "@/lib/guest-stays/shared";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SURVEY_PUSH_START_MINUTES = 8 * 60;
-const SURVEY_WINDOW_DAYS = 3;
+const SURVEY_PUSH_START_MINUTES = 9 * 60;
 const MAX_ROWS_PER_RUN = 500;
 
 const NO_STORE_HEADERS = {
@@ -31,19 +31,20 @@ type HotelRow = {
   active: boolean | null;
 };
 
-type SurveyPresenceRow = {
+type StayRow = {
   id: string;
+  status: string | null;
+  effective_check_out_at: string;
 };
+
+type SurveyPresenceRow = { id: string };
 
 function isAuthorizedCronRequest(req: NextRequest) {
   const configuredSecret = String(process.env.CRON_SECRET || "").trim();
   const authorization = req.headers.get("authorization") || "";
   const fromVercelCron = req.headers.get("x-vercel-cron") === "1";
 
-  if (configuredSecret) {
-    return authorization === `Bearer ${configuredSecret}`;
-  }
-
+  if (configuredSecret) return authorization === `Bearer ${configuredSecret}`;
   return fromVercelCron;
 }
 
@@ -61,24 +62,7 @@ function getHotelTimeParts(timezone: string, date: Date) {
   const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   const hour = Number(map.hour === "24" ? "0" : map.hour || "0");
   const minute = Number(map.minute || "0");
-
-  return {
-    dateKey: `${map.year}-${map.month}-${map.day}`,
-    minutes: hour * 60 + minute,
-  };
-}
-
-function normalizeTargetDateKey(row: GuestPushSubscriptionRow) {
-  if (row.target_date_key) return row.target_date_key;
-  if (row.first_confirmed_date_key) return addDaysToDateKey(row.first_confirmed_date_key, 2);
-  return "";
-}
-
-function getSurveyDayNumber(targetDateKey: string, hotelDateKey: string) {
-  const target = Date.parse(`${targetDateKey}T00:00:00.000Z`);
-  const current = Date.parse(`${hotelDateKey}T00:00:00.000Z`);
-  if (!Number.isFinite(target) || !Number.isFinite(current)) return 3;
-  return 3 + Math.max(0, Math.round((current - target) / 86_400_000));
+  return { dateKey: `${map.year}-${map.month}-${map.day}`, minutes: hour * 60 + minute };
 }
 
 function wasSurveyPushSentToday(row: GuestPushSubscriptionRow, timezone: string, hotelDateKey: string) {
@@ -88,24 +72,43 @@ function wasSurveyPushSentToday(row: GuestPushSubscriptionRow, timezone: string,
   return getHotelTimeParts(timezone, lastAttempt).dateKey === hotelDateKey;
 }
 
-async function hasSubmittedSurvey(row: GuestPushSubscriptionRow, targetDateKey: string) {
-  let query = supabaseAdmin
+async function hasSubmittedSurvey(row: GuestPushSubscriptionRow) {
+  if (!row.stay_id || !row.stay_device_id) return false;
+
+  const { data, error } = await supabaseAdmin
     .from("guest_surveys")
     .select("id")
-    .eq("hotel_id", row.hotel_id)
-    .eq("room_number", row.room_number)
+    .eq("stay_id", row.stay_id)
+    .eq("stay_device_id", row.stay_device_id)
     .eq("survey_type", "day3_guest_survey")
     .limit(1);
 
-  if (targetDateKey) query = query.eq("target_date_key", targetDateKey);
-
-  const { data, error } = await query;
   if (error) {
     console.error("Failed to check existing guest survey before guest push", error);
     return false;
   }
 
   return ((data || []) as SurveyPresenceRow[]).length > 0;
+}
+
+async function claimDailyPush(row: GuestPushSubscriptionRow, claimStatus: string, nowIso: string) {
+  let query = supabaseAdmin
+    .from("guest_push_subscriptions")
+    .update({
+      last_push_attempt_at: nowIso,
+      last_push_status: claimStatus,
+      updated_at: nowIso,
+    })
+    .eq("id", row.id);
+
+  if (row.last_push_attempt_at) {
+    query = query.eq("last_push_attempt_at", row.last_push_attempt_at);
+  } else {
+    query = query.is("last_push_attempt_at", null);
+  }
+
+  const { data, error } = await query.select("id").maybeSingle();
+  return { claimed: Boolean(data?.id) && !error, error };
 }
 
 export async function GET(req: NextRequest) {
@@ -117,6 +120,7 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
+  const nowIso = now.toISOString();
 
   const { data: hotelsData, error: hotelsError } = await supabaseAdmin
     .from("hotels")
@@ -124,7 +128,6 @@ export async function GET(req: NextRequest) {
     .eq("active", true);
 
   if (hotelsError) {
-    console.error("Failed to load hotels for day3 survey push cron", hotelsError);
     await logSystemError({
       source: "cron",
       eventType: "day3_survey_push_cron_hotels_load_failed",
@@ -138,28 +141,27 @@ export async function GET(req: NextRequest) {
   }
 
   const hotelById = new Map<string, HotelRow>();
-  for (const hotel of (hotelsData || []) as HotelRow[]) {
-    hotelById.set(hotel.id, hotel);
-  }
+  for (const hotel of (hotelsData || []) as HotelRow[]) hotelById.set(hotel.id, hotel);
 
-  const utcToday = now.toISOString().slice(0, 10);
-  const queryStartDate = addDaysToDateKey(utcToday, -3);
-  const queryEndDate = addDaysToDateKey(utcToday, 1);
+  const utcToday = nowIso.slice(0, 10);
+  const queryStartDate = addDaysToStayDateKey(utcToday, -1);
+  const queryEndDate = addDaysToStayDateKey(utcToday, 1);
 
   const { data, error } = await supabaseAdmin
     .from("guest_push_subscriptions")
     .select(
-      "id, hotel_id, room_number, language, hotel_timezone, survey_version, first_confirmed_date_key, target_date_key, endpoint, p256dh, auth, enabled, survey_push_sent_at, last_push_attempt_at, last_push_status, push_attempts, is_test",
+      "id, hotel_id, room_number, stay_id, stay_device_id, check_in_date, check_out_date, language, hotel_timezone, survey_version, first_confirmed_date_key, target_date_key, endpoint, p256dh, auth, enabled, survey_push_sent_at, last_push_attempt_at, last_push_status, push_attempts, is_test",
     )
     .eq("enabled", true)
-    .eq("survey_version", DAY3_SURVEY_VERSION)
-    .gte("target_date_key", queryStartDate)
-    .lte("target_date_key", queryEndDate)
+    .eq("survey_version", "day3-v1")
+    .not("stay_id", "is", null)
+    .not("stay_device_id", "is", null)
+    .lte("check_in_date", queryEndDate)
+    .gte("check_out_date", queryStartDate)
     .order("last_push_attempt_at", { ascending: true, nullsFirst: true })
     .limit(MAX_ROWS_PER_RUN);
 
   if (error) {
-    console.error("Failed to load guest push subscriptions for day3 survey cron", error);
     await logSystemError({
       source: "cron",
       eventType: "day3_survey_push_cron_subscriptions_load_failed",
@@ -173,7 +175,33 @@ export async function GET(req: NextRequest) {
   }
 
   const rows = (data || []) as GuestPushSubscriptionRow[];
+  const stayIds = Array.from(new Set(rows.map((row) => row.stay_id).filter((id): id is string => Boolean(id))));
+  const stayById = new Map<string, StayRow>();
+
+  if (stayIds.length) {
+    const { data: staysData, error: staysError } = await supabaseAdmin
+      .from("guest_stays")
+      .select("id, status, effective_check_out_at")
+      .in("id", stayIds);
+
+    if (staysError) {
+      await logSystemError({
+        source: "cron",
+        eventType: "day3_survey_push_cron_stays_load_failed",
+        message: "Day 3 survey push cron could not load active guest stays.",
+        error: staysError,
+      });
+      return NextResponse.json(
+        { ok: false, error: staysError.message },
+        { status: 500, headers: NO_STORE_HEADERS },
+      );
+    }
+
+    for (const stay of (staysData || []) as StayRow[]) stayById.set(stay.id, stay);
+  }
+
   const expiredIds: string[] = [];
+  const endedIds: string[] = [];
   const results = {
     checked: rows.length,
     sent: 0,
@@ -182,6 +210,7 @@ export async function GET(req: NextRequest) {
     skippedSubmitted: 0,
     skippedTest: 0,
     skippedMissingHotel: 0,
+    skippedEndedStay: 0,
     failed: 0,
     expired: 0,
   };
@@ -198,16 +227,22 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    const timezone = String(row.hotel_timezone || "Europe/Sofia").trim() || "Europe/Sofia";
-    const targetDateKey = normalizeTargetDateKey(row);
-    const hotelNow = getHotelTimeParts(timezone, now);
+    const stay = row.stay_id ? stayById.get(row.stay_id) : null;
+    if (!stay || stay.status === "cancelled" || new Date(stay.effective_check_out_at).getTime() <= now.getTime()) {
+      endedIds.push(row.id);
+      results.skippedEndedStay += 1;
+      continue;
+    }
 
-    const surveyWindowEndDateKey = addDaysToDateKey(targetDateKey, SURVEY_WINDOW_DAYS - 1);
+    const checkInDate = String(row.check_in_date || row.first_confirmed_date_key || "");
+    const checkOutDate = String(row.check_out_date || "");
+    const surveyWindow = getGuestSurveyWindow(checkInDate, checkOutDate);
+    const timezone = String(row.hotel_timezone || "Europe/Sofia").trim() || "Europe/Sofia";
+    const hotelNow = getHotelTimeParts(timezone, now);
     const insideSurveyWindow = Boolean(
-      targetDateKey &&
-      surveyWindowEndDateKey &&
-      hotelNow.dateKey >= targetDateKey &&
-      hotelNow.dateKey <= surveyWindowEndDateKey
+      surveyWindow.hasWindow &&
+      hotelNow.dateKey >= surveyWindow.startDateKey &&
+      hotelNow.dateKey <= surveyWindow.endDateKey
     );
 
     if (!insideSurveyWindow || hotelNow.minutes < SURVEY_PUSH_START_MINUTES) {
@@ -220,35 +255,24 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    if (await hasSubmittedSurvey(row, targetDateKey)) {
+    if (await hasSubmittedSurvey(row)) {
       await supabaseAdmin
         .from("guest_push_subscriptions")
         .update({
-          survey_push_sent_at: now.toISOString(),
-          last_push_attempt_at: now.toISOString(),
+          survey_push_sent_at: nowIso,
+          last_push_attempt_at: nowIso,
           last_push_status: "already_submitted",
-          updated_at: now.toISOString(),
+          updated_at: nowIso,
         })
         .eq("id", row.id);
       results.skippedSubmitted += 1;
       continue;
     }
 
-    const surveyDayNumber = getSurveyDayNumber(targetDateKey, hotelNow.dateKey);
+    const surveyDayNumber = Math.min(5, Math.max(3, getStayDayNumber(checkInDate, hotelNow.dateKey)));
     const claimStatus = `sending_day${surveyDayNumber}_${hotelNow.dateKey}`;
-    const { data: claimedRow, error: claimError } = await supabaseAdmin
-      .from("guest_push_subscriptions")
-      .update({
-        last_push_attempt_at: now.toISOString(),
-        last_push_status: claimStatus,
-        updated_at: now.toISOString(),
-      })
-      .eq("id", row.id)
-      .or(`last_push_status.is.null,last_push_status.neq.${claimStatus}`)
-      .select("id")
-      .maybeSingle();
-
-    if (claimError || !claimedRow) {
+    const claim = await claimDailyPush(row, claimStatus, nowIso);
+    if (!claim.claimed) {
       results.skippedAlreadySentToday += 1;
       continue;
     }
@@ -257,6 +281,7 @@ export async function GET(req: NextRequest) {
       subscription: row,
       hotelSlug: hotel.slug,
       surveyDayNumber,
+      isFinalReminder: hotelNow.dateKey === surveyWindow.endDateKey,
     });
     const nextAttempts = Number(row.push_attempts || 0) + 1;
 
@@ -264,11 +289,11 @@ export async function GET(req: NextRequest) {
       await supabaseAdmin
         .from("guest_push_subscriptions")
         .update({
-          survey_push_sent_at: now.toISOString(),
-          last_push_attempt_at: now.toISOString(),
-          last_push_status: `sent:day${surveyDayNumber}`,
+          survey_push_sent_at: nowIso,
+          last_push_attempt_at: nowIso,
+          last_push_status: `sent:day${surveyDayNumber}:${hotelNow.dateKey}`,
           push_attempts: nextAttempts,
-          updated_at: now.toISOString(),
+          updated_at: nowIso,
         })
         .eq("id", row.id);
       results.sent += 1;
@@ -278,25 +303,16 @@ export async function GET(req: NextRequest) {
     if (delivery.expired) {
       expiredIds.push(row.id);
       results.expired += 1;
-      await logSystemEvent({
-        hotelId: row.hotel_id,
-        severity: "info",
-        source: "push",
-        eventType: "guest_push_subscription_expired",
-        message: "Expired guest push subscription was detected during Day 3 survey push cron.",
-        roomNumber: row.room_number,
-        metadata: { hotelSlug: hotel.slug, targetDateKey, surveyDayNumber, statusCode: delivery.statusCode },
-      });
       continue;
     }
 
     await supabaseAdmin
       .from("guest_push_subscriptions")
       .update({
-        last_push_attempt_at: now.toISOString(),
+        last_push_attempt_at: nowIso,
         last_push_status: delivery.skipped ? "skipped" : `failed:${delivery.statusCode || "unknown"}`,
         push_attempts: nextAttempts,
-        updated_at: now.toISOString(),
+        updated_at: nowIso,
       })
       .eq("id", row.id);
     results.failed += 1;
@@ -309,7 +325,8 @@ export async function GET(req: NextRequest) {
       roomNumber: row.room_number,
       metadata: {
         hotelSlug: hotel.slug,
-        targetDateKey,
+        stayId: row.stay_id,
+        stayDeviceId: row.stay_device_id,
         surveyDayNumber,
         skipped: delivery.skipped,
         statusCode: delivery.statusCode,
@@ -318,21 +335,18 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  await disableGuestPushSubscriptions(expiredIds).catch(async (disableError) => {
-    console.error("Failed to disable expired guest push subscriptions", disableError);
-    await logSystemError({
-      source: "push",
-      eventType: "guest_push_expired_subscription_disable_failed",
-      message: "Expired guest push subscriptions could not be disabled after Day 3 survey push cron.",
-      error: disableError,
-      metadata: { expiredCount: expiredIds.length },
-    });
-  });
+  await disableGuestPushSubscriptions(expiredIds).catch(() => undefined);
+  if (endedIds.length) {
+    await supabaseAdmin
+      .from("guest_push_subscriptions")
+      .update({ enabled: false, last_push_status: "stay_ended", updated_at: nowIso })
+      .in("id", endedIds);
+  }
 
   return NextResponse.json(
     {
       ok: true,
-      now: now.toISOString(),
+      now: nowIso,
       todaySofia: getDateKeyInTimezone(now, "Europe/Sofia"),
       ...results,
     },
