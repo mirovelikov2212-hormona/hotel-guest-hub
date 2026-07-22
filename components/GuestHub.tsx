@@ -2495,7 +2495,7 @@ function writeGuestLang(nextLang: LangKey) {
 
 export default function GuestHub({ config }: { config: HotelConfig }) {
   const guestHubPathname = usePathname();
-  const isAquamarineTestHub = /\/h\/aquamarine-test(?:\/|$)/i.test(guestHubPathname);
+  const isAquamarineHub = /\/h\/aquamarine(?:-test)?(?:\/|$)/i.test(guestHubPathname);
   // Keep the first server/client render identical. Browser, URL and localStorage
   // language detection runs after hydration to avoid React hydration error #418.
   const [lang, setLangState] = useState<LangKey>(() =>
@@ -8384,17 +8384,17 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
   return (
     <div className="stayhub-premium-screen mx-auto min-h-screen max-w-md" style={themeStyle}>
-      <div className={isAquamarineTestHub ? "relative stayhub-premium-hero-wrap-sandbox" : "relative"}>
-        <div className={isAquamarineTestHub ? "stayhub-premium-hero stayhub-premium-hero-sandbox relative w-full overflow-hidden" : "stayhub-premium-hero relative h-[246px] sm:h-[270px] md:h-[300px] w-full overflow-hidden"}>
+      <div className={isAquamarineHub ? "relative stayhub-premium-hero-wrap-sandbox" : "relative"}>
+        <div className={isAquamarineHub ? "stayhub-premium-hero stayhub-premium-hero-sandbox relative w-full overflow-hidden" : "stayhub-premium-hero relative h-[246px] sm:h-[270px] md:h-[300px] w-full overflow-hidden"}>
           <img
-            src={isAquamarineTestHub ? "/images/aquamarine-test-hero-v6.jpg" : config.coverImage}
+            src={isAquamarineHub ? "/images/aquamarine-test-hero-v6.jpg" : config.coverImage}
             alt={config.hotelName}
-            className={isAquamarineTestHub ? "stayhub-premium-hero-image-sandbox" : "h-full w-full object-cover"}
-            style={isAquamarineTestHub ? undefined : { objectPosition: config.coverImagePosition || "center center" }}
+            className={isAquamarineHub ? "stayhub-premium-hero-image-sandbox" : "h-full w-full object-cover"}
+            style={isAquamarineHub ? undefined : { objectPosition: config.coverImagePosition || "center center" }}
           />
         </div>
 
-        <div className={isAquamarineTestHub ? "stayhub-premium-hero-overlay stayhub-premium-hero-overlay-sandbox absolute inset-0" : "stayhub-premium-hero-overlay absolute inset-0"} />
+        <div className={isAquamarineHub ? "stayhub-premium-hero-overlay stayhub-premium-hero-overlay-sandbox absolute inset-0" : "stayhub-premium-hero-overlay absolute inset-0"} />
 
         <div className="stayhub-premium-hero-content absolute inset-0 z-10 flex flex-col p-4">
           <div className="flex items-start justify-between gap-3">
