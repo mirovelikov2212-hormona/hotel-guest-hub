@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 const NO_STORE_HEADERS = { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" };
 
 function statusForError(message: string) {
+  if (message === "STAY_DATES_CONFLICT") return 409;
   if (["MISSING_STAY_FIELDS", "INVALID_STAY_DATES", "STAY_NOT_CURRENT", "STAY_TOO_OLD", "INVALID_ROOM", "STAY_ENDED"].includes(message)) return 400;
   return 500;
 }

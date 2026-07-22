@@ -200,6 +200,23 @@ export async function confirmGuestStay(input: {
 
   if (existingError) throw existingError;
 
+  if (!existingStay) {
+    const { data: overlappingStay, error: overlapError } = await supabaseAdmin
+      .from("guest_stays")
+      .select("id")
+      .eq("hotel_id", hotel.id)
+      .eq("room_number", room)
+      .eq("status", "active")
+      .lt("check_in_date", checkOutDate)
+      .gt("check_out_date", checkInDate)
+      .gt("effective_check_out_at", now)
+      .limit(1)
+      .maybeSingle();
+
+    if (overlapError) throw overlapError;
+    if (overlappingStay) throw new Error("STAY_DATES_CONFLICT");
+  }
+
   let stay: GuestStayRow;
   if (existingStay) {
     const existingStayIsActive =
@@ -253,7 +270,11 @@ export async function confirmGuestStay(input: {
       })
       .select("id, hotel_id, room_number, check_in_date, check_out_date, check_in_at, scheduled_check_out_at, effective_check_out_at, late_checkout_status, late_checkout_time, status, is_test, test_expires_at, metadata_json")
       .single();
-    if (error || !data) throw error || new Error("STAY_CREATE_FAILED");
+    if (error || !data) {
+      const errorCode = String((error as { code?: string } | null)?.code || "");
+      if (errorCode === "23P01" || errorCode === "23505") throw new Error("STAY_DATES_CONFLICT");
+      throw error || new Error("STAY_CREATE_FAILED");
+    }
     stay = data as GuestStayRow;
   }
 

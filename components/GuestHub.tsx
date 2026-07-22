@@ -3116,6 +3116,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmedLine: "{checkIn} – {checkOut}",
         confirming: "Потвърждаване…",
         confirmFailed: "Престоят не беше потвърден. Моля, проверете данните и опитайте отново.",
+        stayConflict: "За тази стая вече има активен престой с припокриващи се дати. Проверете датите или се свържете с рецепцията.",
         expired: "Предишният престой е приключил. Моля, въведете данните за текущия престой.",
       },
       en: {
@@ -3130,6 +3131,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmedLine: "{checkIn} – {checkOut}",
         confirming: "Confirming…",
         confirmFailed: "The stay could not be confirmed. Please check the details and try again.",
+        stayConflict: "This room already has an active stay with overlapping dates. Please check the dates or contact Reception.",
         expired: "The previous stay has ended. Please enter the details of the current stay.",
       },
       de: {
@@ -3144,6 +3146,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmedLine: "{checkIn} – {checkOut}",
         confirming: "Wird bestätigt…",
         confirmFailed: "Der Aufenthalt konnte nicht bestätigt werden. Bitte prüfen Sie die Angaben.",
+        stayConflict: "Für dieses Zimmer gibt es bereits einen aktiven Aufenthalt mit überschneidenden Daten. Bitte prüfen Sie die Daten oder kontaktieren Sie die Rezeption.",
         expired: "Der vorherige Aufenthalt ist beendet. Bitte geben Sie die Daten des aktuellen Aufenthalts ein.",
       },
       ro: {
@@ -3158,6 +3161,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmedLine: "{checkIn} – {checkOut}",
         confirming: "Se confirmă…",
         confirmFailed: "Sejurul nu a putut fi confirmat. Verificați datele și încercați din nou.",
+        stayConflict: "Pentru această cameră există deja un sejur activ cu date care se suprapun. Verificați datele sau contactați recepția.",
         expired: "Sejurul anterior s-a încheiat. Introduceți datele sejurului curent.",
       },
       cs: {
@@ -3172,6 +3176,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmedLine: "{checkIn} – {checkOut}",
         confirming: "Potvrzování…",
         confirmFailed: "Pobyt se nepodařilo potvrdit. Zkontrolujte údaje a zkuste to znovu.",
+        stayConflict: "Pro tento pokoj již existuje aktivní pobyt s překrývajícími se daty. Zkontrolujte data nebo kontaktujte recepci.",
         expired: "Předchozí pobyt skončil. Zadejte údaje aktuálního pobytu.",
       },
       ru: {
@@ -3186,6 +3191,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmedLine: "{checkIn} – {checkOut}",
         confirming: "Подтверждение…",
         confirmFailed: "Не удалось подтвердить проживание. Проверьте данные и повторите попытку.",
+        stayConflict: "Для этого номера уже существует активное проживание с пересекающимися датами. Проверьте даты или свяжитесь с рецепцией.",
         expired: "Предыдущее проживание завершено. Введите данные текущего проживания.",
       },
     } as const;
@@ -3569,14 +3575,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const contact = config.contacts;
   const deptHours = config.departmentHours ?? {};
 
-  const roomRequiredSectionIds = new Set([
-    "reception",
-    "housekeeping",
-    "maintenance",
-    "activities",
-    "massage_booking",
-    "ai",
-  ]);
+  const preStayUnlockedSectionIds = new Set(["hotel_policies", "emergency"]);
 
   const loadGuestRequests = useCallback(
     async (refsOverride?: StoredGuestRequestRef[], options?: { silent?: boolean }) => {
@@ -3880,7 +3879,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       });
     } catch (error) {
       console.error("guest stay confirmation failed", error);
-      window.alert(stayCopy.confirmFailed);
+      const errorCode = error instanceof Error ? error.message : "STAY_CONFIRM_FAILED";
+      window.alert(errorCode === "STAY_DATES_CONFLICT" ? stayCopy.stayConflict : stayCopy.confirmFailed);
     } finally {
       setStayConfirming(false);
     }
@@ -8204,7 +8204,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   const emergencyTileSection = sectionById("emergency");
 
   const premiumTiles = [
-    { id: "info", iconId: "info", title: premiumSectionCopy.hotelInfo, section: infoCombinedSection, requiresRoom: false },
+    { id: "info", iconId: "info", title: premiumSectionCopy.hotelInfo, section: infoCombinedSection, requiresRoom: true },
     { id: "hotel_policies", iconId: "policy", title: getPremiumServiceTitle(lang, "hotelPolicy"), section: policyCombinedSection, requiresRoom: false },
     { id: "emergency", iconId: "emergency", title: lang === "bg" ? "Спешно повикване" : String(emergencyTileSection?.title || "Emergency call"), section: emergencyTileSection, requiresRoom: false, special: "emergency" as const },
 
@@ -8216,13 +8216,13 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     { id: "pillow_menu", iconId: "pillow", title: getPremiumServiceTitle(lang, "sleepPillows"), section: pillowMenuSection, requiresRoom: true },
     { id: "coffee_capsules", iconId: "coffee", title: getPremiumServiceTitle(lang, "orderCoffeeCapsules"), section: coffeeCapsulesSection, requiresRoom: true },
 
-    { id: "restaurants", iconId: "restaurant", title: lang === "bg" ? "Ресторант" : String(restaurantOutletSection?.title || "Restaurant"), section: restaurantOutletSection, requiresRoom: false, outletCategories: ["restaurants"] },
-    { id: "bars", iconId: "bars", title: lang === "bg" ? "Бар" : String(barsOutletSection?.title || "Bars"), section: barsOutletSection, requiresRoom: false, outletCategories: ["bars"] },
-    { id: "entertainment", iconId: "entertainment", title: premiumSectionCopy.otherEntertainment, section: otherEntertainmentSection, requiresRoom: false, outletCategories: ["kids", "entertainment", "gym", "spa", "pool", "other", "room_service"] },
+    { id: "restaurants", iconId: "restaurant", title: lang === "bg" ? "Ресторант" : String(restaurantOutletSection?.title || "Restaurant"), section: restaurantOutletSection, requiresRoom: true, outletCategories: ["restaurants"] },
+    { id: "bars", iconId: "bars", title: lang === "bg" ? "Бар" : String(barsOutletSection?.title || "Bars"), section: barsOutletSection, requiresRoom: true, outletCategories: ["bars"] },
+    { id: "entertainment", iconId: "entertainment", title: premiumSectionCopy.otherEntertainment, section: otherEntertainmentSection, requiresRoom: true, outletCategories: ["kids", "entertainment", "gym", "spa", "pool", "other", "room_service"] },
 
-    { id: "explore", iconId: "explore", title: lang === "bg" ? "Около хотела" : String(exploreHubSection?.title || "Around the hotel"), section: exploreHubSection, requiresRoom: false },
-    { id: "weather", iconId: "weather", title: lang === "bg" ? "Времето" : String(weatherSection.title || "Weather"), section: weatherSection, requiresRoom: false },
-    { id: "reviews", iconId: "reviews", title: lang === "bg" ? "Отзиви" : reviewsDisplaySection.title, section: reviewsDisplaySection, requiresRoom: false },
+    { id: "explore", iconId: "explore", title: lang === "bg" ? "Около хотела" : String(exploreHubSection?.title || "Around the hotel"), section: exploreHubSection, requiresRoom: true },
+    { id: "weather", iconId: "weather", title: lang === "bg" ? "Времето" : String(weatherSection.title || "Weather"), section: weatherSection, requiresRoom: true },
+    { id: "reviews", iconId: "reviews", title: lang === "bg" ? "Отзиви" : reviewsDisplaySection.title, section: reviewsDisplaySection, requiresRoom: true },
   ].filter((tile) => tile.section || tile.special === "massage" || tile.special === "emergency");
 
   const selectedPremiumTile = openQuickServiceId
@@ -8259,7 +8259,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     sec: HubSection,
     options?: { defaultOpen?: boolean; hideHeader?: boolean; keyPrefix?: string; outletCategories?: string[]; outletTitle?: string }
   ) => {
-    const isLocked = !roomConfirmed && roomRequiredSectionIds.has(sec.id);
+    const isLocked = !roomConfirmed && !preStayUnlockedSectionIds.has(sec.id);
     const key = `${options?.keyPrefix || "section"}-${sec.id}`;
 
     if (isLocked) {
@@ -8906,7 +8906,19 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
                           return;
                         }
 
-                        if (isLocked && !ensureConfirmedRoom()) return;
+                        if (isLocked) {
+                          trackGuestEvent({
+                            eventName: "locked_section_clicked",
+                            eventCategory: "navigation",
+                            section: tile.id,
+                            sectionKey: tile.id,
+                            buttonKey: "premium_home_tile",
+                            label: String(tile.title || tile.id),
+                            value: "locked",
+                            roomConfirmed: false,
+                          });
+                          if (!ensureConfirmedRoom()) return;
+                        }
 
                         const nextId = isSelected ? null : tile.id;
                         setOpenQuickServiceId(nextId);
