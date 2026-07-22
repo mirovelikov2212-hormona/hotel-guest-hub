@@ -3880,7 +3880,21 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     } catch (error) {
       console.error("guest stay confirmation failed", error);
       const errorCode = error instanceof Error ? error.message : "STAY_CONFIRM_FAILED";
-      window.alert(errorCode === "STAY_DATES_CONFLICT" ? stayCopy.stayConflict : stayCopy.confirmFailed);
+      const errorMessage =
+        errorCode === "STAY_DATES_CONFLICT"
+          ? stayCopy.stayConflict
+          : errorCode === "STAY_ENDED"
+            ? stayCopy.expired
+            : errorCode === "STAY_NOT_CURRENT"
+              ? stayCopy.currentStayOnly
+              : errorCode === "STAY_TOO_OLD"
+                ? stayCopy.stayTooLong
+                : errorCode === "INVALID_STAY_DATES"
+                  ? stayCopy.invalidDates
+                  : errorCode === "MISSING_STAY_FIELDS"
+                    ? stayCopy.missingDates
+                    : stayCopy.confirmFailed;
+      window.alert(errorMessage);
     } finally {
       setStayConfirming(false);
     }
