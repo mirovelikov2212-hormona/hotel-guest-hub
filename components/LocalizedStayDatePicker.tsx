@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { LangKey } from "@/lib/types";
 
 type LocalizedStayDatePickerProps = {
@@ -177,6 +178,15 @@ export default function LocalizedStayDatePicker({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
+  useEffect(() => {
+    if (!open || typeof document === "undefined") return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
   const selectedDateLabel = useMemo(() => {
     const selected = dateKeyToUtcDate(normalizedValue);
     if (!selected) return copy.selectDate;
@@ -259,121 +269,129 @@ export default function LocalizedStayDatePicker({
         </svg>
       </button>
 
-      {open ? (
-        <div
-          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/35 p-3 sm:items-center"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setOpen(false);
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={ariaLabel}
-            className="w-full max-w-sm rounded-[28px] border border-[#43baad]/35 bg-white p-4 shadow-2xl"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
-                aria-label={copy.previousMonth}
-                disabled={previousMonthDisabled}
-                onClick={() => setVisibleMonth((current) => addUtcMonths(current, -1))}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-[#43baad]/30 text-xl text-[#075255] transition hover:bg-[#43baad]/10 disabled:cursor-not-allowed disabled:opacity-30"
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 p-3"
+              role="presentation"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) setOpen(false);
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={ariaLabel}
+                className="max-h-[calc(100dvh-24px)] w-full max-w-[340px] overflow-y-auto rounded-[24px] border border-[#43baad]/30 bg-white p-3 shadow-2xl"
               >
-                ‹
-              </button>
-              <div className="text-center text-base font-semibold capitalize text-[#075255]">
-                {monthLabel}
-              </div>
-              <button
-                type="button"
-                aria-label={copy.nextMonth}
-                disabled={nextMonthDisabled}
-                onClick={() => setVisibleMonth((current) => addUtcMonths(current, 1))}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-[#43baad]/30 text-xl text-[#075255] transition hover:bg-[#43baad]/10 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                ›
-              </button>
-            </div>
-
-            <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase tracking-[0.04em] text-[#5d6f72]">
-              {weekdayLabels.map((label, index) => (
-                <div key={`${label}-${index}`} className="py-1">
-                  {label}
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-1 grid grid-cols-7 gap-1">
-              {calendarDays.map((date) => {
-                const dateKey = utcDateToDateKey(date);
-                const outsideMonth = date.getUTCMonth() !== visibleMonth.getUTCMonth();
-                const disabled =
-                  Boolean(normalizedMin && dateKey < normalizedMin) ||
-                  Boolean(normalizedMax && dateKey > normalizedMax);
-                const selected = dateKey === normalizedValue;
-                const today = dateKey === todayDateKey;
-
-                return (
+                <div className="flex items-center justify-between gap-2">
                   <button
-                    key={dateKey}
                     type="button"
-                    disabled={disabled}
-                    aria-pressed={selected}
-                    onClick={() => selectDate(dateKey)}
-                    className={[
-                      "relative flex aspect-square items-center justify-center rounded-xl text-sm font-medium transition",
-                      selected
-                        ? "bg-[#43baad] text-[#075255] shadow-sm"
-                        : today
-                          ? "border border-[#43baad] text-[#075255]"
-                          : "text-[#202627] hover:bg-[#43baad]/10",
-                      outsideMonth && !selected ? "opacity-35" : "",
-                      disabled ? "cursor-not-allowed opacity-20 hover:bg-transparent" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
+                    aria-label={copy.previousMonth}
+                    disabled={previousMonthDisabled}
+                    onClick={() => setVisibleMonth((current) => addUtcMonths(current, -1))}
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-[#43baad]/25 bg-white text-lg text-[#075255] transition hover:bg-[#f4fbfa] disabled:cursor-not-allowed disabled:opacity-30"
                   >
-                    {date.getUTCDate()}
+                    ‹
                   </button>
-                );
-              })}
-            </div>
 
-            <div className="mt-4 flex items-center justify-between gap-3 border-t border-[#43baad]/20 pt-3">
-              <button
-                type="button"
-                onClick={() => {
-                  onChange("");
-                  setOpen(false);
-                }}
-                className="rounded-xl px-3 py-2 text-sm font-semibold text-[#075255] transition hover:bg-[#43baad]/10"
-              >
-                {copy.clear}
-              </button>
+                  <div className="text-center text-sm font-semibold capitalize text-[#075255]">
+                    {monthLabel}
+                  </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={!canUseToday}
-                  onClick={() => selectDate(todayDateKey)}
-                  className="rounded-xl px-3 py-2 text-sm font-semibold text-[#075255] transition hover:bg-[#43baad]/10 disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  {copy.today}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="rounded-xl border border-[#43baad]/30 px-3 py-2 text-sm font-semibold text-[#075255] transition hover:bg-[#43baad]/10"
-                >
-                  {copy.close}
-                </button>
+                  <button
+                    type="button"
+                    aria-label={copy.nextMonth}
+                    disabled={nextMonthDisabled}
+                    onClick={() => setVisibleMonth((current) => addUtcMonths(current, 1))}
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-[#43baad]/25 bg-white text-lg text-[#075255] transition hover:bg-[#f4fbfa] disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    ›
+                  </button>
+                </div>
+
+                <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-[0.03em] text-[#5d6f72]">
+                  {weekdayLabels.map((label, index) => (
+                    <div key={`${label}-${index}`} className="py-1">
+                      {label}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-1 grid grid-cols-7 gap-1">
+                  {calendarDays.map((date) => {
+                    const dateKey = utcDateToDateKey(date);
+                    const outsideMonth = date.getUTCMonth() !== visibleMonth.getUTCMonth();
+                    const disabled =
+                      Boolean(normalizedMin && dateKey < normalizedMin) ||
+                      Boolean(normalizedMax && dateKey > normalizedMax);
+                    const selected = dateKey === normalizedValue;
+                    const today = dateKey === todayDateKey;
+
+                    return (
+                      <button
+                        key={dateKey}
+                        type="button"
+                        disabled={disabled}
+                        aria-pressed={selected}
+                        onClick={() => selectDate(dateKey)}
+                        className={[
+                          "relative flex h-9 items-center justify-center rounded-lg border bg-white text-sm font-medium text-[#202627] transition",
+                          selected
+                            ? "border-2 border-[#178e84] text-[#075255] shadow-sm"
+                            : today
+                              ? "border-[#43baad] text-[#075255]"
+                              : "border-[#d9e8e7] hover:border-[#43baad] hover:bg-[#f7fbfb]",
+                          outsideMonth && !selected ? "opacity-45" : "",
+                          disabled
+                            ? "cursor-not-allowed border-[#edf3f2] bg-[#fafcfc] opacity-35 hover:border-[#edf3f2] hover:bg-[#fafcfc]"
+                            : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                      >
+                        {date.getUTCDate()}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 flex items-center justify-between gap-2 border-t border-[#43baad]/15 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange("");
+                      setOpen(false);
+                    }}
+                    className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#075255] transition hover:bg-[#f4fbfa]"
+                  >
+                    {copy.clear}
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={!canUseToday}
+                      onClick={() => selectDate(todayDateKey)}
+                      className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#075255] transition hover:bg-[#f4fbfa] disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      {copy.today}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setOpen(false)}
+                      className="rounded-lg border border-[#43baad]/25 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#075255] transition hover:bg-[#f4fbfa]"
+                    >
+                      {copy.close}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
