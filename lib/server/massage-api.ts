@@ -5,6 +5,8 @@ import type { SystemEventSeverity } from "@/lib/server/system-events";
 
 const MASSAGE_API_VERSION = "v12";
 const DEFAULT_TIMEOUT_MS = 12_000;
+const MASSAGE_BOOKING_TIMEOUT_MS = 7_000;
+const MASSAGE_VERIFY_TIMEOUT_MS = 4_000;
 const MASSAGE_API_MAX_ATTEMPTS = 2;
 const MASSAGE_TRANSIENT_FAILURE_WINDOW_MS = 15 * 60 * 1000;
 const MASSAGE_TRANSIENT_CRITICAL_THRESHOLD = 3;
@@ -231,8 +233,20 @@ type MassageBookingRejectedResult = {
   message?: string | null;
 };
 
+type MassageBookingVerificationResult = MassageBookingResult & {
+  verificationStatus?: string;
+  elapsedMs?: number;
+};
+
+type MassageBookingVerificationOutcome =
+  | { kind: "confirmed"; result: MassageBookingVerificationResult }
+  | { kind: "conflict"; code: string; message: string }
+  | { kind: "not_found"; code: string; message: string };
+
 type PostMassageApiOptions = {
   allowRejectedResult?: boolean;
+  suppressFailureLog?: boolean;
+  timeoutMs?: number;
 };
 
 export class MassageApiError extends Error {
@@ -676,7 +690,10 @@ async function fetchMassageApiOnce<T>(input: {
   options: PostMassageApiOptions;
 }): Promise<MassageApiEnvelope<T>> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    input.options.timeoutMs ?? DEFAULT_TIMEOUT_MS
+  );
 
   try {
     const response = await fetch(input.config.url, {
@@ -825,6 +842,10 @@ async function postMassageApi<T>(
           continue;
         }
 
+        if (options.suppressFailureLog) {
+          throw massageError;
+        }
+
         const severity = await logMassageApiReadFailure({
           hotelSlug: config.hotelSlug,
           payload,
@@ -846,6 +867,10 @@ async function postMassageApi<T>(
       statusCode: 502,
       code: "MASSAGE_API_UNAVAILABLE",
     });
+    if (options.suppressFailureLog) {
+      throw fallbackError;
+    }
+
     const severity = await logMassageApiReadFailure({
       hotelSlug: config.hotelSlug,
       payload,
@@ -978,17 +1003,21 @@ function invalidateMassageReadCacheForHotel(inputHotelSlug: unknown) {
   }
 }
 
-export async function createMassageBooking(input: {
+async function waitForMassageVerification(delayMs: number) {
+  await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+}
+
+async function verifyMassageBookingAfterAmbiguousFailure(input: {
   hotelSlug: unknown;
   serviceId: string;
   date: string;
   time: string;
   room: string;
 }) {
-  const response = await postMassageApi<MassageBookingResult | MassageBookingRejectedResult>(
+  const response = await postMassageApi<MassageBookingVerificationResult | MassageBookingRejectedResult>(
     input.hotelSlug,
     {
-      action: "book",
+      action: "verify_booking",
       serviceId: input.serviceId,
       date: input.date,
       time: input.time,
@@ -999,12 +1028,198 @@ export async function createMassageBooking(input: {
         hotelSlug: input.hotelSlug,
         room: input.room,
       }),
-      // Never accept browser-controlled test mode. This server path can only
-      // request a real booking, and Apps Script still has its own write guard.
-      testMode: false,
     },
-    { allowRejectedResult: true }
+    {
+      allowRejectedResult: true,
+      suppressFailureLog: true,
+      timeoutMs: MASSAGE_VERIFY_TIMEOUT_MS,
+    }
   );
+
+  const result = response.result;
+  if (
+    response.ok &&
+    result &&
+    (result.status === "BOOKING_ALREADY_CONFIRMED" ||
+      (result as MassageBookingVerificationResult).verificationStatus === "BOOKING_CONFIRMED")
+  ) {
+    return {
+      kind: "confirmed",
+      result: result as MassageBookingVerificationResult,
+    } satisfies MassageBookingVerificationOutcome;
+  }
+
+  const rejected = result as MassageBookingRejectedResult | undefined;
+  const code = String(rejected?.code || response.code || response.status || "BOOKING_NOT_FOUND");
+  const message = String(rejected?.message || response.message || "Massage booking was not found.");
+
+  if (code === "SLOT_OCCUPIED_BY_DIFFERENT_BOOKING" || response.status === "BOOKING_CONFLICT") {
+    return { kind: "conflict", code, message } satisfies MassageBookingVerificationOutcome;
+  }
+
+  return { kind: "not_found", code, message } satisfies MassageBookingVerificationOutcome;
+}
+
+export async function createMassageBooking(input: {
+  hotelSlug: unknown;
+  serviceId: string;
+  date: string;
+  time: string;
+  room: string;
+}) {
+  let response: MassageApiEnvelope<MassageBookingResult | MassageBookingRejectedResult>;
+
+  try {
+    response = await postMassageApi<MassageBookingResult | MassageBookingRejectedResult>(
+      input.hotelSlug,
+      {
+        action: "book",
+        serviceId: input.serviceId,
+        date: input.date,
+        time: input.time,
+        room: input.room,
+        stayhubRoomNumber: input.room,
+        stayhubHotelCode: getMassageHotelCode(input.hotelSlug),
+        stayhubRoomMarker: buildMassageStayHubSheetRoomMarker({
+          hotelSlug: input.hotelSlug,
+          room: input.room,
+        }),
+        testMode: false,
+      },
+      {
+        allowRejectedResult: true,
+        suppressFailureLog: true,
+        timeoutMs: MASSAGE_BOOKING_TIMEOUT_MS,
+      }
+    );
+  } catch (error) {
+    const massageError = error instanceof MassageApiError
+      ? error
+      : new MassageApiError("Massage calendar service is temporarily unavailable.", {
+          statusCode: 502,
+          code: "MASSAGE_API_UNAVAILABLE",
+        });
+
+    const ambiguous = [
+      "MASSAGE_API_TIMEOUT",
+      "MASSAGE_API_UNAVAILABLE",
+      "MASSAGE_API_HTTP_ERROR",
+    ].includes(massageError.code);
+
+    if (!ambiguous) {
+      throw massageError;
+    }
+
+    const verificationDelaysMs = [500, 1000];
+    let lastVerificationError: unknown = null;
+    let lastOutcome: MassageBookingVerificationOutcome | null = null;
+
+    for (const delayMs of verificationDelaysMs) {
+      await waitForMassageVerification(delayMs);
+
+      try {
+        const outcome = await verifyMassageBookingAfterAmbiguousFailure(input);
+        lastOutcome = outcome;
+
+        if (outcome.kind === "confirmed") {
+          await logSystemError({
+            severity: "warning",
+            source: "apps_script",
+            eventType: "MASSAGE_BOOKING_RECOVERED_AFTER_AMBIGUOUS_FAILURE",
+            message: "Massage booking response was ambiguous, but the exact booking was verified in the Google Sheet.",
+            error: massageError,
+            metadata: {
+              hotelSlug: normalizeMassageHotelSlug(input.hotelSlug),
+              action: "book",
+              recoveryAction: "verify_booking",
+              recovered: true,
+              room: input.room,
+              serviceId: input.serviceId,
+              date: input.date,
+              time: input.time,
+            },
+          });
+          return outcome.result;
+        }
+
+        if (outcome.kind === "conflict") {
+          throw new MassageApiError(outcome.message, {
+            statusCode: 409,
+            code: "SLOT_NO_LONGER_AVAILABLE",
+          });
+        }
+      } catch (verificationError) {
+        if (
+          verificationError instanceof MassageApiError &&
+          verificationError.code === "SLOT_NO_LONGER_AVAILABLE"
+        ) {
+          throw verificationError;
+        }
+        lastVerificationError = verificationError;
+      }
+    }
+
+    if (lastVerificationError) {
+      await logSystemError({
+        severity: "critical",
+        source: "apps_script",
+        eventType: "MASSAGE_BOOKING_VERIFICATION_FAILED",
+        message: "Massage booking result remained ambiguous after two exact Google Sheet verification attempts.",
+        error: lastVerificationError,
+        metadata: {
+          hotelSlug: normalizeMassageHotelSlug(input.hotelSlug),
+          action: "book",
+          recoveryAction: "verify_booking",
+          verificationAttempts: verificationDelaysMs.length,
+          room: input.room,
+          serviceId: input.serviceId,
+          date: input.date,
+          time: input.time,
+          originalErrorCode: massageError.code,
+        },
+      });
+
+      throw new MassageApiError(
+        "Massage booking could not be confirmed after verification.",
+        {
+          statusCode: 504,
+          code: "MASSAGE_BOOKING_UNCONFIRMED_AFTER_TIMEOUT",
+          monitoringSeverity: "critical",
+          alreadyLogged: true,
+        }
+      );
+    }
+
+    await logSystemError({
+      severity: "critical",
+      source: "apps_script",
+      eventType: "MASSAGE_BOOKING_NOT_FOUND_AFTER_AMBIGUOUS_FAILURE",
+      message: "Massage booking response was ambiguous and the exact booking was not found in the Google Sheet.",
+      error: massageError,
+      metadata: {
+        hotelSlug: normalizeMassageHotelSlug(input.hotelSlug),
+        action: "book",
+        recoveryAction: "verify_booking",
+        verificationAttempts: verificationDelaysMs.length,
+        finalVerificationKind: lastOutcome?.kind || null,
+        finalVerificationCode: lastOutcome && "code" in lastOutcome ? lastOutcome.code : null,
+        room: input.room,
+        serviceId: input.serviceId,
+        date: input.date,
+        time: input.time,
+      },
+    });
+
+    throw new MassageApiError(
+      "Massage booking could not be confirmed after verification.",
+      {
+        statusCode: 504,
+        code: "MASSAGE_BOOKING_UNCONFIRMED_AFTER_TIMEOUT",
+        monitoringSeverity: "critical",
+        alreadyLogged: true,
+      }
+    );
+  }
 
   const result = response.result;
 

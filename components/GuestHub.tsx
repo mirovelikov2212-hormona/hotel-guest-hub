@@ -5606,19 +5606,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   useEffect(() => {
     if (!massageBookingPreviewVisible || !hotelContentSlug) return;
 
-    let cancelled = false;
-    const timerId = window.setTimeout(() => {
-      if (cancelled) return;
-
-      void prefetchMassageBookingData(hotelContentSlug).catch(() => {
-        // The normal on-demand flow remains available if background prefetch fails.
-      });
-    }, 500);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timerId);
-    };
+    void prefetchMassageBookingData(hotelContentSlug).catch(() => {
+      // The on-demand flow remains available if background prefetch fails.
+    });
   }, [hotelContentSlug, massageBookingPreviewVisible]);
 
   const activeGuestMassageBookings = useMemo(() => {

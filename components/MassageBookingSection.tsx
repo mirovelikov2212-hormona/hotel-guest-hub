@@ -127,6 +127,7 @@ type MassageCopy = {
   bookingSuccess: string;
   bookingAlreadyConfirmed: string;
   bookingConflict: string;
+  bookingVerifying: string;
   bookingFailed: string;
 };
 
@@ -166,7 +167,8 @@ const COPY: Record<LangKey, MassageCopy> = {
     bookingSuccess: "Резервацията за масаж е потвърдена.",
     bookingAlreadyConfirmed: "Тази резервация вече е потвърдена.",
     bookingConflict: "Избраният час вече не е свободен. Изберете друг час.",
-    bookingFailed: "Резервацията не можа да бъде изпратена. Опитайте отново.",
+    bookingVerifying: "Проверяваме дали резервацията е записана…",
+    bookingFailed: "Резервацията не можа да бъде потвърдена. Моля, опитайте отново след малко.",
   },
   en: {
     sectionTitle: "Book a massage",
@@ -203,7 +205,8 @@ const COPY: Record<LangKey, MassageCopy> = {
     bookingSuccess: "Your massage booking is confirmed.",
     bookingAlreadyConfirmed: "This booking is already confirmed.",
     bookingConflict: "The selected time is no longer available. Choose another time.",
-    bookingFailed: "The booking could not be submitted. Please try again.",
+    bookingVerifying: "We are checking whether the booking was recorded…",
+    bookingFailed: "The booking could not be confirmed. Please try again shortly.",
   },
   de: {
     sectionTitle: "Massage buchen",
@@ -240,7 +243,8 @@ const COPY: Record<LangKey, MassageCopy> = {
     bookingSuccess: "Ihre Massagebuchung wurde bestätigt.",
     bookingAlreadyConfirmed: "Diese Buchung ist bereits bestätigt.",
     bookingConflict: "Die gewählte Uhrzeit ist nicht mehr verfügbar. Wählen Sie eine andere Uhrzeit.",
-    bookingFailed: "Die Buchung konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
+    bookingVerifying: "Wir prüfen, ob die Buchung gespeichert wurde…",
+    bookingFailed: "Die Buchung konnte nicht bestätigt werden. Bitte versuchen Sie es gleich noch einmal.",
   },
   ro: {
     sectionTitle: "Rezervă un masaj",
@@ -277,7 +281,8 @@ const COPY: Record<LangKey, MassageCopy> = {
     bookingSuccess: "Rezervarea pentru masaj a fost confirmată.",
     bookingAlreadyConfirmed: "Această rezervare este deja confirmată.",
     bookingConflict: "Ora selectată nu mai este disponibilă. Alegeți altă oră.",
-    bookingFailed: "Rezervarea nu a putut fi trimisă. Încercați din nou.",
+    bookingVerifying: "Verificăm dacă rezervarea a fost înregistrată…",
+    bookingFailed: "Rezervarea nu a putut fi confirmată. Încercați din nou în scurt timp.",
   },
   cs: {
     sectionTitle: "Rezervovat masáž",
@@ -314,7 +319,8 @@ const COPY: Record<LangKey, MassageCopy> = {
     bookingSuccess: "Rezervace masáže byla potvrzena.",
     bookingAlreadyConfirmed: "Tato rezervace je již potvrzena.",
     bookingConflict: "Vybraný čas již není dostupný. Zvolte jiný čas.",
-    bookingFailed: "Rezervaci se nepodařilo odeslat. Zkuste to znovu.",
+    bookingVerifying: "Ověřujeme, zda byla rezervace zapsána…",
+    bookingFailed: "Rezervaci se nepodařilo potvrdit. Zkuste to prosím za chvíli znovu.",
   },
   ru: {
     sectionTitle: "Забронировать массаж",
@@ -351,7 +357,8 @@ const COPY: Record<LangKey, MassageCopy> = {
     bookingSuccess: "Бронирование массажа подтверждено.",
     bookingAlreadyConfirmed: "Это бронирование уже подтверждено.",
     bookingConflict: "Выбранное время больше недоступно. Выберите другое время.",
-    bookingFailed: "Не удалось отправить бронирование. Попробуйте ещё раз.",
+    bookingVerifying: "Проверяем, была ли записана бронь…",
+    bookingFailed: "Не удалось подтвердить бронирование. Повторите попытку немного позже.",
   },
 };
 
@@ -421,10 +428,10 @@ async function fetchMassageApi<T>(params: URLSearchParams, signal?: AbortSignal)
 }
 
 const CACHE_TTL = {
-  services: 30 * 60 * 1000,
-  bootstrap: 2 * 60 * 1000,
-  dates: 2 * 60 * 1000,
-  times: 30 * 1000,
+  services: 6 * 60 * 60 * 1000,
+  bootstrap: 3 * 60 * 1000,
+  dates: 3 * 60 * 1000,
+  times: 60 * 1000,
 };
 
 type CacheEntry<T> = {
@@ -447,12 +454,12 @@ function readMassageCache<T>(key: string): T | null {
   }
 
   try {
-    const raw = window.sessionStorage.getItem(key);
+    const raw = window.localStorage.getItem(key);
     if (!raw) return null;
 
     const parsed = JSON.parse(raw) as CacheEntry<T>;
     if (!parsed || parsed.expiresAt <= now) {
-      window.sessionStorage.removeItem(key);
+      window.localStorage.removeItem(key);
       return null;
     }
 
@@ -472,26 +479,48 @@ function writeMassageCache<T>(key: string, value: T, ttlMs: number) {
   memoryCache.set(key, entry as CacheEntry<unknown>);
 
   try {
-    window.sessionStorage.setItem(key, JSON.stringify(entry));
+    window.localStorage.setItem(key, JSON.stringify(entry));
   } catch {
-    // The in-memory cache still works when sessionStorage is unavailable.
+    // The in-memory cache still works when persistent storage is unavailable.
   }
 }
 
 function servicesCacheKey(hotelSlug: string) {
-  return `stayhub:massage:v4:services:${hotelSlug}`;
+  return `stayhub:massage:v6:services:${hotelSlug}`;
 }
 
 function bootstrapCacheKey(hotelSlug: string, fromDate: string) {
-  return `stayhub:massage:v5:bootstrap:${hotelSlug}:${fromDate}`;
+  return `stayhub:massage:v6:bootstrap:${hotelSlug}:${fromDate}`;
 }
 
 function datesCacheKey(hotelSlug: string, serviceId: string, fromDate: string) {
-  return `stayhub:massage:v4:dates:${hotelSlug}:${serviceId}:${fromDate}`;
+  return `stayhub:massage:v6:dates:${hotelSlug}:${serviceId}:${fromDate}`;
 }
 
 function timesCacheKey(hotelSlug: string, serviceId: string, date: string) {
-  return `stayhub:massage:v4:times:${hotelSlug}:${serviceId}:${date}`;
+  return `stayhub:massage:v6:times:${hotelSlug}:${serviceId}:${date}`;
+}
+
+function invalidateMassageCacheForHotel(hotelSlugInput: string) {
+  const hotelSlug = String(hotelSlugInput || "").trim().toLowerCase();
+  if (!hotelSlug) return;
+
+  for (const key of memoryCache.keys()) {
+    if (key.startsWith("stayhub:massage:v6:") && key.includes(`:${hotelSlug}`)) {
+      memoryCache.delete(key);
+    }
+  }
+
+  try {
+    for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+      const key = window.localStorage.key(index);
+      if (key && key.startsWith("stayhub:massage:v6:") && key.includes(`:${hotelSlug}`)) {
+        window.localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Cache invalidation is best-effort.
+  }
 }
 
 const bootstrapLoadPromises = new Map<string, Promise<MassageBootstrapResult>>();
@@ -670,22 +699,32 @@ export default function MassageBookingSection({
       setError("");
 
       try {
-        const result = await fetchMassageApi<ServicesResult>(
-          new URLSearchParams({
-            hotelSlug,
-            action: "services",
-          }),
-          signal
-        );
+        const bootstrap = await prefetchMassageBookingData(hotelSlug);
+        if (bootstrap) {
+          const nextServices = bootstrap.services?.services || [];
+          setServices(nextServices);
+          setAvailabilityByService(bootstrap.availabilityByService || {});
+          setServicesLoaded(true);
+          return;
+        }
 
-        const nextServices = result.services || [];
+        throw new Error("Massage bootstrap returned no data.");
+      } catch (bootstrapError) {
+        if (bootstrapError instanceof DOMException && bootstrapError.name === "AbortError") return;
 
-        setServices(nextServices);
-        setServicesLoaded(true);
-        writeMassageCache(cacheKey, result, CACHE_TTL.services);
-      } catch (loadError) {
-        if (loadError instanceof DOMException && loadError.name === "AbortError") return;
-        setError(loadError instanceof Error ? loadError.message : "Unable to load massages.");
+        try {
+          const result = await fetchMassageApi<ServicesResult>(
+            new URLSearchParams({ hotelSlug, action: "services" }),
+            signal
+          );
+          const nextServices = result.services || [];
+          setServices(nextServices);
+          setServicesLoaded(true);
+          writeMassageCache(cacheKey, result, CACHE_TTL.services);
+        } catch (loadError) {
+          if (loadError instanceof DOMException && loadError.name === "AbortError") return;
+          setError(loadError instanceof Error ? loadError.message : "Unable to load massages.");
+        }
       } finally {
         setLoadingServices(false);
       }
@@ -700,29 +739,39 @@ export default function MassageBookingSection({
   const loadBookableDates = useCallback((serviceId: string, options?: { silent?: boolean }) => {
     const fromDate = getSofiaIsoDate();
     const cacheKey = datesCacheKey(hotelSlug, serviceId, fromDate);
+    const embedded = availabilityByService[serviceId] || null;
     const cached = readMassageCache<BookableDatesResult>(cacheKey);
 
-    if (cached) {
-      setAvailabilityByService((current) => (
-        current[serviceId] ? current : { ...current, [serviceId]: cached }
-      ));
-      return Promise.resolve(cached);
+    if (embedded || cached) {
+      return Promise.resolve(embedded || cached as BookableDatesResult);
     }
 
     const requestKey = `${serviceId}:${fromDate}`;
     const existing = datesLoadPromiseRef.current.get(requestKey);
     if (existing) return existing;
 
-    const task = fetchMassageApi<BookableDatesResult>(
-      new URLSearchParams({
-        hotelSlug,
-        action: "bookable_dates_summary",
-        serviceId,
-        fromDate,
-        daysAhead: "14",
-      })
-    )
-      .then((result) => {
+    const task = (async () => {
+      try {
+        const bootstrap = await prefetchMassageBookingData(hotelSlug);
+        const bootstrapResult = bootstrap?.availabilityByService?.[serviceId] || null;
+        if (bootstrapResult) {
+          setAvailabilityByService((current) => ({
+            ...current,
+            [serviceId]: bootstrapResult,
+          }));
+          return bootstrapResult;
+        }
+
+        const result = await fetchMassageApi<BookableDatesResult>(
+          new URLSearchParams({
+            hotelSlug,
+            action: "bookable_dates",
+            serviceId,
+            fromDate,
+            daysAhead: "14",
+          })
+        );
+
         setAvailabilityByService((current) => ({
           ...current,
           [serviceId]: result,
@@ -739,40 +788,20 @@ export default function MassageBookingSection({
         }
 
         return result;
-      })
-      .catch((loadError) => {
+      } catch (loadError) {
         if (!options?.silent) {
           setError(loadError instanceof Error ? loadError.message : "Unable to load dates.");
         }
         throw loadError;
-      })
-      .finally(() => {
-        datesLoadPromiseRef.current.delete(requestKey);
-      });
+      }
+    })().finally(() => {
+      datesLoadPromiseRef.current.delete(requestKey);
+    });
 
     datesLoadPromiseRef.current.set(requestKey, task);
     return task;
-  }, [hotelSlug]);
+  }, [availabilityByService, hotelSlug]);
 
-  useEffect(() => {
-    if (!open || !servicesLoaded || services.length === 0) return;
-
-    let cancelled = false;
-    const timerIds: number[] = [];
-
-    services.forEach((service, index) => {
-      const timerId = window.setTimeout(() => {
-        if (cancelled) return;
-        void loadBookableDates(service.serviceId, { silent: true }).catch(() => undefined);
-      }, 250 + index * 300);
-      timerIds.push(timerId);
-    });
-
-    return () => {
-      cancelled = true;
-      timerIds.forEach((timerId) => window.clearTimeout(timerId));
-    };
-  }, [loadBookableDates, open, services, servicesLoaded]);
 
   useEffect(() => {
     if (forceOpenToken <= 0) return;
@@ -1023,7 +1052,17 @@ export default function MassageBookingSection({
       extra: { date: selectedDate, room },
     });
 
+    let verificationTimer: number | null = null;
+
     try {
+      verificationTimer = window.setTimeout(() => {
+        setBookingFeedback({
+          kind: "info",
+          text: copy.bookingVerifying,
+          code: "BOOKING_VERIFICATION_IN_PROGRESS",
+        });
+      }, 4500);
+
       const response = await fetch("/api/guest/massages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1043,6 +1082,8 @@ export default function MassageBookingSection({
 
       if (response.ok && payload?.ok && payload.result) {
         const alreadyConfirmed = payload.result.status === "BOOKING_ALREADY_CONFIRMED";
+        invalidateMassageCacheForHotel(hotelSlug);
+        void prefetchMassageBookingData(hotelSlug).catch(() => undefined);
         setBookingConfirmed(true);
         setBookingFeedback({
           kind: "success",
@@ -1115,6 +1156,9 @@ export default function MassageBookingSection({
         extra: { date: selectedDate, room },
       });
     } finally {
+      if (verificationTimer !== null) {
+        window.clearTimeout(verificationTimer);
+      }
       setSubmittingBooking(false);
     }
   };
