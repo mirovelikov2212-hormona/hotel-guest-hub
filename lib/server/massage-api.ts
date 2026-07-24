@@ -64,6 +64,7 @@ type MassageApiEnvelope<T> = {
   apiVersion?: string;
   requestId?: string;
   runtimeVersion?: string;
+  liveContract?: string;
   status?: string;
   code?: string;
   message?: string;
@@ -156,11 +157,16 @@ export type MassageBookableDatesResult = {
 };
 
 export type MassageBootstrapResult = {
+  runtimeVersion?: string;
+  liveContract?: string;
+  revision?: string | null;
+  cacheHit?: boolean;
   fromDate: string;
   daysChecked: number;
   services: MassageServicesResult;
   availabilityByService: Record<string, MassageBookableDatesResult>;
   readMode?: string;
+  readStats?: Record<string, unknown> | null;
   elapsedMs?: number;
 };
 
@@ -210,6 +216,33 @@ export type MassageBookingResult = {
   cleanupRequired?: boolean;
 };
 
+export type MassageBookingVerificationResult = Partial<MassageBookingResult> & {
+  status: "BOOKING_ALREADY_CONFIRMED" | "BOOKING_CONFLICT" | "BOOKING_NOT_FOUND";
+  verificationStatus: "BOOKING_CONFIRMED" | "BOOKING_CONFLICT" | "BOOKING_NOT_FOUND";
+  confirmed?: boolean;
+  code?: string | null;
+  message?: string | null;
+  elapsedMs?: number;
+};
+
+export type MassageSnapshotSourceBundle = {
+  bootstrap: MassageBootstrapResult;
+  calendar: MassageCalendarSnapshotResult;
+  source: {
+    revision: string;
+    runtimeVersion: string | null;
+    liveContract: string | null;
+    requestIds: {
+      bootstrap: string | null;
+      calendar: string | null;
+    };
+    statuses: {
+      bootstrap: string | null;
+      calendar: string | null;
+    };
+  };
+};
+
 type MassageControlledE2EApiResult = {
   status: string;
   code?: string | null;
@@ -233,13 +266,13 @@ type MassageBookingRejectedResult = {
   message?: string | null;
 };
 
-type MassageBookingVerificationResult = MassageBookingResult & {
+type MassageRecoveredBookingResult = MassageBookingResult & {
   verificationStatus?: string;
   elapsedMs?: number;
 };
 
 type MassageBookingVerificationOutcome =
-  | { kind: "confirmed"; result: MassageBookingVerificationResult }
+  | { kind: "confirmed"; result: MassageRecoveredBookingResult }
   | { kind: "conflict"; code: string; message: string }
   | { kind: "not_found"; code: string; message: string };
 
@@ -247,6 +280,7 @@ type PostMassageApiOptions = {
   allowRejectedResult?: boolean;
   suppressFailureLog?: boolean;
   timeoutMs?: number;
+  deferFailureLogging?: boolean;
 };
 
 export class MassageApiError extends Error {
@@ -885,7 +919,7 @@ async function postMassageApi<T>(
           continue;
         }
 
-        if (options.suppressFailureLog) {
+        if (options.suppressFailureLog || options.deferFailureLogging) {
           throw massageError;
         }
 
@@ -910,7 +944,7 @@ async function postMassageApi<T>(
       statusCode: 502,
       code: "MASSAGE_API_UNAVAILABLE",
     });
-    if (options.suppressFailureLog) {
+    if (options.suppressFailureLog || options.deferFailureLogging) {
       throw fallbackError;
     }
 
@@ -977,6 +1011,58 @@ export async function getMassageCalendarSnapshot(input: {
   });
 
   return response.result as MassageCalendarSnapshotResult;
+}
+
+export async function getMassageSnapshotSourceBundle(input: {
+  hotelSlug: unknown;
+  fromDate: string;
+  daysAhead: number;
+}): Promise<MassageSnapshotSourceBundle> {
+  const [bootstrapResponse, calendarResponse] = await Promise.all([
+    postMassageApi<MassageBootstrapResult>(input.hotelSlug, {
+      action: "bootstrap",
+      fromDate: input.fromDate,
+      daysAhead: input.daysAhead,
+    }),
+    postMassageApi<MassageCalendarSnapshotResult>(input.hotelSlug, {
+      action: "calendar_snapshot",
+      fromDate: input.fromDate,
+      daysAhead: input.daysAhead,
+    }),
+  ]);
+
+  const bootstrap = bootstrapResponse.result as MassageBootstrapResult;
+  const calendar = calendarResponse.result as MassageCalendarSnapshotResult;
+  const revision = String(bootstrap.revision || "").trim();
+
+  if (!revision) {
+    throw new MassageApiError("Massage calendar snapshot did not include a revision.", {
+      statusCode: 502,
+      code: "MASSAGE_SNAPSHOT_REVISION_MISSING",
+    });
+  }
+
+  return {
+    bootstrap,
+    calendar,
+    source: {
+      revision,
+      runtimeVersion: String(
+        bootstrap.runtimeVersion || bootstrapResponse.runtimeVersion || ""
+      ).trim() || null,
+      liveContract: String(
+        bootstrap.liveContract || bootstrapResponse.liveContract || ""
+      ).trim() || null,
+      requestIds: {
+        bootstrap: String(bootstrapResponse.requestId || "").trim() || null,
+        calendar: String(calendarResponse.requestId || "").trim() || null,
+      },
+      statuses: {
+        bootstrap: String(bootstrapResponse.status || "").trim() || null,
+        calendar: String(calendarResponse.status || "").trim() || null,
+      },
+    },
+  };
 }
 
 export async function getMassageServices(hotelSlug: unknown) {
@@ -1057,7 +1143,7 @@ async function verifyMassageBookingAfterAmbiguousFailure(input: {
   time: string;
   room: string;
 }) {
-  const response = await postMassageApi<MassageBookingVerificationResult | MassageBookingRejectedResult>(
+  const response = await postMassageApi<MassageRecoveredBookingResult | MassageBookingRejectedResult>(
     input.hotelSlug,
     {
       action: "verify_booking",
@@ -1076,6 +1162,7 @@ async function verifyMassageBookingAfterAmbiguousFailure(input: {
       allowRejectedResult: true,
       suppressFailureLog: true,
       timeoutMs: MASSAGE_VERIFY_TIMEOUT_MS,
+      deferFailureLogging: true,
     }
   );
 
@@ -1084,11 +1171,11 @@ async function verifyMassageBookingAfterAmbiguousFailure(input: {
     response.ok &&
     result &&
     (result.status === "BOOKING_ALREADY_CONFIRMED" ||
-      (result as MassageBookingVerificationResult).verificationStatus === "BOOKING_CONFIRMED")
+      (result as MassageRecoveredBookingResult).verificationStatus === "BOOKING_CONFIRMED")
   ) {
     return {
       kind: "confirmed",
-      result: result as MassageBookingVerificationResult,
+      result: result as MassageRecoveredBookingResult,
     } satisfies MassageBookingVerificationOutcome;
   }
 
@@ -1319,6 +1406,53 @@ export async function createMassageBooking(input: {
   });
 }
 
+export async function verifyMassageBooking(input: {
+  hotelSlug: unknown;
+  serviceId: string;
+  date: string;
+  time: string;
+  room: string;
+}) {
+  const response = await postMassageApi<MassageBookingVerificationResult>(
+    input.hotelSlug,
+    {
+      action: "verify_booking",
+      serviceId: input.serviceId,
+      date: input.date,
+      time: input.time,
+      room: input.room,
+      stayhubRoomNumber: input.room,
+      stayhubHotelCode: getMassageHotelCode(input.hotelSlug),
+      stayhubRoomMarker: buildMassageStayHubSheetRoomMarker({
+        hotelSlug: input.hotelSlug,
+        room: input.room,
+      }),
+      testMode: false,
+    },
+    {
+      allowRejectedResult: true,
+      deferFailureLogging: true,
+    }
+  );
+
+  const result = response.result;
+  if (!result) {
+    throw new MassageApiError("Massage calendar returned an incomplete verification response.", {
+      statusCode: 502,
+      code: "INVALID_MASSAGE_VERIFICATION_RESPONSE",
+    });
+  }
+
+  return {
+    result,
+    source: {
+      requestId: String(response.requestId || "").trim() || null,
+      runtimeVersion: String(response.runtimeVersion || "").trim() || null,
+      status: String(response.status || result.status || "").trim() || null,
+    },
+  };
+}
+
 export async function createMassageControlledE2EBooking(input: {
   hotelSlug: unknown;
   serviceId: string;
@@ -1443,4 +1577,3 @@ export async function createMassageControlledE2EBooking(input: {
     code,
   });
 }
-

@@ -1,0 +1,612 @@
+import "server-only";
+
+import {
+  createMassageBooking,
+  MassageApiError,
+  type MassageBookingResult,
+  verifyMassageBooking,
+} from "@/lib/server/massage-api";
+import { buildMassageBookingKey, ensureMassageStaffRequest } from "@/lib/server/massage-staff-request";
+import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
+import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import type { HotelScope } from "@/lib/server/hotel-scope";
+
+type MassageBookingAttemptStatus =
+  | "received"
+  | "upstream_pending"
+  | "reconcile_pending"
+  | "confirmed"
+  | "already_confirmed"
+  | "conflict"
+  | "failed"
+  | "cancelled";
+
+type MassageBookingAttemptRow = {
+  id: string;
+  hotel_id: string;
+  idempotency_key: string;
+  room_number: string;
+  service_id: string;
+  booking_date: string;
+  start_time: string;
+  guest_language: string;
+  status: MassageBookingAttemptStatus;
+  attempt_count: number;
+  verification_count: number;
+  first_attempt_at: string;
+  last_attempt_at: string;
+  last_verified_at: string | null;
+  next_reconcile_at: string | null;
+  confirmed_at: string | null;
+  reconciled_at: string | null;
+  write_verified: boolean;
+  idempotent_replay: boolean;
+  upstream_request_id: string | null;
+  upstream_runtime_version: string | null;
+  upstream_status: string | null;
+  sheet_value: string | null;
+  staff_request_id: string | null;
+  upstream_response_json: Record<string, unknown> | null;
+  verification_response_json: Record<string, unknown> | null;
+  last_error_code: string | null;
+  last_error_message: string | null;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+type TrackedMassageBookingInput = {
+  hotel: HotelScope;
+  serviceId: string;
+  date: string;
+  time: string;
+  room: string;
+  guestLanguage?: string | null;
+};
+
+const RECONCILE_BATCH_LIMIT = 25;
+const MAX_VERIFICATION_COUNT = 5;
+const TRANSIENT_BOOKING_CODES = new Set([
+  "MASSAGE_API_TIMEOUT",
+  "MASSAGE_API_UNAVAILABLE",
+  "MASSAGE_API_HTTP_ERROR",
+  "INVALID_MASSAGE_API_RESPONSE",
+]);
+
+function normalizeTimeForDb(value: string) {
+  const raw = String(value || "").trim();
+  return /^\d{1,2}:\d{2}$/.test(raw) ? `${raw}:00` : raw;
+}
+
+function asErrorCode(error: unknown) {
+  if (error && typeof error === "object" && "code" in error) {
+    const value = String((error as { code?: unknown }).code || "").trim();
+    if (value) return value.slice(0, 120);
+  }
+  return "MASSAGE_BOOKING_FAILED";
+}
+
+function asErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message.slice(0, 1000);
+  return String(error || "Unknown massage booking error").slice(0, 1000);
+}
+
+function isTransientBookingError(error: unknown) {
+  return error instanceof MassageApiError && TRANSIENT_BOOKING_CODES.has(error.code);
+}
+
+function isConflictError(error: unknown) {
+  return error instanceof MassageApiError && (
+    error.statusCode === 409 ||
+    error.code === "SLOT_NO_LONGER_AVAILABLE"
+  );
+}
+
+function nextReconcileAt(verificationCount: number) {
+  const delaySeconds = [15, 30, 60, 120, 300][
+    Math.min(Math.max(verificationCount, 0), 4)
+  ];
+  return new Date(Date.now() + delaySeconds * 1000).toISOString();
+}
+
+function bookingResultFromStored(value: unknown): MassageBookingResult | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const result = value as Record<string, unknown>;
+  const status = String(result.status || "");
+  if (status !== "BOOKING_WRITTEN" && status !== "BOOKING_ALREADY_CONFIRMED") {
+    return null;
+  }
+  return result as unknown as MassageBookingResult;
+}
+
+async function createOrTouchAttempt(input: TrackedMassageBookingInput) {
+  const now = new Date().toISOString();
+  const idempotencyKey = buildMassageBookingKey({
+    hotelSlug: input.hotel.slug,
+    serviceId: input.serviceId,
+    date: input.date,
+    startTime: input.time,
+    roomNumber: input.room,
+  });
+  const insertPayload = {
+    hotel_id: input.hotel.id,
+    idempotency_key: idempotencyKey,
+    room_number: input.room,
+    service_id: input.serviceId,
+    booking_date: input.date,
+    start_time: normalizeTimeForDb(input.time),
+    guest_language: String(input.guestLanguage || "bg").trim().toLowerCase() || "bg",
+    status: "upstream_pending",
+    attempt_count: 1,
+    first_attempt_at: now,
+    last_attempt_at: now,
+    next_reconcile_at: nextReconcileAt(0),
+    metadata_json: {
+      hotelSlug: input.hotel.slug,
+      publicSlug: input.hotel.public_slug || null,
+      sandbox: Boolean(input.hotel.is_sandbox),
+      productionHotelId: input.hotel.production_hotel_id || null,
+    },
+  };
+
+  const { data: inserted, error: insertError } = await supabaseAdmin
+    .from("massage_booking_attempts")
+    .insert(insertPayload)
+    .select("*")
+    .single();
+
+  if (!insertError && inserted) {
+    return {
+      attempt: inserted as MassageBookingAttemptRow,
+      claimed: true,
+    };
+  }
+
+  if (String(insertError?.code || "") !== "23505") {
+    throw insertError || new Error("Massage booking attempt was not created.");
+  }
+
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from("massage_booking_attempts")
+    .select("*")
+    .eq("hotel_id", input.hotel.id)
+    .eq("idempotency_key", idempotencyKey)
+    .single();
+
+  if (existingError || !existing) {
+    throw existingError || new Error("Existing massage booking attempt was not found.");
+  }
+
+  const existingAttempt = existing as MassageBookingAttemptRow;
+  const canRetry = ["failed", "conflict", "cancelled"].includes(existingAttempt.status);
+  const { data: touched, error: touchError } = await supabaseAdmin
+    .from("massage_booking_attempts")
+    .update({
+      attempt_count: Number(existing.attempt_count || 0) + 1,
+      last_attempt_at: now,
+      guest_language: insertPayload.guest_language,
+      ...(canRetry
+        ? {
+            status: "upstream_pending",
+            next_reconcile_at: nextReconcileAt(0),
+            last_error_code: null,
+            last_error_message: null,
+          }
+        : {}),
+    })
+    .eq("id", existing.id)
+    .eq("hotel_id", input.hotel.id)
+    .select("*")
+    .single();
+
+  if (touchError || !touched) {
+    throw touchError || new Error("Massage booking attempt could not be updated.");
+  }
+
+  return {
+    attempt: touched as MassageBookingAttemptRow,
+    claimed: canRetry,
+  };
+}
+
+async function updateAttempt(
+  attempt: Pick<MassageBookingAttemptRow, "id" | "hotel_id">,
+  patch: Record<string, unknown>
+) {
+  const { data, error } = await supabaseAdmin
+    .from("massage_booking_attempts")
+    .update(patch)
+    .eq("id", attempt.id)
+    .eq("hotel_id", attempt.hotel_id)
+    .select("*")
+    .single();
+
+  if (error || !data) throw error || new Error("Massage booking attempt update returned no row.");
+  return data as MassageBookingAttemptRow;
+}
+
+async function markAttemptConfirmed(input: {
+  attempt: MassageBookingAttemptRow;
+  result: MassageBookingResult;
+  verification?: {
+    requestId: string | null;
+    runtimeVersion: string | null;
+    status: string | null;
+  } | null;
+  reconciled?: boolean;
+}) {
+  const now = new Date().toISOString();
+  const idempotentReplay =
+    input.result.idempotentReplay === true ||
+    input.result.status === "BOOKING_ALREADY_CONFIRMED";
+
+  return updateAttempt(input.attempt, {
+    status: idempotentReplay ? "already_confirmed" : "confirmed",
+    confirmed_at: input.attempt.confirmed_at || now,
+    reconciled_at: input.reconciled ? now : input.attempt.reconciled_at,
+    last_verified_at: input.verification ? now : input.attempt.last_verified_at,
+    next_reconcile_at: null,
+    write_verified: input.result.writeVerified === true,
+    idempotent_replay: idempotentReplay,
+    upstream_request_id:
+      input.verification?.requestId || input.attempt.upstream_request_id,
+    upstream_runtime_version:
+      input.verification?.runtimeVersion || input.attempt.upstream_runtime_version,
+    upstream_status:
+      input.verification?.status || input.result.status,
+    sheet_value: input.result.sheetValue || input.attempt.sheet_value,
+    upstream_response_json: input.verification
+      ? input.attempt.upstream_response_json
+      : input.result,
+    verification_response_json: input.verification
+      ? input.result
+      : input.attempt.verification_response_json,
+    last_error_code: null,
+    last_error_message: null,
+  });
+}
+
+export async function linkMassageAttemptStaffRequest(input: {
+  attemptId: string;
+  hotelId: string;
+  staffRequestId: string;
+}) {
+  await updateAttempt(
+    { id: input.attemptId, hotel_id: input.hotelId },
+    { staff_request_id: input.staffRequestId }
+  );
+}
+
+export async function executeTrackedMassageBooking(
+  input: TrackedMassageBookingInput
+) {
+  let attempt: MassageBookingAttemptRow;
+
+  try {
+    const claim = await createOrTouchAttempt(input);
+    attempt = claim.attempt;
+
+    const storedResult = bookingResultFromStored(
+      attempt.verification_response_json || attempt.upstream_response_json
+    );
+    if (
+      storedResult &&
+      (attempt.status === "confirmed" || attempt.status === "already_confirmed")
+    ) {
+      return {
+        attempt,
+        result: {
+          ...storedResult,
+          status: "BOOKING_ALREADY_CONFIRMED" as const,
+          idempotentReplay: true,
+        },
+        recoveredFromAttempt: true,
+      };
+    }
+
+    if (!claim.claimed) {
+      throw new MassageApiError(
+        "Massage booking is already being verified. Please do not submit it again yet.",
+        {
+          statusCode: 202,
+          code: "MASSAGE_BOOKING_PENDING_VERIFICATION",
+        }
+      );
+    }
+  } catch (error) {
+    if (
+      error instanceof MassageApiError &&
+      error.code === "MASSAGE_BOOKING_PENDING_VERIFICATION"
+    ) {
+      throw error;
+    }
+    await logSystemError({
+      hotelId: input.hotel.id,
+      severity: "critical",
+      source: "supabase",
+      eventType: "massage_booking_attempt_create_failed",
+      message: "Massage booking was blocked because its reliability record could not be created.",
+      roomNumber: input.room,
+      error,
+      metadata: {
+        hotelSlug: input.hotel.slug,
+        serviceId: input.serviceId,
+        date: input.date,
+        time: input.time,
+      },
+    });
+    throw new MassageApiError("Massage booking could not be safely started.", {
+      statusCode: 503,
+      code: "MASSAGE_BOOKING_ATTEMPT_STORE_FAILED",
+    });
+  }
+
+  try {
+    const result = await createMassageBooking({
+      hotelSlug: input.hotel.slug,
+      serviceId: input.serviceId,
+      date: input.date,
+      time: input.time,
+      room: input.room,
+    });
+    attempt = await markAttemptConfirmed({ attempt, result });
+    return { attempt, result, recoveredFromAttempt: false };
+  } catch (error) {
+    if (isConflictError(error)) {
+      await updateAttempt(attempt, {
+        status: "conflict",
+        next_reconcile_at: null,
+        last_error_code: asErrorCode(error),
+        last_error_message: asErrorMessage(error),
+      });
+      throw error;
+    }
+
+    if (!isTransientBookingError(error)) {
+      await updateAttempt(attempt, {
+        status: "failed",
+        next_reconcile_at: null,
+        last_error_code: asErrorCode(error),
+        last_error_message: asErrorMessage(error),
+      });
+      throw error;
+    }
+
+    attempt = await updateAttempt(attempt, {
+      status: "reconcile_pending",
+      next_reconcile_at: nextReconcileAt(attempt.verification_count),
+      last_error_code: asErrorCode(error),
+      last_error_message: asErrorMessage(error),
+    });
+
+    try {
+      const verification = await verifyMassageBooking({
+        hotelSlug: input.hotel.slug,
+        serviceId: input.serviceId,
+        date: input.date,
+        time: input.time,
+        room: input.room,
+      });
+      const verificationCount = Number(attempt.verification_count || 0) + 1;
+
+      if (verification.result.verificationStatus === "BOOKING_CONFIRMED") {
+        const result = verification.result as MassageBookingResult;
+        attempt = await updateAttempt(attempt, {
+          verification_count: verificationCount,
+        });
+        attempt = await markAttemptConfirmed({
+          attempt,
+          result,
+          verification: verification.source,
+          reconciled: true,
+        });
+        await logSystemEvent({
+          hotelId: input.hotel.id,
+          severity: "warning",
+          source: "massage",
+          eventType: "massage_booking_timeout_verified",
+          message: "A delayed massage booking response was verified successfully in Google Sheet.",
+          roomNumber: input.room,
+          metadata: {
+            attemptId: attempt.id,
+            hotelSlug: input.hotel.slug,
+            serviceId: input.serviceId,
+            date: input.date,
+            time: input.time,
+          },
+        });
+        return { attempt, result, recoveredFromAttempt: true };
+      }
+
+      if (verification.result.verificationStatus === "BOOKING_CONFLICT") {
+        await updateAttempt(attempt, {
+          status: "conflict",
+          verification_count: verificationCount,
+          last_verified_at: new Date().toISOString(),
+          next_reconcile_at: null,
+          verification_response_json: verification.result,
+          upstream_request_id: verification.source.requestId,
+          upstream_runtime_version: verification.source.runtimeVersion,
+          upstream_status: verification.source.status,
+          last_error_code: verification.result.code || "SLOT_NO_LONGER_AVAILABLE",
+          last_error_message:
+            verification.result.message || "The massage slot is occupied by another booking.",
+        });
+        throw new MassageApiError(
+          verification.result.message || "The selected massage time is no longer available.",
+          { statusCode: 409, code: "SLOT_NO_LONGER_AVAILABLE" }
+        );
+      }
+
+      await updateAttempt(attempt, {
+        status: "reconcile_pending",
+        verification_count: verificationCount,
+        last_verified_at: new Date().toISOString(),
+        next_reconcile_at: nextReconcileAt(verificationCount),
+        verification_response_json: verification.result,
+        upstream_request_id: verification.source.requestId,
+        upstream_runtime_version: verification.source.runtimeVersion,
+        upstream_status: verification.source.status,
+      });
+    } catch (verificationError) {
+      if (
+        verificationError instanceof MassageApiError &&
+        verificationError.code === "SLOT_NO_LONGER_AVAILABLE"
+      ) {
+        throw verificationError;
+      }
+    }
+
+    throw new MassageApiError(
+      "Massage booking is being verified. Please do not submit it again yet.",
+      {
+        statusCode: 202,
+        code: "MASSAGE_BOOKING_PENDING_VERIFICATION",
+      }
+    );
+  }
+}
+
+export async function reconcilePendingMassageBookingAttempts(input: {
+  hotel: HotelScope;
+  limit?: number;
+}) {
+  const now = new Date().toISOString();
+  const limit = Math.min(
+    RECONCILE_BATCH_LIMIT,
+    Math.max(1, Number(input.limit || RECONCILE_BATCH_LIMIT))
+  );
+  const { data, error } = await supabaseAdmin
+    .from("massage_booking_attempts")
+    .select("*")
+    .eq("hotel_id", input.hotel.id)
+    .in("status", ["upstream_pending", "reconcile_pending"])
+    .lte("next_reconcile_at", now)
+    .order("next_reconcile_at", { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+
+  const results = {
+    checked: 0,
+    confirmed: 0,
+    conflicts: 0,
+    pending: 0,
+    failed: 0,
+    staffCreated: 0,
+    staffExisting: 0,
+  };
+  const details: unknown[] = [];
+
+  for (const rawAttempt of (data || [])) {
+    let attempt = rawAttempt as MassageBookingAttemptRow;
+    results.checked += 1;
+
+    try {
+      const verification = await verifyMassageBooking({
+        hotelSlug: input.hotel.slug,
+        serviceId: attempt.service_id,
+        date: attempt.booking_date,
+        time: String(attempt.start_time).slice(0, 5),
+        room: attempt.room_number,
+      });
+      const verificationCount = Number(attempt.verification_count || 0) + 1;
+
+      if (verification.result.verificationStatus === "BOOKING_CONFIRMED") {
+        const result = verification.result as MassageBookingResult;
+        attempt = await updateAttempt(attempt, {
+          verification_count: verificationCount,
+        });
+        attempt = await markAttemptConfirmed({
+          attempt,
+          result,
+          verification: verification.source,
+          reconciled: true,
+        });
+        const staffRequest = await ensureMassageStaffRequest({
+          hotelSlug: input.hotel.slug,
+          serviceId: result.serviceId || attempt.service_id,
+          date: result.date || attempt.booking_date,
+          startTime: result.startTime || String(attempt.start_time).slice(0, 5),
+          roomNumber: result.roomNumber || attempt.room_number,
+          serviceNameBg: result.serviceNameBg,
+          sheetValue: result.sheetValue,
+          durationMinutes: result.durationMinutes,
+          price: result.price,
+          currency: result.currency,
+          guestLanguage: attempt.guest_language,
+        });
+        await linkMassageAttemptStaffRequest({
+          attemptId: attempt.id,
+          hotelId: attempt.hotel_id,
+          staffRequestId: staffRequest.id,
+        });
+        results.confirmed += 1;
+        if (staffRequest.action === "created") results.staffCreated += 1;
+        else results.staffExisting += 1;
+        details.push({
+          attemptId: attempt.id,
+          action: "confirmed",
+          staffRequestId: staffRequest.id,
+          staffAction: staffRequest.action,
+        });
+        continue;
+      }
+
+      if (verification.result.verificationStatus === "BOOKING_CONFLICT") {
+        await updateAttempt(attempt, {
+          status: "conflict",
+          verification_count: verificationCount,
+          last_verified_at: now,
+          next_reconcile_at: null,
+          verification_response_json: verification.result,
+          last_error_code: verification.result.code || "SLOT_NO_LONGER_AVAILABLE",
+          last_error_message:
+            verification.result.message || "The massage slot is occupied by another booking.",
+        });
+        results.conflicts += 1;
+        details.push({ attemptId: attempt.id, action: "conflict" });
+        continue;
+      }
+
+      const exhausted = verificationCount >= MAX_VERIFICATION_COUNT;
+      await updateAttempt(attempt, {
+        status: exhausted ? "failed" : "reconcile_pending",
+        verification_count: verificationCount,
+        last_verified_at: now,
+        next_reconcile_at: exhausted ? null : nextReconcileAt(verificationCount),
+        verification_response_json: verification.result,
+        last_error_code: exhausted ? "BOOKING_NOT_FOUND_AFTER_RECONCILIATION" : "BOOKING_NOT_FOUND",
+        last_error_message:
+          verification.result.message || "Massage booking was not found during reconciliation.",
+      });
+      if (exhausted) results.failed += 1;
+      else results.pending += 1;
+      details.push({
+        attemptId: attempt.id,
+        action: exhausted ? "failed_not_found" : "pending",
+        verificationCount,
+      });
+    } catch (attemptError) {
+      const verificationCount = Number(attempt.verification_count || 0) + 1;
+      const exhausted = verificationCount >= MAX_VERIFICATION_COUNT;
+      await updateAttempt(attempt, {
+        status: exhausted ? "failed" : "reconcile_pending",
+        verification_count: verificationCount,
+        last_verified_at: now,
+        next_reconcile_at: exhausted ? null : nextReconcileAt(verificationCount),
+        last_error_code: asErrorCode(attemptError),
+        last_error_message: asErrorMessage(attemptError),
+      });
+      if (exhausted) results.failed += 1;
+      else results.pending += 1;
+      details.push({
+        attemptId: attempt.id,
+        action: exhausted ? "failed_error" : "retry_error",
+        code: asErrorCode(attemptError),
+      });
+    }
+  }
+
+  return { results, details };
+}
