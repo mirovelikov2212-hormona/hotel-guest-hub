@@ -434,6 +434,49 @@ export function isApprovedMassageControlledE2ECandidate(input: {
   );
 }
 
+function getMassageSandboxLiveWriteEnvKey(
+  prefix: string,
+  inputHotelSlug: unknown
+) {
+  const hotelSlug = normalizeMassageHotelSlug(inputHotelSlug);
+  if (!hotelSlug) return "";
+  return `${prefix}_${getEnvironmentSuffix(hotelSlug)}`;
+}
+
+export function isMassageSandboxLiveWriteEnabled(inputHotelSlug: unknown) {
+  const key = getMassageSandboxLiveWriteEnvKey(
+    "STAYHUB_MASSAGE_SANDBOX_LIVE_WRITE_ENABLED",
+    inputHotelSlug
+  );
+
+  return key ? parseEnabledFlag(process.env[key]) : false;
+}
+
+export function isApprovedMassageSandboxLiveWriteCandidate(input: {
+  hotelSlug: unknown;
+  serviceId: string;
+  date: string;
+  time: string;
+  room: string;
+}) {
+  const key = getMassageSandboxLiveWriteEnvKey(
+    "STAYHUB_MASSAGE_SANDBOX_LIVE_WRITE_CANDIDATE",
+    input.hotelSlug
+  );
+  const configuredCandidate = key
+    ? String(process.env[key] || "").trim()
+    : "";
+  const requestedCandidate = [
+    input.serviceId,
+    input.date,
+    input.time,
+    input.room,
+  ].join("|");
+
+  return Boolean(configuredCandidate) &&
+    configuredCandidate === requestedCandidate;
+}
+
 function readConfigMap(): MassageApiConfigMap {
   const raw = String(process.env.STAYHUB_MASSAGE_API_CONFIG_JSON || "").trim();
   if (!raw) return {};

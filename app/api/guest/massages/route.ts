@@ -14,8 +14,10 @@ import {
   getMassageBootstrap,
   getMassageServices,
   isApprovedMassageControlledE2ECandidate,
+  isApprovedMassageSandboxLiveWriteCandidate,
   isMassageBookingPostEnabled,
   isMassageControlledE2EEnabled,
+  isMassageSandboxLiveWriteEnabled,
   MassageApiError,
   buildMassageStayHubSheetRoomMarker,
   getMassageHotelCode,
@@ -715,6 +717,7 @@ export async function POST(req: NextRequest) {
 
     const controlledE2EEnabled = isMassageControlledE2EEnabled(hotelSlug);
     const productionBookingEnabled = isMassageBookingPostEnabled(hotelSlug);
+    const sandboxLiveWriteEnabled = isMassageSandboxLiveWriteEnabled(hotelSlug);
 
     if (!controlledE2EEnabled && !productionBookingEnabled) {
       await logSystemEvent({
@@ -757,6 +760,77 @@ export async function POST(req: NextRequest) {
       time,
     };
     if (isSandboxHotel(hotel)) {
+      if (sandboxLiveWriteEnabled) {
+        if (!productionBookingEnabled) {
+          return json(
+            {
+              ok: false,
+              code: "MASSAGE_SANDBOX_LIVE_WRITE_REQUIRES_BOOKING_ENABLED",
+              error: "Live Sheet writes are not enabled for this sandbox hotel.",
+            },
+            503
+          );
+        }
+
+        const approved = isApprovedMassageSandboxLiveWriteCandidate({
+          hotelSlug,
+          serviceId,
+          date,
+          time,
+          room,
+        });
+
+        if (!approved) {
+          return json(
+            {
+              ok: false,
+              code: "MASSAGE_SANDBOX_LIVE_WRITE_CANDIDATE_NOT_ALLOWED",
+              error: "Only the exact approved sandbox Sheet test is allowed.",
+            },
+            403
+          );
+        }
+
+        const result = await createMassageBooking({
+          hotelSlug,
+          serviceId,
+          date,
+          time,
+          room,
+        });
+
+        const staffRequest =
+          result.status === "BOOKING_WRITTEN" ||
+          result.status === "BOOKING_ALREADY_CONFIRMED"
+            ? await ensureMassageStaffRequest({
+                hotelSlug: hotel.slug,
+                serviceId: result.serviceId || serviceId,
+                date: result.date || date,
+                startTime: result.startTime || time,
+                roomNumber: result.roomNumber || room,
+                serviceNameBg: result.serviceNameBg,
+                sheetValue: result.sheetValue,
+                durationMinutes: result.durationMinutes,
+                price: result.price,
+                currency: result.currency,
+                guestLanguage: String(body.guestLanguage || "bg"),
+              })
+            : null;
+
+        return json(
+          {
+            ok: true,
+            action: "sandbox_live_write",
+            hotelSlug: hotel.slug,
+            sandbox: true,
+            sheetWrite: true,
+            result,
+            staffRequest,
+          },
+          result.status === "BOOKING_WRITTEN" ? 201 : 200
+        );
+      }
+
       const services = await getMassageServices(hotelSlug).catch(() => null);
       const service = services?.services?.find((item) => item.serviceId === serviceId) ?? null;
       const result = {
@@ -770,8 +844,9 @@ export async function POST(req: NextRequest) {
         startTime: time,
         durationMinutes: service?.durationMinutes ?? null,
         roomNumber: room,
-        writeVerified: true,
+        writeVerified: false,
         idempotentReplay: false,
+        sandboxSimulation: true,
       };
       const staffRequest = await ensureMassageStaffRequest({
         hotelSlug: hotel.slug,
@@ -790,9 +865,10 @@ export async function POST(req: NextRequest) {
       return json(
         {
           ok: true,
-          action: "sandbox_book",
+          action: "sandbox_simulated_book",
           hotelSlug: hotel.slug,
           sandbox: true,
+          sheetWrite: false,
           result,
           staffRequest,
         },
