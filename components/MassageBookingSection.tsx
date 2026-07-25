@@ -43,6 +43,7 @@ type MassageBookingResult = {
   roomNumber: string;
   writeVerified: boolean;
   idempotentReplay: boolean;
+  sandboxSimulation?: boolean;
 };
 
 type BookingFeedback = {
@@ -1081,6 +1082,29 @@ export default function MassageBookingSection({
       const payload = (await response.json().catch(() => null)) as ApiEnvelope<MassageBookingResult> | null;
 
       if (response.ok && payload?.ok && payload.result) {
+        if (payload.result.writeVerified !== true) {
+          setBookingFeedback({
+            kind: "info",
+            text: copy.protectedServerReached,
+            code: payload.result.sandboxSimulation
+              ? "SANDBOX_SIMULATION_UNVERIFIED"
+              : "BOOKING_WRITE_UNVERIFIED",
+          });
+          onTrack({
+            eventName: "massage_booking_write_unverified",
+            eventCategory: "massage",
+            section: "massage_booking",
+            sectionKey: "massage_booking",
+            itemKey: selectedService.serviceId,
+            label: selectedTime,
+            value: payload.result.sandboxSimulation
+              ? "sandbox_simulation"
+              : "write_unverified",
+            extra: { date: selectedDate, room },
+          });
+          return;
+        }
+
         const alreadyConfirmed = payload.result.status === "BOOKING_ALREADY_CONFIRMED";
         invalidateMassageCacheForHotel(hotelSlug);
         void prefetchMassageBookingData(hotelSlug).catch(() => undefined);
@@ -1441,33 +1465,41 @@ export default function MassageBookingSection({
       ) : null}
 
           {bookingConfirmOpen && selectedService ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-              <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
-                <div className="text-lg font-semibold text-white">{copy.confirmDialogTitle}</div>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+              <div
+                className="w-full max-w-md rounded-2xl border bg-white p-5 shadow-2xl"
+                style={{ borderColor: "color-mix(in srgb, var(--stayhub-primary) 18%, transparent)" }}
+              >
+                <div className="text-lg font-semibold" style={{ color: "var(--stayhub-primary)" }}>
+                  {copy.confirmDialogTitle}
+                </div>
 
-                <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-sm text-neutral-200">
-                  <dt className="font-semibold text-neutral-400">{copy.room}</dt>
-                  <dd className="font-bold text-white">{room}</dd>
-                  <dt className="font-semibold text-neutral-400">{copy.service}</dt>
-                  <dd className="font-bold text-white">{serviceName(selectedService, lang)}</dd>
-                  <dt className="font-semibold text-neutral-400">{copy.date}</dt>
-                  <dd className="font-bold text-white">{formatDate(selectedDate, lang)}</dd>
-                  <dt className="font-semibold text-neutral-400">{copy.time}</dt>
-                  <dd className="font-bold text-white">{selectedTime}</dd>
-                  <dt className="font-semibold text-neutral-400">{copy.duration}</dt>
-                  <dd className="font-bold text-white">{selectedService.durationMinutes} {copy.minutes}</dd>
-                  <dt className="font-semibold text-neutral-400">{copy.price}</dt>
-                  <dd className="font-bold text-white">{selectedService.price.toFixed(2)} {selectedService.currency}</dd>
+                <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-sm" style={{ color: "var(--stayhub-primary)" }}>
+                  <dt className="font-semibold opacity-70">{copy.room}</dt>
+                  <dd className="font-bold">{room}</dd>
+                  <dt className="font-semibold opacity-70">{copy.service}</dt>
+                  <dd className="font-bold">{serviceName(selectedService, lang)}</dd>
+                  <dt className="font-semibold opacity-70">{copy.date}</dt>
+                  <dd className="font-bold">{formatDate(selectedDate, lang)}</dd>
+                  <dt className="font-semibold opacity-70">{copy.time}</dt>
+                  <dd className="font-bold">{selectedTime}</dd>
+                  <dt className="font-semibold opacity-70">{copy.duration}</dt>
+                  <dd className="font-bold">{selectedService.durationMinutes} {copy.minutes}</dd>
+                  <dt className="font-semibold opacity-70">{copy.price}</dt>
+                  <dd className="font-bold">{selectedService.price.toFixed(2)} {selectedService.currency}</dd>
                 </dl>
 
-                <p className="mt-4 text-sm leading-6 text-neutral-200">{copy.confirmDialogQuestion}</p>
+                <p className="mt-4 text-sm leading-6" style={{ color: "var(--stayhub-primary)" }}>
+                  {copy.confirmDialogQuestion}
+                </p>
 
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={cancelBookingConfirmation}
                     disabled={submittingBooking}
-                    className="rounded-xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{ borderColor: "var(--stayhub-action)", color: "var(--stayhub-primary)" }}
                   >
                     {copy.cancelBooking}
                   </button>

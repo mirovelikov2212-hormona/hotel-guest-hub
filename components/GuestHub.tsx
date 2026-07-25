@@ -8781,7 +8781,10 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
               <h2 className="text-base font-semibold text-white">
                 {getMassageReservationCopy(lang).title}
               </h2>
-              <span className="rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-xs font-medium uppercase tracking-wide text-emerald-100">
+              <span
+                className="rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-xs font-medium uppercase tracking-wide"
+                style={{ color: "var(--stayhub-primary)" }}
+              >
                 {getMassageReservationCopy(lang).confirmed}
               </span>
             </div>
