@@ -50,19 +50,7 @@ jobs:
               fi
 
               if [ "$retry_transient_snapshot" = "true" ] && [ "$attempt" -lt "$max_attempts" ] && \
-                printf '%s' "$body" | python3 -c '
-import json, sys
-try:
-    payload = json.load(sys.stdin)
-    detail = (payload.get("details") or [{}])[0]
-    code = detail.get("errorCode")
-    stage = detail.get("stage")
-    upstream = detail.get("upstreamStatus")
-    retryable_http = code == "MASSAGE_API_HTTP_ERROR" and upstream in {408, 425, 429, 500, 502, 503, 504}
-    raise SystemExit(0 if stage == "snapshot" and (retryable_http or code == "MASSAGE_API_UNAVAILABLE") else 1)
-except Exception:
-    raise SystemExit(1)
-'; then
+                printf '%s' "$body" | python3 -c 'import json,sys; payload=json.load(sys.stdin); detail=(payload.get("details") or [{}])[0]; code=detail.get("errorCode"); stage=detail.get("stage"); upstream=detail.get("upstreamStatus"); retryable_http=code=="MASSAGE_API_HTTP_ERROR" and upstream in {408,425,429,500,502,503,504}; raise SystemExit(0 if stage=="snapshot" and (retryable_http or code in {"MASSAGE_API_UNAVAILABLE","MASSAGE_API_METHOD_MISMATCH"}) else 1)'; then
                 echo "Transient snapshot HTTP failure; retrying once after 5 seconds."
                 sleep 5
                 attempt=$((attempt + 1))

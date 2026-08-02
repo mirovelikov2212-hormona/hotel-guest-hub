@@ -67,6 +67,8 @@ type MassageApiEnvelope<T> = {
   requestId?: string;
   runtimeVersion?: string;
   liveContract?: string;
+  action?: string;
+  requestMethod?: string;
   status?: string;
   code?: string;
   message?: string;
@@ -197,6 +199,19 @@ export type MassageCalendarSnapshotResult = {
   count: number;
   bookings: MassageCalendarSnapshotBooking[];
   readMode?: string;
+  elapsedMs?: number;
+};
+
+type MassageSnapshotBundleApiResult = {
+  runtimeVersion?: string;
+  liveContract?: string;
+  revision?: string | null;
+  fromDate: string;
+  daysChecked: number;
+  bootstrap: MassageBootstrapResult;
+  calendar: MassageCalendarSnapshotResult;
+  readMode?: string;
+  readStats?: Record<string, unknown> | null;
   elapsedMs?: number;
 };
 
@@ -656,6 +671,7 @@ function getMassageReadCacheTtl(payload: Record<string, unknown>) {
   if (action === "bookable_dates_summary") return 2 * 60 * 1000;
   if (action === "availability") return 15 * 1000;
   if (action === "calendar_snapshot") return 0;
+  if (action === "snapshot_bundle") return 0;
   return 0;
 }
 
@@ -674,7 +690,15 @@ function getMassageStaleCacheTtl(payload: Record<string, unknown>) {
 
 function isMassageReadAction(payload: Record<string, unknown>) {
   const action = String(payload.action || "").trim().toLowerCase();
-  return ["services", "bootstrap", "bookable_dates", "bookable_dates_summary", "availability", "calendar_snapshot"].includes(action);
+  return [
+    "services",
+    "bootstrap",
+    "bookable_dates",
+    "bookable_dates_summary",
+    "availability",
+    "calendar_snapshot",
+    "snapshot_bundle",
+  ].includes(action);
 }
 
 function isTransientMassageApiCode(code: string) {
@@ -825,6 +849,22 @@ async function fetchMassageApiOnce<T>(input: {
         statusCode: 502,
         code: "UNSUPPORTED_MASSAGE_API_VERSION",
       });
+    }
+
+    const expectedAction = String(input.payload.action || "").trim().toLowerCase();
+    if (
+      expectedAction === "snapshot_bundle" &&
+      (String(data.action || "").trim().toLowerCase() !== expectedAction ||
+        String(data.requestMethod || "").trim().toUpperCase() !== "POST")
+    ) {
+      throw new MassageApiError(
+        "Massage calendar returned a response for a different action or HTTP method.",
+        {
+          statusCode: 502,
+          code: "MASSAGE_API_METHOD_MISMATCH",
+          action: expectedAction,
+        }
+      );
     }
 
     if (!data.ok || !data.result) {
@@ -1050,43 +1090,40 @@ export async function getMassageSnapshotSourceBundle(input: {
   fromDate: string;
   daysAhead: number;
 }): Promise<MassageSnapshotSourceBundle> {
-  // A client-side abort does not stop the Apps Script execution. Snapshot
-  // reads therefore get one bounded attempt each and run sequentially so the
-  // two Google Sheet reads cannot contend with each other. The scheduler may
-  // repeat the whole refresh once only after a definitive transient HTTP error.
+  // One read-only Apps Script action builds availability and calendar bookings
+  // from the same request-scoped weekly-grid context. A client-side abort does
+  // not stop Apps Script, so the request remains bounded to one attempt here.
   const snapshotReadOptions: PostMassageApiOptions = {
     timeoutMs: MASSAGE_SNAPSHOT_REFRESH_TIMEOUT_MS,
     maxAttempts: MASSAGE_SNAPSHOT_REFRESH_MAX_ATTEMPTS,
   };
-  const bootstrapResponse = await postMassageApi<MassageBootstrapResult>(
+  const bundleResponse = await postMassageApi<MassageSnapshotBundleApiResult>(
     input.hotelSlug,
     {
-      action: "bootstrap",
-      fromDate: input.fromDate,
-      daysAhead: input.daysAhead,
-    },
-    snapshotReadOptions
-  );
-  const calendarResponse = await postMassageApi<MassageCalendarSnapshotResult>(
-    input.hotelSlug,
-    {
-      action: "calendar_snapshot",
+      action: "snapshot_bundle",
       fromDate: input.fromDate,
       daysAhead: input.daysAhead,
     },
     snapshotReadOptions
   );
 
-  const bootstrap = bootstrapResponse.result as MassageBootstrapResult;
-  const calendar = calendarResponse.result as MassageCalendarSnapshotResult;
-  const revision = String(bootstrap.revision || "").trim();
+  const bundle = bundleResponse.result as MassageSnapshotBundleApiResult;
+  const bootstrap = bundle.bootstrap;
+  const calendar = bundle.calendar;
+  const revision = String(bundle.revision || bootstrap?.revision || "").trim();
 
-  if (!revision) {
-    throw new MassageApiError("Massage calendar snapshot did not include a revision.", {
+  if (!revision || !bootstrap || !calendar || !Array.isArray(calendar.bookings)) {
+    throw new MassageApiError("Massage calendar returned an incomplete snapshot bundle.", {
       statusCode: 502,
-      code: "MASSAGE_SNAPSHOT_REVISION_MISSING",
+      code: !revision
+        ? "MASSAGE_SNAPSHOT_REVISION_MISSING"
+        : "INVALID_MASSAGE_SNAPSHOT_BUNDLE",
+      action: "snapshot_bundle",
     });
   }
+
+  const requestId = String(bundleResponse.requestId || "").trim() || null;
+  const bundleStatus = String(bundleResponse.status || "").trim() || null;
 
   return {
     bootstrap,
@@ -1094,18 +1131,18 @@ export async function getMassageSnapshotSourceBundle(input: {
     source: {
       revision,
       runtimeVersion: String(
-        bootstrap.runtimeVersion || bootstrapResponse.runtimeVersion || ""
+        bundle.runtimeVersion || bootstrap.runtimeVersion || bundleResponse.runtimeVersion || ""
       ).trim() || null,
       liveContract: String(
-        bootstrap.liveContract || bootstrapResponse.liveContract || ""
+        bundle.liveContract || bootstrap.liveContract || bundleResponse.liveContract || ""
       ).trim() || null,
       requestIds: {
-        bootstrap: String(bootstrapResponse.requestId || "").trim() || null,
-        calendar: String(calendarResponse.requestId || "").trim() || null,
+        bootstrap: requestId,
+        calendar: requestId,
       },
       statuses: {
-        bootstrap: String(bootstrapResponse.status || "").trim() || null,
-        calendar: String(calendarResponse.status || "").trim() || null,
+        bootstrap: bundleStatus,
+        calendar: bundleStatus,
       },
     },
   };
