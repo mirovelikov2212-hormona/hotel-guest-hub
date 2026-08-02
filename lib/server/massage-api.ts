@@ -8,7 +8,7 @@ const DEFAULT_TIMEOUT_MS = 12_000;
 const MASSAGE_BOOKING_TIMEOUT_MS = 7_000;
 const MASSAGE_VERIFY_TIMEOUT_MS = 4_000;
 const MASSAGE_API_MAX_ATTEMPTS = 2;
-const MASSAGE_SNAPSHOT_REFRESH_TIMEOUT_MS = 30_000;
+const MASSAGE_SNAPSHOT_REFRESH_TIMEOUT_MS = 20_000;
 const MASSAGE_SNAPSHOT_REFRESH_MAX_ATTEMPTS = 1;
 const MASSAGE_TRANSIENT_FAILURE_WINDOW_MS = 15 * 60 * 1000;
 const MASSAGE_TRANSIENT_CRITICAL_THRESHOLD = 3;
@@ -289,6 +289,8 @@ type PostMassageApiOptions = {
 export class MassageApiError extends Error {
   readonly statusCode: number;
   readonly code: string;
+  readonly action: string | null;
+  readonly upstreamStatus: number | null;
 
   readonly monitoringSeverity: SystemEventSeverity | null;
   readonly alreadyLogged: boolean;
@@ -298,6 +300,8 @@ export class MassageApiError extends Error {
     options?: {
       statusCode?: number;
       code?: string;
+      action?: string | null;
+      upstreamStatus?: number | null;
       monitoringSeverity?: SystemEventSeverity | null;
       alreadyLogged?: boolean;
     }
@@ -306,6 +310,10 @@ export class MassageApiError extends Error {
     this.name = "MassageApiError";
     this.statusCode = options?.statusCode ?? 502;
     this.code = options?.code ?? "MASSAGE_API_ERROR";
+    this.action = String(options?.action || "").trim() || null;
+    this.upstreamStatus = Number.isInteger(options?.upstreamStatus)
+      ? Number(options?.upstreamStatus)
+      : null;
     this.monitoringSeverity = options?.monitoringSeverity ?? null;
     this.alreadyLogged = options?.alreadyLogged === true;
   }
@@ -758,6 +766,7 @@ async function logMassageApiReadFailure(input: {
       transientCriticalThreshold: transient ? MASSAGE_TRANSIENT_CRITICAL_THRESHOLD : null,
       staleFallbackUsed: input.staleFallbackUsed,
       staleFallbackAvailable: input.staleFallbackUsed,
+      upstreamStatus: input.error.upstreamStatus,
     },
   });
 
@@ -791,10 +800,15 @@ async function fetchMassageApiOnce<T>(input: {
     });
 
     if (!response.ok) {
-      throw new MassageApiError("Massage calendar service is temporarily unavailable.", {
-        statusCode: 502,
-        code: "MASSAGE_API_HTTP_ERROR",
-      });
+      throw new MassageApiError(
+        `Massage calendar service returned HTTP ${response.status}.`,
+        {
+          statusCode: 502,
+          code: "MASSAGE_API_HTTP_ERROR",
+          action: String(input.payload.action || "").trim() || null,
+          upstreamStatus: response.status,
+        }
+      );
     }
 
     const data = (await response.json().catch(() => null)) as MassageApiEnvelope<T> | null;
@@ -942,6 +956,11 @@ async function postMassageApi<T>(
         throw new MassageApiError(massageError.message, {
           statusCode: massageError.statusCode,
           code: massageError.code,
+          action:
+            massageError.action ||
+            String(payload.action || "").trim() ||
+            null,
+          upstreamStatus: massageError.upstreamStatus,
           monitoringSeverity: severity,
           alreadyLogged: true,
         });
@@ -967,6 +986,11 @@ async function postMassageApi<T>(
     throw new MassageApiError(fallbackError.message, {
       statusCode: fallbackError.statusCode,
       code: fallbackError.code,
+      action:
+        fallbackError.action ||
+        String(payload.action || "").trim() ||
+        null,
+      upstreamStatus: fallbackError.upstreamStatus,
       monitoringSeverity: severity,
       alreadyLogged: true,
     });
@@ -1027,24 +1051,31 @@ export async function getMassageSnapshotSourceBundle(input: {
   daysAhead: number;
 }): Promise<MassageSnapshotSourceBundle> {
   // A client-side abort does not stop the Apps Script execution. Snapshot
-  // reads therefore get one longer attempt instead of two overlapping 12s
-  // executions that can increase Google Sheets contention after a timeout.
+  // reads therefore get one bounded attempt each and run sequentially so the
+  // two Google Sheet reads cannot contend with each other. The scheduler may
+  // repeat the whole refresh once only after a definitive transient HTTP error.
   const snapshotReadOptions: PostMassageApiOptions = {
     timeoutMs: MASSAGE_SNAPSHOT_REFRESH_TIMEOUT_MS,
     maxAttempts: MASSAGE_SNAPSHOT_REFRESH_MAX_ATTEMPTS,
   };
-  const [bootstrapResponse, calendarResponse] = await Promise.all([
-    postMassageApi<MassageBootstrapResult>(input.hotelSlug, {
+  const bootstrapResponse = await postMassageApi<MassageBootstrapResult>(
+    input.hotelSlug,
+    {
       action: "bootstrap",
       fromDate: input.fromDate,
       daysAhead: input.daysAhead,
-    }, snapshotReadOptions),
-    postMassageApi<MassageCalendarSnapshotResult>(input.hotelSlug, {
+    },
+    snapshotReadOptions
+  );
+  const calendarResponse = await postMassageApi<MassageCalendarSnapshotResult>(
+    input.hotelSlug,
+    {
       action: "calendar_snapshot",
       fromDate: input.fromDate,
       daysAhead: input.daysAhead,
-    }, snapshotReadOptions),
-  ]);
+    },
+    snapshotReadOptions
+  );
 
   const bootstrap = bootstrapResponse.result as MassageBootstrapResult;
   const calendar = calendarResponse.result as MassageCalendarSnapshotResult;

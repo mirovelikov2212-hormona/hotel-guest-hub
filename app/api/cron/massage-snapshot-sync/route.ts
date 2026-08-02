@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { MassageApiError } from "@/lib/server/massage-api";
 import { reconcilePendingMassageBookingAttempts } from "@/lib/server/massage-booking-attempts";
 import {
   isMassageSnapshotRefreshEnabled,
@@ -88,6 +89,7 @@ export async function GET(req: NextRequest) {
   let failures = 0;
 
   for (const hotelSlug of hotelSlugs) {
+    let stage = "gate";
     try {
       if (!isMassageSnapshotRefreshEnabled(hotelSlug)) {
         throw new Error(
@@ -95,10 +97,9 @@ export async function GET(req: NextRequest) {
         );
       }
 
+      stage = "resolve_hotel";
       const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
-      const reconciliation = await reconcilePendingMassageBookingAttempts({
-        hotel,
-      });
+      stage = "snapshot";
       const snapshot = await refreshMassageCalendarSnapshot({
         hotelSlug: hotel.slug,
         fromDate: getSofiaDateIso(),
@@ -106,6 +107,13 @@ export async function GET(req: NextRequest) {
         reason: "cron",
         // The refresh-specific environment flag remains the production gate.
         allowProduction: true,
+      });
+      stage = "reconciliation";
+      const reconciliation = await reconcilePendingMassageBookingAttempts({
+        hotel,
+        // Keep the cron route inside its 60-second budget even if a backlog
+        // contains several ambiguous bookings that each need live verification.
+        limit: 3,
       });
       details.push({
         hotelSlug: hotel.slug,
@@ -115,10 +123,15 @@ export async function GET(req: NextRequest) {
       });
     } catch (error) {
       failures += 1;
+      const massageError = error instanceof MassageApiError ? error : null;
       details.push({
         hotelSlug,
         ok: false,
+        stage,
         error: error instanceof Error ? error.message : String(error),
+        errorCode: massageError?.code || null,
+        sourceAction: massageError?.action || null,
+        upstreamStatus: massageError?.upstreamStatus || null,
       });
       await logSystemError({
         severity: "error",
@@ -126,7 +139,13 @@ export async function GET(req: NextRequest) {
         eventType: "massage_snapshot_cron_hotel_failed",
         message: "Massage snapshot fallback cron failed for one hotel.",
         error,
-        metadata: { hotelSlug },
+        metadata: {
+          hotelSlug,
+          stage,
+          errorCode: massageError?.code || null,
+          sourceAction: massageError?.action || null,
+          upstreamStatus: massageError?.upstreamStatus || null,
+        },
       });
     }
   }

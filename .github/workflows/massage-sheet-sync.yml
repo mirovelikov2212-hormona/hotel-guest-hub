@@ -23,36 +23,71 @@ jobs:
           call_endpoint() {
             local label="$1"
             local url="$2"
+            local max_attempts="$3"
+            local retry_transient_snapshot="$4"
             local response
             local body
             local status
+            local attempt=1
 
-            echo "=== ${label} ==="
-            response=$(curl -sS --max-time 75 -w "\n%{http_code}" \
-              -H "Authorization: Bearer ${CRON_SECRET}" \
-              "$url")
+            while [ "$attempt" -le "$max_attempts" ]; do
+              echo "=== ${label} (attempt ${attempt}/${max_attempts}) ==="
+              if ! response=$(curl -sS --max-time 75 -w "\n%{http_code}" \
+                -H "Authorization: Bearer ${CRON_SECRET}" \
+                "$url"); then
+                echo "${label} transport failed. No automatic retry is allowed after an ambiguous curl timeout."
+                return 1
+              fi
 
-            body=$(printf '%s\n' "$response" | sed '$d')
-            status=$(printf '%s\n' "$response" | tail -n1)
+              body=$(printf '%s\n' "$response" | sed '$d')
+              status=$(printf '%s\n' "$response" | tail -n1)
 
-            printf '%s\n' "$body"
+              printf '%s\n' "$body"
 
-            if [ "$status" != "200" ]; then
-              echo "${label} failed with HTTP ${status}."
-              exit 1
-            fi
+              if [ "$status" = "200" ] && printf '%s' "$body" | python3 -c \
+                'import json, sys; raise SystemExit(0 if json.load(sys.stdin).get("ok") is True else 1)'; then
+                return 0
+              fi
 
-            if ! printf '%s' "$body" | python3 -c \
-              'import json, sys; raise SystemExit(0 if json.load(sys.stdin).get("ok") is True else 1)'; then
-              echo "${label} returned HTTP 200 without ok=true."
-              exit 1
-            fi
+              if [ "$retry_transient_snapshot" = "true" ] && [ "$attempt" -lt "$max_attempts" ] && \
+                printf '%s' "$body" | python3 -c '
+import json, sys
+try:
+    payload = json.load(sys.stdin)
+    detail = (payload.get("details") or [{}])[0]
+    code = detail.get("errorCode")
+    stage = detail.get("stage")
+    upstream = detail.get("upstreamStatus")
+    retryable_http = code == "MASSAGE_API_HTTP_ERROR" and upstream in {408, 425, 429, 500, 502, 503, 504}
+    raise SystemExit(0 if stage == "snapshot" and (retryable_http or code == "MASSAGE_API_UNAVAILABLE") else 1)
+except Exception:
+    raise SystemExit(1)
+'; then
+                echo "Transient snapshot HTTP failure; retrying once after 5 seconds."
+                sleep 5
+                attempt=$((attempt + 1))
+                continue
+              fi
+
+              if [ "$status" != "200" ]; then
+                echo "${label} failed with HTTP ${status}."
+              else
+                echo "${label} returned HTTP 200 without ok=true."
+              fi
+              return 1
+            done
+
+            return 1
           }
 
           call_endpoint \
             "Massage snapshot refresh" \
-            "https://www.stayhub.app/api/cron/massage-snapshot-sync?hotelSlug=aquamarin"
+            "https://www.stayhub.app/api/cron/massage-snapshot-sync?hotelSlug=aquamarin" \
+            2 \
+            true
 
           call_endpoint \
             "Massage Sheet sync" \
-            "https://www.stayhub.app/api/cron/massage-sheet-sync?hotelSlug=aquamarin&daysAhead=21"
+            "https://www.stayhub.app/api/cron/massage-sheet-sync?hotelSlug=aquamarin&daysAhead=21" \
+            1 \
+            false
