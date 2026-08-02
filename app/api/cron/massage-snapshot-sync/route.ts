@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { reconcilePendingMassageBookingAttempts } from "@/lib/server/massage-booking-attempts";
 import {
-  isMassageSnapshotEnabled,
+  isMassageSnapshotRefreshEnabled,
   refreshMassageCalendarSnapshot,
 } from "@/lib/server/massage-snapshot";
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
@@ -9,6 +9,7 @@ import { logSystemError } from "@/lib/server/system-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
@@ -88,14 +89,10 @@ export async function GET(req: NextRequest) {
 
   for (const hotelSlug of hotelSlugs) {
     try {
-      if (!isMassageSnapshotEnabled(hotelSlug)) {
-        details.push({
-          hotelSlug,
-          ok: true,
-          skipped: true,
-          reason: "Snapshot is not enabled for this hotel.",
-        });
-        continue;
+      if (!isMassageSnapshotRefreshEnabled(hotelSlug)) {
+        throw new Error(
+          `Massage snapshot refresh is not enabled for hotel: ${hotelSlug}`
+        );
       }
 
       const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
@@ -107,6 +104,8 @@ export async function GET(req: NextRequest) {
         fromDate: getSofiaDateIso(),
         daysAhead: getDaysAhead(),
         reason: "cron",
+        // The refresh-specific environment flag remains the production gate.
+        allowProduction: true,
       });
       details.push({
         hotelSlug: hotel.slug,

@@ -124,6 +124,34 @@ export function isMassageSnapshotEnabled(hotelSlug: unknown) {
   return getConfiguredSnapshotHotels().has(slug);
 }
 
+function getConfiguredSnapshotRefreshHotels() {
+  return new Set(
+    String(process.env.STAYHUB_MASSAGE_SNAPSHOT_REFRESH_HOTELS || "")
+      .split(",")
+      .map(normalizeSlug)
+      .filter(Boolean)
+  );
+}
+
+export function isMassageSnapshotRefreshEnabled(hotelSlug: unknown) {
+  const slug = normalizeSlug(hotelSlug);
+  if (!slug) return false;
+
+  const hotelSpecificKey =
+    `STAYHUB_MASSAGE_SNAPSHOT_REFRESH_ENABLED_${envSuffix(slug)}`;
+  if (process.env[hotelSpecificKey] !== undefined) {
+    return parseEnabledFlag(process.env[hotelSpecificKey]);
+  }
+
+  if (process.env.STAYHUB_MASSAGE_SNAPSHOT_REFRESH_HOTELS !== undefined) {
+    return getConfiguredSnapshotRefreshHotels().has(slug);
+  }
+
+  // Existing sandbox environments need no new variable. Production can be
+  // primed independently before the Guest API read path is enabled.
+  return isMassageSnapshotEnabled(slug);
+}
+
 function getSnapshotTtlSeconds() {
   const configured = Number(process.env.STAYHUB_MASSAGE_SNAPSHOT_TTL_SECONDS);
   if (!Number.isInteger(configured)) return DEFAULT_SNAPSHOT_TTL_SECONDS;
@@ -285,8 +313,10 @@ export async function refreshMassageCalendarSnapshot(input: {
   const expectedRevision = String(input.expectedRevision || "").trim() || null;
   const startedAt = new Date().toISOString();
 
-  if (!isMassageSnapshotEnabled(hotel.slug)) {
-    throw new Error(`Massage snapshot is not enabled for hotel: ${hotel.slug}`);
+  if (!isMassageSnapshotRefreshEnabled(hotel.slug)) {
+    throw new Error(
+      `Massage snapshot refresh is not enabled for hotel: ${hotel.slug}`
+    );
   }
 
   if (!isSandboxHotel(hotel) && input.allowProduction !== true) {

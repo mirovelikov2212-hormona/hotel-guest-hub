@@ -6,7 +6,7 @@ import {
 } from "@/lib/server/massage-api";
 import {
   getMassageSnapshotBookings,
-  isMassageSnapshotEnabled,
+  isMassageSnapshotRefreshEnabled,
 } from "@/lib/server/massage-snapshot";
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
@@ -582,7 +582,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const snapshotRead = isMassageSnapshotEnabled(hotel.slug)
+    const snapshotRead = isMassageSnapshotRefreshEnabled(hotel.slug)
       ? await getMassageSnapshotBookings({
           hotelSlug: hotel.slug,
           fromDate,

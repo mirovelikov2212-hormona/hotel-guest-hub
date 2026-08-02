@@ -8,9 +8,10 @@ on:
 jobs:
   call-massage-sheet-sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 3
 
     steps:
-      - name: Call StayHub massage sheet sync endpoint
+      - name: Refresh massage snapshot and sync Sheet changes
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
@@ -19,16 +20,39 @@ jobs:
             exit 1
           fi
 
-          response=$(curl -sS -w "\n%{http_code}" \
-            -H "Authorization: Bearer ${CRON_SECRET}" \
-            "https://www.stayhub.app/api/cron/massage-sheet-sync?hotelSlug=aquamarin&daysAhead=21")
+          call_endpoint() {
+            local label="$1"
+            local url="$2"
+            local response
+            local body
+            local status
 
-          body=$(echo "$response" | sed '$d')
-          status=$(echo "$response" | tail -n1)
+            echo "=== ${label} ==="
+            response=$(curl -sS --max-time 75 -w "\n%{http_code}" \
+              -H "Authorization: Bearer ${CRON_SECRET}" \
+              "$url")
 
-          echo "$body"
+            body=$(printf '%s\n' "$response" | sed '$d')
+            status=$(printf '%s\n' "$response" | tail -n1)
 
-          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
-            echo "Massage sheet sync endpoint failed with HTTP $status"
-            exit 1
-          fi
+            printf '%s\n' "$body"
+
+            if [ "$status" != "200" ]; then
+              echo "${label} failed with HTTP ${status}."
+              exit 1
+            fi
+
+            if ! printf '%s' "$body" | python3 -c \
+              'import json, sys; raise SystemExit(0 if json.load(sys.stdin).get("ok") is True else 1)'; then
+              echo "${label} returned HTTP 200 without ok=true."
+              exit 1
+            fi
+          }
+
+          call_endpoint \
+            "Massage snapshot refresh" \
+            "https://www.stayhub.app/api/cron/massage-snapshot-sync?hotelSlug=aquamarin"
+
+          call_endpoint \
+            "Massage Sheet sync" \
+            "https://www.stayhub.app/api/cron/massage-sheet-sync?hotelSlug=aquamarin&daysAhead=21"
