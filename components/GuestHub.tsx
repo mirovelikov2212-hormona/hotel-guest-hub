@@ -2667,6 +2667,14 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const validRoomSet = useMemo(() => new Set(validRoomNumbers), [validRoomNumbers]);
   const hasStrictRoomList = validRoomSet.size > 0;
+  const testRoomSet = useMemo(
+    () => new Set((config.testRoomNumbers || []).map(normalizeRoomNumber).filter(Boolean)),
+    [config.testRoomNumbers],
+  );
+  const isDateExemptTestRoom = useCallback(
+    (candidate: unknown) => testRoomSet.has(normalizeRoomNumber(candidate)),
+    [testRoomSet],
+  );
 
   const isKnownHotelRoom = useCallback(
     (candidate: unknown) => {
@@ -3118,6 +3126,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmFailed: "Престоят не беше потвърден. Моля, проверете данните и опитайте отново.",
         stayConflict: "За тази стая вече има активен престой с припокриващи се дати. Проверете датите или се свържете с рецепцията.",
         expired: "Предишният престой е приключил. Моля, въведете данните за текущия престой.",
+        testRoomNoDates: "Тестова стая — не се изискват дати на престой.",
       },
       en: {
         checkInLabel: "Check-in date",
@@ -3133,6 +3142,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmFailed: "The stay could not be confirmed. Please check the details and try again.",
         stayConflict: "This room already has an active stay with overlapping dates. Please check the dates or contact Reception.",
         expired: "The previous stay has ended. Please enter the details of the current stay.",
+        testRoomNoDates: "Test room — stay dates are not required.",
       },
       de: {
         checkInLabel: "Anreisedatum",
@@ -3148,6 +3158,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmFailed: "Der Aufenthalt konnte nicht bestätigt werden. Bitte prüfen Sie die Angaben.",
         stayConflict: "Für dieses Zimmer gibt es bereits einen aktiven Aufenthalt mit überschneidenden Daten. Bitte prüfen Sie die Daten oder kontaktieren Sie die Rezeption.",
         expired: "Der vorherige Aufenthalt ist beendet. Bitte geben Sie die Daten des aktuellen Aufenthalts ein.",
+        testRoomNoDates: "Testzimmer — Aufenthaltsdaten sind nicht erforderlich.",
       },
       ro: {
         checkInLabel: "Data sosirii",
@@ -3163,6 +3174,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmFailed: "Sejurul nu a putut fi confirmat. Verificați datele și încercați din nou.",
         stayConflict: "Pentru această cameră există deja un sejur activ cu date care se suprapun. Verificați datele sau contactați recepția.",
         expired: "Sejurul anterior s-a încheiat. Introduceți datele sejurului curent.",
+        testRoomNoDates: "Cameră de test — datele sejurului nu sunt necesare.",
       },
       cs: {
         checkInLabel: "Datum příjezdu",
@@ -3178,6 +3190,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmFailed: "Pobyt se nepodařilo potvrdit. Zkontrolujte údaje a zkuste to znovu.",
         stayConflict: "Pro tento pokoj již existuje aktivní pobyt s překrývajícími se daty. Zkontrolujte data nebo kontaktujte recepci.",
         expired: "Předchozí pobyt skončil. Zadejte údaje aktuálního pobytu.",
+        testRoomNoDates: "Testovací pokoj — data pobytu nejsou vyžadována.",
       },
       ru: {
         checkInLabel: "Дата заезда",
@@ -3193,6 +3206,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         confirmFailed: "Не удалось подтвердить проживание. Проверьте данные и повторите попытку.",
         stayConflict: "Для этого номера уже существует активное проживание с пересекающимися датами. Проверьте даты или свяжитесь с рецепцией.",
         expired: "Предыдущее проживание завершено. Введите данные текущего проживания.",
+        testRoomNoDates: "Тестовый номер — даты проживания не требуются.",
       },
     } as const;
     return copy[lang as keyof typeof copy] || copy.en;
@@ -3709,7 +3723,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     return false;
   };
 
-  const validateGuestStayDates = useCallback(() => {
+  const validateGuestStayDates = useCallback((roomCandidate: unknown) => {
+    if (isDateExemptTestRoom(roomCandidate)) {
+      return { checkInDate: "", checkOutDate: "", datesRequired: false as const };
+    }
+
     const normalizedCheckIn = normalizeStayDateKey(checkInDate);
     const normalizedCheckOut = normalizeStayDateKey(checkOutDate);
 
@@ -3732,8 +3750,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       return null;
     }
 
-    return { checkInDate: normalizedCheckIn, checkOutDate: normalizedCheckOut };
-  }, [checkInDate, checkOutDate, hotelTodayDateKey, stayCopy]);
+    return { checkInDate: normalizedCheckIn, checkOutDate: normalizedCheckOut, datesRequired: true as const };
+  }, [checkInDate, checkOutDate, hotelTodayDateKey, isDateExemptTestRoom, stayCopy]);
 
   const confirmManualRoom = async () => {
     const candidate = normalizeRoomNumber(manualRoomInput);
@@ -3752,7 +3770,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       return;
     }
 
-    if (!validateGuestStayDates()) return;
+    if (!validateGuestStayDates(candidate)) return;
 
     setManualRoomInput(candidate);
     setGeoMessage(null);
@@ -3792,7 +3810,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     if (!roomModal?.nextRoom || stayConfirming) return;
 
     const nextRoom = normalizeRoomNumber(roomModal.nextRoom);
-    const dates = validateGuestStayDates();
+    const dates = validateGuestStayDates(nextRoom);
     if (!dates) return;
 
     if (!isKnownHotelRoom(nextRoom)) {
@@ -3819,8 +3837,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         body: JSON.stringify({
           hotelSlug: String(config.hotelSlug || hotelContentSlug || "aquamarin"),
           room: nextRoom,
-          checkInDate: dates.checkInDate,
-          checkOutDate: dates.checkOutDate,
+          ...(dates.datesRequired
+            ? {
+                checkInDate: dates.checkInDate,
+                checkOutDate: dates.checkOutDate,
+              }
+            : {}),
           deviceToken,
           language: String(lang),
         }),
@@ -3875,6 +3897,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           checkInDate: confirmedStay.checkInDate,
           checkOutDate: confirmedStay.checkOutDate,
           effectiveCheckOutAt: confirmedStay.effectiveCheckOutAt,
+          datesRequired: confirmedStay.datesRequired,
         },
       });
     } catch (error) {
@@ -4013,6 +4036,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         setManualRoomInput("");
         setRoom("");
         setRoomConfirmed(false);
+        if (isDateExemptTestRoom(room)) {
+          setCheckInDate("");
+          setCheckOutDate("");
+        }
         setIgnoredQrRoom(null);
         setRoomModal(null);
 
@@ -8421,7 +8448,11 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         <div className="stayhub-confirmed-room-wrap px-4">
           <div className="stayhub-confirmed-room-card stayhub-confirmed-stay-card">
             <span>{roomCopy.confirmedState.replace("{room}", room)}</span>
-            <small>{stayCopy.confirmedLine.replace("{checkIn}", checkInDate).replace("{checkOut}", checkOutDate)}</small>
+            <small>
+              {isDateExemptTestRoom(room)
+                ? stayCopy.testRoomNoDates
+                : stayCopy.confirmedLine.replace("{checkIn}", checkInDate).replace("{checkOut}", checkOutDate)}
+            </small>
           </div>
           <button
             type="button"
@@ -8568,41 +8599,49 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               />
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-3 stayhub-stay-date-grid">
-              <div>
-                <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em]" style={{ color: "#202627" }}>
-                  {stayCopy.checkInLabel}
-                </label>
-                <LocalizedStayDatePicker
-                  value={checkInDate}
-                  max={hotelTodayDateKey}
-                  todayDateKey={hotelTodayDateKey}
-                  lang={lang}
-                  ariaLabel={stayCopy.checkInLabel}
-                  onChange={(nextValue) => {
-                    const next = normalizeStayDateKey(nextValue);
-                    setCheckInDate(next);
-                    if (checkOutDate && next && checkOutDate <= next) {
-                      setCheckOutDate(addDaysToStayDateKey(next, 1));
-                    }
-                  }}
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em]" style={{ color: "#202627" }}>
-                  {stayCopy.checkOutLabel}
-                </label>
-                <LocalizedStayDatePicker
-                  value={checkOutDate}
-                  min={checkInDate ? addDaysToStayDateKey(checkInDate, 1) : hotelTodayDateKey}
-                  todayDateKey={hotelTodayDateKey}
-                  lang={lang}
-                  ariaLabel={stayCopy.checkOutLabel}
-                  onChange={(nextValue) => setCheckOutDate(normalizeStayDateKey(nextValue))}
-                />
-              </div>
-            </div>
-            <p className="mt-2 text-xs leading-5" style={{ color: "#4f6668" }}>{stayCopy.stayHelp}</p>
+            {isDateExemptTestRoom(manualRoomInput) ? (
+              <p className="mt-3 rounded-xl stayhub-card px-3 py-3 text-sm" style={{ color: "#4f6668" }}>
+                {stayCopy.testRoomNoDates}
+              </p>
+            ) : (
+              <>
+                <div className="mt-3 grid grid-cols-2 gap-3 stayhub-stay-date-grid">
+                  <div>
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em]" style={{ color: "#202627" }}>
+                      {stayCopy.checkInLabel}
+                    </label>
+                    <LocalizedStayDatePicker
+                      value={checkInDate}
+                      max={hotelTodayDateKey}
+                      todayDateKey={hotelTodayDateKey}
+                      lang={lang}
+                      ariaLabel={stayCopy.checkInLabel}
+                      onChange={(nextValue) => {
+                        const next = normalizeStayDateKey(nextValue);
+                        setCheckInDate(next);
+                        if (checkOutDate && next && checkOutDate <= next) {
+                          setCheckOutDate(addDaysToStayDateKey(next, 1));
+                        }
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em]" style={{ color: "#202627" }}>
+                      {stayCopy.checkOutLabel}
+                    </label>
+                    <LocalizedStayDatePicker
+                      value={checkOutDate}
+                      min={checkInDate ? addDaysToStayDateKey(checkInDate, 1) : hotelTodayDateKey}
+                      todayDateKey={hotelTodayDateKey}
+                      lang={lang}
+                      ariaLabel={stayCopy.checkOutLabel}
+                      onChange={(nextValue) => setCheckOutDate(normalizeStayDateKey(nextValue))}
+                    />
+                  </div>
+                </div>
+                <p className="mt-2 text-xs leading-5" style={{ color: "#4f6668" }}>{stayCopy.stayHelp}</p>
+              </>
+            )}
 
             <button
               type="button"
@@ -8678,7 +8717,10 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                     : lang === "ru"
                       ? `Сейчас устройство привязано к номеру ${roomModal.currentRoom}. Меняйте номер только в том случае, если вас действительно переселили. Вы уверены, что хотите перейти к номеру ${roomModal.nextRoom}?`
                       : `This device is currently active for room ${roomModal.currentRoom}. Change the room only if you have actually been moved to another room. Are you sure you want to switch to room ${roomModal.nextRoom}?`
-                : `${roomCopy.confirmMessage.replace("{room}", roomModal.nextRoom)}
+                : isDateExemptTestRoom(roomModal.nextRoom)
+                  ? `${roomCopy.confirmMessage.replace("{room}", roomModal.nextRoom)}
+${stayCopy.testRoomNoDates}`
+                  : `${roomCopy.confirmMessage.replace("{room}", roomModal.nextRoom)}
 ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", checkOutDate)}`}
             </p>
 

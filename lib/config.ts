@@ -3,6 +3,7 @@ import path from "node:path";
 import type { HotelConfig, HotelRoom, LangKey } from "./types";
 import { parseRequestDefs } from "@/lib/request-defs";
 import { getHotelSheetSources } from "@/lib/hotels/getHotelSheetSources";
+import { getActiveTestRoomNumbers } from "@/lib/server/test-rooms";
 
 
 function titleFromSlug(slug: string) {
@@ -567,12 +568,16 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
 
   // REQUEST_DEFS is optional. If it is missing, the hub falls back to the built-in core sections.
 
-  const [cfgRows, venueRowsRaw, i18nRows, hotelSetupRows, requestDefRows] = await Promise.all([
+  const [cfgRows, venueRowsRaw, i18nRows, hotelSetupRows, requestDefRows, testRoomNumbers] = await Promise.all([
     fetchCsv(configUrl),
     venuesUrl ? fetchCsvOrEmpty(venuesUrl) : Promise.resolve([]),
     fetchCsv(i18nUrl),
     hotelSetupUrl ? fetchCsvOrEmpty(hotelSetupUrl) : Promise.resolve([]),
     requestDefsUrl ? fetchCsvOrEmpty(requestDefsUrl) : Promise.resolve([]),
+    getActiveTestRoomNumbers([
+      sheetSources.hotelId,
+      sheetSources.isSandbox ? sheetSources.productionHotelId : null,
+    ]),
   ]);
 
   const explicitConfig = toKV(cfgRows);
@@ -696,6 +701,7 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     requestDefs,
     hotelRooms,
     validRoomNumbers,
+    testRoomNumbers,
   };
 
   const venueRows = venueRowsRaw

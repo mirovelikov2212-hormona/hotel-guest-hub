@@ -14,6 +14,7 @@ const MAX_TEST_AUTO_DELETE_SECONDS = 60 * 60;
 const POLICY_CACHE_TTL_MS = 60_000;
 
 const policyCache = new Map<string, { cachedAt: number; policy: TestRoomPolicy }>();
+const roomListCache = new Map<string, { cachedAt: number; roomNumbers: string[] }>();
 let lastCleanupByHotel = new Map<string, number>();
 
 function normalizeRoomNumber(value: unknown) {
@@ -93,6 +94,58 @@ export async function getTestRoomPolicy(hotelId: string | null | undefined, room
   };
   policyCache.set(cacheKey, { cachedAt: Date.now(), policy });
   return policy;
+}
+
+export async function getEffectiveTestRoomPolicy(
+  input: {
+    hotelId: string | null | undefined;
+    isSandbox?: boolean | null;
+    productionHotelId?: string | null;
+  },
+  roomNumber: unknown,
+): Promise<TestRoomPolicy> {
+  const directPolicy = await getTestRoomPolicy(input.hotelId, roomNumber);
+  if (directPolicy.isTest || !input.isSandbox || !input.productionHotelId) {
+    return directPolicy;
+  }
+
+  return getTestRoomPolicy(input.productionHotelId, roomNumber);
+}
+
+export async function getActiveTestRoomNumbers(
+  hotelIds: Array<string | null | undefined>,
+): Promise<string[]> {
+  const normalizedHotelIds = Array.from(
+    new Set(hotelIds.map((value) => String(value || "").trim()).filter(Boolean)),
+  ).sort();
+
+  if (!normalizedHotelIds.length) return [];
+
+  const cacheKey = normalizedHotelIds.join(":");
+  const cached = roomListCache.get(cacheKey);
+  if (cached && Date.now() - cached.cachedAt < POLICY_CACHE_TTL_MS) {
+    return cached.roomNumbers;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("hotel_test_rooms")
+    .select("room_number")
+    .in("hotel_id", normalizedHotelIds)
+    .eq("is_active", true);
+
+  if (error) {
+    if (!isLikelyMissingSchemaError(error)) {
+      console.error("Failed to load StayHub test room list", { hotelIds: normalizedHotelIds, error });
+    }
+    roomListCache.set(cacheKey, { cachedAt: Date.now(), roomNumbers: [] });
+    return [];
+  }
+
+  const roomNumbers = Array.from(
+    new Set((data || []).map((row) => normalizeRoomNumber(row.room_number)).filter(Boolean)),
+  ).sort();
+  roomListCache.set(cacheKey, { cachedAt: Date.now(), roomNumbers });
+  return roomNumbers;
 }
 
 export function getTestDataFields(policy: TestRoomPolicy) {

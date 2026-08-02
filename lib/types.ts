@@ -300,6 +300,8 @@ export type HotelConfig = {
   hotelRooms?: HotelRoom[];
   /** Convenience list for fast validation in GuestHub and API routes. */
   validRoomNumbers?: string[];
+  /** Active test rooms whose guest stay may use the controlled test-room flow. */
+  testRoomNumbers?: string[];
 };
 
 export type StaffRequestType =

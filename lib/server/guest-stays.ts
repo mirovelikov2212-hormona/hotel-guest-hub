@@ -13,7 +13,11 @@ import {
 } from "@/lib/guest-stays/shared";
 import { resolveHotelByAnySlugAdmin, getOperationalIsolationFields, getOperationalIsolationMetadata } from "@/lib/server/hotel-scope";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
-import { getTestRoomPolicy } from "@/lib/server/test-rooms";
+import { getEffectiveTestRoomPolicy } from "@/lib/server/test-rooms";
+
+const TEST_ROOM_STAY_DATE_MODE = "test_room_rolling";
+const TEST_ROOM_STAY_WINDOW_DAYS = 30;
+const TEST_ROOM_STAY_REFRESH_THRESHOLD_DAYS = 7;
 
 export type GuestStayRow = {
   id: string;
@@ -122,6 +126,66 @@ export function getHotelTimeParts(timezone: string, date = new Date()) {
   return { dateKey: `${map.year}-${map.month}-${map.day}`, minutes: hour * 60 + minute };
 }
 
+function getRollingTestStayValues(timezone: string, date = new Date()) {
+  const checkInDate = getHotelTimeParts(timezone, date).dateKey;
+  const checkOutDate = addDaysToStayDateKey(checkInDate, TEST_ROOM_STAY_WINDOW_DAYS);
+
+  return {
+    checkInDate,
+    checkOutDate,
+    checkInAt: hotelLocalDateTimeToUtcIso(checkInDate, GUEST_STAY_CHECK_IN_TIME, timezone),
+    scheduledCheckOutAt: hotelLocalDateTimeToUtcIso(checkOutDate, GUEST_STAY_CHECK_OUT_TIME, timezone),
+  };
+}
+
+function isRollingTestStay(stay: Pick<GuestStayRow, "is_test" | "metadata_json">) {
+  return Boolean(
+    stay.is_test &&
+    String(stay.metadata_json?.stayDateMode || "").trim() === TEST_ROOM_STAY_DATE_MODE,
+  );
+}
+
+async function refreshRollingTestStay(stay: GuestStayRow) {
+  const timezone = String(stay.metadata_json?.hotelTimezone || "Europe/Sofia").trim() || "Europe/Sofia";
+  const hotelToday = getHotelTimeParts(timezone).dateKey;
+  const refreshThreshold = addDaysToStayDateKey(hotelToday, TEST_ROOM_STAY_REFRESH_THRESHOLD_DAYS);
+  const isCurrentBeyondThreshold =
+    stay.status !== "cancelled" &&
+    stay.check_out_date > refreshThreshold &&
+    new Date(stay.effective_check_out_at).getTime() > Date.now();
+
+  if (isCurrentBeyondThreshold) return stay;
+
+  const rolling = getRollingTestStayValues(timezone);
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabaseAdmin
+    .from("guest_stays")
+    .update({
+      check_in_date: rolling.checkInDate,
+      check_out_date: rolling.checkOutDate,
+      check_in_at: rolling.checkInAt,
+      scheduled_check_out_at: rolling.scheduledCheckOutAt,
+      effective_check_out_at: rolling.scheduledCheckOutAt,
+      late_checkout_status: "none",
+      late_checkout_time: null,
+      status: "active",
+      last_seen_at: now,
+      metadata_json: {
+        ...(stay.metadata_json || {}),
+        stayDateMode: TEST_ROOM_STAY_DATE_MODE,
+        rollingWindowDays: TEST_ROOM_STAY_WINDOW_DAYS,
+        rollingWindowRefreshedAt: now,
+      },
+    })
+    .eq("id", stay.id)
+    .select("id, hotel_id, room_number, check_in_date, check_out_date, check_in_at, scheduled_check_out_at, effective_check_out_at, late_checkout_status, late_checkout_time, status, is_test, test_expires_at, metadata_json")
+    .single();
+
+  if (error || !data) throw error || new Error("TEST_STAY_REFRESH_FAILED");
+  return data as GuestStayRow;
+}
+
 async function validateHotelRoom(hotelSlug: string, room: string) {
   const config = await getHotelConfig(hotelSlug);
   const validRooms = Array.isArray(config?.validRoomNumbers)
@@ -146,6 +210,7 @@ function mapStaySummary(stay: GuestStayRow, device: GuestStayDeviceRow): GuestSt
     effectiveCheckOutAt: stay.effective_check_out_at,
     lateCheckoutStatus: stay.late_checkout_status || "none",
     lateCheckoutTime: stay.late_checkout_time,
+    datesRequired: !isRollingTestStay(stay),
     active: stay.status !== "cancelled" && new Date(stay.effective_check_out_at).getTime() > Date.now(),
   };
 }
@@ -153,27 +218,42 @@ function mapStaySummary(stay: GuestStayRow, device: GuestStayDeviceRow): GuestSt
 export async function confirmGuestStay(input: {
   hotelSlug: string;
   room: string;
-  checkInDate: string;
-  checkOutDate: string;
+  checkInDate?: string;
+  checkOutDate?: string;
   deviceToken: string;
   language?: string;
 }) {
   const hotelSlug = String(input.hotelSlug || "").trim().toLowerCase();
   const room = normalizeRoomNumber(input.room);
-  const checkInDate = normalizeStayDateKey(input.checkInDate);
-  const checkOutDate = normalizeStayDateKey(input.checkOutDate);
+  const requestedCheckInDate = normalizeStayDateKey(input.checkInDate);
+  const requestedCheckOutDate = normalizeStayDateKey(input.checkOutDate);
   const deviceToken = normalizeDeviceToken(input.deviceToken);
   const language = normalizeLanguage(input.language);
 
-  if (!hotelSlug || !room || !checkInDate || !checkOutDate || !deviceToken) {
+  if (!hotelSlug || !room || !deviceToken) {
     throw new Error("MISSING_STAY_FIELDS");
   }
+
+  const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
+  const timezone = await validateHotelRoom(hotelSlug, room);
+  const testRoomPolicy = await getEffectiveTestRoomPolicy(
+    {
+      hotelId: hotel.id,
+      isSandbox: hotel.is_sandbox,
+      productionHotelId: hotel.production_hotel_id,
+    },
+    room,
+  );
+  const datesRequired = !testRoomPolicy.isTest;
+  const rollingTestStay = datesRequired ? null : getRollingTestStayValues(timezone);
+  const checkInDate = rollingTestStay?.checkInDate || requestedCheckInDate;
+  const checkOutDate = rollingTestStay?.checkOutDate || requestedCheckOutDate;
+
+  if (!checkInDate || !checkOutDate) throw new Error("MISSING_STAY_FIELDS");
 
   const stayLength = getStayLengthNights(checkInDate, checkOutDate);
   if (stayLength < 1 || stayLength > 30) throw new Error("INVALID_STAY_DATES");
 
-  const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
-  const timezone = await validateHotelRoom(hotelSlug, room);
   const hotelNow = getHotelTimeParts(timezone);
   if (checkInDate > hotelNow.dateKey || checkOutDate < hotelNow.dateKey) {
     throw new Error("STAY_NOT_CURRENT");
@@ -182,23 +262,41 @@ export async function confirmGuestStay(input: {
     throw new Error("STAY_TOO_OLD");
   }
 
-  const checkInAt = hotelLocalDateTimeToUtcIso(checkInDate, GUEST_STAY_CHECK_IN_TIME, timezone);
-  const scheduledCheckOutAt = hotelLocalDateTimeToUtcIso(checkOutDate, GUEST_STAY_CHECK_OUT_TIME, timezone);
-  const testRoomPolicy = await getTestRoomPolicy(hotel.id, room);
+  const checkInAt = rollingTestStay?.checkInAt || hotelLocalDateTimeToUtcIso(checkInDate, GUEST_STAY_CHECK_IN_TIME, timezone);
+  const scheduledCheckOutAt = rollingTestStay?.scheduledCheckOutAt || hotelLocalDateTimeToUtcIso(checkOutDate, GUEST_STAY_CHECK_OUT_TIME, timezone);
   const isolationFields = getOperationalIsolationFields({ hotel, testRoomPolicy });
   const isolationMetadata = getOperationalIsolationMetadata({ hotel, testRoomPolicy });
   const now = new Date().toISOString();
 
-  const { data: existingStay, error: existingError } = await supabaseAdmin
-    .from("guest_stays")
-    .select("id, hotel_id, room_number, check_in_date, check_out_date, check_in_at, scheduled_check_out_at, effective_check_out_at, late_checkout_status, late_checkout_time, status, is_test, test_expires_at, metadata_json")
-    .eq("hotel_id", hotel.id)
-    .eq("room_number", room)
-    .eq("check_in_date", checkInDate)
-    .eq("check_out_date", checkOutDate)
-    .maybeSingle();
+  let existingStay: GuestStayRow | null = null;
+  if (datesRequired) {
+    const { data, error } = await supabaseAdmin
+      .from("guest_stays")
+      .select("id, hotel_id, room_number, check_in_date, check_out_date, check_in_at, scheduled_check_out_at, effective_check_out_at, late_checkout_status, late_checkout_time, status, is_test, test_expires_at, metadata_json")
+      .eq("hotel_id", hotel.id)
+      .eq("room_number", room)
+      .eq("check_in_date", checkInDate)
+      .eq("check_out_date", checkOutDate)
+      .maybeSingle();
 
-  if (existingError) throw existingError;
+    if (error) throw error;
+    existingStay = data as GuestStayRow | null;
+  } else {
+    const { data, error } = await supabaseAdmin
+      .from("guest_stays")
+      .select("id, hotel_id, room_number, check_in_date, check_out_date, check_in_at, scheduled_check_out_at, effective_check_out_at, late_checkout_status, late_checkout_time, status, is_test, test_expires_at, metadata_json")
+      .eq("hotel_id", hotel.id)
+      .eq("room_number", room)
+      .eq("status", "active")
+      .lt("check_in_date", checkOutDate)
+      .gt("check_out_date", checkInDate)
+      .order("last_seen_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    existingStay = data as GuestStayRow | null;
+  }
 
   if (!existingStay) {
     const { data: overlappingStay, error: overlapError } = await supabaseAdmin
@@ -222,17 +320,32 @@ export async function confirmGuestStay(input: {
     const existingStayIsActive =
       existingStay.status !== "cancelled" &&
       new Date(existingStay.effective_check_out_at).getTime() > Date.now();
-    if (!existingStayIsActive) throw new Error("STAY_ENDED");
+    if (!existingStayIsActive && datesRequired) throw new Error("STAY_ENDED");
 
     const { data, error } = await supabaseAdmin
       .from("guest_stays")
       .update({
+        ...(!datesRequired
+          ? {
+              check_in_date: checkInDate,
+              check_out_date: checkOutDate,
+              check_in_at: checkInAt,
+              scheduled_check_out_at: scheduledCheckOutAt,
+              effective_check_out_at: scheduledCheckOutAt,
+              late_checkout_status: "none",
+              late_checkout_time: null,
+            }
+          : {}),
         last_seen_at: now,
         status: "active",
+        ...isolationFields,
         metadata_json: {
           ...((existingStay.metadata_json as Record<string, unknown> | null) || {}),
           ...isolationMetadata,
           hotelTimezone: timezone,
+          stayDateMode: datesRequired ? "guest_provided" : TEST_ROOM_STAY_DATE_MODE,
+          rollingWindowDays: datesRequired ? null : TEST_ROOM_STAY_WINDOW_DAYS,
+          rollingWindowRefreshedAt: datesRequired ? null : now,
         },
       })
       .eq("id", existingStay.id)
@@ -266,6 +379,9 @@ export async function confirmGuestStay(input: {
           hotelTimezone: timezone,
           standardCheckInTime: GUEST_STAY_CHECK_IN_TIME,
           standardCheckOutTime: GUEST_STAY_CHECK_OUT_TIME,
+          stayDateMode: datesRequired ? "guest_provided" : TEST_ROOM_STAY_DATE_MODE,
+          rollingWindowDays: datesRequired ? null : TEST_ROOM_STAY_WINDOW_DAYS,
+          rollingWindowRefreshedAt: datesRequired ? null : now,
         },
       })
       .select("id, hotel_id, room_number, check_in_date, check_out_date, check_in_at, scheduled_check_out_at, effective_check_out_at, late_checkout_status, late_checkout_time, status, is_test, test_expires_at, metadata_json")
@@ -289,7 +405,11 @@ export async function confirmGuestStay(input: {
         language,
         last_seen_at: now,
         ...isolationFields,
-        metadata_json: { ...isolationMetadata, hotelTimezone: timezone },
+        metadata_json: {
+          ...isolationMetadata,
+          hotelTimezone: timezone,
+          stayDateMode: datesRequired ? "guest_provided" : TEST_ROOM_STAY_DATE_MODE,
+        },
       },
       { onConflict: "stay_id,device_token" },
     )
@@ -321,6 +441,11 @@ export async function getGuestStayStatus(input: {
     .maybeSingle();
   if (stayError || !stay) throw stayError || new Error("STAY_NOT_FOUND");
 
+  let currentStay = stay as GuestStayRow;
+  if (currentStay.status !== "cancelled" && isRollingTestStay(currentStay)) {
+    currentStay = await refreshRollingTestStay(currentStay);
+  }
+
   const { data: device, error: deviceError } = await supabaseAdmin
     .from("guest_stay_devices")
     .select("id, stay_id, hotel_id, room_number, device_token, language, is_test, test_expires_at")
@@ -330,10 +455,10 @@ export async function getGuestStayStatus(input: {
     .maybeSingle();
   if (deviceError || !device) throw deviceError || new Error("STAY_DEVICE_NOT_FOUND");
 
-  const active = stay.status !== "cancelled" && new Date(stay.effective_check_out_at).getTime() > Date.now();
+  const active = currentStay.status !== "cancelled" && new Date(currentStay.effective_check_out_at).getTime() > Date.now();
   const now = new Date().toISOString();
   await Promise.all([
-    supabaseAdmin.from("guest_stays").update({ last_seen_at: now, status: active ? "active" : "ended" }).eq("id", stay.id),
+    supabaseAdmin.from("guest_stays").update({ last_seen_at: now, status: active ? "active" : "ended" }).eq("id", currentStay.id),
     supabaseAdmin.from("guest_stay_devices").update({ last_seen_at: now }).eq("id", device.id),
   ]);
 
@@ -341,11 +466,11 @@ export async function getGuestStayStatus(input: {
     await supabaseAdmin
       .from("guest_push_subscriptions")
       .update({ enabled: false, last_push_status: "stay_ended", updated_at: now })
-      .eq("stay_id", stay.id)
+      .eq("stay_id", currentStay.id)
       .eq("stay_device_id", device.id);
   }
 
-  return { hotel, stay: { ...mapStaySummary(stay as GuestStayRow, device as GuestStayDeviceRow), active } };
+  return { hotel, stay: { ...mapStaySummary(currentStay, device as GuestStayDeviceRow), active } };
 }
 
 export async function validateGuestStayIdentity(input: {
@@ -360,12 +485,17 @@ export async function validateGuestStayIdentity(input: {
 
   const { data: stay, error: stayError } = await supabaseAdmin
     .from("guest_stays")
-    .select("id, hotel_id, room_number, check_in_date, check_out_date, effective_check_out_at, status")
+    .select("id, hotel_id, room_number, check_in_date, check_out_date, check_in_at, scheduled_check_out_at, effective_check_out_at, late_checkout_status, late_checkout_time, status, is_test, test_expires_at, metadata_json")
     .eq("id", stayId)
     .eq("hotel_id", input.hotelId)
     .eq("room_number", normalizeRoomNumber(input.room))
     .maybeSingle();
   if (stayError || !stay) throw stayError || new Error("INVALID_STAY");
+
+  let currentStay = stay as GuestStayRow;
+  if (currentStay.status !== "cancelled" && isRollingTestStay(currentStay)) {
+    currentStay = await refreshRollingTestStay(currentStay);
+  }
 
   const { data: device, error: deviceError } = await supabaseAdmin
     .from("guest_stay_devices")
@@ -375,10 +505,10 @@ export async function validateGuestStayIdentity(input: {
     .maybeSingle();
   if (deviceError || !device) throw deviceError || new Error("INVALID_STAY_DEVICE");
 
-  const active = stay.status !== "cancelled" && new Date(stay.effective_check_out_at).getTime() > Date.now();
+  const active = currentStay.status !== "cancelled" && new Date(currentStay.effective_check_out_at).getTime() > Date.now();
   if (!active) throw new Error("STAY_ENDED");
 
-  return { stay, device };
+  return { stay: currentStay, device };
 }
 
 export async function markLateCheckoutRequested(input: {

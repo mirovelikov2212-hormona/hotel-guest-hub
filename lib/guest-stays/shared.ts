@@ -16,6 +16,7 @@ export type GuestStaySummary = {
   effectiveCheckOutAt: string;
   lateCheckoutStatus: "none" | "pending" | "approved" | "rejected";
   lateCheckoutTime: string | null;
+  datesRequired: boolean;
   active: boolean;
 };
 
