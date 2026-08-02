@@ -628,6 +628,7 @@ export default function MassageBookingSection({
   collapseToken = 0,
   onRequireRoomConfirmation,
   onTrack,
+  onBookingSubmissionChange,
   onBookingConfirmed,
 }: {
   hotelSlug: string;
@@ -639,6 +640,7 @@ export default function MassageBookingSection({
   collapseToken?: number;
   onRequireRoomConfirmation: () => void;
   onTrack: (payload: TrackHubPayload) => void;
+  onBookingSubmissionChange?: (submitting: boolean, serviceLabel?: string) => void;
   onBookingConfirmed?: (booking: ConfirmedMassageBookingCard) => void;
 }) {
   const lang = normalizeLanguage(language);
@@ -1062,6 +1064,7 @@ export default function MassageBookingSection({
     setSubmittingBooking(true);
     setBookingVerificationPending(false);
     setBookingFeedback(null);
+    onBookingSubmissionChange?.(true, serviceName(selectedService, lang));
 
     onTrack({
       eventName: "massage_booking_confirmed",
@@ -1215,6 +1218,7 @@ export default function MassageBookingSection({
         window.clearTimeout(verificationTimer);
       }
       setSubmittingBooking(false);
+      onBookingSubmissionChange?.(false);
     }
   };
 

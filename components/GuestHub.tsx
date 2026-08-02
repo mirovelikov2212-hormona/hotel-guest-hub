@@ -5667,8 +5667,21 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
       setGuestMassageBookings(next);
       collapseGuestHubSectionsAfterAction();
+      setShowRequestSuccess(true);
     },
     [collapseGuestHubSectionsAfterAction, config.hotelSlug, hotelContentSlug]
+  );
+
+  const handleMassageBookingSubmissionChange = useCallback(
+    (submitting: boolean, serviceLabel?: string) => {
+      setSubmittingRequest(submitting);
+      setSubmittingRequestLabel(submitting ? String(serviceLabel || "") : "");
+
+      if (submitting) {
+        setShowRequestSuccess(false);
+      }
+    },
+    []
   );
 
   const refreshGuestMassageBookingsFromServer = useCallback(async () => {
@@ -9060,6 +9073,7 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
                     protectedSubmissionEnabled={true}
                     forceOpenToken={1}
                     collapseToken={guestSectionsCollapseToken}
+                    onBookingSubmissionChange={handleMassageBookingSubmissionChange}
                     onBookingConfirmed={handleMassageBookingConfirmed}
                     onRequireRoomConfirmation={() => {
                       window.alert(roomCopy.lockedActionAlert);
