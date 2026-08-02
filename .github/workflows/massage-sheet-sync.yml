@@ -8,7 +8,7 @@ on:
 jobs:
   call-massage-sheet-sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
 
     steps:
       - name: Refresh massage snapshot and sync Sheet changes
@@ -35,7 +35,13 @@ jobs:
               if ! response=$(curl -sS --max-time 75 -w "\n%{http_code}" \
                 -H "Authorization: Bearer ${CRON_SECRET}" \
                 "$url"); then
-                echo "${label} transport failed. No automatic retry is allowed after an ambiguous curl timeout."
+                if [ "$retry_transient_snapshot" = "true" ] && [ "$attempt" -lt "$max_attempts" ]; then
+                  echo "${label} transport failed; this snapshot/reconciliation endpoint is idempotent, retrying once after 5 seconds."
+                  sleep 5
+                  attempt=$((attempt + 1))
+                  continue
+                fi
+                echo "${label} transport failed."
                 return 1
               fi
 
@@ -50,7 +56,7 @@ jobs:
               fi
 
               if [ "$retry_transient_snapshot" = "true" ] && [ "$attempt" -lt "$max_attempts" ] && \
-                printf '%s' "$body" | python3 -c 'import json,sys; payload=json.load(sys.stdin); detail=(payload.get("details") or [{}])[0]; code=detail.get("errorCode"); stage=detail.get("stage"); upstream=detail.get("upstreamStatus"); retryable_http=code=="MASSAGE_API_HTTP_ERROR" and upstream in {408,425,429,500,502,503,504}; raise SystemExit(0 if stage=="snapshot" and (retryable_http or code in {"MASSAGE_API_UNAVAILABLE","MASSAGE_API_METHOD_MISMATCH"}) else 1)'; then
+                printf '%s' "$body" | python3 -c 'import json,sys; payload=json.load(sys.stdin); detail=(payload.get("details") or [{}])[0]; code=detail.get("errorCode"); stage=detail.get("stage"); upstream=detail.get("upstreamStatus"); retryable_http=code=="MASSAGE_API_HTTP_ERROR" and upstream in {408,425,429,500,502,503,504}; raise SystemExit(0 if stage=="snapshot" and (retryable_http or code in {"MASSAGE_API_TIMEOUT","MASSAGE_API_UNAVAILABLE","MASSAGE_API_METHOD_MISMATCH"}) else 1)'; then
                 echo "Transient snapshot HTTP failure; retrying once after 5 seconds."
                 sleep 5
                 attempt=$((attempt + 1))
@@ -68,14 +74,21 @@ jobs:
             return 1
           }
 
+          snapshot_status=0
           call_endpoint \
             "Massage snapshot refresh" \
             "https://www.stayhub.app/api/cron/massage-snapshot-sync?hotelSlug=aquamarin" \
             2 \
-            true
+            true || snapshot_status=$?
 
+          sheet_sync_status=0
           call_endpoint \
             "Massage Sheet sync" \
             "https://www.stayhub.app/api/cron/massage-sheet-sync?hotelSlug=aquamarin&daysAhead=21" \
             1 \
-            false
+            false || sheet_sync_status=$?
+
+          if [ "$snapshot_status" -ne 0 ] || [ "$sheet_sync_status" -ne 0 ]; then
+            echo "Massage workflow completed all stages, but at least one endpoint failed."
+            exit 1
+          fi

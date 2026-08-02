@@ -663,6 +663,7 @@ export default function MassageBookingSection({
   const [bookingConfirmOpen, setBookingConfirmOpen] = useState(false);
   const [bookingFeedback, setBookingFeedback] = useState<BookingFeedback>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [bookingVerificationPending, setBookingVerificationPending] = useState(false);
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const servicesLoadPromiseRef = useRef<Promise<void> | null>(null);
   const datesLoadPromiseRef = useRef<Map<string, Promise<BookableDatesResult>>>(new Map());
@@ -693,10 +694,12 @@ export default function MassageBookingSection({
       if (cached) {
         setServices(cached.services || []);
         setServicesLoaded(true);
-        return;
       }
 
-      setLoadingServices(true);
+      // Services live longer in the client cache than dates/times. Render the
+      // cached catalogue immediately, but still hydrate the shorter-lived
+      // bootstrap payload so the next two steps are also instant.
+      setLoadingServices(!cached);
       setError("");
 
       try {
@@ -712,6 +715,7 @@ export default function MassageBookingSection({
         throw new Error("Massage bootstrap returned no data.");
       } catch (bootstrapError) {
         if (bootstrapError instanceof DOMException && bootstrapError.name === "AbortError") return;
+        if (cached) return;
 
         try {
           const result = await fetchMassageApi<ServicesResult>(
@@ -821,6 +825,7 @@ export default function MassageBookingSection({
   }, [collapseToken]);
 
   const chooseService = async (serviceId: string) => {
+    if (bookingVerificationPending) return;
     const fromDate = getSofiaIsoDate();
     const embedded = availabilityByService[serviceId] || null;
     const cached = readMassageCache<BookableDatesResult>(
@@ -866,7 +871,7 @@ export default function MassageBookingSection({
   };
 
   const chooseDate = async (date: string) => {
-    if (!selectedServiceId) return;
+    if (!selectedServiceId || bookingVerificationPending) return;
 
     const selectedDateOption = dates.find((item) => item.date === date);
     const cacheKey = timesCacheKey(hotelSlug, selectedServiceId, date);
@@ -922,6 +927,7 @@ export default function MassageBookingSection({
   };
 
   const chooseTime = (time: string) => {
+    if (bookingVerificationPending) return;
     setSelectedTime(time);
     setTimeStepExpanded(false);
     setBookingFeedback(null);
@@ -951,10 +957,18 @@ export default function MassageBookingSection({
     setBookingConfirmOpen(false);
     setBookingFeedback(null);
     setBookingConfirmed(false);
+    setBookingVerificationPending(false);
   };
 
   const submitBooking = () => {
-    if (!selectedService || !selectedDate || !selectedTime || submittingBooking || bookingConfirmOpen) return;
+    if (
+      !selectedService ||
+      !selectedDate ||
+      !selectedTime ||
+      submittingBooking ||
+      bookingConfirmOpen ||
+      bookingVerificationPending
+    ) return;
 
     if (!roomConfirmed || !room.trim()) {
       setBookingFeedback({ kind: "info", text: copy.confirmRoomFirst, code: "ROOM_NOT_CONFIRMED" });
@@ -1023,7 +1037,13 @@ export default function MassageBookingSection({
   };
 
   const confirmBookingAndSubmit = async () => {
-    if (!selectedService || !selectedDate || !selectedTime || submittingBooking) return;
+    if (
+      !selectedService ||
+      !selectedDate ||
+      !selectedTime ||
+      submittingBooking ||
+      bookingVerificationPending
+    ) return;
 
     if (!roomConfirmed || !room.trim()) {
       setBookingConfirmOpen(false);
@@ -1040,6 +1060,7 @@ export default function MassageBookingSection({
 
     setBookingConfirmOpen(false);
     setSubmittingBooking(true);
+    setBookingVerificationPending(false);
     setBookingFeedback(null);
 
     onTrack({
@@ -1082,6 +1103,7 @@ export default function MassageBookingSection({
       const payload = (await response.json().catch(() => null)) as ApiEnvelope<MassageBookingResult> | null;
 
       if (response.ok && payload?.ok && payload.result) {
+        setBookingVerificationPending(false);
         if (payload.result.writeVerified !== true) {
           setBookingFeedback({
             kind: "info",
@@ -1148,12 +1170,20 @@ export default function MassageBookingSection({
       if (code === "MASSAGE_BOOKING_POST_DISABLED" || code === "MASSAGE_CALENDAR_WRITE_DISABLED") {
         kind = "info";
         text = copy.protectedServerReached;
+      } else if (code === "MASSAGE_BOOKING_PENDING_VERIFICATION") {
+        kind = "info";
+        text = copy.bookingVerifying;
+        setBookingVerificationPending(true);
       } else if (code === "ROOM_NOT_CONFIRMED") {
         kind = "info";
         text = copy.confirmRoomFirst;
         onRequireRoomConfirmation();
       } else if (code === "SLOT_NO_LONGER_AVAILABLE") {
         text = copy.bookingConflict;
+      }
+
+      if (code !== "MASSAGE_BOOKING_PENDING_VERIFICATION") {
+        setBookingVerificationPending(false);
       }
 
       setBookingFeedback({ kind, text, code });
@@ -1168,6 +1198,7 @@ export default function MassageBookingSection({
         extra: { date: selectedDate, room, code },
       });
     } catch {
+      setBookingVerificationPending(false);
       setBookingFeedback({ kind: "error", text: copy.bookingFailed, code: "NETWORK_ERROR" });
       onTrack({
         eventName: "massage_booking_submit_failed",
@@ -1440,11 +1471,18 @@ export default function MassageBookingSection({
               <button
                 type="button"
                 onClick={submitBooking}
-                disabled={submittingBooking || bookingConfirmed || bookingConfirmOpen}
+                disabled={
+                  submittingBooking ||
+                  bookingConfirmed ||
+                  bookingConfirmOpen ||
+                  bookingVerificationPending
+                }
                 className="mt-3 w-full rounded-xl border bg-white px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
                 style={{ borderColor: "white", color: "var(--stayhub-primary)" }}
               >
-                {submittingBooking
+                {bookingVerificationPending
+                  ? copy.bookingVerifying
+                  : submittingBooking
                   ? copy.sendingBooking
                   : roomConfirmed && room.trim()
                     ? copy.confirmBooking
@@ -1454,7 +1492,8 @@ export default function MassageBookingSection({
               <button
                 type="button"
                 onClick={resetSelection}
-                className="mt-2 w-full rounded-xl border bg-white px-4 py-2 text-sm font-bold"
+                disabled={bookingVerificationPending}
+                className="mt-2 w-full rounded-xl border bg-white px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
                 style={{ borderColor: "var(--stayhub-action)", color: "var(--stayhub-primary)" }}
               >
                 {copy.reset}

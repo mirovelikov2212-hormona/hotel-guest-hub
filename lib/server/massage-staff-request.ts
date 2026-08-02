@@ -211,6 +211,14 @@ export async function ensureMassageStaffRequest(input: {
     .select("id, room_number_snapshot, request_type, title, status, created_at, metadata_json")
     .single();
 
+  if (String(error?.code || "") === "23505") {
+    const concurrentRequest = await findExistingMassageStaffRequest({
+      hotelId: hotel.id,
+      massageBookingKey,
+    });
+    if (concurrentRequest) return concurrentRequest;
+  }
+
   if (error || !data) {
     await logSystemError({
       hotelId: hotel.id,

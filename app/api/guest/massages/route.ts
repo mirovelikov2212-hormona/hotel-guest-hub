@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getHotelConfig } from "@/lib/config";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import {
-  createMassageBooking,
   createMassageControlledE2EBooking,
   getMassageAvailability,
   getMassageBookableDateSummary,
@@ -164,21 +163,86 @@ async function createReliabilityAwareMassageBooking(input: {
   room: string;
   guestLanguage?: string | null;
 }) {
-  if (!isMassageSnapshotEnabled(input.hotel.slug)) {
-    return {
-      attempt: null,
-      result: await createMassageBooking({
+  // Booking reliability is a write concern. It must never depend on the
+  // snapshot read switch: production can safely keep live reads while every
+  // write is already persisted and reconciled through Supabase.
+  return executeTrackedMassageBooking(input);
+}
+
+async function attachTrackedMassageStaffRequest(input: {
+  hotel: HotelScope;
+  attempt: { id: string } | null;
+  serviceId: string;
+  date: string;
+  time: string;
+  room: string;
+  guestLanguage: string;
+  result: {
+    status: string;
+    serviceId?: string;
+    date?: string;
+    startTime?: string;
+    roomNumber?: string;
+    serviceNameBg?: string | null;
+    sheetValue?: string | null;
+    durationMinutes?: number | null;
+    price?: number | string | null;
+    currency?: string | null;
+  };
+}) {
+  if (
+    input.result.status !== "BOOKING_WRITTEN" &&
+    input.result.status !== "BOOKING_ALREADY_CONFIRMED"
+  ) {
+    return { staffRequest: null, staffRequestPending: false };
+  }
+
+  try {
+    const staffRequest = await ensureMassageStaffRequest({
+      hotelSlug: input.hotel.slug,
+      serviceId: input.result.serviceId || input.serviceId,
+      date: input.result.date || input.date,
+      startTime: input.result.startTime || input.time,
+      roomNumber: input.result.roomNumber || input.room,
+      serviceNameBg: input.result.serviceNameBg,
+      sheetValue: input.result.sheetValue,
+      durationMinutes: input.result.durationMinutes,
+      price: input.result.price,
+      currency: input.result.currency,
+      guestLanguage: input.guestLanguage,
+    });
+
+    if (input.attempt) {
+      await linkMassageAttemptStaffRequest({
+        attemptId: input.attempt.id,
+        hotelId: input.hotel.id,
+        staffRequestId: staffRequest.id,
+      });
+    }
+
+    return { staffRequest, staffRequestPending: false };
+  } catch (error) {
+    // The calendar write is already authoritative. Returning a booking error
+    // here would invite a duplicate guest submission. Reconciliation repairs
+    // the operational card from the confirmed attempt on the next cron pass.
+    await logSystemError({
+      hotelId: input.hotel.id,
+      severity: "error",
+      source: "massage",
+      eventType: "massage_staff_request_deferred_to_reconciliation",
+      message: "Massage booking is confirmed, but its staff request will be repaired by reconciliation.",
+      roomNumber: input.room,
+      error,
+      metadata: {
+        attemptId: input.attempt?.id || null,
         hotelSlug: input.hotel.slug,
         serviceId: input.serviceId,
         date: input.date,
         time: input.time,
-        room: input.room,
-      }),
-      recoveredFromAttempt: false,
-    };
+      },
+    });
+    return { staffRequest: null, staffRequestPending: true };
   }
-
-  return executeTrackedMassageBooking(input);
 }
 
 async function requireExistingHotelRoom(hotelSlug: string, room: string) {
@@ -633,31 +697,16 @@ export async function POST(req: NextRequest) {
         });
         const result = trackedBooking.result;
 
-        const staffRequest =
-          result.status === "BOOKING_WRITTEN" ||
-          result.status === "BOOKING_ALREADY_CONFIRMED"
-            ? await ensureMassageStaffRequest({
-                hotelSlug: hotel.slug,
-                serviceId: result.serviceId || serviceId,
-                date: result.date || date,
-                startTime: result.startTime || time,
-                roomNumber: result.roomNumber || room,
-                serviceNameBg: result.serviceNameBg,
-                sheetValue: result.sheetValue,
-                durationMinutes: result.durationMinutes,
-                price: result.price,
-                currency: result.currency,
-                guestLanguage: String(body.guestLanguage || "bg"),
-              })
-            : null;
-
-        if (trackedBooking.attempt && staffRequest) {
-          await linkMassageAttemptStaffRequest({
-            attemptId: trackedBooking.attempt.id,
-            hotelId: hotel.id,
-            staffRequestId: staffRequest.id,
-          });
-        }
+        const staffAttachment = await attachTrackedMassageStaffRequest({
+          hotel,
+          attempt: trackedBooking.attempt,
+          serviceId,
+          date,
+          time,
+          room,
+          guestLanguage: String(body.guestLanguage || "bg"),
+          result,
+        });
 
         return json(
           {
@@ -667,7 +716,8 @@ export async function POST(req: NextRequest) {
             sandbox: true,
             sheetWrite: true,
             result,
-            staffRequest,
+            staffRequest: staffAttachment.staffRequest,
+            staffRequestPending: staffAttachment.staffRequestPending,
           },
           result.status === "BOOKING_WRITTEN" ? 201 : 200
         );
@@ -769,30 +819,16 @@ export async function POST(req: NextRequest) {
     });
     const result = trackedBooking.result;
 
-    const staffRequest =
-      result.status === "BOOKING_WRITTEN" || result.status === "BOOKING_ALREADY_CONFIRMED"
-        ? await ensureMassageStaffRequest({
-            hotelSlug,
-            serviceId: result.serviceId || serviceId,
-            date: result.date || date,
-            startTime: result.startTime || time,
-            roomNumber: result.roomNumber || room,
-            serviceNameBg: result.serviceNameBg,
-            sheetValue: result.sheetValue,
-            durationMinutes: result.durationMinutes,
-            price: result.price,
-            currency: result.currency,
-            guestLanguage: String(body.guestLanguage || "bg"),
-          })
-        : null;
-
-    if (trackedBooking.attempt && staffRequest) {
-      await linkMassageAttemptStaffRequest({
-        attemptId: trackedBooking.attempt.id,
-        hotelId: hotel.id,
-        staffRequestId: staffRequest.id,
-      });
-    }
+    const staffAttachment = await attachTrackedMassageStaffRequest({
+      hotel,
+      attempt: trackedBooking.attempt,
+      serviceId,
+      date,
+      time,
+      room,
+      guestLanguage: String(body.guestLanguage || "bg"),
+      result,
+    });
 
     const statusCode = result.status === "BOOKING_WRITTEN" ? 201 : 200;
 
@@ -802,7 +838,8 @@ export async function POST(req: NextRequest) {
         action: "book",
         hotelSlug,
         result,
-        staffRequest,
+        staffRequest: staffAttachment.staffRequest,
+        staffRequestPending: staffAttachment.staffRequestPending,
       },
       statusCode
     );

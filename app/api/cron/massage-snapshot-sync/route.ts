@@ -90,6 +90,8 @@ export async function GET(req: NextRequest) {
 
   for (const hotelSlug of hotelSlugs) {
     let stage = "gate";
+    let hotel: Awaited<ReturnType<typeof resolveHotelByAnySlugAdmin>>;
+
     try {
       if (!isMassageSnapshotRefreshEnabled(hotelSlug)) {
         throw new Error(
@@ -98,29 +100,7 @@ export async function GET(req: NextRequest) {
       }
 
       stage = "resolve_hotel";
-      const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
-      stage = "snapshot";
-      const snapshot = await refreshMassageCalendarSnapshot({
-        hotelSlug: hotel.slug,
-        fromDate: getSofiaDateIso(),
-        daysAhead: getDaysAhead(),
-        reason: "cron",
-        // The refresh-specific environment flag remains the production gate.
-        allowProduction: true,
-      });
-      stage = "reconciliation";
-      const reconciliation = await reconcilePendingMassageBookingAttempts({
-        hotel,
-        // Keep the cron route inside its 60-second budget even if a backlog
-        // contains several ambiguous bookings that each need live verification.
-        limit: 3,
-      });
-      details.push({
-        hotelSlug: hotel.slug,
-        ok: true,
-        reconciliation,
-        snapshot,
-      });
+      hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
     } catch (error) {
       failures += 1;
       const massageError = error instanceof MassageApiError ? error : null;
@@ -147,7 +127,80 @@ export async function GET(req: NextRequest) {
           upstreamStatus: massageError?.upstreamStatus || null,
         },
       });
+      continue;
     }
+
+    let snapshot: Awaited<ReturnType<typeof refreshMassageCalendarSnapshot>> | null = null;
+    let reconciliation: Awaited<ReturnType<typeof reconcilePendingMassageBookingAttempts>> | null = null;
+    let primaryFailure: { stage: string; error: unknown } | null = null;
+
+    try {
+      snapshot = await refreshMassageCalendarSnapshot({
+        hotelSlug: hotel.slug,
+        fromDate: getSofiaDateIso(),
+        daysAhead: getDaysAhead(),
+        reason: "cron",
+        // The refresh-specific environment flag remains the production gate.
+        allowProduction: true,
+      });
+    } catch (error) {
+      primaryFailure = { stage: "snapshot", error };
+    }
+
+    // Booking repair must not be blocked by a slow or failed snapshot refresh.
+    // They share a cron endpoint, but reconciliation is an independent safety
+    // path for already-submitted guest writes.
+    try {
+      reconciliation = await reconcilePendingMassageBookingAttempts({
+        hotel,
+        // Keep the cron route inside its 60-second budget even if a backlog
+        // contains several ambiguous bookings that each need live verification.
+        limit: 3,
+      });
+    } catch (error) {
+      if (!primaryFailure) primaryFailure = { stage: "reconciliation", error };
+    }
+
+    if (!primaryFailure) {
+      details.push({
+        hotelSlug: hotel.slug,
+        ok: true,
+        reconciliation,
+        snapshot,
+      });
+      continue;
+    }
+
+    failures += 1;
+    const failureError = primaryFailure.error;
+    const massageError = failureError instanceof MassageApiError ? failureError : null;
+    details.push({
+      hotelSlug: hotel.slug,
+      ok: false,
+      stage: primaryFailure.stage,
+      error: failureError instanceof Error ? failureError.message : String(failureError),
+      errorCode: massageError?.code || null,
+      sourceAction: massageError?.action || null,
+      upstreamStatus: massageError?.upstreamStatus || null,
+      reconciliation,
+      snapshot,
+    });
+    await logSystemError({
+      severity: "error",
+      source: "cron",
+      eventType: "massage_snapshot_cron_hotel_failed",
+      message: "Massage snapshot/reconciliation cron failed for one hotel.",
+      error: failureError,
+      metadata: {
+        hotelSlug: hotel.slug,
+        stage: primaryFailure.stage,
+        errorCode: massageError?.code || null,
+        sourceAction: massageError?.action || null,
+        upstreamStatus: massageError?.upstreamStatus || null,
+        reconciliationCompleted: reconciliation !== null,
+        snapshotCompleted: snapshot !== null,
+      },
+    });
   }
 
   return NextResponse.json(

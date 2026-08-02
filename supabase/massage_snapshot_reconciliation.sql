@@ -134,6 +134,14 @@ create unique index if not exists massage_booking_attempts_staff_request_uidx
   on public.massage_booking_attempts (staff_request_id)
   where staff_request_id is not null;
 
+-- Enforce the same idempotency key at the operational-card boundary. The
+-- application still performs a friendly lookup first; this index closes the
+-- remaining concurrent insert race between a request and cron reconciliation.
+create unique index if not exists guest_requests_massage_booking_key_uidx
+  on public.guest_requests (hotel_id, (metadata_json ->> 'massageBookingKey'))
+  where request_type = 'massage_booking'
+    and nullif(metadata_json ->> 'massageBookingKey', '') is not null;
+
 create or replace function public.set_massage_reliability_updated_at()
 returns trigger
 language plpgsql

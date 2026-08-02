@@ -71,6 +71,7 @@ const TRANSIENT_BOOKING_CODES = new Set([
   "MASSAGE_API_UNAVAILABLE",
   "MASSAGE_API_HTTP_ERROR",
   "INVALID_MASSAGE_API_RESPONSE",
+  "MASSAGE_BOOKING_UNCONFIRMED_AFTER_TIMEOUT",
 ]);
 
 function normalizeTimeForDb(value: string) {
@@ -277,6 +278,33 @@ export async function linkMassageAttemptStaffRequest(input: {
   );
 }
 
+async function ensureAttemptStaffRequest(input: {
+  hotel: HotelScope;
+  attempt: MassageBookingAttemptRow;
+  result: MassageBookingResult;
+}) {
+  const staffRequest = await ensureMassageStaffRequest({
+    hotelSlug: input.hotel.slug,
+    serviceId: input.result.serviceId || input.attempt.service_id,
+    date: input.result.date || input.attempt.booking_date,
+    startTime:
+      input.result.startTime || String(input.attempt.start_time).slice(0, 5),
+    roomNumber: input.result.roomNumber || input.attempt.room_number,
+    serviceNameBg: input.result.serviceNameBg,
+    sheetValue: input.result.sheetValue,
+    durationMinutes: input.result.durationMinutes,
+    price: input.result.price,
+    currency: input.result.currency,
+    guestLanguage: input.attempt.guest_language,
+  });
+  await linkMassageAttemptStaffRequest({
+    attemptId: input.attempt.id,
+    hotelId: input.attempt.hotel_id,
+    staffRequestId: staffRequest.id,
+  });
+  return staffRequest;
+}
+
 export async function executeTrackedMassageBooking(
   input: TrackedMassageBookingInput
 ) {
@@ -348,6 +376,7 @@ export async function executeTrackedMassageBooking(
       date: input.date,
       time: input.time,
       room: input.room,
+      deferAmbiguousRecovery: true,
     });
     attempt = await markAttemptConfirmed({ attempt, result });
     return { attempt, result, recoveredFromAttempt: false };
@@ -476,7 +505,7 @@ export async function reconcilePendingMassageBookingAttempts(input: {
     RECONCILE_BATCH_LIMIT,
     Math.max(1, Number(input.limit || RECONCILE_BATCH_LIMIT))
   );
-  const { data, error } = await supabaseAdmin
+  const { data: pendingData, error: pendingError } = await supabaseAdmin
     .from("massage_booking_attempts")
     .select("*")
     .eq("hotel_id", input.hotel.id)
@@ -485,7 +514,33 @@ export async function reconcilePendingMassageBookingAttempts(input: {
     .order("next_reconcile_at", { ascending: true })
     .limit(limit);
 
-  if (error) throw error;
+  if (pendingError) throw pendingError;
+
+  // A confirmed Sheet write and its operational staff card are two durable
+  // steps. If the second one failed after guest confirmation, repair it here
+  // without re-running or downgrading the calendar booking.
+  const { data: orphanData, error: orphanError } = await supabaseAdmin
+    .from("massage_booking_attempts")
+    .select("*")
+    .eq("hotel_id", input.hotel.id)
+    .in("status", ["confirmed", "already_confirmed"])
+    .is("staff_request_id", null)
+    .order("confirmed_at", { ascending: true })
+    .limit(limit);
+
+  if (orphanError) throw orphanError;
+
+  const candidates = [...(pendingData || []), ...(orphanData || [])]
+    .sort((left, right) => {
+      const leftTime = Date.parse(
+        String(left.next_reconcile_at || left.confirmed_at || left.created_at)
+      );
+      const rightTime = Date.parse(
+        String(right.next_reconcile_at || right.confirmed_at || right.created_at)
+      );
+      return leftTime - rightTime;
+    })
+    .slice(0, limit);
 
   const results = {
     checked: 0,
@@ -495,12 +550,69 @@ export async function reconcilePendingMassageBookingAttempts(input: {
     failed: 0,
     staffCreated: 0,
     staffExisting: 0,
+    staffRepaired: 0,
   };
   const details: unknown[] = [];
 
-  for (const rawAttempt of (data || [])) {
+  for (const rawAttempt of candidates) {
     let attempt = rawAttempt as MassageBookingAttemptRow;
     results.checked += 1;
+
+    if (attempt.status === "confirmed" || attempt.status === "already_confirmed") {
+      const storedResult = bookingResultFromStored(
+        attempt.verification_response_json || attempt.upstream_response_json
+      );
+
+      if (!storedResult) {
+        results.pending += 1;
+        details.push({
+          attemptId: attempt.id,
+          action: "staff_request_waiting_for_booking_result",
+        });
+        continue;
+      }
+
+      try {
+        const staffRequest = await ensureAttemptStaffRequest({
+          hotel: input.hotel,
+          attempt,
+          result: storedResult,
+        });
+        results.staffRepaired += 1;
+        if (staffRequest.action === "created") results.staffCreated += 1;
+        else results.staffExisting += 1;
+        details.push({
+          attemptId: attempt.id,
+          action: "staff_request_repaired",
+          staffRequestId: staffRequest.id,
+          staffAction: staffRequest.action,
+        });
+      } catch (staffError) {
+        results.pending += 1;
+        details.push({
+          attemptId: attempt.id,
+          action: "staff_request_retry_error",
+          code: asErrorCode(staffError),
+        });
+        await logSystemError({
+          hotelId: input.hotel.id,
+          severity: "error",
+          source: "massage",
+          eventType: "massage_staff_request_reconciliation_failed",
+          message: "A confirmed massage booking still needs its operational staff request.",
+          roomNumber: attempt.room_number,
+          error: staffError,
+          metadata: {
+            attemptId: attempt.id,
+            hotelSlug: input.hotel.slug,
+            serviceId: attempt.service_id,
+            date: attempt.booking_date,
+            time: String(attempt.start_time).slice(0, 5),
+          },
+        });
+      }
+      continue;
+    }
 
     try {
       const verification = await verifyMassageBooking({
@@ -523,33 +635,48 @@ export async function reconcilePendingMassageBookingAttempts(input: {
           verification: verification.source,
           reconciled: true,
         });
-        const staffRequest = await ensureMassageStaffRequest({
-          hotelSlug: input.hotel.slug,
-          serviceId: result.serviceId || attempt.service_id,
-          date: result.date || attempt.booking_date,
-          startTime: result.startTime || String(attempt.start_time).slice(0, 5),
-          roomNumber: result.roomNumber || attempt.room_number,
-          serviceNameBg: result.serviceNameBg,
-          sheetValue: result.sheetValue,
-          durationMinutes: result.durationMinutes,
-          price: result.price,
-          currency: result.currency,
-          guestLanguage: attempt.guest_language,
-        });
-        await linkMassageAttemptStaffRequest({
-          attemptId: attempt.id,
-          hotelId: attempt.hotel_id,
-          staffRequestId: staffRequest.id,
-        });
         results.confirmed += 1;
-        if (staffRequest.action === "created") results.staffCreated += 1;
-        else results.staffExisting += 1;
-        details.push({
-          attemptId: attempt.id,
-          action: "confirmed",
-          staffRequestId: staffRequest.id,
-          staffAction: staffRequest.action,
-        });
+
+        try {
+          const staffRequest = await ensureAttemptStaffRequest({
+            hotel: input.hotel,
+            attempt,
+            result,
+          });
+          if (staffRequest.action === "created") results.staffCreated += 1;
+          else results.staffExisting += 1;
+          details.push({
+            attemptId: attempt.id,
+            action: "confirmed",
+            staffRequestId: staffRequest.id,
+            staffAction: staffRequest.action,
+          });
+        } catch (staffError) {
+          // Keep the authoritative confirmed status. The orphan query above
+          // will retry only the missing staff-card step on the next run.
+          results.pending += 1;
+          details.push({
+            attemptId: attempt.id,
+            action: "confirmed_staff_request_pending",
+            code: asErrorCode(staffError),
+          });
+          await logSystemError({
+            hotelId: input.hotel.id,
+            severity: "error",
+            source: "massage",
+            eventType: "massage_confirmed_staff_request_pending",
+            message: "Massage booking was reconciled, but its staff request remains pending.",
+            roomNumber: attempt.room_number,
+            error: staffError,
+            metadata: {
+              attemptId: attempt.id,
+              hotelSlug: input.hotel.slug,
+              serviceId: attempt.service_id,
+              date: attempt.booking_date,
+              time: String(attempt.start_time).slice(0, 5),
+            },
+          });
+        }
         continue;
       }
 

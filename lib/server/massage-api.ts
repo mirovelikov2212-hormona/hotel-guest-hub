@@ -1279,6 +1279,7 @@ export async function createMassageBooking(input: {
   date: string;
   time: string;
   room: string;
+  deferAmbiguousRecovery?: boolean;
 }) {
   let response: MassageApiEnvelope<MassageBookingResult | MassageBookingRejectedResult>;
 
@@ -1320,6 +1321,13 @@ export async function createMassageBooking(input: {
     ].includes(massageError.code);
 
     if (!ambiguous) {
+      throw massageError;
+    }
+
+    // Tracked writes have a durable Supabase attempt. Let that layer own the
+    // single exact verification and subsequent cron reconciliation instead of
+    // racing it with two short, in-memory checks here.
+    if (input.deferAmbiguousRecovery) {
       throw massageError;
     }
 
