@@ -8,6 +8,8 @@ const DEFAULT_TIMEOUT_MS = 12_000;
 const MASSAGE_BOOKING_TIMEOUT_MS = 7_000;
 const MASSAGE_VERIFY_TIMEOUT_MS = 4_000;
 const MASSAGE_API_MAX_ATTEMPTS = 2;
+const MASSAGE_SNAPSHOT_REFRESH_TIMEOUT_MS = 30_000;
+const MASSAGE_SNAPSHOT_REFRESH_MAX_ATTEMPTS = 1;
 const MASSAGE_TRANSIENT_FAILURE_WINDOW_MS = 15 * 60 * 1000;
 const MASSAGE_TRANSIENT_CRITICAL_THRESHOLD = 3;
 
@@ -280,6 +282,7 @@ type PostMassageApiOptions = {
   allowRejectedResult?: boolean;
   suppressFailureLog?: boolean;
   timeoutMs?: number;
+  maxAttempts?: number;
   deferFailureLogging?: boolean;
 };
 
@@ -875,7 +878,12 @@ async function postMassageApi<T>(
 
   const request = (async () => {
     let lastError: MassageApiError | null = null;
-    const maxAttempts = isMassageReadAction(payload) ? MASSAGE_API_MAX_ATTEMPTS : 1;
+    const requestedMaxAttempts = Number(options.maxAttempts);
+    const maxAttempts = Number.isInteger(requestedMaxAttempts)
+      ? Math.max(1, Math.min(MASSAGE_API_MAX_ATTEMPTS, requestedMaxAttempts))
+      : isMassageReadAction(payload)
+        ? MASSAGE_API_MAX_ATTEMPTS
+        : 1;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
@@ -1018,17 +1026,24 @@ export async function getMassageSnapshotSourceBundle(input: {
   fromDate: string;
   daysAhead: number;
 }): Promise<MassageSnapshotSourceBundle> {
+  // A client-side abort does not stop the Apps Script execution. Snapshot
+  // reads therefore get one longer attempt instead of two overlapping 12s
+  // executions that can increase Google Sheets contention after a timeout.
+  const snapshotReadOptions: PostMassageApiOptions = {
+    timeoutMs: MASSAGE_SNAPSHOT_REFRESH_TIMEOUT_MS,
+    maxAttempts: MASSAGE_SNAPSHOT_REFRESH_MAX_ATTEMPTS,
+  };
   const [bootstrapResponse, calendarResponse] = await Promise.all([
     postMassageApi<MassageBootstrapResult>(input.hotelSlug, {
       action: "bootstrap",
       fromDate: input.fromDate,
       daysAhead: input.daysAhead,
-    }),
+    }, snapshotReadOptions),
     postMassageApi<MassageCalendarSnapshotResult>(input.hotelSlug, {
       action: "calendar_snapshot",
       fromDate: input.fromDate,
       daysAhead: input.daysAhead,
-    }),
+    }, snapshotReadOptions),
   ]);
 
   const bootstrap = bootstrapResponse.result as MassageBootstrapResult;
