@@ -21,7 +21,10 @@ import {
   executeTrackedMassageBooking,
   linkMassageAttemptStaffRequest,
 } from "@/lib/server/massage-booking-attempts";
-import { isMassageSnapshotEnabled } from "@/lib/server/massage-snapshot";
+import {
+  isMassageSnapshotEnabled,
+  readMassageSnapshotAction,
+} from "@/lib/server/massage-snapshot";
 import { ensureMassageStaffRequest } from "@/lib/server/massage-staff-request";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import {
@@ -388,39 +391,116 @@ export async function GET(req: NextRequest) {
       return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), bookings });
     }
 
+    const snapshotReadsEnabled = isMassageSnapshotEnabled(hotel.slug);
+
     if (action === "services") {
-      const result = await getMassageServices(hotel.slug);
-      return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), result });
+      const snapshotRead = snapshotReadsEnabled
+        ? await readMassageSnapshotAction({
+            hotelSlug: hotel.slug,
+            action: "services",
+          })
+        : null;
+      const result = snapshotRead?.result ?? await getMassageServices(hotel.slug);
+      return json({
+        ok: true,
+        action,
+        hotelSlug: hotel.slug,
+        sandbox: Boolean(hotel.is_sandbox),
+        result,
+        ...(snapshotRead ? { snapshot: snapshotRead.source } : {}),
+      });
     }
 
     if (action === "bootstrap") {
       const fromDate = requireDate(params.get("fromDate"), "fromDate");
       const daysAhead = requireDaysAhead(params.get("daysAhead"));
-      const result = await getMassageBootstrap({ hotelSlug: hotel.slug, fromDate, daysAhead });
-      return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), result });
+      const snapshotRead = snapshotReadsEnabled
+        ? await readMassageSnapshotAction({
+            hotelSlug: hotel.slug,
+            action: "bootstrap",
+            fromDate,
+            daysAhead,
+          })
+        : null;
+      const result = snapshotRead?.result ?? await getMassageBootstrap({ hotelSlug: hotel.slug, fromDate, daysAhead });
+      return json({
+        ok: true,
+        action,
+        hotelSlug: hotel.slug,
+        sandbox: Boolean(hotel.is_sandbox),
+        result,
+        ...(snapshotRead ? { snapshot: snapshotRead.source } : {}),
+      });
     }
 
     if (action === "bookable_dates") {
       const serviceId = requireServiceId(params.get("serviceId"));
       const fromDate = requireDate(params.get("fromDate"), "fromDate");
       const daysAhead = requireDaysAhead(params.get("daysAhead"));
-      const result = await getMassageBookableDates({ hotelSlug: hotel.slug, serviceId, fromDate, daysAhead });
-      return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), result });
+      const snapshotRead = snapshotReadsEnabled
+        ? await readMassageSnapshotAction({
+            hotelSlug: hotel.slug,
+            action: "bookable_dates",
+            serviceId,
+            fromDate,
+            daysAhead,
+          })
+        : null;
+      const result = snapshotRead?.result ?? await getMassageBookableDates({ hotelSlug: hotel.slug, serviceId, fromDate, daysAhead });
+      return json({
+        ok: true,
+        action,
+        hotelSlug: hotel.slug,
+        sandbox: Boolean(hotel.is_sandbox),
+        result,
+        ...(snapshotRead ? { snapshot: snapshotRead.source } : {}),
+      });
     }
 
     if (action === "bookable_dates_summary") {
       const serviceId = requireServiceId(params.get("serviceId"));
       const fromDate = requireDate(params.get("fromDate"), "fromDate");
       const daysAhead = requireDaysAhead(params.get("daysAhead"));
-      const result = await getMassageBookableDateSummary({ hotelSlug: hotel.slug, serviceId, fromDate, daysAhead });
-      return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), result });
+      const snapshotRead = snapshotReadsEnabled
+        ? await readMassageSnapshotAction({
+            hotelSlug: hotel.slug,
+            action: "bookable_dates_summary",
+            serviceId,
+            fromDate,
+            daysAhead,
+          })
+        : null;
+      const result = snapshotRead?.result ?? await getMassageBookableDateSummary({ hotelSlug: hotel.slug, serviceId, fromDate, daysAhead });
+      return json({
+        ok: true,
+        action,
+        hotelSlug: hotel.slug,
+        sandbox: Boolean(hotel.is_sandbox),
+        result,
+        ...(snapshotRead ? { snapshot: snapshotRead.source } : {}),
+      });
     }
 
     if (action === "availability") {
       const serviceId = requireServiceId(params.get("serviceId"));
       const date = requireDate(params.get("date"), "date");
-      const result = await getMassageAvailability({ hotelSlug: hotel.slug, serviceId, date });
-      return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), result });
+      const snapshotRead = snapshotReadsEnabled
+        ? await readMassageSnapshotAction({
+            hotelSlug: hotel.slug,
+            action: "availability",
+            serviceId,
+            date,
+          })
+        : null;
+      const result = snapshotRead?.result ?? await getMassageAvailability({ hotelSlug: hotel.slug, serviceId, date });
+      return json({
+        ok: true,
+        action,
+        hotelSlug: hotel.slug,
+        sandbox: Boolean(hotel.is_sandbox),
+        result,
+        ...(snapshotRead ? { snapshot: snapshotRead.source } : {}),
+      });
     }
 
     return json({ ok: false, code: "UNSUPPORTED_ACTION", error: "Unsupported massage action." }, 400);

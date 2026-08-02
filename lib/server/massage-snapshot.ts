@@ -3,8 +3,13 @@ import "server-only";
 import { createHash } from "node:crypto";
 import {
   getMassageSnapshotSourceBundle,
+  MassageApiError,
+  type MassageAvailabilityResult,
+  type MassageBookableDatesResult,
   type MassageBootstrapResult,
   type MassageCalendarSnapshotBooking,
+  type MassageCalendarSnapshotResult,
+  type MassageServicesResult,
 } from "@/lib/server/massage-api";
 import {
   isSandboxHotel,
@@ -70,6 +75,16 @@ type MassageSyncStateRow = {
 const DEFAULT_SNAPSHOT_TTL_SECONDS = 10 * 60;
 const MIN_SNAPSHOT_TTL_SECONDS = 60;
 const MAX_SNAPSHOT_TTL_SECONDS = 60 * 60;
+const DEFAULT_SNAPSHOT_MAX_STALE_SECONDS = 6 * 60 * 60;
+const MIN_SNAPSHOT_MAX_STALE_SECONDS = 10 * 60;
+const MAX_SNAPSHOT_MAX_STALE_SECONDS = 24 * 60 * 60;
+
+export type MassageSnapshotReadAction =
+  | "services"
+  | "bootstrap"
+  | "bookable_dates"
+  | "bookable_dates_summary"
+  | "availability";
 
 function normalizeSlug(value: unknown) {
   return String(value || "")
@@ -115,6 +130,19 @@ function getSnapshotTtlSeconds() {
   return Math.min(
     MAX_SNAPSHOT_TTL_SECONDS,
     Math.max(MIN_SNAPSHOT_TTL_SECONDS, configured)
+  );
+}
+
+function getSnapshotMaxStaleSeconds() {
+  const configured = Number(
+    process.env.STAYHUB_MASSAGE_SNAPSHOT_MAX_STALE_SECONDS
+  );
+  if (!Number.isInteger(configured)) {
+    return DEFAULT_SNAPSHOT_MAX_STALE_SECONDS;
+  }
+  return Math.min(
+    MAX_SNAPSHOT_MAX_STALE_SECONDS,
+    Math.max(MIN_SNAPSHOT_MAX_STALE_SECONDS, configured)
   );
 }
 
@@ -476,4 +504,254 @@ export async function getCurrentMassageCalendarSnapshot(input: {
     snapshot: (snapshot || null) as MassageSnapshotRow | null,
     fresh,
   };
+}
+
+function snapshotUnavailable(code: string, message: string) {
+  return new MassageApiError(message, {
+    statusCode: 503,
+    code,
+    monitoringSeverity: "warning",
+    alreadyLogged: true,
+  });
+}
+
+function requireSnapshotRange(input: {
+  snapshot: MassageSnapshotRow;
+  fromDate: string;
+  daysAhead: number;
+}) {
+  const fromDate = parseIsoDate(input.fromDate);
+  const daysAhead = requireDaysAhead(input.daysAhead);
+  const rangeEnd = addDays(fromDate, daysAhead - 1);
+
+  if (
+    fromDate < input.snapshot.range_start ||
+    rangeEnd > input.snapshot.range_end
+  ) {
+    throw snapshotUnavailable(
+      "MASSAGE_SNAPSHOT_RANGE_MISS",
+      "Massage availability is being refreshed. Please try again shortly."
+    );
+  }
+
+  return { fromDate, daysAhead, rangeEnd };
+}
+
+function filterBookableDates(input: {
+  result: MassageBookableDatesResult;
+  fromDate: string;
+  daysAhead: number;
+  includeTimes: boolean;
+}) {
+  const rangeEnd = addDays(input.fromDate, input.daysAhead - 1);
+  const dates = (input.result.dates || [])
+    .filter((item) => item.date >= input.fromDate && item.date <= rangeEnd)
+    .map((item) =>
+      input.includeTimes
+        ? { ...item }
+        : {
+            date: item.date,
+            availableCount: item.availableCount,
+            firstAvailableTime: item.firstAvailableTime,
+            lastAvailableTime: item.lastAvailableTime,
+          }
+    );
+
+  return {
+    ...input.result,
+    fromDate: input.fromDate,
+    daysChecked: input.daysAhead,
+    count: dates.length,
+    dates,
+    readMode: "SUPABASE_SNAPSHOT",
+    elapsedMs: 0,
+  };
+}
+
+async function requireUsableMassageSnapshot(hotelSlug: string) {
+  const current = await getCurrentMassageCalendarSnapshot({ hotelSlug });
+  const snapshot = current.snapshot;
+
+  if (!snapshot) {
+    throw snapshotUnavailable(
+      "MASSAGE_SNAPSHOT_UNAVAILABLE",
+      "Massage availability is being refreshed. Please try again shortly."
+    );
+  }
+
+  const refreshedAtMs = new Date(snapshot.refreshed_at).getTime();
+  if (!Number.isFinite(refreshedAtMs)) {
+    throw snapshotUnavailable(
+      "MASSAGE_SNAPSHOT_INVALID",
+      "Massage availability is temporarily unavailable."
+    );
+  }
+
+  const ageSeconds = Math.max(0, Math.floor((Date.now() - refreshedAtMs) / 1000));
+  if (ageSeconds > getSnapshotMaxStaleSeconds()) {
+    throw snapshotUnavailable(
+      "MASSAGE_SNAPSHOT_TOO_OLD",
+      "Massage availability is being refreshed. Please try again shortly."
+    );
+  }
+
+  return {
+    current,
+    snapshot,
+    source: {
+      snapshotId: snapshot.id,
+      sourceRevision: snapshot.source_revision,
+      refreshedAt: snapshot.refreshed_at,
+      expiresAt: snapshot.expires_at,
+      fresh: current.fresh,
+      stale: !current.fresh,
+      ageSeconds,
+      stateStatus: current.state?.status || null,
+    },
+  };
+}
+
+export async function readMassageSnapshotAction(input: {
+  hotelSlug: string;
+  action: MassageSnapshotReadAction;
+  serviceId?: string;
+  fromDate?: string;
+  daysAhead?: number;
+  date?: string;
+}) {
+  const { snapshot, source } = await requireUsableMassageSnapshot(
+    input.hotelSlug
+  );
+
+  if (input.action === "services") {
+    return {
+      result: snapshot.services_json as MassageServicesResult,
+      source,
+    };
+  }
+
+  const serviceId = String(input.serviceId || "").trim().toLowerCase();
+  const service = (snapshot.services_json?.services || []).find(
+    (item) => item.serviceId === serviceId
+  );
+
+  if (input.action === "bootstrap") {
+    const range = requireSnapshotRange({
+      snapshot,
+      fromDate: input.fromDate || "",
+      daysAhead: input.daysAhead || 0,
+    });
+    const availabilityByService = Object.fromEntries(
+      Object.entries(snapshot.availability_json || {}).map(
+        ([currentServiceId, result]) => [
+          currentServiceId,
+          filterBookableDates({
+            result,
+            fromDate: range.fromDate,
+            daysAhead: range.daysAhead,
+            includeTimes: true,
+          }),
+        ]
+      )
+    );
+    const result: MassageBootstrapResult = {
+      revision: snapshot.source_revision,
+      runtimeVersion: snapshot.source_runtime_version || undefined,
+      liveContract: snapshot.source_contract || undefined,
+      cacheHit: true,
+      fromDate: range.fromDate,
+      daysChecked: range.daysAhead,
+      services: snapshot.services_json,
+      availabilityByService,
+      readMode: "SUPABASE_SNAPSHOT",
+      readStats: {
+        snapshotId: snapshot.id,
+        snapshotFresh: source.fresh,
+        snapshotAgeSeconds: source.ageSeconds,
+      },
+      elapsedMs: 0,
+    };
+    return { result, source };
+  }
+
+  if (!service) {
+    throw new MassageApiError("Invalid massage service.", {
+      statusCode: 400,
+      code: "INVALID_SERVICE_ID",
+      alreadyLogged: true,
+    });
+  }
+
+  const storedDates = snapshot.availability_json?.[serviceId];
+  if (!storedDates) {
+    throw snapshotUnavailable(
+      "MASSAGE_SNAPSHOT_SERVICE_MISSING",
+      "Massage availability is being refreshed. Please try again shortly."
+    );
+  }
+
+  if (
+    input.action === "bookable_dates" ||
+    input.action === "bookable_dates_summary"
+  ) {
+    const range = requireSnapshotRange({
+      snapshot,
+      fromDate: input.fromDate || "",
+      daysAhead: input.daysAhead || 0,
+    });
+    return {
+      result: filterBookableDates({
+        result: storedDates,
+        fromDate: range.fromDate,
+        daysAhead: range.daysAhead,
+        includeTimes: input.action === "bookable_dates",
+      }),
+      source,
+    };
+  }
+
+  const date = parseIsoDate(input.date || "");
+  requireSnapshotRange({ snapshot, fromDate: date, daysAhead: 1 });
+  const dateEntry = (storedDates.dates || []).find(
+    (item) => item.date === date
+  );
+  const result: MassageAvailabilityResult = {
+    serviceId,
+    serviceNameBg: service.nameBg,
+    date,
+    durationMinutes: service.durationMinutes,
+    bufferMinutes: service.bufferMinutes,
+    availableTimes: Array.isArray(dateEntry?.availableTimes)
+      ? dateEntry.availableTimes
+      : [],
+  };
+  return { result, source };
+}
+
+export async function getMassageSnapshotBookings(input: {
+  hotelSlug: string;
+  fromDate: string;
+  daysAhead: number;
+}) {
+  const { snapshot, source } = await requireUsableMassageSnapshot(
+    input.hotelSlug
+  );
+  const range = requireSnapshotRange({
+    snapshot,
+    fromDate: input.fromDate,
+    daysAhead: input.daysAhead,
+  });
+  const bookings = (snapshot.bookings_json || []).filter(
+    (booking) =>
+      booking.date >= range.fromDate && booking.date <= range.rangeEnd
+  );
+  const result: MassageCalendarSnapshotResult = {
+    fromDate: range.fromDate,
+    daysChecked: range.daysAhead,
+    count: bookings.length,
+    bookings,
+    readMode: "SUPABASE_SNAPSHOT",
+    elapsedMs: 0,
+  };
+  return { result, source };
 }

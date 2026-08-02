@@ -4,6 +4,10 @@ import {
   MassageApiError,
   type MassageCalendarSnapshotBooking,
 } from "@/lib/server/massage-api";
+import {
+  getMassageSnapshotBookings,
+  isMassageSnapshotEnabled,
+} from "@/lib/server/massage-snapshot";
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
@@ -578,7 +582,18 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const snapshot = await getMassageCalendarSnapshot({ hotelSlug: hotel.slug, fromDate, daysAhead });
+    const snapshotRead = isMassageSnapshotEnabled(hotel.slug)
+      ? await getMassageSnapshotBookings({
+          hotelSlug: hotel.slug,
+          fromDate,
+          daysAhead,
+        })
+      : null;
+    const snapshot = snapshotRead?.result ?? await getMassageCalendarSnapshot({
+      hotelSlug: hotel.slug,
+      fromDate,
+      daysAhead,
+    });
     const indexes = buildSnapshotIndexes(snapshot.bookings || []);
 
     const { data, error } = await supabaseAdmin
@@ -660,6 +675,7 @@ export async function GET(req: NextRequest) {
         daysAhead,
         dryRun,
         snapshotCount: snapshot.count,
+        snapshotSource: snapshotRead?.source || null,
         elapsedMs: Date.now() - startedAt,
         results,
         details: details.slice(0, 50),
