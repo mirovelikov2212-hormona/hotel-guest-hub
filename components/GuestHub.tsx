@@ -5685,7 +5685,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   );
 
   const refreshGuestMassageBookingsFromServer = useCallback(async () => {
-    if (!roomConfirmed || !room.trim()) return;
+    if (!roomConfirmed || !room.trim() || !activeStayId || !stayDeviceId) return;
 
     const normalizedHotelSlug = String(hotelContentSlug || config.hotelSlug || "")
       .trim()
@@ -5698,6 +5698,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         hotelSlug: normalizedHotelSlug,
         action: "active_bookings",
         room: room.trim(),
+        stayId: activeStayId,
+        stayDeviceId,
       });
 
       const response = await fetch(`/api/guest/massages?${params.toString()}`, {
@@ -5763,14 +5765,14 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     } catch (error) {
       console.error("Guest massage booking sync failed", error);
     }
-  }, [config.hotelSlug, hotelContentSlug, lang, room, roomConfirmed]);
+  }, [activeStayId, config.hotelSlug, hotelContentSlug, lang, room, roomConfirmed, stayDeviceId]);
 
   useEffect(() => {
     setGuestMassageBookings(pruneStoredGuestMassageBookings());
   }, [room, roomConfirmed]);
 
   useEffect(() => {
-    if (!roomConfirmed || !room.trim()) return;
+    if (!roomConfirmed || !room.trim() || !activeStayId || !stayDeviceId) return;
 
     void refreshGuestMassageBookingsFromServer();
     const timer = window.setInterval(() => {
@@ -5778,7 +5780,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     }, 2 * 60_000);
 
     return () => window.clearInterval(timer);
-  }, [refreshGuestMassageBookingsFromServer, room, roomConfirmed]);
+  }, [activeStayId, refreshGuestMassageBookingsFromServer, room, roomConfirmed, stayDeviceId]);
 
   // Aquamarine's Spa Center keeps only its venue information and working hours.
   // Massage selection moves into the separate top-level “Book a massage” section below.
@@ -9070,6 +9072,8 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
                     language={lang}
                     room={room}
                     roomConfirmed={roomConfirmed}
+                    stayId={activeStayId}
+                    stayDeviceId={stayDeviceId}
                     protectedSubmissionEnabled={true}
                     forceOpenToken={1}
                     collapseToken={guestSectionsCollapseToken}

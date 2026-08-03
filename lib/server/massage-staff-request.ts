@@ -92,6 +92,8 @@ export async function ensureMassageStaffRequest(input: {
   date: string;
   startTime: string;
   roomNumber: string;
+  stayId?: string | null;
+  stayDeviceId?: string | null;
   serviceNameBg?: string | null;
   sheetValue?: string | null;
   durationMinutes?: number | null;
@@ -104,6 +106,8 @@ export async function ensureMassageStaffRequest(input: {
   const isolationFields = getOperationalIsolationFields({ hotel, testRoomPolicy });
   const isolationMetadata = getOperationalIsolationMetadata({ hotel, testRoomPolicy });
   const suppressLivePush = shouldSuppressLivePush({ hotel, testRoomPolicy });
+  const stayId = String(input.stayId || "").trim() || null;
+  const stayDeviceId = String(input.stayDeviceId || "").trim() || null;
   const massageBookingKey = buildMassageBookingKey(input);
   const existing = await findExistingMassageStaffRequest({
     hotelId: hotel.id,
@@ -154,6 +158,8 @@ export async function ensureMassageStaffRequest(input: {
     note,
     rawType: "massage_booking",
     billingStatus: "pending",
+    stayId,
+    stayDeviceId,
     massageBookingKey,
     massageBooking: {
       serviceId: input.serviceId,
@@ -189,6 +195,8 @@ export async function ensureMassageStaffRequest(input: {
     .from("guest_requests")
     .insert({
       hotel_id: hotel.id,
+      stay_id: stayId,
+      stay_device_id: stayDeviceId,
       room_number_snapshot: input.roomNumber,
       source: "guest_hub",
       channel: "pwa",

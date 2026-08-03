@@ -26,6 +26,8 @@ import {
 } from "@/lib/server/massage-snapshot";
 import { ensureMassageStaffRequest } from "@/lib/server/massage-staff-request";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
+import { validateGuestStayIdentity } from "@/lib/server/guest-stays";
+import { isMassageBookingVisibleForStay } from "@/lib/server/massage-booking-visibility.mjs";
 import {
   isSandboxHotel,
   resolveHotelByAnySlugAdmin,
@@ -43,6 +45,8 @@ const ROOM_RE = /^\d{1,4}$/;
 
 type ActiveMassageRequestRow = {
   id: string;
+  stay_id: string | null;
+  stay_device_id: string | null;
   room_number_snapshot: string | null;
   request_type: string;
   title: string | null;
@@ -176,6 +180,8 @@ async function attachTrackedMassageStaffRequest(input: {
   date: string;
   time: string;
   room: string;
+  stayId: string;
+  stayDeviceId: string;
   guestLanguage: string;
   result: {
     status: string;
@@ -204,6 +210,8 @@ async function attachTrackedMassageStaffRequest(input: {
       date: input.result.date || input.date,
       startTime: input.result.startTime || input.time,
       roomNumber: input.result.roomNumber || input.room,
+      stayId: input.stayId,
+      stayDeviceId: input.stayDeviceId,
       serviceNameBg: input.result.serviceNameBg,
       sheetValue: input.result.sheetValue,
       durationMinutes: input.result.durationMinutes,
@@ -309,6 +317,42 @@ async function readJsonObject(req: NextRequest) {
   return payload as Record<string, unknown>;
 }
 
+async function requireMassageGuestStayIdentity(input: {
+  hotelId: string;
+  room: string;
+  stayId: unknown;
+  stayDeviceId: unknown;
+}) {
+  try {
+    const identity = await validateGuestStayIdentity(input);
+    if (!identity) {
+      throw new MassageApiError("A confirmed stay is required.", {
+        statusCode: 401,
+        code: "STAY_REQUIRED",
+      });
+    }
+    return identity;
+  } catch (error) {
+    if (error instanceof MassageApiError) throw error;
+
+    const reason = error instanceof Error ? error.message : "";
+    if (reason === "STAY_ENDED") {
+      throw new MassageApiError("The confirmed stay has ended.", {
+        statusCode: 409,
+        code: "STAY_ENDED",
+      });
+    }
+    if (reason === "INVALID_STAY" || reason === "INVALID_STAY_DEVICE") {
+      throw new MassageApiError("The confirmed stay identity is invalid.", {
+        statusCode: 401,
+        code: "STAY_REQUIRED",
+      });
+    }
+
+    throw error;
+  }
+}
+
 
 function getMassageBookingMetadata(metadata: Record<string, unknown> | null | undefined) {
   const booking = metadata?.massageBooking;
@@ -338,10 +382,14 @@ async function getActiveGuestMassageBookings(input: {
   hotelSlug: string;
   publicSlug?: string | null;
   room: string;
+  stayId: string;
+  stayDeviceId: string;
+  stayCheckInAt: string;
+  stayEffectiveCheckOutAt: string;
 }) {
   const { data, error } = await supabaseAdmin
     .from("guest_requests")
-    .select("id, room_number_snapshot, request_type, title, message, status, created_at, metadata_json")
+    .select("id, stay_id, stay_device_id, room_number_snapshot, request_type, title, message, status, created_at, metadata_json")
     .eq("hotel_id", input.hotelId)
     .eq("room_number_snapshot", input.room)
     .eq("request_type", "massage_booking")
@@ -357,6 +405,18 @@ async function getActiveGuestMassageBookings(input: {
 
   return ((data || []) as ActiveMassageRequestRow[])
     .map((row) => {
+      if (!isMassageBookingVisibleForStay({
+        rowStayId: row.stay_id,
+        rowStayDeviceId: row.stay_device_id,
+        bookingCreatedAt: row.created_at,
+        currentStayId: input.stayId,
+        currentStayDeviceId: input.stayDeviceId,
+        currentStayCheckInAt: input.stayCheckInAt,
+        currentStayEffectiveCheckOutAt: input.stayEffectiveCheckOutAt,
+      })) {
+        return null;
+      }
+
       const metadata = row.metadata_json && typeof row.metadata_json === "object"
         ? (row.metadata_json as Record<string, unknown>)
         : {};
@@ -446,11 +506,21 @@ export async function GET(req: NextRequest) {
 
     if (action === "active_bookings") {
       const room = requireRoom(params.get("room"));
+      const stayIdentity = await requireMassageGuestStayIdentity({
+        hotelId: hotel.id,
+        room,
+        stayId: params.get("stayId"),
+        stayDeviceId: params.get("stayDeviceId"),
+      });
       const bookings = await getActiveGuestMassageBookings({
         hotelId: hotel.id,
         hotelSlug: hotel.slug,
         publicSlug: hotel.public_slug || null,
         room,
+        stayId: String(stayIdentity.stay.id),
+        stayDeviceId: String(stayIdentity.device.id),
+        stayCheckInAt: String(stayIdentity.stay.check_in_at),
+        stayEffectiveCheckOutAt: String(stayIdentity.stay.effective_check_out_at),
       });
       return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), bookings });
     }
@@ -655,6 +725,15 @@ export async function POST(req: NextRequest) {
       date,
       time,
     };
+    const stayIdentity = await requireMassageGuestStayIdentity({
+      hotelId: hotel.id,
+      room,
+      stayId: body.stayId,
+      stayDeviceId: body.stayDeviceId,
+    });
+    const stayId = String(stayIdentity.stay.id);
+    const stayDeviceId = String(stayIdentity.device.id);
+
     if (isSandboxHotel(hotel)) {
       if (sandboxLiveWriteEnabled) {
         if (!productionBookingEnabled) {
@@ -704,6 +783,8 @@ export async function POST(req: NextRequest) {
           date,
           time,
           room,
+          stayId,
+          stayDeviceId,
           guestLanguage: String(body.guestLanguage || "bg"),
           result,
         });
@@ -746,6 +827,8 @@ export async function POST(req: NextRequest) {
         date: result.date,
         startTime: result.startTime,
         roomNumber: result.roomNumber,
+        stayId,
+        stayDeviceId,
         serviceNameBg: result.serviceNameBg,
         sheetValue: result.sheetValue,
         durationMinutes: result.durationMinutes,
@@ -826,6 +909,8 @@ export async function POST(req: NextRequest) {
       date,
       time,
       room,
+      stayId,
+      stayDeviceId,
       guestLanguage: String(body.guestLanguage || "bg"),
       result,
     });

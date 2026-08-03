@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import test from "node:test";
 import {
   assertBefore,
@@ -48,4 +50,100 @@ test("production debug config remains disabled", async () => {
   assertContains(source, 'process.env.NODE_ENV === "production"');
   assertContains(source, 'error: "Not found"');
   assertContains(source, 'status: 404');
+});
+
+test("massage POST requires validated stayId and stayDeviceId before a booking write", async () => {
+  const routeSource = await readProjectFile("app/api/guest/massages/route.ts");
+  const componentSource = await readProjectFile("components/MassageBookingSection.tsx");
+  const postSource = routeSource.slice(routeSource.indexOf("export async function POST"));
+
+  assertContains(postSource, "const stayIdentity = await requireMassageGuestStayIdentity({");
+  assertContains(postSource, "stayId: body.stayId");
+  assertContains(postSource, "stayDeviceId: body.stayDeviceId");
+  assertBefore(
+    postSource,
+    "const stayIdentity = await requireMassageGuestStayIdentity({",
+    "if (isSandboxHotel(hotel))",
+    "Stay/device validation must happen before sandbox, controlled E2E, or production booking writes.",
+  );
+  assertContains(componentSource, "stayId,");
+  assertContains(componentSource, "stayDeviceId,");
+});
+
+test("massage active_bookings requires validated stay/device identity", async () => {
+  const routeSource = await readProjectFile("app/api/guest/massages/route.ts");
+  const guestHubSource = await readProjectFile("components/GuestHub.tsx");
+  const getStart = routeSource.indexOf("export async function GET");
+  const postStart = routeSource.indexOf("export async function POST");
+  const getSource = routeSource.slice(getStart, postStart);
+
+  assertContains(getSource, 'if (action === "active_bookings")');
+  assertContains(getSource, 'stayId: params.get("stayId")');
+  assertContains(getSource, 'stayDeviceId: params.get("stayDeviceId")');
+  assertBefore(
+    getSource,
+    "const stayIdentity = await requireMassageGuestStayIdentity({",
+    "const bookings = await getActiveGuestMassageBookings({",
+    "Active massage bookings must not be loaded before stay/device validation.",
+  );
+  assertContains(guestHubSource, "stayId: activeStayId");
+  assertContains(guestHubSource, "stayDeviceId,");
+});
+
+
+test("same-day room turnover hides the previous guest massage from the new device", async () => {
+  const moduleUrl = pathToFileURL(resolve("lib/server/massage-booking-visibility.mjs"));
+  moduleUrl.searchParams.set("testRun", String(Date.now()));
+  const { isMassageBookingVisibleForStay } = await import(moduleUrl.href);
+
+  const currentStay = {
+    currentStayId: "stay-guest-2",
+    currentStayDeviceId: "device-guest-2-new-phone",
+    currentStayCheckInAt: "2026-08-03T12:00:00.000Z",
+    currentStayEffectiveCheckOutAt: "2026-08-08T09:00:00.000Z",
+  };
+
+  assert.equal(
+    isMassageBookingVisibleForStay({
+      ...currentStay,
+      rowStayId: "stay-guest-1",
+      rowStayDeviceId: "device-guest-1-old-phone",
+      bookingCreatedAt: "2026-08-03T08:00:00.000Z",
+    }),
+    false,
+    "A booking linked to the previous stay/device must never be visible to the next guest in the same room.",
+  );
+
+  assert.equal(
+    isMassageBookingVisibleForStay({
+      ...currentStay,
+      rowStayId: null,
+      rowStayDeviceId: null,
+      bookingCreatedAt: "2026-08-03T11:59:00.000Z",
+    }),
+    false,
+    "A legacy booking created before the new guest check-in must stay hidden, even on the same calendar day.",
+  );
+
+  assert.equal(
+    isMassageBookingVisibleForStay({
+      ...currentStay,
+      rowStayId: "stay-guest-2",
+      rowStayDeviceId: "device-guest-2-new-phone",
+      bookingCreatedAt: "2026-08-03T12:05:00.000Z",
+    }),
+    true,
+    "The new guest must see a booking linked to the new stay and new device.",
+  );
+
+  assert.equal(
+    isMassageBookingVisibleForStay({
+      ...currentStay,
+      rowStayId: null,
+      rowStayDeviceId: null,
+      bookingCreatedAt: "2026-08-03T12:05:00.000Z",
+    }),
+    true,
+    "A legacy booking created inside the validated current stay remains backward compatible.",
+  );
 });

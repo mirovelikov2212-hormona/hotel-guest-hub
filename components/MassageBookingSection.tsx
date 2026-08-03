@@ -623,6 +623,8 @@ export default function MassageBookingSection({
   language,
   room,
   roomConfirmed,
+  stayId,
+  stayDeviceId,
   protectedSubmissionEnabled = false,
   forceOpenToken = 0,
   collapseToken = 0,
@@ -635,6 +637,8 @@ export default function MassageBookingSection({
   language: LangKey;
   room: string;
   roomConfirmed: boolean;
+  stayId: string;
+  stayDeviceId: string;
   protectedSubmissionEnabled?: boolean;
   forceOpenToken?: number;
   collapseToken?: number;
@@ -972,7 +976,7 @@ export default function MassageBookingSection({
       bookingVerificationPending
     ) return;
 
-    if (!roomConfirmed || !room.trim()) {
+    if (!roomConfirmed || !room.trim() || !stayId || !stayDeviceId) {
       setBookingFeedback({ kind: "info", text: copy.confirmRoomFirst, code: "ROOM_NOT_CONFIRMED" });
       onTrack({
         eventName: "massage_room_confirmation_required",
@@ -1099,6 +1103,8 @@ export default function MassageBookingSection({
           time: selectedTime,
           room,
           roomConfirmed: true,
+          stayId,
+          stayDeviceId,
           guestLanguage: lang,
         }),
       });
