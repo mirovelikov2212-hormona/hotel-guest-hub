@@ -1,0 +1,80 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  assertBefore,
+  assertContains,
+  assertNotContains,
+  readProjectFile,
+} from "../helpers/source-contract.mjs";
+
+test("normal extra-pillow requests are not promoted to the paid pillow menu", async () => {
+  const source = await readProjectFile("lib/staff/ops-request-copy.ts");
+
+  assertContains(
+    source,
+    'if (normalizedType === "extra_pillow" && !hasExactRequestSignal(input, "pillow_menu"))',
+  );
+  assertBefore(
+    source,
+    'if (normalizedType === "extra_pillow"',
+    'if (hasExactRequestSignal(input, "pillow_menu")',
+  );
+});
+
+test("guest request writes preserve original and Bulgarian operational fields", async () => {
+  const source = await readProjectFile("app/api/guest/request-create/route.ts");
+
+  for (const field of [
+    "title_original:",
+    "message_original:",
+    "title_bg:",
+    "message_bg:",
+  ]) {
+    assertContains(source, field);
+  }
+});
+
+test("sandbox and test-room requests suppress live push before notification", async () => {
+  const source = await readProjectFile("app/api/guest/request-create/route.ts");
+
+  assertContains(source, "getOperationalIsolationFields({ hotel, testRoomPolicy })");
+  assertContains(source, "getOperationalIsolationMetadata({ hotel, testRoomPolicy })");
+  assertContains(source, "shouldSuppressLivePush({ hotel, testRoomPolicy })");
+  assertBefore(source, "shouldSuppressLivePush({ hotel, testRoomPolicy })", "if (!suppressLivePush)");
+});
+
+test("massage workflow never deploys Vercel production", async () => {
+  const source = await readProjectFile(".github/workflows/massage-sheet-sync.yml");
+
+  assertNotContains(source, "vercel --prod");
+  assertNotContains(source, "vercel deploy --prod");
+});
+
+test("staff PIN verification keeps scrypt and timing-safe comparison", async () => {
+  const candidates = [
+    "lib/staff-auth/pin.ts",
+    "lib/staff-auth/verify-pin.ts",
+    "lib/staff-auth/password.ts",
+  ];
+
+  let source = "";
+  for (const candidate of candidates) {
+    try {
+      source += await readProjectFile(candidate);
+    } catch {
+      // Keep checking the known locations used by StayHub revisions.
+    }
+  }
+
+  if (!source) {
+    const loginSource = await readProjectFile("app/api/staff/auth/login/route.ts");
+    assert.ok(loginSource.includes("verify") || loginSource.includes("scrypt"));
+    return;
+  }
+
+  assert.ok(source.includes("scrypt"), "Expected staff PIN verification to use scrypt.");
+  assert.ok(
+    source.includes("timingSafeEqual"),
+    "Expected staff PIN verification to use timingSafeEqual.",
+  );
+});

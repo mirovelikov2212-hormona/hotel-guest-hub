@@ -6,7 +6,9 @@
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "npm run test:contracts",
+    "test:contracts": "node --test tests/contracts/api-security.contract.test.mjs tests/contracts/operational-contracts.test.mjs tests/contracts/open-risks.contract.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",
