@@ -8681,7 +8681,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       ) : null}
 
       {submittingRequest || showRequestSuccess ? (
-        <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 w-[min(92vw,560px)] -translate-x-1/2 px-4">
+        <div className="pointer-events-none fixed bottom-4 left-1/2 z-[70] w-[min(92vw,560px)] -translate-x-1/2 px-4">
           {submittingRequest ? (
             <div className="stayhub-request-toast stayhub-request-toast-sending rounded-2xl border px-4 py-4 shadow-2xl">
               <div className="text-sm font-medium">{roomCopy.requestSendingTitle}</div>
