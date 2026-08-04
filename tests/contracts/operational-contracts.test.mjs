@@ -90,6 +90,37 @@ test("sandbox massage confirmation rejects incomplete service details instead of
   assertNotContains(source, "service?.price ?? null");
 });
 
+test("massage method mismatch waits for durable recovery before critical escalation", async () => {
+  const apiSource = await readProjectFile("lib/server/massage-api.ts");
+  const snapshotSource = await readProjectFile(
+    "lib/server/massage-snapshot.ts"
+  );
+
+  assertContains(apiSource, "deferFailureLoggingCodes?: string[];");
+  assertContains(
+    apiSource,
+    'deferFailureLoggingCodes: ["MASSAGE_API_METHOD_MISMATCH"]'
+  );
+  assertContains(
+    snapshotSource,
+    "const MASSAGE_METHOD_MISMATCH_CRITICAL_THRESHOLD = 2;"
+  );
+  assertContains(
+    snapshotSource,
+    "consecutiveFailures: failureState.consecutiveFailures"
+  );
+  assertContains(snapshotSource, "snapshotFreshAtFailure");
+  assertContains(
+    snapshotSource,
+    'eventType: "massage_calendar_snapshot_recovered"'
+  );
+  assertContains(snapshotSource, "hotelId: hotel.id");
+  assertContains(
+    snapshotSource,
+    "errorCode: classification.errorCode"
+  );
+});
+
 test("staff PIN verification keeps scrypt and timing-safe comparison", async () => {
   const candidates = [
     "lib/staff-auth/pin.ts",

@@ -16,7 +16,11 @@ import {
   resolveHotelByAnySlugAdmin,
   type HotelScope,
 } from "@/lib/server/hotel-scope";
-import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
+import {
+  logSystemError,
+  logSystemEvent,
+  type SystemEventSeverity,
+} from "@/lib/server/system-events";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export type MassageSnapshotRefreshReason =
@@ -78,6 +82,25 @@ const MAX_SNAPSHOT_TTL_SECONDS = 60 * 60;
 const DEFAULT_SNAPSHOT_MAX_STALE_SECONDS = 6 * 60 * 60;
 const MIN_SNAPSHOT_MAX_STALE_SECONDS = 10 * 60;
 const MAX_SNAPSHOT_MAX_STALE_SECONDS = 24 * 60 * 60;
+
+const MASSAGE_METHOD_MISMATCH_CRITICAL_THRESHOLD = 2;
+
+type MassageSnapshotRecoveryContext = {
+  status: MassageSyncStateRow["status"] | null;
+  consecutiveFailures: number;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
+  lastSuccessAt: string | null;
+  staleAfter: string | null;
+};
+
+type MassageSnapshotFailureState = {
+  consecutiveFailures: number;
+  lastSuccessAt: string | null;
+  staleAfter: string | null;
+  snapshotAvailable: boolean;
+  snapshotFreshAtFailure: boolean;
+};
 
 export type MassageSnapshotReadAction =
   | "services"
@@ -235,12 +258,32 @@ function errorMessage(error: unknown) {
   return String(error || "Unknown massage snapshot error").slice(0, 1000);
 }
 
+function isFutureIsoTimestamp(value: unknown) {
+  const timestamp = Date.parse(String(value || ""));
+  return Number.isFinite(timestamp) && timestamp > Date.now();
+}
+
 async function markSnapshotRefreshStarted(input: {
   hotel: HotelScope;
   reason: MassageSnapshotRefreshReason;
   expectedRevision: string | null;
   startedAt: string;
-}) {
+}): Promise<MassageSnapshotRecoveryContext> {
+  const { data: previous, error: previousError } = await supabaseAdmin
+    .from("massage_calendar_sync_state")
+    .select(
+      "status, consecutive_failures, last_error_code, last_error_message, last_success_at, stale_after"
+    )
+    .eq("hotel_id", input.hotel.id)
+    .maybeSingle();
+
+  if (previousError) {
+    console.error("Failed to read massage snapshot recovery context", {
+      hotelId: input.hotel.id,
+      error: previousError,
+    });
+  }
+
   const payload: Record<string, unknown> = {
     hotel_id: input.hotel.id,
     status: "refreshing",
@@ -259,6 +302,15 @@ async function markSnapshotRefreshStarted(input: {
     .upsert(payload, { onConflict: "hotel_id" });
 
   if (error) throw error;
+
+  return {
+    status: (previous?.status as MassageSyncStateRow["status"] | undefined) || null,
+    consecutiveFailures: Number(previous?.consecutive_failures || 0),
+    lastErrorCode: String(previous?.last_error_code || "").trim() || null,
+    lastErrorMessage: String(previous?.last_error_message || "").trim() || null,
+    lastSuccessAt: String(previous?.last_success_at || "").trim() || null,
+    staleAfter: String(previous?.stale_after || "").trim() || null,
+  };
 }
 
 async function markSnapshotRefreshFailed(input: {
@@ -267,12 +319,28 @@ async function markSnapshotRefreshFailed(input: {
   expectedRevision: string | null;
   startedAt: string;
   error: unknown;
-}) {
-  const { data: current } = await supabaseAdmin
+}): Promise<MassageSnapshotFailureState> {
+  const { data: current, error: currentError } = await supabaseAdmin
     .from("massage_calendar_sync_state")
-    .select("consecutive_failures")
+    .select(
+      "current_snapshot_id, consecutive_failures, last_success_at, stale_after"
+    )
     .eq("hotel_id", input.hotel.id)
     .maybeSingle();
+
+  if (currentError) {
+    console.error("Failed to read massage snapshot failure state", {
+      hotelId: input.hotel.id,
+      error: currentError,
+    });
+  }
+
+  const consecutiveFailures = Number(current?.consecutive_failures || 0) + 1;
+  const lastSuccessAt = String(current?.last_success_at || "").trim() || null;
+  const staleAfter = String(current?.stale_after || "").trim() || null;
+  const snapshotAvailable = Boolean(current?.current_snapshot_id);
+  const snapshotFreshAtFailure =
+    snapshotAvailable && isFutureIsoTimestamp(staleAfter);
 
   const { error } = await supabaseAdmin
     .from("massage_calendar_sync_state")
@@ -283,7 +351,7 @@ async function markSnapshotRefreshFailed(input: {
         expected_revision: input.expectedRevision,
         last_reason: input.reason,
         last_attempt_at: input.startedAt,
-        consecutive_failures: Number(current?.consecutive_failures || 0) + 1,
+        consecutive_failures: consecutiveFailures,
         last_error_code: errorCode(input.error),
         last_error_message: errorMessage(input.error),
       },
@@ -296,6 +364,49 @@ async function markSnapshotRefreshFailed(input: {
       error,
     });
   }
+
+  return {
+    consecutiveFailures,
+    lastSuccessAt,
+    staleAfter,
+    snapshotAvailable,
+    snapshotFreshAtFailure,
+  };
+}
+
+function classifySnapshotRefreshFailure(input: {
+  error: unknown;
+  failureState: MassageSnapshotFailureState;
+}): {
+  severity: SystemEventSeverity;
+  errorCode: string;
+  recoveryWindowOpen: boolean;
+  criticalThreshold: number | null;
+  escalationReason: string | null;
+} {
+  const code = errorCode(input.error);
+  const isMethodMismatch = code === "MASSAGE_API_METHOD_MISMATCH";
+  const recoveryWindowOpen =
+    isMethodMismatch &&
+    input.failureState.consecutiveFailures <
+      MASSAGE_METHOD_MISMATCH_CRITICAL_THRESHOLD;
+  const severity: SystemEventSeverity =
+    isMethodMismatch && !recoveryWindowOpen ? "critical" : "error";
+
+  return {
+    severity,
+    errorCode: code,
+    recoveryWindowOpen,
+    criticalThreshold: isMethodMismatch
+      ? MASSAGE_METHOD_MISMATCH_CRITICAL_THRESHOLD
+      : null,
+    escalationReason:
+      severity === "critical"
+        ? input.failureState.snapshotFreshAtFailure
+          ? "recovery_retry_failed"
+          : "recovery_retry_failed_and_snapshot_not_fresh"
+        : null,
+  };
 }
 
 export async function refreshMassageCalendarSnapshot(input: {
@@ -323,7 +434,7 @@ export async function refreshMassageCalendarSnapshot(input: {
     throw new Error("Production massage snapshot refresh is disabled in this patch.");
   }
 
-  await markSnapshotRefreshStarted({
+  const recoveryContext = await markSnapshotRefreshStarted({
     hotel,
     reason: input.reason,
     expectedRevision,
@@ -443,6 +554,35 @@ export async function refreshMassageCalendarSnapshot(input: {
       },
     });
 
+    if (recoveryContext.consecutiveFailures > 0) {
+      await logSystemEvent({
+        hotelId: hotel.id,
+        severity: "info",
+        source: "massage",
+        eventType: "massage_calendar_snapshot_recovered",
+        message:
+          "Massage calendar snapshot recovered after automatic retry or a later refresh.",
+        metadata: {
+          hotelSlug: hotel.slug,
+          reason: input.reason,
+          sourceRevision: bundle.source.revision,
+          previousStatus: recoveryContext.status,
+          previousConsecutiveFailures: recoveryContext.consecutiveFailures,
+          recoveredFromErrorCode: recoveryContext.lastErrorCode,
+          recoveredFromErrorMessage: recoveryContext.lastErrorMessage,
+          previousLastSuccessAt: recoveryContext.lastSuccessAt,
+          previousStaleAfter: recoveryContext.staleAfter,
+          previousSnapshotWasFreshAtRetryStart: isFutureIsoTimestamp(
+            recoveryContext.staleAfter
+          ),
+          recoveryAttemptElapsedMs: Math.max(
+            0,
+            Date.now() - Date.parse(startedAt)
+          ),
+        },
+      });
+    }
+
     return {
       ok: true,
       hotelId: hotel.id,
@@ -465,19 +605,27 @@ export async function refreshMassageCalendarSnapshot(input: {
       sourceMetrics,
     };
   } catch (error) {
-    await markSnapshotRefreshFailed({
+    const failureState = await markSnapshotRefreshFailed({
       hotel,
       reason: input.reason,
       expectedRevision,
       startedAt,
       error,
     });
+    const classification = classifySnapshotRefreshFailure({
+      error,
+      failureState,
+    });
     await logSystemError({
       hotelId: hotel.id,
-      severity: "error",
+      severity: classification.severity,
       source: "massage",
       eventType: "massage_calendar_snapshot_refresh_failed",
-      message: "Massage calendar snapshot refresh failed.",
+      message: classification.recoveryWindowOpen
+        ? "Massage calendar snapshot refresh failed; automatic recovery is expected before critical escalation."
+        : classification.severity === "critical"
+          ? "Massage calendar snapshot refresh remained failed after the automatic recovery threshold."
+          : "Massage calendar snapshot refresh failed.",
       error,
       metadata: {
         hotelSlug: hotel.slug,
@@ -485,6 +633,15 @@ export async function refreshMassageCalendarSnapshot(input: {
         expectedRevision,
         rangeStart,
         rangeEnd,
+        errorCode: classification.errorCode,
+        consecutiveFailures: failureState.consecutiveFailures,
+        criticalThreshold: classification.criticalThreshold,
+        recoveryWindowOpen: classification.recoveryWindowOpen,
+        escalationReason: classification.escalationReason,
+        snapshotAvailable: failureState.snapshotAvailable,
+        snapshotFreshAtFailure: failureState.snapshotFreshAtFailure,
+        lastSuccessAt: failureState.lastSuccessAt,
+        staleAfter: failureState.staleAfter,
       },
     });
     throw error;

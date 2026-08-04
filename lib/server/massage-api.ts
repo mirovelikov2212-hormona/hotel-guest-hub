@@ -299,6 +299,7 @@ type PostMassageApiOptions = {
   timeoutMs?: number;
   maxAttempts?: number;
   deferFailureLogging?: boolean;
+  deferFailureLoggingCodes?: string[];
 };
 
 export class MassageApiError extends Error {
@@ -746,6 +747,17 @@ function clearMassageTransientFailure(input: {
   }
 }
 
+function shouldDeferMassageFailureLogging(
+  options: PostMassageApiOptions,
+  error: MassageApiError
+) {
+  return Boolean(
+    options.suppressFailureLog ||
+      options.deferFailureLogging ||
+      options.deferFailureLoggingCodes?.includes(error.code)
+  );
+}
+
 async function logMassageApiReadFailure(input: {
   hotelSlug: string;
   payload: Record<string, unknown>;
@@ -981,7 +993,7 @@ async function postMassageApi<T>(
           continue;
         }
 
-        if (options.suppressFailureLog || options.deferFailureLogging) {
+        if (shouldDeferMassageFailureLogging(options, massageError)) {
           throw massageError;
         }
 
@@ -1011,7 +1023,7 @@ async function postMassageApi<T>(
       statusCode: 502,
       code: "MASSAGE_API_UNAVAILABLE",
     });
-    if (options.suppressFailureLog || options.deferFailureLogging) {
+    if (shouldDeferMassageFailureLogging(options, fallbackError)) {
       throw fallbackError;
     }
 
@@ -1096,6 +1108,7 @@ export async function getMassageSnapshotSourceBundle(input: {
   const snapshotReadOptions: PostMassageApiOptions = {
     timeoutMs: MASSAGE_SNAPSHOT_REFRESH_TIMEOUT_MS,
     maxAttempts: MASSAGE_SNAPSHOT_REFRESH_MAX_ATTEMPTS,
+    deferFailureLoggingCodes: ["MASSAGE_API_METHOD_MISMATCH"],
   };
   const bundleResponse = await postMassageApi<MassageSnapshotBundleApiResult>(
     input.hotelSlug,
