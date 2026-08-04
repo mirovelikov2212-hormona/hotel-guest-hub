@@ -15,6 +15,8 @@ import {
   isMassageSandboxLiveWriteEnabled,
   MassageApiError,
   normalizeMassageHotelSlug,
+  type MassageService,
+  type MassageServicesResult,
 } from "@/lib/server/massage-api";
 import {
   executeTrackedMassageBooking,
@@ -294,6 +296,86 @@ async function requireExistingHotelRoom(hotelSlug: string, room: string) {
       code: "INVALID_ROOM",
     });
   }
+}
+
+function isCompleteMassageService(
+  service: MassageService | null | undefined,
+  expectedServiceId: string
+): service is MassageService {
+  if (!service || service.serviceId !== expectedServiceId) return false;
+
+  const nameBg = String(service.nameBg || "").trim();
+  const currency = String(service.currency || "").trim();
+  const durationMinutes = Number(service.durationMinutes);
+  const price = Number(service.price);
+
+  return Boolean(
+    nameBg &&
+      currency &&
+      Number.isFinite(durationMinutes) &&
+      durationMinutes > 0 &&
+      Number.isFinite(price) &&
+      price >= 0
+  );
+}
+
+async function getSandboxMassageServiceDetails(input: {
+  hotel: HotelScope;
+  serviceId: string;
+}) {
+  let snapshotService: MassageService | null = null;
+
+  try {
+    let snapshotHotelSlug = input.hotel.slug;
+
+    if (isSandboxHotel(input.hotel) && input.hotel.production_hotel_id) {
+      const { data: productionHotel, error: productionHotelError } = await supabaseAdmin
+        .from("hotels")
+        .select("slug")
+        .eq("id", input.hotel.production_hotel_id)
+        .eq("active", true)
+        .maybeSingle();
+
+      if (productionHotelError) throw productionHotelError;
+      snapshotHotelSlug =
+        String(productionHotel?.slug || input.hotel.slug).trim() || input.hotel.slug;
+    }
+
+    const snapshotRead = await readMassageSnapshotAction({
+      hotelSlug: snapshotHotelSlug,
+      action: "services",
+    });
+    const servicesResult = snapshotRead.result as MassageServicesResult;
+    const candidate = servicesResult.services.find(
+      (item) => item.serviceId === input.serviceId
+    );
+
+    if (isCompleteMassageService(candidate, input.serviceId)) {
+      snapshotService = candidate;
+    }
+  } catch {
+    // The live Apps Script catalog below remains the controlled fallback.
+  }
+
+  if (snapshotService) return snapshotService;
+
+  const liveServices = await getMassageServices(input.hotel.slug).catch(() => null);
+  const liveCandidate = liveServices?.services?.find(
+    (item) => item.serviceId === input.serviceId
+  );
+
+  if (isCompleteMassageService(liveCandidate, input.serviceId)) {
+    return liveCandidate;
+  }
+
+  throw new MassageApiError(
+    "Massage service details are temporarily unavailable. Please try again shortly.",
+    {
+      statusCode: 503,
+      code: "MASSAGE_SERVICE_DETAILS_UNAVAILABLE",
+      monitoringSeverity: "warning",
+    }
+  );
 }
 
 async function readJsonObject(req: NextRequest) {
@@ -805,18 +887,17 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const services = await getMassageServices(hotelSlug).catch(() => null);
-      const service = services?.services?.find((item) => item.serviceId === serviceId) ?? null;
+      const service = await getSandboxMassageServiceDetails({ hotel, serviceId });
       const result = {
         status: "BOOKING_WRITTEN" as const,
         serviceId,
-        serviceNameBg: service?.nameBg ?? serviceId,
-        sheetValue: service?.nameBg ?? serviceId,
-        price: service?.price ?? null,
-        currency: service?.currency ?? null,
+        serviceNameBg: service.nameBg,
+        sheetValue: service.nameBg,
+        price: service.price,
+        currency: service.currency,
         date,
         startTime: time,
-        durationMinutes: service?.durationMinutes ?? null,
+        durationMinutes: service.durationMinutes,
         roomNumber: room,
         writeVerified: false,
         idempotentReplay: false,

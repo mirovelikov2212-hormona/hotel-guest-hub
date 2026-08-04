@@ -67,6 +67,29 @@ test("sandbox massage simulation states that Google Sheet was not changed", asyn
   assertContains(routeSource, "sheetWrite: true,");
 });
 
+test("sandbox massage confirmation prefers the linked production snapshot before live Apps Script", async () => {
+  const source = await readProjectFile("app/api/guest/massages/route.ts");
+
+  assertContains(source, "getSandboxMassageServiceDetails");
+  assertContains(source, '.eq("id", input.hotel.production_hotel_id)');
+  assertBefore(
+    source,
+    "const snapshotRead = await readMassageSnapshotAction({",
+    "const liveServices = await getMassageServices(input.hotel.slug)",
+    "The server snapshot must be attempted before the live Apps Script catalog fallback.",
+  );
+});
+
+test("sandbox massage confirmation rejects incomplete service details instead of storing a technical id", async () => {
+  const source = await readProjectFile("app/api/guest/massages/route.ts");
+
+  assertContains(source, 'code: "MASSAGE_SERVICE_DETAILS_UNAVAILABLE"');
+  assertContains(source, "const service = await getSandboxMassageServiceDetails({ hotel, serviceId });");
+  assertNotContains(source, "service?.nameBg ?? serviceId");
+  assertNotContains(source, "service?.durationMinutes ?? null");
+  assertNotContains(source, "service?.price ?? null");
+});
+
 test("staff PIN verification keeps scrypt and timing-safe comparison", async () => {
   const candidates = [
     "lib/staff-auth/pin.ts",
