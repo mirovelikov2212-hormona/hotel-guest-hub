@@ -50,6 +50,23 @@ test("massage workflow never deploys Vercel production", async () => {
   assertNotContains(source, "vercel deploy --prod");
 });
 
+
+test("massage staff cards use the selected service as the Bulgarian title", async () => {
+  const source = await readProjectFile("lib/server/massage-staff-request.ts");
+
+  assertContains(source, "const staffTitleBg = serviceName;");
+});
+
+test("sandbox massage simulation states that Google Sheet was not changed", async () => {
+  const staffSource = await readProjectFile("lib/server/massage-staff-request.ts");
+  const routeSource = await readProjectFile("app/api/guest/massages/route.ts");
+
+  assertContains(staffSource, "sheetWrite: boolean;");
+  assertContains(staffSource, '"График: Защитен sandbox тест — Google Sheet не е променян."');
+  assertContains(routeSource, "sheetWrite: false,");
+  assertContains(routeSource, "sheetWrite: true,");
+});
+
 test("staff PIN verification keeps scrypt and timing-safe comparison", async () => {
   const candidates = [
     "lib/staff-auth/pin.ts",

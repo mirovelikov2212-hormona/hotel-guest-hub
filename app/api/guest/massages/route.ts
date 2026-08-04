@@ -218,6 +218,7 @@ async function attachTrackedMassageStaffRequest(input: {
       price: input.result.price,
       currency: input.result.currency,
       guestLanguage: input.guestLanguage,
+      sheetWrite: true,
     });
 
     if (input.attempt) {
@@ -835,6 +836,7 @@ export async function POST(req: NextRequest) {
         price: result.price,
         currency: result.currency,
         guestLanguage: String(body.guestLanguage || "bg"),
+        sheetWrite: false,
       });
 
       return json(

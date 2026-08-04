@@ -5,7 +5,7 @@ import {
   getMassageHotelCode,
   normalizeMassageHotelSlug,
 } from "@/lib/server/massage-api";
-import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
+import { getOperationalRequestNoteBg } from "@/lib/staff/ops-request-copy";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { sendManagerPushNotification, sendStaffPushNotification } from "@/lib/staff-push/web-push";
@@ -100,6 +100,7 @@ export async function ensureMassageStaffRequest(input: {
   price?: number | string | null;
   currency?: string | null;
   guestLanguage?: string | null;
+  sheetWrite: boolean;
 }) {
   const hotel = await resolveHotelByAnySlugAdmin(input.hotelSlug);
   const testRoomPolicy = await getTestRoomPolicy(hotel.id, input.roomNumber);
@@ -129,6 +130,9 @@ export async function ensureMassageStaffRequest(input: {
     ? `Продължителност: ${duration} мин.`
     : "";
   const priceLine = price ? `Цена: ${price} ${currency}` : "";
+  const scheduleLine = input.sheetWrite
+    ? "График: Google Sheet е актуализиран."
+    : "График: Защитен sandbox тест — Google Sheet не е променян.";
   const note = [
     `Избрана услуга: ${serviceName}`,
     `Дата: ${dateLabel}`,
@@ -136,7 +140,7 @@ export async function ensureMassageStaffRequest(input: {
     durationLine,
     priceLine,
     "Източник: StayHub",
-    "График: Google Sheet е актуализиран.",
+    scheduleLine,
   ]
     .filter(Boolean)
     .join("\n");
@@ -158,6 +162,7 @@ export async function ensureMassageStaffRequest(input: {
     note,
     rawType: "massage_booking",
     billingStatus: "pending",
+    sheetWrite: input.sheetWrite,
     stayId,
     stayDeviceId,
     massageBookingKey,
@@ -178,12 +183,7 @@ export async function ensureMassageStaffRequest(input: {
     stayhubRoomMarker,
   };
 
-  const staffTitleBg = getOperationalRequestTitleBg({
-    requestType: normalizedType,
-    title: "Запазен масаж",
-    message: note,
-    metadata: operationalMetadata,
-  });
+  const staffTitleBg = serviceName;
   const staffNoteBg = getOperationalRequestNoteBg({
     requestType: normalizedType,
     title: "Запазен масаж",

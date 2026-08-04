@@ -296,6 +296,7 @@ async function ensureAttemptStaffRequest(input: {
     price: input.result.price,
     currency: input.result.currency,
     guestLanguage: input.attempt.guest_language,
+    sheetWrite: true,
   });
   await linkMassageAttemptStaffRequest({
     attemptId: input.attempt.id,
