@@ -91,6 +91,53 @@ test("massage active_bookings requires validated stay/device identity", async ()
 });
 
 
+test("public tracking ignores client hotelId and requires canonical server resolution", async () => {
+  const source = await readProjectFile("app/api/track/route.ts");
+
+  assertContains(source, 'from "@/lib/hotels/hotel-slug.mjs"');
+  assertContains(source, "resolveHotelByAnySlugAdmin");
+  assertContains(source, "const scopeResolution = await resolveTrackingHotelScope({");
+  assertContains(source, 'code: scopeResolution.code');
+  assertContains(source, "const resolvedHotelId = hotelScope.id;");
+  assertBefore(
+    source,
+    "const scopeResolution = await resolveTrackingHotelScope({",
+    'const legacyPayload = {',
+    "Canonical hotel resolution must complete before a tracking payload can be built.",
+  );
+
+  assert.equal(
+    source.includes("body.hotelId"),
+    false,
+    "The public tracking route must never trust or fall back to a client-supplied hotelId.",
+  );
+});
+
+test("tracking uses the shared hotel alias contract and one canonical identity for both inserts", async () => {
+  const source = await readProjectFile("app/api/track/route.ts");
+
+  assertContains(source, "sanitizeHotelSlug");
+  assertContains(source, "const hotelScope = scopeResolution.scope;");
+  assertContains(source, "hotel_id: resolvedHotelId");
+  assertContains(source, "const enrichedPayload = {");
+  assertContains(source, "...legacyPayload,");
+  assert.ok(
+    countOccurrences(source, 'supabaseAdmin') >= 3,
+    "Tracking reads and writes must use the shared server-side Supabase admin client.",
+  );
+  assert.equal(
+    source.includes('if (slug === "aquamarine")'),
+    false,
+    "Tracking must not maintain a private Aquamarine alias branch.",
+  );
+  assert.equal(
+    source.includes('createClient('),
+    false,
+    "Tracking must not create a separate service-role client outside the shared server client.",
+  );
+});
+
+
 test("same-day room turnover hides the previous guest massage from the new device", async () => {
   const moduleUrl = pathToFileURL(resolve("lib/server/massage-booking-visibility.mjs"));
   moduleUrl.searchParams.set("testRun", String(Date.now()));

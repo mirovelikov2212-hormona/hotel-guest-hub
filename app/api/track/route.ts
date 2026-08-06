@@ -1,25 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { sanitizeHotelSlug } from "@/lib/hotels/hotel-slug.mjs";
+import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
+import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { getTestDataFields, getTestDataMetadata, getTestRoomPolicy } from "@/lib/server/test-rooms";
 import { logSystemError } from "@/lib/server/system-events";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false, autoRefreshToken: false } }
-);
 
 function normalizeText(value: unknown): string | null {
   const text = String(value ?? "").trim();
   return text ? text : null;
-}
-
-function sanitizeSlug(value: unknown): string | null {
-  const slug = String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]/g, "");
-  return slug ? slug : null;
 }
 
 type TrackingHotelScope = {
@@ -29,81 +17,61 @@ type TrackingHotelScope = {
   isSandbox: boolean;
 };
 
-function getSlugCandidates(...values: unknown[]) {
-  const candidates = new Set<string>();
+type TrackingHotelScopeResolution =
+  | { ok: true; scope: TrackingHotelScope }
+  | {
+      ok: false;
+      code: "MISSING_HOTEL_SCOPE" | "HOTEL_NOT_FOUND" | "HOTEL_SCOPE_MISMATCH";
+      status: 400 | 404 | 409;
+    };
 
-  for (const value of values) {
-    const slug = sanitizeSlug(value);
-    if (!slug) continue;
-    candidates.add(slug);
-
-    // Aquamarine was first created in Supabase as `aquamarin`, while the public alias is `aquamarine`.
-    // Keep this compatibility bridge here until aliases are fully managed from hotel metadata everywhere.
-    if (slug === "aquamarine") candidates.add("aquamarin");
-    if (slug === "aquamarin") candidates.add("aquamarine");
-    if (slug === "aquamarine-test") candidates.add("aquamarin-test");
-    if (slug === "aquamarin-test") candidates.add("aquamarine-test");
-  }
-
-  return Array.from(candidates);
-}
-
-function buildHotelOrFilter(candidates: string[]) {
-  return [
-    ...candidates.map((slug) => `slug.eq.${slug}`),
-    ...candidates.map((slug) => `public_slug.eq.${slug}`),
-  ].join(",");
+function getTrackingSlugCandidates(...values: unknown[]) {
+  return Array.from(
+    new Set(values.map((value) => sanitizeHotelSlug(value)).filter(Boolean)),
+  );
 }
 
 async function resolveTrackingHotelScope(input: {
-  hotelId?: unknown;
   hotelSlug?: unknown;
   hotelAlias?: unknown;
-}): Promise<TrackingHotelScope | null> {
-  const hotelId = normalizeText(input.hotelId);
+}): Promise<TrackingHotelScopeResolution> {
+  const candidates = getTrackingSlugCandidates(input.hotelSlug, input.hotelAlias);
 
-  if (hotelId) {
-    const { data, error } = await supabase
-      .from("hotels")
-      .select("id, slug, public_slug, active, is_sandbox")
-      .eq("id", hotelId)
-      .eq("active", true)
-      .maybeSingle();
-
-    if (!error && data) {
-      return {
-        id: data.id as string,
-        slug: data.slug as string,
-        publicSlug: data.public_slug as string | null,
-        isSandbox: Boolean(data.is_sandbox),
-      };
-    }
+  if (!candidates.length) {
+    return { ok: false, code: "MISSING_HOTEL_SCOPE", status: 400 };
   }
 
-  const candidates = getSlugCandidates(input.hotelSlug, input.hotelAlias);
-  if (!candidates.length) return null;
+  const resolvedByHotelId = new Map<string, TrackingHotelScope>();
 
-  const { data, error } = await supabase
-    .from("hotels")
-    .select("id, slug, public_slug, active, is_sandbox")
-    .or(buildHotelOrFilter(candidates))
-    .eq("active", true)
-    .limit(1)
-    .maybeSingle();
+  for (const candidate of candidates) {
+    const hotel = await resolveHotelByAnySlugAdmin(candidate).catch(() => null);
+    if (!hotel) continue;
 
-  if (error || !data) return null;
+    resolvedByHotelId.set(hotel.id, {
+      id: hotel.id,
+      slug: hotel.slug,
+      publicSlug: hotel.public_slug || null,
+      isSandbox: Boolean(hotel.is_sandbox),
+    });
+  }
+
+  if (!resolvedByHotelId.size) {
+    return { ok: false, code: "HOTEL_NOT_FOUND", status: 404 };
+  }
+
+  if (resolvedByHotelId.size > 1) {
+    return { ok: false, code: "HOTEL_SCOPE_MISMATCH", status: 409 };
+  }
 
   return {
-    id: data.id as string,
-    slug: data.slug as string,
-    publicSlug: data.public_slug as string | null,
-    isSandbox: Boolean(data.is_sandbox),
+    ok: true,
+    scope: Array.from(resolvedByHotelId.values())[0],
   };
 }
 
-function resolveTrackingEnvironment(input: { environment?: unknown; hotelScope: TrackingHotelScope | null }) {
-  if (input.hotelScope?.slug === "demo") return "demo";
-  if (input.hotelScope?.isSandbox) return "sandbox";
+function resolveTrackingEnvironment(input: { environment?: unknown; hotelScope: TrackingHotelScope }) {
+  if (input.hotelScope.slug === "demo") return "demo";
+  if (input.hotelScope.isSandbox) return "sandbox";
 
   const normalized = normalizeText(input.environment);
   if (normalized === "demo" || normalized === "sandbox" || normalized === "production") {
@@ -139,14 +107,26 @@ export async function POST(request: NextRequest) {
     };
 
     const roomNumber = body.roomNumber ?? null;
-    const hotelScope = await resolveTrackingHotelScope({
-      hotelId: body.hotelId,
+    const scopeResolution = await resolveTrackingHotelScope({
       hotelSlug: body.hotelSlug,
       hotelAlias: body.hotelAlias,
     });
-    const resolvedHotelId = hotelScope?.id ?? body.hotelId ?? null;
-    const resolvedHotelSlug = hotelScope?.slug ?? sanitizeSlug(body.hotelSlug) ?? null;
-    const resolvedPublicSlug = hotelScope?.publicSlug ?? sanitizeSlug(body.hotelAlias) ?? resolvedHotelSlug;
+
+    if (!scopeResolution.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "A valid canonical hotel scope is required.",
+          code: scopeResolution.code,
+        },
+        { status: scopeResolution.status },
+      );
+    }
+
+    const hotelScope = scopeResolution.scope;
+    const resolvedHotelId = hotelScope.id;
+    const resolvedHotelSlug = hotelScope.slug;
+    const resolvedPublicSlug = hotelScope.publicSlug || hotelScope.slug;
     const resolvedEnvironment = resolveTrackingEnvironment({
       environment: body.environment,
       hotelScope,
@@ -195,7 +175,7 @@ export async function POST(request: NextRequest) {
       ...getTestDataFields(testRoomPolicy),
     };
 
-    let { data, error } = await supabase
+    let { data, error } = await supabaseAdmin
       .from("hub_events")
       .insert(enrichedPayload)
       .select("id, created_at, event_name, room_number");
@@ -211,10 +191,10 @@ export async function POST(request: NextRequest) {
         message: "hub_events enriched insert failed and the API used the legacy payload fallback.",
         roomNumber: roomNumber,
         error,
-        metadata: { hotelSlug: resolvedHotelSlug ?? body.hotelSlug, eventName: body.eventName },
+        metadata: { hotelSlug: resolvedHotelSlug, eventName: body.eventName },
       });
 
-      const fallback = await supabase
+      const fallback = await supabaseAdmin
         .from("hub_events")
         .insert(legacyPayload)
         .select("id, created_at, event_name, room_number");
@@ -233,11 +213,11 @@ export async function POST(request: NextRequest) {
         message: "hub_events insert failed after fallback handling.",
         roomNumber: roomNumber,
         error,
-        metadata: { hotelSlug: resolvedHotelSlug ?? body.hotelSlug, eventName: body.eventName },
+        metadata: { hotelSlug: resolvedHotelSlug, eventName: body.eventName },
       });
       return NextResponse.json(
         { ok: false, error: error.message },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
