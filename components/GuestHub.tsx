@@ -242,6 +242,7 @@ import {
   safeTelLink,
 } from "@/lib/utils";
 import { getRequestDefText } from "@/lib/request-defs";
+import { isRecoverableGuestStayErrorCode } from "@/lib/guest-stays/stale-state-recovery.mjs";
 
 function clsx(...xs: Array<string | false | undefined | null>) {
   return xs.filter(Boolean).join(" ");
@@ -3229,8 +3230,66 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             deviceToken: stayDeviceToken,
           }),
         });
-        const payload = await response.json().catch(() => null) as { ok?: boolean; stay?: GuestStaySummary } | null;
-        if (cancelled || !response.ok || !payload?.ok || !payload.stay) return;
+        const payload = await response.json().catch(() => null) as {
+          ok?: boolean;
+          stay?: GuestStaySummary;
+          error?: string;
+        } | null;
+        if (cancelled) return;
+
+        if (!response.ok || !payload?.ok || !payload.stay) {
+          const errorCode = String(payload?.error || "").trim();
+          if (!isRecoverableGuestStayErrorCode(errorCode)) return;
+
+          const staleRoom = normalizeRoomNumber(room || manualRoomInput || qrRoom);
+
+          setRoomConfirmed(false);
+          setRoom("");
+          setCheckInDate("");
+          setCheckOutDate("");
+          setActiveStayId("");
+          setStayDeviceId("");
+          setEffectiveCheckOutAt("");
+          setManualRoomInput(staleRoom);
+          setIgnoredQrRoom(null);
+          setRoomModal(null);
+          setPendingRoomChangeFrom(null);
+          setShowRoomSwitchCard(false);
+
+          const nextRequestRefs = readStoredGuestRequestRefs().filter(
+            (item) => item.room !== staleRoom,
+          );
+          writeStoredGuestRequestRefs(nextRequestRefs);
+          setGuestRequestRefs(nextRequestRefs);
+
+          const normalizedHotelSlug = String(roomStateKey || config.hotelSlug || "")
+            .trim()
+            .toLowerCase();
+          const nextMassageBookings = replaceStoredGuestMassageBookingsForRoom({
+            hotelSlug: normalizedHotelSlug,
+            room: staleRoom,
+            bookings: [],
+          });
+          setGuestMassageBookings(nextMassageBookings);
+
+          writeStoredGuestRoomState(roomStateKey, {
+            manualRoomInput: staleRoom,
+            room: "",
+            roomConfirmed: false,
+            checkInDate: "",
+            checkOutDate: "",
+            stayId: "",
+            stayDeviceId: "",
+            deviceToken: stayDeviceToken,
+            effectiveCheckOutAt: "",
+          });
+
+          if (!stayExpiredNotifiedRef.current) {
+            stayExpiredNotifiedRef.current = true;
+            window.alert(stayCopy.expired);
+          }
+          return;
+        }
 
         setEffectiveCheckOutAt(payload.stay.effectiveCheckOutAt);
         if (payload.stay.active) return;
@@ -3262,7 +3321,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   }, [
     activeStayId,
     config.hotelSlug,
+    manualRoomInput,
     qrRoom,
+    room,
     roomConfirmed,
     roomStateHydrated,
     roomStateKey,
@@ -3869,6 +3930,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       setRoomModal(null);
       setPendingRoomChangeFrom(null);
       setShowRoomSwitchCard(false);
+      stayExpiredNotifiedRef.current = false;
 
       const confirmedRoomUrl = new URL(window.location.href);
       confirmedRoomUrl.searchParams.set("room", nextRoom);
@@ -5641,7 +5703,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const activeGuestMassageBookings = useMemo(() => {
     if (!roomConfirmed || !room.trim()) return [];
 
-    const normalizedHotelSlug = String(hotelContentSlug || config.hotelSlug || "").trim().toLowerCase();
+    const normalizedHotelSlug = String(roomStateKey || config.hotelSlug || "").trim().toLowerCase();
     const normalizedRoom = String(room || "").trim();
 
     return guestMassageBookings
@@ -5687,7 +5749,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const refreshGuestMassageBookingsFromServer = useCallback(async () => {
     if (!roomConfirmed || !room.trim() || !activeStayId || !stayDeviceId) return;
 
-    const normalizedHotelSlug = String(hotelContentSlug || config.hotelSlug || "")
+    const normalizedHotelSlug = String(roomStateKey || config.hotelSlug || "")
       .trim()
       .toLowerCase();
 

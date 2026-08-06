@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "npm run test:contracts",
-    "test:contracts": "node --test tests/contracts/api-security.contract.test.mjs tests/contracts/operational-contracts.test.mjs tests/contracts/open-risks.contract.test.mjs tests/contracts/hotel-config.contract.test.mjs"
+    "test:contracts": "node --test tests/contracts/api-security.contract.test.mjs tests/contracts/operational-contracts.test.mjs tests/contracts/open-risks.contract.test.mjs tests/contracts/hotel-config.contract.test.mjs tests/contracts/guest-stay-recovery.contract.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",
