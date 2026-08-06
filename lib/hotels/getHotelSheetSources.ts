@@ -1,3 +1,7 @@
+import {
+  buildHotelSlugOrFilter,
+  getHotelSlugCandidates,
+} from "@/lib/hotels/hotel-slug.mjs";
 import { getSupabaseAdmin } from "@/lib/server/supabase-admin";
 
 type HotelSheetSources = {
@@ -15,11 +19,13 @@ type HotelSheetSources = {
 };
 
 export async function getHotelSheetSources(inputSlug?: string): Promise<HotelSheetSources> {
-  const slug = String(inputSlug ?? "").trim().toLowerCase();
+  const candidates = getHotelSlugCandidates(inputSlug ?? "");
 
-  if (!slug) {
+  if (!candidates.length) {
     throw new Error("Missing hotel slug");
   }
+
+  const slugFilter = buildHotelSlugOrFilter(candidates);
 
   const supabase = getSupabaseAdmin();
 
@@ -28,12 +34,12 @@ export async function getHotelSheetSources(inputSlug?: string): Promise<HotelShe
     .select(
       "id, slug, public_slug, name, active, is_sandbox, production_hotel_id, config_csv_url, venues_csv_url, i18n_csv_url, hotel_setup_csv_url, request_defs_csv_url"
     )
-    .or(`slug.eq.${slug},public_slug.eq.${slug}`)
+    .or(slugFilter)
     .eq("active", true)
     .maybeSingle();
 
   if (error || !data) {
-    throw new Error(`Hotel not found for slug: ${slug}`);
+    throw new Error(`Hotel not found for slug: ${candidates.join("|")}`);
   }
 
   return {

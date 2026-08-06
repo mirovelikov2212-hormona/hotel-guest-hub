@@ -1,5 +1,10 @@
 import "server-only";
 
+import {
+  buildHotelSlugOrFilter,
+  getHotelSlugCandidates as getHotelSlugCandidatesCore,
+  sanitizeHotelSlug,
+} from "@/lib/hotels/hotel-slug.mjs";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import type { TestRoomPolicy } from "@/lib/server/test-rooms";
 
@@ -14,32 +19,15 @@ export type HotelScope = {
 };
 
 function sanitizeSlug(value: unknown) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]/g, "");
+  return sanitizeHotelSlug(value);
 }
 
-export function getHotelSlugCandidates(inputSlug: string) {
-  const slug = sanitizeSlug(inputSlug);
-  const candidates = new Set<string>();
-  if (slug) candidates.add(slug);
-
-  // Aquamarine is the public spelling, while the first DB record was created as aquamarin.
-  if (slug === "aquamarine") candidates.add("aquamarin");
-  if (slug === "aquamarin") candidates.add("aquamarine");
-  if (slug === "aquamarine-test") candidates.add("aquamarin-test");
-  if (slug === "aquamarin-test") candidates.add("aquamarine-test");
-
-  return Array.from(candidates).filter(Boolean);
+export function getHotelSlugCandidates(inputSlug: string): string[] {
+  return getHotelSlugCandidatesCore(inputSlug);
 }
 
 function buildSlugOrFilter(candidates: string[]) {
-  const safe = candidates.map(sanitizeSlug).filter(Boolean);
-  return [
-    ...safe.map((slug) => `slug.eq.${slug}`),
-    ...safe.map((slug) => `public_slug.eq.${slug}`),
-  ].join(",");
+  return buildHotelSlugOrFilter(candidates);
 }
 
 export async function resolveHotelByAnySlugAdmin(inputSlug: string): Promise<HotelScope> {

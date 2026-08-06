@@ -1,0 +1,34 @@
+{
+  "hotelSlug": "seaside-demo-hotel",
+  "hotelName": "Seaside Demo Hotel",
+  "active": true,
+  "isSandbox": true,
+  "productionHotelId": "00000000-0000-0000-0000-000000000001",
+  "languages": ["bg", "en", "de"],
+  "languageDefault": "en",
+  "opsLanguage": "bg",
+  "hotelTimezone": "Europe/Berlin",
+  "urls": {
+    "configCsvUrl": "https://example.com/config.csv",
+    "i18nCsvUrl": "https://example.com/i18n.csv",
+    "roomsCsvUrl": "https://example.com/rooms.csv"
+  },
+  "rooms": [
+    { "roomNumber": "101", "active": true },
+    { "roomNumber": "102", "active": true }
+  ],
+  "requestDefs": [
+    {
+      "id": "extra_towel",
+      "targetDepartment": "housekeeping",
+      "requiresBilling": false
+    },
+    {
+      "id": "coffee_capsules",
+      "targetDepartment": "housekeeping",
+      "requiresBilling": true,
+      "price": "2.05",
+      "currency": "EUR"
+    }
+  ]
+}
