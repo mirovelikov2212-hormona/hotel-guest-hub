@@ -1,0 +1,437 @@
+{
+  "version": 1,
+  "checkpoint": "7e2592a",
+  "purpose": "Lock the reviewed M2.2b.1 tenant-query inventory. Any new, moved, changed, removed, or newly-unclassified needs_review query must be explicitly re-reviewed before npm test passes.",
+  "expectedNeedsReview": 39,
+  "entries": [
+    {
+      "filePath": "app/api/cron/day3-survey-push/route.ts",
+      "line": 78,
+      "table": "guest_surveys",
+      "tableExpression": "\"guest_surveys\"",
+      "operation": "select",
+      "reasons": [
+        "hotel_scope_not_proven"
+      ],
+      "provenance": "server_stay_device_identity"
+    },
+    {
+      "filePath": "app/api/cron/day3-survey-push/route.ts",
+      "line": 95,
+      "table": "guest_push_subscriptions",
+      "tableExpression": "\"guest_push_subscriptions\"",
+      "operation": "update",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "server_loaded_subscription_id"
+    },
+    {
+      "filePath": "app/api/cron/day3-survey-push/route.ts",
+      "line": 150,
+      "table": "guest_push_subscriptions",
+      "tableExpression": "\"guest_push_subscriptions\"",
+      "operation": "select",
+      "reasons": [
+        "hotel_scope_not_proven"
+      ],
+      "provenance": "authorized_platform_cron_scan"
+    },
+    {
+      "filePath": "app/api/cron/day3-survey-push/route.ts",
+      "line": 182,
+      "table": "guest_stays",
+      "tableExpression": "\"guest_stays\"",
+      "operation": "select",
+      "reasons": [
+        "hotel_scope_not_proven"
+      ],
+      "provenance": "server_loaded_stay_ids"
+    },
+    {
+      "filePath": "app/api/cron/day3-survey-push/route.ts",
+      "line": 259,
+      "table": "guest_push_subscriptions",
+      "tableExpression": "\"guest_push_subscriptions\"",
+      "operation": "update",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "server_loaded_subscription_id"
+    },
+    {
+      "filePath": "app/api/cron/day3-survey-push/route.ts",
+      "line": 289,
+      "table": "guest_push_subscriptions",
+      "tableExpression": "\"guest_push_subscriptions\"",
+      "operation": "update",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "server_loaded_subscription_id"
+    },
+    {
+      "filePath": "app/api/cron/day3-survey-push/route.ts",
+      "line": 309,
+      "table": "guest_push_subscriptions",
+      "tableExpression": "\"guest_push_subscriptions\"",
+      "operation": "update",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "server_loaded_subscription_id"
+    },
+    {
+      "filePath": "app/api/cron/day3-survey-push/route.ts",
+      "line": 340,
+      "table": "guest_push_subscriptions",
+      "tableExpression": "\"guest_push_subscriptions\"",
+      "operation": "update",
+      "reasons": [
+        "hotel_scope_not_proven"
+      ],
+      "provenance": "server_loaded_subscription_ids"
+    },
+    {
+      "filePath": "app/api/cron/massage-reminders/route.ts",
+      "line": 171,
+      "table": "guest_requests",
+      "tableExpression": "\"guest_requests\"",
+      "operation": "update",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "server_loaded_request_id"
+    },
+    {
+      "filePath": "app/api/cron/massage-reminders/route.ts",
+      "line": 210,
+      "table": "guest_requests",
+      "tableExpression": "\"guest_requests\"",
+      "operation": "select",
+      "reasons": [
+        "hotel_scope_not_proven"
+      ],
+      "provenance": "authorized_platform_cron_scan"
+    },
+    {
+      "filePath": "app/api/cron/report-email/route.ts",
+      "line": 125,
+      "table": "reporting_email_delivery_log",
+      "tableExpression": "\"reporting_email_delivery_log\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "hotel_filtered_reporting_log"
+    },
+    {
+      "filePath": "app/api/cron/report-email/route.ts",
+      "line": 149,
+      "table": "reporting_email_delivery_log",
+      "tableExpression": "\"reporting_email_delivery_log\"",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "payload_contains_hotel_id"
+    },
+    {
+      "filePath": "app/api/cron/report-email/route.ts",
+      "line": 193,
+      "table": "reporting_email_delivery_log",
+      "tableExpression": "\"reporting_email_delivery_log\"",
+      "operation": "update",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_loaded_delivery_log_id"
+    },
+    {
+      "filePath": "app/api/cron/report-email/route.ts",
+      "line": 206,
+      "table": "reporting_email_delivery_log",
+      "tableExpression": "\"reporting_email_delivery_log\"",
+      "operation": "update",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_loaded_delivery_log_id"
+    },
+    {
+      "filePath": "app/api/cron/report-email/route.ts",
+      "line": 291,
+      "table": null,
+      "tableExpression": "definition.viewName",
+      "operation": "select",
+      "reasons": [
+        "dynamic_table_name"
+      ],
+      "provenance": "fixed_report_definitions_registry"
+    },
+    {
+      "filePath": "app/api/cron/weekly-report/route.ts",
+      "line": 57,
+      "table": "reporting_email_delivery_log",
+      "tableExpression": "\"reporting_email_delivery_log\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "hotel_filtered_reporting_log"
+    },
+    {
+      "filePath": "app/api/cron/weekly-report/route.ts",
+      "line": 78,
+      "table": "reporting_email_delivery_log",
+      "tableExpression": "\"reporting_email_delivery_log\"",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "payload_contains_hotel_id"
+    },
+    {
+      "filePath": "app/api/cron/weekly-report/route.ts",
+      "line": 121,
+      "table": "reporting_email_delivery_log",
+      "tableExpression": "\"reporting_email_delivery_log\"",
+      "operation": "update",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_loaded_delivery_log_id"
+    },
+    {
+      "filePath": "app/api/cron/weekly-report/route.ts",
+      "line": 133,
+      "table": "reporting_email_delivery_log",
+      "tableExpression": "\"reporting_email_delivery_log\"",
+      "operation": "update",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_loaded_delivery_log_id"
+    },
+    {
+      "filePath": "app/api/cron/weekly-report/route.ts",
+      "line": 202,
+      "table": "reporting_latest_completed_week_email_report_v1",
+      "tableExpression": "\"reporting_latest_completed_week_email_report_v1\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "authorized_reporting_view"
+    },
+    {
+      "filePath": "app/api/guest/day3-survey/route.ts",
+      "line": 54,
+      "table": "guest_surveys",
+      "tableExpression": "\"guest_surveys\"",
+      "operation": "select",
+      "reasons": [
+        "hotel_scope_not_proven"
+      ],
+      "provenance": "validated_stay_device_identity_before_call"
+    },
+    {
+      "filePath": "app/api/staff/request-status/route.ts",
+      "line": 355,
+      "table": "hub_events",
+      "tableExpression": "\"hub_events\"",
+      "operation": "insert",
+      "reasons": [
+        "hybrid_scope_requires_review"
+      ],
+      "provenance": "payload_array_contains_scope_hotel_id"
+    },
+    {
+      "filePath": "app/api/staff/requests/route.ts",
+      "line": 171,
+      "table": "guest_requests",
+      "tableExpression": "\"guest_requests\"",
+      "operation": "update",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "id_from_hotel_scoped_staff_dataset"
+    },
+    {
+      "filePath": "app/api/staff/surveys/route.ts",
+      "line": 90,
+      "table": "guest_surveys",
+      "tableExpression": "\"guest_surveys\"",
+      "operation": "update",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "id_from_hotel_scoped_staff_dataset"
+    },
+    {
+      "filePath": "app/qr/staff/[hotelSlug]/[department]/route.ts",
+      "line": 101,
+      "table": "qr_scans",
+      "tableExpression": "\"qr_scans\"",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "canonical_server_hotel_payload"
+    },
+    {
+      "filePath": "app/qr/[hotelAlias]/route.ts",
+      "line": 98,
+      "table": "qr_scans",
+      "tableExpression": "\"qr_scans\"",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "canonical_server_hotel_payload"
+    },
+    {
+      "filePath": "lib/guest-push/web-push.ts",
+      "line": 278,
+      "table": "guest_push_subscriptions",
+      "tableExpression": "\"guest_push_subscriptions\"",
+      "operation": "update",
+      "reasons": [
+        "hotel_scope_not_proven"
+      ],
+      "provenance": "server_loaded_subscription_ids"
+    },
+    {
+      "filePath": "lib/server/critical-email-alerts.ts",
+      "line": 108,
+      "table": "system_events",
+      "tableExpression": "\"system_events\"",
+      "operation": "select",
+      "reasons": [
+        "hybrid_scope_requires_review"
+      ],
+      "provenance": "hotel_id_or_platform_null_scope"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "line": 162,
+      "table": "guest_stays",
+      "tableExpression": "\"guest_stays\"",
+      "operation": "update",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "existing_stay_row_id"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "line": 325,
+      "table": "guest_stays",
+      "tableExpression": "\"guest_stays\"",
+      "operation": "update",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "existing_stay_row_id"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "line": 449,
+      "table": "guest_stay_devices",
+      "tableExpression": "\"guest_stay_devices\"",
+      "operation": "select",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "validated_stay_id_and_device_id"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "line": 461,
+      "table": "guest_stays",
+      "tableExpression": "\"guest_stays\"",
+      "operation": "update",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "validated_current_stay_id"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "line": 462,
+      "table": "guest_stay_devices",
+      "tableExpression": "\"guest_stay_devices\"",
+      "operation": "update",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "validated_current_device_id"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "line": 466,
+      "table": "guest_push_subscriptions",
+      "tableExpression": "\"guest_push_subscriptions\"",
+      "operation": "update",
+      "reasons": [
+        "hotel_scope_not_proven"
+      ],
+      "provenance": "validated_stay_and_device_identity"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "line": 500,
+      "table": "guest_stay_devices",
+      "tableExpression": "\"guest_stay_devices\"",
+      "operation": "select",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "validated_stay_id_and_device_id"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "line": 525,
+      "table": "guest_stays",
+      "tableExpression": "\"guest_stays\"",
+      "operation": "update",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "validated_stay_row_id"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "line": 574,
+      "table": "guest_stays",
+      "tableExpression": "\"guest_stays\"",
+      "operation": "update",
+      "reasons": [
+        "primary_key_only_scope"
+      ],
+      "provenance": "validated_stay_row_id"
+    },
+    {
+      "filePath": "lib/server/test-rooms.ts",
+      "line": 169,
+      "table": null,
+      "tableExpression": "table",
+      "operation": "delete",
+      "reasons": [
+        "dynamic_table_name"
+      ],
+      "provenance": "fixed_internal_cleanup_table_list_with_hotel_filter"
+    },
+    {
+      "filePath": "lib/staff-push/web-push.ts",
+      "line": 65,
+      "table": "staff_push_subscriptions",
+      "tableExpression": "\"staff_push_subscriptions\"",
+      "operation": "update",
+      "reasons": [
+        "hotel_scope_not_proven"
+      ],
+      "provenance": "server_loaded_expired_subscription_ids"
+    }
+  ]
+}
