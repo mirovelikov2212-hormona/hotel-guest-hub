@@ -1,0 +1,4 @@
+const values = [1, 2, 3];
+const x = Array.from(values);
+const set = new Set(values);
+const mapped = new Map([["a", 1]]).values();

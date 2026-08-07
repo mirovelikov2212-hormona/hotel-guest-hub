@@ -1,0 +1,4 @@
+const result = await supabaseAdmin
+  .from("guest_requests")
+  .update({ status: "done" })
+  .eq("id", requestId);

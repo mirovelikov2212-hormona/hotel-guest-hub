@@ -1,0 +1,5 @@
+const session = await supabaseAdmin
+  .from("staff_sessions")
+  .select("id, hotel_id")
+  .eq("session_token_hash", tokenHash)
+  .maybeSingle();

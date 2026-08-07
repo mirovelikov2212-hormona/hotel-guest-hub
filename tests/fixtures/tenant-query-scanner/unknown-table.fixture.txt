@@ -1,0 +1,3 @@
+const result = await supabaseAdmin
+  .from("new_unclassified_table")
+  .select("id");

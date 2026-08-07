@@ -1,0 +1,3 @@
+const result = await supabaseAdmin.rpc("refresh_hotel_snapshot", {
+  hotel_id: hotelId,
+});

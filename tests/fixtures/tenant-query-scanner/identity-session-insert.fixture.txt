@@ -1,0 +1,5 @@
+const row = await supabaseAdmin
+  .from("staff_sessions")
+  .insert({ hotel_id: hotel.id, role, session_token_hash: tokenHash })
+  .select("id")
+  .single();

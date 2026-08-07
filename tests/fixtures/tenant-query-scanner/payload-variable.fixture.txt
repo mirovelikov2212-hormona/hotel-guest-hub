@@ -1,0 +1,5 @@
+const payload = { hotel_id: hotelId, last_ok_at: now };
+const result = await supabaseAdmin
+  .from("massage_calendar_sync_state")
+  .upsert(payload)
+  .select("hotel_id");

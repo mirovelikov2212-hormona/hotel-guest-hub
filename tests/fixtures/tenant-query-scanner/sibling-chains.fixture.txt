@@ -1,0 +1,4 @@
+const rows = await Promise.all([
+  supabaseAdmin.from("guest_requests").select("id").eq("hotel_id", hotelId),
+  supabaseAdmin.from("guest_stays").select("id").eq("id", stayId),
+]);

@@ -1,0 +1,5 @@
+const result = await supabaseAdmin
+  .from("hub_events")
+  .insert({ hotel_id: hotelId, event_name: "x" })
+  .select("id")
+  .single();

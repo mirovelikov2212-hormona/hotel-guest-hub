@@ -1,0 +1,3 @@
+import { createClient as makeClient } from "@supabase/supabase-js";
+const analytics = makeClient(url, key);
+await analytics.from("hub_events").insert({ hotel_id: hotelId, event_name: "x" }).select("id");

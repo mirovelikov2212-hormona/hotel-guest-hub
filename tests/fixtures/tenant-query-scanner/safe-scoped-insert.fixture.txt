@@ -1,0 +1,6 @@
+const result = await supabaseAdmin
+  .from("guest_requests")
+  .insert({
+    hotel_id: hotel.id,
+    request_type: "information",
+  });
