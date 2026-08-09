@@ -23,6 +23,37 @@ test("guest request creation validates the confirmed stay before inserting", asy
   );
 });
 
+test("guest request room validation fails closed when hotel or room configuration is unavailable", async () => {
+  const source = await readProjectFile("app/api/guest/request-create/route.ts");
+
+  assertContains(source, 'code: "HOTEL_CONFIG_UNAVAILABLE"');
+  assertContains(source, 'code: "ROOM_CONFIG_UNAVAILABLE"');
+  assertContains(source, "if (!hotelConfig) {");
+  assertContains(source, "if (validRoomNumbers.length === 0) {");
+  assertContains(source, "if (!validRoomNumbers.includes(room)) {");
+
+  assertBefore(
+    source,
+    "if (!hotelConfig) {",
+    'const testRoomPolicy = await getTestRoomPolicy',
+    "Hotel config must be validated before any request processing continues.",
+  );
+
+  assertBefore(
+    source,
+    "if (validRoomNumbers.length === 0) {",
+    'const testRoomPolicy = await getTestRoomPolicy',
+    "Room configuration must fail closed before stay validation or request insertion.",
+  );
+
+  assertBefore(
+    source,
+    'code: "ROOM_CONFIG_UNAVAILABLE"',
+    '.from("guest_requests")',
+    "An unavailable room configuration must block the request before Supabase insert.",
+  );
+});
+
 test("guest request operational authority is derived server-side", async () => {
   const source = await readProjectFile("app/api/guest/request-create/route.ts");
 

@@ -5,5 +5,4 @@ import test from "node:test";
 // passing enforcement test in the isolated patch that fixes the corresponding risk.
 
 test.todo("guest request status GET requires validated stay/device identity");
-test.todo("guest request room validation fails closed when the room configuration cannot be loaded");
 test.todo("staff login has persistent throttling and temporary lockout protection");

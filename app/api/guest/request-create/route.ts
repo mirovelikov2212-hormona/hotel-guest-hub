@@ -86,11 +86,43 @@ export async function POST(req: NextRequest) {
       return null;
     });
 
-    const validRoomNumbers = Array.isArray(hotelConfig?.validRoomNumbers)
+    if (!hotelConfig) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Hotel configuration is temporarily unavailable",
+          code: "HOTEL_CONFIG_UNAVAILABLE",
+        },
+        { status: 503 },
+      );
+    }
+
+    const validRoomNumbers = Array.isArray(hotelConfig.validRoomNumbers)
       ? hotelConfig.validRoomNumbers.map((item) => normalizeRoomNumber(item)).filter(Boolean)
       : [];
 
-    if (validRoomNumbers.length > 0 && !validRoomNumbers.includes(room)) {
+    if (validRoomNumbers.length === 0) {
+      await logSystemError({
+        hotelId: hotel.id,
+        source: "guest_hub",
+        eventType: "guest_request_room_validation_config_empty",
+        message: "Guest request room validation was blocked because the hotel room configuration is empty.",
+        roomNumber: room,
+        error: new Error("Hotel validRoomNumbers configuration is empty."),
+        metadata: { hotelSlug, rawType },
+      });
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Hotel room configuration is temporarily unavailable",
+          code: "ROOM_CONFIG_UNAVAILABLE",
+        },
+        { status: 503 },
+      );
+    }
+
+    if (!validRoomNumbers.includes(room)) {
       await logSystemEvent({
         hotelId: hotel.id,
         severity: "warning",
