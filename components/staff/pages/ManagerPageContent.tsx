@@ -318,7 +318,7 @@ function buildUpsellServiceStats(requests: StaffRequest[], lang: "bg" | "en" | "
     const serviceKey = getUpsellServiceKey(request);
     const amount = getRequestAmount(request);
     const currency = getRequestCurrency(request);
-    const existing = map.get(serviceKey) ?? {
+    const existing: UpsellServiceStat = map.get(serviceKey) ?? {
       serviceKey,
       label: getUpsellServiceLabel(request, lang),
       details: [],

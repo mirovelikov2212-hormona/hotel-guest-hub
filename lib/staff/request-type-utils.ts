@@ -1,57 +1,9 @@
+import { resolveCanonicalStaffRequestType } from "@/lib/staff/request-contract.mjs";
 import type { StaffDepartment, StaffRequest, StaffRequestType } from "@/lib/staff/types";
 
-const aliases: Record<string, StaffRequestType> = {
-  minibar_refill: "minibar",
-  minibar_notice: "minibar",
-  light_issue: "light_not_working",
-  cleaning: "other_housekeeping",
-  room_cleaning_request: "other_housekeeping",
-  extra_cleaning: "other_housekeeping",
-  late_checkout_policy: "late_checkout",
-  coffee_machine: "other_technical_issue",
-};
-
-const known = new Set<StaffRequestType>([
-  "towels",
-  "toilet_paper",
-  "extra_pillow",
-  "extra_blanket",
-  "bathrobe",
-  "slippers",
-  "baby_cot",
-  "iron",
-  "minibar",
-  "laundry",
-  "other_housekeeping",
-  "air_conditioning",
-  "light_not_working",
-  "no_hot_water",
-  "tv_issue",
-  "bathroom_issue",
-  "door_lock_issue",
-  "wifi_issue",
-  "power_outlet_issue",
-  "safe_issue",
-  "balcony_door_issue",
-  "minibar_not_cooling",
-  "other_technical_issue",
-  "taxi",
-  "late_checkout",
-  "wake_up_call",
-  "information",
-  "information_request",
-  "reservation_help",
-  "other_reception",
-  "restaurant_reservation",
-  "luggage_help",
-  "massage_booking",
-]);
-
 export function normalizeStaffRequestType(rawType: string, department?: StaffDepartment): StaffRequestType {
-  const normalized = String(rawType || "").trim().toLowerCase();
-  const alias = aliases[normalized];
-  if (alias) return alias;
-  if (known.has(normalized as StaffRequestType)) return normalized as StaffRequestType;
+  const canonicalType = resolveCanonicalStaffRequestType(rawType);
+  if (canonicalType) return canonicalType;
 
   switch (department) {
     case "housekeeping":

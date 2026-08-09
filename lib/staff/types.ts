@@ -1,3 +1,5 @@
+import type { CanonicalStaffRequestType } from "@/lib/staff/request-contract.mjs";
+
 export type StaffDepartment =
   | "housekeeping"
   | "maintenance"
@@ -12,40 +14,7 @@ export type StaffRequestStatus =
 
 export type StaffServiceTime = "now" | "today" | "tomorrow";
 
-export type StaffRequestType =
-  | "towels"
-  | "toilet_paper"
-  | "extra_pillow"
-  | "extra_blanket"
-  | "bathrobe"
-  | "slippers"
-  | "baby_cot"
-  | "iron"
-  | "minibar"
-  | "laundry"
-  | "other_housekeeping"
-  | "air_conditioning"
-  | "light_not_working"
-  | "no_hot_water"
-  | "tv_issue"
-  | "bathroom_issue"
-  | "door_lock_issue"
-  | "wifi_issue"
-  | "power_outlet_issue"
-  | "safe_issue"
-  | "balcony_door_issue"
-  | "minibar_not_cooling"
-  | "other_technical_issue"
-  | "taxi"
-  | "late_checkout"
-  | "wake_up_call"
-  | "information"
-  | "information_request"
-  | "reservation_help"
-  | "other_reception"
-  | "restaurant_reservation"
-  | "luggage_help"
-  | "massage_booking";
+export type StaffRequestType = CanonicalStaffRequestType;
 
 export type StaffBillingStatus = "pending" | "charged" | "waived" | "cancelled";
 
