@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { verifyPin } from "@/lib/staff-auth/pin";
+import {
+  checkStaffLoginThrottle,
+  clearStaffLoginThrottle,
+  getStaffLoginSourceKey,
+  recordStaffLoginFailure,
+} from "@/lib/staff-auth/login-throttle";
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
+import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import {
   createRawSessionToken,
   getSessionExpiryDate,
@@ -43,6 +50,52 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const sourceKey = getStaffLoginSourceKey(req);
+    let throttleState;
+
+    try {
+      throttleState = await checkStaffLoginThrottle({
+        hotelId: hotel.id,
+        role,
+        sourceKey,
+      });
+    } catch (throttleError) {
+      console.error("staff login throttle check failed", throttleError);
+      await logSystemError({
+        hotelId: hotel.id,
+        source: "staff_hub",
+        eventType: "staff_login_throttle_check_failed",
+        message: "Staff login was blocked because persistent throttle state could not be checked.",
+        error: throttleError,
+        metadata: { hotelSlug, role },
+      });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Staff login is temporarily unavailable",
+          code: "STAFF_LOGIN_THROTTLE_UNAVAILABLE",
+        },
+        { status: 503 },
+      );
+    }
+
+    if (throttleState.locked) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Too many failed login attempts. Try again later.",
+          code: "STAFF_LOGIN_LOCKED",
+          retryAfterSeconds: throttleState.retryAfterSeconds,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.max(1, throttleState.retryAfterSeconds)),
+          },
+        },
+      );
+    }
+
     const { data: pinRow, error: pinError } = await supabaseAdmin
       .from("staff_access_pins")
       .select("id, pin_hash, active")
@@ -60,11 +113,85 @@ export async function POST(req: NextRequest) {
 
     const valid = verifyPin(pin, pinRow.pin_hash);
     if (!valid) {
+      let failureState;
+
+      try {
+        failureState = await recordStaffLoginFailure({
+          hotelId: hotel.id,
+          role,
+          sourceKey,
+        });
+      } catch (throttleError) {
+        console.error("staff login throttle failure record failed", throttleError);
+        await logSystemError({
+          hotelId: hotel.id,
+          source: "staff_hub",
+          eventType: "staff_login_throttle_record_failed",
+          message: "A failed staff login could not be recorded in persistent throttle state.",
+          error: throttleError,
+          metadata: { hotelSlug, role },
+        });
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Staff login is temporarily unavailable",
+            code: "STAFF_LOGIN_THROTTLE_UNAVAILABLE",
+          },
+          { status: 503 },
+        );
+      }
+
+      if (failureState.locked) {
+        await logSystemEvent({
+          hotelId: hotel.id,
+          severity: "warning",
+          source: "staff_hub",
+          eventType: "staff_login_temporarily_locked",
+          message: "Staff login was temporarily locked after repeated invalid PIN attempts.",
+          departmentId: role,
+          metadata: {
+            hotelSlug,
+            role,
+            failedAttempts: failureState.failedAttempts,
+            retryAfterSeconds: failureState.retryAfterSeconds,
+          },
+        });
+
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Too many failed login attempts. Try again later.",
+            code: "STAFF_LOGIN_LOCKED",
+            retryAfterSeconds: failureState.retryAfterSeconds,
+          },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": String(Math.max(1, failureState.retryAfterSeconds)),
+            },
+          },
+        );
+      }
+
       return NextResponse.json(
-        { ok: false, error: "Invalid PIN" },
+        { ok: false, error: "Invalid PIN", code: "INVALID_PIN" },
         { status: 401 }
       );
     }
+
+    await clearStaffLoginThrottle({ hotelId: hotel.id, role, sourceKey }).catch(
+      async (throttleError) => {
+        console.error("staff login throttle reset failed", throttleError);
+        await logSystemError({
+          hotelId: hotel.id,
+          source: "staff_hub",
+          eventType: "staff_login_throttle_reset_failed",
+          message: "A successful staff login could not reset its persistent throttle state.",
+          error: throttleError,
+          metadata: { hotelSlug, role },
+        });
+      },
+    );
 
     const rawToken = createRawSessionToken();
     const tokenHash = hashSessionToken(rawToken);
