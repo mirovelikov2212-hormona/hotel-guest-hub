@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { validateGuestRequestCreatePayload } from "@/lib/server/guest-request-input-validation.mjs";
 import { resolveGuestRequestAuthority } from "@/lib/server/guest-request-authority.mjs";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
-import type { StaffDepartment, StaffRequestStatus, StaffServiceTime } from "@/lib/staff/types";
+import type { StaffDepartment, StaffRequestStatus } from "@/lib/staff/types";
 import { getHotelConfig } from "@/lib/config";
 import { sendManagerPushNotification, sendStaffPushNotification } from "@/lib/staff-push/web-push";
 import type { PushStaffRole } from "@/lib/staff-push/manager-auth";
@@ -52,24 +53,48 @@ function getStaffPushRolesForRequest(input: {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => null);
-    const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();
-    const room = normalizeRoomNumber(body?.room);
-    const rawType = String(body?.type || "").trim();
-    const typeLabel = String(body?.typeLabel || rawType || "Request").trim();
-    const note = body?.note ? String(body.note).trim() : null;
-    const serviceTime = String(body?.serviceTime || "now").trim().toLowerCase() as StaffServiceTime;
-    const requestedSourceRequestDef = body?.sourceRequestDef ? String(body.sourceRequestDef).trim() : null;
-    const guestLanguage = body?.guestLanguage ? String(body.guestLanguage).trim().toLowerCase() : "en";
-    const stayId = body?.stayId ? String(body.stayId).trim() : "";
-    const stayDeviceId = body?.stayDeviceId ? String(body.stayDeviceId).trim() : "";
-    const lateCheckoutRequestedTime = body?.lateCheckoutRequestedTime
-      ? String(body.lateCheckoutRequestedTime).trim()
-      : null;
+    const contentLengthHeader = req.headers.get("content-length");
+    const contentLength = contentLengthHeader ? Number(contentLengthHeader) : 0;
 
-    if (!hotelSlug || !room || !rawType) {
-      return NextResponse.json({ ok: false, error: "Missing required fields" }, { status: 400 });
+    if (Number.isFinite(contentLength) && contentLength > 16_384) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Request body is too large.",
+          code: "REQUEST_BODY_TOO_LARGE",
+        },
+        { status: 413 },
+      );
     }
+
+    const body = await req.json().catch(() => null);
+    const payloadValidation = validateGuestRequestCreatePayload(body);
+
+    if (!payloadValidation.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: payloadValidation.message,
+          code: payloadValidation.code,
+          field: payloadValidation.field,
+        },
+        { status: payloadValidation.status },
+      );
+    }
+
+    const {
+      hotelSlug,
+      room,
+      rawType,
+      typeLabel,
+      note,
+      serviceTime,
+      requestedSourceRequestDef,
+      guestLanguage,
+      stayId,
+      stayDeviceId,
+      lateCheckoutRequestedTime,
+    } = payloadValidation.value;
 
     const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
 

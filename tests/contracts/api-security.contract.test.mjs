@@ -9,6 +9,10 @@ import {
   readProjectFile,
 } from "../helpers/source-contract.mjs";
 import { resolveGuestRequestAuthority } from "../../lib/server/guest-request-authority.mjs";
+import {
+  getGuestRequestCreateMaxBodyChars,
+  validateGuestRequestCreatePayload,
+} from "../../lib/server/guest-request-input-validation.mjs";
 
 test("guest request creation validates the confirmed stay before inserting", async () => {
   const source = await readProjectFile("app/api/guest/request-create/route.ts");
@@ -20,6 +24,108 @@ test("guest request creation validates the confirmed stay before inserting", asy
     "validateGuestStayIdentity({",
     '.from("guest_requests")',
     "Stay/device validation must happen before the guest request insert.",
+  );
+});
+
+test("guest request input validation rejects malformed, oversized and overlong public payloads", async () => {
+  const source = await readProjectFile("app/api/guest/request-create/route.ts");
+
+  assertContains(source, "validateGuestRequestCreatePayload(body)");
+  assertContains(source, 'code: "REQUEST_BODY_TOO_LARGE"');
+  assertBefore(
+    source,
+    "validateGuestRequestCreatePayload(body)",
+    "resolveHotelByAnySlugAdmin(hotelSlug)",
+    "Public payload validation must complete before hotel resolution or any downstream work.",
+  );
+
+  assert.equal(getGuestRequestCreateMaxBodyChars(), 16_384);
+
+  const nonObject = validateGuestRequestCreatePayload([]);
+  assert.deepEqual(
+    { ok: nonObject.ok, code: nonObject.code },
+    { ok: false, code: "INVALID_REQUEST_BODY" },
+  );
+
+  const longNote = validateGuestRequestCreatePayload({
+    hotelSlug: "aquamarine-test",
+    room: "103",
+    type: "extra_pillow",
+    note: "x".repeat(1001),
+  });
+  assert.deepEqual(
+    { ok: longNote.ok, code: longNote.code, field: longNote.field },
+    { ok: false, code: "REQUEST_FIELD_TOO_LONG", field: "note" },
+  );
+
+  const badServiceTime = validateGuestRequestCreatePayload({
+    hotelSlug: "aquamarine-test",
+    room: "103",
+    type: "extra_pillow",
+    serviceTime: "sometime",
+  });
+  assert.deepEqual(
+    { ok: badServiceTime.ok, code: badServiceTime.code, field: badServiceTime.field },
+    { ok: false, code: "INVALID_REQUEST_FIELD", field: "serviceTime" },
+  );
+
+  const badLateCheckoutTime = validateGuestRequestCreatePayload({
+    hotelSlug: "aquamarine-test",
+    room: "103",
+    type: "late_checkout",
+    lateCheckoutRequestedTime: "25:99",
+  });
+  assert.deepEqual(
+    {
+      ok: badLateCheckoutTime.ok,
+      code: badLateCheckoutTime.code,
+      field: badLateCheckoutTime.field,
+    },
+    {
+      ok: false,
+      code: "INVALID_REQUEST_FIELD",
+      field: "lateCheckoutRequestedTime",
+    },
+  );
+});
+
+test("guest request input validation preserves current payloads and ignores deprecated client authority fields", () => {
+  const result = validateGuestRequestCreatePayload({
+    hotelSlug: "AQUAMARINE-TEST",
+    room: 103,
+    type: "coffee_capsules",
+    typeLabel: "Кафе капсули",
+    note: "Количество: 3\nОбща цена: 6,15 €",
+    serviceTime: "now",
+    sourceRequestDef: "coffee_capsules",
+    guestLanguage: "bg",
+    stayId: "stay-123",
+    stayDeviceId: "device-456",
+    departmentOverride: "reception",
+    requiresBilling: false,
+    price: "0,01",
+    currency: "USD",
+    notifyDepartments: ["maintenance"],
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value.hotelSlug, "aquamarine-test");
+  assert.equal(result.value.room, "103");
+  assert.equal(result.value.rawType, "coffee_capsules");
+  assert.equal(result.value.serviceTime, "now");
+  assert.equal(result.value.note, "Количество: 3\nОбща цена: 6,15 €");
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(result.value, "departmentOverride"),
+    false,
+  );
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(result.value, "requiresBilling"),
+    false,
+  );
+  assert.equal(Object.prototype.hasOwnProperty.call(result.value, "price"), false);
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(result.value, "notifyDepartments"),
+    false,
   );
 });
 
