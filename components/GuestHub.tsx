@@ -1937,6 +1937,8 @@ function getGuestRequestLabelKey(type: StaffRequestType | string, storedTitle?: 
     toilet_paper: "toilet_paper",
     extra_pillow: "extra_pillows",
     extra_pillows: "extra_pillows",
+    pillow_menu: "pillow_menu",
+    "pillow-menu": "pillow_menu",
     extra_blanket: "blanket",
     bathrobe: "bathrobe",
     slippers: "slippers",

@@ -62,6 +62,14 @@ test("unknown request IDs do not silently become canonical", () => {
   assert.equal(getCanonicalStaffRequestDepartment("unknown_new_hotel_service"), null);
 });
 
+test("guest request status keeps pillow_menu distinct from extra_pillow", async () => {
+  const guestHubSource = await readProjectFile("components/GuestHub.tsx");
+
+  assertContains(guestHubSource, 'pillow_menu: "pillow_menu"');
+  assertContains(guestHubSource, '"pillow-menu": "pillow_menu"');
+  assertContains(guestHubSource, 'if (directTypeKeys[rawType]) return directTypeKeys[rawType];');
+});
+
 test("runtime normalization and routing consume the shared request contract", async () => {
   const typeSource = await readProjectFile("lib/staff/types.ts");
   const normalizerSource = await readProjectFile(
