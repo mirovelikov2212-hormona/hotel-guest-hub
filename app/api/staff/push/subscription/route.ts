@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedStaffHotel } from "@/lib/staff-push/manager-auth";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";
 import { logSystemError } from "@/lib/server/system-events";
 
 export const runtime = "nodejs";
@@ -21,6 +22,9 @@ type SubscriptionBody = {
 };
 
 export async function POST(req: NextRequest) {
+  const originError = enforceStaffSameOrigin(req);
+  if (originError) return originError;
+
   const body = (await req.json().catch(() => null)) as SubscriptionBody | null;
   const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();
   const role = String(body?.role || "manager").trim().toLowerCase();
@@ -90,6 +94,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const originError = enforceStaffSameOrigin(req);
+  if (originError) return originError;
+
   const body = (await req.json().catch(() => null)) as SubscriptionBody | null;
   const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();
   const role = String(body?.role || "manager").trim().toLowerCase();

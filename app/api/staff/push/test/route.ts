@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedStaffHotel } from "@/lib/staff-push/manager-auth";
 import { sendStaffTestPush } from "@/lib/staff-push/web-push";
+import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";
 import { logSystemError } from "@/lib/server/system-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const originError = enforceStaffSameOrigin(req);
+  if (originError) return originError;
+
   const body = await req.json().catch(() => null);
   const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();
   const role = String(body?.role || "manager").trim().toLowerCase();

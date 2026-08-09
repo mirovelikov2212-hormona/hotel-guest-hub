@@ -4,6 +4,7 @@ import {
   revokeCurrentStaffSession,
 } from "@/lib/staff-auth/session";
 import type { StaffRole } from "@/lib/staff-auth/cookie-name";
+import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";
 
 function isValidRole(value: string): value is StaffRole {
   return (
@@ -16,6 +17,9 @@ function isValidRole(value: string): value is StaffRole {
 
 export async function POST(req: NextRequest) {
   try {
+    const originError = enforceStaffSameOrigin(req);
+    if (originError) return originError;
+
     const body = await req.json().catch(() => null);
     const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();
     const role = String(body?.role || "").trim().toLowerCase();

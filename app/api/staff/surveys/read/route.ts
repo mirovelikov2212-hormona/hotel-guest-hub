@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";
 import {
   mapSurveyRow,
   resolveAuthorizedSurveyScope,
@@ -21,6 +22,9 @@ function isSurveyReadRole(value: string): value is "manager" | "reception" {
 
 export async function POST(req: NextRequest) {
   try {
+    const originError = enforceStaffSameOrigin(req);
+    if (originError) return originError;
+
     const body = await req.json().catch(() => null);
     const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();
     const role = String(body?.role || "").trim().toLowerCase();

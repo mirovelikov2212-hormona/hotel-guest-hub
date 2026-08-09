@@ -66,3 +66,49 @@ test("expired staff sessions re-authenticate inside the same hotel and role", as
   assert.equal(guardSource.includes("/staff/demo"), false);
   assert.equal(pinPageSource.includes("/staff/demo"), false);
 });
+
+test("staff mutation routes enforce same-origin browser provenance", async () => {
+  const helperSource = await readProjectFile(
+    "lib/staff-auth/request-origin.ts",
+  );
+  const protectedRoutes = [
+    "app/api/staff/auth/login/route.ts",
+    "app/api/staff/auth/logout/route.ts",
+    "app/api/staff/request-status/route.ts",
+    "app/api/staff/request-billing/route.ts",
+    "app/api/staff/surveys/read/route.ts",
+    "app/api/staff/push/subscription/route.ts",
+    "app/api/staff/push/test/route.ts",
+  ];
+
+  assertContains(helperSource, 'req.headers.get("sec-fetch-site")');
+  assertContains(helperSource, 'secFetchSite === "cross-site"');
+  assertContains(helperSource, 'req.headers.get("origin")');
+  assertContains(helperSource, "suppliedOrigin !== requestOrigin");
+  assertContains(helperSource, 'code: "STAFF_ORIGIN_FORBIDDEN"');
+  assertContains(
+    helperSource,
+    "if (!originHeader)",
+  );
+  assert.equal(
+    helperSource.includes("stayhub.app"),
+    false,
+    "Same-origin enforcement must remain host-agnostic for previews and future hotel domains.",
+  );
+
+  for (const routePath of protectedRoutes) {
+    const routeSource = await readProjectFile(routePath);
+    assertContains(
+      routeSource,
+      'import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";',
+    );
+    assertContains(
+      routeSource,
+      "const originError = enforceStaffSameOrigin(req);",
+    );
+    assertContains(
+      routeSource,
+      "if (originError) return originError;",
+    );
+  }
+});

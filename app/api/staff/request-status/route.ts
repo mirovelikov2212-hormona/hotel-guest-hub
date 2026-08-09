@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
+import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";
 import type { StaffRole } from "@/lib/staff-auth/cookie-name";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
@@ -148,6 +149,9 @@ function canRoleUpdateDepartment(
 
 export async function POST(req: NextRequest) {
   try {
+    const originError = enforceStaffSameOrigin(req);
+    if (originError) return originError;
+
     const body = await req.json().catch(() => null);
 
     const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();

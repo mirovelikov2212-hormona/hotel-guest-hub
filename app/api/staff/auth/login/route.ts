@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { verifyPin } from "@/lib/staff-auth/pin";
+import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";
 import {
   checkStaffLoginThrottle,
   clearStaffLoginThrottle,
@@ -28,6 +29,9 @@ function isValidRole(value: string): value is StaffRole {
 
 export async function POST(req: NextRequest) {
   try {
+    const originError = enforceStaffSameOrigin(req);
+    if (originError) return originError;
+
     const body = await req.json().catch(() => null);
 
     const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();
