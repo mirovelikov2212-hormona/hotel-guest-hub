@@ -4,5 +4,4 @@ import test from "node:test";
 // changing production behavior in Patch 1. Each TODO must be converted into a
 // passing enforcement test in the isolated patch that fixes the corresponding risk.
 
-test.todo("guest request status GET requires validated stay/device identity");
 test.todo("staff login has persistent throttling and temporary lockout protection");

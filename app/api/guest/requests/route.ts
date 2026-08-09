@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { validateGuestStayIdentity } from "@/lib/server/guest-stays";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import type { StaffRequestStatus } from "@/lib/staff/types";
 
@@ -25,6 +26,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const hotelSlug = String(searchParams.get("hotelSlug") || "").trim().toLowerCase();
     const room = String(searchParams.get("room") || "").trim();
+    const stayId = String(searchParams.get("stayId") || "").trim();
+    const stayDeviceId = String(searchParams.get("stayDeviceId") || "").trim();
     const ids = (searchParams.get("ids") || "")
       .split(",")
       .map((value) => value.trim())
@@ -35,12 +38,35 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: true, requests: [] });
     }
 
+    if (!stayId || !stayDeviceId) {
+      return NextResponse.json(
+        { ok: false, error: "A confirmed stay is required", code: "STAY_REQUIRED" },
+        { status: 401 },
+      );
+    }
+
     const hotel = await getHotelByAnySlugAdmin(hotelSlug);
+    const stayIdentity = await validateGuestStayIdentity({
+      hotelId: hotel.id,
+      room,
+      stayId,
+      stayDeviceId,
+    }).catch(() => null);
+
+    if (!stayIdentity) {
+      return NextResponse.json(
+        { ok: false, error: "A confirmed stay is required", code: "STAY_REQUIRED" },
+        { status: 401 },
+      );
+    }
+
     const { data, error } = await supabaseAdmin
       .from("guest_requests")
       .select("id, room_number_snapshot, request_type, title, status, created_at")
       .eq("hotel_id", hotel.id)
       .eq("room_number_snapshot", room)
+      .eq("stay_id", stayIdentity.stay.id)
+      .eq("stay_device_id", stayIdentity.device.id)
       .in("id", ids)
       .order("created_at", { ascending: false });
 

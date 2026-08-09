@@ -3659,7 +3659,14 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       const refs = refsOverride ?? guestRequestRefs;
       const ids = [...new Set(refs.map((item) => item.id).filter(Boolean))];
 
-      if (!ids.length || !roomConfirmed || !room.trim() || !hotelScopeReady) {
+      if (
+        !ids.length ||
+        !roomConfirmed ||
+        !room.trim() ||
+        !hotelScopeReady ||
+        !activeStayId ||
+        !stayDeviceId
+      ) {
         setGuestRequests([]);
         return;
       }
@@ -3672,6 +3679,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         const query = new URLSearchParams({
           hotelSlug: String(config.hotelSlug ?? ""),
           room: String(room ?? ""),
+          stayId: activeStayId,
+          stayDeviceId,
           ids: ids.join(","),
         });
 
@@ -3727,13 +3736,13 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         if (!silent) setGuestRequestsLoading(false);
       }
     },
-    [config.hotelSlug, guestRequestRefs, hotelScopeReady, room, roomConfirmed]
+    [activeStayId, config.hotelSlug, guestRequestRefs, hotelScopeReady, room, roomConfirmed, stayDeviceId]
   );
 
   useEffect(() => {
     const roomRefs = guestRequestRefs.filter((item) => item.room === room);
 
-    if (!roomConfirmed || !room.trim() || !roomRefs.length || !hotelScopeReady) {
+    if (!roomConfirmed || !room.trim() || !roomRefs.length || !hotelScopeReady || !activeStayId || !stayDeviceId) {
       setGuestRequests([]);
       return;
     }
@@ -3778,7 +3787,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [guestRequestRefs, hotelScopeReady, loadGuestRequests, room, roomConfirmed]);
+  }, [activeStayId, guestRequestRefs, hotelScopeReady, loadGuestRequests, room, roomConfirmed, stayDeviceId]);
 
   const ensureConfirmedRoom = () => {
     if (roomConfirmed && room.trim()) return true;
