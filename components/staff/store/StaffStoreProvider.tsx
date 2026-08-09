@@ -91,6 +91,34 @@ function getRoleFromPath(pathname: string | null): StaffRole | undefined {
   return undefined;
 }
 
+let staffReauthRedirectStarted = false;
+
+function redirectToStaffReauth(hotelSlug: string, role: StaffRole) {
+  if (typeof window === "undefined" || staffReauthRedirectStarted) return;
+
+  const normalizedHotelSlug = String(hotelSlug || "").trim().toLowerCase();
+  if (!normalizedHotelSlug) return;
+
+  const nextPath = `/staff/${normalizedHotelSlug}/${role}`;
+  const pinPath =
+    `/staff/${normalizedHotelSlug}/pin?role=${role}` +
+    `&next=${encodeURIComponent(nextPath)}`;
+
+  staffReauthRedirectStarted = true;
+  window.location.replace(pinPath);
+}
+
+function enforceStaffResponseAuth(
+  response: Response,
+  hotelSlug: string,
+  role: StaffRole,
+) {
+  if (response.status !== 401 && response.status !== 403) return;
+
+  redirectToStaffReauth(hotelSlug, role);
+  throw new Error(`STAFF_REAUTH_REQUIRED:${response.status}`);
+}
+
 function extractRequests(payload: unknown): StaffRequest[] {
   if (Array.isArray(payload)) {
     return payload as StaffRequest[];
@@ -131,6 +159,8 @@ async function fetchStaffRequests(input: {
     },
   });
 
+  enforceStaffResponseAuth(response, input.hotelSlug, input.role);
+
   if (!response.ok) {
     throw new Error(`Failed to fetch staff requests: ${response.status}`);
   }
@@ -160,6 +190,8 @@ async function updateStaffRequestStatus(input: {
     }),
   });
 
+  enforceStaffResponseAuth(response, input.hotelSlug, input.role);
+
   if (!response.ok) {
     throw new Error(`Failed to update request status: ${response.status}`);
   }
@@ -185,6 +217,8 @@ async function setStaffRequestBillingStatus(input: {
       billingStatus: input.billingStatus,
     }),
   });
+
+  enforceStaffResponseAuth(response, input.hotelSlug, input.role);
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);

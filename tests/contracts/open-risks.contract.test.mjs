@@ -31,3 +31,38 @@ test("staff login has persistent throttling and temporary lockout protection", a
     "Application code must use the reviewed atomic throttle RPC instead of read-modify-write table updates.",
   );
 });
+
+test("expired staff sessions re-authenticate inside the same hotel and role", async () => {
+  const storeSource = await readProjectFile(
+    "components/staff/store/StaffStoreProvider.tsx",
+  );
+  const guardSource = await readProjectFile("lib/staff-auth/guards.ts");
+  const pinPageSource = await readProjectFile(
+    "app/staff/[hotelSlug]/pin/page.tsx",
+  );
+
+  assertContains(storeSource, "function redirectToStaffReauth(");
+  assertContains(
+    storeSource,
+    'response.status !== 401 && response.status !== 403',
+  );
+  assertContains(
+    storeSource,
+    "window.location.replace(pinPath)",
+  );
+  assertContains(
+    storeSource,
+    "`/staff/${normalizedHotelSlug}/pin?role=${role}`",
+  );
+  assertContains(
+    storeSource,
+    "`&next=${encodeURIComponent(nextPath)}`",
+  );
+
+  assertContains(guardSource, "const redirectPath = `/staff/${hotelSlug}/pin?role=${role}");
+  assertContains(pinPageSource, 'sp.next.startsWith(`/staff/${hotelSlug}/`)');
+
+  assert.equal(storeSource.includes("/staff/demo"), false);
+  assert.equal(guardSource.includes("/staff/demo"), false);
+  assert.equal(pinPageSource.includes("/staff/demo"), false);
+});
