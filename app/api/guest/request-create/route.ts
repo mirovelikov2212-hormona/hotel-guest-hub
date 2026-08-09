@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { resolveGuestRequestAuthority } from "@/lib/server/guest-request-authority.mjs";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
@@ -21,41 +22,6 @@ import {
 
 function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
-}
-
-
-const BILLABLE_REQUEST_KEYS = new Set([
-  "coffee_capsules",
-  "pillow_menu",
-  "minibar",
-  "minibar_refill",
-  "laundry",
-  "late_checkout",
-]);
-
-function uniqueLowercaseList(items: unknown[]) {
-  return Array.from(
-    new Set(
-      items
-        .map((item) => String(item || "").trim().toLowerCase())
-        .filter(Boolean)
-    )
-  );
-}
-
-function isBillableRequest(input: {
-  rawType: string;
-  sourceRequestDef: string | null;
-  requiresBilling: boolean;
-  price: string | null;
-}) {
-  if (input.requiresBilling) return true;
-  if (String(input.price || "").trim()) return true;
-
-  const rawType = String(input.rawType || "").trim().toLowerCase();
-  const sourceRequestDef = String(input.sourceRequestDef || "").trim().toLowerCase();
-
-  return BILLABLE_REQUEST_KEYS.has(rawType) || BILLABLE_REQUEST_KEYS.has(sourceRequestDef);
 }
 
 
@@ -93,23 +59,7 @@ export async function POST(req: NextRequest) {
     const typeLabel = String(body?.typeLabel || rawType || "Request").trim();
     const note = body?.note ? String(body.note).trim() : null;
     const serviceTime = String(body?.serviceTime || "now").trim().toLowerCase() as StaffServiceTime;
-    const departmentOverride = body?.departmentOverride ? String(body.departmentOverride).trim().toLowerCase() as StaffDepartment : undefined;
-    const rawNotifyDepartments = Array.isArray(body?.notifyDepartments)
-      ? uniqueLowercaseList(body.notifyDepartments)
-      : uniqueLowercaseList(String(body?.notifyDepartments || "").split(/[|,]/));
-    const requestedRequiresBilling = Boolean(body?.requiresBilling);
-    const price = body?.price ? String(body.price).trim() : null;
-    const currency = body?.currency ? String(body.currency).trim() : null;
-    const sourceRequestDef = body?.sourceRequestDef ? String(body.sourceRequestDef).trim() : null;
-    const requiresBilling = isBillableRequest({
-      rawType,
-      sourceRequestDef,
-      requiresBilling: requestedRequiresBilling,
-      price,
-    });
-    const notifyDepartments = requiresBilling
-      ? uniqueLowercaseList([...rawNotifyDepartments, "reception"])
-      : rawNotifyDepartments;
+    const requestedSourceRequestDef = body?.sourceRequestDef ? String(body.sourceRequestDef).trim() : null;
     const guestLanguage = body?.guestLanguage ? String(body.guestLanguage).trim().toLowerCase() : "en";
     const stayId = body?.stayId ? String(body.stayId).trim() : "";
     const stayDeviceId = body?.stayDeviceId ? String(body.stayDeviceId).trim() : "";
@@ -173,8 +123,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const normalizedType = normalizeStaffRequestType(rawType, departmentOverride);
-    const department = departmentOverride ?? getDepartmentForRequestType(normalizedType);
+    const requestAuthority = resolveGuestRequestAuthority({
+      requestDefs: hotelConfig?.requestDefs,
+      rawType,
+      sourceRequestDef: requestedSourceRequestDef,
+      note,
+    });
+
+    if (!requestAuthority.ok) {
+      await logSystemEvent({
+        hotelId: hotel.id,
+        severity: "warning",
+        source: "guest_hub",
+        eventType: "guest_request_authority_rejected",
+        message: requestAuthority.message,
+        roomNumber: room,
+        metadata: {
+          hotelSlug,
+          rawType,
+          requestedSourceRequestDef,
+          code: requestAuthority.code,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error: requestAuthority.message,
+          code: requestAuthority.code,
+        },
+        { status: 400 },
+      );
+    }
+
+    const normalizedType = normalizeStaffRequestType(
+      requestAuthority.requestType,
+      requestAuthority.department ?? undefined,
+    );
+    const department =
+      requestAuthority.department ?? getDepartmentForRequestType(normalizedType);
+    const notifyDepartments = requestAuthority.notifyDepartments;
+    const requiresBilling = requestAuthority.requiresBilling;
+    const price = requestAuthority.price;
+    const currency = requestAuthority.currency;
+    const sourceRequestDef = requestAuthority.sourceRequestDef;
     const translatedGuestNoteBg = note && !hasBulgarianLetters(note)
       ? await translateGuestTextToBulgarian(note, {
           sourceLanguage: guestLanguage,

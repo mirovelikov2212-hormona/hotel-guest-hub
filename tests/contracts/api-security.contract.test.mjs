@@ -8,6 +8,7 @@ import {
   countOccurrences,
   readProjectFile,
 } from "../helpers/source-contract.mjs";
+import { resolveGuestRequestAuthority } from "../../lib/server/guest-request-authority.mjs";
 
 test("guest request creation validates the confirmed stay before inserting", async () => {
   const source = await readProjectFile("app/api/guest/request-create/route.ts");
@@ -20,6 +21,198 @@ test("guest request creation validates the confirmed stay before inserting", asy
     '.from("guest_requests")',
     "Stay/device validation must happen before the guest request insert.",
   );
+});
+
+test("guest request operational authority is derived server-side", async () => {
+  const source = await readProjectFile("app/api/guest/request-create/route.ts");
+
+  assertContains(source, "resolveGuestRequestAuthority({");
+  assertContains(source, "requestDefs: hotelConfig?.requestDefs");
+  assertContains(source, "requestAuthority.department ?? getDepartmentForRequestType(normalizedType)");
+  assertContains(source, "const notifyDepartments = requestAuthority.notifyDepartments;");
+  assertContains(source, "const requiresBilling = requestAuthority.requiresBilling;");
+  assertContains(source, "const price = requestAuthority.price;");
+  assertContains(source, "const currency = requestAuthority.currency;");
+
+  for (const clientAuthorityFragment of [
+    "body?.departmentOverride",
+    "body.departmentOverride",
+    "body?.notifyDepartments",
+    "body.notifyDepartments",
+    "body?.requiresBilling",
+    "body?.price",
+    "body?.currency",
+  ]) {
+    assert.equal(
+      source.includes(clientAuthorityFragment),
+      false,
+      "Public guest request route must not trust " + clientAuthorityFragment,
+    );
+  }
+});
+
+test("server authority preserves free, paid, quantity and custom RequestDef behavior", () => {
+  const defs = [
+    {
+      id: "extra_pillow",
+      type: "request",
+      enabled: true,
+      guestVisible: true,
+      requestType: "extra_pillow",
+      targetDepartment: "housekeeping",
+      requiresBilling: false,
+    },
+    {
+      id: "pillow_menu",
+      type: "request",
+      enabled: true,
+      guestVisible: true,
+      requestType: "pillow_menu",
+      targetDepartment: "housekeeping",
+      notifyDepartments: ["reception"],
+      requiresBilling: true,
+      price: "11,00",
+      currency: "€",
+    },
+    {
+      id: "coffee_capsules",
+      type: "request",
+      enabled: true,
+      guestVisible: true,
+      requestType: "coffee_capsules",
+      requestKind: "quantity",
+      requiresQuantity: true,
+      minQty: 1,
+      maxQty: 20,
+      targetDepartment: "housekeeping",
+      notifyDepartments: ["reception"],
+      requiresBilling: true,
+      price: "2,05",
+      currency: "€",
+    },
+    {
+      id: "special_occasion",
+      type: "request",
+      enabled: true,
+      guestVisible: true,
+      requestType: "other_reception",
+      targetDepartment: "reception",
+      requiresBilling: false,
+    },
+  ];
+
+  assert.deepEqual(
+    resolveGuestRequestAuthority({
+      requestDefs: defs,
+      rawType: "extra_pillow",
+      sourceRequestDef: "extra_pillow",
+      note: "",
+    }),
+    {
+      ok: true,
+      requestType: "extra_pillow",
+      department: "housekeeping",
+      notifyDepartments: [],
+      requiresBilling: false,
+      price: null,
+      currency: null,
+      sourceRequestDef: "extra_pillow",
+      quantity: null,
+    },
+  );
+
+  const pillowMenu = resolveGuestRequestAuthority({
+    requestDefs: defs,
+    rawType: "pillow_menu",
+    sourceRequestDef: "pillow_menu",
+    note: "Избрана услуга: Magniflex VIRTUOSO — 11,00 €",
+  });
+  assert.equal(pillowMenu.ok, true);
+  assert.equal(pillowMenu.requiresBilling, true);
+  assert.equal(pillowMenu.price, "11,00");
+  assert.equal(pillowMenu.currency, "€");
+  assert.deepEqual(pillowMenu.notifyDepartments, ["reception"]);
+
+  const coffee = resolveGuestRequestAuthority({
+    requestDefs: defs,
+    rawType: "coffee_capsules",
+    sourceRequestDef: "coffee_capsules",
+    note: "Количество: 3\nОбща цена: 6,15 €",
+  });
+  assert.equal(coffee.ok, true);
+  assert.equal(coffee.price, "6,15");
+  assert.equal(coffee.quantity, 3);
+  assert.equal(coffee.requiresBilling, true);
+
+  const occasion = resolveGuestRequestAuthority({
+    requestDefs: defs,
+    rawType: "other_reception",
+    sourceRequestDef: "special_occasion",
+    note: "Рожден ден",
+  });
+  assert.equal(occasion.ok, true);
+  assert.equal(occasion.requestType, "other_reception");
+  assert.equal(occasion.department, "reception");
+  assert.equal(occasion.sourceRequestDef, "special_occasion");
+});
+
+test("server authority rejects unknown or mismatched configured service identities", () => {
+  const defs = [
+    {
+      id: "pillow_menu",
+      type: "request",
+      enabled: true,
+      guestVisible: true,
+      requestType: "pillow_menu",
+      targetDepartment: "housekeeping",
+      requiresBilling: true,
+      price: "11,00",
+      currency: "€",
+    },
+  ];
+
+  const missing = resolveGuestRequestAuthority({
+    requestDefs: defs,
+    rawType: "pillow_menu",
+    sourceRequestDef: "not_a_real_service",
+    note: "",
+  });
+  assert.deepEqual(
+    { ok: missing.ok, code: missing.code },
+    { ok: false, code: "REQUEST_DEF_NOT_FOUND" },
+  );
+
+  const mismatch = resolveGuestRequestAuthority({
+    requestDefs: defs,
+    rawType: "extra_pillow",
+    sourceRequestDef: "pillow_menu",
+    note: "",
+  });
+  assert.deepEqual(
+    { ok: mismatch.ok, code: mismatch.code },
+    { ok: false, code: "REQUEST_TYPE_MISMATCH" },
+  );
+});
+
+test("legacy billable request types stay billable without trusting client billing fields", () => {
+  const laundry = resolveGuestRequestAuthority({
+    requestDefs: [],
+    rawType: "laundry",
+    sourceRequestDef: null,
+    note: "Laundry request",
+  });
+
+  assert.deepEqual(laundry, {
+    ok: true,
+    requestType: "laundry",
+    department: null,
+    notifyDepartments: ["reception"],
+    requiresBilling: true,
+    price: null,
+    currency: null,
+    sourceRequestDef: null,
+    quantity: null,
+  });
 });
 
 test("staff request status reads and writes remain scoped to the session hotel", async () => {
