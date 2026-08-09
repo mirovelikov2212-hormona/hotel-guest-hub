@@ -4,6 +4,10 @@ import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { getTestDataFields, getTestDataMetadata, getTestRoomPolicy } from "@/lib/server/test-rooms";
 import { logSystemError } from "@/lib/server/system-events";
+import {
+  getTrackingMaxBodyChars,
+  validateTrackingPayload,
+} from "@/lib/server/tracking-input-validation.mjs";
 
 function normalizeText(value: unknown): string | null {
   const text = String(value ?? "").trim();
@@ -95,7 +99,39 @@ function isLikelyMissingColumnError(error: { message?: string; code?: string } |
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const contentLengthHeader = request.headers.get("content-length");
+    const contentLength = contentLengthHeader ? Number(contentLengthHeader) : 0;
+
+    if (
+      Number.isFinite(contentLength) &&
+      contentLength > getTrackingMaxBodyChars()
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Tracking body is too large.",
+          code: "TRACKING_BODY_TOO_LARGE",
+        },
+        { status: 413 },
+      );
+    }
+
+    const rawBody = await request.json().catch(() => null);
+    const payloadValidation = validateTrackingPayload(rawBody);
+
+    if (!payloadValidation.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: payloadValidation.message,
+          code: payloadValidation.code,
+          field: payloadValidation.field,
+        },
+        { status: payloadValidation.status },
+      );
+    }
+
+    const body = payloadValidation.value;
 
     const cookieScanSessionId = request.cookies.get("sh_qr_sid")?.value ?? null;
     const cookieSrc = request.cookies.get("sh_qr_src")?.value ?? null;
@@ -205,7 +241,6 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("hub_events insert error:", error);
-      console.error("hub_events payload:", enrichedPayload);
       await logSystemError({
         hotelId: resolvedHotelId,
         source: "api",
@@ -216,7 +251,11 @@ export async function POST(request: NextRequest) {
         metadata: { hotelSlug: resolvedHotelSlug, eventName: body.eventName },
       });
       return NextResponse.json(
-        { ok: false, error: error.message },
+        {
+          ok: false,
+          error: "Tracking event could not be stored.",
+          code: "TRACKING_INSERT_FAILED",
+        },
         { status: 500 },
       );
     }
@@ -232,6 +271,13 @@ export async function POST(request: NextRequest) {
       message: "Unexpected server error while tracking a hub event.",
       error,
     });
-    return NextResponse.json({ ok: false }, { status: 500 });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Unexpected tracking error.",
+        code: "TRACKING_UNEXPECTED_ERROR",
+      },
+      { status: 500 },
+    );
   }
 }

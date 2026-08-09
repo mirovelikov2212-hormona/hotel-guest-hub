@@ -13,6 +13,10 @@ import {
   getGuestRequestCreateMaxBodyChars,
   validateGuestRequestCreatePayload,
 } from "../../lib/server/guest-request-input-validation.mjs";
+import {
+  getTrackingMaxBodyChars,
+  validateTrackingPayload,
+} from "../../lib/server/tracking-input-validation.mjs";
 
 test("guest request creation validates the confirmed stay before inserting", async () => {
   const source = await readProjectFile("app/api/guest/request-create/route.ts");
@@ -420,6 +424,124 @@ test("massage active_bookings requires validated stay/device identity", async ()
   assertContains(guestHubSource, "stayDeviceId,");
 });
 
+
+test("public tracking validates and bounds client-controlled analytics payloads", async () => {
+  const source = await readProjectFile("app/api/track/route.ts");
+
+  assertContains(source, "validateTrackingPayload(rawBody)");
+  assertContains(source, "getTrackingMaxBodyChars()");
+  assertContains(source, 'code: "TRACKING_BODY_TOO_LARGE"');
+  assertContains(source, 'code: "TRACKING_INSERT_FAILED"');
+  assertContains(source, 'code: "TRACKING_UNEXPECTED_ERROR"');
+  assertBefore(
+    source,
+    "validateTrackingPayload(rawBody)",
+    "resolveTrackingHotelScope({",
+    "Tracking payload validation must complete before canonical hotel resolution and database writes.",
+  );
+
+  assert.equal(
+    source.includes('console.error("hub_events payload:", enrichedPayload)'),
+    false,
+    "Tracking failures must not dump the full client payload into server logs.",
+  );
+
+  assert.equal(getTrackingMaxBodyChars(), 32_768);
+
+  const malformed = validateTrackingPayload([]);
+  assert.deepEqual(
+    { ok: malformed.ok, code: malformed.code },
+    { ok: false, code: "INVALID_TRACKING_BODY" },
+  );
+
+  const missingEvent = validateTrackingPayload({
+    hotelSlug: "aquamarine-test",
+  });
+  assert.deepEqual(
+    { ok: missingEvent.ok, code: missingEvent.code, field: missingEvent.field },
+    { ok: false, code: "MISSING_TRACKING_EVENT", field: "eventName" },
+  );
+
+  const longEvent = validateTrackingPayload({
+    hotelSlug: "aquamarine-test",
+    eventName: "x".repeat(161),
+  });
+  assert.deepEqual(
+    { ok: longEvent.ok, code: longEvent.code, field: longEvent.field },
+    { ok: false, code: "TRACKING_FIELD_TOO_LONG", field: "eventName" },
+  );
+
+  const badBoolean = validateTrackingPayload({
+    hotelSlug: "aquamarine-test",
+    eventName: "section_open",
+    roomConfirmed: "false",
+  });
+  assert.deepEqual(
+    { ok: badBoolean.ok, code: badBoolean.code, field: badBoolean.field },
+    { ok: false, code: "INVALID_TRACKING_FIELD", field: "roomConfirmed" },
+  );
+
+  const hugeMetadata = validateTrackingPayload({
+    hotelSlug: "aquamarine-test",
+    eventName: "section_open",
+    metadata: { payload: "x".repeat(8_300) },
+  });
+  assert.deepEqual(
+    {
+      ok: hugeMetadata.ok,
+      code: hugeMetadata.code,
+      field: hugeMetadata.field,
+    },
+    {
+      ok: false,
+      code: "TRACKING_NESTED_OBJECT_TOO_LARGE",
+      field: "metadata",
+    },
+  );
+});
+
+test("public tracking validation preserves current analytics payload compatibility", () => {
+  const result = validateTrackingPayload({
+    hotelSlug: "aquamarine-test",
+    hotelAlias: "aquamarine",
+    eventName: "section_open",
+    eventCategory: "engagement",
+    sectionKey: "services",
+    label: "Services",
+    value: 1,
+    roomNumber: 103,
+    roomConfirmed: true,
+    pagePath: "/h/aquamarine-test",
+    sessionId: "session-123",
+    stayId: "stay-123",
+    stayDeviceId: "device-123",
+    extra: {
+      source: "guest_hub",
+      nested: { ok: true },
+    },
+    metadata: {
+      experiment: "baseline",
+    },
+    unknownFutureField: "ignored-for-backward-compatibility",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value.eventName, "section_open");
+  assert.equal(result.value.roomNumber, 103);
+  assert.equal(result.value.roomConfirmed, true);
+  assert.equal(result.value.value, 1);
+  assert.deepEqual(result.value.extra, {
+    source: "guest_hub",
+    nested: { ok: true },
+  });
+  assert.deepEqual(result.value.metadata, {
+    experiment: "baseline",
+  });
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(result.value, "unknownFutureField"),
+    false,
+  );
+});
 
 test("public tracking ignores client hotelId and requires canonical server resolution", async () => {
   const source = await readProjectFile("app/api/track/route.ts");
