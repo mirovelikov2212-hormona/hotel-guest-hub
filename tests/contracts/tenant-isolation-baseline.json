@@ -2,7 +2,7 @@
   "version": 1,
   "checkpoint": "7e2592a",
   "purpose": "Lock the reviewed M2.2b.1 tenant-query inventory. Any new, moved, changed, removed, or newly-unclassified needs_review query must be explicitly re-reviewed before npm test passes.",
-  "expectedNeedsReview": 40,
+  "expectedNeedsReview": 41,
   "entries": [
     {
       "filePath": "lib/staff-auth/login-throttle.ts",
@@ -13,6 +13,17 @@
         "rpc_requires_review"
       ],
       "provenance": "server_hotel_role_hmac_source_atomic_lockout_rpc"
+    },
+    {
+      "filePath": "app/api/cron/test-data-cleanup/route.ts",
+      "line": 66,
+      "table": null,
+      "tableExpression": "\"cleanup_expired_test_data\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authorized_platform_cron_hotel_scoped_cleanup_rpc"
     },
     {
       "filePath": "app/api/cron/day3-survey-push/route.ts",
@@ -423,14 +434,14 @@
     },
     {
       "filePath": "lib/server/test-rooms.ts",
-      "line": 169,
+      "line": 177,
       "table": null,
-      "tableExpression": "table",
-      "operation": "delete",
+      "tableExpression": "\"cleanup_expired_test_data\"",
+      "operation": "rpc",
       "reasons": [
-        "dynamic_table_name"
+        "rpc_requires_review"
       ],
-      "provenance": "fixed_internal_cleanup_table_list_with_hotel_filter"
+      "provenance": "server_hotel_scoped_atomic_test_cleanup_rpc"
     },
     {
       "filePath": "lib/staff-push/web-push.ts",

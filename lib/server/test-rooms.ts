@@ -165,32 +165,28 @@ export function getTestDataMetadata(policy: TestRoomPolicy) {
   };
 }
 
-async function deleteExpiredRows(table: string, hotelId: string, cutoffIso: string) {
-  const { error } = await supabaseAdmin
-    .from(table)
-    .delete()
-    .eq("hotel_id", hotelId)
-    .eq("is_test", true)
-    .lt("test_expires_at", cutoffIso);
-
-  if (error && !isLikelyMissingSchemaError(error)) {
-    console.error("Failed to cleanup expired StayHub test data", { table, hotelId, error });
-  }
-}
-
 export async function cleanupExpiredTestData(hotelId: string | null | undefined) {
   const normalizedHotelId = String(hotelId || "").trim();
-  if (!normalizedHotelId) return;
+  if (!normalizedHotelId) return null;
 
   const now = Date.now();
   const lastCleanup = lastCleanupByHotel.get(normalizedHotelId) || 0;
-  if (now - lastCleanup < 30_000) return;
+  if (now - lastCleanup < 30_000) return null;
   lastCleanupByHotel.set(normalizedHotelId, now);
 
-  const cutoffIso = new Date(now).toISOString();
-  await Promise.all([
-    deleteExpiredRows("guest_requests", normalizedHotelId, cutoffIso),
-    deleteExpiredRows("guest_surveys", normalizedHotelId, cutoffIso),
-    deleteExpiredRows("hub_events", normalizedHotelId, cutoffIso),
-  ]);
+  const { data, error } = await supabaseAdmin.rpc("cleanup_expired_test_data", {
+    p_hotel_id: normalizedHotelId,
+  });
+
+  if (error) {
+    if (!isLikelyMissingSchemaError(error)) {
+      console.error("Failed to cleanup expired StayHub test data", {
+        hotelId: normalizedHotelId,
+        error,
+      });
+    }
+    return null;
+  }
+
+  return data;
 }

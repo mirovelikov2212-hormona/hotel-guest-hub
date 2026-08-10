@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "npm run test:contracts && npm run test:tenant-isolation",
-    "test:contracts": "node --test tests/contracts/api-security.contract.test.mjs tests/contracts/operational-contracts.test.mjs tests/contracts/request-type.contract.test.mjs tests/contracts/open-risks.contract.test.mjs tests/contracts/reporting-correctness.contract.test.mjs tests/contracts/hotel-config.contract.test.mjs tests/contracts/guest-stay-recovery.contract.test.mjs tests/contracts/tenant-query-scanner.contract.test.mjs tests/contracts/tenant-isolation-guard.contract.test.mjs",
+    "test:contracts": "node --test tests/contracts/api-security.contract.test.mjs tests/contracts/operational-contracts.test.mjs tests/contracts/request-type.contract.test.mjs tests/contracts/open-risks.contract.test.mjs tests/contracts/reporting-correctness.contract.test.mjs tests/contracts/test-data-lifecycle.contract.test.mjs tests/contracts/hotel-config.contract.test.mjs tests/contracts/guest-stay-recovery.contract.test.mjs tests/contracts/tenant-query-scanner.contract.test.mjs tests/contracts/tenant-isolation-guard.contract.test.mjs",
     "audit:tenant-queries": "node scripts/tenant-query-inventory.mjs",
     "test:tenant-isolation": "node scripts/tenant-isolation-guard.mjs"
   },
