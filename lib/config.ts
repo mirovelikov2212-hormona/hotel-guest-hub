@@ -4,6 +4,7 @@ import type { HotelConfig, HotelRoom, LangKey } from "./types";
 import { parseRequestDefs } from "@/lib/request-defs";
 import { getHotelSheetSources } from "@/lib/hotels/getHotelSheetSources";
 import { getActiveTestRoomNumbers } from "@/lib/server/test-rooms";
+import { getPublishedHotelConfigSnapshot } from "@/lib/server/published-hotel-config";
 
 
 function titleFromSlug(slug: string) {
@@ -541,14 +542,51 @@ function buildVenueHours(row: Record<string, string>, languages: LangKey[]) {
 export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | null> {
   const safeHotelSlug = String(hotelSlug || "").trim().toLowerCase() || "demo";
 
+  if (safeHotelSlug === "demo") {
+    return loadLocalHotelConfig("demo");
+  }
+
+  const hotel = await getHotelSheetSources(safeHotelSlug);
+
+  if (!hotel?.hotelId) {
+    throw new Error(`Hotel configuration identity not found: ${safeHotelSlug}`);
+  }
+
+  const published = await getPublishedHotelConfigSnapshot(hotel.hotelId);
+
+  if (!published) {
+    throw new Error(`Missing published hotel configuration revision: ${hotel.hotelSlug}`);
+  }
+
+  const testRoomNumbers = await getActiveTestRoomNumbers([
+    hotel.hotelId,
+    hotel.isSandbox ? hotel.productionHotelId : null,
+  ]);
+
+  return {
+    ...published.config,
+    hotelId: hotel.hotelId,
+    hotelSlug: hotel.hotelSlug || safeHotelSlug,
+    publicSlug: hotel.publicSlug || hotel.hotelSlug || safeHotelSlug,
+    isSandbox: Boolean(hotel.isSandbox),
+    productionHotelId: hotel.productionHotelId ?? null,
+    testRoomNumbers,
+  };
+}
+
+export async function getHotelConfigFromSheets(hotelSlug: string): Promise<HotelConfig | null> {
+  const safeHotelSlug = String(hotelSlug || "").trim().toLowerCase() || "demo";
+
   const sheetSources = await getHotelSheetSources(safeHotelSlug).catch(async (error) => {
     console.error("Failed to resolve hotel sheet sources", {
       hotelSlug: safeHotelSlug,
       error,
     });
 
-    const localFallback = await loadLocalHotelConfig(safeHotelSlug);
-    if (localFallback) return null;
+    if (safeHotelSlug === "demo") {
+      const localFallback = await loadLocalHotelConfig("demo");
+      if (localFallback) return null;
+    }
     throw error;
   });
 
@@ -585,13 +623,19 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
   const mergedConfig = mergeConfig(hotelSetupConfig, explicitConfig);
   const i18n = toI18n(i18nRows);
 
-  const hotelInfoUrl = pick(mergedConfig, "hotelInfoCsvUrl", process.env.GOOGLE_HOTEL_INFO_CSV ?? "");
+  const legacyGlobalHotelInfoUrl =
+    safeHotelSlug === "demo" ? process.env.GOOGLE_HOTEL_INFO_CSV ?? "" : "";
+  const hotelInfoUrl = pick(mergedConfig, "hotelInfoCsvUrl", legacyGlobalHotelInfoUrl);
   const hotelInfoRows = hotelInfoUrl ? await fetchCsvOrEmpty(hotelInfoUrl) : [];
 
+  const legacyGlobalRoomsUrl =
+    safeHotelSlug === "demo"
+      ? process.env.GOOGLE_ROOMS_CSV ?? process.env.GOOGLE_HOTEL_ROOMS_CSV ?? ""
+      : "";
   const roomsCsvUrl = pick(
     mergedConfig,
     "roomsCsvUrl",
-    process.env.GOOGLE_ROOMS_CSV ?? process.env.GOOGLE_HOTEL_ROOMS_CSV ?? ""
+    legacyGlobalRoomsUrl
   );
   const hotelRoomRows = roomsCsvUrl ? await fetchCsvOrEmpty(roomsCsvUrl) : [];
   const hotelRooms = parseHotelRoomRows(hotelRoomRows);

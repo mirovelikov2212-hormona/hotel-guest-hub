@@ -88,16 +88,28 @@ test("malformed revision envelope fails before publish/import code can use it", 
   }
 });
 
-test("M9.1 does not switch live hotel runtime away from current sheet config yet", async () => {
+test("M9 runtime resolves non-demo hotels through published snapshots", async () => {
+  const configSource = await readProjectFile("lib/config.ts");
+  const publishedSource = await readProjectFile(
+    "lib/server/published-hotel-config.ts",
+  );
+
+  assertContains(configSource, "getPublishedHotelConfigSnapshot");
+  assertContains(configSource, "export async function getHotelConfigFromSheets");
+  assertContains(configSource, 'if (safeHotelSlug === "demo")');
+  assertContains(configSource, "Missing published hotel configuration revision");
+
+  assertContains(publishedSource, '.from("hotel_config_publication_state")');
+  assertContains(publishedSource, '.from("hotel_config_revisions")');
+  assertContains(publishedSource, '.eq("hotel_id", normalizedHotelId)');
+  assertContains(publishedSource, 'row.status !== "published"');
+  assertContains(publishedSource, "row.validation_json.ok !== true");
+});
+
+test("non-demo sheet imports cannot use legacy global room or hotel-info fallbacks", async () => {
   const source = await readProjectFile("lib/config.ts");
 
-  assertContains(source, "getHotelSheetSources");
-  assertContains(source, "fetchCsv(configUrl)");
-  assertContains(source, "fetchCsv(i18nUrl)");
-
-  assertNotContains(
-    source,
-    "hotel_config_revisions",
-    "M9.1 is foundation-only; runtime cutover belongs to a later M9 phase.",
-  );
+  assertContains(source, "const legacyGlobalHotelInfoUrl =");
+  assertContains(source, "const legacyGlobalRoomsUrl =");
+  assertContains(source, 'safeHotelSlug === "demo"');
 });

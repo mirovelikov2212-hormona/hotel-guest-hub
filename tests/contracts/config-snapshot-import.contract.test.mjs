@@ -12,7 +12,7 @@ test("M9 snapshot importer defaults to dry-run and requires internal bearer auth
     "app/api/admin/config-snapshots/import/route.ts",
   );
 
-  assertContains(source, 'process.env.CRON_SECRET');
+  assertContains(source, 'process.env.CONFIG_ADMIN_SECRET');
   assertContains(source, 'req.headers.get("authorization")');
   assertContains(source, "authorization === `Bearer ${configuredSecret}`");
   assertContains(source, "dryRun: body.dryRun !== false");
@@ -62,10 +62,13 @@ test("snapshot importer writes only through the hotel-scoped atomic draft RPC", 
   );
 });
 
-test("M9.2 still does not cut live runtime over to snapshots", async () => {
-  const source = await readProjectFile("lib/config.ts");
+test("snapshot importer always reads fresh editorial sheet config, not published runtime", async () => {
+  const source = await readProjectFile("lib/server/config-snapshot-import.ts");
 
-  assertContains(source, "getHotelSheetSources");
-  assertContains(source, "fetchCsv(configUrl)");
-  assertNotContains(source, "hotel_config_publication_state");
+  assertContains(source, "getHotelConfigFromSheets");
+  assertNotContains(
+    source,
+    "getHotelConfig(hotelSlug)",
+    "Importer must not snapshot the already-published runtime configuration.",
+  );
 });

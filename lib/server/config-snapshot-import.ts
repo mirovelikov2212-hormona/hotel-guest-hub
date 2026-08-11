@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { getHotelConfig } from "@/lib/config";
+import { getHotelConfigFromSheets } from "@/lib/config";
 import { getHotelSheetSources } from "@/lib/hotels/getHotelSheetSources";
 import type { HotelConfig } from "@/lib/types";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
@@ -206,7 +206,7 @@ export async function importHotelConfigSnapshotDraft(options: ImportOptions) {
   }
 
   const [runtimeConfig, sources] = await Promise.all([
-    getHotelConfig(hotelSlug),
+    getHotelConfigFromSheets(hotelSlug),
     getHotelSheetSources(hotelSlug),
   ]);
 

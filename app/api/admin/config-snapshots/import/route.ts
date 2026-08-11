@@ -11,7 +11,7 @@ const NO_STORE_HEADERS = {
 };
 
 function isAuthorizedInternalRequest(req: NextRequest) {
-  const configuredSecret = String(process.env.CRON_SECRET || "").trim();
+  const configuredSecret = String(process.env.CONFIG_ADMIN_SECRET || "").trim();
   if (!configuredSecret) return false;
 
   const authorization = req.headers.get("authorization") || "";
