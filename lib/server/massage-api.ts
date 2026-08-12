@@ -1,6 +1,6 @@
 import "server-only";
 
-import { logSystemError } from "@/lib/server/system-events";
+import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import type { SystemEventSeverity } from "@/lib/server/system-events";
 
 const MASSAGE_API_VERSION = "v12";
@@ -809,6 +809,85 @@ async function logMassageApiReadFailure(input: {
   return severity;
 }
 
+function getMassageTransportUrlMetadata(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return { host: null as string | null, path: null as string | null };
+  }
+
+  try {
+    const parsed = new URL(raw);
+    let safePath = parsed.pathname || "/";
+
+    if (
+      parsed.hostname === "script.google.com" &&
+      safePath.startsWith("/macros/s/") &&
+      safePath.endsWith("/exec")
+    ) {
+      safePath = "/macros/s/[deployment]/exec";
+    }
+
+    return {
+      host: parsed.hostname || null,
+      path: safePath || null,
+    };
+  } catch {
+    return { host: null as string | null, path: null as string | null };
+  }
+}
+
+async function logMassageTransportTelemetry(input: {
+  action: string;
+  traceId: string;
+  outcome: "success" | "failure";
+  startedAt: number;
+  sourceUrl: string;
+  response?: Response | null;
+  envelope?: MassageApiEnvelope<unknown> | null;
+  errorCode?: string | null;
+  errorName?: string | null;
+}) {
+  if (input.action !== "snapshot_bundle") return;
+
+  const sourceUrl = getMassageTransportUrlMetadata(input.sourceUrl);
+  const finalUrl = getMassageTransportUrlMetadata(input.response?.url || "");
+
+  await logSystemEvent({
+    severity: input.outcome === "success" ? "info" : "warning",
+    source: "apps_script",
+    eventType:
+      input.outcome === "success"
+        ? "massage_api_transport_ok"
+        : "massage_api_transport_failure",
+    message:
+      input.outcome === "success"
+        ? "Massage snapshot transport completed."
+        : "Massage snapshot transport failed before a usable response was accepted.",
+    metadata: {
+      action: input.action,
+      traceId: input.traceId,
+      expectedMethod: "POST",
+      elapsedMs: Math.max(0, Date.now() - input.startedAt),
+      sourceHost: sourceUrl.host,
+      sourcePath: sourceUrl.path,
+      finalHost: finalUrl.host,
+      finalPath: finalUrl.path,
+      responseStatus: input.response?.status ?? null,
+      redirected: input.response?.redirected ?? null,
+      contentType: input.response?.headers.get("content-type") || null,
+      returnedAction: input.envelope?.action || null,
+      returnedRequestMethod: input.envelope?.requestMethod || null,
+      upstreamRequestId: input.envelope?.requestId || null,
+      runtimeVersion: input.envelope?.runtimeVersion || null,
+      apiVersion: input.envelope?.apiVersion || null,
+      envelopeStatus: input.envelope?.status || null,
+      envelopeCode: input.envelope?.code || null,
+      errorCode: input.errorCode || null,
+      errorName: input.errorName || null,
+    },
+  });
+}
+
 async function fetchMassageApiOnce<T>(input: {
   config: MassageApiConfig;
   payload: Record<string, unknown>;
@@ -819,6 +898,12 @@ async function fetchMassageApiOnce<T>(input: {
     () => controller.abort(),
     input.options.timeoutMs ?? DEFAULT_TIMEOUT_MS
   );
+  const transportStartedAt = Date.now();
+  const transportTraceId =
+    `mt-${transportStartedAt}-${Math.random().toString(36).slice(2, 10)}`;
+  const transportAction = String(input.payload.action || "").trim().toLowerCase();
+  let transportResponse: Response | null = null;
+  let transportEnvelope: MassageApiEnvelope<unknown> | null = null;
 
   try {
     const response = await fetch(input.config.url, {
@@ -834,6 +919,7 @@ async function fetchMassageApiOnce<T>(input: {
       redirect: "follow",
       signal: controller.signal,
     });
+    transportResponse = response;
 
     if (!response.ok) {
       throw new MassageApiError(
@@ -848,6 +934,7 @@ async function fetchMassageApiOnce<T>(input: {
     }
 
     const data = (await response.json().catch(() => null)) as MassageApiEnvelope<T> | null;
+    transportEnvelope = data as MassageApiEnvelope<unknown> | null;
 
     if (!data || typeof data !== "object") {
       throw new MassageApiError("Massage calendar returned an invalid response.", {
@@ -880,7 +967,8 @@ async function fetchMassageApiOnce<T>(input: {
     }
 
     if (!data.ok || !data.result) {
-      const isUnauthorized = data.status === "API_UNAUTHORIZED" || data.code === "INVALID_API_TOKEN";
+      const isUnauthorized =
+        data.status === "API_UNAUTHORIZED" || data.code === "INVALID_API_TOKEN";
 
       if (input.options.allowRejectedResult && data.result && !isUnauthorized) {
         return data;
@@ -897,23 +985,71 @@ async function fetchMassageApiOnce<T>(input: {
       );
     }
 
+    await logMassageTransportTelemetry({
+      action: transportAction,
+      traceId: transportTraceId,
+      outcome: "success",
+      startedAt: transportStartedAt,
+      sourceUrl: input.config.url,
+      response: transportResponse,
+      envelope: transportEnvelope,
+    });
+
     return data;
   } catch (error) {
     if (error instanceof MassageApiError) {
+      await logMassageTransportTelemetry({
+        action: transportAction,
+        traceId: transportTraceId,
+        outcome: "failure",
+        startedAt: transportStartedAt,
+        sourceUrl: input.config.url,
+        response: transportResponse,
+        envelope: transportEnvelope,
+        errorCode: error.code,
+        errorName: error.name,
+      });
       throw error;
     }
 
     if (error instanceof Error && error.name === "AbortError") {
-      throw new MassageApiError("Massage calendar request timed out.", {
+      const timeoutError = new MassageApiError("Massage calendar request timed out.", {
         statusCode: 504,
         code: "MASSAGE_API_TIMEOUT",
       });
+      await logMassageTransportTelemetry({
+        action: transportAction,
+        traceId: transportTraceId,
+        outcome: "failure",
+        startedAt: transportStartedAt,
+        sourceUrl: input.config.url,
+        response: transportResponse,
+        envelope: transportEnvelope,
+        errorCode: timeoutError.code,
+        errorName: timeoutError.name,
+      });
+      throw timeoutError;
     }
 
-    throw new MassageApiError("Massage calendar service is temporarily unavailable.", {
-      statusCode: 502,
-      code: "MASSAGE_API_UNAVAILABLE",
+    const unavailableError = new MassageApiError(
+      "Massage calendar service is temporarily unavailable.",
+      {
+        statusCode: 502,
+        code: "MASSAGE_API_UNAVAILABLE",
+      }
+    );
+    await logMassageTransportTelemetry({
+      action: transportAction,
+      traceId: transportTraceId,
+      outcome: "failure",
+      startedAt: transportStartedAt,
+      sourceUrl: input.config.url,
+      response: transportResponse,
+      envelope: transportEnvelope,
+      errorCode: unavailableError.code,
+      errorName: unavailableError.name,
     });
+    throw unavailableError;
   } finally {
     clearTimeout(timeout);
   }
