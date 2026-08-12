@@ -66,6 +66,7 @@ type TrackedMassageBookingInput = {
 
 const RECONCILE_BATCH_LIMIT = 25;
 const MAX_VERIFICATION_COUNT = 5;
+const MAX_IDEMPOTENT_WRITE_RETRIES = 1;
 const TRANSIENT_BOOKING_CODES = new Set([
   "MASSAGE_API_TIMEOUT",
   "MASSAGE_API_UNAVAILABLE",
@@ -118,6 +119,23 @@ function bookingResultFromStored(value: unknown): MassageBookingResult | null {
     return null;
   }
   return result as unknown as MassageBookingResult;
+}
+
+function getIdempotentWriteRetryCount(attempt: MassageBookingAttemptRow) {
+  const value = Number(attempt.metadata_json?.idempotentWriteRetryCount || 0);
+  return Number.isInteger(value) && value > 0 ? value : 0;
+}
+
+function mergeAttemptMetadata(
+  attempt: MassageBookingAttemptRow,
+  patch: Record<string, unknown>
+) {
+  return {
+    ...(attempt.metadata_json && typeof attempt.metadata_json === "object"
+      ? attempt.metadata_json
+      : {}),
+    ...patch,
+  };
 }
 
 async function createOrTouchAttempt(input: TrackedMassageBookingInput) {
@@ -306,6 +324,145 @@ async function ensureAttemptStaffRequest(input: {
   return staffRequest;
 }
 
+async function runSingleIdempotentWriteRetry(input: {
+  hotel: HotelScope;
+  attempt: MassageBookingAttemptRow;
+  serviceId: string;
+  date: string;
+  time: string;
+  room: string;
+  reason: "verification_not_found" | "verification_transport_failed";
+}) {
+  let attempt = input.attempt;
+  const previousRetryCount = getIdempotentWriteRetryCount(attempt);
+
+  if (previousRetryCount >= MAX_IDEMPOTENT_WRITE_RETRIES) {
+    return {
+      kind: "skipped" as const,
+      attempt,
+      result: null as MassageBookingResult | null,
+    };
+  }
+
+  const retryStartedAt = new Date().toISOString();
+  attempt = await updateAttempt(attempt, {
+    metadata_json: mergeAttemptMetadata(attempt, {
+      idempotentWriteRetryCount: previousRetryCount + 1,
+      idempotentWriteRetryStartedAt: retryStartedAt,
+      idempotentWriteRetryReason: input.reason,
+    }),
+  });
+
+  await logSystemEvent({
+    hotelId: input.hotel.id,
+    severity: "warning",
+    source: "massage",
+    eventType: "massage_booking_idempotent_retry_started",
+    message:
+      "A massage booking had an ambiguous first write; StayHub started its single durable idempotent write retry.",
+    roomNumber: input.room,
+    metadata: {
+      attemptId: attempt.id,
+      hotelSlug: input.hotel.slug,
+      serviceId: input.serviceId,
+      date: input.date,
+      time: input.time,
+      reason: input.reason,
+      retryNumber: previousRetryCount + 1,
+    },
+  });
+
+  try {
+    const result = await createMassageBooking({
+      hotelSlug: input.hotel.slug,
+      serviceId: input.serviceId,
+      date: input.date,
+      time: input.time,
+      room: input.room,
+      deferAmbiguousRecovery: true,
+    });
+
+    attempt = await markAttemptConfirmed({ attempt, result });
+
+    await logSystemEvent({
+      hotelId: input.hotel.id,
+      severity: "warning",
+      source: "massage",
+      eventType: "massage_booking_idempotent_retry_confirmed",
+      message:
+        "The single idempotent massage write retry returned a confirmed booking.",
+      roomNumber: input.room,
+      metadata: {
+        attemptId: attempt.id,
+        hotelSlug: input.hotel.slug,
+        serviceId: input.serviceId,
+        date: input.date,
+        time: input.time,
+        bookingStatus: result.status,
+        idempotentReplay: result.idempotentReplay === true,
+      },
+    });
+
+    return { kind: "confirmed" as const, attempt, result };
+  } catch (retryError) {
+    if (isConflictError(retryError)) {
+      attempt = await updateAttempt(attempt, {
+        status: "conflict",
+        next_reconcile_at: null,
+        last_error_code: asErrorCode(retryError),
+        last_error_message: asErrorMessage(retryError),
+      });
+      throw retryError;
+    }
+
+    if (!isTransientBookingError(retryError)) {
+      attempt = await updateAttempt(attempt, {
+        status: "failed",
+        next_reconcile_at: null,
+        last_error_code: asErrorCode(retryError),
+        last_error_message: asErrorMessage(retryError),
+      });
+      throw retryError;
+    }
+
+    attempt = await updateAttempt(attempt, {
+      status: "reconcile_pending",
+      next_reconcile_at: nextReconcileAt(attempt.verification_count),
+      last_error_code: asErrorCode(retryError),
+      last_error_message: asErrorMessage(retryError),
+      metadata_json: mergeAttemptMetadata(attempt, {
+        idempotentWriteRetryFinishedAt: new Date().toISOString(),
+        idempotentWriteRetryOutcome: "ambiguous",
+        idempotentWriteRetryErrorCode: asErrorCode(retryError),
+      }),
+    });
+
+    await logSystemEvent({
+      hotelId: input.hotel.id,
+      severity: "warning",
+      source: "massage",
+      eventType: "massage_booking_idempotent_retry_deferred",
+      message:
+        "The single idempotent massage write retry was also ambiguous; exact verification/reconciliation remains active.",
+      roomNumber: input.room,
+      metadata: {
+        attemptId: attempt.id,
+        hotelSlug: input.hotel.slug,
+        serviceId: input.serviceId,
+        date: input.date,
+        time: input.time,
+        errorCode: asErrorCode(retryError),
+      },
+    });
+
+    return {
+      kind: "pending" as const,
+      attempt,
+      result: null as MassageBookingResult | null,
+    };
+  }
+}
+
 export async function executeTrackedMassageBooking(
   input: TrackedMassageBookingInput
 ) {
@@ -409,6 +566,10 @@ export async function executeTrackedMassageBooking(
       last_error_message: asErrorMessage(error),
     });
 
+    let retryReason:
+      | "verification_not_found"
+      | "verification_transport_failed" = "verification_transport_failed";
+
     try {
       const verification = await verifyMassageBooking({
         hotelSlug: input.hotel.slug,
@@ -468,7 +629,8 @@ export async function executeTrackedMassageBooking(
         );
       }
 
-      await updateAttempt(attempt, {
+      retryReason = "verification_not_found";
+      attempt = await updateAttempt(attempt, {
         status: "reconcile_pending",
         verification_count: verificationCount,
         last_verified_at: new Date().toISOString(),
@@ -484,6 +646,126 @@ export async function executeTrackedMassageBooking(
         verificationError.code === "SLOT_NO_LONGER_AVAILABLE"
       ) {
         throw verificationError;
+      }
+
+      if (
+        verificationError instanceof MassageApiError &&
+        !isTransientBookingError(verificationError)
+      ) {
+        throw verificationError;
+      }
+
+      retryReason = "verification_transport_failed";
+    }
+
+    const retry = await runSingleIdempotentWriteRetry({
+      hotel: input.hotel,
+      attempt,
+      serviceId: input.serviceId,
+      date: input.date,
+      time: input.time,
+      room: input.room,
+      reason: retryReason,
+    });
+    attempt = retry.attempt;
+
+    if (retry.kind === "confirmed" && retry.result) {
+      return {
+        attempt,
+        result: retry.result,
+        recoveredFromAttempt: true,
+      };
+    }
+
+    if (retry.kind === "pending") {
+      try {
+        const finalVerification = await verifyMassageBooking({
+          hotelSlug: input.hotel.slug,
+          serviceId: input.serviceId,
+          date: input.date,
+          time: input.time,
+          room: input.room,
+        });
+        const finalVerificationCount =
+          Number(attempt.verification_count || 0) + 1;
+
+        if (finalVerification.result.verificationStatus === "BOOKING_CONFIRMED") {
+          const result = finalVerification.result as MassageBookingResult;
+          attempt = await updateAttempt(attempt, {
+            verification_count: finalVerificationCount,
+          });
+          attempt = await markAttemptConfirmed({
+            attempt,
+            result,
+            verification: finalVerification.source,
+            reconciled: true,
+          });
+          await logSystemEvent({
+            hotelId: input.hotel.id,
+            severity: "warning",
+            source: "massage",
+            eventType: "massage_booking_retry_timeout_verified",
+            message:
+              "The idempotent retry response was ambiguous, but the exact massage booking was verified successfully.",
+            roomNumber: input.room,
+            metadata: {
+              attemptId: attempt.id,
+              hotelSlug: input.hotel.slug,
+              serviceId: input.serviceId,
+              date: input.date,
+              time: input.time,
+            },
+          });
+          return { attempt, result, recoveredFromAttempt: true };
+        }
+
+        if (finalVerification.result.verificationStatus === "BOOKING_CONFLICT") {
+          await updateAttempt(attempt, {
+            status: "conflict",
+            verification_count: finalVerificationCount,
+            last_verified_at: new Date().toISOString(),
+            next_reconcile_at: null,
+            verification_response_json: finalVerification.result,
+            upstream_request_id: finalVerification.source.requestId,
+            upstream_runtime_version: finalVerification.source.runtimeVersion,
+            upstream_status: finalVerification.source.status,
+            last_error_code:
+              finalVerification.result.code || "SLOT_NO_LONGER_AVAILABLE",
+            last_error_message:
+              finalVerification.result.message ||
+              "The massage slot is occupied by another booking.",
+          });
+          throw new MassageApiError(
+            finalVerification.result.message ||
+              "The selected massage time is no longer available.",
+            { statusCode: 409, code: "SLOT_NO_LONGER_AVAILABLE" }
+          );
+        }
+
+        attempt = await updateAttempt(attempt, {
+          status: "reconcile_pending",
+          verification_count: finalVerificationCount,
+          last_verified_at: new Date().toISOString(),
+          next_reconcile_at: nextReconcileAt(finalVerificationCount),
+          verification_response_json: finalVerification.result,
+          upstream_request_id: finalVerification.source.requestId,
+          upstream_runtime_version: finalVerification.source.runtimeVersion,
+          upstream_status: finalVerification.source.status,
+        });
+      } catch (finalVerificationError) {
+        if (
+          finalVerificationError instanceof MassageApiError &&
+          finalVerificationError.code === "SLOT_NO_LONGER_AVAILABLE"
+        ) {
+          throw finalVerificationError;
+        }
+
+        if (
+          finalVerificationError instanceof MassageApiError &&
+          !isTransientBookingError(finalVerificationError)
+        ) {
+          throw finalVerificationError;
+        }
       }
     }
 
