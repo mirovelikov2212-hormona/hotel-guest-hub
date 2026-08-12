@@ -16,6 +16,7 @@ export const TENANT_TABLE_POLICY = Object.freeze({
   hotel_test_rooms: "strict",
   hotel_config_revisions: "strict",
   hotel_config_publication_state: "strict",
+  hotel_config_projection_state: "strict",
   staff_sessions: "identity",
   hub_events: "hybrid",
   system_events: "hybrid",
