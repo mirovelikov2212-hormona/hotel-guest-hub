@@ -9,6 +9,8 @@ import {
 
 const migrationPath =
   "supabase/migrations/20260812193050_m10_1_normalized_schema_integrity.sql";
+const projectionRevisionIndexMigrationPath =
+  "supabase/migrations/20260812204720_m10_1_projection_revision_fk_index.sql";
 
 test("M10.1 keeps projection activation revision-aware and service-role only", async () => {
   const source = await readProjectFile(migrationPath);
@@ -74,5 +76,21 @@ test("M10.1 remains schema-only", async () => {
   assertNotContains(source, "insert into public.departments");
   assertNotContains(source, "insert into public.routing_rules");
   assertNotContains(source, "update public.guest_requests");
+  assertNotContains(source, "delete from public.");
+});
+
+test("M10.1 covers the composite projection revision foreign key", async () => {
+  const source = await readProjectFile(projectionRevisionIndexMigrationPath);
+
+  assertContains(
+    source,
+    "create index hotel_config_projection_state_revision_idx",
+  );
+  assertContains(
+    source,
+    "on public.hotel_config_projection_state (hotel_id, projected_revision_id)",
+  );
+  assertNotContains(source, "insert into public.");
+  assertNotContains(source, "update public.");
   assertNotContains(source, "delete from public.");
 });
