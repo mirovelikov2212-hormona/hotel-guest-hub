@@ -11,6 +11,7 @@ import {
   type MassageCalendarSnapshotResult,
   type MassageServicesResult,
 } from "@/lib/server/massage-api";
+import { overlayConfirmedMassageBookings } from "@/lib/server/massage-snapshot-overlay.mjs";
 import {
   isSandboxHotel,
   resolveHotelByAnySlugAdmin,
@@ -755,6 +756,76 @@ function filterBookableDates(input: {
   };
 }
 
+async function getConfirmedBookingOverlay(snapshot: MassageSnapshotRow) {
+  const { data, error } = await supabaseAdmin
+    .from("massage_booking_attempts")
+    .select(
+      "booking_date, start_time, service_id, confirmed_at, upstream_response_json, verification_response_json"
+    )
+    .eq("hotel_id", snapshot.hotel_id)
+    .in("status", ["confirmed", "already_confirmed"])
+    .gt("confirmed_at", snapshot.refreshed_at)
+    .gte("booking_date", snapshot.range_start)
+    .lte("booking_date", snapshot.range_end)
+    .order("confirmed_at", { ascending: true })
+    .limit(200);
+
+  if (error) {
+    await logSystemError({
+      hotelId: snapshot.hotel_id,
+      severity: "error",
+      source: "massage",
+      eventType: "massage_snapshot_confirmed_overlay_load_failed",
+      message:
+        "Confirmed massage bookings could not be overlaid on snapshot availability.",
+      error,
+      metadata: {
+        snapshotId: snapshot.id,
+        snapshotRefreshedAt: snapshot.refreshed_at,
+        rangeStart: snapshot.range_start,
+        rangeEnd: snapshot.range_end,
+      },
+    });
+    throw snapshotUnavailable(
+      "MASSAGE_SNAPSHOT_OVERLAY_UNAVAILABLE",
+      "Massage availability is temporarily unavailable. Please try again shortly."
+    );
+  }
+
+  try {
+    return overlayConfirmedMassageBookings({
+      services: snapshot.services_json,
+      availabilityByService: snapshot.availability_json || {},
+      confirmedBookings: data || [],
+    }) as {
+      availabilityByService: MassageBootstrapResult["availabilityByService"];
+      overlayBookingCount: number;
+      removedTimeCount: number;
+    };
+  } catch (error) {
+    await logSystemError({
+      hotelId: snapshot.hotel_id,
+      severity: "error",
+      source: "massage",
+      eventType: "massage_snapshot_confirmed_overlay_invalid",
+      message:
+        "Confirmed massage booking overlay could not safely calculate availability.",
+      error,
+      metadata: {
+        snapshotId: snapshot.id,
+        snapshotRefreshedAt: snapshot.refreshed_at,
+        rangeStart: snapshot.range_start,
+        rangeEnd: snapshot.range_end,
+        confirmedBookingCount: (data || []).length,
+      },
+    });
+    throw snapshotUnavailable(
+      "MASSAGE_SNAPSHOT_OVERLAY_INVALID",
+      "Massage availability is temporarily unavailable. Please try again shortly."
+    );
+  }
+}
+
 async function requireUsableMassageSnapshot(hotelSlug: string) {
   const current = await getCurrentMassageCalendarSnapshot({ hotelSlug });
   const snapshot = current.snapshot;
@@ -828,8 +899,9 @@ export async function readMassageSnapshotAction(input: {
       fromDate: input.fromDate || "",
       daysAhead: input.daysAhead || 0,
     });
+    const overlay = await getConfirmedBookingOverlay(snapshot);
     const availabilityByService = Object.fromEntries(
-      Object.entries(snapshot.availability_json || {}).map(
+      Object.entries(overlay.availabilityByService || {}).map(
         ([currentServiceId, result]) => [
           currentServiceId,
           filterBookableDates({
@@ -869,7 +941,8 @@ export async function readMassageSnapshotAction(input: {
     });
   }
 
-  const storedDates = snapshot.availability_json?.[serviceId];
+  const overlay = await getConfirmedBookingOverlay(snapshot);
+  const storedDates = overlay.availabilityByService?.[serviceId];
   if (!storedDates) {
     throw snapshotUnavailable(
       "MASSAGE_SNAPSHOT_SERVICE_MISSING",
