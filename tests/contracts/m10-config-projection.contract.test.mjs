@@ -8,7 +8,7 @@ import {
 } from "../helpers/source-contract.mjs";
 
 const migrationPath =
-  "supabase/migrations/20260813104939_m10_2_published_config_projection.sql";
+  "supabase/migrations/20260813115111_m10_2_published_config_projection.sql";
 
 test("M10.2 locks and verifies the exact published revision before mutation", async () => {
   const source = await readProjectFile(migrationPath);
