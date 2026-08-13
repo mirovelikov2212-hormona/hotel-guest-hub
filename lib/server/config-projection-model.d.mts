@@ -50,6 +50,10 @@ export type HotelConfigProjectionResult = {
   };
 };
 
+export function resolveProjectionRuntimeRoute(
+  definition: Record<string, unknown>,
+): HotelConfigProjectionRoutingRule | null;
+
 export function buildHotelConfigProjection(
   config: HotelConfig | Record<string, unknown> | null | undefined,
 ): HotelConfigProjectionResult;

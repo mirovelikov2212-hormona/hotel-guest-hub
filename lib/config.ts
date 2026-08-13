@@ -5,6 +5,7 @@ import { parseRequestDefs } from "@/lib/request-defs";
 import { getHotelSheetSources } from "@/lib/hotels/getHotelSheetSources";
 import { getActiveTestRoomNumbers } from "@/lib/server/test-rooms";
 import { getPublishedHotelConfigSnapshot } from "@/lib/server/published-hotel-config";
+import { resolveNormalizedHotelConfigForRuntime } from "@/lib/server/normalized-config-runtime";
 
 
 function titleFromSlug(slug: string) {
@@ -558,13 +559,43 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     throw new Error(`Missing published hotel configuration revision: ${hotel.hotelSlug}`);
   }
 
+  let runtimeConfig = published.config;
+
+  if (hotel.isSandbox) {
+    try {
+      const normalized = await resolveNormalizedHotelConfigForRuntime({
+        hotelId: hotel.hotelId,
+        isSandbox: true,
+        published,
+      });
+      runtimeConfig = normalized.config;
+
+      if (
+        !normalized.ok &&
+        normalized.reason !== "RUNTIME_READS_NOT_ACTIVATED"
+      ) {
+        console.warn("Normalized sandbox configuration is not authoritative; using M9 snapshot", {
+          hotelId: hotel.hotelId,
+          hotelSlug: hotel.hotelSlug,
+          reason: normalized.reason,
+        });
+      }
+    } catch (error) {
+      console.error("Normalized sandbox configuration read failed; using M9 snapshot", {
+        hotelId: hotel.hotelId,
+        hotelSlug: hotel.hotelSlug,
+        error,
+      });
+    }
+  }
+
   const testRoomNumbers = await getActiveTestRoomNumbers([
     hotel.hotelId,
     hotel.isSandbox ? hotel.productionHotelId : null,
   ]);
 
   return {
-    ...published.config,
+    ...runtimeConfig,
     hotelId: hotel.hotelId,
     hotelSlug: hotel.hotelSlug || safeHotelSlug,
     publicSlug: hotel.publicSlug || hotel.hotelSlug || safeHotelSlug,
