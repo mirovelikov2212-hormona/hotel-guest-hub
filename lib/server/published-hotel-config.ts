@@ -10,6 +10,7 @@ type PublicationStateRow = {
 type PublishedRevisionRow = {
   id: string;
   status: string;
+  source_checksum: string;
   config_json: unknown;
   validation_json: unknown;
 };
@@ -24,7 +25,11 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
 
 export async function getPublishedHotelConfigSnapshot(
   hotelId: string,
-): Promise<{ revisionId: string; config: HotelConfig } | null> {
+): Promise<{
+  revisionId: string;
+  sourceChecksum: string;
+  config: HotelConfig;
+} | null> {
   const normalizedHotelId = String(hotelId || "").trim();
 
   if (!normalizedHotelId) {
@@ -50,7 +55,7 @@ export async function getPublishedHotelConfigSnapshot(
 
   const { data: revision, error: revisionError } = await supabaseAdmin
     .from("hotel_config_revisions")
-    .select("id, status, config_json, validation_json")
+    .select("id, status, source_checksum, config_json, validation_json")
     .eq("hotel_id", normalizedHotelId)
     .eq("id", revisionId)
     .maybeSingle();
@@ -86,8 +91,14 @@ export async function getPublishedHotelConfigSnapshot(
     throw new Error("Published configuration revision payload is malformed");
   }
 
+  const sourceChecksum = String(row.source_checksum || "").trim().toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(sourceChecksum)) {
+    throw new Error("Published configuration revision checksum is malformed");
+  }
+
   return {
     revisionId: row.id,
+    sourceChecksum,
     config: row.config_json as HotelConfig,
   };
 }
