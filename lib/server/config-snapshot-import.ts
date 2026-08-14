@@ -205,10 +205,20 @@ export async function importHotelConfigSnapshotDraft(options: ImportOptions) {
     };
   }
 
-  const [runtimeConfig, sources] = await Promise.all([
-    getHotelConfigFromSheets(hotelSlug),
-    getHotelSheetSources(hotelSlug),
-  ]);
+  const sources = await getHotelSheetSources(hotelSlug);
+
+  // M11: a sandbox must never rebuild its configuration from the mutable
+  // production editorial URLs. Sandbox configuration starts from an explicit
+  // immutable production-revision clone and then evolves independently.
+  if (sources.isSandbox) {
+    return {
+      ok: false,
+      status: 409,
+      error: "SANDBOX_SHEET_IMPORT_FORBIDDEN",
+    };
+  }
+
+  const runtimeConfig = await getHotelConfigFromSheets(hotelSlug);
 
   if (!runtimeConfig || !sources?.hotelId) {
     return {
