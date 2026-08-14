@@ -3,7 +3,7 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d)(?:\.\d+)?)?$/;
 
 type NativeBookingResult = {
   ok: true;
@@ -37,8 +37,11 @@ function requireIsoDate(value: unknown) {
 
 function requireTime(value: unknown) {
   const normalized = String(value || "").trim();
-  if (!TIME_RE.test(normalized)) throw new Error("MASSAGE_NATIVE_TIME_INVALID");
-  return normalized;
+  const match = normalized.match(TIME_RE);
+  if (!match || (match[3] && match[3] !== "00")) {
+    throw new Error("MASSAGE_NATIVE_TIME_INVALID");
+  }
+  return `${match[1]}:${match[2]}`;
 }
 
 function requireText(value: unknown, code: string, maxLength = 160) {
