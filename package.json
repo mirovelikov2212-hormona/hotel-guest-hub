@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "npm run test:contracts && npm run test:tenant-isolation",
-    "test:contracts": "node --test tests/contracts/api-security.contract.test.mjs tests/contracts/operational-contracts.test.mjs tests/contracts/request-type.contract.test.mjs tests/contracts/open-risks.contract.test.mjs tests/contracts/reporting-correctness.contract.test.mjs tests/contracts/test-data-lifecycle.contract.test.mjs tests/contracts/config-revision-foundation.contract.test.mjs tests/contracts/config-snapshot-import.contract.test.mjs tests/contracts/m10-normalized-schema-integrity.contract.test.mjs tests/contracts/config-projection-model.contract.test.mjs tests/contracts/m10-config-projection.contract.test.mjs tests/contracts/normalized-config-runtime-model.contract.test.mjs tests/contracts/m10-normalized-runtime-reads.contract.test.mjs tests/contracts/m10-department-routing-runtime-reads.contract.test.mjs tests/contracts/m10-guest-request-relational-ids.contract.test.mjs tests/contracts/m11-sandbox-config-isolation.contract.test.mjs tests/contracts/m12-staff-notification-parity.contract.test.mjs tests/contracts/operations-hours-model.contract.test.mjs tests/contracts/staff-pin-release-gate.contract.test.mjs tests/contracts/hotel-config.contract.test.mjs tests/contracts/guest-stay-recovery.contract.test.mjs tests/contracts/tenant-query-scanner.contract.test.mjs tests/contracts/tenant-isolation-guard.contract.test.mjs",
+    "test:contracts": "node --test tests/contracts/api-security.contract.test.mjs tests/contracts/operational-contracts.test.mjs tests/contracts/request-type.contract.test.mjs tests/contracts/open-risks.contract.test.mjs tests/contracts/reporting-correctness.contract.test.mjs tests/contracts/test-data-lifecycle.contract.test.mjs tests/contracts/config-revision-foundation.contract.test.mjs tests/contracts/config-snapshot-import.contract.test.mjs tests/contracts/m10-normalized-schema-integrity.contract.test.mjs tests/contracts/config-projection-model.contract.test.mjs tests/contracts/m10-config-projection.contract.test.mjs tests/contracts/normalized-config-runtime-model.contract.test.mjs tests/contracts/m10-normalized-runtime-reads.contract.test.mjs tests/contracts/m10-department-routing-runtime-reads.contract.test.mjs tests/contracts/m10-guest-request-relational-ids.contract.test.mjs tests/contracts/m11-sandbox-config-isolation.contract.test.mjs tests/contracts/m12-staff-notification-parity.contract.test.mjs tests/contracts/m13-stay-read-only.contract.test.mjs tests/contracts/operations-hours-model.contract.test.mjs tests/contracts/staff-pin-release-gate.contract.test.mjs tests/contracts/hotel-config.contract.test.mjs tests/contracts/guest-stay-recovery.contract.test.mjs tests/contracts/tenant-query-scanner.contract.test.mjs tests/contracts/tenant-isolation-guard.contract.test.mjs",
     "audit:tenant-queries": "node scripts/tenant-query-inventory.mjs",
     "test:tenant-isolation": "node scripts/tenant-isolation-guard.mjs"
   },
@@ -25,7 +25,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.41",
     "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react-dom": "^19.2.3",
     "@types/web-push": "^3.6.4",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
