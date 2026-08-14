@@ -23,7 +23,9 @@ export function useStaffTabTitleAlert(requests: StaffRequest[]) {
   const alertActiveRef = useRef(false);
   const showAlertTitleRef = useRef(false);
 
-  latestRequestsRef.current = requests;
+  useEffect(() => {
+    latestRequestsRef.current = requests;
+  }, [requests]);
 
   const clearBlinkInterval = useCallback(() => {
     if (blinkIntervalRef.current !== null) {
