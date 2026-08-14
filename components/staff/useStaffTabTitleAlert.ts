@@ -6,14 +6,24 @@ import type { StaffRequest } from "@/lib/staff/types";
 const STAFF_ALERT_TITLE = "🔴 НОВА ЗАЯВКА";
 const STAFF_TITLE_BLINK_MS = 900;
 const DEFAULT_STAFF_TITLE = "GuestHub Staff";
+const INITIAL_ALERT_BASELINE_MS = 5000;
+
+function getCurrentNewRequestIds(requests: StaffRequest[]) {
+  return requests
+    .filter((request) => request.status === "new" && !request.isTest)
+    .map((request) => request.id);
+}
 
 export function useStaffTabTitleAlert(requests: StaffRequest[]) {
   const initializedRef = useRef(false);
   const seenNewIdsRef = useRef<Set<string>>(new Set());
+  const latestRequestsRef = useRef(requests);
   const originalTitleRef = useRef(DEFAULT_STAFF_TITLE);
   const blinkIntervalRef = useRef<number | null>(null);
   const alertActiveRef = useRef(false);
   const showAlertTitleRef = useRef(false);
+
+  latestRequestsRef.current = requests;
 
   const clearBlinkInterval = useCallback(() => {
     if (blinkIntervalRef.current !== null) {
@@ -47,6 +57,13 @@ export function useStaffTabTitleAlert(requests: StaffRequest[]) {
   useEffect(() => {
     originalTitleRef.current = document.title || DEFAULT_STAFF_TITLE;
 
+    const baselineTimer = window.setTimeout(() => {
+      for (const id of getCurrentNewRequestIds(latestRequestsRef.current)) {
+        seenNewIdsRef.current.add(id);
+      }
+      initializedRef.current = true;
+    }, INITIAL_ALERT_BASELINE_MS);
+
     const stopWhenTabIsActive = () => {
       if (document.visibilityState === "visible" && document.hasFocus()) {
         stopAlert();
@@ -57,6 +74,7 @@ export function useStaffTabTitleAlert(requests: StaffRequest[]) {
     window.addEventListener("focus", stopWhenTabIsActive);
 
     return () => {
+      window.clearTimeout(baselineTimer);
       document.removeEventListener("visibilitychange", stopWhenTabIsActive);
       window.removeEventListener("focus", stopWhenTabIsActive);
       stopAlert();
@@ -64,23 +82,22 @@ export function useStaffTabTitleAlert(requests: StaffRequest[]) {
   }, [stopAlert]);
 
   useEffect(() => {
-    const currentNewIds = new Set(
-      requests
-        .filter((request) => request.status === "new" && !request.isTest)
-        .map((request) => request.id),
-    );
+    const currentNewIds = getCurrentNewRequestIds(requests);
 
     if (!initializedRef.current) {
-      seenNewIdsRef.current = currentNewIds;
-      initializedRef.current = true;
+      for (const id of currentNewIds) {
+        seenNewIdsRef.current.add(id);
+      }
       return;
     }
 
-    const hasFreshNewRequest = [...currentNewIds].some(
-      (id) => !seenNewIdsRef.current.has(id),
-    );
-
-    seenNewIdsRef.current = currentNewIds;
+    let hasFreshNewRequest = false;
+    for (const id of currentNewIds) {
+      if (!seenNewIdsRef.current.has(id)) {
+        hasFreshNewRequest = true;
+        seenNewIdsRef.current.add(id);
+      }
+    }
 
     if (!hasFreshNewRequest) return;
 
