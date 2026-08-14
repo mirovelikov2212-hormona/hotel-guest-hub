@@ -24,7 +24,9 @@ Canonical continuation document for the autonomous M11–M16 sequence.
 
 ### Status
 
-**IN PROGRESS — M11.1 foundation**
+**M11.1 / M11.2 / M11.3 COMPLETE — MERGE READY**
+
+Production code promotion and post-merge Production smoke remain the final release actions before the milestone is marked CLOSED.
 
 ### Starting Production commit
 
@@ -48,73 +50,125 @@ Canonical continuation document for the autonomous M11–M16 sequence.
 - missing/mismatched configuration fails closed;
 - contract tests prove isolation.
 
-### Read-only baseline findings
+### Baseline gap resolved
 
-1. `aquamarin-test` is a distinct active sandbox hotel with its own hotel ID and `production_hotel_id` pointing to `aquamarin`.
-2. Production and sandbox already have separate published configuration revision IDs and separate publication-state rows.
-3. Their current published configuration checksums are identical because both were originally snapshotted from the same editorial content.
-4. All five sandbox editorial source URLs currently equal the Production source URLs: config, venues, i18n, hotel setup and request definitions.
-5. Therefore data/revision ownership is already separated, but the mutable editorial source is still shared. This is the primary M11 config-isolation gap.
-6. Runtime non-demo configuration already reads the hotel-scoped published revision, not live Sheets.
-7. Normalized rooms/departments/routing and guest request relational IDs are hotel-scoped from M10.
-8. Existing report-email cron explicitly filters `is_sandbox = false`.
-9. Existing hotel-scope helper suppresses live push for sandbox/test contexts.
-10. Normal sandbox massage booking is simulated with `sheetWrite: false`; read-only massage availability may use Production data. A controlled live-write escape hatch exists and must remain fail-closed/explicit.
+At M11 start, sandbox and Production already had separate hotel rows, revision rows and publication-state rows, but the five mutable editorial source URLs were shared. M11 removes that shared source as sandbox authority:
 
-### Safe subdivision
+- sandbox Sheet snapshot imports now fail closed before mutable Sheet content is read;
+- sandbox config starts from an explicit immutable clone of the exact currently published Production revision;
+- clone provenance records the linked Production hotel/revision/checksum;
+- sandbox manual edits are server-side patches against an exact sandbox-owned immutable base revision;
+- runtime identity fields cannot be patched through the sandbox edit helper;
+- sandbox runtime continues to read only its own published revision.
 
-- **M11.1 — Config clone/isolation foundation**: explicit immutable Production published-revision clone into a sandbox-owned draft; forbid sandbox Sheet snapshot import; provenance and service-role-only authorization.
-- **M11.2 — Runtime destination isolation**: central fail-closed sandbox destination policy for live push/reporting/adapter writes, preserving explicitly allowed read-only sources.
-- **M11.3 — Isolation proof and rollout**: contract/cross-tenant tests, Preview smoke, controlled sandbox clone/publish/project verification, Production non-regression and controlled merge.
+### M11.1 — Config clone/isolation foundation
 
-### M11.1 repository changes so far
+Completed:
 
-Commits created through connector-backed branch writes:
+- added `production_clone` revision source vocabulary;
+- added service-role/postgres-only `clone_production_config_to_sandbox_draft` RPC;
+- exact current Production published revision is required, otherwise the clone fails closed;
+- sandbox Sheet snapshot import is forbidden before shared editorial sources are read;
+- server helper validates canonical sandbox ownership and Production linkage;
+- forward-only migration applied successfully in Supabase as `20260814185709_m11_1_sandbox_config_clone`;
+- controlled clone created a sandbox-owned revision with byte-identical config/checksum and exact Production lineage;
+- Production revision count/published pointer remained unchanged.
 
-- `ace65c3` — add `production_clone` revision source vocabulary;
-- `e940669` — fail closed sandbox Sheet snapshot imports before mutable Sheet reads;
-- `d83f55f` — add forward-only M11.1 clone migration/RPC;
-- `a7d5559` — add server-only sandbox clone helper;
-- `c1f9351` — update revision contract test vocabulary;
-- `8858ea7` — add M11 sandbox-isolation contracts;
-- `e1aa893` — include M11 suite in `npm test`.
+### M11.2 — Runtime side-effect isolation
 
-Affected files:
+Completed:
 
+- removed the legacy sandbox massage live-write escape hatch entirely;
+- sandbox massage booking always simulates the write and records `sheetWrite: false`;
+- sandbox may still use Production massage availability as an explicitly read-only source;
+- report-email and weekly-report jobs retain `is_sandbox = false` filtering;
+- guest-request live staff/manager push remains suppressed for sandbox/test contexts;
+- massage reminder push skips sandbox/test rows;
+- no M11 change enables real sandbox notification/report/Production Sheet destinations.
+
+### M11.3 — Independent edit model and isolation proof
+
+Completed:
+
+- added `createSandboxManualConfigDraft` server helper;
+- manual edits are patches on an exact sandbox-owned `draft` or `published` revision;
+- `hotelId`, `hotelSlug`, `publicSlug`, `isSandbox`, `productionHotelId` and `testRoomNumbers` are immutable through the patch path;
+- resulting config is canonicalized, validated, checksummed and stored as a new sandbox-owned `manual` draft with base-revision provenance;
+- the generic draft RPC remains service-role/postgres-only;
+- tenant scanner explicitly reviews both M11 RPC call sites; scanner policy was not weakened;
+- the immutable `production_clone` sandbox revision was published after byte-equivalence and projection-parity checks;
+- normalized row IDs were preserved because the config bytes/checksum were unchanged;
+- sandbox publication/projection pointers now reference the sandbox-owned clone revision;
+- sandbox normalized room and department/routing runtime reads remain active.
+
+### Cross-tenant proof
+
+Post-activation verification:
+
+- Production config revisions: `1`;
+- Production drafts: `0`;
+- sandbox config revisions: `2`;
+- sandbox active rooms: `66`;
+- sandbox active departments: `5`;
+- sandbox active routing rules: `32`;
+- sandbox room tenant mismatches: `0`;
+- sandbox routing-to-department tenant mismatches: `0`;
+- sandbox guest-request room/department relational mismatches: `0`;
+- Production publication/projection revision remained unchanged;
+- Production M11 isolation metadata remained absent, confirming the sandbox-only activation.
+
+### Validation gates
+
+Green on the final reviewed M11 branch state before this document update:
+
+- contract suite: `131/131` passed;
+- Staff PIN release gate: passed inside the contract suite;
+- tenant-isolation guard: passed with `45` explicitly reviewed `needs_review` findings;
+- scoped ESLint: passed;
+- exact milestone Vercel Preview: READY;
+- Preview runtime `error` / `warning` / `fatal`: none found;
+- Supabase migration grants: clone RPC executable only by `postgres` and `service_role`;
+- Supabase clone migration uses `search_path = ''` and security invoker;
+- no hardcoded hotel UUID/slug is embedded in the M11 migration.
+
+### Repository commits of note
+
+- `ace65c3` — add `production_clone` source vocabulary;
+- `e940669` — fail closed sandbox Sheet snapshot imports;
+- `d83f55f` — add M11.1 clone migration/RPC;
+- `a7d5559` — add server-only clone helper;
+- `8858ea7` — add M11 isolation contracts;
+- `3910067` — review M11.1 tenant RPC baseline;
+- `00d630f` — remove sandbox massage Production Sheet write escape hatch;
+- `ea9902b` — lock side-effect isolation contracts;
+- `b96aff4` — add independent sandbox manual config draft helper;
+- `63122a5` — prove independent sandbox config drafts in contracts;
+- `f9fa1fe` — review M11.3 tenant RPC baseline.
+
+### Files in M11 scope
+
+- `app/api/guest/massages/route.ts`
 - `lib/hotels/config-revision-contract.mjs`
 - `lib/server/config-snapshot-import.ts`
 - `lib/server/sandbox-config.ts`
 - `supabase/migrations/20260814190000_m11_1_sandbox_config_clone.sql`
 - `tests/contracts/config-revision-foundation.contract.test.mjs`
 - `tests/contracts/m11-sandbox-config-isolation.contract.test.mjs`
+- `tests/contracts/tenant-isolation-baseline.json`
 - `package.json`
-
-### Database status
-
-- M11.1 migration exists in branch only.
-- Live Supabase has **not** been changed yet.
-- Existing Production and sandbox revisions/data remain unchanged at this checkpoint.
-
-### Validation status
-
-Pending before migration application:
-
-- M11 contract suite;
-- full `npm test`;
-- tenant-isolation guard;
-- Staff PIN release gate;
-- scoped lint/type/build;
-- Vercel Preview build/runtime logs.
+- this runbook.
 
 ### Rollback checkpoint
 
-Production code/database baseline remains the closed M10 state at:
+Production code remains on the closed M10 commit until controlled M11 merge:
 
 `3ee5c4cbc090bbd3edad58173aaf2f2df3ba6fb0`
 
+The M11 database change is additive and backward compatible. Sandbox can be pointed back to its last-known-good revision through the existing publication state if a sandbox-only rollback is required.
+
 ### Next safe step
 
-Run branch release gates. If green, inspect migration diff again, apply the forward-only M11.1 migration, verify grants/constraint/data preservation, and perform an explicit sandbox clone without publishing it until its ownership/checksum/provenance are verified.
+Run final diff review and Supabase Security Advisor against this exact branch state. If green, open controlled M11 PR to `main`, merge, wait for automatic Vercel Production deployment, run Production non-regression smoke, then mark M11 CLOSED before starting M12.
 
 ## M12 — Generic Scheduler and Adapter Registry
 
