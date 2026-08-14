@@ -78,6 +78,36 @@ test("server-side clone helper validates sandbox ownership and exact Production 
   assertContains(source, "result.production_hotel_id !== sandboxHotel.production_hotel_id");
 });
 
+test("M11 manual sandbox edits are based on an exact sandbox-owned immutable revision", async () => {
+  const source = await readProjectFile("lib/server/sandbox-config.ts");
+
+  assertContains(source, "export async function createSandboxManualConfigDraft");
+  assertContains(source, "RUNTIME_IDENTITY_KEYS");
+  assertContains(source, "M11_SANDBOX_RUNTIME_IDENTITY_IMMUTABLE");
+  assertContains(source, '.from("hotel_config_revisions")');
+  assertContains(source, '.eq("hotel_id", sandboxHotel.id)');
+  assertContains(source, '.eq("id", baseRevisionId)');
+  assertContains(source, '.in("status", ["draft", "published"])');
+  assertContains(source, "validateSandboxDraftConfig(config)");
+  assertContains(source, 'source: "sandbox_manual"');
+  assertContains(source, 'editKind: "sandbox_manual_patch"');
+  assertContains(source, '"create_hotel_config_draft"');
+  assertContains(source, 'p_source_type: "manual"');
+  assertContains(source, "p_hotel_id: sandboxHotel.id");
+  assertContains(source, "result.hotel_id !== sandboxHotel.id");
+
+  for (const key of [
+    '"hotelId"',
+    '"hotelSlug"',
+    '"publicSlug"',
+    '"isSandbox"',
+    '"productionHotelId"',
+    '"testRoomNumbers"',
+  ]) {
+    assertContains(source, key);
+  }
+});
+
 test("M11 sandbox side effects are fail-safe for reports, push reminders and massage Sheet writes", async () => {
   const reportCron = await readProjectFile("app/api/cron/report-email/route.ts");
   const weeklyReportCron = await readProjectFile("app/api/cron/weekly-report/route.ts");
