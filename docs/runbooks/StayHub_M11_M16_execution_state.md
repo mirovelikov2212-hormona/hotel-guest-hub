@@ -184,15 +184,34 @@ Release evidence:
 
 ### M14.2 — Native Supabase Schedule + Atomic Booking/Conflict Engine
 
-Status: **NEXT / ACTIVE WORK**.
+Status: **CLOSED / COMPLETE**.
 
-The Production availability rules were reproduced exactly from normalized data before implementation: for the current 2026-08-15 through 2026-08-23 bookable window, 09:00–18:00, 15-minute starts, 14:00–15:00 break, service duration + buffer and current block produce exactly `1770` starts, matching the incumbent snapshot with `0` set differences.
+Detailed evidence: `docs/operations/m14-2-native-massage-engine.md`.
 
-M14.2 must remain non-authoritative until sandbox concurrency/idempotency/conflict gates are green. It adds hotel-scoped schedule data and an atomic Supabase booking engine; no Production Guest Hub cutover belongs in this sub-milestone.
+Release evidence:
+
+- Starting checkpoint: `2952e0a213e93fb1b130946ff16665fae271f61d`;
+- final milestone head: `dcb7f2281180477a0063c1b4c7ded38deaa96519`;
+- controlled PR: #10;
+- runtime merge commit: `7676233729eb01b75946eea1649b0fea6b5c7560`;
+- Production deployment: `dpl_7CZBNhaKdzuoA2K3C6j6gWrP7iYT` — READY;
+- Supabase migration: `20260814220446_m14_2_native_massage_engine`;
+- tests: `160/160` passed; tenant guard `50/50` reviewed; scoped lint passed;
+- native Production availability parity: `1770 / 1770`, set difference `0`;
+- sandbox create / exact replay / conflict / external-block / overlap-constraint / cancellation acceptance passed;
+- sandbox availability returned `24 → 19 → 24` across create/cancel;
+- Production native booking remained physically rejected by `MASSAGE_NATIVE_BOOKING_SANDBOX_ONLY` and native Production booking rows remained `0`;
+- expired/read-only stay booking was rejected;
+- M14.1 shadow projection remained green after the shared advisory-lock boundary;
+- live Production guest route: HTTP `200`;
+- Production deployment runtime `error` / `warning` / `fatal`: none found;
+- Production Guest Hub authority intentionally remains unchanged until M14.3.
 
 ### M14.3 — Sandbox → Production Cutover / Adapter Boundary
 
-Status: **NOT STARTED** until M14.2 closes.
+Status: **NEXT / ACTIVE WORK**.
+
+Cutover order is mandatory: sandbox read/write authority first; then history/staff/notification/adapter/rollback acceptance; only then a separately gated Production cutover. Production native booking must remain blocked until the Production stage is explicitly activated.
 
 Google Sheet / Apps Script becomes mirror/import/export integration rather than core booking authority. Sunny Castle may remain a read-only external block import until it becomes a first-class StayHub tenant, expected for the 2027 summer season.
 
