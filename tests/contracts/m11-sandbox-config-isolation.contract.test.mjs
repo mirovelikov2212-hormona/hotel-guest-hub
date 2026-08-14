@@ -78,14 +78,23 @@ test("server-side clone helper validates sandbox ownership and exact Production 
   assertContains(source, "result.production_hotel_id !== sandboxHotel.production_hotel_id");
 });
 
-test("existing sandbox operational isolation remains fail-safe around reports, push and massage Sheet writes", async () => {
+test("M11 sandbox side effects are fail-safe for reports, push reminders and massage Sheet writes", async () => {
   const reportCron = await readProjectFile("app/api/cron/report-email/route.ts");
+  const weeklyReportCron = await readProjectFile("app/api/cron/weekly-report/route.ts");
+  const reminderCron = await readProjectFile("app/api/cron/massage-reminders/route.ts");
   const hotelScope = await readProjectFile("lib/server/hotel-scope.ts");
   const massageRoute = await readProjectFile("app/api/guest/massages/route.ts");
 
   assertContains(reportCron, '.eq("is_sandbox", false)');
+  assertContains(weeklyReportCron, '.eq("is_sandbox", false)');
   assertContains(hotelScope, "return isSandboxHotel(input.hotel) || Boolean(input.testRoomPolicy?.isTest)");
+  assertContains(reminderCron, "hotel.is_sandbox || row.is_test");
   assertContains(massageRoute, "if (isSandboxHotel(hotel))");
   assertContains(massageRoute, "sandboxSimulation: true");
   assertContains(massageRoute, "sheetWrite: false");
+
+  assertNotContains(massageRoute, "isMassageSandboxLiveWriteEnabled");
+  assertNotContains(massageRoute, "isApprovedMassageSandboxLiveWriteCandidate");
+  assertNotContains(massageRoute, 'action: "sandbox_live_write"');
+  assertNotContains(massageRoute, "MASSAGE_SANDBOX_LIVE_WRITE_CANDIDATE_NOT_ALLOWED");
 });
