@@ -101,6 +101,8 @@ export async function ensureMassageStaffRequest(input: {
   currency?: string | null;
   guestLanguage?: string | null;
   sheetWrite: boolean;
+  authorityMode?: "legacy_sheet" | "native_supabase";
+  nativeBookingId?: string | null;
 }) {
   const hotel = await resolveHotelByAnySlugAdmin(input.hotelSlug);
   const testRoomPolicy = await getTestRoomPolicy(hotel.id, input.roomNumber);
@@ -109,6 +111,8 @@ export async function ensureMassageStaffRequest(input: {
   const suppressLivePush = shouldSuppressLivePush({ hotel, testRoomPolicy });
   const stayId = String(input.stayId || "").trim() || null;
   const stayDeviceId = String(input.stayDeviceId || "").trim() || null;
+  const nativeBookingId = String(input.nativeBookingId || "").trim() || null;
+  const authorityMode = input.authorityMode || (input.sheetWrite ? "legacy_sheet" : "legacy_sheet");
   const massageBookingKey = buildMassageBookingKey(input);
   const existing = await findExistingMassageStaffRequest({
     hotelId: hotel.id,
@@ -130,9 +134,11 @@ export async function ensureMassageStaffRequest(input: {
     ? `Продължителност: ${duration} мин.`
     : "";
   const priceLine = price ? `Цена: ${price} ${currency}` : "";
-  const scheduleLine = input.sheetWrite
-    ? "График: Google Sheet е актуализиран."
-    : "График: Защитен sandbox тест — Google Sheet не е променян.";
+  const scheduleLine = authorityMode === "native_supabase"
+    ? "График: Резервацията е записана в Supabase. Google Sheet не е променян."
+    : input.sheetWrite
+      ? "График: Google Sheet е актуализиран."
+      : "График: Защитен sandbox тест — Google Sheet не е променян.";
   const note = [
     `Избрана услуга: ${serviceName}`,
     `Дата: ${dateLabel}`,
@@ -163,6 +169,8 @@ export async function ensureMassageStaffRequest(input: {
     rawType: "massage_booking",
     billingStatus: "pending",
     sheetWrite: input.sheetWrite,
+    authorityMode,
+    nativeBookingId,
     stayId,
     stayDeviceId,
     massageBookingKey,
@@ -177,7 +185,9 @@ export async function ensureMassageStaffRequest(input: {
       roomNumber: input.roomNumber,
       stayhubHotelCode,
       stayhubRoomMarker,
-      source: "stayhub",
+      source: authorityMode === "native_supabase" ? "stayhub_native_supabase" : "stayhub",
+      authorityMode,
+      nativeBookingId,
     },
     stayhubHotelCode,
     stayhubRoomMarker,
@@ -243,6 +253,8 @@ export async function ensureMassageStaffRequest(input: {
         date: input.date,
         startTime: input.startTime,
         massageBookingKey,
+        authorityMode,
+        nativeBookingId,
       },
     });
     throw error || new Error("Massage staff request was not returned.");
