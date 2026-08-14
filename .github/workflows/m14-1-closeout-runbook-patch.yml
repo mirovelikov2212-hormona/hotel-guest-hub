@@ -1,0 +1,37 @@
+name: M14.1 Closeout Runbook Patch
+
+on:
+  push:
+    branches:
+      - "audit/m14-1-closeout-runbook-patch"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout closeout branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/m14-1-closeout
+          fetch-depth: 0
+      - name: Reconcile M14 execution state
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path("docs/runbooks/StayHub_M11_M16_execution_state.md")
+          text = path.read_text()
+          start = text.index("## M14 — Multi-Hotel Hardening")
+          end = text.index("## M15 — Observability & Operational Hardening", start)
+          replacement = '''## M14 — Multi-Hotel Hardening\n\nStatus: **ACTIVE**.\n\n### M14.1 — Normalized Massage Runtime Shadow Projection\n\nStatus: **CLOSED / COMPLETE**.\n\nDetailed evidence: `docs/operations/m14-1-massage-runtime-shadow-projection.md`.\n\nRelease evidence:\n\n- Starting checkpoint: `f3488ee608c08914c849b1f8dd15a6e8b8c64dc5`;\n- final milestone head: `7d001f8045ce150dcc5ab82588c9393e00687720`;\n- controlled PR: #8;\n- runtime merge commit: `b3c845b98a8340936f9384119af1b7d7efa9d7ff`;\n- Production deployment: `dpl_7QZsiH3t14M9B4hGSfeEA7hKFYhr` — READY;\n- Supabase migration: `20260814213310_m14_1_massage_runtime_projection`;\n- tests: `149/149` passed; tenant guard `47/47` reviewed; scoped lint passed;\n- Production exact parity: 8 services / 1770 starts / 1 block; set mismatches `0 / 0 / 0`;\n- sandbox exact parity: 8 services / 980 starts / 1 block;\n- real Production refresh path returned `runtimeProjection.ok=true`; projection timestamp advanced and exact snapshot lineage remained matched;\n- `massage_runtime_projection_failed` after release: `0`;\n- Guest Hub authority intentionally remained on the incumbent snapshot/legacy path.\n\n### M14.2 — Native Supabase Schedule + Atomic Booking/Conflict Engine\n\nStatus: **NEXT / ACTIVE WORK**.\n\nThe Production availability rules were reproduced exactly from normalized data before implementation: for the current 2026-08-15 through 2026-08-23 bookable window, 09:00–18:00, 15-minute starts, 14:00–15:00 break, service duration + buffer and current block produce exactly `1770` starts, matching the incumbent snapshot with `0` set differences.\n\nM14.2 must remain non-authoritative until sandbox concurrency/idempotency/conflict gates are green. It adds hotel-scoped schedule data and an atomic Supabase booking engine; no Production Guest Hub cutover belongs in this sub-milestone.\n\n### M14.3 — Sandbox → Production Cutover / Adapter Boundary\n\nStatus: **NOT STARTED** until M14.2 closes.\n\nGoogle Sheet / Apps Script becomes mirror/import/export integration rather than core booking authority. Sunny Castle may remain a read-only external block import until it becomes a first-class StayHub tenant, expected for the 2027 summer season.\n\n### M14.4 — Generic Third-Hotel Proof + Remaining Runtime Hardcodes\n\nStatus: **NOT STARTED** until M14.3 closes.\n\nA generic third hotel must run from configuration/data only, with no code fork or cross-tenant leakage.\n\n'''
+          path.write_text(text[:start] + replacement + text[end:])
+      - name: Commit runbook reconciliation
+        run: |
+          git config user.name "mirovelikov2212-hormona"
+          git config user.email "miro.velikov.22.12@gmail.com"
+          git add docs/runbooks/StayHub_M11_M16_execution_state.md
+          git diff --cached --check
+          git commit -m "docs(m14.1): close shadow projection submilestone"
+          git push origin HEAD:audit/m14-1-closeout
