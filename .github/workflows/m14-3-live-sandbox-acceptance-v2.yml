@@ -1,0 +1,103 @@
+name: M14.3.1 Live Sandbox Acceptance v2
+
+on:
+  push:
+    branches:
+      - audit/m14-3-live-sandbox-acceptance-v2
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Exercise live sandbox native massage authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://www.stayhub.app'
+          HOTEL='aquamarin-test'
+          ROOM='103'
+          TODAY='2026-08-15'
+          TOMORROW='2026-08-16'
+          DEVICE="m14-3-acceptance-v2-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          services=$(curl -fsS "$BASE/api/guest/massages?hotelSlug=$HOTEL&action=services")
+          test "$(jq -r '.ok' <<<"$services")" = 'true'
+          test "$(jq -r '.sandbox' <<<"$services")" = 'true'
+          test "$(jq -r '.authority' <<<"$services")" = 'native_supabase'
+          test "$(jq -r '.result.count' <<<"$services")" = '8'
+
+          bootstrap=$(curl -fsS "$BASE/api/guest/massages?hotelSlug=$HOTEL&action=bootstrap&fromDate=$TODAY&daysAhead=2")
+          test "$(jq -r '.ok' <<<"$bootstrap")" = 'true'
+          test "$(jq -r '.authority' <<<"$bootstrap")" = 'native_supabase'
+          test "$(jq -r '.result.readMode' <<<"$bootstrap")" = 'M14_3_NATIVE_SUPABASE'
+
+          service='whole_body'
+          conflict_service='partial'
+          availability=$(curl -fsS "$BASE/api/guest/massages?hotelSlug=$HOTEL&action=availability&serviceId=$service&date=$TODAY")
+          time=$(jq -r '.result.availableTimes[0] // empty' <<<"$availability")
+          test -n "$time"
+          conflict_before=$(curl -fsS "$BASE/api/guest/massages?hotelSlug=$HOTEL&action=availability&serviceId=$conflict_service&date=$TODAY")
+          jq -e --arg t "$time" '.result.availableTimes | index($t) != null' <<<"$conflict_before" >/dev/null
+
+          confirm_body=$(jq -nc \
+            --arg hotel "$HOTEL" --arg room "$ROOM" --arg ci "$TODAY" --arg co "$TOMORROW" --arg device "$DEVICE" \
+            '{hotelSlug:$hotel,room:$room,checkInDate:$ci,checkOutDate:$co,deviceToken:$device,language:"bg"}')
+          confirmed=$(curl -fsS -X POST "$BASE/api/guest/stay/confirm" -H 'content-type: application/json' --data "$confirm_body")
+          test "$(jq -r '.ok' <<<"$confirmed")" = 'true'
+          stay_id=$(jq -r '.stay.id // empty' <<<"$confirmed")
+          stay_device_id=$(jq -r '.stay.stayDeviceId // empty' <<<"$confirmed")
+          test -n "$stay_id"
+          test -n "$stay_device_id"
+
+          booking_body=$(jq -nc \
+            --arg hotel "$HOTEL" --arg service "$service" --arg date "$TODAY" --arg time "$time" --arg room "$ROOM" \
+            --arg stay "$stay_id" --arg device "$stay_device_id" \
+            '{hotelSlug:$hotel,serviceId:$service,date:$date,time:$time,room:$room,roomConfirmed:true,stayId:$stay,stayDeviceId:$device,guestLanguage:"bg"}')
+
+          first_file=$(mktemp)
+          first_status=$(curl -sS -o "$first_file" -w '%{http_code}' -X POST "$BASE/api/guest/massages" -H 'content-type: application/json' --data "$booking_body")
+          test "$first_status" = '201'
+          first=$(cat "$first_file")
+          test "$(jq -r '.ok' <<<"$first")" = 'true'
+          test "$(jq -r '.action' <<<"$first")" = 'sandbox_native_book'
+          test "$(jq -r '.authority' <<<"$first")" = 'native_supabase'
+          test "$(jq -r '.sheetWrite' <<<"$first")" = 'false'
+          booking_id=$(jq -r '.result.nativeBookingId // empty' <<<"$first")
+          request_id=$(jq -r '.staffRequest.id // empty' <<<"$first")
+          test -n "$booking_id"
+          test -n "$request_id"
+
+          replay_file=$(mktemp)
+          replay_status=$(curl -sS -o "$replay_file" -w '%{http_code}' -X POST "$BASE/api/guest/massages" -H 'content-type: application/json' --data "$booking_body")
+          test "$replay_status" = '200'
+          replay=$(cat "$replay_file")
+          test "$(jq -r '.result.idempotentReplay' <<<"$replay")" = 'true'
+          test "$(jq -r '.result.nativeBookingId' <<<"$replay")" = "$booking_id"
+          test "$(jq -r '.staffRequest.id' <<<"$replay")" = "$request_id"
+
+          after=$(curl -fsS "$BASE/api/guest/massages?hotelSlug=$HOTEL&action=availability&serviceId=$service&date=$TODAY")
+          jq -e --arg t "$time" '.result.availableTimes | index($t) == null' <<<"$after" >/dev/null
+
+          conflict_body=$(jq -nc \
+            --arg hotel "$HOTEL" --arg service "$conflict_service" --arg date "$TODAY" --arg time "$time" --arg room "$ROOM" \
+            --arg stay "$stay_id" --arg device "$stay_device_id" \
+            '{hotelSlug:$hotel,serviceId:$service,date:$date,time:$time,room:$room,roomConfirmed:true,stayId:$stay,stayDeviceId:$device,guestLanguage:"bg"}')
+          conflict_file=$(mktemp)
+          conflict_status=$(curl -sS -o "$conflict_file" -w '%{http_code}' -X POST "$BASE/api/guest/massages" -H 'content-type: application/json' --data "$conflict_body")
+          test "$conflict_status" = '409'
+          test "$(jq -r '.code' <"$conflict_file")" = 'MASSAGE_SLOT_UNAVAILABLE'
+
+          history=$(curl -fsS "$BASE/api/guest/massages?hotelSlug=$HOTEL&action=active_bookings&room=$ROOM&stayId=$stay_id&stayDeviceId=$stay_device_id")
+          test "$(jq -r '.ok' <<<"$history")" = 'true'
+          jq -e --arg rid "$request_id" '.bookings | map(select(.requestId == $rid)) | length == 1' <<<"$history" >/dev/null
+
+          production=$(curl -fsS "$BASE/api/guest/massages?hotelSlug=aquamarin&action=services")
+          test "$(jq -r '.sandbox' <<<"$production")" = 'false'
+          test "$(jq -r '.snapshot.fresh' <<<"$production")" = 'true'
+          test "$(jq -r '.authority // "legacy"' <<<"$production")" = 'legacy'
+
+          echo 'M14.3.1 live sandbox acceptance v2: PASS'
