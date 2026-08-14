@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "checkpoint": "m13-stay-read-only",
+  "checkpoint": "m14.1-massage-runtime-shadow-projection",
   "purpose": "Lock the reviewed M2.2b.1 tenant-query inventory. Any new, moved, changed, removed, or newly-unclassified needs_review query must be explicitly re-reviewed before npm test passes.",
-  "expectedNeedsReview": 45,
+  "expectedNeedsReview": 47,
   "entries": [
     {
       "filePath": "lib/staff-auth/login-throttle.ts",
@@ -497,6 +497,28 @@
         "hotel_scope_not_proven"
       ],
       "provenance": "server_loaded_expired_subscription_ids"
+    },
+    {
+      "filePath": "lib/server/massage-runtime-projection.ts",
+      "line": 69,
+      "table": null,
+      "tableExpression": "\"project_massage_snapshot_to_runtime\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "service_role_exact_hotel_snapshot_lineage_projection_rpc"
+    },
+    {
+      "filePath": "lib/server/massage-runtime-projection.ts",
+      "line": 87,
+      "table": "massage_runtime_projection_state",
+      "tableExpression": "\"massage_runtime_projection_state\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_hotel_scoped_projection_state_read"
     }
   ]
 }
