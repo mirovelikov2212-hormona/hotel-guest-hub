@@ -15,6 +15,10 @@ const accessSource = readFileSync(
   new URL("../../lib/server/guest-stay-access.ts", import.meta.url),
   "utf8",
 );
+const guestStaysSource = readFileSync(
+  new URL("../../lib/server/guest-stays.ts", import.meta.url),
+  "utf8",
+);
 const stayStatusRoute = readFileSync(
   new URL("../../app/api/guest/stay/status/route.ts", import.meta.url),
   "utf8",
@@ -136,6 +140,20 @@ test("M13 access authority scopes stay and device reads to the same hotel and ro
   assert.match(accessSource, /requireGuestStayReadAccess/);
   assert.match(accessSource, /STAY_CHECKOUT_PENDING/);
   assert.match(accessSource, /STAY_READ_ONLY/);
+});
+
+test("M13 shared guest validator derives canonical lifecycle before any mutation can proceed", () => {
+  const validatorStart = guestStaysSource.indexOf("export async function validateGuestStayIdentity");
+  const validatorEnd = guestStaysSource.indexOf("export async function markLateCheckoutRequested", validatorStart);
+  assert.ok(validatorStart >= 0 && validatorEnd > validatorStart, "Expected shared guest validator source.");
+  const validatorSource = guestStaysSource.slice(validatorStart, validatorEnd);
+
+  assert.match(validatorSource, /deriveGuestStayLifecycle\(\{/);
+  assert.match(validatorSource, /lateCheckoutStatus: currentStay\.late_checkout_status/);
+  assert.match(validatorSource, /scheduledCheckOutAt: currentStay\.scheduled_check_out_at/);
+  assert.match(validatorSource, /effectiveCheckOutAt: currentStay\.effective_check_out_at/);
+  assert.match(validatorSource, /getGuestStayAccessPolicy\(lifecycleState\)/);
+  assert.match(validatorSource, /if \(!access\.canWrite\) throw new Error\("STAY_ENDED"\)/);
 });
 
 test("M13 status response preserves read access and exposes explicit write capability", () => {
