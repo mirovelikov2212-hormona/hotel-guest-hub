@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "checkpoint": "m11.3-sandbox-config-isolation",
+  "checkpoint": "m13-stay-read-only",
   "purpose": "Lock the reviewed M2.2b.1 tenant-query inventory. Any new, moved, changed, removed, or newly-unclassified needs_review query must be explicitly re-reviewed before npm test passes.",
   "expectedNeedsReview": 45,
   "entries": [
@@ -379,7 +379,7 @@
     },
     {
       "filePath": "lib/server/guest-stays.ts",
-      "line": 162,
+      "line": 166,
       "table": "guest_stays",
       "tableExpression": "\"guest_stays\"",
       "operation": "update",
@@ -390,7 +390,7 @@
     },
     {
       "filePath": "lib/server/guest-stays.ts",
-      "line": 325,
+      "line": 329,
       "table": "guest_stays",
       "tableExpression": "\"guest_stays\"",
       "operation": "update",
@@ -401,7 +401,7 @@
     },
     {
       "filePath": "lib/server/guest-stays.ts",
-      "line": 449,
+      "line": 453,
       "table": "guest_stay_devices",
       "tableExpression": "\"guest_stay_devices\"",
       "operation": "select",
@@ -412,7 +412,7 @@
     },
     {
       "filePath": "lib/server/guest-stays.ts",
-      "line": 461,
+      "line": 465,
       "table": "guest_stays",
       "tableExpression": "\"guest_stays\"",
       "operation": "update",
@@ -423,7 +423,7 @@
     },
     {
       "filePath": "lib/server/guest-stays.ts",
-      "line": 462,
+      "line": 466,
       "table": "guest_stay_devices",
       "tableExpression": "\"guest_stay_devices\"",
       "operation": "update",
@@ -434,7 +434,7 @@
     },
     {
       "filePath": "lib/server/guest-stays.ts",
-      "line": 466,
+      "line": 470,
       "table": "guest_push_subscriptions",
       "tableExpression": "\"guest_push_subscriptions\"",
       "operation": "update",
@@ -445,7 +445,7 @@
     },
     {
       "filePath": "lib/server/guest-stays.ts",
-      "line": 500,
+      "line": 504,
       "table": "guest_stay_devices",
       "tableExpression": "\"guest_stay_devices\"",
       "operation": "select",
@@ -456,7 +456,7 @@
     },
     {
       "filePath": "lib/server/guest-stays.ts",
-      "line": 525,
+      "line": 536,
       "table": "guest_stays",
       "tableExpression": "\"guest_stays\"",
       "operation": "update",
@@ -467,7 +467,7 @@
     },
     {
       "filePath": "lib/server/guest-stays.ts",
-      "line": 574,
+      "line": 585,
       "table": "guest_stays",
       "tableExpression": "\"guest_stays\"",
       "operation": "update",
