@@ -69,7 +69,7 @@ export async function getActiveNormalizedRoomRows(
 ): Promise<NormalizedProjectionRows> {
   const { data, error } = await supabaseAdmin
     .from("rooms")
-    .select("room_number, floor, building, room_type, active")
+    .select("id, room_number, floor, building, room_type, active")
     .eq("hotel_id", hotelId)
     .eq("active", true);
 

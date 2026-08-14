@@ -27,12 +27,26 @@ export type NormalizedRuntimeResult =
       source: "normalized";
       reason: null;
       config: HotelConfig;
+      relationalAuthority:
+        | {
+            revisionId: string;
+            sourceChecksum: string;
+            roomIdByNumber: Record<string, string>;
+          }
+        | {
+            revisionId: string;
+            sourceChecksum: string;
+            departmentIdByCode: Record<string, string>;
+            routingDepartmentIdByRequestType: Record<string, string>;
+          }
+        | null;
     }
   | {
       ok: false;
       source: "published_snapshot";
       reason: string;
       config: HotelConfig;
+      relationalAuthority: null;
     };
 
 export function buildSandboxNormalizedRoomRuntimeConfig(input: {

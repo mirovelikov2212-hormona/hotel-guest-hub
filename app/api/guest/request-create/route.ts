@@ -14,6 +14,7 @@ import { isDepartmentWorkingHoursForConfig } from "@/lib/staff/operations-hours"
 import { translateGuestText, translateGuestTextToBulgarian, hasBulgarianLetters } from "@/lib/server/staff-translation";
 import { getTestRoomPolicy } from "@/lib/server/test-rooms";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
+import { resolveGuestRequestRelationalIds } from "@/lib/server/guest-request-relational-ids.mjs";
 import { markLateCheckoutRequested, validateGuestStayIdentity } from "@/lib/server/guest-stays";
 import {
   getOperationalIsolationFields,
@@ -247,6 +248,39 @@ export async function POST(req: NextRequest) {
     const price = requestAuthority.price;
     const currency = requestAuthority.currency;
     const sourceRequestDef = requestAuthority.sourceRequestDef;
+    const relationalIds = resolveGuestRequestRelationalIds(hotelConfig, {
+      roomNumber: room,
+      departmentCode: department,
+      requestType: normalizedType,
+    });
+
+    if (!relationalIds.ok) {
+      await logSystemError({
+        hotelId: hotel.id,
+        source: "guest_hub",
+        eventType: "guest_request_relational_id_resolution_failed",
+        message:
+          "Guest request relational IDs could not be resolved from the activated normalized authority.",
+        roomNumber: room,
+        departmentId: department,
+        error: new Error(relationalIds.code),
+        metadata: {
+          hotelSlug,
+          rawType,
+          normalizedType,
+          code: relationalIds.code,
+        },
+      });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Hotel request routing is temporarily unavailable",
+          code: "NORMALIZED_RELATIONAL_IDS_UNAVAILABLE",
+        },
+        { status: 503 },
+      );
+    }
+
     const translatedGuestNoteBg = note && !hasBulgarianLetters(note)
       ? await translateGuestTextToBulgarian(note, {
           sourceLanguage: guestLanguage,
@@ -273,6 +307,9 @@ export async function POST(req: NextRequest) {
       stayId: stayIdentity?.stay.id ?? null,
       stayDeviceId: stayIdentity?.device.id ?? null,
       lateCheckoutRequestedTime: normalizedType === "late_checkout" ? lateCheckoutRequestedTime : null,
+      normalizedRelationalIdsActive: relationalIds.active,
+      normalizedRelationalRevisionId: relationalIds.revisionId,
+      normalizedRelationalSourceChecksum: relationalIds.sourceChecksum,
       ...isolationMetadata,
     };
     const staffTitleBg = getOperationalRequestTitleBg({
@@ -329,6 +366,8 @@ export async function POST(req: NextRequest) {
       .from("guest_requests")
       .insert({
         hotel_id: hotel.id,
+        room_id: relationalIds.roomId,
+        department_id: relationalIds.departmentId,
         stay_id: stayIdentity?.stay.id ?? null,
         stay_device_id: stayIdentity?.device.id ?? null,
         room_number_snapshot: room,

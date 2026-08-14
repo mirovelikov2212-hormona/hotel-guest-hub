@@ -5,6 +5,7 @@ import { parseRequestDefs } from "@/lib/request-defs";
 import { getHotelSheetSources } from "@/lib/hotels/getHotelSheetSources";
 import { getActiveTestRoomNumbers } from "@/lib/server/test-rooms";
 import { getPublishedHotelConfigSnapshot } from "@/lib/server/published-hotel-config";
+import { attachGuestRequestRelationalAuthority } from "@/lib/server/guest-request-relational-ids.mjs";
 import {
   resolveNormalizedDepartmentRoutingConfigForRuntime,
   resolveNormalizedRoomConfigForRuntime,
@@ -563,6 +564,17 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
   }
 
   let runtimeConfig = published.config;
+  let roomRelationalAuthority: {
+    revisionId: string;
+    sourceChecksum: string;
+    roomIdByNumber: Record<string, string>;
+  } | null = null;
+  let departmentRelationalAuthority: {
+    revisionId: string;
+    sourceChecksum: string;
+    departmentIdByCode: Record<string, string>;
+    routingDepartmentIdByRequestType: Record<string, string>;
+  } | null = null;
 
   if (hotel.isSandbox) {
     try {
@@ -572,6 +584,13 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
         published,
       });
       runtimeConfig = normalized.config;
+      if (
+        normalized.ok &&
+        normalized.relationalAuthority &&
+        "roomIdByNumber" in normalized.relationalAuthority
+      ) {
+        roomRelationalAuthority = normalized.relationalAuthority;
+      }
 
       if (
         !normalized.ok &&
@@ -602,6 +621,13 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
         },
       });
       runtimeConfig = normalized.config;
+      if (
+        normalized.ok &&
+        normalized.relationalAuthority &&
+        "departmentIdByCode" in normalized.relationalAuthority
+      ) {
+        departmentRelationalAuthority = normalized.relationalAuthority;
+      }
 
       if (
         !normalized.ok &&
@@ -634,7 +660,7 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     hotel.isSandbox ? hotel.productionHotelId : null,
   ]);
 
-  return {
+  const resolvedConfig: HotelConfig = {
     ...runtimeConfig,
     hotelId: hotel.hotelId,
     hotelSlug: hotel.hotelSlug || safeHotelSlug,
@@ -643,6 +669,26 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     productionHotelId: hotel.productionHotelId ?? null,
     testRoomNumbers,
   };
+
+  if (
+    roomRelationalAuthority &&
+    departmentRelationalAuthority &&
+    roomRelationalAuthority.revisionId ===
+      departmentRelationalAuthority.revisionId &&
+    roomRelationalAuthority.sourceChecksum ===
+      departmentRelationalAuthority.sourceChecksum
+  ) {
+    attachGuestRequestRelationalAuthority(resolvedConfig, {
+      revisionId: roomRelationalAuthority.revisionId,
+      sourceChecksum: roomRelationalAuthority.sourceChecksum,
+      roomIdByNumber: roomRelationalAuthority.roomIdByNumber,
+      departmentIdByCode: departmentRelationalAuthority.departmentIdByCode,
+      routingDepartmentIdByRequestType:
+        departmentRelationalAuthority.routingDepartmentIdByRequestType,
+    });
+  }
+
+  return resolvedConfig;
 }
 
 export async function getHotelConfigFromSheets(hotelSlug: string): Promise<HotelConfig | null> {
