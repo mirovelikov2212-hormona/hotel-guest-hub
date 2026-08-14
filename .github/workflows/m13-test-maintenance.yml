@@ -1,0 +1,57 @@
+name: M13 Test Maintenance
+
+on:
+  push:
+    branches:
+      - "audit/m13-test-maintenance-*"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout milestone branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/m13-checkout-read-only
+          fetch-depth: 0
+      - name: Update exact security contract expectation
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path("tests/contracts/api-security.contract.test.mjs")
+          text = path.read_text()
+          old_title = 'test("guest request status GET requires validated stay/device identity", async () => {'
+          new_title = 'test("guest request status GET requires tenant-scoped read access for the validated stay/device", async () => {'
+          if text.count(old_title) != 1:
+              raise SystemExit("unexpected test title count")
+          if text.count('assertContains(routeSource, "validateGuestStayIdentity({");') != 1:
+              raise SystemExit("unexpected old guard assertion count")
+          if text.count('    "validateGuestStayIdentity({",\n    \' .from("guest_requests")\','):
+              raise SystemExit("unexpected spacing variant")
+          text = text.replace(old_title, new_title, 1)
+          text = text.replace(
+              'assertContains(routeSource, "validateGuestStayIdentity({");',
+              'assertContains(routeSource, "requireGuestStayReadAccess({");',
+              1,
+          )
+          old_before = '''    "validateGuestStayIdentity({",
+              '.from("guest_requests")',
+              "Guest request status reads must validate the stay/device identity before reading request rows.",'''
+          new_before = '''    "requireGuestStayReadAccess({",
+              '.from("guest_requests")',
+              "Guest request status reads must require tenant-scoped stay/device read access before reading request rows.",'''
+          if text.count(old_before) != 1:
+              raise SystemExit("unexpected assertBefore block count")
+          text = text.replace(old_before, new_before, 1)
+          path.write_text(text)
+      - name: Commit milestone test maintenance
+        run: |
+          git config user.name "mirovelikov2212-hormona"
+          git config user.email "miro.velikov.22.12@gmail.com"
+          git add tests/contracts/api-security.contract.test.mjs
+          git diff --cached --check
+          git commit -m "test(m13): update request history read-access contract"
+          git push origin HEAD:audit/m13-checkout-read-only
