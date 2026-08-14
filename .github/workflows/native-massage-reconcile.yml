@@ -1,0 +1,27 @@
+name: Native Massage Staff Reconcile
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Reconcile confirmed native massage bookings to staff requests
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --retry 2 \
+            --retry-all-errors \
+            --connect-timeout 10 \
+            --max-time 60 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            https://www.stayhub.app/api/cron/native-massage-reconcile
