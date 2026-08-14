@@ -1,0 +1,24 @@
+name: M14.3.2 Route Patcher v4
+
+on:
+  push:
+    branches:
+      - audit/m14-3-2-route-patcher-v4
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/m14-3-2-native-staff-reconciliation
+          fetch-depth: 0
+      - name: Patch route
+        run: echo 'CmZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aApwID0gUGF0aCgiYXBwL2FwaS9ndWVzdC9tYXNzYWdlcy9yb3V0ZS50cyIpCnMgPSBwLnJlYWRfdGV4dCgpCmFuY2hvciA9ICdpbXBvcnQgeyBlbnN1cmVNYXNzYWdlU3RhZmZSZXF1ZXN0IH0gZnJvbSAiQC9saWIvc2VydmVyL21hc3NhZ2Utc3RhZmYtcmVxdWVzdCI7XG4nCmV4dHJhID0gJ2ltcG9ydCB7IGF0dGFjaE5hdGl2ZU1hc3NhZ2VTdGFmZlJlcXVlc3QgfSBmcm9tICJAL2xpYi9zZXJ2ZXIvbWFzc2FnZS1uYXRpdmUtcmVjb25jaWxpYXRpb24iO1xuJwppZiBleHRyYSBub3QgaW4gczoKICAgIGlmIGFuY2hvciBub3QgaW4gczoKICAgICAgICByYWlzZSBTeXN0ZW1FeGl0KCJpbXBvcnQgYW5jaG9yIG1pc3NpbmciKQogICAgcyA9IHMucmVwbGFjZShhbmNob3IsIGFuY2hvciArIGV4dHJhLCAxKQpzYW5kYm94ID0gcy5pbmRleCgiICAgIGlmIChpc1NhbmRib3hIb3RlbChob3RlbCkpIHsiLCBzLmluZGV4KCJleHBvcnQgYXN5bmMgZnVuY3Rpb24gUE9TVCIpKQpzdGFydCA9IHMuaW5kZXgoIiAgICAgIGNvbnN0IHN0YWZmUmVxdWVzdCA9IGF3YWl0IGVuc3VyZU1hc3NhZ2VTdGFmZlJlcXVlc3QoeyIsIHNhbmRib3gpCnN0YXR1c19tYXJrZXIgPSAiICAgICAgY29uc3Qgc3RhdHVzQ29kZSA9IG5hdGl2ZUJvb2tpbmcuaWRlbXBvdGVudFJlcGxheSA/IDIwMCA6IDIwMTsiCmVuZCA9IHMuaW5kZXgoc3RhdHVzX21hcmtlciwgc3RhcnQpCnJlcGxhY2VtZW50ID0gJycnICAgICAgY29uc3Qgc3RhZmZBdHRhY2htZW50ID0gYXdhaXQgYXR0YWNoTmF0aXZlTWFzc2FnZVN0YWZmUmVxdWVzdCh7CiAgICAgICAgaG90ZWwsCiAgICAgICAgYm9va2luZ0lkOiBuYXRpdmVCb29raW5nLmJvb2tpbmdJZCwKICAgICAgICByZWFzb246ICJzeW5jaHJvbm91cyIsCiAgICAgIH0pOwonJycKcyA9IHNbOnN0YXJ0XSArIHJlcGxhY2VtZW50ICsgc1tlbmQ6XQpyZXNwb25zZV9zdGFydCA9IHMuaW5kZXgoIiAgICAgICAgICByZXN1bHQsIiwgc2FuZGJveCkKb2xkX3Jlc3BvbnNlID0gIiAgICAgICAgICBzdGFmZlJlcXVlc3QsXG4iCnJlc3BvbnNlX3BvcyA9IHMuaW5kZXgob2xkX3Jlc3BvbnNlLCByZXNwb25zZV9zdGFydCkKcmVzcG9uc2VfcmVwbGFjZW1lbnQgPSAnJycgICAgICAgICAgc3RhZmZSZXF1ZXN0OiBzdGFmZkF0dGFjaG1lbnQuc3RhZmZSZXF1ZXN0LAogICAgICAgICAgc3RhZmZSZXF1ZXN0UGVuZGluZzogc3RhZmZBdHRhY2htZW50LnN0YWZmUmVxdWVzdFBlbmRpbmcsCicnJwpzID0gc1s6cmVzcG9uc2VfcG9zXSArIHJlc3BvbnNlX3JlcGxhY2VtZW50ICsgc1tyZXNwb25zZV9wb3MgKyBsZW4ob2xkX3Jlc3BvbnNlKTpdCnAud3JpdGVfdGV4dChzKQo=' | base64 -d | python
+      - name: Validate diff
+        run: git diff --check && git diff -- app/api/guest/massages/route.ts
+      - name: Commit route patch only
+        run: git config user.name 'github-actions[bot]' && git config user.email '41898282+github-actions[bot]@users.noreply.github.com' && git add app/api/guest/massages/route.ts && test "$(git diff --cached --name-only)" = 'app/api/guest/massages/route.ts' && git commit -m 'Make native staff attachment fail-safe' && git push origin HEAD:audit/m14-3-2-native-staff-reconciliation
