@@ -1,0 +1,28 @@
+name: M14.3.2 Live Orphan Fixture
+
+on:
+  push:
+    branches:
+      - audit/m14-3-2-live-orphan-fixture
+
+permissions:
+  contents: read
+
+jobs:
+  fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Create temporary sandbox stay/device only
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://www.stayhub.app'
+          DEVICE='m14-3-2-reconcile-20260815-live1'
+          body=$(jq -nc '{hotelSlug:"aquamarin-test",room:"103",checkInDate:"2026-08-15",checkOutDate:"2026-08-16",deviceToken:"m14-3-2-reconcile-20260815-live1",language:"bg"}')
+          response=$(curl -fsS -X POST "$BASE/api/guest/stay/confirm" -H 'content-type: application/json' --data "$body")
+          test "$(jq -r '.ok' <<<"$response")" = 'true'
+          test "$(jq -r '.stay.roomNumber' <<<"$response")" = '103'
+          test -n "$(jq -r '.stay.id // empty' <<<"$response")"
+          test -n "$(jq -r '.stay.stayDeviceId // empty' <<<"$response")"
+          echo 'M14.3.2 temporary stay/device fixture: PASS'
