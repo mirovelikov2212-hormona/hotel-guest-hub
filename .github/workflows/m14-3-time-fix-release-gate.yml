@@ -1,0 +1,25 @@
+name: M14.3.1 Time Fix Final Gate
+
+on:
+  push:
+    branches:
+      - audit/m14-3-time-fix-gate-87c3cd5
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Full contracts and tenant isolation
+        run: npm test
+      - name: Scoped ESLint
+        run: npx eslint lib/server/massage-native-runtime.ts tests/contracts/m14-3-massage-authority-cutover.contract.test.mjs
