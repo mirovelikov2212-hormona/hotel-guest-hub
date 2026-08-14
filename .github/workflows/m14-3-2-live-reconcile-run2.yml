@@ -1,0 +1,29 @@
+name: M14.3.2 Live Reconcile Run 2
+
+on:
+  push:
+    branches:
+      - audit/m14-3-2-live-reconcile-run2
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call live sandbox-only reconciliation cron again
+        shell: bash
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          response_file=$(mktemp)
+          status=$(curl -sS -o "$response_file" -w '%{http_code}' -H "Authorization: Bearer ${CRON_SECRET}" https://www.stayhub.app/api/cron/native-massage-reconcile)
+          echo "status=$status"
+          test "$status" = '200'
+          test "$(jq -r '.ok' <"$response_file")" = 'true'
+          test "$(jq -r '.sandboxOnly' <"$response_file")" = 'true'
+          test "$(jq -r '.pendingTotal' <"$response_file")" = '0'
+          echo 'M14.3.2 live reconciliation run 2: PASS'
