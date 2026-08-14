@@ -24,6 +24,43 @@ alter table public.massage_runtime_bookings
   references public.guest_requests(id)
   on delete set null;
 
+create or replace function public.enforce_massage_runtime_staff_request_scope()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if new.staff_request_id is null then
+    return new;
+  end if;
+
+  if not exists (
+    select 1
+    from public.guest_requests g
+    where g.id = new.staff_request_id
+      and g.hotel_id = new.hotel_id
+      and g.request_type = 'massage_booking'
+  ) then
+    raise exception 'MASSAGE_NATIVE_STAFF_REQUEST_SCOPE_MISMATCH';
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke all on function public.enforce_massage_runtime_staff_request_scope()
+  from public, anon, authenticated;
+
+drop trigger if exists massage_runtime_bookings_staff_request_scope_guard
+  on public.massage_runtime_bookings;
+
+create trigger massage_runtime_bookings_staff_request_scope_guard
+before insert or update of staff_request_id
+on public.massage_runtime_bookings
+for each row
+execute function public.enforce_massage_runtime_staff_request_scope();
+
 update public.massage_runtime_bookings
 set staff_sync_status = case
   when status = 'confirmed' then 'pending'
