@@ -1,0 +1,25 @@
+name: M14.3 Release Gate
+
+on:
+  push:
+    branches:
+      - audit/m14-3-gate-94bfbee
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Full contracts and tenant isolation
+        run: npm test
+      - name: Scoped ESLint
+        run: npx eslint app/api/guest/massages/route.ts lib/server/massage-native-runtime.ts lib/server/massage-staff-request.ts tests/contracts/m14-native-massage-engine.contract.test.mjs tests/contracts/m14-3-massage-authority-cutover.contract.test.mjs
