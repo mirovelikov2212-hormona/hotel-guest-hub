@@ -24,17 +24,23 @@ Canonical continuation document for the autonomous M11–M16 sequence.
 
 ### Status
 
-**M11.1 / M11.2 / M11.3 COMPLETE — MERGE READY**
+**CLOSED / COMPLETE**
 
-Production code promotion and post-merge Production smoke remain the final release actions before the milestone is marked CLOSED.
+M11.1, M11.2 and M11.3 are implemented, validated, merged to `main`, deployed to Production and smoke-tested successfully.
 
 ### Starting Production commit
 
 `3ee5c4cbc090bbd3edad58173aaf2f2df3ba6fb0`
 
-### Branch
+### M11 release
 
-`audit/m11-true-sandbox-config-isolation`
+- Milestone branch: `audit/m11-true-sandbox-config-isolation`
+- Final milestone head: `0a48ead05426b160130d55bb21b988b582efbadf`
+- Controlled PR: #2 — `M11: True Sandbox Config Isolation`
+- Merge commit on `main`: `324c37913b8044ca2354447fc330ce9631517928`
+- Automatic Vercel Production deployment: `dpl_7izyTu58i7mWvxJZkdqt4E2awF2K`
+- Production deployment state: `READY`
+- `vercel --prod`: **not used**
 
 ### Canonical scope
 
@@ -98,28 +104,32 @@ Completed:
 - tenant scanner explicitly reviews both M11 RPC call sites; scanner policy was not weakened;
 - the immutable `production_clone` sandbox revision was published after byte-equivalence and projection-parity checks;
 - normalized row IDs were preserved because the config bytes/checksum were unchanged;
-- sandbox publication/projection pointers now reference the sandbox-owned clone revision;
+- sandbox publication/projection pointers reference the sandbox-owned clone revision;
 - sandbox normalized room and department/routing runtime reads remain active.
 
 ### Cross-tenant proof
 
-Post-activation verification:
+Final post-Production-deploy verification:
 
 - Production config revisions: `1`;
 - Production drafts: `0`;
+- Production published source type: `sheet_snapshot`;
+- Production projection state: `ready`;
+- Production M11 sandbox-isolation metadata: absent;
 - sandbox config revisions: `2`;
-- sandbox active rooms: `66`;
-- sandbox active departments: `5`;
-- sandbox active routing rules: `32`;
+- sandbox drafts: `0`;
+- sandbox published source type: `production_clone`;
+- sandbox publication revision equals sandbox projection revision;
+- sandbox projection state: `ready`;
+- sandbox normalized room reads: active;
+- sandbox normalized department/routing reads: active;
 - sandbox room tenant mismatches: `0`;
 - sandbox routing-to-department tenant mismatches: `0`;
-- sandbox guest-request room/department relational mismatches: `0`;
-- Production publication/projection revision remained unchanged;
-- Production M11 isolation metadata remained absent, confirming the sandbox-only activation.
+- sandbox guest-request room/department relational mismatches: `0`.
 
 ### Validation gates
 
-Green on the final reviewed M11 branch state before this document update:
+Green before merge:
 
 - contract suite: `131/131` passed;
 - Staff PIN release gate: passed inside the contract suite;
@@ -129,7 +139,21 @@ Green on the final reviewed M11 branch state before this document update:
 - Preview runtime `error` / `warning` / `fatal`: none found;
 - Supabase migration grants: clone RPC executable only by `postgres` and `service_role`;
 - Supabase clone migration uses `search_path = ''` and security invoker;
-- no hardcoded hotel UUID/slug is embedded in the M11 migration.
+- no hardcoded hotel UUID/slug is embedded in the M11 migration;
+- Supabase Security Advisor showed no new M11-specific warning/critical finding.
+
+### Production release proof
+
+After controlled PR #2 merge:
+
+- GitHub `main` points to `324c37913b8044ca2354447fc330ce9631517928`;
+- automatic Production deployment `dpl_7izyTu58i7mWvxJZkdqt4E2awF2K` reached `READY`;
+- Next.js compile, TypeScript and build/static generation completed successfully;
+- exact Production deployment runtime `error` / `warning` / `fatal` logs: none found;
+- live `https://www.stayhub.app/h/aquamarin` returned HTTP `200 OK` and rendered the Production StayHub guest UI;
+- live runtime resolved the Production tenant, not the sandbox tenant;
+- final DB non-regression confirmed Production remained on its original published `sheet_snapshot` revision with no draft or M11 sandbox metadata;
+- final sandbox cross-tenant mismatch checks remained `0 / 0 / 0`.
 
 ### Repository commits of note
 
@@ -143,7 +167,8 @@ Green on the final reviewed M11 branch state before this document update:
 - `ea9902b` — lock side-effect isolation contracts;
 - `b96aff4` — add independent sandbox manual config draft helper;
 - `63122a5` — prove independent sandbox config drafts in contracts;
-- `f9fa1fe` — review M11.3 tenant RPC baseline.
+- `f9fa1fe` — review M11.3 tenant RPC baseline;
+- `0a48ead` — canonical pre-release M11 state.
 
 ### Files in M11 scope
 
@@ -158,17 +183,16 @@ Green on the final reviewed M11 branch state before this document update:
 - `package.json`
 - this runbook.
 
-### Rollback checkpoint
+### Rollback checkpoints
 
-Production code remains on the closed M10 commit until controlled M11 merge:
-
-`3ee5c4cbc090bbd3edad58173aaf2f2df3ba6fb0`
-
-The M11 database change is additive and backward compatible. Sandbox can be pointed back to its last-known-good revision through the existing publication state if a sandbox-only rollback is required.
+- Pre-M11 Production code checkpoint: `3ee5c4cbc090bbd3edad58173aaf2f2df3ba6fb0`.
+- M11 Production release commit: `324c37913b8044ca2354447fc330ce9631517928`.
+- The M11 database migration is additive/backward-compatible.
+- Sandbox can be pointed to its previous known-good published revision through the existing publication-state mechanism if a sandbox-only rollback is required.
 
 ### Next safe step
 
-Run final diff review and Supabase Security Advisor against this exact branch state. If green, open controlled M11 PR to `main`, merge, wait for automatic Vercel Production deployment, run Production non-regression smoke, then mark M11 CLOSED before starting M12.
+M11 is closed. Do not modify it as part of M12. Start M12 from the current `main` only after confirming the M11 closeout/documentation commit is deployed successfully.
 
 ## M12 — Generic Scheduler and Adapter Registry
 
