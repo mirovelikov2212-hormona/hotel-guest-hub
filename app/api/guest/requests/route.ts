@@ -7,6 +7,15 @@ import {
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import type { StaffRequestStatus } from "@/lib/staff/types";
 
+type GuestRequestStatusRow = {
+  id: string;
+  room_number_snapshot: string | null;
+  request_type: string;
+  title: string | null;
+  status: string | null;
+  created_at: string;
+};
+
 async function getHotelByAnySlugAdmin(inputSlug: string) {
   const slug = String(inputSlug || "").trim().toLowerCase();
   const { data, error } = await supabaseAdmin
@@ -69,7 +78,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     }
 
-    const requests = (data ?? []).map((row: any) => ({
+    const requests = ((data ?? []) as GuestRequestStatusRow[]).map((row) => ({
       id: row.id,
       room: row.room_number_snapshot ?? room,
       title: row.title,
