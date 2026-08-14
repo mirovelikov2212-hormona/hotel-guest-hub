@@ -45,7 +45,9 @@ export function useStaffAlertSound({
   const seenNewIdsRef = useRef<Set<string>>(new Set());
   const latestRequestsRef = useRef(requests);
 
-  latestRequestsRef.current = requests;
+  useEffect(() => {
+    latestRequestsRef.current = requests;
+  }, [requests]);
 
   const ensureAudioContextRunning = useCallback(async () => {
     if (typeof window === "undefined") return false;
