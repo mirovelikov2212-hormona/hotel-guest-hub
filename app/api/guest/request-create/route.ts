@@ -5,11 +5,12 @@ import { resolveGuestRequestAuthority } from "@/lib/server/guest-request-authori
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
+import type { HotelConfig } from "@/lib/types";
 import type { StaffDepartment, StaffRequestStatus } from "@/lib/staff/types";
 import { getHotelConfig } from "@/lib/config";
 import { sendManagerPushNotification, sendStaffPushNotification } from "@/lib/staff-push/web-push";
 import type { PushStaffRole } from "@/lib/staff-push/manager-auth";
-import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
+import { isDepartmentWorkingHoursForConfig } from "@/lib/staff/operations-hours";
 import { translateGuestText, translateGuestTextToBulgarian, hasBulgarianLetters } from "@/lib/server/staff-translation";
 import { getTestRoomPolicy } from "@/lib/server/test-rooms";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
@@ -28,24 +29,45 @@ function normalizeRoomNumber(value: unknown) {
 
 function getStaffPushRolesForRequest(input: {
   department: StaffDepartment;
+  afterHoursDepartment: StaffDepartment | null;
   notifyDepartments: string[];
+  hotelConfig: HotelConfig;
 }) {
   const roles = new Set<PushStaffRole>();
-  const afterHours = isReceptionBackupHours();
 
-  const addDepartmentRole = (value: string) => {
+  const addDepartmentRole = (
+    value: string,
+    configuredAfterHoursDepartment: StaffDepartment | null = null,
+  ) => {
     if (value === "reception") {
       roles.add("reception");
       return;
     }
 
     if (value === "housekeeping" || value === "maintenance") {
-      roles.add(afterHours ? "reception" : value);
+      const working = isDepartmentWorkingHoursForConfig({
+        hotelConfig: input.hotelConfig,
+        department: value,
+      });
+      if (working) {
+        roles.add(value);
+        return;
+      }
+
+      const afterHoursDepartment =
+        configuredAfterHoursDepartment || "reception";
+      if (
+        afterHoursDepartment === "reception" ||
+        afterHoursDepartment === "housekeeping" ||
+        afterHoursDepartment === "maintenance"
+      ) {
+        roles.add(afterHoursDepartment);
+      }
     }
   };
 
-  addDepartmentRole(input.department);
-  input.notifyDepartments.forEach(addDepartmentRole);
+  addDepartmentRole(input.department, input.afterHoursDepartment);
+  input.notifyDepartments.forEach((value) => addDepartmentRole(value));
 
   return Array.from(roles);
 }
@@ -219,6 +241,7 @@ export async function POST(req: NextRequest) {
     );
     const department =
       requestAuthority.department ?? getDepartmentForRequestType(normalizedType);
+    const afterHoursDepartment = requestAuthority.afterHoursDepartment ?? null;
     const notifyDepartments = requestAuthority.notifyDepartments;
     const requiresBilling = requestAuthority.requiresBilling;
     const price = requestAuthority.price;
@@ -234,6 +257,7 @@ export async function POST(req: NextRequest) {
     const noteForStaffCopy = translatedGuestNoteBg || note;
     const operationalMetadata = {
       department,
+      afterHoursDepartment,
       notifyDepartments,
       requiresBilling,
       price,
@@ -398,7 +422,9 @@ export async function POST(req: NextRequest) {
 
       const staffPushRoles = getStaffPushRolesForRequest({
         department,
+        afterHoursDepartment,
         notifyDepartments,
+        hotelConfig,
       });
 
       if (staffPushRoles.length) {

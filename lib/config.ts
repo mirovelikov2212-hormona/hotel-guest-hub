@@ -5,7 +5,10 @@ import { parseRequestDefs } from "@/lib/request-defs";
 import { getHotelSheetSources } from "@/lib/hotels/getHotelSheetSources";
 import { getActiveTestRoomNumbers } from "@/lib/server/test-rooms";
 import { getPublishedHotelConfigSnapshot } from "@/lib/server/published-hotel-config";
-import { resolveNormalizedRoomConfigForRuntime } from "@/lib/server/normalized-config-runtime";
+import {
+  resolveNormalizedDepartmentRoutingConfigForRuntime,
+  resolveNormalizedRoomConfigForRuntime,
+} from "@/lib/server/normalized-config-runtime";
 
 
 function titleFromSlug(slug: string) {
@@ -586,6 +589,43 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
         hotelSlug: hotel.hotelSlug,
         error,
       });
+    }
+
+    try {
+      const normalized = await resolveNormalizedDepartmentRoutingConfigForRuntime({
+        hotelId: hotel.hotelId,
+        hotelTimeZone: hotel.hotelTimezone || runtimeConfig.hotelTimezone || "",
+        isSandbox: true,
+        published: {
+          ...published,
+          config: runtimeConfig,
+        },
+      });
+      runtimeConfig = normalized.config;
+
+      if (
+        !normalized.ok &&
+        normalized.reason !==
+          "RUNTIME_DEPARTMENT_ROUTING_READS_NOT_ACTIVATED"
+      ) {
+        console.warn(
+          "Normalized sandbox department/routing configuration is not authoritative; preserving current room authority over the M9 snapshot",
+          {
+            hotelId: hotel.hotelId,
+            hotelSlug: hotel.hotelSlug,
+            reason: normalized.reason,
+          },
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Normalized sandbox department/routing read failed; preserving current room authority over the M9 snapshot",
+        {
+          hotelId: hotel.hotelId,
+          hotelSlug: hotel.hotelSlug,
+          error,
+        },
+      );
     }
   }
 

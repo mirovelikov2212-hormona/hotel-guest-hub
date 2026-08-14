@@ -17,6 +17,8 @@ export type NormalizedProjectionState = {
 
 export type NormalizedProjectionRows = {
   rooms?: Array<Record<string, unknown>>;
+  departments?: Array<Record<string, unknown>>;
+  routingRules?: Array<Record<string, unknown>>;
 };
 
 export type NormalizedRuntimeResult =
@@ -35,6 +37,16 @@ export type NormalizedRuntimeResult =
 
 export function buildSandboxNormalizedRoomRuntimeConfig(input: {
   isSandbox: boolean;
+  publishedRevisionId: string;
+  publishedChecksum: string;
+  publishedConfig: HotelConfig;
+  projectionState: NormalizedProjectionState | null;
+  rows?: NormalizedProjectionRows | null;
+}): NormalizedRuntimeResult;
+
+export function buildSandboxNormalizedDepartmentRoutingRuntimeConfig(input: {
+  isSandbox: boolean;
+  hotelTimeZone: string;
   publishedRevisionId: string;
   publishedChecksum: string;
   publishedConfig: HotelConfig;

@@ -8,7 +8,9 @@ import { getPublicHotelAlias } from "@/lib/server/hotel-public-alias";
 import type { StaffDepartment, StaffRequestStatus } from "@/lib/staff/types";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
-import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
+import { isDepartmentWorkingHoursForConfig } from "@/lib/staff/operations-hours";
+import { getHotelConfig } from "@/lib/config";
+import type { HotelConfig } from "@/lib/types";
 import { applyLateCheckoutDecision } from "@/lib/server/guest-stays";
 
 type GuestRequestRow = {
@@ -119,9 +121,13 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
 function canRoleUpdateDepartment(
   role: StaffRole,
   department: StaffDepartment | undefined,
-  serviceTime?: string
+  serviceTime?: string,
+  hotelConfig?: HotelConfig | null,
 ) {
-  const afterHours = isReceptionBackupHours();
+  const afterHours = !isDepartmentWorkingHoursForConfig({
+    hotelConfig,
+    department: role,
+  });
 
   if (role === "manager") {
     return (
@@ -169,6 +175,17 @@ export async function POST(req: NextRequest) {
     const scope = await resolveAuthorizedScope(hotelSlug, role);
     if ("error" in scope) return scope.error;
 
+    const operationalConfig =
+      scope.environment === "sandbox"
+        ? await getHotelConfig(scope.hotelSlug).catch((error) => {
+            console.error(
+              "Sandbox request-status operational-hours config load failed; using legacy hours",
+              error,
+            );
+            return null;
+          })
+        : null;
+
     const { data: requestRow, error: requestError } = await supabaseAdmin
       .from("guest_requests")
       .select("id, hotel_id, stay_id, stay_device_id, status, metadata_json, request_type, room_number_snapshot, is_test, test_expires_at")
@@ -193,7 +210,14 @@ export async function POST(req: NextRequest) {
     const department = requestData.metadata_json?.department ?? getDepartmentForRequestType(normalizedType);
     const serviceTime = requestData.metadata_json?.serviceTime;
 
-    if (!canRoleUpdateDepartment(role, department, serviceTime)) {
+    if (
+      !canRoleUpdateDepartment(
+        role,
+        department,
+        serviceTime,
+        operationalConfig,
+      )
+    ) {
       return NextResponse.json(
         { ok: false, error: "Role is not allowed to update this request" },
         { status: 403 }

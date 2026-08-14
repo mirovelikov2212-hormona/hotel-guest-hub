@@ -34,6 +34,13 @@ test("M10.3 reads only normalized rooms after activation and scopes every query"
   const source = await readProjectFile(
     "lib/server/normalized-config-runtime.ts",
   );
+  const roomRowsStart = source.indexOf(
+    "export async function getActiveNormalizedRoomRows",
+  );
+  const roomRowsEnd = source.indexOf(
+    "export async function getActiveNormalizedDepartmentRoutingRows",
+  );
+  const roomRowsSource = source.slice(roomRowsStart, roomRowsEnd);
 
   assertBefore(
     source,
@@ -41,11 +48,11 @@ test("M10.3 reads only normalized rooms after activation and scopes every query"
     "getActiveNormalizedRoomRows(input.hotelId)",
   );
   assertContains(source, '.from("hotel_config_projection_state")');
-  assertContains(source, '.from("rooms")');
-  assertNotContains(source, '.from("departments")');
-  assertNotContains(source, '.from("routing_rules")');
-  assertContains(source, '.eq("hotel_id", hotelId)');
-  assertContains(source, '.eq("active", true)');
+  assertContains(roomRowsSource, '.from("rooms")');
+  assertNotContains(roomRowsSource, '.from("departments")');
+  assertNotContains(roomRowsSource, '.from("routing_rules")');
+  assertContains(roomRowsSource, '.eq("hotel_id", hotelId)');
+  assertContains(roomRowsSource, '.eq("active", true)');
 });
 
 test("M10.3 activation is secret-protected, sandbox-only and exact-version gated", async () => {

@@ -11,6 +11,7 @@ type HotelSheetSources = {
   isSandbox?: boolean | null;
   productionHotelId?: string | null;
   hotelName?: string | null;
+  hotelTimezone?: string | null;
   configUrl?: string | null;
   venuesUrl?: string | null;
   i18nUrl?: string | null;
@@ -32,7 +33,7 @@ export async function getHotelSheetSources(inputSlug?: string): Promise<HotelShe
   const { data, error } = await supabase
     .from("hotels")
     .select(
-      "id, slug, public_slug, name, active, is_sandbox, production_hotel_id, config_csv_url, venues_csv_url, i18n_csv_url, hotel_setup_csv_url, request_defs_csv_url"
+      "id, slug, public_slug, name, timezone, active, is_sandbox, production_hotel_id, config_csv_url, venues_csv_url, i18n_csv_url, hotel_setup_csv_url, request_defs_csv_url"
     )
     .or(slugFilter)
     .eq("active", true)
@@ -49,6 +50,7 @@ export async function getHotelSheetSources(inputSlug?: string): Promise<HotelShe
     isSandbox: data.is_sandbox ?? false,
     productionHotelId: data.production_hotel_id ?? null,
     hotelName: data.name,
+    hotelTimezone: data.timezone,
     configUrl: data.config_csv_url ?? null,
     venuesUrl: data.venues_csv_url ?? null,
     i18nUrl: data.i18n_csv_url ?? null,

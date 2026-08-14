@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildHotelConfigProjection } from "../../lib/server/config-projection-model.mjs";
-import { buildSandboxNormalizedRoomRuntimeConfig } from "../../lib/server/normalized-config-runtime-model.mjs";
+import {
+  buildSandboxNormalizedDepartmentRoutingRuntimeConfig,
+  buildSandboxNormalizedRoomRuntimeConfig,
+} from "../../lib/server/normalized-config-runtime-model.mjs";
 
 const REVISION_ID = "11111111-1111-4111-8111-111111111111";
 const CHECKSUM = "a".repeat(64);
@@ -76,6 +79,20 @@ function readyInput(overrides = {}) {
     },
     ...overrides,
   };
+}
+
+function readyDepartmentRoutingInput(overrides = {}) {
+  const input = readyInput();
+  input.hotelTimeZone = "Europe/Sofia";
+  input.projectionState.metadata_json.runtimeDepartmentRoutingReadsActivated =
+    true;
+  input.rows = {
+    departments: buildHotelConfigProjection(input.publishedConfig).projection
+      .departments,
+    routingRules: buildHotelConfigProjection(input.publishedConfig).projection
+      .routing_rules,
+  };
+  return { ...input, ...overrides };
 }
 
 test("M10.3 uses active normalized room authority only after exact sandbox parity", () => {
@@ -162,4 +179,80 @@ test("M10.3 ignores department and routing count drift reserved for M10.4", () =
   assert.equal(result.ok, true);
   assert.deepEqual(result.config.contacts, input.publishedConfig.contacts);
   assert.deepEqual(result.config.requestDefs, input.publishedConfig.requestDefs);
+});
+
+test("M10.4 activates only department/routing authority after exact sandbox parity", () => {
+  const input = readyDepartmentRoutingInput();
+  const model = buildHotelConfigProjection(input.publishedConfig);
+  const result = buildSandboxNormalizedDepartmentRoutingRuntimeConfig(input);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.source, "normalized");
+  assert.equal(result.config.departmentRoutingRuntimeActivated, true);
+  assert.equal(result.config.hotelTimezone, "Europe/Sofia");
+  assert.equal(result.config.contacts.reception.phone, "+359000");
+  assert.equal(result.config.contacts.reception.whatsapp, "+359111");
+  assert.deepEqual(result.config.hotelRooms, input.publishedConfig.hotelRooms);
+
+  const expectedRule = model.projection.routing_rules.find(
+    (rule) => rule.department_code === "housekeeping",
+  );
+  const normalizedDefinition = result.config.requestDefs.find(
+    (definition) => definition.id === "minibar_refill",
+  );
+  assert.equal(normalizedDefinition.requestType, expectedRule.request_type);
+  assert.equal(
+    normalizedDefinition.targetDepartment,
+    expectedRule.department_code,
+  );
+  assert.equal(
+    normalizedDefinition.afterHoursDepartment,
+    expectedRule.after_hours_department_code,
+  );
+});
+
+test("M10.4 falls back independently while its marker is false", () => {
+  const input = readyDepartmentRoutingInput();
+  input.projectionState.metadata_json.runtimeDepartmentRoutingReadsActivated =
+    false;
+  const result = buildSandboxNormalizedDepartmentRoutingRuntimeConfig(input);
+
+  assert.equal(result.ok, false);
+  assert.equal(
+    result.reason,
+    "RUNTIME_DEPARTMENT_ROUTING_READS_NOT_ACTIVATED",
+  );
+  assert.equal(result.config, input.publishedConfig);
+});
+
+test("M10.4 falls back on timezone, department count or routing parity drift", () => {
+  const badTimezone = readyDepartmentRoutingInput({ hotelTimeZone: "Invalid/Zone" });
+  assert.equal(
+    buildSandboxNormalizedDepartmentRoutingRuntimeConfig(badTimezone).reason,
+    "HOTEL_TIME_ZONE_INVALID",
+  );
+
+  const countDrift = readyDepartmentRoutingInput();
+  countDrift.projectionState.active_departments_count += 1;
+  assert.equal(
+    buildSandboxNormalizedDepartmentRoutingRuntimeConfig(countDrift).reason,
+    "PROJECTION_STATE_COUNT_MISMATCH",
+  );
+
+  const rowDrift = readyDepartmentRoutingInput();
+  rowDrift.rows.routingRules[0].department_code = "reception";
+  assert.equal(
+    buildSandboxNormalizedDepartmentRoutingRuntimeConfig(rowDrift).reason,
+    "NORMALIZED_DEPARTMENT_ROUTING_PARITY_MISMATCH",
+  );
+});
+
+test("M10.4 ignores room count drift owned by M10.3", () => {
+  const input = readyDepartmentRoutingInput();
+  input.projectionState.rooms_count += 100;
+  input.projectionState.active_rooms_count += 100;
+
+  const result = buildSandboxNormalizedDepartmentRoutingRuntimeConfig(input);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.config.hotelRooms, input.publishedConfig.hotelRooms);
 });

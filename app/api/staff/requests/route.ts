@@ -5,7 +5,8 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
-import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
+import { isDepartmentWorkingHoursForConfig } from "@/lib/staff/operations-hours";
+import { getHotelConfig } from "@/lib/config";
 import {
   getOperationalRequestDebugKey,
   getOperationalRequestNoteBg,
@@ -276,7 +277,7 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
 
   const { data: hotel, error: hotelError } = await supabaseAdmin
     .from("hotels")
-    .select("id, slug, public_slug, active")
+    .select("id, slug, public_slug, active, is_sandbox")
     .eq("id", session.hotel_id)
     .eq("active", true)
     .maybeSingle();
@@ -294,7 +295,12 @@ async function resolveAuthorizedScope(hotelSlug: string, role: StaffRole) {
     };
   }
 
-  return { hotelId: hotel.id, role };
+  return {
+    hotelId: hotel.id,
+    role,
+    hotelSlug: hotel.slug,
+    environment: hotel.is_sandbox ? "sandbox" : "production",
+  };
 }
 
 export async function GET(req: NextRequest) {
@@ -312,6 +318,17 @@ export async function GET(req: NextRequest) {
 
     const scope = await resolveAuthorizedScope(hotelSlug, role);
     if ("error" in scope) return scope.error;
+
+    const operationalConfig =
+      scope.environment === "sandbox"
+        ? await getHotelConfig(scope.hotelSlug).catch((error) => {
+            console.error(
+              "Sandbox staff operational-hours config load failed; using legacy hours",
+              error,
+            );
+            return null;
+          })
+        : null;
 
     await cleanupExpiredTestData(scope.hotelId);
 
@@ -340,7 +357,10 @@ export async function GET(req: NextRequest) {
     let requests = hydratedRows.map(mapRowToStaffRequest);
 
     if (role === "housekeeping" || role === "maintenance") {
-      const afterHours = isReceptionBackupHours();
+      const afterHours = !isDepartmentWorkingHoursForConfig({
+        hotelConfig: operationalConfig,
+        department: role,
+      });
       if (afterHours) {
         requests = requests.filter((request) => request.status === "completed");
       }
