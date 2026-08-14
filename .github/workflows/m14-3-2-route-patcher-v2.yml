@@ -1,0 +1,103 @@
+name: M14.3.2 Route Patcher v2
+
+on:
+  push:
+    branches:
+      - audit/m14-3-2-route-patcher-v2
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/m14-3-2-native-staff-reconciliation
+          fetch-depth: 0
+      - name: Replace synchronous native staff insert with durable attach helper
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from textwrap import dedent
+          p = Path('app/api/guest/massages/route.ts')
+          s = p.read_text()
+          import_anchor = 'import { ensureMassageStaffRequest } from "@/lib/server/massage-staff-request";\n'
+          extra_import = 'import { attachNativeMassageStaffRequest } from "@/lib/server/massage-native-reconciliation";\n'
+          if extra_import not in s:
+              if import_anchor not in s:
+                  raise SystemExit('import anchor not found')
+              s = s.replace(import_anchor, import_anchor + extra_import, 1)
+          old = dedent('''\
+                const staffRequest = await ensureMassageStaffRequest({
+                  hotelSlug: hotel.slug,
+                  serviceId: result.serviceId,
+                  date: result.date,
+                  startTime: result.startTime,
+                  roomNumber: result.roomNumber,
+                  stayId,
+                  stayDeviceId,
+                  serviceNameBg: result.serviceNameBg,
+                  sheetValue: result.sheetValue,
+                  durationMinutes: result.durationMinutes,
+                  price: result.price,
+                  currency: result.currency,
+                  guestLanguage,
+                  sheetWrite: false,
+                  authorityMode: "native_supabase",
+                  nativeBookingId: nativeBooking.bookingId,
+                });
+                const statusCode = nativeBooking.idempotentReplay ? 200 : 201;
+
+                return json(
+                  {
+                    ok: true,
+                    action: "sandbox_native_book",
+                    hotelSlug: hotel.slug,
+                    sandbox: true,
+                    authority: "native_supabase",
+                    sheetWrite: false,
+                    result,
+                    staffRequest,
+                  },
+                  statusCode,
+                );
+          ''')
+          new = dedent('''\
+                const staffAttachment = await attachNativeMassageStaffRequest({
+                  hotel,
+                  bookingId: nativeBooking.bookingId,
+                  reason: "synchronous",
+                });
+                const statusCode = nativeBooking.idempotentReplay ? 200 : 201;
+
+                return json(
+                  {
+                    ok: true,
+                    action: "sandbox_native_book",
+                    hotelSlug: hotel.slug,
+                    sandbox: true,
+                    authority: "native_supabase",
+                    sheetWrite: false,
+                    result,
+                    staffRequest: staffAttachment.staffRequest,
+                    staffRequestPending: staffAttachment.staffRequestPending,
+                  },
+                  statusCode,
+                );
+          ''')
+          if old not in s:
+              raise SystemExit('sandbox staff block not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          git diff --check
+          git diff -- app/api/guest/massages/route.ts
+      - name: Commit route patch only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/api/guest/massages/route.ts
+          test "$(git diff --cached --name-only)" = "app/api/guest/massages/route.ts"
+          git commit -m "Make native staff attachment fail-safe"
+          git push origin HEAD:audit/m14-3-2-native-staff-reconciliation
