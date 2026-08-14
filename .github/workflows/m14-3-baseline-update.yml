@@ -1,0 +1,100 @@
+name: M14.3 Tenant Baseline Update
+
+on:
+  push:
+    branches:
+      - audit/m14-3-baseline-update-730d4b4
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/m14-3-massage-authority-cutover
+          fetch-depth: 0
+      - name: Update reviewed M14.3.1 query fingerprints
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'tests/contracts/tenant-isolation-baseline.json';
+          const data = JSON.parse(fs.readFileSync(path, 'utf8'));
+          if (data.expectedNeedsReview !== 50) throw new Error(`unexpected old baseline count ${data.expectedNeedsReview}`);
+          const old = data.entries.filter((e) => e.filePath === 'lib/server/massage-native-runtime.ts');
+          const expectedOld = new Map([
+            ['"get_massage_runtime_available_times"', 'server_hotel_scoped_native_availability_rpc'],
+            ['"create_sandbox_massage_runtime_booking"', 'server_hotel_stay_device_scoped_sandbox_only_atomic_booking_rpc'],
+            ['"cancel_sandbox_massage_runtime_booking"', 'server_hotel_booking_scoped_sandbox_only_cancel_rpc'],
+          ]);
+          if (old.length !== 3) throw new Error(`expected 3 old native entries, got ${old.length}`);
+          for (const entry of old) {
+            const provenance = expectedOld.get(entry.tableExpression);
+            if (!provenance || provenance !== entry.provenance) {
+              throw new Error(`unexpected old native entry ${JSON.stringify(entry)}`);
+            }
+          }
+          data.entries = data.entries.filter((e) => e.filePath !== 'lib/server/massage-native-runtime.ts');
+          data.entries.push(
+            {
+              filePath: 'lib/server/massage-native-runtime.ts',
+              line: 176,
+              table: 'massage_runtime_services',
+              tableExpression: '"massage_runtime_services"',
+              operation: 'select',
+              reasons: ['unclassified_table'],
+              provenance: 'server_resolved_hotel_exact_tenant_native_massage_service_catalog_read',
+            },
+            {
+              filePath: 'lib/server/massage-native-runtime.ts',
+              line: 211,
+              table: null,
+              tableExpression: '"get_massage_runtime_available_times"',
+              operation: 'rpc',
+              reasons: ['rpc_requires_review'],
+              provenance: 'server_hotel_scoped_native_availability_rpc',
+            },
+            {
+              filePath: 'lib/server/massage-native-runtime.ts',
+              line: 240,
+              table: null,
+              tableExpression: '"get_massage_runtime_availability_window"',
+              operation: 'rpc',
+              reasons: ['rpc_requires_review'],
+              provenance: 'server_resolved_hotel_exact_tenant_service_role_native_availability_window_rpc',
+            },
+            {
+              filePath: 'lib/server/massage-native-runtime.ts',
+              line: 391,
+              table: null,
+              tableExpression: '"create_sandbox_massage_runtime_booking"',
+              operation: 'rpc',
+              reasons: ['rpc_requires_review'],
+              provenance: 'server_hotel_stay_device_scoped_sandbox_only_atomic_booking_rpc',
+            },
+            {
+              filePath: 'lib/server/massage-native-runtime.ts',
+              line: 420,
+              table: null,
+              tableExpression: '"cancel_sandbox_massage_runtime_booking"',
+              operation: 'rpc',
+              reasons: ['rpc_requires_review'],
+              provenance: 'server_hotel_booking_scoped_sandbox_only_cancel_rpc',
+            },
+          );
+          data.checkpoint = 'm14.3.1-sandbox-native-massage-authority';
+          data.expectedNeedsReview = 52;
+          fs.writeFileSync(path, JSON.stringify(data, null, 2) + '\n');
+          NODE
+          git diff --check
+          git diff -- tests/contracts/tenant-isolation-baseline.json
+      - name: Commit audited baseline only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/contracts/tenant-isolation-baseline.json
+          test "$(git diff --cached --name-only)" = "tests/contracts/tenant-isolation-baseline.json"
+          git commit -m "Review M14.3.1 tenant query surfaces"
+          git push origin HEAD:audit/m14-3-massage-authority-cutover
