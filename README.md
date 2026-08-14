@@ -13,6 +13,7 @@ StayHub is a multi-hotel digital concierge and Staff Hub built with Next.js, Sup
 
 - Supabase is the tenant-scoped runtime authority for normalized rooms/departments/routing, relational guest-request identity and canonical guest stay lifecycle/access.
 - M13 adds canonical stay states `active`, `checkout_pending`, `read_only` and `ended` and blocks guest mutations server-side whenever the stay is not writable.
+- M14.1 adds a tenant-scoped normalized massage runtime shadow projection with exact snapshot lineage and parity; Guest Hub cutover has not happened yet.
 - Allowed history reads remain tied to the exact hotel, room, stay and stay-device identity.
 - Google Sheets / Apps Script integrations are not to become a second general runtime database. Remaining legacy integrations are hardened progressively as adapters around the Supabase-first model.
 
@@ -24,13 +25,14 @@ StayHub is a multi-hotel digital concierge and Staff Hub built with Next.js, Sup
 | M11 — True Sandbox Config Isolation | CLOSED / COMPLETE | `docs/runbooks/StayHub_M11_M16_execution_state.md` |
 | M12 — Staff Sound & Notification Parity | CLOSED / COMPLETE | `docs/operations/m12-staff-notification-parity.md` |
 | M13 — Checkout / Stay-End Read-Only Mode | CLOSED / COMPLETE | `docs/operations/m13-stay-read-only.md` |
-| M14 — Multi-Hotel Hardening | NEXT | `docs/architecture/m11-m16-roadmap.md` |
+| M14 — Multi-Hotel Hardening | ACTIVE — M14.1 CLOSED, M14.2 NEXT | `docs/operations/m14-1-massage-runtime-shadow-projection.md`, `docs/architecture/m11-m16-roadmap.md` |
 | M15 — Observability & Operational Hardening | NOT STARTED | `docs/architecture/m11-m16-roadmap.md` |
 | M16 — Final Multi-Hotel Certification | NOT STARTED | `docs/architecture/m11-m16-roadmap.md` |
 
 ## Architecture and operational documentation
 
 - [Canonical M11–M16 architecture roadmap](docs/architecture/m11-m16-roadmap.md)
+- [M14.1 — Normalized Massage Runtime Shadow Projection](docs/operations/m14-1-massage-runtime-shadow-projection.md)
 - [M13 — Checkout / Stay-End Read-Only Mode](docs/operations/m13-stay-read-only.md)
 - [M12 — Staff Sound & Notification Parity](docs/operations/m12-staff-notification-parity.md)
 - [M11–M16 execution state / release evidence](docs/runbooks/StayHub_M11_M16_execution_state.md)
