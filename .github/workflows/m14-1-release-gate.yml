@@ -1,0 +1,29 @@
+name: M14.1 Release Gate
+
+on:
+  push:
+    branches:
+      - "audit/m14-1-release-gate-*"
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact gate commit
+        uses: actions/checkout@v4
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run full contracts and tenant isolation
+        run: npm test
+      - name: Run scoped M14.1 lint
+        run: >-
+          npx eslint
+          lib/server/massage-runtime-projection.ts
+          lib/server/massage-snapshot.ts
+          tests/contracts/m14-massage-runtime-projection.contract.test.mjs
