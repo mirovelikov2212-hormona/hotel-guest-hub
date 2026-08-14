@@ -37,7 +37,7 @@ const validEnvelope = {
   },
 };
 
-test("M9 revision lifecycle vocabulary stays explicit and finite", () => {
+test("M9/M11 revision lifecycle vocabulary stays explicit and finite", () => {
   assert.deepEqual(HOTEL_CONFIG_REVISION_STATUSES, [
     "draft",
     "published",
@@ -49,6 +49,7 @@ test("M9 revision lifecycle vocabulary stays explicit and finite", () => {
     "sheet_snapshot",
     "manual",
     "local_demo",
+    "production_clone",
   ]);
 });
 

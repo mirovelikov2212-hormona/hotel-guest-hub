@@ -9,10 +9,8 @@ import {
   getMassageBootstrap,
   getMassageServices,
   isApprovedMassageControlledE2ECandidate,
-  isApprovedMassageSandboxLiveWriteCandidate,
   isMassageBookingPostEnabled,
   isMassageControlledE2EEnabled,
-  isMassageSandboxLiveWriteEnabled,
   MassageApiError,
   normalizeMassageHotelSlug,
   type MassageService,
@@ -766,7 +764,6 @@ export async function POST(req: NextRequest) {
 
     const controlledE2EEnabled = isMassageControlledE2EEnabled(hotelSlug);
     const productionBookingEnabled = isMassageBookingPostEnabled(hotelSlug);
-    const sandboxLiveWriteEnabled = isMassageSandboxLiveWriteEnabled(hotelSlug);
 
     if (!controlledE2EEnabled && !productionBookingEnabled) {
       await logSystemEvent({
@@ -818,75 +815,6 @@ export async function POST(req: NextRequest) {
     const stayDeviceId = String(stayIdentity.device.id);
 
     if (isSandboxHotel(hotel)) {
-      if (sandboxLiveWriteEnabled) {
-        if (!productionBookingEnabled) {
-          return json(
-            {
-              ok: false,
-              code: "MASSAGE_SANDBOX_LIVE_WRITE_REQUIRES_BOOKING_ENABLED",
-              error: "Live Sheet writes are not enabled for this sandbox hotel.",
-            },
-            503
-          );
-        }
-
-        const approved = isApprovedMassageSandboxLiveWriteCandidate({
-          hotelSlug,
-          serviceId,
-          date,
-          time,
-          room,
-        });
-
-        if (!approved) {
-          return json(
-            {
-              ok: false,
-              code: "MASSAGE_SANDBOX_LIVE_WRITE_CANDIDATE_NOT_ALLOWED",
-              error: "Only the exact approved sandbox Sheet test is allowed.",
-            },
-            403
-          );
-        }
-
-        const trackedBooking = await createReliabilityAwareMassageBooking({
-          hotel,
-          serviceId,
-          date,
-          time,
-          room,
-          guestLanguage: String(body.guestLanguage || "bg"),
-        });
-        const result = trackedBooking.result;
-
-        const staffAttachment = await attachTrackedMassageStaffRequest({
-          hotel,
-          attempt: trackedBooking.attempt,
-          serviceId,
-          date,
-          time,
-          room,
-          stayId,
-          stayDeviceId,
-          guestLanguage: String(body.guestLanguage || "bg"),
-          result,
-        });
-
-        return json(
-          {
-            ok: true,
-            action: "sandbox_live_write",
-            hotelSlug: hotel.slug,
-            sandbox: true,
-            sheetWrite: true,
-            result,
-            staffRequest: staffAttachment.staffRequest,
-            staffRequestPending: staffAttachment.staffRequestPending,
-          },
-          result.status === "BOOKING_WRITTEN" ? 201 : 200
-        );
-      }
-
       const service = await getSandboxMassageServiceDetails({ hotel, serviceId });
       const result = {
         status: "BOOKING_WRITTEN" as const,

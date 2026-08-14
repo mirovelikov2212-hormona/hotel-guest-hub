@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "checkpoint": "m10.2-projection-parity",
+  "checkpoint": "m11.3-sandbox-config-isolation",
   "purpose": "Lock the reviewed M2.2b.1 tenant-query inventory. Any new, moved, changed, removed, or newly-unclassified needs_review query must be explicitly re-reviewed before npm test passes.",
-  "expectedNeedsReview": 43,
+  "expectedNeedsReview": 45,
   "entries": [
     {
       "filePath": "lib/staff-auth/login-throttle.ts",
@@ -16,14 +16,36 @@
     },
     {
       "filePath": "lib/server/config-snapshot-import.ts",
-      "line": 255,
+      "line": 265,
       "table": null,
       "tableExpression": "\"create_hotel_config_draft\"",
       "operation": "rpc",
       "reasons": [
         "rpc_requires_review"
       ],
-      "provenance": "authorized_internal_hotel_scoped_config_draft_rpc"
+      "provenance": "authorized_internal_non_sandbox_hotel_scoped_config_draft_rpc"
+    },
+    {
+      "filePath": "lib/server/sandbox-config.ts",
+      "line": 193,
+      "table": null,
+      "tableExpression": "\"clone_production_config_to_sandbox_draft\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_resolved_sandbox_exact_production_revision_service_role_clone_rpc"
+    },
+    {
+      "filePath": "lib/server/sandbox-config.ts",
+      "line": 316,
+      "table": null,
+      "tableExpression": "\"create_hotel_config_draft\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_resolved_sandbox_exact_base_revision_validated_manual_draft_rpc"
     },
     {
       "filePath": "lib/server/config-projection.ts",
