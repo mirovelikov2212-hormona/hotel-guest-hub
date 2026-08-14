@@ -1,0 +1,77 @@
+name: M14.3.1 Closeout Patcher
+
+on:
+  push:
+    branches:
+      - audit/m14-3-1-closeout-patcher
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/m14-3-1-closeout
+          fetch-depth: 0
+      - name: Mark M14.3.1 complete and M14.3.2 active
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('docs/runbooks/StayHub_M11_M16_execution_state.md')
+          s = p.read_text()
+          old = '''### M14.3 — Sandbox → Production Cutover / Adapter Boundary
+
+Status: **NEXT / ACTIVE WORK**.
+
+Cutover order is mandatory: sandbox read/write authority first; then history/staff/notification/adapter/rollback acceptance; only then a separately gated Production cutover. Production native booking must remain blocked until the Production stage is explicitly activated.
+
+Google Sheet / Apps Script becomes mirror/import/export integration rather than core booking authority. Sunny Castle may remain a read-only external block import until it becomes a first-class StayHub tenant, expected for the 2027 summer season.
+'''
+          new = '''### M14.3 — Sandbox → Production Cutover / Adapter Boundary
+
+Status: **ACTIVE**.
+
+#### M14.3.1 — Sandbox Native Massage Authority
+
+Status: **CLOSED / COMPLETE**.
+
+Detailed evidence: `docs/operations/m14-3-1-sandbox-native-massage-authority.md`.
+
+Release evidence:
+
+- starting checkpoint: `48a37aa53fad6f22c93f0514e776cacac0839e11`;
+- initial cutover PR: #12; runtime merge `dce6a7ac10109b877468d9c1229817d21ce50023`;
+- live acceptance found and isolated one sandbox-only legacy `H:MM` → native `HH:MM` boundary defect before any Production native cutover;
+- correction PR: #13; final runtime merge `d0ebb9ccf0837fef1d8014f4d609b1b7b7b25b8c`;
+- final Production deployment: `dpl_E1kavJn5hXdYVRfDbt1DYZwfELtF` — READY;
+- Supabase migration: `20260814223956_m14_3_1_native_massage_availability_window`;
+- final correction gate: `169/169` contracts; tenant guard `52/52` reviewed; scoped lint passed;
+- formal live sandbox acceptance v3: PASS for native services/bootstrap, `201` create, `200` exact replay, availability removal, `409` overlap conflict, stay/device history and Production legacy-boundary proof;
+- acceptance cleanup: Production native rows `0`, sandbox confirmed acceptance rows `0`, temporary devices/staff cards `0`, sandbox availability restored;
+- final deployment runtime `warning` / `error` / `fatal`: none found;
+- Production massage authority remains the incumbent snapshot + tracked Google Sheet adapter path.
+
+#### M14.3.2 — Durable Native Booking → Staff Reconciliation
+
+Status: **NEXT / ACTIVE WORK**.
+
+A confirmed native booking must remain operationally recoverable if synchronous staff-card creation fails. Add durable linkage/reconciliation and prove idempotent repair before Production native booking can be enabled.
+
+After M14.3.2, Production authority cutover remains separately gated. Google Sheet / Apps Script becomes mirror/import/export integration rather than core booking authority. Sunny Castle may remain a read-only external block import until it becomes a first-class StayHub tenant, expected for the 2027 summer season.
+'''
+          if old not in s:
+              raise SystemExit('expected M14.3 block not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          git diff --check
+          git diff -- docs/runbooks/StayHub_M11_M16_execution_state.md
+      - name: Commit canonical state only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/runbooks/StayHub_M11_M16_execution_state.md
+          git commit -m "Close M14.3.1 and open M14.3.2"
+          git push origin HEAD:audit/m14-3-1-closeout
