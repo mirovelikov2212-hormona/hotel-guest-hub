@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "checkpoint": "m14.1-massage-runtime-shadow-projection",
+  "checkpoint": "m14.2-native-massage-engine",
   "purpose": "Lock the reviewed M2.2b.1 tenant-query inventory. Any new, moved, changed, removed, or newly-unclassified needs_review query must be explicitly re-reviewed before npm test passes.",
-  "expectedNeedsReview": 47,
+  "expectedNeedsReview": 50,
   "entries": [
     {
       "filePath": "lib/staff-auth/login-throttle.ts",
@@ -519,6 +519,39 @@
         "unclassified_table"
       ],
       "provenance": "server_hotel_scoped_projection_state_read"
+    },
+    {
+      "filePath": "lib/server/massage-native-runtime.ts",
+      "line": 104,
+      "table": null,
+      "tableExpression": "\"get_massage_runtime_available_times\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_hotel_scoped_native_availability_rpc"
+    },
+    {
+      "filePath": "lib/server/massage-native-runtime.ts",
+      "line": 136,
+      "table": null,
+      "tableExpression": "\"create_sandbox_massage_runtime_booking\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_hotel_stay_device_scoped_sandbox_only_atomic_booking_rpc"
+    },
+    {
+      "filePath": "lib/server/massage-native-runtime.ts",
+      "line": 165,
+      "table": null,
+      "tableExpression": "\"cancel_sandbox_massage_runtime_booking\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_hotel_booking_scoped_sandbox_only_cancel_rpc"
     }
   ]
 }
