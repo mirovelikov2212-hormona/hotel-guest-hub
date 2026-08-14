@@ -1,0 +1,46 @@
+name: M13 Validator Maintenance
+
+on:
+  push:
+    branches:
+      - "audit/m13-validator-maintenance-*"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout milestone branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/m13-checkout-read-only
+          fetch-depth: 0
+      - name: Patch shared guest validator to canonical lifecycle
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path("lib/server/guest-stays.ts")
+          text = path.read_text()
+          import_anchor = '''} from "@/lib/guest-stays/shared";\n'''
+          lifecycle_import = '''} from "@/lib/guest-stays/shared";\nimport {\n  deriveGuestStayLifecycle,\n  getGuestStayAccessPolicy,\n} from "@/lib/guest-stays/lifecycle-model.mjs";\n'''
+          if text.count(import_anchor) != 1:
+              raise SystemExit("unexpected shared import anchor count")
+          if "deriveGuestStayLifecycle" in text:
+              raise SystemExit("lifecycle import already present")
+          text = text.replace(import_anchor, lifecycle_import, 1)
+          old = '''  const active = currentStay.status !== "cancelled" && new Date(currentStay.effective_check_out_at).getTime() > Date.now();\n  if (!active) throw new Error("STAY_ENDED");\n\n  return { stay: currentStay, device };\n'''
+          new = '''  const lifecycleState = deriveGuestStayLifecycle({\n    status: currentStay.status,\n    lateCheckoutStatus: currentStay.late_checkout_status,\n    scheduledCheckOutAt: currentStay.scheduled_check_out_at,\n    effectiveCheckOutAt: currentStay.effective_check_out_at,\n    nowMs: Date.now(),\n  });\n  const access = getGuestStayAccessPolicy(lifecycleState);\n  if (!access.canWrite) throw new Error("STAY_ENDED");\n\n  return { stay: currentStay, device };\n'''
+          if text.count(old) != 1:
+              raise SystemExit("unexpected validator active block count")
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+      - name: Commit validator lifecycle authority
+        run: |
+          git config user.name "mirovelikov2212-hormona"
+          git config user.email "miro.velikov.22.12@gmail.com"
+          git add lib/server/guest-stays.ts
+          git diff --cached --check
+          git commit -m "feat(m13): enforce lifecycle in shared guest validator"
+          git push origin HEAD:audit/m13-checkout-read-only
