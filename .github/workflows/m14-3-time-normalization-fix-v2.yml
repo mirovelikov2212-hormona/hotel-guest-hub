@@ -1,0 +1,58 @@
+name: M14.3.1 Time Normalization Fix v2
+
+on:
+  push:
+    branches:
+      - audit/m14-3-time-fix-patcher-v2
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/m14-3-1-time-normalization-fix
+          fetch-depth: 0
+      - name: Patch legacy H:MM normalization and contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('lib/server/massage-native-runtime.ts')
+          s = p.read_text()
+          old_fragment = '^([01]\\d|2[0-3])'
+          new_fragment = '^([01]?\\d|2[0-3])'
+          if old_fragment not in s:
+              raise SystemExit('expected TIME_RE hour fragment not found')
+          s = s.replace(old_fragment, new_fragment, 1)
+
+          old_return = '  return `${match[1]}:${match[2]}`;'
+          new_return = '  return `${String(Number(match[1])).padStart(2, "0")}:${match[2]}`;'
+          if old_return not in s:
+              raise SystemExit('expected requireTime return not found')
+          s = s.replace(old_return, new_return, 1)
+          p.write_text(s)
+
+          t = Path('tests/contracts/m14-3-massage-authority-cutover.contract.test.mjs')
+          c = t.read_text()
+          needle = 'test("M14.3.1 native read helper preserves the legacy client result contract", () => {'
+          addition = '''test("M14.3.1 native boundary accepts legacy H:MM and canonicalizes to HH:MM", () => {\n  assert.match(helper, /\^\\\(\\\[01\\\]\\\?\\\\d\\\|2\\\[0-3\\\]\\\)/);\n  assert.match(helper, /String\\\(Number\\\(match\\\[1\\\]\\\)\\\)\\\.padStart\\\(2, "0"\\\)/);\n});\n\n'''
+          if addition not in c:
+              if needle not in c:
+                  raise SystemExit('contract insertion point not found')
+              c = c.replace(needle, addition + needle, 1)
+          t.write_text(c)
+          PY
+          git diff --check
+          git diff -- lib/server/massage-native-runtime.ts tests/contracts/m14-3-massage-authority-cutover.contract.test.mjs
+      - name: Commit correction only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/server/massage-native-runtime.ts tests/contracts/m14-3-massage-authority-cutover.contract.test.mjs
+          test "$(git diff --cached --name-only | wc -l)" = "2"
+          git commit -m "Fix M14.3.1 legacy massage time normalization"
+          git push origin HEAD:audit/m14-3-1-time-normalization-fix
