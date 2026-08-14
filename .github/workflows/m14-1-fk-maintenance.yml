@@ -1,0 +1,46 @@
+name: M14.1 FK Maintenance
+
+on:
+  push:
+    branches:
+      - "audit/m14-1-fk-maintenance-*"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout milestone branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/m14-1-massage-runtime-projection
+          fetch-depth: 0
+      - name: Keep tenant identity immutable on block/service FK
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path("supabase/migrations/20260814224000_m14_1_massage_runtime_projection.sql")
+          text = path.read_text()
+          old = '''  unique (hotel_id, source_kind, source_key),\n  foreign key (hotel_id, service_id)\n    references public.massage_runtime_services(hotel_id, service_id)\n    on delete set null\n);'''
+          new = '''  unique (hotel_id, source_kind, source_key),\n  foreign key (hotel_id, service_id)\n    references public.massage_runtime_services(hotel_id, service_id)\n);'''
+          if text.count(old) != 1:
+              raise SystemExit("unexpected block/service FK count")
+          path.write_text(text.replace(old, new, 1))
+
+          contract = Path("tests/contracts/m14-massage-runtime-projection.contract.test.mjs")
+          tests = contract.read_text()
+          anchor = '''  assert.match(migration, /unique \\(hotel_id, source_kind, source_key\\)/);\n});'''
+          replacement = '''  assert.match(migration, /unique \\(hotel_id, source_kind, source_key\\)/);\n  assert.doesNotMatch(\n    migration,\n    /massage_runtime_services\\(hotel_id, service_id\\)\\s+on delete set null/,\n    "Block/service FK must never null the tenant hotel_id.",\n  );\n});'''
+          if tests.count(anchor) != 1:
+              raise SystemExit("unexpected contract anchor count")
+          contract.write_text(tests.replace(anchor, replacement, 1))
+      - name: Commit schema hardening
+        run: |
+          git config user.name "mirovelikov2212-hormona"
+          git config user.email "miro.velikov.22.12@gmail.com"
+          git add supabase/migrations/20260814224000_m14_1_massage_runtime_projection.sql tests/contracts/m14-massage-runtime-projection.contract.test.mjs
+          git diff --cached --check
+          git commit -m "fix(m14.1): preserve tenant identity on block service FK"
+          git push origin HEAD:audit/m14-1-massage-runtime-projection
