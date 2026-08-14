@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import StaffFilterButton from "@/components/staff/StaffFilterButton";
@@ -8,6 +8,7 @@ import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
 import { ReceptionTodaySurveysCard, useStaffSurveys } from "@/components/staff/StaffSurveyCards";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
+import { useStaffTabTitleAlert } from "@/components/staff/useStaffTabTitleAlert";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import type {
@@ -355,99 +356,6 @@ function ReceptionDailyHistory({
   );
 }
 
-
-const RECEPTION_ALERT_TITLE = "🔴 НОВА ЗАЯВКА";
-const RECEPTION_TITLE_BLINK_MS = 900;
-
-function useReceptionTabTitleAlert(requests: StaffRequest[]) {
-  const initializedRef = useRef(false);
-  const seenNewIdsRef = useRef<Set<string>>(new Set());
-  const originalTitleRef = useRef("GuestHub Staff");
-  const blinkIntervalRef = useRef<number | null>(null);
-  const alertActiveRef = useRef(false);
-  const showAlertTitleRef = useRef(false);
-
-  const clearBlinkInterval = useCallback(() => {
-    if (blinkIntervalRef.current !== null) {
-      window.clearInterval(blinkIntervalRef.current);
-      blinkIntervalRef.current = null;
-    }
-  }, []);
-
-  const stopAlert = useCallback(() => {
-    clearBlinkInterval();
-    alertActiveRef.current = false;
-    showAlertTitleRef.current = false;
-    document.title = originalTitleRef.current;
-  }, [clearBlinkInterval]);
-
-  const startAlert = useCallback(() => {
-    if (alertActiveRef.current) return;
-
-    alertActiveRef.current = true;
-    showAlertTitleRef.current = true;
-    document.title = RECEPTION_ALERT_TITLE;
-
-    blinkIntervalRef.current = window.setInterval(() => {
-      showAlertTitleRef.current = !showAlertTitleRef.current;
-      document.title = showAlertTitleRef.current
-        ? RECEPTION_ALERT_TITLE
-        : originalTitleRef.current;
-    }, RECEPTION_TITLE_BLINK_MS);
-  }, []);
-
-  useEffect(() => {
-    originalTitleRef.current = document.title || "GuestHub Staff";
-
-    const stopWhenReceptionIsActive = () => {
-      if (document.visibilityState === "visible" && document.hasFocus()) {
-        stopAlert();
-      }
-    };
-
-    document.addEventListener("visibilitychange", stopWhenReceptionIsActive);
-    window.addEventListener("focus", stopWhenReceptionIsActive);
-
-    return () => {
-      document.removeEventListener(
-        "visibilitychange",
-        stopWhenReceptionIsActive,
-      );
-      window.removeEventListener("focus", stopWhenReceptionIsActive);
-      stopAlert();
-    };
-  }, [stopAlert]);
-
-  useEffect(() => {
-    const currentNewIds = new Set(
-      requests
-        .filter((request) => request.status === "new" && !request.isTest)
-        .map((request) => request.id),
-    );
-
-    if (!initializedRef.current) {
-      seenNewIdsRef.current = currentNewIds;
-      initializedRef.current = true;
-      return;
-    }
-
-    const hasFreshNewRequest = [...currentNewIds].some(
-      (id) => !seenNewIdsRef.current.has(id),
-    );
-
-    seenNewIdsRef.current = currentNewIds;
-
-    if (!hasFreshNewRequest) return;
-
-    const receptionIsInactive =
-      document.visibilityState !== "visible" || !document.hasFocus();
-
-    if (receptionIsInactive) {
-      startAlert();
-    }
-  }, [requests, startAlert]);
-}
-
 export default function ReceptionPage() {
   const { lang } = useStaffUi();
   const t = staffText(lang);
@@ -546,7 +454,7 @@ export default function ReceptionPage() {
     requests: receptionAlertRequests,
   });
 
-  useReceptionTabTitleAlert(receptionAlertRequests);
+  useStaffTabTitleAlert(receptionAlertRequests);
 
   return (
     <main className="space-y-6 pb-safe">

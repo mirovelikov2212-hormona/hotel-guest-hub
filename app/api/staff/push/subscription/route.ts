@@ -45,6 +45,32 @@ export async function POST(req: NextRequest) {
     }
 
     const now = new Date().toISOString();
+
+    const { error: roleReassignmentError } = await supabaseAdmin
+      .from("staff_push_subscriptions")
+      .update({ enabled: false, updated_at: now })
+      .eq("hotel_id", hotel.id)
+      .eq("endpoint", endpoint)
+      .neq("role", hotel.role)
+      .eq("enabled", true);
+
+    if (roleReassignmentError) {
+      console.error("Failed to reassign staff push endpoint role", roleReassignmentError);
+      await logSystemError({
+        hotelId: hotel.id,
+        source: "push",
+        eventType: "staff_push_endpoint_role_reassignment_failed",
+        message: "A staff push endpoint could not be reassigned to its current staff role.",
+        departmentId: hotel.role,
+        error: roleReassignmentError,
+        metadata: { hotelSlug, role: hotel.role },
+      });
+      return NextResponse.json(
+        { ok: false, error: roleReassignmentError.message },
+        { status: 500 },
+      );
+    }
+
     const { error } = await supabaseAdmin
       .from("staff_push_subscriptions")
       .upsert(
