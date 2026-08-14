@@ -1,0 +1,63 @@
+name: M14.3.2 Route Patcher v3
+
+on:
+  push:
+    branches:
+      - audit/m14-3-2-route-patcher-v3
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/m14-3-2-native-staff-reconciliation
+          fetch-depth: 0
+      - name: Patch sandbox native staff attach boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/api/guest/massages/route.ts')
+          s = p.read_text()
+
+          anchor = 'import { ensureMassageStaffRequest } from "@/lib/server/massage-staff-request";\n'
+          extra = 'import { attachNativeMassageStaffRequest } from "@/lib/server/massage-native-reconciliation";\n'
+          if extra not in s:
+              if anchor not in s:
+                  raise SystemExit('import anchor missing')
+              s = s.replace(anchor, anchor + extra, 1)
+
+          sandbox = s.index('    if (isSandboxHotel(hotel)) {', s.index('export async function POST'))
+          start = s.index('      const staffRequest = await ensureMassageStaffRequest({', sandbox)
+          status_marker = '      const statusCode = nativeBooking.idempotentReplay ? 200 : 201;'
+          end = s.index(status_marker, start)
+          replacement = '''      const staffAttachment = await attachNativeMassageStaffRequest({
+        hotel,
+        bookingId: nativeBooking.bookingId,
+        reason: "synchronous",
+      });
+'''
+          s = s[:start] + replacement + s[end:]
+
+          response_start = s.index('          result,', sandbox)
+          old_response = '          staffRequest,\n'
+          response_pos = s.index(old_response, response_start)
+          response_replacement = '''          staffRequest: staffAttachment.staffRequest,
+          staffRequestPending: staffAttachment.staffRequestPending,
+'''
+          s = s[:response_pos] + response_replacement + s[response_pos + len(old_response):]
+          p.write_text(s)
+          PY
+          git diff --check
+          git diff -- app/api/guest/massages/route.ts
+      - name: Commit route patch only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/api/guest/massages/route.ts
+          test "$(git diff --cached --name-only)" = "app/api/guest/massages/route.ts"
+          git commit -m "Make native staff attachment fail-safe"
+          git push origin HEAD:audit/m14-3-2-native-staff-reconciliation
