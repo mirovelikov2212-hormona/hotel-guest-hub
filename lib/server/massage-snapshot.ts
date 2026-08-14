@@ -12,6 +12,7 @@ import {
   type MassageServicesResult,
 } from "@/lib/server/massage-api";
 import { overlayConfirmedMassageBookings } from "@/lib/server/massage-snapshot-overlay.mjs";
+import { projectMassageSnapshotToRuntime } from "@/lib/server/massage-runtime-projection";
 import {
   isSandboxHotel,
   resolveHotelByAnySlugAdmin,
@@ -537,6 +538,30 @@ export async function refreshMassageCalendarSnapshot(input: {
 
     if (stateError) throw stateError;
 
+    let runtimeProjection = null;
+    try {
+      runtimeProjection = await projectMassageSnapshotToRuntime({
+        hotelId: hotel.id,
+        snapshotId: String(snapshot.id),
+      });
+    } catch (projectionError) {
+      await logSystemError({
+        hotelId: hotel.id,
+        severity: "error",
+        source: "massage",
+        eventType: "massage_runtime_projection_failed",
+        message:
+          "The non-authoritative M14 massage runtime shadow projection failed; the existing snapshot remains authoritative.",
+        error: projectionError,
+        metadata: {
+          hotelSlug: hotel.slug,
+          snapshotId: String(snapshot.id),
+          sourceRevision: bundle.source.revision,
+          reason: input.reason,
+        },
+      });
+    }
+
     await logSystemEvent({
       hotelId: hotel.id,
       severity: "info",
@@ -604,6 +629,7 @@ export async function refreshMassageCalendarSnapshot(input: {
       refreshedAt,
       expiresAt,
       sourceMetrics,
+      runtimeProjection,
     };
   } catch (error) {
     const failureState = await markSnapshotRefreshFailed({
