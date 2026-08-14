@@ -2,6 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  getStaffLoginErrorMessage,
+  getStaffLoginNetworkErrorMessage,
+} from "@/lib/staff-auth/login-response.mjs";
 
 type StaffRole = "reception" | "housekeeping" | "maintenance" | "manager";
 
@@ -53,6 +57,7 @@ export default function StaffPinGate({ hotelSlug, role, nextPath }: Props) {
     try {
       const res = await fetch("/api/staff/auth/login", {
         method: "POST",
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
         },
@@ -63,10 +68,14 @@ export default function StaffPinGate({ hotelSlug, role, nextPath }: Props) {
         }),
       });
 
-      const data = await res.json().catch(() => null);
+      const contentType = String(res.headers.get("content-type") || "").toLowerCase();
+      const data = contentType.includes("application/json")
+        ? await res.json().catch(() => null)
+        : null;
 
       if (!res.ok || !data?.ok) {
-        setError(data?.error || "PIN login failed");
+        setPin("");
+        setError(getStaffLoginErrorMessage(res.status, data));
         setLoading(false);
         return;
       }
@@ -74,7 +83,8 @@ export default function StaffPinGate({ hotelSlug, role, nextPath }: Props) {
       router.replace(nextPath);
       router.refresh();
     } catch {
-      setError("Unexpected login error");
+      setPin("");
+      setError(getStaffLoginNetworkErrorMessage());
       setLoading(false);
     }
   }
@@ -111,7 +121,11 @@ export default function StaffPinGate({ hotelSlug, role, nextPath }: Props) {
           </div>
 
           {error ? (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            <div
+              role="alert"
+              aria-live="polite"
+              className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+            >
               {error}
             </div>
           ) : null}
