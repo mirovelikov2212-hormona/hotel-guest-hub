@@ -2,7 +2,7 @@
 
 ## Status
 
-Pre-release validation is green on `audit/m12-staff-notification-parity`. Production release evidence is added only after a controlled merge to `main` and automatic Vercel deployment.
+**CLOSED / COMPLETE** on 2026-08-14 after controlled merge, automatic Vercel Production deployment, read-only Production smoke and tenant/data integrity checks.
 
 ## Goal
 
@@ -69,18 +69,31 @@ M12 preserves the M11 boundary:
 - no M12 Supabase schema migration is required;
 - no Google Sheet write behavior is changed.
 
-Pre-release live database check found no Production endpoint with more than one enabled staff role, so no Production subscription cleanup was required.
+Production database checks before and after release found no hotel/physical-endpoint group with more than one enabled staff role. No Production subscription cleanup was required.
 
-## Pre-release gates
+## Release gates
 
 - Contract suite: `137/137` passed.
 - Tenant isolation guard: passed; `137` Supabase queries inventoried and `45` existing `needs_review` findings remained explicitly reviewed.
 - Scoped ESLint for M12 changed sources: passed.
-- Exact functional branch Preview commit: `47ecca5ef9f1be54cf011c8055c067b9f1f0a582`.
-- Exact Preview deployment: `dpl_HD75vb33CDKQzmariE34KZfCYGoQ` — `READY`.
+- Final exact-head GitHub Actions release gate: run `31836138506` — SUCCESS.
+- Exact functional Preview commit: `4bd7361e28e270e5cd0a7e79c2cc1a351e5b029e`.
+- Exact Preview deployment: `dpl_Bcw5WHnyuWXvExAxdTptxfB8tZ84` — READY.
 - Next.js 16.1.6 build: compile, TypeScript, page generation and Vercel deployment completed successfully.
 - Preview `error` / `warning` / `fatal` runtime logs: none found.
-- Preview UI HTTP smoke is limited by Vercel Authentication; no Production bypass or write was used to work around that protection.
+- Preview UI HTTP smoke was limited by Vercel Authentication; no Production bypass or write was used to work around that protection.
+
+## Production release evidence
+
+- Pull request: `#4 — M12: Staff Sound & Notification Parity`.
+- Merge commit on `main`: `0da158d2f1fe61ddc2d2b57b6adfb5a1a282ea86`.
+- Production deployment: `dpl_3kFeBtG3bWkqninu2GUwmtUkWdgA` — READY.
+- Production deployment was created automatically from the `main` merge; `vercel --prod` was not used.
+- `https://www.stayhub.app/h/aquamarin` returned HTTP 200 on the M12 deployment.
+- Reception, Housekeeping, Maintenance and Manager routes each returned HTTP 200 and the expected department PIN surface.
+- Exact Production deployment `error` / `warning` / `fatal` runtime logs: none found during the smoke window.
+- Supabase post-release integrity: `duplicate_active_endpoint_groups = 0`.
+- Active Production subscriptions remained unchanged by smoke checks; no test push and no Production subscription mutation was performed.
 
 ## Rollback
 
@@ -90,6 +103,4 @@ M12 has no database migration and no required data transformation. Rollback is t
 2. do not modify staff push subscription rows unless a separate data incident is proven;
 3. verify the four Staff PIN surfaces and Production guest route after rollback.
 
-## Production release evidence
-
-Pending controlled M12 PR merge. This section must record the PR, merge commit, automatic Production deployment, smoke results and final rollback checkpoint before M12 is marked CLOSED / COMPLETE.
+M12 is fully closed. M13 may start only from the Production-green M12 mainline checkpoint.
