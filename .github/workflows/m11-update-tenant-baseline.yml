@@ -1,0 +1,70 @@
+name: M11 Tenant Baseline Maintenance
+
+on:
+  push:
+    branches:
+      - audit/m11-release-gate-63122a5
+
+permissions:
+  contents: write
+
+jobs:
+  update-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout milestone branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/m11-true-sandbox-config-isolation
+          fetch-depth: 0
+      - name: Apply reviewed M11.3 baseline delta
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'tests/contracts/tenant-isolation-baseline.json';
+          const baseline = JSON.parse(fs.readFileSync(path, 'utf8'));
+          baseline.checkpoint = 'm11.3-sandbox-config-isolation';
+          baseline.expectedNeedsReview = 45;
+
+          const clone = baseline.entries.find((entry) =>
+            entry.filePath === 'lib/server/sandbox-config.ts' &&
+            entry.tableExpression === '"clone_production_config_to_sandbox_draft"' &&
+            entry.operation === 'rpc'
+          );
+          if (!clone) throw new Error('M11 clone RPC baseline entry not found');
+          clone.line = 193;
+          clone.provenance = 'server_resolved_sandbox_exact_production_revision_service_role_clone_rpc';
+
+          const manual = {
+            filePath: 'lib/server/sandbox-config.ts',
+            line: 316,
+            table: null,
+            tableExpression: '"create_hotel_config_draft"',
+            operation: 'rpc',
+            reasons: ['rpc_requires_review'],
+            provenance: 'server_resolved_sandbox_exact_base_revision_validated_manual_draft_rpc'
+          };
+          if (!baseline.entries.some((entry) =>
+            entry.filePath === manual.filePath &&
+            entry.tableExpression === manual.tableExpression &&
+            entry.operation === manual.operation &&
+            entry.line === manual.line
+          )) baseline.entries.splice(3, 0, manual);
+
+          fs.writeFileSync(path, JSON.stringify(baseline, null, 2) + '\n');
+          NODE
+          git diff --check
+          git diff -- tests/contracts/tenant-isolation-baseline.json
+      - name: Commit reviewed baseline
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'Baseline already current.'
+            exit 0
+          fi
+          git config user.name 'mirovelikov2212-hormona'
+          git config user.email 'miro.velikov.22.12@gmail.com'
+          git add tests/contracts/tenant-isolation-baseline.json
+          git commit -m 'test: review M11.3 sandbox draft RPC baseline'
+          git push origin HEAD:audit/m11-true-sandbox-config-isolation
