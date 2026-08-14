@@ -1,0 +1,40 @@
+name: M12 Staff Notification Release Gate
+
+on:
+  push:
+    branches:
+      - audit/m12-release-gate-9f1f786
+
+permissions:
+  contents: read
+
+jobs:
+  m12-release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run contract and tenant isolation tests
+        run: npm test
+
+      - name: Lint M12 changed sources
+        run: >-
+          npx eslint
+          app/api/staff/push/manager-subscription/route.ts
+          app/api/staff/push/subscription/route.ts
+          components/staff/pages/ReceptionPageContent.tsx
+          components/staff/useStaffAlertSound.ts
+          components/staff/useStaffTabTitleAlert.ts
+          lib/staff-push/web-push.ts
+          tests/contracts/m12-staff-notification-parity.contract.test.mjs
