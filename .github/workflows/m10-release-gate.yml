@@ -1,0 +1,30 @@
+name: M10 Release Gate
+
+on:
+  push:
+    branches:
+      - audit/m10-5-release-gate-f58c113
+
+permissions:
+  contents: read
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Contract and tenant tests
+        run: npm test
+      - name: Lint
+        run: npm run lint
+      - name: Production build
+        run: npm run build
