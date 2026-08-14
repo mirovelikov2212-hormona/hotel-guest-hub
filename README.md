@@ -9,6 +9,13 @@ StayHub is a multi-hotel digital concierge and Staff Hub built with Next.js, Sup
 - Keep Production and sandbox tenant state isolated.
 - Validate contract tests, tenant isolation, scoped lint, Preview build/smoke and rollback evidence before closing a milestone.
 
+## Runtime authority
+
+- Supabase is the tenant-scoped runtime authority for normalized rooms/departments/routing, relational guest-request identity and canonical guest stay lifecycle/access.
+- M13 adds canonical stay states `active`, `checkout_pending`, `read_only` and `ended` and blocks guest mutations server-side whenever the stay is not writable.
+- Allowed history reads remain tied to the exact hotel, room, stay and stay-device identity.
+- Google Sheets / Apps Script integrations are not to become a second general runtime database. Remaining legacy integrations are hardened progressively as adapters around the Supabase-first model.
+
 ## Current milestone sequence
 
 | Milestone | Status | Canonical documentation |
@@ -16,16 +23,17 @@ StayHub is a multi-hotel digital concierge and Staff Hub built with Next.js, Sup
 | M10 — normalized rooms/departments/routing + relational request IDs | CLOSED / COMPLETE | `docs/runbooks/m10-sandbox-room-runtime-reads.md`, `docs/runbooks/m10-4-department-routing-sandbox-smoke.md`, `docs/runbooks/m10-5-guest-request-relational-ids.md` |
 | M11 — True Sandbox Config Isolation | CLOSED / COMPLETE | `docs/runbooks/StayHub_M11_M16_execution_state.md` |
 | M12 — Staff Sound & Notification Parity | CLOSED / COMPLETE | `docs/operations/m12-staff-notification-parity.md` |
-| M13 — Checkout / Stay-End Read-Only Mode | NEXT | `docs/architecture/m11-m16-roadmap.md` |
-| M14 — Multi-Hotel Hardening | NOT STARTED | `docs/architecture/m11-m16-roadmap.md` |
+| M13 — Checkout / Stay-End Read-Only Mode | CLOSED / COMPLETE | `docs/operations/m13-stay-read-only.md` |
+| M14 — Multi-Hotel Hardening | NEXT | `docs/architecture/m11-m16-roadmap.md` |
 | M15 — Observability & Operational Hardening | NOT STARTED | `docs/architecture/m11-m16-roadmap.md` |
 | M16 — Final Multi-Hotel Certification | NOT STARTED | `docs/architecture/m11-m16-roadmap.md` |
 
 ## Architecture and operational documentation
 
 - [Canonical M11–M16 architecture roadmap](docs/architecture/m11-m16-roadmap.md)
+- [M13 — Checkout / Stay-End Read-Only Mode](docs/operations/m13-stay-read-only.md)
 - [M12 — Staff Sound & Notification Parity](docs/operations/m12-staff-notification-parity.md)
-- [M11 release evidence / execution state](docs/runbooks/StayHub_M11_M16_execution_state.md)
+- [M11–M16 execution state / release evidence](docs/runbooks/StayHub_M11_M16_execution_state.md)
 - [M10.5 — Guest Request Relational IDs](docs/runbooks/m10-5-guest-request-relational-ids.md)
 - [M10.4 — Department/Routing Sandbox Smoke](docs/runbooks/m10-4-department-routing-sandbox-smoke.md)
 - [M10 — Sandbox Room Runtime Reads](docs/runbooks/m10-sandbox-room-runtime-reads.md)
