@@ -32,6 +32,11 @@ test("M14.3.1 availability window RPC is tenant scoped, bounded and service-role
   assert.doesNotMatch(migration, /843ec551|05624aa0/i);
 });
 
+test("M14.3.1 native boundary accepts legacy H:MM and canonicalizes to HH:MM", () => {
+  assert.ok(helper.includes("([01]?\\d|2[0-3])"));
+  assert.ok(helper.includes('String(Number(match[1])).padStart(2, "0")'));
+});
+
 test("M14.3.1 native read helper preserves the legacy client result contract", () => {
   assert.match(helper, /getNativeMassageServices/);
   assert.match(helper, /getNativeMassageAvailability/);
