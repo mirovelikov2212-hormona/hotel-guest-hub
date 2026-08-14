@@ -1,0 +1,66 @@
+name: M13 Tenant Baseline Maintenance
+
+on:
+  push:
+    branches:
+      - "audit/m13-tenant-baseline-*"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout milestone branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/m13-checkout-read-only
+          fetch-depth: 0
+      - name: Update reviewed guest-stay tenant fingerprints
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          path = Path("tests/contracts/tenant-isolation-baseline.json")
+          data = json.loads(path.read_text())
+          if data.get("expectedNeedsReview") != 45:
+              raise SystemExit("expectedNeedsReview drifted")
+
+          moves = {
+              ("lib/server/guest-stays.ts", 162, "guest_stays", "update", "existing_stay_row_id"): 166,
+              ("lib/server/guest-stays.ts", 325, "guest_stays", "update", "existing_stay_row_id"): 329,
+              ("lib/server/guest-stays.ts", 449, "guest_stay_devices", "select", "validated_stay_id_and_device_id"): 453,
+              ("lib/server/guest-stays.ts", 461, "guest_stays", "update", "validated_current_stay_id"): 465,
+              ("lib/server/guest-stays.ts", 462, "guest_stay_devices", "update", "validated_current_device_id"): 466,
+              ("lib/server/guest-stays.ts", 466, "guest_push_subscriptions", "update", "validated_stay_and_device_identity"): 470,
+              ("lib/server/guest-stays.ts", 500, "guest_stay_devices", "select", "validated_stay_id_and_device_id"): 504,
+              ("lib/server/guest-stays.ts", 525, "guest_stays", "update", "validated_stay_row_id"): 536,
+              ("lib/server/guest-stays.ts", 574, "guest_stays", "update", "validated_stay_row_id"): 585,
+          }
+          seen = set()
+          for entry in data["entries"]:
+              key = (
+                  entry.get("filePath"),
+                  entry.get("line"),
+                  entry.get("table"),
+                  entry.get("operation"),
+                  entry.get("provenance"),
+              )
+              if key in moves:
+                  entry["line"] = moves[key]
+                  seen.add(key)
+          if seen != set(moves):
+              missing = set(moves) - seen
+              raise SystemExit(f"missing reviewed entries: {missing}")
+          data["checkpoint"] = "m13-stay-read-only"
+          path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+      - name: Commit reviewed baseline
+        run: |
+          git config user.name "mirovelikov2212-hormona"
+          git config user.email "miro.velikov.22.12@gmail.com"
+          git add tests/contracts/tenant-isolation-baseline.json
+          git diff --cached --check
+          git commit -m "test(m13): update reviewed tenant baseline"
+          git push origin HEAD:audit/m13-checkout-read-only
