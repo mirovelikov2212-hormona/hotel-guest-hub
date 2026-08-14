@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
-import { validateGuestStayIdentity } from "@/lib/server/guest-stays";
+import {
+  GuestStayAccessError,
+  requireGuestStayReadAccess,
+} from "@/lib/server/guest-stay-access";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import type { StaffRequestStatus } from "@/lib/staff/types";
 
@@ -19,7 +22,6 @@ async function getHotelByAnySlugAdmin(inputSlug: string) {
 
   return data;
 }
-
 
 export async function GET(req: NextRequest) {
   try {
@@ -46,19 +48,12 @@ export async function GET(req: NextRequest) {
     }
 
     const hotel = await getHotelByAnySlugAdmin(hotelSlug);
-    const stayIdentity = await validateGuestStayIdentity({
+    const stayIdentity = await requireGuestStayReadAccess({
       hotelId: hotel.id,
       room,
       stayId,
       stayDeviceId,
-    }).catch(() => null);
-
-    if (!stayIdentity) {
-      return NextResponse.json(
-        { ok: false, error: "A confirmed stay is required", code: "STAY_REQUIRED" },
-        { status: 401 },
-      );
-    }
+    });
 
     const { data, error } = await supabaseAdmin
       .from("guest_requests")
@@ -92,8 +87,20 @@ export async function GET(req: NextRequest) {
       createdDateKey: new Date(row.created_at).toLocaleDateString("sv-SE"),
     }));
 
-    return NextResponse.json({ ok: true, requests });
+    return NextResponse.json({
+      ok: true,
+      lifecycleState: stayIdentity.state,
+      readOnly: stayIdentity.readOnly,
+      requests,
+    });
   } catch (error) {
+    if (error instanceof GuestStayAccessError) {
+      return NextResponse.json(
+        { ok: false, error: error.message, code: error.code },
+        { status: error.statusCode },
+      );
+    }
+
     console.error("guest requests GET error", error);
     return NextResponse.json({ ok: false, error: "Unexpected server error" }, { status: 500 });
   }
