@@ -1,0 +1,63 @@
+name: M14.2 Baseline Fingerprint Maintenance
+
+on:
+  push:
+    branches:
+      - "audit/m14-2-baseline-shift-*"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout milestone branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/m14-2-native-massage-engine
+          fetch-depth: 0
+      - name: Move only reviewed RPC line fingerprints
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          path = Path("tests/contracts/tenant-isolation-baseline.json")
+          data = json.loads(path.read_text())
+          if data.get("expectedNeedsReview") != 50:
+              raise SystemExit("expectedNeedsReview must remain 50")
+
+          moves = {
+              ("lib/server/massage-native-runtime.ts", 104, '"get_massage_runtime_available_times"', "rpc", "server_hotel_scoped_native_availability_rpc"): 107,
+              ("lib/server/massage-native-runtime.ts", 136, '"create_sandbox_massage_runtime_booking"', "rpc", "server_hotel_stay_device_scoped_sandbox_only_atomic_booking_rpc"): 139,
+              ("lib/server/massage-native-runtime.ts", 165, '"cancel_sandbox_massage_runtime_booking"', "rpc", "server_hotel_booking_scoped_sandbox_only_cancel_rpc"): 168,
+          }
+          seen = set()
+          for entry in data["entries"]:
+              key = (
+                  entry.get("filePath"),
+                  entry.get("line"),
+                  entry.get("tableExpression"),
+                  entry.get("operation"),
+                  entry.get("provenance"),
+              )
+              if key in moves:
+                  entry["line"] = moves[key]
+                  seen.add(key)
+
+          if seen != set(moves):
+              raise SystemExit(f"missing reviewed entries: {set(moves) - seen}")
+          if data.get("expectedNeedsReview") != 50:
+              raise SystemExit("baseline count changed unexpectedly")
+
+          data["checkpoint"] = "m14.2-native-massage-engine-time-normalized"
+          path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+      - name: Commit reviewed fingerprint maintenance
+        run: |
+          git config user.name "mirovelikov2212-hormona"
+          git config user.email "miro.velikov.22.12@gmail.com"
+          git add tests/contracts/tenant-isolation-baseline.json
+          git diff --cached --check
+          git commit -m "test(m14.2): refresh reviewed RPC fingerprints"
+          git push origin HEAD:audit/m14-2-native-massage-engine
