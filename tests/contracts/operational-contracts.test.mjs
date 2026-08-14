@@ -57,37 +57,39 @@ test("massage staff cards use the selected service as the Bulgarian title", asyn
   assertContains(source, "const staffTitleBg = serviceName;");
 });
 
-test("sandbox massage simulation states that Google Sheet was not changed", async () => {
+test("sandbox native massage authority states that Google Sheet was not changed", async () => {
   const staffSource = await readProjectFile("lib/server/massage-staff-request.ts");
   const routeSource = await readProjectFile("app/api/guest/massages/route.ts");
 
   assertContains(staffSource, "sheetWrite: boolean;");
-  assertContains(staffSource, '"График: Защитен sandbox тест — Google Sheet не е променян."');
+  assertContains(staffSource, '"График: Резервацията е записана в Supabase. Google Sheet не е променян."');
+  assertContains(routeSource, 'authorityMode: "native_supabase"');
   assertContains(routeSource, "sheetWrite: false,");
   assertContains(routeSource, "sheetWrite: true,");
 });
 
-test("sandbox massage confirmation prefers the linked production snapshot before live Apps Script", async () => {
-  const source = await readProjectFile("app/api/guest/massages/route.ts");
+test("sandbox massage confirmation uses the tenant-owned native service catalog", async () => {
+  const routeSource = await readProjectFile("app/api/guest/massages/route.ts");
+  const nativeSource = await readProjectFile("lib/server/massage-native-runtime.ts");
 
-  assertContains(source, "getSandboxMassageServiceDetails");
-  assertContains(source, '.eq("id", input.hotel.production_hotel_id)');
-  assertBefore(
-    source,
-    "const snapshotRead = await readMassageSnapshotAction({",
-    "const liveServices = await getMassageServices(input.hotel.slug)",
-    "The server snapshot must be attempted before the live Apps Script catalog fallback.",
-  );
+  assertContains(routeSource, "const service = await getNativeMassageService({ hotelId: hotel.id, serviceId });");
+  assertContains(nativeSource, '.from("massage_runtime_services")');
+  assertContains(nativeSource, '.eq("hotel_id", hotelId)');
+  assertContains(nativeSource, '.eq("active", true)');
+  assertNotContains(routeSource, "getSandboxMassageServiceDetails");
 });
 
-test("sandbox massage confirmation rejects incomplete service details instead of storing a technical id", async () => {
-  const source = await readProjectFile("app/api/guest/massages/route.ts");
+test("sandbox massage confirmation rejects incomplete native service details instead of storing a technical id", async () => {
+  const routeSource = await readProjectFile("app/api/guest/massages/route.ts");
+  const nativeSource = await readProjectFile("lib/server/massage-native-runtime.ts");
 
-  assertContains(source, 'code: "MASSAGE_SERVICE_DETAILS_UNAVAILABLE"');
-  assertContains(source, "const service = await getSandboxMassageServiceDetails({ hotel, serviceId });");
-  assertNotContains(source, "service?.nameBg ?? serviceId");
-  assertNotContains(source, "service?.durationMinutes ?? null");
-  assertNotContains(source, "service?.price ?? null");
+  assertContains(nativeSource, "MASSAGE_NATIVE_SERVICE_NAME_INVALID");
+  assertContains(nativeSource, "MASSAGE_NATIVE_DURATION_INVALID");
+  assertContains(nativeSource, "MASSAGE_NATIVE_PRICE_INVALID");
+  assertContains(routeSource, "getNativeMassageService({ hotelId: hotel.id, serviceId })");
+  assertNotContains(routeSource, "service?.nameBg ?? serviceId");
+  assertNotContains(routeSource, "service?.durationMinutes ?? null");
+  assertNotContains(routeSource, "service?.price ?? null");
 });
 
 test("massage method mismatch waits for durable recovery before critical escalation", async () => {

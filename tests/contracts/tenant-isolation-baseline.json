@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "checkpoint": "m14.2-native-massage-engine-time-normalized",
+  "checkpoint": "m14.3.1-sandbox-native-massage-authority",
   "purpose": "Lock the reviewed M2.2b.1 tenant-query inventory. Any new, moved, changed, removed, or newly-unclassified needs_review query must be explicitly re-reviewed before npm test passes.",
-  "expectedNeedsReview": 50,
+  "expectedNeedsReview": 52,
   "entries": [
     {
       "filePath": "lib/staff-auth/login-throttle.ts",
@@ -522,7 +522,18 @@
     },
     {
       "filePath": "lib/server/massage-native-runtime.ts",
-      "line": 107,
+      "line": 176,
+      "table": "massage_runtime_services",
+      "tableExpression": "\"massage_runtime_services\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_resolved_hotel_exact_tenant_native_massage_service_catalog_read"
+    },
+    {
+      "filePath": "lib/server/massage-native-runtime.ts",
+      "line": 211,
       "table": null,
       "tableExpression": "\"get_massage_runtime_available_times\"",
       "operation": "rpc",
@@ -533,7 +544,18 @@
     },
     {
       "filePath": "lib/server/massage-native-runtime.ts",
-      "line": 139,
+      "line": 240,
+      "table": null,
+      "tableExpression": "\"get_massage_runtime_availability_window\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_resolved_hotel_exact_tenant_service_role_native_availability_window_rpc"
+    },
+    {
+      "filePath": "lib/server/massage-native-runtime.ts",
+      "line": 391,
       "table": null,
       "tableExpression": "\"create_sandbox_massage_runtime_booking\"",
       "operation": "rpc",
@@ -544,7 +566,7 @@
     },
     {
       "filePath": "lib/server/massage-native-runtime.ts",
-      "line": 168,
+      "line": 420,
       "table": null,
       "tableExpression": "\"cancel_sandbox_massage_runtime_booking\"",
       "operation": "rpc",

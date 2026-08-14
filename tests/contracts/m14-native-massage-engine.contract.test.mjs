@@ -124,9 +124,10 @@ test("M14.2 server helper keeps all native access server-side and validates tena
   assert.match(helper, /p_hotel_id: hotelId/);
 });
 
-test("M14.2 is still non-authoritative: guest massage route has no native runtime cutover", () => {
-  assert.match(guestRoute, /readMassageSnapshotAction/);
-  assert.doesNotMatch(guestRoute, /getNativeMassageAvailableTimes/);
-  assert.doesNotMatch(guestRoute, /createSandboxNativeMassageBooking/);
-  assert.doesNotMatch(guestRoute, /massage_runtime_bookings/);
+test("M14.2 Production write guard remains intact after later sandbox route integration", () => {
+  assert.match(guestRoute, /createSandboxNativeMassageBooking/);
+  assert.match(guestRoute, /createReliabilityAwareMassageBooking/);
+  assert.match(guestRoute, /executeTrackedMassageBooking/);
+  assert.doesNotMatch(guestRoute, /createProductionNativeMassageBooking/);
+  assert.match(migration, /MASSAGE_NATIVE_BOOKING_SANDBOX_ONLY/);
 });

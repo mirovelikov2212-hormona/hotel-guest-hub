@@ -120,7 +120,7 @@ test("M11 sandbox side effects are fail-safe for reports, push reminders and mas
   assertContains(hotelScope, "return isSandboxHotel(input.hotel) || Boolean(input.testRoomPolicy?.isTest)");
   assertContains(reminderCron, "hotel.is_sandbox || row.is_test");
   assertContains(massageRoute, "if (isSandboxHotel(hotel))");
-  assertContains(massageRoute, "sandboxSimulation: true");
+  assertContains(massageRoute, 'authority: "native_supabase"');
   assertContains(massageRoute, "sheetWrite: false");
 
   assertNotContains(massageRoute, "isMassageSandboxLiveWriteEnabled");
