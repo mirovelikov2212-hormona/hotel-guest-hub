@@ -54,6 +54,8 @@ export type RequestDef = {
   icon?: string;
   requestKind: RequestDefKind;
   targetDepartment?: StaffDepartment | "none" | string;
+  /** Runtime after-hours target supplied by normalized M10.4 routing authority. */
+  afterHoursDepartment?: StaffDepartment | "none" | string;
   requestType?: StaffRequestType | string;
   requiresNote: boolean;
   requiresQuantity: boolean;
@@ -104,6 +106,7 @@ export type HubSection = {
 export type ContactInfo = {
   phone?: string;
   whatsapp?: string;
+  email?: string;
 };
 
 export type DepartmentHours = Partial<
@@ -280,6 +283,8 @@ export type HotelConfig = {
   };
 
   departmentHours?: DepartmentHours;
+  /** Runtime-only marker; never persisted into an M9 configuration snapshot. */
+  departmentRoutingRuntimeActivated?: boolean;
   housekeepingCutoff?: string;
 
   housekeepingExtras?: Array<{

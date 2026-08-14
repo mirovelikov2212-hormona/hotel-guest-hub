@@ -11,6 +11,7 @@ export type GuestRequestAuthorityRequestDef = {
   guestVisible?: boolean;
   requestKind?: string;
   targetDepartment?: string;
+  afterHoursDepartment?: string;
   notifyDepartments?: string[];
   requestType?: string;
   requiresBilling?: boolean;
@@ -27,6 +28,7 @@ export type GuestRequestAuthorityResult =
       ok: true;
       requestType: string;
       department: GuestRequestAuthorityDepartment | null;
+      afterHoursDepartment?: GuestRequestAuthorityDepartment;
       notifyDepartments: string[];
       requiresBilling: boolean;
       price: string | null;

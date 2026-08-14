@@ -53,3 +53,7 @@ export type HotelConfigProjectionResult = {
 export function buildHotelConfigProjection(
   config: HotelConfig | Record<string, unknown> | null | undefined,
 ): HotelConfigProjectionResult;
+
+export function resolveProjectionRuntimeRoute(
+  definition: Record<string, unknown>,
+): HotelConfigProjectionRoutingRule | null;

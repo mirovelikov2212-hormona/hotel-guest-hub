@@ -13,6 +13,7 @@ export type HotelScope = {
   slug: string;
   public_slug?: string | null;
   name?: string | null;
+  timezone?: string | null;
   active?: boolean | null;
   is_sandbox?: boolean | null;
   production_hotel_id?: string | null;
@@ -39,7 +40,7 @@ export async function resolveHotelByAnySlugAdmin(inputSlug: string): Promise<Hot
 
   const { data, error } = await supabaseAdmin
     .from("hotels")
-    .select("id, slug, public_slug, name, active, is_sandbox, production_hotel_id")
+    .select("id, slug, public_slug, name, timezone, active, is_sandbox, production_hotel_id")
     .or(buildSlugOrFilter(candidates))
     .eq("active", true)
     .limit(1)

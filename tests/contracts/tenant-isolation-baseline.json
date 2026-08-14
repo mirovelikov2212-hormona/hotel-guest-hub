@@ -280,7 +280,7 @@
     },
     {
       "filePath": "app/api/staff/request-status/route.ts",
-      "line": 359,
+      "line": 383,
       "table": "hub_events",
       "tableExpression": "\"hub_events\"",
       "operation": "insert",
@@ -291,7 +291,7 @@
     },
     {
       "filePath": "app/api/staff/requests/route.ts",
-      "line": 171,
+      "line": 172,
       "table": "guest_requests",
       "tableExpression": "\"guest_requests\"",
       "operation": "update",

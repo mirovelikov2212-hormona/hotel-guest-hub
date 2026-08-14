@@ -5,7 +5,11 @@ import { parseRequestDefs } from "@/lib/request-defs";
 import { getHotelSheetSources } from "@/lib/hotels/getHotelSheetSources";
 import { getActiveTestRoomNumbers } from "@/lib/server/test-rooms";
 import { getPublishedHotelConfigSnapshot } from "@/lib/server/published-hotel-config";
-import { resolveNormalizedRoomConfigForRuntime } from "@/lib/server/normalized-config-runtime";
+import { attachGuestRequestRelationalAuthority } from "@/lib/server/guest-request-relational-ids.mjs";
+import {
+  resolveNormalizedDepartmentRoutingConfigForRuntime,
+  resolveNormalizedRoomConfigForRuntime,
+} from "@/lib/server/normalized-config-runtime";
 
 
 function titleFromSlug(slug: string) {
@@ -560,6 +564,17 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
   }
 
   let runtimeConfig = published.config;
+  let roomRelationalAuthority: {
+    revisionId: string;
+    sourceChecksum: string;
+    roomIdByNumber: Record<string, string>;
+  } | null = null;
+  let departmentRelationalAuthority: {
+    revisionId: string;
+    sourceChecksum: string;
+    departmentIdByCode: Record<string, string>;
+    routingDepartmentIdByRequestType: Record<string, string>;
+  } | null = null;
 
   if (hotel.isSandbox) {
     try {
@@ -569,6 +584,13 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
         published,
       });
       runtimeConfig = normalized.config;
+      if (
+        normalized.ok &&
+        normalized.relationalAuthority &&
+        "roomIdByNumber" in normalized.relationalAuthority
+      ) {
+        roomRelationalAuthority = normalized.relationalAuthority;
+      }
 
       if (
         !normalized.ok &&
@@ -587,6 +609,50 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
         error,
       });
     }
+
+    try {
+      const normalized = await resolveNormalizedDepartmentRoutingConfigForRuntime({
+        hotelId: hotel.hotelId,
+        hotelTimeZone: hotel.hotelTimezone || runtimeConfig.hotelTimezone || "",
+        isSandbox: true,
+        published: {
+          ...published,
+          config: runtimeConfig,
+        },
+      });
+      runtimeConfig = normalized.config;
+      if (
+        normalized.ok &&
+        normalized.relationalAuthority &&
+        "departmentIdByCode" in normalized.relationalAuthority
+      ) {
+        departmentRelationalAuthority = normalized.relationalAuthority;
+      }
+
+      if (
+        !normalized.ok &&
+        normalized.reason !==
+          "RUNTIME_DEPARTMENT_ROUTING_READS_NOT_ACTIVATED"
+      ) {
+        console.warn(
+          "Normalized sandbox department/routing configuration is not authoritative; preserving current room authority over the M9 snapshot",
+          {
+            hotelId: hotel.hotelId,
+            hotelSlug: hotel.hotelSlug,
+            reason: normalized.reason,
+          },
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Normalized sandbox department/routing read failed; preserving current room authority over the M9 snapshot",
+        {
+          hotelId: hotel.hotelId,
+          hotelSlug: hotel.hotelSlug,
+          error,
+        },
+      );
+    }
   }
 
   const testRoomNumbers = await getActiveTestRoomNumbers([
@@ -594,7 +660,7 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     hotel.isSandbox ? hotel.productionHotelId : null,
   ]);
 
-  return {
+  const resolvedConfig: HotelConfig = {
     ...runtimeConfig,
     hotelId: hotel.hotelId,
     hotelSlug: hotel.hotelSlug || safeHotelSlug,
@@ -603,6 +669,26 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     productionHotelId: hotel.productionHotelId ?? null,
     testRoomNumbers,
   };
+
+  if (
+    roomRelationalAuthority &&
+    departmentRelationalAuthority &&
+    roomRelationalAuthority.revisionId ===
+      departmentRelationalAuthority.revisionId &&
+    roomRelationalAuthority.sourceChecksum ===
+      departmentRelationalAuthority.sourceChecksum
+  ) {
+    attachGuestRequestRelationalAuthority(resolvedConfig, {
+      revisionId: roomRelationalAuthority.revisionId,
+      sourceChecksum: roomRelationalAuthority.sourceChecksum,
+      roomIdByNumber: roomRelationalAuthority.roomIdByNumber,
+      departmentIdByCode: departmentRelationalAuthority.departmentIdByCode,
+      routingDepartmentIdByRequestType:
+        departmentRelationalAuthority.routingDepartmentIdByRequestType,
+    });
+  }
+
+  return resolvedConfig;
 }
 
 export async function getHotelConfigFromSheets(hotelSlug: string): Promise<HotelConfig | null> {

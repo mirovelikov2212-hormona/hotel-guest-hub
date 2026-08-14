@@ -5,14 +5,16 @@ import { resolveGuestRequestAuthority } from "@/lib/server/guest-request-authori
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
+import type { HotelConfig } from "@/lib/types";
 import type { StaffDepartment, StaffRequestStatus } from "@/lib/staff/types";
 import { getHotelConfig } from "@/lib/config";
 import { sendManagerPushNotification, sendStaffPushNotification } from "@/lib/staff-push/web-push";
 import type { PushStaffRole } from "@/lib/staff-push/manager-auth";
-import { isReceptionBackupHours } from "@/lib/staff/operations-hours";
+import { isDepartmentWorkingHoursForConfig } from "@/lib/staff/operations-hours";
 import { translateGuestText, translateGuestTextToBulgarian, hasBulgarianLetters } from "@/lib/server/staff-translation";
 import { getTestRoomPolicy } from "@/lib/server/test-rooms";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
+import { resolveGuestRequestRelationalIds } from "@/lib/server/guest-request-relational-ids.mjs";
 import { markLateCheckoutRequested, validateGuestStayIdentity } from "@/lib/server/guest-stays";
 import {
   getOperationalIsolationFields,
@@ -28,24 +30,45 @@ function normalizeRoomNumber(value: unknown) {
 
 function getStaffPushRolesForRequest(input: {
   department: StaffDepartment;
+  afterHoursDepartment: StaffDepartment | null;
   notifyDepartments: string[];
+  hotelConfig: HotelConfig;
 }) {
   const roles = new Set<PushStaffRole>();
-  const afterHours = isReceptionBackupHours();
 
-  const addDepartmentRole = (value: string) => {
+  const addDepartmentRole = (
+    value: string,
+    configuredAfterHoursDepartment: StaffDepartment | null = null,
+  ) => {
     if (value === "reception") {
       roles.add("reception");
       return;
     }
 
     if (value === "housekeeping" || value === "maintenance") {
-      roles.add(afterHours ? "reception" : value);
+      const working = isDepartmentWorkingHoursForConfig({
+        hotelConfig: input.hotelConfig,
+        department: value,
+      });
+      if (working) {
+        roles.add(value);
+        return;
+      }
+
+      const afterHoursDepartment =
+        configuredAfterHoursDepartment || "reception";
+      if (
+        afterHoursDepartment === "reception" ||
+        afterHoursDepartment === "housekeeping" ||
+        afterHoursDepartment === "maintenance"
+      ) {
+        roles.add(afterHoursDepartment);
+      }
     }
   };
 
-  addDepartmentRole(input.department);
-  input.notifyDepartments.forEach(addDepartmentRole);
+  addDepartmentRole(input.department, input.afterHoursDepartment);
+  input.notifyDepartments.forEach((value) => addDepartmentRole(value));
 
   return Array.from(roles);
 }
@@ -219,11 +242,45 @@ export async function POST(req: NextRequest) {
     );
     const department =
       requestAuthority.department ?? getDepartmentForRequestType(normalizedType);
+    const afterHoursDepartment = requestAuthority.afterHoursDepartment ?? null;
     const notifyDepartments = requestAuthority.notifyDepartments;
     const requiresBilling = requestAuthority.requiresBilling;
     const price = requestAuthority.price;
     const currency = requestAuthority.currency;
     const sourceRequestDef = requestAuthority.sourceRequestDef;
+    const relationalIds = resolveGuestRequestRelationalIds(hotelConfig, {
+      roomNumber: room,
+      departmentCode: department,
+      requestType: normalizedType,
+    });
+
+    if (!relationalIds.ok) {
+      await logSystemError({
+        hotelId: hotel.id,
+        source: "guest_hub",
+        eventType: "guest_request_relational_id_resolution_failed",
+        message:
+          "Guest request relational IDs could not be resolved from the activated normalized authority.",
+        roomNumber: room,
+        departmentId: department,
+        error: new Error(relationalIds.code),
+        metadata: {
+          hotelSlug,
+          rawType,
+          normalizedType,
+          code: relationalIds.code,
+        },
+      });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Hotel request routing is temporarily unavailable",
+          code: "NORMALIZED_RELATIONAL_IDS_UNAVAILABLE",
+        },
+        { status: 503 },
+      );
+    }
+
     const translatedGuestNoteBg = note && !hasBulgarianLetters(note)
       ? await translateGuestTextToBulgarian(note, {
           sourceLanguage: guestLanguage,
@@ -234,6 +291,7 @@ export async function POST(req: NextRequest) {
     const noteForStaffCopy = translatedGuestNoteBg || note;
     const operationalMetadata = {
       department,
+      afterHoursDepartment,
       notifyDepartments,
       requiresBilling,
       price,
@@ -249,6 +307,9 @@ export async function POST(req: NextRequest) {
       stayId: stayIdentity?.stay.id ?? null,
       stayDeviceId: stayIdentity?.device.id ?? null,
       lateCheckoutRequestedTime: normalizedType === "late_checkout" ? lateCheckoutRequestedTime : null,
+      normalizedRelationalIdsActive: relationalIds.active,
+      normalizedRelationalRevisionId: relationalIds.revisionId,
+      normalizedRelationalSourceChecksum: relationalIds.sourceChecksum,
       ...isolationMetadata,
     };
     const staffTitleBg = getOperationalRequestTitleBg({
@@ -305,6 +366,8 @@ export async function POST(req: NextRequest) {
       .from("guest_requests")
       .insert({
         hotel_id: hotel.id,
+        room_id: relationalIds.roomId,
+        department_id: relationalIds.departmentId,
         stay_id: stayIdentity?.stay.id ?? null,
         stay_device_id: stayIdentity?.device.id ?? null,
         room_number_snapshot: room,
@@ -398,7 +461,9 @@ export async function POST(req: NextRequest) {
 
       const staffPushRoles = getStaffPushRolesForRequest({
         department,
+        afterHoursDepartment,
         notifyDepartments,
+        hotelConfig,
       });
 
       if (staffPushRoles.length) {
