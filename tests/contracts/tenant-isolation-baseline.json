@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "checkpoint": "m14.3.1-sandbox-native-massage-authority",
+  "checkpoint": "m14.3.2-native-staff-reconciliation",
   "purpose": "Lock the reviewed M2.2b.1 tenant-query inventory. Any new, moved, changed, removed, or newly-unclassified needs_review query must be explicitly re-reviewed before npm test passes.",
-  "expectedNeedsReview": 52,
+  "expectedNeedsReview": 56,
   "entries": [
     {
       "filePath": "lib/staff-auth/login-throttle.ts",
@@ -574,6 +574,50 @@
         "rpc_requires_review"
       ],
       "provenance": "server_hotel_booking_scoped_sandbox_only_cancel_rpc"
+    },
+    {
+      "filePath": "lib/server/massage-native-reconciliation.ts",
+      "line": 49,
+      "table": "massage_runtime_bookings",
+      "tableExpression": "\"massage_runtime_bookings\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_resolved_sandbox_hotel_exact_native_booking_staff_sync_read"
+    },
+    {
+      "filePath": "lib/server/massage-native-reconciliation.ts",
+      "line": 70,
+      "table": "massage_runtime_bookings",
+      "tableExpression": "\"massage_runtime_bookings\"",
+      "operation": "update",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_resolved_sandbox_hotel_exact_confirmed_native_booking_staff_sync_update"
+    },
+    {
+      "filePath": "lib/server/massage-native-reconciliation.ts",
+      "line": 231,
+      "table": "massage_runtime_bookings",
+      "tableExpression": "\"massage_runtime_bookings\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_resolved_sandbox_hotel_confirmed_native_staff_pending_reconcile_read"
+    },
+    {
+      "filePath": "lib/server/massage-native-reconciliation.ts",
+      "line": 242,
+      "table": "massage_runtime_bookings",
+      "tableExpression": "\"massage_runtime_bookings\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_resolved_sandbox_hotel_confirmed_native_staff_orphan_reconcile_read"
     }
   ]
 }
