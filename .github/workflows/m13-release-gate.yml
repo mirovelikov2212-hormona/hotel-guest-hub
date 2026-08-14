@@ -1,0 +1,33 @@
+name: M13 Release Gate
+
+on:
+  push:
+    branches:
+      - "audit/m13-release-gate-*"
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact gate commit
+        uses: actions/checkout@v4
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run full contracts and tenant isolation
+        run: npm test
+      - name: Run scoped M13 lint
+        run: >-
+          npx eslint
+          app/api/guest/requests/route.ts
+          app/api/guest/stay/status/route.ts
+          lib/server/guest-stay-access.ts
+          lib/server/guest-stays.ts
+          lib/guest-stays/lifecycle-model.mjs
+          tests/contracts/m13-stay-read-only.contract.test.mjs
+          tests/contracts/api-security.contract.test.mjs
