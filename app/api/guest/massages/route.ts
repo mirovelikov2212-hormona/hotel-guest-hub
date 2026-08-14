@@ -33,6 +33,7 @@ import {
   getNativeMassageServices,
 } from "@/lib/server/massage-native-runtime";
 import { ensureMassageStaffRequest } from "@/lib/server/massage-staff-request";
+import { attachNativeMassageStaffRequest } from "@/lib/server/massage-native-reconciliation";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import { validateGuestStayIdentity } from "@/lib/server/guest-stays";
 import { isMassageBookingVisibleForStay } from "@/lib/server/massage-booking-visibility.mjs";
@@ -958,23 +959,10 @@ export async function POST(req: NextRequest) {
         nativeBookingId: nativeBooking.bookingId,
         authorityMode: "native_supabase" as const,
       };
-      const staffRequest = await ensureMassageStaffRequest({
-        hotelSlug: hotel.slug,
-        serviceId: result.serviceId,
-        date: result.date,
-        startTime: result.startTime,
-        roomNumber: result.roomNumber,
-        stayId,
-        stayDeviceId,
-        serviceNameBg: result.serviceNameBg,
-        sheetValue: result.sheetValue,
-        durationMinutes: result.durationMinutes,
-        price: result.price,
-        currency: result.currency,
-        guestLanguage,
-        sheetWrite: false,
-        authorityMode: "native_supabase",
-        nativeBookingId: nativeBooking.bookingId,
+      const staffAttachment = await attachNativeMassageStaffRequest({
+        hotel,
+        bookingId: nativeBooking.bookingId,
+        reason: "synchronous",
       });
       const statusCode = nativeBooking.idempotentReplay ? 200 : 201;
 
@@ -987,7 +975,8 @@ export async function POST(req: NextRequest) {
           authority: "native_supabase",
           sheetWrite: false,
           result,
-          staffRequest,
+          staffRequest: staffAttachment.staffRequest,
+          staffRequestPending: staffAttachment.staffRequestPending,
         },
         statusCode,
       );
