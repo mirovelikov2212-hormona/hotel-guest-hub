@@ -108,9 +108,11 @@ export function useStaffAlertSound({
     audioRef.current = new Audio(src);
     audioRef.current.preload = "auto";
 
-    const stored = window.localStorage.getItem(storageKey);
-    setSoundEnabled(stored === "on");
-    setReady(true);
+    const restorePreferenceTimer = window.setTimeout(() => {
+      const stored = window.localStorage.getItem(storageKey);
+      setSoundEnabled(stored === "on");
+      setReady(true);
+    }, 0);
 
     const baselineTimer = window.setTimeout(() => {
       for (const id of getCurrentNewRequestIds(latestRequestsRef.current)) {
@@ -120,6 +122,7 @@ export function useStaffAlertSound({
     }, INITIAL_ALERT_BASELINE_MS);
 
     return () => {
+      window.clearTimeout(restorePreferenceTimer);
       window.clearTimeout(baselineTimer);
 
       if (audioRef.current) {
