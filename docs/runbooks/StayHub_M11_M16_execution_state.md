@@ -209,11 +209,46 @@ Release evidence:
 
 ### M14.3 — Sandbox → Production Cutover / Adapter Boundary
 
+Status: **ACTIVE**.
+
+#### M14.3.1 — Sandbox Native Massage Authority
+
+Status: **CLOSED / COMPLETE**.
+
+Detailed evidence: `docs/operations/m14-3-1-sandbox-native-massage-authority.md`.
+
+- runtime cutover PR #12; correction PR #13;
+- final runtime merge: `d0ebb9ccf0837fef1d8014f4d609b1b7b7b25b8c`;
+- final Production deployment: `dpl_E1kavJn5hXdYVRfDbt1DYZwfELtF` — READY;
+- Supabase migration: `20260814223956_m14_3_1_native_massage_availability_window`;
+- final correction gate: `169/169` contracts, tenant guard `52/52` reviewed, scoped lint passed;
+- live sandbox native create/replay/conflict/history acceptance: PASS;
+- Production massage authority remained on the incumbent snapshot + tracked Google Sheet adapter path.
+
+#### M14.3.2 — Durable Native Booking → Staff Reconciliation
+
+Status: **CLOSED / COMPLETE**.
+
+Detailed evidence: `docs/operations/m14-3-2-native-staff-reconciliation.md`.
+
+- controlled PR #15;
+- runtime merge: `a968c140ce1d5fae3153bc66e47cc009b81112ad`;
+- Production deployment: `dpl_8agc9HGj7HW7xyLy2qhBPUCuBLdH` — READY;
+- Supabase migration: `20260814231918_m14_3_2_native_massage_staff_reconciliation`;
+- gate: `179/179` contracts, tenant guard `56/56` reviewed, scoped lint passed;
+- database cross-tenant/request-type staff-link guard: PASS, invalid links `0`;
+- live orphan booking → reconciliation → exact staff-link repair: PASS;
+- second live reconciliation created no duplicate booking/card and left attempt count unchanged;
+- acceptance cleanup left Production native booking rows `0`, sandbox confirmed acceptance rows `0`, and restored sandbox availability;
+- final Production deployment runtime `warning` / `error` / `fatal`: none found.
+
+#### M14.3.3 — Production Native Massage Authority Cutover
+
 Status: **NEXT / ACTIVE WORK**.
 
-Cutover order is mandatory: sandbox read/write authority first; then history/staff/notification/adapter/rollback acceptance; only then a separately gated Production cutover. Production native booking must remain blocked until the Production stage is explicitly activated.
+Production native booking remains physically blocked until this separate stage passes its own gates. M14.3.3 must add an explicit hotel-scoped authority activation/rollback switch, prove Production native read parity at cutover time, preserve external/manual shared-sheet occupancy as an import adapter, prove Production staff/notification reconciliation, prevent double writes, and support rollback to the incumbent adapter path without deleting native audit history.
 
-Google Sheet / Apps Script becomes mirror/import/export integration rather than core booking authority. Sunny Castle may remain a read-only external block import until it becomes a first-class StayHub tenant, expected for the 2027 summer season.
+Google Sheet / Apps Script then becomes mirror/import/export integration rather than core booking authority. Sunny Castle may remain a read-only external block import until it becomes a first-class StayHub tenant, expected for the 2027 summer season.
 
 ### M14.4 — Generic Third-Hotel Proof + Remaining Runtime Hardcodes
 
