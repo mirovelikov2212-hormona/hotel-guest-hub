@@ -34,6 +34,11 @@ test("M14.1 normalized massage runtime tables are tenant scoped and RLS protecte
   assert.match(migration, /primary key \(hotel_id, service_id\)/);
   assert.match(migration, /foreign key \(hotel_id, service_id\)/);
   assert.match(migration, /unique \(hotel_id, source_kind, source_key\)/);
+  assert.doesNotMatch(
+    migration,
+    /massage_runtime_services\(hotel_id, service_id\)\s+on delete set null/,
+    "Block/service FK must never null the tenant hotel_id.",
+  );
 });
 
 test("M14.1 projection RPC requires exact hotel and snapshot lineage", () => {

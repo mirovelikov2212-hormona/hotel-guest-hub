@@ -73,7 +73,6 @@ create table if not exists public.massage_runtime_blocks (
   unique (hotel_id, source_kind, source_key),
   foreign key (hotel_id, service_id)
     references public.massage_runtime_services(hotel_id, service_id)
-    on delete set null
 );
 
 create table if not exists public.massage_runtime_projection_state (
