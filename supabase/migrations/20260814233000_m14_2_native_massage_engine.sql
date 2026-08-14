@@ -351,8 +351,10 @@ begin
 
   if not found then raise exception 'MASSAGE_STAY_REQUIRED'; end if;
 
+  -- Match the dynamic M13 write boundary. The persisted lifecycle_state is
+  -- informative and may lag a newly approved late checkout, so timestamps and
+  -- late-checkout state remain the write authority inside this atomic RPC.
   if v_stay.status = 'cancelled'
-    or v_stay.lifecycle_state <> 'active'
     or v_stay.effective_check_out_at <= now()
     or (
       v_stay.late_checkout_status = 'pending'
