@@ -16,9 +16,7 @@ type StaffPushInput = {
   notificationRole?: PushStaffRole;
 };
 
-type ManagerPushInput = Omit<StaffPushInput, "targetRoles" | "notificationRole"> & {
-  notificationRole?: PushStaffRole;
-};
+type ManagerPushInput = Omit<StaffPushInput, "targetRoles" | "notificationRole"> & { notificationRole?: PushStaffRole };
 
 type PushSubscriptionRow = {
   id: string;
@@ -29,9 +27,7 @@ type PushSubscriptionRow = {
   last_seen_at?: string | null;
 };
 
-const RECENT_DELIVERY_TTL_MS = 5 * 60 * 1000;
-const recentSuccessfulDeliveries = new Map<string, number>();
-
+const RECENT_DELIVERY_TTL_MS = 5 * 60 * 1000; const recentSuccessfulDeliveries = new Map<string, number>();
 function uniqueRoles(roles: PushStaffRole[]) {
   return Array.from(new Set(roles.filter(Boolean)));
 }
