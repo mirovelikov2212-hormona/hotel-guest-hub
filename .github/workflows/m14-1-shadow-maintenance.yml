@@ -1,0 +1,64 @@
+name: M14.1 Shadow Projection Maintenance
+
+on:
+  push:
+    branches:
+      - "audit/m14-1-shadow-maintenance-*"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout milestone branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/m14-1-massage-runtime-projection
+          fetch-depth: 0
+      - name: Wire non-authoritative shadow projection and contract suite
+        shell: python
+        run: |
+          from pathlib import Path
+
+          snapshot = Path("lib/server/massage-snapshot.ts")
+          text = snapshot.read_text()
+          import_anchor = 'import { overlayConfirmedMassageBookings } from "@/lib/server/massage-snapshot-overlay.mjs";\n'
+          import_line = import_anchor + 'import { projectMassageSnapshotToRuntime } from "@/lib/server/massage-runtime-projection";\n'
+          if text.count(import_anchor) != 1:
+              raise SystemExit("unexpected snapshot import anchor count")
+          if "projectMassageSnapshotToRuntime" not in text:
+              text = text.replace(import_anchor, import_line, 1)
+
+          state_anchor = '''    if (stateError) throw stateError;\n\n    await logSystemEvent({\n'''
+          projection_block = '''    if (stateError) throw stateError;\n\n    let runtimeProjection = null;\n    try {\n      runtimeProjection = await projectMassageSnapshotToRuntime({\n        hotelId: hotel.id,\n        snapshotId: String(snapshot.id),\n      });\n    } catch (projectionError) {\n      await logSystemError({\n        hotelId: hotel.id,\n        severity: "error",\n        source: "massage",\n        eventType: "massage_runtime_projection_failed",\n        message:\n          "The non-authoritative M14 massage runtime shadow projection failed; the existing snapshot remains authoritative.",\n        error: projectionError,\n        metadata: {\n          hotelSlug: hotel.slug,\n          snapshotId: String(snapshot.id),\n          sourceRevision: bundle.source.revision,\n          reason: input.reason,\n        },\n      });\n    }\n\n    await logSystemEvent({\n'''
+          if text.count(state_anchor) != 1:
+              raise SystemExit("unexpected snapshot state anchor count")
+          if "massage_runtime_projection_failed" not in text:
+              text = text.replace(state_anchor, projection_block, 1)
+
+          return_anchor = '''      sourceMetrics,\n    };\n'''
+          return_replacement = '''      sourceMetrics,\n      runtimeProjection,\n    };\n'''
+          if text.count(return_anchor) != 1:
+              raise SystemExit("unexpected snapshot return anchor count")
+          if "runtimeProjection,\n    };" not in text:
+              text = text.replace(return_anchor, return_replacement, 1)
+          snapshot.write_text(text)
+
+          package = Path("package.json")
+          pkg = package.read_text()
+          old = "tests/contracts/m13-stay-read-only.contract.test.mjs tests/contracts/operations-hours-model.contract.test.mjs"
+          new = "tests/contracts/m13-stay-read-only.contract.test.mjs tests/contracts/m14-massage-runtime-projection.contract.test.mjs tests/contracts/operations-hours-model.contract.test.mjs"
+          if pkg.count(old) != 1:
+              raise SystemExit("unexpected package contract anchor count")
+          pkg = pkg.replace(old, new, 1)
+          package.write_text(pkg)
+      - name: Commit milestone shadow wiring
+        run: |
+          git config user.name "mirovelikov2212-hormona"
+          git config user.email "miro.velikov.22.12@gmail.com"
+          git add lib/server/massage-snapshot.ts package.json
+          git diff --cached --check
+          git commit -m "feat(m14.1): project snapshots into shadow runtime"
+          git push origin HEAD:audit/m14-1-massage-runtime-projection
