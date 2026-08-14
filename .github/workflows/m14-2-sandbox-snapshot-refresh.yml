@@ -1,0 +1,25 @@
+name: M14.2 Sandbox Snapshot Refresh
+
+on:
+  push:
+    branches:
+      - "audit/m14-2-sandbox-snapshot-refresh"
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Refresh sandbox snapshot through the real cron endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          test -n "$CRON_SECRET"
+          response=$(curl -sS --max-time 75 -w "\n%{http_code}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "https://www.stayhub.app/api/cron/massage-snapshot-sync?hotelSlug=aquamarin-test")
+          body=$(printf '%s\n' "$response" | sed '$d')
+          status=$(printf '%s\n' "$response" | tail -n1)
+          printf '%s\n' "$body"
+          test "$status" = "200"
+          printf '%s' "$body" | python3 -c 'import json,sys; p=json.load(sys.stdin); assert p.get("ok") is True; details=p.get("details") or []; assert details and details[0].get("ok") is True; snapshot=details[0].get("snapshot") or {}; projection=snapshot.get("runtimeProjection"); assert projection and projection.get("ok") is True; assert projection.get("hotelId") == snapshot.get("hotelId"); assert projection.get("snapshotId") == snapshot.get("snapshotId")'
