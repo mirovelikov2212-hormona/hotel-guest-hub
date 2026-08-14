@@ -159,18 +159,48 @@ The runtime merge can be reverted while the additive lifecycle columns remain. L
 
 ## M14 — Multi-Hotel Hardening
 
-Status: **NEXT / NOT STARTED**.
+Status: **ACTIVE**.
 
-Start only from the finalized M13 `main` checkpoint after its documentation-only closeout deploy is `READY` and clean.
+### M14.1 — Normalized Massage Runtime Shadow Projection
 
-Primary direction:
+Status: **CLOSED / COMPLETE**.
 
-- remove remaining hotel-specific runtime assumptions;
-- prove a generic third hotel requires configuration/data only, not a code fork;
-- audit host/slug resolution, guest/staff APIs, routing, reporting, push, stay state and configuration reads;
-- harden massage source/destination resolution around **Supabase-first runtime authority**;
-- remaining Google Sheet / Apps Script dependencies become controlled adapters/import/export surfaces;
-- Sunny Castle may temporarily remain an external read-only block source imported into Supabase until it becomes a first-class StayHub tenant, expected for a later season; Guest Hub runtime must not depend directly on its shared Sheet as the database.
+Detailed evidence: `docs/operations/m14-1-massage-runtime-shadow-projection.md`.
+
+Release evidence:
+
+- Starting checkpoint: `f3488ee608c08914c849b1f8dd15a6e8b8c64dc5`;
+- final milestone head: `7d001f8045ce150dcc5ab82588c9393e00687720`;
+- controlled PR: #8;
+- runtime merge commit: `b3c845b98a8340936f9384119af1b7d7efa9d7ff`;
+- Production deployment: `dpl_7QZsiH3t14M9B4hGSfeEA7hKFYhr` — READY;
+- Supabase migration: `20260814213310_m14_1_massage_runtime_projection`;
+- tests: `149/149` passed; tenant guard `47/47` reviewed; scoped lint passed;
+- Production exact parity: 8 services / 1770 starts / 1 block; set mismatches `0 / 0 / 0`;
+- sandbox exact parity: 8 services / 980 starts / 1 block;
+- real Production refresh path returned `runtimeProjection.ok=true`; projection timestamp advanced and exact snapshot lineage remained matched;
+- `massage_runtime_projection_failed` after release: `0`;
+- Guest Hub authority intentionally remained on the incumbent snapshot/legacy path.
+
+### M14.2 — Native Supabase Schedule + Atomic Booking/Conflict Engine
+
+Status: **NEXT / ACTIVE WORK**.
+
+The Production availability rules were reproduced exactly from normalized data before implementation: for the current 2026-08-15 through 2026-08-23 bookable window, 09:00–18:00, 15-minute starts, 14:00–15:00 break, service duration + buffer and current block produce exactly `1770` starts, matching the incumbent snapshot with `0` set differences.
+
+M14.2 must remain non-authoritative until sandbox concurrency/idempotency/conflict gates are green. It adds hotel-scoped schedule data and an atomic Supabase booking engine; no Production Guest Hub cutover belongs in this sub-milestone.
+
+### M14.3 — Sandbox → Production Cutover / Adapter Boundary
+
+Status: **NOT STARTED** until M14.2 closes.
+
+Google Sheet / Apps Script becomes mirror/import/export integration rather than core booking authority. Sunny Castle may remain a read-only external block import until it becomes a first-class StayHub tenant, expected for the 2027 summer season.
+
+### M14.4 — Generic Third-Hotel Proof + Remaining Runtime Hardcodes
+
+Status: **NOT STARTED** until M14.3 closes.
+
+A generic third hotel must run from configuration/data only, with no code fork or cross-tenant leakage.
 
 ## M15 — Observability & Operational Hardening
 
