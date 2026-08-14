@@ -30,7 +30,9 @@ jobs:
         shell: bash
         run: |
           git fetch origin 4fd9b6f08b5681597b8439e5e4e8c66f634b6cf5 --depth=1
+          git fetch origin f58c113391d7d3995fa5a6d70ed56f74a97a5aa1 --depth=1
           mapfile -t changed < <(git diff --name-only 4fd9b6f08b5681597b8439e5e4e8c66f634b6cf5 f58c113391d7d3995fa5a6d70ed56f74a97a5aa1 -- '*.ts' '*.tsx' '*.js' '*.mjs' '*.mts' '*.cjs')
+          test ${#changed[@]} -gt 0
           printf 'Scoped lint files:\n%s\n' "${changed[*]}"
           npx eslint "${changed[@]}"
       - name: Production build
