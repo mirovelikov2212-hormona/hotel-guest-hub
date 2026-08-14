@@ -1,0 +1,80 @@
+name: M14.2 Tenant Baseline Maintenance
+
+on:
+  push:
+    branches:
+      - "audit/m14-2-tenant-baseline-*"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout milestone branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/m14-2-native-massage-engine
+          fetch-depth: 0
+      - name: Record reviewed M14.2 RPC surfaces
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          path = Path("tests/contracts/tenant-isolation-baseline.json")
+          data = json.loads(path.read_text())
+          if data.get("expectedNeedsReview") != 47:
+              raise SystemExit("unexpected prior baseline count")
+
+          additions = [
+              {
+                  "filePath": "lib/server/massage-native-runtime.ts",
+                  "line": 104,
+                  "table": None,
+                  "tableExpression": "\"get_massage_runtime_available_times\"",
+                  "operation": "rpc",
+                  "reasons": ["rpc_requires_review"],
+                  "provenance": "server_hotel_scoped_native_availability_rpc",
+              },
+              {
+                  "filePath": "lib/server/massage-native-runtime.ts",
+                  "line": 136,
+                  "table": None,
+                  "tableExpression": "\"create_sandbox_massage_runtime_booking\"",
+                  "operation": "rpc",
+                  "reasons": ["rpc_requires_review"],
+                  "provenance": "server_hotel_stay_device_scoped_sandbox_only_atomic_booking_rpc",
+              },
+              {
+                  "filePath": "lib/server/massage-native-runtime.ts",
+                  "line": 165,
+                  "table": None,
+                  "tableExpression": "\"cancel_sandbox_massage_runtime_booking\"",
+                  "operation": "rpc",
+                  "reasons": ["rpc_requires_review"],
+                  "provenance": "server_hotel_booking_scoped_sandbox_only_cancel_rpc",
+              },
+          ]
+          existing = {
+              (e.get("filePath"), e.get("line"), e.get("tableExpression"), e.get("operation"))
+              for e in data["entries"]
+          }
+          for entry in additions:
+              key = (entry["filePath"], entry["line"], entry["tableExpression"], entry["operation"])
+              if key in existing:
+                  raise SystemExit(f"review entry already exists: {key}")
+              data["entries"].append(entry)
+
+          data["expectedNeedsReview"] = 50
+          data["checkpoint"] = "m14.2-native-massage-engine"
+          path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+      - name: Commit reviewed tenant baseline
+        run: |
+          git config user.name "mirovelikov2212-hormona"
+          git config user.email "miro.velikov.22.12@gmail.com"
+          git add tests/contracts/tenant-isolation-baseline.json
+          git diff --cached --check
+          git commit -m "test(m14.2): review native massage RPC surfaces"
+          git push origin HEAD:audit/m14-2-native-massage-engine
