@@ -1,0 +1,63 @@
+name: M11 Sandbox Sheet Write Isolation
+
+on:
+  push:
+    branches:
+      - audit/m11-release-gate-3910067
+
+permissions:
+  contents: write
+
+jobs:
+  isolate-sandbox-write:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout milestone branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/m11-true-sandbox-config-isolation
+          fetch-depth: 0
+      - name: Remove sandbox live Sheet write escape hatch
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'app/api/guest/massages/route.ts';
+          let source = fs.readFileSync(path, 'utf8');
+
+          source = source.replace('  isApprovedMassageSandboxLiveWriteCandidate,\n', '');
+          source = source.replace('  isMassageSandboxLiveWriteEnabled,\n', '');
+          source = source.replace('    const sandboxLiveWriteEnabled = isMassageSandboxLiveWriteEnabled(hotelSlug);\n', '');
+
+          const startMarker = '    if (isSandboxHotel(hotel)) {\n      if (sandboxLiveWriteEnabled) {';
+          const serviceMarker = '      const service = await getSandboxMassageServiceDetails({ hotel, serviceId });';
+          const start = source.indexOf(startMarker);
+          const service = source.indexOf(serviceMarker, start);
+          if (start < 0 || service < 0 || service <= start) {
+            throw new Error('Expected sandbox live-write block was not found exactly once');
+          }
+
+          source = source.slice(0, start) + '    if (isSandboxHotel(hotel)) {\n' + source.slice(service);
+
+          for (const forbidden of [
+            'sandboxLiveWriteEnabled',
+            'isMassageSandboxLiveWriteEnabled',
+            'isApprovedMassageSandboxLiveWriteCandidate',
+            'action: "sandbox_live_write"',
+            'MASSAGE_SANDBOX_LIVE_WRITE_CANDIDATE_NOT_ALLOWED',
+          ]) {
+            if (source.includes(forbidden)) throw new Error(`Forbidden sandbox live-write token remains: ${forbidden}`);
+          }
+
+          fs.writeFileSync(path, source);
+          NODE
+          git diff --check
+          git diff -- app/api/guest/massages/route.ts
+      - name: Commit M11.2 isolation
+        shell: bash
+        run: |
+          git config user.name 'mirovelikov2212-hormona'
+          git config user.email 'miro.velikov.22.12@gmail.com'
+          git add app/api/guest/massages/route.ts
+          git commit -m 'fix: forbid sandbox massage Production Sheet writes'
+          git push origin HEAD:audit/m11-true-sandbox-config-isolation
