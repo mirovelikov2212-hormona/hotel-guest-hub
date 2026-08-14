@@ -22,36 +22,35 @@ test("M10.3 production path returns before normalized database reads", async () 
   assertBefore(
     configSource,
     "if (hotel.isSandbox)",
-    "resolveNormalizedHotelConfigForRuntime({",
+    "resolveNormalizedRoomConfigForRuntime({",
   );
   assertContains(
     configSource,
-    "Normalized sandbox configuration read failed; using M9 snapshot",
+    "Normalized sandbox room read failed; using M9 snapshot",
   );
 });
 
-test("M10.3 reads normalized rows only after activation and scopes every query", async () => {
+test("M10.3 reads only normalized rooms after activation and scopes every query", async () => {
   const source = await readProjectFile(
     "lib/server/normalized-config-runtime.ts",
   );
 
   assertBefore(
     source,
-    "if (!metadataActivatesRuntimeReads(projectionState))",
-    "getActiveNormalizedProjectionRows(input.hotelId)",
+    "if (!metadataActivatesRoomReads(projectionState))",
+    "getActiveNormalizedRoomRows(input.hotelId)",
   );
   assertContains(source, '.from("hotel_config_projection_state")');
   assertContains(source, '.from("rooms")');
-  assertContains(source, '.from("departments")');
-  assertContains(source, '.from("routing_rules")');
+  assertNotContains(source, '.from("departments")');
+  assertNotContains(source, '.from("routing_rules")');
   assertContains(source, '.eq("hotel_id", hotelId)');
-  assertContains(source, '.is("venue_type", null)');
   assertContains(source, '.eq("active", true)');
 });
 
 test("M10.3 activation is secret-protected, sandbox-only and exact-version gated", async () => {
   const routeSource = await readProjectFile(
-    "app/api/admin/config-projections/runtime-reads/route.ts",
+    "app/api/admin/config-projections/room-runtime-reads/route.ts",
   );
   const activationSource = await readProjectFile(
     "lib/server/normalized-config-runtime-activation.ts",
@@ -63,12 +62,19 @@ test("M10.3 activation is secret-protected, sandbox-only and exact-version gated
   assertBefore(
     routeSource,
     "if (!isAuthorizedInternalRequest(req))",
-    "setSandboxNormalizedRuntimeReads({",
+    "setSandboxNormalizedRoomReads({",
   );
 
   assertContains(activationSource, "hotel.is_sandbox !== true");
   assertContains(activationSource, 'error: "SANDBOX_HOTEL_REQUIRED"');
-  assertContains(activationSource, "buildSandboxNormalizedRuntimeConfig({");
+  assertContains(
+    activationSource,
+    "buildSandboxNormalizedRoomRuntimeConfig({",
+  );
+  assertContains(activationSource, "runtimeReadsActivated: false");
+  assertContains(activationSource, "runtimeRoomReadsActivated: input.enabled");
+  assertNotContains(activationSource, '.from("departments")');
+  assertNotContains(activationSource, '.from("routing_rules")');
   assertContains(activationSource, '.eq("hotel_id", hotel.id)');
   assertContains(activationSource, '.eq("projection_status", "ready")');
   assertContains(

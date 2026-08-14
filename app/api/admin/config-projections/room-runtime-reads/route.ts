@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { setSandboxNormalizedRuntimeReads } from "@/lib/server/normalized-config-runtime-activation";
+import { setSandboxNormalizedRoomReads } from "@/lib/server/normalized-config-runtime-activation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,20 +40,21 @@ export async function POST(req: NextRequest) {
     !body ||
     typeof body !== "object" ||
     Array.isArray(body) ||
+    Object.keys(body).some((key) => key !== "hotelSlug" && key !== "enabled") ||
     typeof (body as { hotelSlug?: unknown }).hotelSlug !== "string" ||
     typeof (body as { enabled?: unknown }).enabled !== "boolean"
   ) {
     return NextResponse.json(
-      { ok: false, error: "INVALID_RUNTIME_READ_ACTIVATION_REQUEST" },
+      { ok: false, error: "INVALID_ROOM_RUNTIME_READ_ACTIVATION_REQUEST" },
       { status: 400, headers: NO_STORE_HEADERS },
     );
   }
 
   const request = body as { hotelSlug: string; enabled: boolean };
-  const result = await setSandboxNormalizedRuntimeReads({
+  const result = await setSandboxNormalizedRoomReads({
     hotelSlug: request.hotelSlug,
     enabled: request.enabled,
-    actor: "internal_config_runtime_reads",
+    actor: "internal_config_room_runtime_reads",
   });
 
   return NextResponse.json(result, {

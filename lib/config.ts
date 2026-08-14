@@ -5,7 +5,7 @@ import { parseRequestDefs } from "@/lib/request-defs";
 import { getHotelSheetSources } from "@/lib/hotels/getHotelSheetSources";
 import { getActiveTestRoomNumbers } from "@/lib/server/test-rooms";
 import { getPublishedHotelConfigSnapshot } from "@/lib/server/published-hotel-config";
-import { resolveNormalizedHotelConfigForRuntime } from "@/lib/server/normalized-config-runtime";
+import { resolveNormalizedRoomConfigForRuntime } from "@/lib/server/normalized-config-runtime";
 
 
 function titleFromSlug(slug: string) {
@@ -563,7 +563,7 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
 
   if (hotel.isSandbox) {
     try {
-      const normalized = await resolveNormalizedHotelConfigForRuntime({
+      const normalized = await resolveNormalizedRoomConfigForRuntime({
         hotelId: hotel.hotelId,
         isSandbox: true,
         published,
@@ -572,16 +572,16 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
 
       if (
         !normalized.ok &&
-        normalized.reason !== "RUNTIME_READS_NOT_ACTIVATED"
+        normalized.reason !== "RUNTIME_ROOM_READS_NOT_ACTIVATED"
       ) {
-        console.warn("Normalized sandbox configuration is not authoritative; using M9 snapshot", {
+        console.warn("Normalized sandbox room configuration is not authoritative; using M9 snapshot", {
           hotelId: hotel.hotelId,
           hotelSlug: hotel.hotelSlug,
           reason: normalized.reason,
         });
       }
     } catch (error) {
-      console.error("Normalized sandbox configuration read failed; using M9 snapshot", {
+      console.error("Normalized sandbox room read failed; using M9 snapshot", {
         hotelId: hotel.hotelId,
         hotelSlug: hotel.hotelSlug,
         error,

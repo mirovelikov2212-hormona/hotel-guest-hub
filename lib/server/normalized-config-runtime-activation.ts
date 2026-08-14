@@ -1,8 +1,8 @@
 import "server-only";
 
-import { buildSandboxNormalizedRuntimeConfig } from "@/lib/server/normalized-config-runtime-model.mjs";
+import { buildSandboxNormalizedRoomRuntimeConfig } from "@/lib/server/normalized-config-runtime-model.mjs";
 import {
-  getActiveNormalizedProjectionRows,
+  getActiveNormalizedRoomRows,
   getNormalizedProjectionState,
 } from "@/lib/server/normalized-config-runtime";
 import { getPublishedHotelConfigSnapshot } from "@/lib/server/published-hotel-config";
@@ -13,7 +13,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
-export async function setSandboxNormalizedRuntimeReads(input: {
+export async function setSandboxNormalizedRoomReads(input: {
   hotelSlug: string;
   enabled: boolean;
   actor?: string | null;
@@ -63,18 +63,18 @@ export async function setSandboxNormalizedRuntimeReads(input: {
   }
 
   if (input.enabled) {
-    const rows = await getActiveNormalizedProjectionRows(hotel.id);
+    const rows = await getActiveNormalizedRoomRows(hotel.id);
     const metadata = isObject(projectionState.metadata_json)
       ? projectionState.metadata_json
       : {};
-    const validation = buildSandboxNormalizedRuntimeConfig({
+    const validation = buildSandboxNormalizedRoomRuntimeConfig({
       isSandbox: true,
       publishedRevisionId: published.revisionId,
       publishedChecksum: published.sourceChecksum,
       publishedConfig: published.config,
       projectionState: {
         ...projectionState,
-        metadata_json: { ...metadata, runtimeReadsActivated: true },
+        metadata_json: { ...metadata, runtimeRoomReadsActivated: true },
       },
       rows,
     });
@@ -96,10 +96,11 @@ export async function setSandboxNormalizedRuntimeReads(input: {
     : {};
   const metadata = {
     ...currentMetadata,
-    runtimeReadsActivated: input.enabled,
-    runtimeReadsActivation: {
+    runtimeReadsActivated: false,
+    runtimeRoomReadsActivated: input.enabled,
+    runtimeRoomReadsActivation: {
       status: input.enabled ? "enabled" : "disabled",
-      actor: String(input.actor || "internal_config_runtime_reads").slice(
+      actor: String(input.actor || "internal_config_room_runtime_reads").slice(
         0,
         200,
       ),
@@ -143,7 +144,7 @@ export async function setSandboxNormalizedRuntimeReads(input: {
     return {
       ok: false,
       status: 500,
-      error: "RUNTIME_READ_ACTIVATION_UPDATE_FAILED",
+      error: "ROOM_RUNTIME_READ_ACTIVATION_UPDATE_FAILED",
       hotelId: hotel.id,
       hotelSlug: hotel.slug,
     };
@@ -164,7 +165,7 @@ export async function setSandboxNormalizedRuntimeReads(input: {
     status: 200,
     hotelId: hotel.id,
     hotelSlug: hotel.slug,
-    runtimeReadsActivated: input.enabled,
+    runtimeRoomReadsActivated: input.enabled,
     revisionId: published.revisionId,
     sourceChecksum: published.sourceChecksum,
   };
