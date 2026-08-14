@@ -13,8 +13,6 @@ import {
   isMassageControlledE2EEnabled,
   MassageApiError,
   normalizeMassageHotelSlug,
-  type MassageService,
-  type MassageServicesResult,
 } from "@/lib/server/massage-api";
 import {
   executeTrackedMassageBooking,
@@ -24,6 +22,16 @@ import {
   isMassageSnapshotEnabled,
   readMassageSnapshotAction,
 } from "@/lib/server/massage-snapshot";
+import {
+  createSandboxNativeMassageBooking,
+  formatNativeMassageClientTime,
+  getNativeMassageAvailability,
+  getNativeMassageBookableDateSummary,
+  getNativeMassageBookableDates,
+  getNativeMassageBootstrap,
+  getNativeMassageService,
+  getNativeMassageServices,
+} from "@/lib/server/massage-native-runtime";
 import { ensureMassageStaffRequest } from "@/lib/server/massage-staff-request";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import { validateGuestStayIdentity } from "@/lib/server/guest-stays";
@@ -159,6 +167,107 @@ function normalizeRoomForComparison(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
 }
 
+function getNativeMassageErrorCode(error: unknown) {
+  const values = [
+    error instanceof Error ? error.message : "",
+    typeof error === "object" && error !== null && "message" in error
+      ? String((error as { message?: unknown }).message || "")
+      : "",
+    typeof error === "object" && error !== null && "details" in error
+      ? String((error as { details?: unknown }).details || "")
+      : "",
+  ].join(" ");
+
+  return [
+    "MASSAGE_SLOT_UNAVAILABLE",
+    "MASSAGE_IDEMPOTENCY_KEY_REUSED",
+    "MASSAGE_STAY_READ_ONLY",
+    "MASSAGE_STAY_REQUIRED",
+    "MASSAGE_STAY_DEVICE_REQUIRED",
+    "MASSAGE_ROOM_NOT_FOUND",
+    "MASSAGE_SERVICE_NOT_FOUND",
+    "MASSAGE_NATIVE_SERVICE_NOT_FOUND",
+    "MASSAGE_SCHEDULE_NOT_CONFIGURED",
+    "MASSAGE_NATIVE_DAYS_AHEAD_INVALID",
+    "MASSAGE_NATIVE_HOTEL_INVALID",
+    "MASSAGE_NATIVE_DATE_INVALID",
+    "MASSAGE_NATIVE_TIME_INVALID",
+  ].find((code) => values.includes(code)) || null;
+}
+
+function mapNativeMassageError(error: unknown) {
+  const code = getNativeMassageErrorCode(error);
+  if (!code) return null;
+
+  if (code === "MASSAGE_SLOT_UNAVAILABLE") {
+    return new MassageApiError("The selected massage time is no longer available.", {
+      statusCode: 409,
+      code,
+    });
+  }
+
+  if (code === "MASSAGE_IDEMPOTENCY_KEY_REUSED") {
+    return new MassageApiError("The massage booking request conflicts with an earlier submission.", {
+      statusCode: 409,
+      code,
+    });
+  }
+
+  if (code === "MASSAGE_STAY_READ_ONLY") {
+    return new MassageApiError("The confirmed stay can no longer create new massage bookings.", {
+      statusCode: 409,
+      code,
+    });
+  }
+
+  if (code === "MASSAGE_STAY_REQUIRED" || code === "MASSAGE_STAY_DEVICE_REQUIRED") {
+    return new MassageApiError("A confirmed stay is required.", {
+      statusCode: 401,
+      code,
+    });
+  }
+
+  if (
+    code === "MASSAGE_ROOM_NOT_FOUND" ||
+    code === "MASSAGE_SERVICE_NOT_FOUND" ||
+    code === "MASSAGE_NATIVE_SERVICE_NOT_FOUND" ||
+    code === "MASSAGE_NATIVE_DAYS_AHEAD_INVALID" ||
+    code === "MASSAGE_NATIVE_HOTEL_INVALID" ||
+    code === "MASSAGE_NATIVE_DATE_INVALID" ||
+    code === "MASSAGE_NATIVE_TIME_INVALID"
+  ) {
+    return new MassageApiError("The massage booking request is invalid.", {
+      statusCode: 400,
+      code,
+    });
+  }
+
+  return new MassageApiError("Massage scheduling is temporarily unavailable.", {
+    statusCode: 503,
+    code,
+    monitoringSeverity: "warning",
+  });
+}
+
+function buildSandboxNativeIdempotencyKey(input: {
+  stayId: string;
+  stayDeviceId: string;
+  serviceId: string;
+  date: string;
+  time: string;
+  room: string;
+}) {
+  return [
+    "guest",
+    input.stayId,
+    input.stayDeviceId,
+    input.serviceId,
+    input.date,
+    input.time,
+    input.room,
+  ].join(":");
+}
+
 async function createReliabilityAwareMassageBooking(input: {
   hotel: HotelScope;
   serviceId: string;
@@ -219,6 +328,7 @@ async function attachTrackedMassageStaffRequest(input: {
       currency: input.result.currency,
       guestLanguage: input.guestLanguage,
       sheetWrite: true,
+      authorityMode: "legacy_sheet",
     });
 
     if (input.attempt) {
@@ -296,86 +406,6 @@ async function requireExistingHotelRoom(hotelSlug: string, room: string) {
   }
 }
 
-function isCompleteMassageService(
-  service: MassageService | null | undefined,
-  expectedServiceId: string
-): service is MassageService {
-  if (!service || service.serviceId !== expectedServiceId) return false;
-
-  const nameBg = String(service.nameBg || "").trim();
-  const currency = String(service.currency || "").trim();
-  const durationMinutes = Number(service.durationMinutes);
-  const price = Number(service.price);
-
-  return Boolean(
-    nameBg &&
-      currency &&
-      Number.isFinite(durationMinutes) &&
-      durationMinutes > 0 &&
-      Number.isFinite(price) &&
-      price >= 0
-  );
-}
-
-async function getSandboxMassageServiceDetails(input: {
-  hotel: HotelScope;
-  serviceId: string;
-}) {
-  let snapshotService: MassageService | null = null;
-
-  try {
-    let snapshotHotelSlug = input.hotel.slug;
-
-    if (isSandboxHotel(input.hotel) && input.hotel.production_hotel_id) {
-      const { data: productionHotel, error: productionHotelError } = await supabaseAdmin
-        .from("hotels")
-        .select("slug")
-        .eq("id", input.hotel.production_hotel_id)
-        .eq("active", true)
-        .maybeSingle();
-
-      if (productionHotelError) throw productionHotelError;
-      snapshotHotelSlug =
-        String(productionHotel?.slug || input.hotel.slug).trim() || input.hotel.slug;
-    }
-
-    const snapshotRead = await readMassageSnapshotAction({
-      hotelSlug: snapshotHotelSlug,
-      action: "services",
-    });
-    const servicesResult = snapshotRead.result as MassageServicesResult;
-    const candidate = servicesResult.services.find(
-      (item) => item.serviceId === input.serviceId
-    );
-
-    if (isCompleteMassageService(candidate, input.serviceId)) {
-      snapshotService = candidate;
-    }
-  } catch {
-    // The live Apps Script catalog below remains the controlled fallback.
-  }
-
-  if (snapshotService) return snapshotService;
-
-  const liveServices = await getMassageServices(input.hotel.slug).catch(() => null);
-  const liveCandidate = liveServices?.services?.find(
-    (item) => item.serviceId === input.serviceId
-  );
-
-  if (isCompleteMassageService(liveCandidate, input.serviceId)) {
-    return liveCandidate;
-  }
-
-  throw new MassageApiError(
-    "Massage service details are temporarily unavailable. Please try again shortly.",
-    {
-      statusCode: 503,
-      code: "MASSAGE_SERVICE_DETAILS_UNAVAILABLE",
-      monitoringSeverity: "warning",
-    }
-  );
-}
-
 async function readJsonObject(req: NextRequest) {
   let payload: unknown;
 
@@ -433,7 +463,6 @@ async function requireMassageGuestStayIdentity(input: {
     throw error;
   }
 }
-
 
 function getMassageBookingMetadata(metadata: Record<string, unknown> | null | undefined) {
   const booking = metadata?.massageBooking;
@@ -606,6 +635,80 @@ export async function GET(req: NextRequest) {
       return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), bookings });
     }
 
+    if (isSandboxHotel(hotel)) {
+      if (action === "services") {
+        const result = await getNativeMassageServices({ hotelId: hotel.id });
+        return json({
+          ok: true,
+          action,
+          hotelSlug: hotel.slug,
+          sandbox: true,
+          authority: "native_supabase",
+          result,
+        });
+      }
+
+      if (action === "bootstrap") {
+        const fromDate = requireDate(params.get("fromDate"), "fromDate");
+        const daysAhead = requireDaysAhead(params.get("daysAhead"));
+        const result = await getNativeMassageBootstrap({ hotelId: hotel.id, fromDate, daysAhead });
+        return json({
+          ok: true,
+          action,
+          hotelSlug: hotel.slug,
+          sandbox: true,
+          authority: "native_supabase",
+          result,
+        });
+      }
+
+      if (action === "bookable_dates") {
+        const serviceId = requireServiceId(params.get("serviceId"));
+        const fromDate = requireDate(params.get("fromDate"), "fromDate");
+        const daysAhead = requireDaysAhead(params.get("daysAhead"));
+        const result = await getNativeMassageBookableDates({ hotelId: hotel.id, serviceId, fromDate, daysAhead });
+        return json({
+          ok: true,
+          action,
+          hotelSlug: hotel.slug,
+          sandbox: true,
+          authority: "native_supabase",
+          result,
+        });
+      }
+
+      if (action === "bookable_dates_summary") {
+        const serviceId = requireServiceId(params.get("serviceId"));
+        const fromDate = requireDate(params.get("fromDate"), "fromDate");
+        const daysAhead = requireDaysAhead(params.get("daysAhead"));
+        const result = await getNativeMassageBookableDateSummary({ hotelId: hotel.id, serviceId, fromDate, daysAhead });
+        return json({
+          ok: true,
+          action,
+          hotelSlug: hotel.slug,
+          sandbox: true,
+          authority: "native_supabase",
+          result,
+        });
+      }
+
+      if (action === "availability") {
+        const serviceId = requireServiceId(params.get("serviceId"));
+        const date = requireDate(params.get("date"), "date");
+        const result = await getNativeMassageAvailability({ hotelId: hotel.id, serviceId, date });
+        return json({
+          ok: true,
+          action,
+          hotelSlug: hotel.slug,
+          sandbox: true,
+          authority: "native_supabase",
+          result,
+        });
+      }
+
+      return json({ ok: false, code: "UNSUPPORTED_ACTION", error: "Unsupported massage action." }, 400);
+    }
+
     const snapshotReadsEnabled = isMassageSnapshotEnabled(hotel.slug);
 
     if (action === "services") {
@@ -620,7 +723,7 @@ export async function GET(req: NextRequest) {
         ok: true,
         action,
         hotelSlug: hotel.slug,
-        sandbox: Boolean(hotel.is_sandbox),
+        sandbox: false,
         result,
         ...(snapshotRead ? { snapshot: snapshotRead.source } : {}),
       });
@@ -642,7 +745,7 @@ export async function GET(req: NextRequest) {
         ok: true,
         action,
         hotelSlug: hotel.slug,
-        sandbox: Boolean(hotel.is_sandbox),
+        sandbox: false,
         result,
         ...(snapshotRead ? { snapshot: snapshotRead.source } : {}),
       });
@@ -666,7 +769,7 @@ export async function GET(req: NextRequest) {
         ok: true,
         action,
         hotelSlug: hotel.slug,
-        sandbox: Boolean(hotel.is_sandbox),
+        sandbox: false,
         result,
         ...(snapshotRead ? { snapshot: snapshotRead.source } : {}),
       });
@@ -690,7 +793,7 @@ export async function GET(req: NextRequest) {
         ok: true,
         action,
         hotelSlug: hotel.slug,
-        sandbox: Boolean(hotel.is_sandbox),
+        sandbox: false,
         result,
         ...(snapshotRead ? { snapshot: snapshotRead.source } : {}),
       });
@@ -712,7 +815,7 @@ export async function GET(req: NextRequest) {
         ok: true,
         action,
         hotelSlug: hotel.slug,
-        sandbox: Boolean(hotel.is_sandbox),
+        sandbox: false,
         result,
         ...(snapshotRead ? { snapshot: snapshotRead.source } : {}),
       });
@@ -720,20 +823,21 @@ export async function GET(req: NextRequest) {
 
     return json({ ok: false, code: "UNSUPPORTED_ACTION", error: "Unsupported massage action." }, 400);
   } catch (error) {
-    if (error instanceof MassageApiError) {
-      const severity = getMassageRouteErrorSeverity(error);
+    const routeError = error instanceof MassageApiError ? error : mapNativeMassageError(error);
+    if (routeError) {
+      const severity = getMassageRouteErrorSeverity(routeError);
       if (severity) {
         await logSystemError({
           hotelId: requestHotelId,
           severity,
           source: "massage",
-          eventType: error.code || "massage_get_error",
+          eventType: routeError.code || "massage_get_error",
           message: "Massage GET request failed with a server-side massage error.",
           error,
           metadata: requestHotelMetadata,
         });
       }
-      return json({ ok: false, code: error.code, error: error.message }, error.statusCode);
+      return json({ ok: false, code: routeError.code, error: routeError.message }, routeError.statusCode);
     }
 
     console.error("guest massages GET error", error);
@@ -815,21 +919,44 @@ export async function POST(req: NextRequest) {
     const stayDeviceId = String(stayIdentity.device.id);
 
     if (isSandboxHotel(hotel)) {
-      const service = await getSandboxMassageServiceDetails({ hotel, serviceId });
+      const guestLanguage = String(body.guestLanguage || "bg");
+      const service = await getNativeMassageService({ hotelId: hotel.id, serviceId });
+      const nativeBooking = await createSandboxNativeMassageBooking({
+        hotelId: hotel.id,
+        serviceId,
+        date,
+        startTime: time,
+        roomNumber: room,
+        stayId,
+        stayDeviceId,
+        idempotencyKey: buildSandboxNativeIdempotencyKey({
+          stayId,
+          stayDeviceId,
+          serviceId,
+          date,
+          time,
+          room,
+        }),
+        guestLanguage,
+      });
       const result = {
-        status: "BOOKING_WRITTEN" as const,
+        status: nativeBooking.idempotentReplay
+          ? "BOOKING_ALREADY_CONFIRMED" as const
+          : "BOOKING_WRITTEN" as const,
         serviceId,
         serviceNameBg: service.nameBg,
         sheetValue: service.nameBg,
-        price: service.price,
-        currency: service.currency,
-        date,
-        startTime: time,
-        durationMinutes: service.durationMinutes,
-        roomNumber: room,
-        writeVerified: false,
-        idempotentReplay: false,
-        sandboxSimulation: true,
+        price: nativeBooking.price,
+        currency: nativeBooking.currency,
+        date: nativeBooking.date,
+        startTime: formatNativeMassageClientTime(nativeBooking.startTime),
+        durationMinutes: nativeBooking.durationMinutes,
+        bufferMinutes: nativeBooking.bufferMinutes,
+        roomNumber: nativeBooking.roomNumber,
+        writeVerified: true,
+        idempotentReplay: nativeBooking.idempotentReplay,
+        nativeBookingId: nativeBooking.bookingId,
+        authorityMode: "native_supabase" as const,
       };
       const staffRequest = await ensureMassageStaffRequest({
         hotelSlug: hotel.slug,
@@ -844,21 +971,25 @@ export async function POST(req: NextRequest) {
         durationMinutes: result.durationMinutes,
         price: result.price,
         currency: result.currency,
-        guestLanguage: String(body.guestLanguage || "bg"),
+        guestLanguage,
         sheetWrite: false,
+        authorityMode: "native_supabase",
+        nativeBookingId: nativeBooking.bookingId,
       });
+      const statusCode = nativeBooking.idempotentReplay ? 200 : 201;
 
       return json(
         {
           ok: true,
-          action: "sandbox_simulated_book",
+          action: "sandbox_native_book",
           hotelSlug: hotel.slug,
           sandbox: true,
+          authority: "native_supabase",
           sheetWrite: false,
           result,
           staffRequest,
         },
-        201,
+        statusCode,
       );
     }
 
@@ -940,20 +1071,21 @@ export async function POST(req: NextRequest) {
       statusCode
     );
   } catch (error) {
-    if (error instanceof MassageApiError) {
-      const severity = getMassageRouteErrorSeverity(error);
+    const routeError = error instanceof MassageApiError ? error : mapNativeMassageError(error);
+    if (routeError) {
+      const severity = getMassageRouteErrorSeverity(routeError);
       if (severity) {
         await logSystemError({
           hotelId: requestHotelId,
           severity,
           source: "massage",
-          eventType: error.code || "massage_post_error",
+          eventType: routeError.code || "massage_post_error",
           message: "Massage POST request failed with a server-side massage error.",
           error,
           metadata: requestHotelMetadata,
         });
       }
-      return json({ ok: false, code: error.code, error: error.message }, error.statusCode);
+      return json({ ok: false, code: routeError.code, error: routeError.message }, routeError.statusCode);
     }
 
     console.error("guest massages POST error", error);
