@@ -424,19 +424,19 @@ test("massage active_bookings requires validated stay/device identity", async ()
   assertContains(guestHubSource, "stayDeviceId,");
 });
 
-test("guest request status GET requires validated stay/device identity", async () => {
+test("guest request status GET requires tenant-scoped read access for the validated stay/device", async () => {
   const routeSource = await readProjectFile("app/api/guest/requests/route.ts");
   const guestHubSource = await readProjectFile("components/GuestHub.tsx");
 
   assertContains(routeSource, 'searchParams.get("stayId")');
   assertContains(routeSource, 'searchParams.get("stayDeviceId")');
-  assertContains(routeSource, "validateGuestStayIdentity({");
+  assertContains(routeSource, "requireGuestStayReadAccess({");
   assertContains(routeSource, 'code: "STAY_REQUIRED"');
   assertBefore(
     routeSource,
-    "validateGuestStayIdentity({",
+    "requireGuestStayReadAccess({",
     '.from("guest_requests")',
-    "Guest request status reads must validate the stay/device identity before reading request rows.",
+    "Guest request status reads must require tenant-scoped stay/device read access before reading request rows.",
   );
   assertContains(routeSource, '.eq("stay_id", stayIdentity.stay.id)');
   assertContains(routeSource, '.eq("stay_device_id", stayIdentity.device.id)');

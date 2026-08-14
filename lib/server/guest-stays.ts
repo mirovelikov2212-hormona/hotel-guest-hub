@@ -11,6 +11,10 @@ import {
   normalizeStayDateKey,
   type GuestStaySummary,
 } from "@/lib/guest-stays/shared";
+import {
+  deriveGuestStayLifecycle,
+  getGuestStayAccessPolicy,
+} from "@/lib/guest-stays/lifecycle-model.mjs";
 import { resolveHotelByAnySlugAdmin, getOperationalIsolationFields, getOperationalIsolationMetadata } from "@/lib/server/hotel-scope";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { getEffectiveTestRoomPolicy } from "@/lib/server/test-rooms";
@@ -505,8 +509,15 @@ export async function validateGuestStayIdentity(input: {
     .maybeSingle();
   if (deviceError || !device) throw deviceError || new Error("INVALID_STAY_DEVICE");
 
-  const active = currentStay.status !== "cancelled" && new Date(currentStay.effective_check_out_at).getTime() > Date.now();
-  if (!active) throw new Error("STAY_ENDED");
+  const lifecycleState = deriveGuestStayLifecycle({
+    status: currentStay.status,
+    lateCheckoutStatus: currentStay.late_checkout_status,
+    scheduledCheckOutAt: currentStay.scheduled_check_out_at,
+    effectiveCheckOutAt: currentStay.effective_check_out_at,
+    nowMs: Date.now(),
+  });
+  const access = getGuestStayAccessPolicy(lifecycleState);
+  if (!access.canWrite) throw new Error("STAY_ENDED");
 
   return { stay: currentStay, device };
 }
