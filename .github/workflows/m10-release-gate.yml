@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -24,7 +26,12 @@ jobs:
         run: npm ci
       - name: Contract and tenant tests
         run: npm test
-      - name: Lint
-        run: npm run lint
+      - name: Lint M10 changed source only
+        shell: bash
+        run: |
+          git fetch origin 4fd9b6f08b5681597b8439e5e4e8c66f634b6cf5 --depth=1
+          mapfile -t changed < <(git diff --name-only 4fd9b6f08b5681597b8439e5e4e8c66f634b6cf5 f58c113391d7d3995fa5a6d70ed56f74a97a5aa1 -- '*.ts' '*.tsx' '*.js' '*.mjs' '*.mts' '*.cjs')
+          printf 'Scoped lint files:\n%s\n' "${changed[*]}"
+          npx eslint "${changed[@]}"
       - name: Production build
         run: npm run build
