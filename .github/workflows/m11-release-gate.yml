@@ -1,0 +1,28 @@
+name: M11 Release Gate
+
+on:
+  push:
+    branches:
+      - audit/m11-release-gate-63122a5
+
+permissions:
+  contents: read
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Contract and tenant tests
+        run: npm test
+      - name: Scoped lint
+        run: npx eslint app/api/guest/massages/route.ts lib/hotels/config-revision-contract.mjs lib/server/config-snapshot-import.ts lib/server/sandbox-config.ts tests/contracts/config-revision-foundation.contract.test.mjs tests/contracts/m11-sandbox-config-isolation.contract.test.mjs
