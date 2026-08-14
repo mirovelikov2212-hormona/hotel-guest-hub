@@ -86,10 +86,18 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return json({
-    ok: true,
-    sandboxOnly: true,
-    hotelCount: summaries.length,
-    results: summaries,
-  });
+  const pendingTotal = summaries.reduce((sum, item) => sum + item.pending, 0);
+  const ok = pendingTotal === 0;
+
+  return json(
+    {
+      ok,
+      sandboxOnly: true,
+      hotelCount: summaries.length,
+      pendingTotal,
+      results: summaries,
+      ...(ok ? {} : { code: "NATIVE_MASSAGE_STAFF_RECONCILIATION_PENDING" }),
+    },
+    ok ? 200 : 503,
+  );
 }
