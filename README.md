@@ -15,8 +15,8 @@ StayHub is a multi-hotel digital concierge and Staff Hub built with Next.js, Sup
 | --- | --- | --- |
 | M10 — normalized rooms/departments/routing + relational request IDs | CLOSED / COMPLETE | `docs/runbooks/m10-sandbox-room-runtime-reads.md`, `docs/runbooks/m10-4-department-routing-sandbox-smoke.md`, `docs/runbooks/m10-5-guest-request-relational-ids.md` |
 | M11 — True Sandbox Config Isolation | CLOSED / COMPLETE | `docs/runbooks/StayHub_M11_M16_execution_state.md` |
-| M12 — Staff Sound & Notification Parity | PRE-RELEASE GREEN | `docs/operations/m12-staff-notification-parity.md` |
-| M13 — Checkout / Stay-End Read-Only Mode | NOT STARTED | `docs/architecture/m11-m16-roadmap.md` |
+| M12 — Staff Sound & Notification Parity | CLOSED / COMPLETE | `docs/operations/m12-staff-notification-parity.md` |
+| M13 — Checkout / Stay-End Read-Only Mode | NEXT | `docs/architecture/m11-m16-roadmap.md` |
 | M14 — Multi-Hotel Hardening | NOT STARTED | `docs/architecture/m11-m16-roadmap.md` |
 | M15 — Observability & Operational Hardening | NOT STARTED | `docs/architecture/m11-m16-roadmap.md` |
 | M16 — Final Multi-Hotel Certification | NOT STARTED | `docs/architecture/m11-m16-roadmap.md` |
