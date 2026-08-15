@@ -118,7 +118,10 @@ test("M11 sandbox side effects are fail-safe for reports, push reminders and mas
   assertContains(reportCron, '.eq("is_sandbox", false)');
   assertContains(weeklyReportCron, '.eq("is_sandbox", false)');
   assertContains(hotelScope, "return isSandboxHotel(input.hotel) || Boolean(input.testRoomPolicy?.isTest)");
-  assertContains(reminderCron, "hotel.is_sandbox || row.is_test");
+  assertContains(reminderCron, '.eq("is_test", false)');
+assertContains(reminderCron, '.eq("status", "confirmed")');
+assertContains(reminderCron, '.is("cancelled_at", null)');
+assertContains(reminderCron, "hotel.is_sandbox");
   assertContains(massageRoute, "const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id)");
   assertContains(massageRoute, "isNativeMassageAuthority(runtimeAuthority)");
   assertContains(massageRoute, 'authority: "native_supabase"');

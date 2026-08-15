@@ -168,7 +168,8 @@ function parseRuntimeService(row: RuntimeServiceRow): MassageService {
   const nameI18n = parseLocaleMap(row.name_i18n);
   const legacyNameBg = String(row.name_bg || "").trim();
   const legacyNameEn = String(row.name_en || "").trim();
-  const fallbackName = legacyNameBg || legacyNameEn || Object.values(nameI18n)[0] || serviceId;
+  const fallbackName = legacyNameBg || legacyNameEn || Object.values(nameI18n)[0];
+  if (!fallbackName) throw new Error("MASSAGE_NATIVE_SERVICE_NAME_INVALID");
 
   return {
     serviceId,
