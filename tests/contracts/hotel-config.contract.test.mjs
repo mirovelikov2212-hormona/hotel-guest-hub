@@ -38,9 +38,9 @@ test("M14.4 resolves legacy/public identities from hotel data instead of code al
   const slugSource = await readProjectFile("lib/hotels/hotel-slug.mjs");
   const scopeSource = await readProjectFile("lib/server/hotel-scope.ts");
   assertNotContains(slugSource, "LEGACY_ALIAS_GROUPS");
-  assertContains(scopeSource, "buildHotelSlugOrFilter(candidates)");
-  assertContains(scopeSource, "slug.eq.");
-  assertContains(scopeSource, "public_slug.eq.");
+  assertContains(slugSource, "slug.eq.${slug}");
+  assertContains(slugSource, "public_slug.eq.${slug}");
+  assertContains(scopeSource, ".or(buildSlugOrFilter(candidates))");
 });
 
 test("hotel scope and sheet source resolution share one slug candidate contract", async () => {
