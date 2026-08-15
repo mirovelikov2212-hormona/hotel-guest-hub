@@ -1,0 +1,97 @@
+name: M14.3.3 Test Maintenance
+
+on:
+  push:
+    branches:
+      - audit/m14-3-3-test-maintenance
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/m14-3-3-production-native-authority
+          fetch-depth: 0
+      - name: Update superseded sandbox-only contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('tests/contracts/api-security.contract.test.mjs')
+          s = p.read_text()
+          s = s.replace(
+              '    "if (isSandboxHotel(hotel))",\n    "Stay/device validation must happen before sandbox, controlled E2E, or production booking writes.",',
+              '    "const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id);",\n    "Stay/device validation must happen before authority selection or any booking write.",',
+              1,
+          )
+          p.write_text(s)
+
+          p = Path('tests/contracts/m11-sandbox-config-isolation.contract.test.mjs')
+          s = p.read_text()
+          s = s.replace(
+              '  assertContains(massageRoute, "if (isSandboxHotel(hotel))");\n  assertContains(massageRoute, \'authority: "native_supabase"\');\n  assertContains(massageRoute, "sheetWrite: false");',
+              '  assertContains(massageRoute, "const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id)");\n  assertContains(massageRoute, "isNativeMassageAuthority(runtimeAuthority)");\n  assertContains(massageRoute, \'authority: "native_supabase"\');\n  assertContains(massageRoute, "sheetWrite: false");\n  assertContains(massageRoute, "createSandboxNativeMassageBooking");',
+              1,
+          )
+          p.write_text(s)
+
+          p = Path('tests/contracts/m14-3-massage-authority-cutover.contract.test.mjs')
+          s = p.read_text()
+          old = '''test("M14.3.1 sandbox GET actions use native Supabase before Production snapshot logic", () => {
+            const sandboxIndex = guestRoute.indexOf("if (isSandboxHotel(hotel))");
+            const snapshotIndex = guestRoute.indexOf("const snapshotReadsEnabled = isMassageSnapshotEnabled(hotel.slug)");
+            assert.ok(sandboxIndex >= 0, "sandbox authority branch must exist");
+            assert.ok(snapshotIndex > sandboxIndex, "Production snapshot path must remain after sandbox native branch");
+          '''
+          new = '''test("M14.3.1 sandbox native behavior remains inside the explicit runtime authority branch", () => {
+            const authorityIndex = guestRoute.indexOf("if (isNativeMassageAuthority(runtimeAuthority))");
+            const snapshotIndex = guestRoute.indexOf("const snapshotReadsEnabled = isMassageSnapshotEnabled(hotel.slug)");
+            assert.ok(authorityIndex >= 0, "native authority branch must exist");
+            assert.ok(snapshotIndex > authorityIndex, "legacy snapshot path must remain after native authority branch");
+          '''
+          if old not in s:
+              raise SystemExit('m14.3.1 GET test anchor not found')
+          s = s.replace(old, new, 1)
+          s = s.replace(
+              '  assert.match(guestRoute, /action: "sandbox_native_book"/);',
+              '  assert.match(guestRoute, /action: isSandboxHotel\\(hotel\\) \\? "sandbox_native_book" : "native_book"/);',
+              1,
+          )
+          p.write_text(s)
+
+          p = Path('tests/contracts/m14-3-native-staff-reconciliation.contract.test.mjs')
+          s = p.read_text()
+          old = '''test("M14.3.2 reconciliation is physically sandbox-only", () => {
+            assert.match(reconciliation, /isSandboxHotel/);
+            assert.match(reconciliation, /MASSAGE_NATIVE_STAFF_SYNC_SANDBOX_ONLY/);
+            assert.match(cronRoute, /\\.eq\\("active", true\\)/);
+            assert.match(cronRoute, /\\.eq\\("is_sandbox", true\\)/);
+            assert.match(cronRoute, /sandboxOnly: true/);
+            assert.doesNotMatch(cronRoute, /\\.eq\\("is_sandbox", false\\)/);
+          });'''
+          new = '''test("M14.3.2 reconciliation remains fail-closed behind explicit native authority", () => {
+            assert.match(reconciliation, /getMassageRuntimeAuthority/);
+            assert.match(reconciliation, /authorityMode !== "native_supabase"/);
+            assert.match(reconciliation, /MASSAGE_NATIVE_STAFF_SYNC_AUTHORITY_DISABLED/);
+            assert.match(cronRoute, /\\.from\\("massage_runtime_authority_state"\\)/);
+            assert.match(cronRoute, /\\.eq\\("authority_mode", "native_supabase"\\)/);
+            assert.match(cronRoute, /authorityScoped: true/);
+          });'''
+          if old not in s:
+              raise SystemExit('m14.3.2 sandbox-only test anchor not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+          git diff --check
+          git diff -- tests/contracts/api-security.contract.test.mjs tests/contracts/m11-sandbox-config-isolation.contract.test.mjs tests/contracts/m14-3-massage-authority-cutover.contract.test.mjs tests/contracts/m14-3-native-staff-reconciliation.contract.test.mjs
+      - name: Commit test maintenance only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/contracts/api-security.contract.test.mjs tests/contracts/m11-sandbox-config-isolation.contract.test.mjs tests/contracts/m14-3-massage-authority-cutover.contract.test.mjs tests/contracts/m14-3-native-staff-reconciliation.contract.test.mjs
+          git commit -m "Update contracts for M14.3.3 authority model"
+          git push origin HEAD:audit/m14-3-3-production-native-authority
