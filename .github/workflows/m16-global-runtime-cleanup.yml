@@ -1,0 +1,95 @@
+name: M16 Global Runtime Cleanup
+
+on:
+  push:
+    branches:
+      - audit/m16-global-scale-certification
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/m16-global-scale-certification
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply exact global runtime cleanup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # Request definitions: tenant locales only, no injected platform locale set.
+          path = Path('lib/request-defs.ts')
+          text = path.read_text()
+          text = text.replace('import type { RequestDef } from "@/lib/types";\n', 'import type { RequestDef } from "@/lib/types";\nimport { normalizeLocaleList } from "@/lib/i18n/locale-model.mjs";\n', 1)
+          text = text.replace('const DEFAULT_LANGS = ["bg", "en", "de", "ro", "cs", "ru"] as const;\n\n', '', 1)
+          old = 'Array.from(new Set([...DEFAULT_LANGS, ...langs.map((lang) => String(lang).trim()).filter(Boolean)]))'
+          count = text.count(old)
+          if count != 5:
+              raise SystemExit(f'expected 5 request-def locale unions, found {count}')
+          text = text.replace(old, 'normalizeLocaleList(langs)')
+          text = text.replace('  fallbackLangs: string[] = ["bg", "en", "de"],', '  fallbackLangs: string[] = ["en"],', 1)
+          path.write_text(text)
+
+          # Neutral timezone fallbacks: authoritative tenant timezone should normally be supplied.
+          timezone_files = [
+              'app/api/weather/route.ts',
+              'app/api/guest/day3-survey/route.ts',
+              'app/api/internal/massage-calendar/changed/route.ts',
+              'app/api/staff/surveys/display/route.ts',
+              'app/reception/ReceptionPageContent.tsx',
+              'components/Day3GuestSurvey.tsx',
+              'components/MassageAvailabilityPreview.tsx',
+          ]
+          for filename in timezone_files:
+              p = Path(filename)
+              value = p.read_text()
+              if 'Europe/Sofia' in value:
+                  value = value.replace('Europe/Sofia', 'UTC')
+                  p.write_text(value)
+
+          # Day-3 survey: retain the full canonical BCP-47 locale.
+          path = Path('app/api/guest/day3-survey/route.ts')
+          text = path.read_text()
+          import_anchor = 'import { getHotelTimeParts, validateGuestStayIdentity } from "@/lib/server/guest-stays";\n'
+          if import_anchor not in text:
+              raise SystemExit('day3 locale import anchor missing')
+          text = text.replace(import_anchor, import_anchor + 'import { canonicalizeLocaleTag } from "@/lib/i18n/locale-model.mjs";\n', 1)
+          old_lang = '  const language = String(body?.language || body?.guestLanguage || "bg").trim().toLowerCase().slice(0, 8) || "bg";'
+          if old_lang not in text:
+              raise SystemExit('day3 legacy locale expression missing')
+          text = text.replace(old_lang, '  const language = canonicalizeLocaleTag(body?.language || body?.guestLanguage) || "en";', 1)
+          path.write_text(text)
+
+          # Analytics: fail closed if tenant identity cannot be derived; never attribute to Aquamarine.
+          path = Path('lib/trackHubEvent.ts')
+          text = path.read_text()
+          replacements = {
+              '  if (typeof window === "undefined") return "aquamarine";': '  if (typeof window === "undefined") return "";',
+              '    return sanitizeHotelSlug(host.replace(".stayhub.app", "")) || "aquamarine";': '    return sanitizeHotelSlug(host.replace(".stayhub.app", ""));',
+              '  if (match?.[1]) return sanitizeHotelSlug(match[1]) || "aquamarine";': '  if (match?.[1]) return sanitizeHotelSlug(match[1]);',
+              '  return "aquamarine";': '  return "";',
+              '  return sanitizeHotelSlug(alias) || "aquamarine";': '  return sanitizeHotelSlug(alias);',
+              '  const hotelSlug = getHotelSlug(hotelAlias);\n  const { roomNumber, roomConfirmed, roomSource }': '  const hotelSlug = getHotelSlug(hotelAlias);\n  if (!hotelAlias || !hotelSlug) return;\n  const { roomNumber, roomConfirmed, roomSource }',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'tracking anchor missing: {old}')
+              text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+          rm .github/workflows/m16-global-runtime-cleanup.yml
+          git diff --check
+      - name: Commit cleanup
+        run: |
+          git config user.name "stayhub-release-bot"
+          git config user.email "stayhub-release-bot@users.noreply.github.com"
+          git add -A
+          git commit -m "M16: remove implicit pilot locale timezone and tenant defaults"
+          git push origin HEAD:audit/m16-global-scale-certification
