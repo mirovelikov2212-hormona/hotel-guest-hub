@@ -72,7 +72,7 @@ function parseClockMinutes(value: string) {
 
 function getTimezoneOffsetMinutes(timezone: string, date: Date) {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone || "Europe/Sofia",
+    timeZone: timezone || "UTC",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -123,7 +123,7 @@ export function hotelLocalDateTimeToUtcIso(dateKey: string, time: string, timezo
 
 export function getHotelTimeParts(timezone: string, date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone || "Europe/Sofia",
+    timeZone: timezone || "UTC",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -157,7 +157,7 @@ function isRollingTestStay(stay: Pick<GuestStayRow, "is_test" | "metadata_json">
 }
 
 async function refreshRollingTestStay(stay: GuestStayRow) {
-  const timezone = String(stay.metadata_json?.hotelTimezone || "Europe/Sofia").trim() || "Europe/Sofia";
+  const timezone = String(stay.metadata_json?.hotelTimezone || "UTC").trim() || "UTC";
   const hotelToday = getHotelTimeParts(timezone).dateKey;
   const refreshThreshold = addDaysToStayDateKey(hotelToday, TEST_ROOM_STAY_REFRESH_THRESHOLD_DAYS);
   const isCurrentBeyondThreshold =
@@ -205,7 +205,7 @@ async function validateHotelRoom(hotelSlug: string, room: string) {
   if (validRooms.length > 0 && !validRooms.includes(room)) {
     throw new Error("INVALID_ROOM");
   }
-  return String(config?.hotelTimezone || "Europe/Sofia").trim() || "Europe/Sofia";
+  return String(config?.hotelTimezone || "UTC").trim() || "UTC";
 }
 
 function mapStaySummary(stay: GuestStayRow, device: GuestStayDeviceRow): GuestStaySummary {
@@ -634,7 +634,7 @@ export async function applyLateCheckoutDecision(input: {
   );
   if (input.decision === "approved" && !requestedTime) return { updated: false as const };
 
-  const timezone = String((stay.metadata_json as Record<string, unknown> | null)?.hotelTimezone || "Europe/Sofia");
+  const timezone = String((stay.metadata_json as Record<string, unknown> | null)?.hotelTimezone || "UTC");
   const effectiveCheckOutAt = input.decision === "approved"
     ? hotelLocalDateTimeToUtcIso(stay.check_out_date, requestedTime, timezone)
     : stay.scheduled_check_out_at;
