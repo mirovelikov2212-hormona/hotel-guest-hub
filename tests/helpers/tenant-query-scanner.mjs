@@ -10,6 +10,8 @@ export const TENANT_TABLE_POLICY = Object.freeze({
   guest_push_subscriptions: "strict",
   staff_push_subscriptions: "strict",
   staff_access_pins: "strict",
+  hotel_settings: "strict",
+  massage_runtime_bookings: "strict",
   massage_booking_attempts: "strict",
   massage_calendar_snapshots: "strict",
   massage_calendar_sync_state: "strict",
