@@ -1,0 +1,48 @@
+name: M16 Production Dependency Audit
+
+on:
+  push:
+    branches:
+      - ci/m16-production-dependency-audit
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Audit production dependency tree
+        run: |
+          set +e
+          npm audit --omit=dev --json > /tmp/npm-audit.json
+          status=$?
+          set -e
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('/tmp/npm-audit.json', 'utf8'));
+          const meta = report.metadata?.vulnerabilities || {};
+          console.log('Production vulnerability counts:', JSON.stringify(meta));
+          const vulns = report.vulnerabilities || {};
+          for (const [name, item] of Object.entries(vulns)) {
+            console.log(JSON.stringify({
+              name,
+              severity: item.severity,
+              direct: item.isDirect,
+              range: item.range,
+              via: (item.via || []).map(v => typeof v === 'string' ? v : ({source:v.source,name:v.name,severity:v.severity,title:v.title,url:v.url,range:v.range})),
+              fixAvailable: item.fixAvailable,
+            }));
+          }
+          const high = Number(meta.high || 0);
+          const critical = Number(meta.critical || 0);
+          if (high || critical) process.exit(2);
+          NODE
+          exit $status
