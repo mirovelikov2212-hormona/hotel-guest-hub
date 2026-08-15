@@ -134,8 +134,10 @@ test("M14.3.3 staff reconciliation is authority scoped for sandbox and Productio
   assert.match(staffCron, /NATIVE_MASSAGE_STAFF_RECONCILIATION_PENDING/);
 });
 
-test("M14.3.3 mirror schedule never performs a deployment", () => {
-  assert.match(mirrorWorkflow, /schedule:/);
+test("M14.3.3 mirror workflow remains manual-only after the I/O incident and never deploys", () => {
+  assert.match(mirrorWorkflow, /workflow_dispatch:/);
+  assert.doesNotMatch(mirrorWorkflow, /schedule:/);
+  assert.match(mirrorWorkflow, /secrets\.CRON_SECRET/);
   assert.match(mirrorWorkflow, /native-massage-sheet-mirror/);
   assert.doesNotMatch(mirrorWorkflow, /vercel\s+--prod/);
   assert.doesNotMatch(mirrorWorkflow, /deploy_to_vercel/);
