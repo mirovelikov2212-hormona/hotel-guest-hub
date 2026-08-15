@@ -67,7 +67,7 @@ test("a generic multi-hotel onboarding fixture satisfies the M2 contract", async
 
 test("malformed onboarding data fails with actionable contract errors", async () => {
   const fixture = await readValidFixture();
-  fixture.languages = ["en", "en", "fr"];
+  fixture.languages = ["en", "en", "not_a_locale"];
   fixture.languageDefault = "bg";
   fixture.opsLanguage = "bg";
   fixture.hotelTimezone = "Invalid/Timezone";
@@ -93,7 +93,7 @@ test("malformed onboarding data fails with actionable contract errors", async ()
   assert.equal(result.ok, false);
   for (const expected of [
     "LANGUAGES_DUPLICATED",
-    "LANGUAGE_UNSUPPORTED:fr",
+    "LANGUAGE_INVALID:not_a_locale",
     "DEFAULT_LANGUAGE_NOT_ENABLED",
     "OPS_LANGUAGE_NOT_ENABLED",
     "HOTEL_TIMEZONE_INVALID",
