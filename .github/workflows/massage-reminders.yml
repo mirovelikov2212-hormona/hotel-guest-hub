@@ -1,8 +1,6 @@
 ﻿name: Massage Reminders
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 jobs:
