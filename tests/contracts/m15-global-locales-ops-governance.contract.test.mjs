@@ -143,7 +143,8 @@ test("M15 migrations make dynamic locale maps authoritative without dropping leg
   }
 
   assertContains(legacyRequirementMigration, "alter column name_en drop not null");
-  assertContains(legacyRequirementMigration, "alter column guest_language set default 'en'::text");
+  assertContains(legacyRequirementMigration, "alter column guest_language drop default");
+  assertNotContains(legacyRequirementMigration, "set default 'en'");
   assertNotContains(localeMapMigration, "left(lower(trim(p_guest_language)), 8)");
   assertNotContains(localeMapMigration, "drop column name_bg");
   assertNotContains(localeMapMigration, "drop column service_name_bg");
