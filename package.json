@@ -15,9 +15,9 @@
     "test:m15": "node --test tests/contracts/m15-global-locales-ops-governance.contract.test.mjs tests/contracts/m15-automation-governance.contract.test.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.99.2",
-    "next": "16.1.6",
-    "openai": "^6.21.0",
+    "@supabase/supabase-js": "2.112.3",
+    "next": "16.3.1",
+    "openai": "6.49.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "server-only": "^0.0.1",
@@ -30,8 +30,11 @@
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "ws": "8.21.0"
   }
 }
