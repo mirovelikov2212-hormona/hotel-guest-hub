@@ -70,7 +70,6 @@ jobs:
               ('    return sanitizeHotelSlug(host.replace(".stayhub.app", "")) || "aquamarine";', '    return sanitizeHotelSlug(host.replace(".stayhub.app", ""));'),
               ('  if (match?.[1]) return sanitizeHotelSlug(match[1]) || "aquamarine";', '  if (match?.[1]) return sanitizeHotelSlug(match[1]);'),
               ('  return "aquamarine";', '  return "";'),
-              ('  return sanitizeHotelSlug(alias) || "aquamarine";', '  return sanitizeHotelSlug(alias);'),
               ('  const hotelSlug = getHotelSlug(hotelAlias);\n  const { roomNumber, roomConfirmed, roomSource }', '  const hotelSlug = getHotelSlug(hotelAlias);\n  if (!hotelAlias || !hotelSlug) return;\n  const { roomNumber, roomConfirmed, roomSource }'),
           ]
           for old, new in replacements:
