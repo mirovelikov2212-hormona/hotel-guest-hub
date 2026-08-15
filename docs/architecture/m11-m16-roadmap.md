@@ -10,7 +10,7 @@ This file is the current canonical milestone definition. The execution-state run
 - A milestone does not close until tests, tenant guard, scoped lint, exact Preview build, applicable sandbox checks, Production smoke, rollback evidence and README documentation are green.
 - Sandbox must not send Production notifications/reports or write Production adapter destinations.
 - No broad refactor or unrelated cleanup inside a milestone.
-- Supabase is the target runtime source of truth. Google Sheet / Apps Script integrations may remain as controlled editorial, import/export or operational adapter surfaces, but must not become a second general runtime authority.
+- Supabase is the runtime source of truth. Google Sheet / Apps Script integrations may remain as controlled editorial, import/export or operational adapter surfaces, but must not become a second general runtime authority.
 
 ## M11 — True Sandbox Config Isolation
 
@@ -62,7 +62,7 @@ Operational evidence: `docs/operations/m13-stay-read-only.md`.
 
 ## M14 — Multi-Hotel Hardening
 
-Status: **ACTIVE**.
+Status: **ACTIVE — M14.4 NEXT**.
 
 Goal: remove remaining hotel-specific runtime assumptions and prove a generic third hotel can use the same codebase without a fork.
 
@@ -80,7 +80,7 @@ Audit scope includes:
 
 A generic third-hotel test must require configuration/data only, not code changes.
 
-For massage/runtime hardening, the target architecture is Supabase-first: StayHub availability, booking conflicts, booking state and operational reads should resolve from tenant-scoped Supabase state. Legacy shared-Sheet sources such as Sunny Castle may temporarily feed external read-only block data into Supabase through an adapter until that hotel becomes a first-class StayHub tenant; they must not force Guest Hub runtime to use the Sheet as its database.
+Massage/runtime hardening is now Supabase-first in Production: StayHub availability, booking conflicts, booking state and operational reads resolve from tenant-scoped Supabase state. Legacy shared-Sheet sources such as Sunny Castle may temporarily feed external read-only block data into Supabase through an adapter until that hotel becomes a first-class StayHub tenant; they do not force Guest Hub runtime to use the Sheet as its database.
 
 ### M14.1 — Normalized Massage Runtime Shadow Projection
 
@@ -89,43 +89,59 @@ Status: **CLOSED / COMPLETE**.
 - tenant-scoped normalized services, available starts, blocks and projection state added in Supabase;
 - exact snapshot lineage and 1:1 set parity proven for Production and sandbox;
 - Production real refresh path automatically projects into the shadow model;
-- Guest Hub authority intentionally remained unchanged.
+- Guest Hub authority intentionally remained unchanged during this stage.
 
 Evidence: `docs/operations/m14-1-massage-runtime-shadow-projection.md`.
 
 ### M14.2 — Native Supabase Schedule + Atomic Booking/Conflict Engine
 
-Status: **NEXT / ACTIVE WORK**.
-
-Requirements:
+Status: **CLOSED / COMPLETE**.
 
 - native schedule parameters are hotel-scoped data, not code hardcodes;
-- 15-minute start grid and current Aquamarine operating/break rules must reproduce incumbent availability exactly before cutover;
 - service duration + buffer determines the occupied interval;
 - external imported blocks participate in conflict checks without becoming writable guest data;
-- atomic/idempotent booking creation must prevent concurrent double booking;
-- M13 stay write-access and tenant identity are mandatory;
+- atomic/idempotent booking creation prevents concurrent double booking;
+- M13 stay write-access and tenant identity are enforced;
 - six-language service catalog remains available;
-- no private room/guest details may leak through availability reads;
-- M14.2 remains non-authoritative until sandbox gates are complete.
+- native engine shipped behind a Production guard before later M14.3 cutover.
+
+Evidence: `docs/operations/m14-2-native-massage-engine.md`.
 
 ### M14.3 — Sandbox Cutover → Production Cutover / Adapter Boundary
 
-Status: **NOT STARTED** until M14.2 closes.
+Status: **CLOSED / COMPLETE**.
 
-- switch sandbox availability and booking authority to native Supabase first;
-- prove writes/conflicts/staff requests/reconciliation without Sheet runtime dependency;
-- convert Google Sheet / Apps Script to controlled mirror/import/export adapters;
-- import external Sunny Castle blocks read-only while it remains outside StayHub;
-- only after sandbox acceptance, perform controlled Production cutover with rollback gate.
+M14.3 was released in three separately gated stages:
+
+- **M14.3.1 — Sandbox Native Massage Authority:** sandbox reads/writes moved to native Supabase first and create/replay/conflict/history behavior was proven without Sheet writes;
+- **M14.3.2 — Durable Native Booking → Staff Reconciliation:** confirmed native booking became durable authority while staff cards became idempotently repairable operational projections;
+- **M14.3.3 — Production Native Massage Authority Cutover:** Production Aquamarine switched through the hotel-scoped CAS authority state from `legacy_adapter` to `native_supabase` after exact release gates and post-deploy smoke.
+
+Released adapter boundary:
+
+- Production Guest Hub massage availability and booking authority is native Supabase;
+- Google Sheet / Apps Script is no longer Guest runtime authority;
+- manual/external shared-Sheet occupancy is imported read-only into Supabase;
+- StayHub-owned Sheet mirror rows are excluded from native blockers;
+- real native bookings may be mirrored asynchronously to the Sheet for staff/integration visibility;
+- rollback to `legacy_adapter` remains available only when durable staff and mirror projections are safe.
+
+Evidence:
+
+- `docs/operations/m14-3-1-sandbox-native-massage-authority.md`;
+- `docs/operations/m14-3-2-native-staff-reconciliation.md`;
+- `docs/operations/m14-3-3-production-native-massage-authority.md`.
 
 ### M14.4 — Generic Third-Hotel Proof + Remaining Runtime Hardcodes
 
-Status: **NOT STARTED** until M14.3 closes.
+Status: **NEXT / ACTIVE WORK**.
 
 - audit remaining aliases/host resolution/config/routing/reporting/push assumptions;
+- audit any remaining Aquamarine-specific runtime branches or adapter assumptions;
 - onboard a generic third-hotel fixture/configuration without code changes;
-- prove no Production/sandbox/third-hotel cross-tenant leakage.
+- prove guest/staff/config/reporting/push behavior resolves from tenant-scoped data;
+- prove no Production/sandbox/third-hotel cross-tenant leakage;
+- preserve the M14.3 Supabase massage authority and external-adapter boundary.
 
 ## M15 — Observability & Operational Hardening
 
