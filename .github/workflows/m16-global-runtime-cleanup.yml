@@ -24,20 +24,18 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          # Request definitions: tenant locales only, no injected platform locale set.
           path = Path('lib/request-defs.ts')
           text = path.read_text()
           text = text.replace('import type { RequestDef } from "@/lib/types";\n', 'import type { RequestDef } from "@/lib/types";\nimport { normalizeLocaleList } from "@/lib/i18n/locale-model.mjs";\n', 1)
           text = text.replace('const DEFAULT_LANGS = ["bg", "en", "de", "ro", "cs", "ru"] as const;\n\n', '', 1)
           old = 'Array.from(new Set([...DEFAULT_LANGS, ...langs.map((lang) => String(lang).trim()).filter(Boolean)]))'
           count = text.count(old)
-          if count != 5:
-              raise SystemExit(f'expected 5 request-def locale unions, found {count}')
+          if count != 4:
+              raise SystemExit(f'expected 4 request-def locale unions, found {count}')
           text = text.replace(old, 'normalizeLocaleList(langs)')
           text = text.replace('  fallbackLangs: string[] = ["bg", "en", "de"],', '  fallbackLangs: string[] = ["en"],', 1)
           path.write_text(text)
 
-          # Neutral timezone fallbacks: authoritative tenant timezone should normally be supplied.
           timezone_files = [
               'app/api/weather/route.ts',
               'app/api/guest/day3-survey/route.ts',
@@ -51,10 +49,8 @@ jobs:
               p = Path(filename)
               value = p.read_text()
               if 'Europe/Sofia' in value:
-                  value = value.replace('Europe/Sofia', 'UTC')
-                  p.write_text(value)
+                  p.write_text(value.replace('Europe/Sofia', 'UTC'))
 
-          # Day-3 survey: retain the full canonical BCP-47 locale.
           path = Path('app/api/guest/day3-survey/route.ts')
           text = path.read_text()
           import_anchor = 'import { getHotelTimeParts, validateGuestStayIdentity } from "@/lib/server/guest-stays";\n'
@@ -67,18 +63,17 @@ jobs:
           text = text.replace(old_lang, '  const language = canonicalizeLocaleTag(body?.language || body?.guestLanguage) || "en";', 1)
           path.write_text(text)
 
-          # Analytics: fail closed if tenant identity cannot be derived; never attribute to Aquamarine.
           path = Path('lib/trackHubEvent.ts')
           text = path.read_text()
-          replacements = {
-              '  if (typeof window === "undefined") return "aquamarine";': '  if (typeof window === "undefined") return "";',
-              '    return sanitizeHotelSlug(host.replace(".stayhub.app", "")) || "aquamarine";': '    return sanitizeHotelSlug(host.replace(".stayhub.app", ""));',
-              '  if (match?.[1]) return sanitizeHotelSlug(match[1]) || "aquamarine";': '  if (match?.[1]) return sanitizeHotelSlug(match[1]);',
-              '  return "aquamarine";': '  return "";',
-              '  return sanitizeHotelSlug(alias) || "aquamarine";': '  return sanitizeHotelSlug(alias);',
-              '  const hotelSlug = getHotelSlug(hotelAlias);\n  const { roomNumber, roomConfirmed, roomSource }': '  const hotelSlug = getHotelSlug(hotelAlias);\n  if (!hotelAlias || !hotelSlug) return;\n  const { roomNumber, roomConfirmed, roomSource }',
-          }
-          for old, new in replacements.items():
+          replacements = [
+              ('  if (typeof window === "undefined") return "aquamarine";', '  if (typeof window === "undefined") return "";'),
+              ('    return sanitizeHotelSlug(host.replace(".stayhub.app", "")) || "aquamarine";', '    return sanitizeHotelSlug(host.replace(".stayhub.app", ""));'),
+              ('  if (match?.[1]) return sanitizeHotelSlug(match[1]) || "aquamarine";', '  if (match?.[1]) return sanitizeHotelSlug(match[1]);'),
+              ('  return "aquamarine";', '  return "";'),
+              ('  return sanitizeHotelSlug(alias) || "aquamarine";', '  return sanitizeHotelSlug(alias);'),
+              ('  const hotelSlug = getHotelSlug(hotelAlias);\n  const { roomNumber, roomConfirmed, roomSource }', '  const hotelSlug = getHotelSlug(hotelAlias);\n  if (!hotelAlias || !hotelSlug) return;\n  const { roomNumber, roomConfirmed, roomSource }'),
+          ]
+          for old, new in replacements:
               if old not in text:
                   raise SystemExit(f'tracking anchor missing: {old}')
               text = text.replace(old, new, 1)
