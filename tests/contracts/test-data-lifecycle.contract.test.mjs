@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
@@ -61,7 +62,7 @@ test("staff request reads trigger lifecycle cleanup before operational rows are 
 
 test("scheduled cleanup covers every non-sandbox non-demo hotel", async () => {
   const source = await readProjectFile("app/api/cron/test-data-cleanup/route.ts");
-  const vercelConfig = await readProjectFile("vercel.json");
+  const vercelConfig = JSON.parse(await readProjectFile("vercel.json"));
 
   assertContains(source, 'process.env.CRON_SECRET');
   assertContains(source, '.eq("is_sandbox", false)');
@@ -75,6 +76,13 @@ test("scheduled cleanup covers every non-sandbox non-demo hotel", async () => {
     "Scheduled cleanup must use semantic environment fields rather than slug hacks.",
   );
 
-  assertContains(vercelConfig, '"path": "/api/cron/test-data-cleanup"');
-  assertContains(vercelConfig, '"schedule": "17 2 * * *"');
+  assert.ok(Array.isArray(vercelConfig.crons), "Vercel cron configuration must be an array.");
+  assert.ok(
+    vercelConfig.crons.some(
+      (cron) =>
+        cron?.path === "/api/cron/test-data-cleanup" &&
+        cron?.schedule === "17 2 * * *",
+    ),
+    "Expected the daily production test-data cleanup cron with its canonical schedule.",
+  );
 });
