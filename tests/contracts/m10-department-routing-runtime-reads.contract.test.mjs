@@ -87,7 +87,7 @@ test("M10.4 activation is secret-protected, sandbox-only and exact-version gated
   assertNotContains(activationSource, '.from("hotels").update');
 });
 
-test("M10.4 routes with normalized hotel timezone and department hours", async () => {
+test("M14.4 routes with tenant-authoritative hotel timezone and department hours", async () => {
   const modelSource = await readProjectFile(
     "lib/server/normalized-config-runtime-model.mjs",
   );
@@ -107,7 +107,7 @@ test("M10.4 routes with normalized hotel timezone and department hours", async (
   assertContains(modelSource, "afterHoursDepartment:");
   assertContains(modelSource, "departmentRoutingRuntimeActivated: true");
   assertContains(hoursSource, "config.hotelTimezone");
-  assertContains(hoursSource, "config?.departmentHours?.[department]");
+  assertContains(hoursSource, "config.departmentHours?.[department]");
   assertContains(guestRouteSource, "requestAuthority.afterHoursDepartment");
   assertContains(guestRouteSource, "isDepartmentWorkingHoursForConfig({");
   assertContains(staffListSource, "isDepartmentWorkingHoursForConfig({");
