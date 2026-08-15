@@ -1,0 +1,25 @@
+name: M16 Dependency Tree
+
+on:
+  push:
+    branches:
+      - ci/m16-dependency-tree
+
+permissions:
+  contents: read
+
+jobs:
+  tree:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Show vulnerable dependency parents
+        run: |
+          npm ls next postcss sharp nanoid ws @supabase/supabase-js || true
+          npm outdated --json || true
