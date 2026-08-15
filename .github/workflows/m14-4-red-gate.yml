@@ -1,0 +1,24 @@
+name: M14.4 Red Gate
+
+on:
+  push:
+    branches:
+      - ci/m14-4-red-gate
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  red-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run M14.4 contract
+        run: node --test tests/contracts/m14-4-generic-third-hotel.contract.test.mjs
