@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build",
+    "build": "npm run test:m14-4 && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "npm run test:contracts && npm run test:tenant-isolation",
