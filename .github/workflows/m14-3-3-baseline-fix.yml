@@ -1,0 +1,38 @@
+name: M14.3.3 Tenant Baseline Fix
+
+on:
+  push:
+    branches:
+      - audit/m14-3-3-baseline-fix-6d057e6
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/m14-3-3-production-native-authority
+          fetch-depth: 0
+      - name: Update reviewed projection RPC fingerprint
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('tests/contracts/tenant-isolation-baseline.json')
+          data = json.loads(p.read_text())
+          matches = [e for e in data['entries'] if e.get('filePath') == 'lib/server/massage-runtime-projection.ts' and e.get('line') == 69 and e.get('tableExpression') == '"project_massage_snapshot_to_runtime"' and e.get('operation') == 'rpc']
+          if len(matches) != 1:
+              raise SystemExit(f'expected exactly one reviewed RPC baseline entry, found {len(matches)}')
+          matches[0]['tableExpression'] = '"project_massage_snapshot_to_runtime_external_only"'
+          matches[0]['provenance'] = 'service_role_exact_hotel_snapshot_lineage_external_only_projection_rpc'
+          p.write_text(json.dumps(data, indent=2) + '\n')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/contracts/tenant-isolation-baseline.json
+          git diff --cached --check
+          git commit -m "Audit external-only massage projection RPC"
+          git push origin HEAD:audit/m14-3-3-production-native-authority
