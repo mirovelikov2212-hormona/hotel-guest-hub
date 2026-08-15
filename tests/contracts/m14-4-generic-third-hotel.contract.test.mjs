@@ -115,9 +115,12 @@ test("M14.4 generic certification tenant is data-only, six-language and has no e
   assert.equal(serialized.includes("script.google"), false);
 });
 
-test("M14.4 migration seeds the certification tenant and explicit external-source boundaries", async () => {
+test("M14.4 migrations seed the certification tenant, native schedule rules and explicit external-source boundaries", async () => {
   const migration = await readProjectFile(
     "supabase/migrations/20260815113000_m14_4_generic_third_hotel_proof.sql",
+  );
+  const scheduleRulesMigration = await readProjectFile(
+    "supabase/migrations/20260815143000_m14_4_certification_massage_schedule_rules.sql",
   );
 
   for (const fragment of [
@@ -137,4 +140,15 @@ test("M14.4 migration seeds the certification tenant and explicit external-sourc
   assertContains(migration, "read_enabled boolean not null default false");
   assertContains(migration, "mirror_enabled boolean not null default false");
   assertNotContains(migration, "script.google.com");
+
+  for (const fragment of [
+    "public.massage_runtime_schedule_rules",
+    "certification-hotel",
+    "values (1::smallint), (2::smallint), (3::smallint), (4::smallint), (5::smallint)",
+    "'10:00'::time",
+    "'16:00'::time",
+    "on conflict (hotel_id, resource_key, day_of_week) do update",
+  ]) {
+    assertContains(scheduleRulesMigration, fragment);
+  }
 });
