@@ -1,0 +1,119 @@
+name: M14.3.3 Route Cutover Patcher
+
+on:
+  push:
+    branches:
+      - audit/m14-3-3-route-cutover-patcher
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/m14-3-3-production-native-authority
+          fetch-depth: 0
+      - name: Wire guest massage route to hotel-scoped authority
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/api/guest/massages/route.ts')
+          source = path.read_text()
+
+          import_anchor = 'import { attachNativeMassageStaffRequest } from "@/lib/server/massage-native-reconciliation";\n'
+          authority_imports = (
+              'import { createAuthorityNativeMassageBooking } from "@/lib/server/massage-native-authority-booking";\n'
+              'import {\n'
+              '  getMassageRuntimeAuthority,\n'
+              '  isNativeMassageAuthority,\n'
+              '} from "@/lib/server/massage-runtime-authority";\n'
+          )
+          if authority_imports not in source:
+              if import_anchor not in source:
+                  raise SystemExit('native reconciliation import anchor not found')
+              source = source.replace(import_anchor, import_anchor + authority_imports, 1)
+
+          get_anchor = '    if (isSandboxHotel(hotel)) {\n      if (action === "services") {'
+          get_replacement = (
+              '    const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id);\n\n'
+              '    if (isNativeMassageAuthority(runtimeAuthority)) {\n'
+              '      if (action === "services") {'
+          )
+          if get_anchor not in source:
+              raise SystemExit('GET sandbox authority anchor not found')
+          source = source.replace(get_anchor, get_replacement, 1)
+
+          snapshot_marker = '    const snapshotReadsEnabled = isMassageSnapshotEnabled(hotel.slug);'
+          before_snapshot, marker, after_snapshot = source.partition(snapshot_marker)
+          if not marker:
+              raise SystemExit('snapshot marker not found')
+          before_snapshot = before_snapshot.replace(
+              '          sandbox: true,',
+              '          sandbox: Boolean(hotel.is_sandbox),',
+          )
+          source = before_snapshot + marker + after_snapshot
+
+          post_anchor = (
+              '    const stayDeviceId = String(stayIdentity.device.id);\n\n'
+              '    if (isSandboxHotel(hotel)) {'
+          )
+          post_replacement = (
+              '    const stayDeviceId = String(stayIdentity.device.id);\n'
+              '    const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id);\n\n'
+              '    if (isNativeMassageAuthority(runtimeAuthority)) {'
+          )
+          if post_anchor not in source:
+              raise SystemExit('POST sandbox authority anchor not found')
+          source = source.replace(post_anchor, post_replacement, 1)
+
+          booking_anchor = '      const nativeBooking = await createSandboxNativeMassageBooking({'
+          booking_replacement = (
+              '      const nativeBooking = await (isSandboxHotel(hotel)\n'
+              '        ? createSandboxNativeMassageBooking\n'
+              '        : createAuthorityNativeMassageBooking)({'
+          )
+          if booking_anchor not in source:
+              raise SystemExit('sandbox native booking call anchor not found')
+          source = source.replace(booking_anchor, booking_replacement, 1)
+
+          pre_post, post_marker, post_source = source.partition('export async function POST')
+          if not post_marker:
+              raise SystemExit('POST marker not found')
+          post_source = post_source.replace(
+              '          action: "sandbox_native_book",',
+              '          action: isSandboxHotel(hotel) ? "sandbox_native_book" : "native_book",',
+              1,
+          )
+          post_source = post_source.replace(
+              '          sandbox: true,',
+              '          sandbox: Boolean(hotel.is_sandbox),',
+              1,
+          )
+          source = pre_post + post_marker + post_source
+
+          code_anchor = '    "MASSAGE_NATIVE_HOTEL_INVALID",\n'
+          code_replacement = (
+              '    "MASSAGE_NATIVE_HOTEL_INVALID",\n'
+              '    "MASSAGE_NATIVE_AUTHORITY_DISABLED",\n'
+              '    "MASSAGE_NATIVE_BOOKING_RESULT_NOT_OK",\n'
+              '    "MASSAGE_NATIVE_BOOKING_SCOPE_MISMATCH",\n'
+          )
+          if code_anchor not in source:
+              raise SystemExit('native error code anchor not found')
+          source = source.replace(code_anchor, code_replacement, 1)
+
+          path.write_text(source)
+          PY
+          git diff --check
+          git diff -- app/api/guest/massages/route.ts
+      - name: Commit route patch only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/api/guest/massages/route.ts
+          git commit -m "Wire massage guest API to runtime authority"
+          git push origin HEAD:audit/m14-3-3-production-native-authority
