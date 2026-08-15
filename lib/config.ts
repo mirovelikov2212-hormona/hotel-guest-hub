@@ -3,6 +3,7 @@ import path from "node:path";
 import type { HotelConfig, HotelRoom, LangKey } from "./types";
 import { parseRequestDefs } from "@/lib/request-defs";
 import { getHotelSheetSources } from "@/lib/hotels/getHotelSheetSources";
+import { canonicalizeLocaleTag, normalizeLocaleList, resolveEnabledLocale } from "@/lib/i18n/locale-model.mjs";
 import { getActiveTestRoomNumbers } from "@/lib/server/test-rooms";
 import { getPublishedHotelConfigSnapshot } from "@/lib/server/published-hotel-config";
 import { attachGuestRequestRelationalAuthority } from "@/lib/server/guest-request-relational-ids.mjs";
@@ -311,7 +312,7 @@ function toI18n(rows: Record<string, string>[]): Record<string, Record<string, s
   if (hasLangValue) {
     for (const row of rows) {
       const key = readCell(row, ["key", "Key", "KEY"]);
-      const lang = readCell(row, ["lang", "LANG", "language", "Language"]);
+      const lang = canonicalizeLocaleTag(readCell(row, ["lang", "LANG", "language", "Language"]));
       const value = readCell(row, ["value", "Value", "VALUE"]);
       if (!key || !lang) continue;
       out[lang] ||= {};
@@ -326,7 +327,7 @@ function toI18n(rows: Record<string, string>[]): Record<string, Record<string, s
 
     for (const [column, value] of Object.entries(row)) {
       if (!column || column.toLowerCase() === "key") continue;
-      const lang = column.trim();
+      const lang = canonicalizeLocaleTag(column.trim());
       if (!lang) continue;
       out[lang] ||= {};
       out[lang][key] = String(value ?? "").trim();
@@ -336,7 +337,7 @@ function toI18n(rows: Record<string, string>[]): Record<string, Record<string, s
   return out;
 }
 
-function parseHotelInfoRows(rows: Record<string, string>[]): Array<{
+function parseHotelInfoRows(rows: Record<string, string>[], languages: LangKey[]): Array<{
   key: string;
   category?: string;
   sortOrder?: number;
@@ -351,6 +352,8 @@ function parseHotelInfoRows(rows: Record<string, string>[]): Array<{
   title: Record<string, string>;
   text: Record<string, string>;
 }> {
+  const enabledLanguages = normalizeLocaleList(languages) as LangKey[];
+
   return rows
     .map((row) => {
       const key = readCell(row, ["Key", "key", "KEY", "Id", "id"]);
@@ -358,29 +361,18 @@ function parseHotelInfoRows(rows: Record<string, string>[]): Array<{
       const sortValue = readCell(row, ["Sort", "sort", "Sort Order", "sort_order", "sortOrder"]);
       const icon = readCell(row, ["Icon", "icon"]);
       const activeRaw = readCell(row, ["Active", "active"]);
-
-      const title = {
-        bg: readCell(row, ["Title BG", "title_bg", "titleBg"]),
-        en: readCell(row, ["Title EN", "title_en", "titleEn"]),
-        de: readCell(row, ["Title DE", "title_de", "titleDe"]),
-        ro: readCell(row, ["Title RO", "title_ro", "titleRo"]),
-        cs: readCell(row, ["Title CS", "title_cs", "titleCs"]),
-        ru: readCell(row, ["Title RU", "title_ru", "titleRu"]),
-      };
-
-      const text = {
-        bg: readCell(row, ["Text BG", "Body BG", "text_bg", "body_bg", "textBg"]),
-        en: readCell(row, ["Text EN", "Body EN", "text_en", "body_en", "textEn"]),
-        de: readCell(row, ["Text DE", "Body DE", "text_de", "body_de", "textDe"]),
-        ro: readCell(row, ["Text RO", "Body RO", "text_ro", "body_ro", "textRo"]),
-        cs: readCell(row, ["Text CS", "Body CS", "text_cs", "body_cs", "textCs"]),
-        ru: readCell(row, ["Text RU", "Body RU", "text_ru", "body_ru", "textRu"]),
-      };
-
+      const title = buildMultilingualFieldMap(row, ["Title"], enabledLanguages) as Record<string, string>;
+      const text = buildMultilingualFieldMap(row, ["Text", "Body"], enabledLanguages) as Record<string, string>;
       const aliasesByLang: Record<string, string[]> = {};
-      for (const lang of ["bg", "en", "de", "ro", "cs", "ru"]) {
-        const rawAliases = readCell(row, [`Aliases ${lang.toUpperCase()}`, `aliases_${lang}`, `aliases${lang.toUpperCase()}`]);
-        if (rawAliases) aliasesByLang[lang] = rawAliases.split("|").map((item) => item.trim()).filter(Boolean);
+
+      for (const lang of enabledLanguages) {
+        const rawAliases = readMultilingualField(row, ["Aliases"], String(lang));
+        if (rawAliases) {
+          aliasesByLang[String(lang)] = rawAliases
+            .split("|")
+            .map((item) => item.trim())
+            .filter(Boolean);
+        }
       }
 
       return {
@@ -758,13 +750,30 @@ export async function getHotelConfigFromSheets(hotelSlug: string): Promise<Hotel
   const hotelRooms = parseHotelRoomRows(hotelRoomRows);
   const validRoomNumbers = Array.from(new Set(hotelRooms.map((room) => room.roomNumber)));
 
-  const languages = pick(mergedConfig, "languages", "bg,en,de")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean) as LangKey[];
+  const languages = normalizeLocaleList(
+    pick(mergedConfig, "languages", "en")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+  ) as LangKey[];
 
-  const effectiveLanguages = (languages.length ? languages : ["bg", "en", "de"]) as LangKey[];
-  const venueLanguages = Array.from(new Set([...effectiveLanguages, "bg", "en", "de", "ro", "cs", "ru"])) as LangKey[];
+  const effectiveLanguages = (languages.length ? languages : ["en"]) as LangKey[];
+  const venueLanguages = effectiveLanguages;
+  const languageDefault = resolveEnabledLocale(
+    pick(mergedConfig, "languageDefault", ""),
+    effectiveLanguages,
+    effectiveLanguages[0] || "en",
+  ) as LangKey;
+  const opsLanguage = resolveEnabledLocale(
+    pick(mergedConfig, "opsLanguage", ""),
+    effectiveLanguages,
+    languageDefault,
+  ) as LangKey;
+  const staffHelperLanguage = resolveEnabledLocale(
+    pick(mergedConfig, "staffHelperLanguage", ""),
+    effectiveLanguages,
+    opsLanguage,
+  ) as LangKey;
   const requestDefs = parseRequestDefs(requestDefRows, effectiveLanguages);
 
   const hotelLatitude = pickOptionalNumber(mergedConfig, "hotelLatitude");
@@ -788,7 +797,7 @@ export async function getHotelConfigFromSheets(hotelSlug: string): Promise<Hotel
     },
     ...(hotelLatitude !== undefined ? { hotelLatitude } : {}),
     ...(hotelLongitude !== undefined ? { hotelLongitude } : {}),
-    hotelTimezone: pick(mergedConfig, "hotelTimezone", "Europe/Sofia"),
+    hotelTimezone: sheetSources.hotelTimezone || pick(mergedConfig, "hotelTimezone", "UTC"),
     geoGuardEnabled: pickBoolean(mergedConfig, "geoGuardEnabled", true),
     geoGuardRadiusMeters: pickNumber(mergedConfig, "geoGuardRadiusMeters", 350),
     testModeEnabled: pickBoolean(mergedConfig, "testModeEnabled", false),
@@ -854,11 +863,11 @@ export async function getHotelConfigFromSheets(hotelSlug: string): Promise<Hotel
     },
     i18n,
     languages: effectiveLanguages,
-    languageDefault: (pick(mergedConfig, "languageDefault", "bg") as LangKey) as LangKey,
-    opsLanguage: (pick(mergedConfig, "opsLanguage", "bg") as LangKey) as LangKey,
+    languageDefault,
+    opsLanguage,
     staffHelperEnabled: pick(mergedConfig, "staffHelperEnabled", "true").toLowerCase() !== "false",
-    staffHelperLanguage: (pick(mergedConfig, "staffHelperLanguage", "en") as LangKey) as LangKey,
-    hotelInfoItems: parseHotelInfoRows(hotelInfoRows),
+    staffHelperLanguage,
+    hotelInfoItems: parseHotelInfoRows(hotelInfoRows, effectiveLanguages),
     requestDefs,
     hotelRooms,
     validRoomNumbers,

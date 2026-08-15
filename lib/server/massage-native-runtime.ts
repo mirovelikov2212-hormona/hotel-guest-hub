@@ -42,6 +42,7 @@ type RuntimeServiceRow = {
   name_ro?: unknown;
   name_cs?: unknown;
   name_ru?: unknown;
+  name_i18n?: unknown;
   duration_minutes?: unknown;
   buffer_minutes?: unknown;
   price?: unknown;
@@ -152,15 +153,32 @@ function parseNativeBookingResult(value: unknown, expectedHotelId: string): Nati
   };
 }
 
+function parseLocaleMap(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out: Record<string, string> = {};
+  for (const [locale, raw] of Object.entries(value as Record<string, unknown>)) {
+    const text = String(raw || "").trim();
+    if (locale && text) out[locale] = text;
+  }
+  return out;
+}
+
 function parseRuntimeService(row: RuntimeServiceRow): MassageService {
+  const serviceId = requireText(row.service_id, "MASSAGE_NATIVE_SERVICE_INVALID", 80);
+  const nameI18n = parseLocaleMap(row.name_i18n);
+  const legacyNameBg = String(row.name_bg || "").trim();
+  const legacyNameEn = String(row.name_en || "").trim();
+  const fallbackName = legacyNameBg || legacyNameEn || Object.values(nameI18n)[0] || serviceId;
+
   return {
-    serviceId: requireText(row.service_id, "MASSAGE_NATIVE_SERVICE_INVALID", 80),
-    nameBg: requireText(row.name_bg, "MASSAGE_NATIVE_SERVICE_NAME_INVALID", 200),
-    nameEn: String(row.name_en || "").trim(),
+    serviceId,
+    nameBg: legacyNameBg || fallbackName,
+    nameEn: legacyNameEn,
     nameDe: String(row.name_de || "").trim(),
     nameRo: String(row.name_ro || "").trim(),
     nameCs: String(row.name_cs || "").trim(),
     nameRu: String(row.name_ru || "").trim(),
+    nameI18n,
     durationMinutes: requirePositiveInteger(row.duration_minutes, "MASSAGE_NATIVE_DURATION_INVALID"),
     bufferMinutes: requireNonNegativeInteger(row.buffer_minutes, "MASSAGE_NATIVE_BUFFER_INVALID"),
     price: requirePrice(row.price),
@@ -175,7 +193,7 @@ export async function getNativeMassageServices(input: {
   const hotelId = requireUuidLike(input.hotelId, "MASSAGE_NATIVE_HOTEL_INVALID");
   const { data, error } = await supabaseAdmin
     .from("massage_runtime_services")
-    .select("service_id, name_bg, name_en, name_de, name_ro, name_cs, name_ru, duration_minutes, buffer_minutes, price, currency, sort_order")
+    .select("service_id, name_bg, name_en, name_de, name_ro, name_cs, name_ru, name_i18n, duration_minutes, buffer_minutes, price, currency, sort_order")
     .eq("hotel_id", hotelId)
     .eq("active", true)
     .order("sort_order", { ascending: true })

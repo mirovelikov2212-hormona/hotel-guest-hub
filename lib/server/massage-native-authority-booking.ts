@@ -1,6 +1,7 @@
 import "server-only";
 
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { canonicalizeLocaleTag } from "@/lib/i18n/locale-model.mjs";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d)(?:\.\d+)?)?$/;
@@ -112,7 +113,7 @@ export async function createAuthorityNativeMassageBooking(input: {
     p_stay_id: requireUuid(input.stayId, "MASSAGE_NATIVE_STAY_INVALID"),
     p_stay_device_id: requireUuid(input.stayDeviceId, "MASSAGE_NATIVE_STAY_DEVICE_INVALID"),
     p_idempotency_key: requireText(input.idempotencyKey, "MASSAGE_NATIVE_IDEMPOTENCY_INVALID", 240),
-    p_guest_language: String(input.guestLanguage || "bg").trim().toLowerCase().slice(0, 8) || "bg",
+    p_guest_language: canonicalizeLocaleTag(input.guestLanguage) || "en",
     p_resource_key: requireText(input.resourceKey || "default", "MASSAGE_NATIVE_RESOURCE_INVALID", 80),
   });
   if (error) throw error;
