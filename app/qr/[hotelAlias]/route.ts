@@ -18,7 +18,7 @@ function getPublicAlias(hotel: { slug: string; public_slug?: string | null }) {
 }
 
 function getGuestTargetBaseUrl(publicAlias: string) {
-  return `https://${publicAlias}.stayhub.app`;
+  return `https://www.stayhub.app/h/${publicAlias}`;
 }
 
 function getDeviceType(ua: string) {
