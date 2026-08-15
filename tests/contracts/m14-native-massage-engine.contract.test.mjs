@@ -6,6 +6,10 @@ const migration = readFileSync(
   new URL("../../supabase/migrations/20260814233000_m14_2_native_massage_engine.sql", import.meta.url),
   "utf8",
 );
+const sameDayCutoffMigration = readFileSync(
+  new URL("../../supabase/migrations/20260815041000_m14_3_3_same_day_native_massage_cutoff.sql", import.meta.url),
+  "utf8",
+);
 const helper = readFileSync(
   new URL("../../lib/server/massage-native-runtime.ts", import.meta.url),
   "utf8",
@@ -54,6 +58,18 @@ test("M14.2 availability excludes breaks, imported blocks and confirmed native b
   assert.match(migration, /from public\.massage_runtime_bookings b/);
   assert.match(migration, /b\.status = 'confirmed'/);
   assert.match(migration, /tsrange\(v_candidate, v_candidate_end, '\[\)'\)/);
+});
+
+test("M14.3.3 native availability rejects elapsed same-day starts in each hotel schedule timezone", () => {
+  assert.match(sameDayCutoffMigration, /create or replace function public\.get_massage_runtime_available_times/);
+  assert.match(sameDayCutoffMigration, /v_now_local := now\(\) at time zone v_schedule\.timezone/);
+  assert.match(sameDayCutoffMigration, /v_today := v_now_local::date/);
+  assert.match(sameDayCutoffMigration, /if p_booking_date = v_today and v_candidate <= v_now_local then\s+continue/);
+  assert.match(sameDayCutoffMigration, /where hotel_id = p_hotel_id\s+and resource_key = p_resource_key\s+and active = true/);
+  assert.doesNotMatch(sameDayCutoffMigration, /Europe\/Sofia/);
+  assert.doesNotMatch(sameDayCutoffMigration, /aquamarin/i);
+  assert.match(sameDayCutoffMigration, /revoke all on function public\.get_massage_runtime_available_times/);
+  assert.match(sameDayCutoffMigration, /to service_role, postgres/);
 });
 
 test("M14.2 native booking remains physically sandbox-only", () => {
