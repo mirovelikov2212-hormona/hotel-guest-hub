@@ -502,12 +502,12 @@
       "filePath": "lib/server/massage-runtime-projection.ts",
       "line": 69,
       "table": null,
-      "tableExpression": "\"project_massage_snapshot_to_runtime\"",
+      "tableExpression": "\"project_massage_snapshot_to_runtime_external_only\"",
       "operation": "rpc",
       "reasons": [
         "rpc_requires_review"
       ],
-      "provenance": "service_role_exact_hotel_snapshot_lineage_projection_rpc"
+      "provenance": "service_role_exact_hotel_snapshot_lineage_external_only_projection_rpc"
     },
     {
       "filePath": "lib/server/massage-runtime-projection.ts",
