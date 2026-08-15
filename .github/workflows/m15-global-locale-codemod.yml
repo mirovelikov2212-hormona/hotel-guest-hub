@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   codemod:
-    if: github.event.head_commit.message == 'CI: run one-shot M15 global locale codemod'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
