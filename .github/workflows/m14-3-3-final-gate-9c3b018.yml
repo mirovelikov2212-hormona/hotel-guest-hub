@@ -1,0 +1,44 @@
+name: M14.3.3 Final Gate 9c3b018
+
+on:
+  push:
+    branches:
+      - audit/m14-3-3-final-gate-9c3b018
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: synthetic-build-only-key
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 9c3b0187bf8c830700e45710e6731c33a8171312
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Contracts and tenant isolation
+        run: npm test
+      - name: Scoped ESLint
+        run: >-
+          npx eslint
+          app/api/guest/massages/route.ts
+          app/api/cron/native-massage-reconcile/route.ts
+          app/api/cron/native-massage-sheet-mirror/route.ts
+          lib/server/massage-native-authority-booking.ts
+          lib/server/massage-native-reconciliation.ts
+          lib/server/massage-native-sheet-mirror.ts
+          lib/server/massage-runtime-authority.ts
+          lib/server/massage-runtime-projection.ts
+          tests/contracts/m14-3-3-production-native-authority.contract.test.mjs
+          tests/contracts/m14-massage-runtime-projection.contract.test.mjs
+      - name: Next build
+        run: npm run build
