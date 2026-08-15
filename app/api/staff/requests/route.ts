@@ -72,7 +72,6 @@ type GuestRequestRow = {
   } | null;
 };
 
-
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
   Pragma: "no-cache",
@@ -319,16 +318,21 @@ export async function GET(req: NextRequest) {
     const scope = await resolveAuthorizedScope(hotelSlug, role);
     if ("error" in scope) return scope.error;
 
-    const operationalConfig =
-      scope.environment === "sandbox"
-        ? await getHotelConfig(scope.hotelSlug).catch((error) => {
-            console.error(
-              "Sandbox staff operational-hours config load failed; using legacy hours",
-              error,
-            );
-            return null;
-          })
-        : null;
+    const operationalConfig = await getHotelConfig(scope.hotelSlug).catch((error) => {
+      console.error("Staff operational-hours config load failed", {
+        hotelId: scope.hotelId,
+        hotelSlug: scope.hotelSlug,
+        error,
+      });
+      return null;
+    });
+
+    if (!operationalConfig) {
+      return NextResponse.json(
+        { ok: false, error: "Hotel operational configuration unavailable" },
+        { status: 503, headers: NO_STORE_HEADERS },
+      );
+    }
 
     await cleanupExpiredTestData(scope.hotelId);
 
