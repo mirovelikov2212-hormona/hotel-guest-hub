@@ -118,9 +118,12 @@ test("M15 massage UI uses tenant timezone and dynamic service locale maps", asyn
   assertContains(legacyTypes, "nameI18n");
 });
 
-test("M15 migration makes dynamic locale maps authoritative without dropping legacy compatibility columns", async () => {
-  const migration = await readProjectFile(
+test("M15 migrations make dynamic locale maps authoritative without dropping legacy compatibility columns", async () => {
+  const localeMapMigration = await readProjectFile(
     "supabase/migrations/20260815185000_m15_global_locale_maps.sql",
+  );
+  const legacyRequirementMigration = await readProjectFile(
+    "supabase/migrations/20260815185500_m15_remove_legacy_locale_requirements.sql",
   );
 
   for (const fragment of [
@@ -136,10 +139,12 @@ test("M15 migration makes dynamic locale maps authoritative without dropping leg
     "coalesce(nullif(trim(p_guest_language), ''), 'en')",
     "service_name_i18n",
   ]) {
-    assertContains(migration, fragment);
+    assertContains(localeMapMigration, fragment);
   }
 
-  assertNotContains(migration, "left(lower(trim(p_guest_language)), 8)");
-  assertNotContains(migration, "drop column name_bg");
-  assertNotContains(migration, "drop column service_name_bg");
+  assertContains(legacyRequirementMigration, "alter column name_en drop not null");
+  assertContains(legacyRequirementMigration, "alter column guest_language set default 'en'::text");
+  assertNotContains(localeMapMigration, "left(lower(trim(p_guest_language)), 8)");
+  assertNotContains(localeMapMigration, "drop column name_bg");
+  assertNotContains(localeMapMigration, "drop column service_name_bg");
 });
