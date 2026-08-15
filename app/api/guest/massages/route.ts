@@ -34,6 +34,11 @@ import {
 } from "@/lib/server/massage-native-runtime";
 import { ensureMassageStaffRequest } from "@/lib/server/massage-staff-request";
 import { attachNativeMassageStaffRequest } from "@/lib/server/massage-native-reconciliation";
+import { createAuthorityNativeMassageBooking } from "@/lib/server/massage-native-authority-booking";
+import {
+  getMassageRuntimeAuthority,
+  isNativeMassageAuthority,
+} from "@/lib/server/massage-runtime-authority";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import { validateGuestStayIdentity } from "@/lib/server/guest-stays";
 import { isMassageBookingVisibleForStay } from "@/lib/server/massage-booking-visibility.mjs";
@@ -191,6 +196,9 @@ function getNativeMassageErrorCode(error: unknown) {
     "MASSAGE_SCHEDULE_NOT_CONFIGURED",
     "MASSAGE_NATIVE_DAYS_AHEAD_INVALID",
     "MASSAGE_NATIVE_HOTEL_INVALID",
+    "MASSAGE_NATIVE_AUTHORITY_DISABLED",
+    "MASSAGE_NATIVE_BOOKING_RESULT_NOT_OK",
+    "MASSAGE_NATIVE_BOOKING_SCOPE_MISMATCH",
     "MASSAGE_NATIVE_DATE_INVALID",
     "MASSAGE_NATIVE_TIME_INVALID",
   ].find((code) => values.includes(code)) || null;
@@ -636,14 +644,16 @@ export async function GET(req: NextRequest) {
       return json({ ok: true, action, hotelSlug: hotel.slug, sandbox: Boolean(hotel.is_sandbox), bookings });
     }
 
-    if (isSandboxHotel(hotel)) {
+    const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id);
+
+    if (isNativeMassageAuthority(runtimeAuthority)) {
       if (action === "services") {
         const result = await getNativeMassageServices({ hotelId: hotel.id });
         return json({
           ok: true,
           action,
           hotelSlug: hotel.slug,
-          sandbox: true,
+          sandbox: Boolean(hotel.is_sandbox),
           authority: "native_supabase",
           result,
         });
@@ -657,7 +667,7 @@ export async function GET(req: NextRequest) {
           ok: true,
           action,
           hotelSlug: hotel.slug,
-          sandbox: true,
+          sandbox: Boolean(hotel.is_sandbox),
           authority: "native_supabase",
           result,
         });
@@ -672,7 +682,7 @@ export async function GET(req: NextRequest) {
           ok: true,
           action,
           hotelSlug: hotel.slug,
-          sandbox: true,
+          sandbox: Boolean(hotel.is_sandbox),
           authority: "native_supabase",
           result,
         });
@@ -687,7 +697,7 @@ export async function GET(req: NextRequest) {
           ok: true,
           action,
           hotelSlug: hotel.slug,
-          sandbox: true,
+          sandbox: Boolean(hotel.is_sandbox),
           authority: "native_supabase",
           result,
         });
@@ -701,7 +711,7 @@ export async function GET(req: NextRequest) {
           ok: true,
           action,
           hotelSlug: hotel.slug,
-          sandbox: true,
+          sandbox: Boolean(hotel.is_sandbox),
           authority: "native_supabase",
           result,
         });
@@ -918,11 +928,14 @@ export async function POST(req: NextRequest) {
     });
     const stayId = String(stayIdentity.stay.id);
     const stayDeviceId = String(stayIdentity.device.id);
+    const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id);
 
-    if (isSandboxHotel(hotel)) {
+    if (isNativeMassageAuthority(runtimeAuthority)) {
       const guestLanguage = String(body.guestLanguage || "bg");
       const service = await getNativeMassageService({ hotelId: hotel.id, serviceId });
-      const nativeBooking = await createSandboxNativeMassageBooking({
+      const nativeBooking = await (isSandboxHotel(hotel)
+        ? createSandboxNativeMassageBooking
+        : createAuthorityNativeMassageBooking)({
         hotelId: hotel.id,
         serviceId,
         date,
@@ -969,9 +982,9 @@ export async function POST(req: NextRequest) {
       return json(
         {
           ok: true,
-          action: "sandbox_native_book",
+          action: isSandboxHotel(hotel) ? "sandbox_native_book" : "native_book",
           hotelSlug: hotel.slug,
-          sandbox: true,
+          sandbox: Boolean(hotel.is_sandbox),
           authority: "native_supabase",
           sheetWrite: false,
           result,
