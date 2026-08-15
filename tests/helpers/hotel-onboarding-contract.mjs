@@ -15,6 +15,10 @@ function text(value) {
   return String(value ?? "").trim();
 }
 
+function isValidSlug(value) {
+  return /^[a-z0-9][a-z0-9_-]*$/.test(value);
+}
+
 function isValidTimezone(value) {
   try {
     new Intl.DateTimeFormat("en", { timeZone: value }).format();
@@ -35,16 +39,16 @@ function isHttpsUrl(value) {
 export function validateHotelOnboardingFixture(fixture) {
   const errors = [];
   const warnings = [];
-  const hotelSlug = text(fixture?.hotelSlug);
+  const hotelSlug = text(fixture?.slug || fixture?.hotelSlug);
+  const publicSlug = text(fixture?.publicSlug);
   const hotelName = text(fixture?.hotelName);
   const languages = Array.isArray(fixture?.languages)
     ? fixture.languages.map((lang) => text(lang).toLowerCase()).filter(Boolean)
     : [];
 
   if (!hotelSlug) errors.push("HOTEL_SLUG_REQUIRED");
-  if (hotelSlug && !/^[a-z0-9][a-z0-9_-]*$/.test(hotelSlug)) {
-    errors.push("HOTEL_SLUG_INVALID");
-  }
+  if (hotelSlug && !isValidSlug(hotelSlug)) errors.push("HOTEL_SLUG_INVALID");
+  if (publicSlug && !isValidSlug(publicSlug)) errors.push("PUBLIC_SLUG_INVALID");
   if (!hotelName) errors.push("HOTEL_NAME_REQUIRED");
   if (fixture?.active === false) warnings.push("HOTEL_INACTIVE");
 
