@@ -1,34 +1,42 @@
 {
-  "hotelSlug": "seaside-demo-hotel",
-  "hotelName": "Seaside Demo Hotel",
+  "slug": "certification-hotel",
+  "hotelSlug": "certification-hotel",
+  "publicSlug": "certification-hotel-public",
+  "hotelName": "StayHub Certification Hotel",
   "active": true,
   "isSandbox": true,
-  "productionHotelId": "00000000-0000-0000-0000-000000000001",
-  "languages": ["bg", "en", "de"],
+  "productionHotelId": null,
+  "languages": ["bg", "en", "de", "ro", "cs", "ru"],
   "languageDefault": "en",
-  "opsLanguage": "bg",
+  "opsLanguage": "en",
   "hotelTimezone": "Europe/Berlin",
-  "urls": {
-    "configCsvUrl": "https://example.com/config.csv",
-    "i18nCsvUrl": "https://example.com/i18n.csv",
-    "roomsCsvUrl": "https://example.com/rooms.csv"
-  },
+  "urls": {},
   "rooms": [
-    { "roomNumber": "101", "active": true },
-    { "roomNumber": "102", "active": true }
+    { "roomNumber": "501", "floor": "5", "active": true },
+    { "roomNumber": "502", "floor": "5", "active": true },
+    { "roomNumber": "503", "floor": "5", "active": true }
   ],
+  "departmentHours": {
+    "reception": { "open": "00:00", "close": "23:59" },
+    "housekeeping": { "open": "08:30", "close": "16:30" },
+    "maintenance": { "open": "09:00", "close": "18:00" }
+  },
   "requestDefs": [
     {
-      "id": "extra_towel",
+      "id": "towels",
       "targetDepartment": "housekeeping",
       "requiresBilling": false
     },
     {
-      "id": "coffee_capsules",
-      "targetDepartment": "housekeeping",
-      "requiresBilling": true,
-      "price": "2.05",
-      "currency": "EUR"
+      "id": "maintenance_issue",
+      "targetDepartment": "maintenance",
+      "requiresBilling": false
+    },
+    {
+      "id": "taxi",
+      "targetDepartment": "reception",
+      "requiresBilling": false
     }
-  ]
+  ],
+  "externalMassageSource": null
 }
