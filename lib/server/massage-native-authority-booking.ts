@@ -55,6 +55,7 @@ function parseResult(value: unknown, expectedHotelId: string): AuthorityBookingR
     throw new Error("MASSAGE_NATIVE_BOOKING_RESULT_INVALID");
   }
   const row = value as Record<string, unknown>;
+  if (row.ok !== true) throw new Error("MASSAGE_NATIVE_BOOKING_RESULT_NOT_OK");
   const hotelId = requireUuid(row.hotelId, "MASSAGE_NATIVE_BOOKING_HOTEL_INVALID");
   if (hotelId !== expectedHotelId) throw new Error("MASSAGE_NATIVE_BOOKING_SCOPE_MISMATCH");
   const status = String(row.status || "");
@@ -71,7 +72,7 @@ function parseResult(value: unknown, expectedHotelId: string): AuthorityBookingR
   }
 
   return {
-    ok: row.ok === true,
+    ok: true,
     bookingId: requireUuid(row.bookingId, "MASSAGE_NATIVE_BOOKING_ID_INVALID"),
     status,
     idempotentReplay: row.idempotentReplay === true,
