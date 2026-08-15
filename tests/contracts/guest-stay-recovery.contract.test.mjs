@@ -23,6 +23,27 @@ test("only confirmed stale guest stay identity errors trigger local recovery", a
   assert.equal(isRecoverableGuestStayErrorCode(""), false);
 });
 
+test("safe room turnover releases only a stale previous stay after hotel check-in time", async () => {
+  const moduleUrl = pathToFileURL(resolve("lib/guest-stays/room-turnover.mjs"));
+  moduleUrl.searchParams.set("testRun", String(Date.now()));
+  const { shouldAutoReleaseRoomTurnover } = await import(moduleUrl.href);
+
+  const base = {
+    requestedCheckInDate: "2026-08-15",
+    hotelTodayDate: "2026-08-15",
+    hotelNowMinutes: 16 * 60,
+    standardCheckInMinutes: 15 * 60,
+    overlappingStayCheckInDate: "2026-08-10",
+    overlappingLastSeenLocalDate: "2026-08-14",
+  };
+
+  assert.equal(shouldAutoReleaseRoomTurnover(base), true);
+  assert.equal(shouldAutoReleaseRoomTurnover({ ...base, hotelNowMinutes: 14 * 60 + 59 }), false);
+  assert.equal(shouldAutoReleaseRoomTurnover({ ...base, requestedCheckInDate: "2026-08-14" }), false);
+  assert.equal(shouldAutoReleaseRoomTurnover({ ...base, overlappingStayCheckInDate: "2026-08-15" }), false);
+  assert.equal(shouldAutoReleaseRoomTurnover({ ...base, overlappingLastSeenLocalDate: "2026-08-15" }), false);
+});
+
 test("Guest Hub clears stale stay state, dependent local data and preserves the device token", async () => {
   const source = await readProjectFile("components/GuestHub.tsx");
   const refreshStart = source.indexOf("const refreshStay = async () => {");
