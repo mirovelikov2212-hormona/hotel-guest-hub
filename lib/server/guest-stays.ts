@@ -15,6 +15,7 @@ import {
   deriveGuestStayLifecycle,
   getGuestStayAccessPolicy,
 } from "@/lib/guest-stays/lifecycle-model.mjs";
+import { shouldAutoReleaseRoomTurnover } from "@/lib/guest-stays/room-turnover.mjs";
 import { resolveHotelByAnySlugAdmin, getOperationalIsolationFields, getOperationalIsolationMetadata } from "@/lib/server/hotel-scope";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { getEffectiveTestRoomPolicy } from "@/lib/server/test-rooms";
@@ -61,6 +62,12 @@ function normalizeDeviceToken(value: unknown) {
 
 function normalizeLanguage(value: unknown) {
   return String(value || "en").trim().toLowerCase().slice(0, 8) || "en";
+}
+
+function parseClockMinutes(value: string) {
+  const match = String(value || "").trim().match(/^(\d{2}):(\d{2})$/);
+  if (!match) return -1;
+  return Number(match[1]) * 60 + Number(match[2]);
 }
 
 function getTimezoneOffsetMinutes(timezone: string, date: Date) {
@@ -303,20 +310,71 @@ export async function confirmGuestStay(input: {
   }
 
   if (!existingStay) {
-    const { data: overlappingStay, error: overlapError } = await supabaseAdmin
+    const { data: overlappingStays, error: overlapError } = await supabaseAdmin
       .from("guest_stays")
-      .select("id")
+      .select("id, check_in_date, check_out_date, effective_check_out_at, last_seen_at, metadata_json")
       .eq("hotel_id", hotel.id)
       .eq("room_number", room)
       .eq("status", "active")
       .lt("check_in_date", checkOutDate)
       .gt("check_out_date", checkInDate)
       .gt("effective_check_out_at", now)
-      .limit(1)
-      .maybeSingle();
+      .order("last_seen_at", { ascending: false })
+      .limit(2);
 
     if (overlapError) throw overlapError;
-    if (overlappingStay) throw new Error("STAY_DATES_CONFLICT");
+
+    if (overlappingStays?.length) {
+      if (overlappingStays.length !== 1 || !datesRequired) {
+        throw new Error("STAY_DATES_CONFLICT");
+      }
+
+      const overlappingStay = overlappingStays[0];
+      const overlappingLastSeenAt = String(overlappingStay.last_seen_at || "").trim();
+      const overlappingLastSeenLocalDate = overlappingLastSeenAt
+        ? getHotelTimeParts(timezone, new Date(overlappingLastSeenAt)).dateKey
+        : "";
+      const canAutoRelease = shouldAutoReleaseRoomTurnover({
+        requestedCheckInDate: checkInDate,
+        hotelTodayDate: hotelNow.dateKey,
+        hotelNowMinutes: hotelNow.minutes,
+        standardCheckInMinutes: parseClockMinutes(GUEST_STAY_CHECK_IN_TIME),
+        overlappingStayCheckInDate: String(overlappingStay.check_in_date || ""),
+        overlappingLastSeenLocalDate,
+      });
+
+      if (!canAutoRelease) {
+        throw new Error("STAY_DATES_CONFLICT");
+      }
+
+      const operationalEndAt = hotelLocalDateTimeToUtcIso(
+        hotelNow.dateKey,
+        GUEST_STAY_CHECK_OUT_TIME,
+        timezone,
+      );
+      const { data: releasedStay, error: releaseError } = await supabaseAdmin
+        .from("guest_stays")
+        .update({
+          effective_check_out_at: operationalEndAt,
+          status: "ended",
+          lifecycle_state: "read_only",
+          lifecycle_updated_at: now,
+          read_only_at: operationalEndAt,
+          metadata_json: {
+            ...((overlappingStay.metadata_json as Record<string, unknown> | null) || {}),
+            roomTurnoverAutoReleasedAt: now,
+            roomTurnoverOriginalCheckOutDate: overlappingStay.check_out_date,
+            roomTurnoverOperationalEndDate: hotelNow.dateKey,
+          },
+        })
+        .eq("id", overlappingStay.id)
+        .eq("status", "active")
+        .select("id")
+        .maybeSingle();
+
+      if (releaseError) throw releaseError;
+      if (!releasedStay) throw new Error("STAY_DATES_CONFLICT");
+    }
   }
 
   let stay: GuestStayRow;
