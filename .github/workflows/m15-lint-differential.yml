@@ -44,17 +44,17 @@ jobs:
           from collections import Counter
           from pathlib import Path
 
+          changed = [line.strip() for line in Path('/tmp/changed-files.txt').read_text().splitlines() if line.strip()]
+
           def load(path):
               return json.loads(Path(path).read_text() or '[]')
 
           def relative(file_path):
-              marker = '/hotel-guest-hub/'
-              if marker in file_path:
-                  return file_path.split(marker, 1)[1]
-              marker = '/stayhub-main/'
-              if marker in file_path:
-                  return file_path.split(marker, 1)[1]
-              return file_path
+              normalized = str(file_path).replace('\\', '/')
+              matches = [item for item in changed if normalized.endswith('/' + item) or normalized == item]
+              if len(matches) == 1:
+                  return matches[0]
+              return normalized
 
           def errors(rows):
               out = Counter()
