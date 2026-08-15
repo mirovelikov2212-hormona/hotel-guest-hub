@@ -4,12 +4,12 @@
   "baseCheckpoint": "m14.4-generic-third-hotel-proof",
   "expectedNeedsReview": 67,
   "relocations": [
-    { "filePath": "lib/server/massage-native-authority-booking.ts", "fromLine": 106, "toLine": 107, "table": "\"create_massage_runtime_booking_authority\"", "operation": "rpc" },
+    { "filePath": "lib/server/massage-native-authority-booking.ts", "fromLine": 106, "toLine": 107, "operation": "rpc" },
     { "filePath": "lib/server/massage-native-runtime.ts", "fromLine": 176, "toLine": 194, "table": "massage_runtime_services", "operation": "select" },
-    { "filePath": "lib/server/massage-native-runtime.ts", "fromLine": 211, "toLine": 229, "table": "\"get_massage_runtime_available_times\"", "operation": "rpc" },
-    { "filePath": "lib/server/massage-native-runtime.ts", "fromLine": 240, "toLine": 258, "table": "\"get_massage_runtime_availability_window\"", "operation": "rpc" },
-    { "filePath": "lib/server/massage-native-runtime.ts", "fromLine": 391, "toLine": 409, "table": "\"create_sandbox_massage_runtime_booking\"", "operation": "rpc" },
-    { "filePath": "lib/server/massage-native-runtime.ts", "fromLine": 420, "toLine": 438, "table": "\"cancel_sandbox_massage_runtime_booking\"", "operation": "rpc" }
+    { "filePath": "lib/server/massage-native-runtime.ts", "fromLine": 211, "toLine": 229, "operation": "rpc" },
+    { "filePath": "lib/server/massage-native-runtime.ts", "fromLine": 240, "toLine": 258, "operation": "rpc" },
+    { "filePath": "lib/server/massage-native-runtime.ts", "fromLine": 391, "toLine": 409, "operation": "rpc" },
+    { "filePath": "lib/server/massage-native-runtime.ts", "fromLine": 420, "toLine": 438, "operation": "rpc" }
   ],
   "additions": []
 }
