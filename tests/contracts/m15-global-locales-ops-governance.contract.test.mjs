@@ -25,6 +25,7 @@ async function readFixture() {
 test("M15 accepts arbitrary canonical BCP-47 tenant locales without an allowlist", () => {
   assert.equal(canonicalizeLocaleTag("pt-br"), "pt-BR");
   assert.equal(canonicalizeLocaleTag("zh-hans"), "zh-Hans");
+  assert.equal(canonicalizeLocaleTag("sr-latn-rs"), "sr-Latn-RS");
   assert.equal(canonicalizeLocaleTag("ar"), "ar");
   assert.equal(canonicalizeLocaleTag("not_a_locale"), null);
 
@@ -91,6 +92,18 @@ test("M15 Guest Hub accepts only the hotel's dynamic enabled locales, not a glob
   assertNotContains(source, 'const filtered = SUPPORTED_GUEST_LANGS.filter');
 });
 
+test("M15 public input paths preserve canonical full BCP-47 guest locales", async () => {
+  const requestValidation = await readProjectFile("lib/server/guest-request-input-validation.mjs");
+  const nativeBooking = await readProjectFile("lib/server/massage-native-authority-booking.ts");
+  const trackingValidation = await readProjectFile("lib/server/tracking-input-validation.mjs");
+
+  assertContains(requestValidation, "canonicalizeLocaleTag");
+  assertContains(requestValidation, "guestLanguage: 64");
+  assertContains(nativeBooking, "canonicalizeLocaleTag");
+  assertNotContains(nativeBooking, ".slice(0, 8)");
+  assertContains(trackingValidation, "language: 64");
+});
+
 test("M15 massage UI uses tenant timezone and dynamic service locale maps", async () => {
   const ui = await readProjectFile("components/MassageBookingSection.tsx");
   const nativeRuntime = await readProjectFile("lib/server/massage-native-runtime.ts");
@@ -105,7 +118,7 @@ test("M15 massage UI uses tenant timezone and dynamic service locale maps", asyn
   assertContains(legacyTypes, "nameI18n");
 });
 
-test("M15 migration adds backward-compatible dynamic locale maps for normalized massage data", async () => {
+test("M15 migration makes dynamic locale maps authoritative without dropping legacy compatibility columns", async () => {
   const migration = await readProjectFile(
     "supabase/migrations/20260815185000_m15_global_locale_maps.sql",
   );
@@ -116,10 +129,17 @@ test("M15 migration adds backward-compatible dynamic locale maps for normalized 
     "massage_runtime_services",
     "massage_runtime_bookings",
     "jsonb_strip_nulls",
+    "alter column name_bg drop not null",
+    "alter column service_name_bg drop not null",
+    "sync_massage_runtime_service_name_i18n",
+    "create_massage_runtime_booking_authority",
+    "coalesce(nullif(trim(p_guest_language), ''), 'en')",
+    "service_name_i18n",
   ]) {
     assertContains(migration, fragment);
   }
 
+  assertNotContains(migration, "left(lower(trim(p_guest_language)), 8)");
   assertNotContains(migration, "drop column name_bg");
   assertNotContains(migration, "drop column service_name_bg");
 });
