@@ -1,8 +1,6 @@
 name: Massage Sheet Sync
 
 on:
-  schedule:
-    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 concurrency:
