@@ -1,0 +1,39 @@
+name: M14.3.3 Final Gate
+
+on:
+  push:
+    branches:
+      - audit/m14-3-3-final-gate-9e74ecf
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/m14-3-3-production-native-authority
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Contracts and tenant isolation
+        run: npm test
+      - name: Scoped ESLint
+        run: >-
+          npx eslint
+          app/api/guest/massages/route.ts
+          app/api/cron/native-massage-reconcile/route.ts
+          app/api/cron/native-massage-sheet-mirror/route.ts
+          lib/server/massage-native-authority-booking.ts
+          lib/server/massage-native-reconciliation.ts
+          lib/server/massage-native-sheet-mirror.ts
+          lib/server/massage-runtime-authority.ts
+          tests/contracts/m14-3-3-production-native-authority.contract.test.mjs
+      - name: Next build
+        run: npm run build
