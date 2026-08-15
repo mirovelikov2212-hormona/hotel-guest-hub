@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build",
+    "build": "node --test tests/contracts/m14-4-generic-third-hotel.contract.test.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "npm run test:contracts && npm run test:tenant-isolation",
