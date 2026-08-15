@@ -15,11 +15,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Runtime hardcode inventory
         run: |
-          echo '=== timezone / geography ==='
-          rg -n --glob '!**/*.test.*' --glob '!tests/**' --glob '!docs/**' --glob '!supabase/**' 'Europe/Sofia|Sofia|Bulgaria' app components lib middleware.ts || true
-          echo '=== fixed language allowlists / six-language patterns ==='
-          rg -n --glob '!**/*.test.*' --glob '!tests/**' --glob '!docs/**' --glob '!supabase/**' 'SUPPORTED_[A-Z_]*LANG|SUPPORTED_GUEST_LANGS|SUPPORTED_LANGUAGES|\["bg".*,.*"en".*,.*"de".*,.*"ro".*,.*"cs".*,.*"ru"\]' app components lib middleware.ts || true
-          echo '=== Aquamarine runtime identities ==='
-          rg -n --glob '!**/*.test.*' --glob '!tests/**' --glob '!docs/**' --glob '!supabase/**' 'aquamarin|aquamarine|843ec551-786a-46c4-989b-9da98956cd19|05624aa0-ffcb-4f93-8cb8-a0bdc85e1962' app components lib middleware.ts || true
-          echo '=== legacy locale-column authority candidates ==='
-          rg -n --glob '!**/*.test.*' --glob '!tests/**' --glob '!docs/**' --glob '!supabase/**' 'name_bg|name_en|title_bg|message_bg|service_name_bg' app components lib middleware.ts || true
+          scan() {
+            label="$1"
+            pattern="$2"
+            echo "=== $label ==="
+            grep -RInE --exclude='*.test.*' --exclude-dir=tests --exclude-dir=docs --exclude-dir=supabase -- "$pattern" app components lib middleware.ts 2>/dev/null || true
+          }
+          scan 'timezone / geography' 'Europe/Sofia|Sofia|Bulgaria'
+          scan 'fixed language allowlists / six-language patterns' 'SUPPORTED_[A-Z_]*LANG|SUPPORTED_GUEST_LANGS|SUPPORTED_LANGUAGES|\["bg".*,.*"en".*,.*"de".*,.*"ro".*,.*"cs".*,.*"ru"\]'
+          scan 'Aquamarine runtime identities' 'aquamarin|aquamarine|843ec551-786a-46c4-989b-9da98956cd19|05624aa0-ffcb-4f93-8cb8-a0bdc85e1962'
+          scan 'legacy locale-column authority candidates' 'name_bg|name_en|title_bg|message_bg|service_name_bg'
