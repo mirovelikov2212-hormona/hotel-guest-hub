@@ -19,6 +19,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Repair one generated template line in the one-shot codemod
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/m15-global-locale-codemod.mjs')
+          lines = path.read_text().splitlines()
+          matches = [i for i, line in enumerate(lines) if 'values.year' in line and 'values.month' in line and 'values.day' in line and 'return' in line]
+          if len(matches) != 1:
+              raise SystemExit(f'expected exactly one generated date return line, found {len(matches)}')
+          lines[matches[0]] = '  return String(values.year) + "-" + String(values.month) + "-" + String(values.day);'
+          path.write_text('\n'.join(lines) + '\n')
+          PY
+          node --check scripts/m15-global-locale-codemod.mjs
       - name: Apply exact M15 codemod
         run: node scripts/m15-global-locale-codemod.mjs
       - name: Remove one-shot codemod machinery
