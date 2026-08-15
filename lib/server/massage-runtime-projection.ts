@@ -67,7 +67,7 @@ export async function projectMassageSnapshotToRuntime(input: {
   }
 
   const { data, error } = await supabaseAdmin.rpc(
-    "project_massage_snapshot_to_runtime",
+    "project_massage_snapshot_to_runtime_external_only",
     {
       p_hotel_id: hotelId,
       p_snapshot_id: snapshotId,

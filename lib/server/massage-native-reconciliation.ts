@@ -2,7 +2,8 @@ import "server-only";
 
 import { ensureMassageStaffRequest } from "@/lib/server/massage-staff-request";
 import { formatNativeMassageClientTime } from "@/lib/server/massage-native-runtime";
-import { isSandboxHotel, type HotelScope } from "@/lib/server/hotel-scope";
+import { getMassageRuntimeAuthority } from "@/lib/server/massage-runtime-authority";
+import type { HotelScope } from "@/lib/server/hotel-scope";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
@@ -36,10 +37,12 @@ function asErrorMessage(error: unknown) {
   return String(error || "Unknown native massage staff sync error").slice(0, 1000);
 }
 
-function requireSandboxNativeReconciliation(hotel: HotelScope) {
-  if (!isSandboxHotel(hotel)) {
-    throw new Error("MASSAGE_NATIVE_STAFF_SYNC_SANDBOX_ONLY");
+async function requireNativeReconciliationAuthority(hotel: HotelScope) {
+  const authority = await getMassageRuntimeAuthority(hotel.id);
+  if (authority.authorityMode !== "native_supabase") {
+    throw new Error("MASSAGE_NATIVE_STAFF_SYNC_AUTHORITY_DISABLED");
   }
+  return authority;
 }
 
 async function loadNativeBookingForStaffSync(input: {
@@ -82,7 +85,7 @@ export async function attachNativeMassageStaffRequest(input: {
   bookingId: string;
   reason?: "synchronous" | "reconciliation";
 }) {
-  requireSandboxNativeReconciliation(input.hotel);
+  await requireNativeReconciliationAuthority(input.hotel);
   const reason = input.reason || "synchronous";
   let booking: NativeBookingStaffRow | null = null;
   const attemptedAt = new Date().toISOString();
@@ -222,7 +225,7 @@ export async function reconcileNativeMassageStaffRequests(input: {
   hotel: HotelScope;
   limit?: number;
 }) {
-  requireSandboxNativeReconciliation(input.hotel);
+  await requireNativeReconciliationAuthority(input.hotel);
   const limit = Math.min(
     RECONCILE_BATCH_LIMIT,
     Math.max(1, Number(input.limit || RECONCILE_BATCH_LIMIT)),

@@ -33,11 +33,38 @@ export async function GET(req: NextRequest) {
     return json({ ok: false, code: "UNAUTHORIZED" }, 401);
   }
 
+  const { data: states, error: stateError } = await supabaseAdmin
+    .from("massage_runtime_authority_state")
+    .select("hotel_id")
+    .eq("authority_mode", "native_supabase");
+
+  if (stateError) {
+    await logSystemError({
+      severity: "critical",
+      source: "supabase",
+      eventType: "native_massage_reconcile_authority_lookup_failed",
+      message: "Native massage staff reconciliation could not load active authority states.",
+      error: stateError,
+    });
+    return json({ ok: false, code: "AUTHORITY_LOOKUP_FAILED" }, 500);
+  }
+
+  const hotelIds = (states || []).map((row) => String(row.hotel_id)).filter(Boolean);
+  if (!hotelIds.length) {
+    return json({
+      ok: true,
+      authorityScoped: true,
+      nativeAuthorityHotels: 0,
+      pendingTotal: 0,
+      results: [],
+    });
+  }
+
   const { data: hotels, error: hotelError } = await supabaseAdmin
     .from("hotels")
     .select("id, slug, public_slug, name, timezone, active, is_sandbox, production_hotel_id")
+    .in("id", hotelIds)
     .eq("active", true)
-    .eq("is_sandbox", true)
     .order("slug", { ascending: true });
 
   if (hotelError) {
@@ -45,7 +72,7 @@ export async function GET(req: NextRequest) {
       severity: "critical",
       source: "supabase",
       eventType: "native_massage_reconcile_hotel_lookup_failed",
-      message: "Native massage staff reconciliation could not load active sandbox hotels.",
+      message: "Native massage staff reconciliation could not load active native-authority hotels.",
       error: hotelError,
     });
     return json({ ok: false, code: "HOTEL_LOOKUP_FAILED" }, 500);
@@ -53,6 +80,7 @@ export async function GET(req: NextRequest) {
 
   const summaries: Array<{
     hotelSlug: string;
+    sandbox: boolean;
     checked: number;
     synced: number;
     created: number;
@@ -64,19 +92,24 @@ export async function GET(req: NextRequest) {
     const hotel = rawHotel as HotelScope;
     try {
       const { results } = await reconcileNativeMassageStaffRequests({ hotel });
-      summaries.push({ hotelSlug: hotel.slug, ...results });
+      summaries.push({
+        hotelSlug: hotel.slug,
+        sandbox: Boolean(hotel.is_sandbox),
+        ...results,
+      });
     } catch (error) {
       await logSystemError({
         hotelId: hotel.id,
         severity: "error",
         source: "massage",
         eventType: "native_massage_reconcile_hotel_failed",
-        message: "Native massage staff reconciliation failed for one sandbox hotel.",
+        message: "Native massage staff reconciliation failed for one native-authority hotel.",
         error,
-        metadata: { hotelSlug: hotel.slug },
+        metadata: { hotelSlug: hotel.slug, isSandbox: Boolean(hotel.is_sandbox) },
       });
       summaries.push({
         hotelSlug: hotel.slug,
+        sandbox: Boolean(hotel.is_sandbox),
         checked: 0,
         synced: 0,
         created: 0,
@@ -92,8 +125,8 @@ export async function GET(req: NextRequest) {
   return json(
     {
       ok,
-      sandboxOnly: true,
-      hotelCount: summaries.length,
+      authorityScoped: true,
+      nativeAuthorityHotels: summaries.length,
       pendingTotal,
       results: summaries,
       ...(ok ? {} : { code: "NATIVE_MASSAGE_STAFF_RECONCILIATION_PENDING" }),

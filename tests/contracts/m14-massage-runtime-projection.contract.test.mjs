@@ -6,6 +6,10 @@ const migration = readFileSync(
   new URL("../../supabase/migrations/20260814224000_m14_1_massage_runtime_projection.sql", import.meta.url),
   "utf8",
 );
+const externalOnlyMigration = readFileSync(
+  new URL("../../supabase/migrations/20260815033000_m14_3_3_external_only_massage_block_projection.sql", import.meta.url),
+  "utf8",
+);
 const projectionSource = readFileSync(
   new URL("../../lib/server/massage-runtime-projection.ts", import.meta.url),
   "utf8",
@@ -66,7 +70,7 @@ test("M14.1 projection normalizes services, available starts and legacy blocks w
 });
 
 test("M14.1 server helper validates RPC scope and projection counts", () => {
-  assert.match(projectionSource, /project_massage_snapshot_to_runtime/);
+  assert.match(projectionSource, /project_massage_snapshot_to_runtime_external_only/);
   assert.match(projectionSource, /p_hotel_id: hotelId/);
   assert.match(projectionSource, /p_snapshot_id: snapshotId/);
   assert.match(projectionSource, /MASSAGE_RUNTIME_PROJECTION_SCOPE_MISMATCH/);
@@ -79,4 +83,19 @@ test("M14.1 snapshot refresh performs projection as a non-authoritative shadow s
   assert.match(snapshotSource, /massage_runtime_projection_failed/);
   assert.match(snapshotSource, /runtimeProjection/);
   assert.match(snapshotSource, /snapshotId: String\(snapshot\.id\)/);
+});
+
+test("M14.3.3 external-only projection excludes StayHub Sheet mirrors while retaining manual/external blockers", () => {
+  assert.match(externalOnlyMigration, /project_massage_snapshot_to_runtime_external_only/);
+  assert.match(externalOnlyMigration, /v_result := public\.project_massage_snapshot_to_runtime/);
+  assert.match(externalOnlyMigration, /not coalesce\(\(booking->>'isStayHubMarker'\)::boolean, false\)/);
+  assert.match(externalOnlyMigration, /coalesce\(\(booking->>'isStayHubMarker'\)::boolean, false\)/);
+  assert.match(externalOnlyMigration, /is_stayhub_marker = true/);
+  assert.match(externalOnlyMigration, /active = false/);
+  assert.match(externalOnlyMigration, /MASSAGE_RUNTIME_EXTERNAL_BLOCK_COUNT_MISMATCH/);
+  assert.match(externalOnlyMigration, /snapshotExternalBlockCount/);
+  assert.match(externalOnlyMigration, /snapshotStayHubMirrorCount/);
+  assert.match(externalOnlyMigration, /m14\.3\.3-external-only/);
+  assert.doesNotMatch(externalOnlyMigration, /AM SH/);
+  assert.doesNotMatch(externalOnlyMigration, /aquamarin/i);
 });

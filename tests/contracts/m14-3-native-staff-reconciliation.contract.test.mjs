@@ -60,13 +60,13 @@ test("M14.3.2 staff synchronization never mutates native booking authority/statu
   assert.doesNotMatch(reconciliation, /createSandboxNativeMassageBooking/);
 });
 
-test("M14.3.2 reconciliation is physically sandbox-only", () => {
-  assert.match(reconciliation, /isSandboxHotel/);
-  assert.match(reconciliation, /MASSAGE_NATIVE_STAFF_SYNC_SANDBOX_ONLY/);
-  assert.match(cronRoute, /\.eq\("active", true\)/);
-  assert.match(cronRoute, /\.eq\("is_sandbox", true\)/);
-  assert.match(cronRoute, /sandboxOnly: true/);
-  assert.doesNotMatch(cronRoute, /\.eq\("is_sandbox", false\)/);
+test("M14.3.2 reconciliation remains fail-closed behind explicit native authority", () => {
+  assert.match(reconciliation, /getMassageRuntimeAuthority/);
+  assert.match(reconciliation, /authorityMode !== "native_supabase"/);
+  assert.match(reconciliation, /MASSAGE_NATIVE_STAFF_SYNC_AUTHORITY_DISABLED/);
+  assert.match(cronRoute, /\.from\("massage_runtime_authority_state"\)/);
+  assert.match(cronRoute, /\.eq\("authority_mode", "native_supabase"\)/);
+  assert.match(cronRoute, /authorityScoped: true/);
 });
 
 test("M14.3.2 confirmed booking survives synchronous staff-card failure", () => {
@@ -103,8 +103,9 @@ test("M14.3.2 cron is authenticated and fails visibly while repairs remain pendi
   assert.match(cronRoute, /ok \? 200 : 503/);
 });
 
-test("M14.3.2 scheduled workflow uses the cron secret and never deploys Production", () => {
-  assert.match(workflow, /cron: "\*\/5 \* \* \* \*"/);
+test("M14.3.2 reconciliation workflow remains manual-only after the I/O incident, authenticated, and never deploys Production", () => {
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /schedule:/);
   assert.match(workflow, /secrets\.CRON_SECRET/);
   assert.match(workflow, /Authorization: Bearer \$\{CRON_SECRET\}/);
   assert.match(workflow, /api\/cron\/native-massage-reconcile/);

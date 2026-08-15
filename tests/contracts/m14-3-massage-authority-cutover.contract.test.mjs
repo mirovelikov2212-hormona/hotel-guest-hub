@@ -49,11 +49,11 @@ test("M14.3.1 native read helper preserves the legacy client result contract", (
   assert.match(helper, /return `\$\{Number\(canonical\.slice\(0, 2\)\)\}:\$\{canonical\.slice\(3, 5\)\}`/);
 });
 
-test("M14.3.1 sandbox GET actions use native Supabase before Production snapshot logic", () => {
-  const sandboxIndex = guestRoute.indexOf("if (isSandboxHotel(hotel))");
+test("M14.3.1 sandbox native behavior remains inside the explicit runtime authority branch", () => {
+  const authorityIndex = guestRoute.indexOf("if (isNativeMassageAuthority(runtimeAuthority))");
   const snapshotIndex = guestRoute.indexOf("const snapshotReadsEnabled = isMassageSnapshotEnabled(hotel.slug)");
-  assert.ok(sandboxIndex >= 0, "sandbox authority branch must exist");
-  assert.ok(snapshotIndex > sandboxIndex, "Production snapshot path must remain after sandbox native branch");
+  assert.ok(authorityIndex >= 0, "native authority branch must exist");
+  assert.ok(snapshotIndex > authorityIndex, "legacy snapshot path must remain after native authority branch");
 
   for (const call of [
     "getNativeMassageServices",
@@ -71,7 +71,7 @@ test("M14.3.1 sandbox GET actions use native Supabase before Production snapshot
 
 test("M14.3.1 sandbox POST creates a real native booking and never writes the Google Sheet", () => {
   assert.match(guestRoute, /createSandboxNativeMassageBooking/);
-  assert.match(guestRoute, /action: "sandbox_native_book"/);
+  assert.match(guestRoute, /action: isSandboxHotel\(hotel\) \? "sandbox_native_book" : "native_book"/);
   assert.match(guestRoute, /nativeBookingId: nativeBooking\.bookingId/);
   assert.match(guestRoute, /authorityMode: "native_supabase"/);
   assert.match(guestRoute, /sheetWrite: false/);

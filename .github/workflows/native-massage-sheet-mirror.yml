@@ -1,0 +1,25 @@
+name: Native Massage Sheet Mirror
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Mirror confirmed native Production bookings to the Sheet adapter
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --retry 2 \
+            --retry-all-errors \
+            --connect-timeout 10 \
+            --max-time 90 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            https://www.stayhub.app/api/cron/native-massage-sheet-mirror

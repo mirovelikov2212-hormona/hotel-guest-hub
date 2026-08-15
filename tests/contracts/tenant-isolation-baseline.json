@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "checkpoint": "m14.3.2-native-staff-reconciliation",
+  "checkpoint": "m14.3.3-production-native-authority",
   "purpose": "Lock the reviewed M2.2b.1 tenant-query inventory. Any new, moved, changed, removed, or newly-unclassified needs_review query must be explicitly re-reviewed before npm test passes.",
-  "expectedNeedsReview": 56,
+  "expectedNeedsReview": 64,
   "entries": [
     {
       "filePath": "lib/staff-auth/login-throttle.ts",
@@ -502,12 +502,12 @@
       "filePath": "lib/server/massage-runtime-projection.ts",
       "line": 69,
       "table": null,
-      "tableExpression": "\"project_massage_snapshot_to_runtime\"",
+      "tableExpression": "\"project_massage_snapshot_to_runtime_external_only\"",
       "operation": "rpc",
       "reasons": [
         "rpc_requires_review"
       ],
-      "provenance": "service_role_exact_hotel_snapshot_lineage_projection_rpc"
+      "provenance": "service_role_exact_hotel_snapshot_lineage_external_only_projection_rpc"
     },
     {
       "filePath": "lib/server/massage-runtime-projection.ts",
@@ -577,47 +577,135 @@
     },
     {
       "filePath": "lib/server/massage-native-reconciliation.ts",
-      "line": 49,
+      "line": 52,
       "table": "massage_runtime_bookings",
       "tableExpression": "\"massage_runtime_bookings\"",
       "operation": "select",
       "reasons": [
         "unclassified_table"
       ],
-      "provenance": "server_resolved_sandbox_hotel_exact_native_booking_staff_sync_read"
+      "provenance": "server_native_authority_hotel_exact_native_booking_staff_sync_read"
     },
     {
       "filePath": "lib/server/massage-native-reconciliation.ts",
-      "line": 70,
+      "line": 73,
       "table": "massage_runtime_bookings",
       "tableExpression": "\"massage_runtime_bookings\"",
       "operation": "update",
       "reasons": [
         "unclassified_table"
       ],
-      "provenance": "server_resolved_sandbox_hotel_exact_confirmed_native_booking_staff_sync_update"
+      "provenance": "server_native_authority_hotel_exact_confirmed_native_booking_staff_sync_update"
     },
     {
       "filePath": "lib/server/massage-native-reconciliation.ts",
-      "line": 231,
+      "line": 234,
       "table": "massage_runtime_bookings",
       "tableExpression": "\"massage_runtime_bookings\"",
       "operation": "select",
       "reasons": [
         "unclassified_table"
       ],
-      "provenance": "server_resolved_sandbox_hotel_confirmed_native_staff_pending_reconcile_read"
+      "provenance": "server_native_authority_hotel_confirmed_native_staff_pending_reconcile_read"
     },
     {
       "filePath": "lib/server/massage-native-reconciliation.ts",
-      "line": 242,
+      "line": 245,
       "table": "massage_runtime_bookings",
       "tableExpression": "\"massage_runtime_bookings\"",
       "operation": "select",
       "reasons": [
         "unclassified_table"
       ],
-      "provenance": "server_resolved_sandbox_hotel_confirmed_native_staff_orphan_reconcile_read"
+      "provenance": "server_native_authority_hotel_confirmed_native_staff_orphan_reconcile_read"
+    },
+    {
+      "filePath": "app/api/cron/native-massage-reconcile/route.ts",
+      "line": 36,
+      "table": "massage_runtime_authority_state",
+      "tableExpression": "\"massage_runtime_authority_state\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "authorized_cron_native_authority_hotel_id_registry_read"
+    },
+    {
+      "filePath": "app/api/cron/native-massage-sheet-mirror/route.ts",
+      "line": 23,
+      "table": "massage_runtime_authority_state",
+      "tableExpression": "\"massage_runtime_authority_state\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "authorized_mirror_cron_native_authority_hotel_id_registry_read"
+    },
+    {
+      "filePath": "lib/server/massage-native-authority-booking.ts",
+      "line": 106,
+      "table": null,
+      "tableExpression": "\"create_massage_runtime_booking_authority\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_resolved_hotel_stay_device_authority_gated_atomic_native_booking_rpc"
+    },
+    {
+      "filePath": "lib/server/massage-native-sheet-mirror.ts",
+      "line": 40,
+      "table": "massage_runtime_bookings",
+      "tableExpression": "\"massage_runtime_bookings\"",
+      "operation": "update",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_native_authority_hotel_exact_confirmed_booking_mirror_state_update"
+    },
+    {
+      "filePath": "lib/server/massage-native-sheet-mirror.ts",
+      "line": 60,
+      "table": "massage_runtime_bookings",
+      "tableExpression": "\"massage_runtime_bookings\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_native_authority_hotel_exact_confirmed_non_test_booking_mirror_read"
+    },
+    {
+      "filePath": "lib/server/massage-native-sheet-mirror.ts",
+      "line": 170,
+      "table": "massage_runtime_bookings",
+      "tableExpression": "\"massage_runtime_bookings\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_native_authority_hotel_confirmed_non_test_pending_mirror_reconcile_read"
+    },
+    {
+      "filePath": "lib/server/massage-runtime-authority.ts",
+      "line": 63,
+      "table": "massage_runtime_authority_state",
+      "tableExpression": "\"massage_runtime_authority_state\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_exact_hotel_runtime_authority_state_read"
+    },
+    {
+      "filePath": "lib/server/massage-runtime-authority.ts",
+      "line": 91,
+      "table": null,
+      "tableExpression": "\"set_massage_runtime_authority\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_exact_hotel_expected_revision_authority_cas_rpc"
     }
   ]
 }
