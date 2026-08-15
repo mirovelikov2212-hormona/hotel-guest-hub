@@ -8,7 +8,7 @@ import {
   sanitizeHotelSlug,
 } from "../../lib/hotels/hotel-slug.mjs";
 import { validateHotelOnboardingFixture } from "../helpers/hotel-onboarding-contract.mjs";
-import { assertContains, readProjectFile } from "../helpers/source-contract.mjs";
+import { assertContains, assertNotContains, readProjectFile } from "../helpers/source-contract.mjs";
 
 const validFixtureUrl = new URL(
   "../fixtures/hotels/generic-valid-hotel.json",
@@ -30,23 +30,17 @@ test("generic hotel slugs remain generic and require no hotel-specific branch", 
   );
 });
 
-test("legacy Aquamarine aliases stay backward compatible without crossing sandbox boundaries", () => {
-  assert.deepEqual(getHotelSlugCandidates("aquamarine"), [
-    "aquamarine",
-    "aquamarin",
-  ]);
-  assert.deepEqual(getHotelSlugCandidates("aquamarin"), [
-    "aquamarin",
-    "aquamarine",
-  ]);
-  assert.deepEqual(getHotelSlugCandidates("aquamarine-test"), [
-    "aquamarine-test",
-    "aquamarin-test",
-  ]);
-  assert.equal(
-    getHotelSlugCandidates("aquamarine").includes("aquamarin-test"),
-    false,
-  );
+test("M14.4 resolves legacy/public identities from hotel data instead of code alias groups", async () => {
+  assert.deepEqual(getHotelSlugCandidates("aquamarine"), ["aquamarine"]);
+  assert.deepEqual(getHotelSlugCandidates("aquamarin"), ["aquamarin"]);
+  assert.deepEqual(getHotelSlugCandidates("aquamarine-test"), ["aquamarine-test"]);
+
+  const slugSource = await readProjectFile("lib/hotels/hotel-slug.mjs");
+  const scopeSource = await readProjectFile("lib/server/hotel-scope.ts");
+  assertNotContains(slugSource, "LEGACY_ALIAS_GROUPS");
+  assertContains(scopeSource, "buildHotelSlugOrFilter(candidates)");
+  assertContains(scopeSource, "slug.eq.");
+  assertContains(scopeSource, "public_slug.eq.");
 });
 
 test("hotel scope and sheet source resolution share one slug candidate contract", async () => {
