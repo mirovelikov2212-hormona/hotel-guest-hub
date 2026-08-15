@@ -1,0 +1,51 @@
+name: M15 Contract Runtime Alignment
+
+on:
+  push:
+    branches:
+      - audit/m15-global-locales-ops-governance
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/m15-global-locales-ops-governance
+          fetch-depth: 0
+      - name: Apply exact M15 alignment patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          runtime = Path('lib/server/massage-native-runtime.ts')
+          text = runtime.read_text()
+          old = '  const fallbackName = legacyNameBg || legacyNameEn || Object.values(nameI18n)[0] || serviceId;'
+          new = '  const fallbackName = legacyNameBg || legacyNameEn || Object.values(nameI18n)[0];\n  if (!fallbackName) throw new Error("MASSAGE_NATIVE_SERVICE_NAME_INVALID");'
+          if text.count(old) != 1:
+              raise SystemExit('native service name guard anchor mismatch')
+          runtime.write_text(text.replace(old, new, 1))
+
+          contract = Path('tests/contracts/m11-sandbox-config-isolation.contract.test.mjs')
+          text = contract.read_text()
+          old = '  assertContains(reminderCron, "hotel.is_sandbox || row.is_test");'
+          new = '''  assertContains(reminderCron, '.eq("is_test", false)');
+          assertContains(reminderCron, '.eq("status", "confirmed")');
+          assertContains(reminderCron, '.is("cancelled_at", null)');
+          assertContains(reminderCron, "hotel.is_sandbox");'''.replace('          ', '')
+          if text.count(old) != 1:
+              raise SystemExit('M11 reminder contract anchor mismatch')
+          contract.write_text(text.replace(old, new, 1))
+          PY
+          rm .github/workflows/m15-contract-runtime-alignment.yml
+          git diff --check
+      - name: Commit alignment
+        run: |
+          git config user.name "stayhub-release-bot"
+          git config user.email "stayhub-release-bot@users.noreply.github.com"
+          git add -A
+          git commit -m "M15: preserve human service names and native sandbox guards"
+          git push origin HEAD:audit/m15-global-locales-ops-governance
