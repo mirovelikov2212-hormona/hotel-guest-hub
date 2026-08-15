@@ -16,7 +16,7 @@ const NO_STORE_HEADERS = {
   Expires: "0",
 };
 
-const DEFAULT_TIMEZONE = "Europe/Sofia";
+const DEFAULT_TIMEZONE = "UTC";
 const LOOKAHEAD_MINUTES = 75;
 const MIN_LEAD_MINUTES = 45;
 const MAX_ROWS_PER_RUN = 300;
@@ -25,6 +25,7 @@ type HotelRow = {
   id: string;
   slug: string;
   public_slug: string | null;
+  timezone: string | null;
   is_sandbox: boolean | null;
   active: boolean | null;
 };
@@ -115,7 +116,7 @@ function zonedDateTimeToUtc(dateIso: string, time: string, timezone: string) {
   return new Date(desiredAsUtc - offset);
 }
 
-function getReminderStatus(row: MassageRequestRow, now: Date) {
+function getReminderStatus(row: MassageRequestRow, now: Date, timezone: string) {
   const booking = getMassageBookingMetadata(row);
   if (!booking) return null;
 
@@ -123,8 +124,7 @@ function getReminderStatus(row: MassageRequestRow, now: Date) {
   const startTime = normalizeTime(booking.startTime);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !startTime) return null;
 
-  const timezone = String(row.metadata_json?.hotelTimezone || row.metadata_json?.timezone || DEFAULT_TIMEZONE).trim() || DEFAULT_TIMEZONE;
-  const startAt = zonedDateTimeToUtc(date, startTime, timezone);
+  const startAt = zonedDateTimeToUtc(date, startTime, timezone || DEFAULT_TIMEZONE);
   if (!startAt) return null;
 
   const minutesUntilStart = Math.round((startAt.getTime() - now.getTime()) / 60_000);
@@ -198,7 +198,7 @@ export async function GET(req: NextRequest) {
   try {
     const { data: hotelsData, error: hotelsError } = await supabaseAdmin
       .from("hotels")
-      .select("id, slug, public_slug, is_sandbox, active")
+      .select("id, slug, public_slug, timezone, is_sandbox, active")
       .eq("active", true);
 
     if (hotelsError) throw hotelsError;
@@ -230,7 +230,8 @@ export async function GET(req: NextRequest) {
       const room = String(row.room_number_snapshot || "").trim();
       if (!room) continue;
 
-      const reminder = getReminderStatus(row, now);
+      const timezone = String(hotel.timezone || DEFAULT_TIMEZONE).trim() || DEFAULT_TIMEZONE;
+      const reminder = getReminderStatus(row, now, timezone);
       if (!reminder) continue;
 
       results.eligible += 1;

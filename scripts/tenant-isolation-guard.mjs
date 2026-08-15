@@ -11,12 +11,73 @@ import {
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(scriptDir, "..");
 const baselinePath = resolve(projectRoot, "tests/contracts/tenant-isolation-baseline.json");
+const milestoneDeltaPath = resolve(
+  projectRoot,
+  "tests/contracts/tenant-isolation-baseline-m14-4.json",
+);
 
-const baseline = JSON.parse(await readFile(baselinePath, "utf8"));
+const baseBaseline = JSON.parse(await readFile(baselinePath, "utf8"));
+
+async function loadMilestoneDelta() {
+  try {
+    return JSON.parse(await readFile(milestoneDeltaPath, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function applyReviewedDelta(base, delta) {
+  if (!delta) return base;
+  if (delta.baseCheckpoint !== base.checkpoint) {
+    throw new Error(
+      `Tenant isolation delta expects base checkpoint ${delta.baseCheckpoint}, got ${base.checkpoint}.`,
+    );
+  }
+
+  const entries = base.entries.map((entry) => ({ ...entry }));
+
+  for (const relocation of delta.relocations || []) {
+    const matches = entries
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ entry }) =>
+        entry.filePath === relocation.filePath &&
+        Number(entry.line) === Number(relocation.fromLine) &&
+        (!relocation.table || entry.table === relocation.table) &&
+        (!relocation.operation || entry.operation === relocation.operation),
+      );
+
+    if (matches.length !== 1) {
+      throw new Error(
+        `Tenant isolation relocation must match exactly one reviewed entry: ${relocation.filePath}:${relocation.fromLine}.`,
+      );
+    }
+
+    entries[matches[0].index] = {
+      ...matches[0].entry,
+      line: Number(relocation.toLine),
+    };
+  }
+
+  for (const addition of delta.additions || []) {
+    entries.push({ ...addition });
+  }
+
+  return {
+    ...base,
+    checkpoint: delta.checkpoint,
+    expectedNeedsReview: Number(delta.expectedNeedsReview),
+    entries,
+  };
+}
+
+const delta = await loadMilestoneDelta();
+const baseline = applyReviewedDelta(baseBaseline, delta);
 const findings = await scanTenantQueriesInDirectories({ projectRoot });
 const result = evaluateTenantIsolation(findings, baseline);
 
 console.log("StayHub blocking tenant isolation guard");
+console.log(`Tenant isolation checkpoint: ${baseline.checkpoint}`);
 console.log(`Total Supabase queries: ${result.total}`);
 console.log(`Audited needs_review baseline: ${baseline.expectedNeedsReview}`);
 console.log(`Current needs_review: ${result.needsReview}`);

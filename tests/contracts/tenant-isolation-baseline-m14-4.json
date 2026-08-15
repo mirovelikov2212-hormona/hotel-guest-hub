@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "checkpoint": "m14.4-generic-third-hotel-proof",
+  "baseCheckpoint": "m14.3.3-production-native-authority",
+  "expectedNeedsReview": 67,
+  "relocations": [
+    { "filePath": "app/api/cron/day3-survey-push/route.ts", "fromLine": 78, "toLine": 80, "table": "guest_surveys", "operation": "select" },
+    { "filePath": "app/api/cron/day3-survey-push/route.ts", "fromLine": 95, "toLine": 97, "table": "guest_push_subscriptions", "operation": "update" },
+    { "filePath": "app/api/cron/day3-survey-push/route.ts", "fromLine": 150, "toLine": 152, "table": "guest_push_subscriptions", "operation": "select" },
+    { "filePath": "app/api/cron/day3-survey-push/route.ts", "fromLine": 182, "toLine": 184, "table": "guest_stays", "operation": "select" },
+    { "filePath": "app/api/cron/day3-survey-push/route.ts", "fromLine": 259, "toLine": 261, "table": "guest_push_subscriptions", "operation": "update" },
+    { "filePath": "app/api/cron/day3-survey-push/route.ts", "fromLine": 289, "toLine": 291, "table": "guest_push_subscriptions", "operation": "update" },
+    { "filePath": "app/api/cron/day3-survey-push/route.ts", "fromLine": 309, "toLine": 311, "table": "guest_push_subscriptions", "operation": "update" },
+    { "filePath": "app/api/cron/day3-survey-push/route.ts", "fromLine": 340, "toLine": 342, "table": "guest_push_subscriptions", "operation": "update" },
+    { "filePath": "app/api/staff/requests/route.ts", "fromLine": 172, "toLine": 171, "table": "guest_requests", "operation": "update" },
+    { "filePath": "lib/server/guest-stays.ts", "fromLine": 166, "toLine": 173, "table": "guest_stays", "operation": "update" },
+    { "filePath": "lib/server/guest-stays.ts", "fromLine": 329, "toLine": 355, "table": "guest_stays", "operation": "update" },
+    { "filePath": "lib/server/guest-stays.ts", "fromLine": 453, "toLine": 511, "table": "guest_stay_devices", "operation": "select" },
+    { "filePath": "lib/server/guest-stays.ts", "fromLine": 465, "toLine": 523, "table": "guest_stays", "operation": "update" },
+    { "filePath": "lib/server/guest-stays.ts", "fromLine": 466, "toLine": 524, "table": "guest_stay_devices", "operation": "update" },
+    { "filePath": "lib/server/guest-stays.ts", "fromLine": 470, "toLine": 528, "table": "guest_push_subscriptions", "operation": "update" },
+    { "filePath": "lib/server/guest-stays.ts", "fromLine": 504, "toLine": 562, "table": "guest_stay_devices", "operation": "select" },
+    { "filePath": "lib/server/guest-stays.ts", "fromLine": 536, "toLine": 594, "table": "guest_stays", "operation": "update" },
+    { "filePath": "lib/server/guest-stays.ts", "fromLine": 585, "toLine": 643, "table": "guest_stays", "operation": "update" }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "line": 387,
+      "table": "guest_stays",
+      "tableExpression": "\"guest_stays\"",
+      "operation": "update",
+      "reasons": ["primary_key_only_scope"],
+      "provenance": "overlap_id_from_same_hotel_room_active_stay_query_before_guarded_turnover_release"
+    },
+    {
+      "filePath": "lib/server/massage-external-source.ts",
+      "line": 46,
+      "table": "massage_external_source_configs",
+      "tableExpression": "\"massage_external_source_configs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_resolved_hotel_id_exact_external_adapter_config"
+    },
+    {
+      "filePath": "lib/server/massage-external-source.ts",
+      "line": 74,
+      "table": "massage_external_source_configs",
+      "tableExpression": "\"massage_external_source_configs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authorized_platform_registry_scan_active_read_enabled_external_sources"
+    }
+  ]
+}

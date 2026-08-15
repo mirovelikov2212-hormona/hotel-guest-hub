@@ -62,7 +62,7 @@ Operational evidence: `docs/operations/m13-stay-read-only.md`.
 
 ## M14 — Multi-Hotel Hardening
 
-Status: **ACTIVE — M14.4 NEXT**.
+Status: **ACTIVE — M14.4 RELEASE CANDIDATE / Production acceptance pending**.
 
 Goal: remove remaining hotel-specific runtime assumptions and prove a generic third hotel can use the same codebase without a fork.
 
@@ -134,18 +134,27 @@ Evidence:
 
 ### M14.4 — Generic Third-Hotel Proof + Remaining Runtime Hardcodes
 
-Status: **NEXT / ACTIVE WORK**.
+Status: **RELEASE CANDIDATE — Production acceptance pending**.
 
-- audit remaining aliases/host resolution/config/routing/reporting/push assumptions;
-- audit any remaining Aquamarine-specific runtime branches or adapter assumptions;
-- onboard a generic third-hotel fixture/configuration without code changes;
-- prove guest/staff/config/reporting/push behavior resolves from tenant-scoped data;
-- prove no Production/sandbox/third-hotel cross-tenant leakage;
-- preserve the M14.3 Supabase massage authority and external-adapter boundary.
+Release-candidate result:
+
+- a real certification tenant is onboarded from tenant data/configuration with no hotel-specific runtime fork;
+- slug/public-slug resolution and shared-path QR onboarding are generic;
+- operational timezone and department hours are tenant-authoritative instead of Aquamarine fallbacks;
+- external massage access is an explicit tenant-scoped capability registry and missing configuration fails closed;
+- Production Aquamarine and sandbox external adapter access are explicit while the certification tenant has no external source;
+- certification massage authority is native Supabase and real availability is proven without a Sheet source;
+- six-language config, rooms, routing, staff PIN data, reporting separation and tenant isolation are proven;
+- final release gate: `199/199` contracts, tenant isolation PASS, differential changed-file ESLint PASS and Next production build PASS;
+- no M15-only repair/mirror/reminder schedule is activated by M14.4.
+
+Evidence: `docs/operations/m14-4-generic-third-hotel-proof.md`.
+
+M14.4 remains open until the controlled PR is merged, the exact `target=production` deployment matches the merge SHA and Production smoke is green.
 
 ## M15 — Observability & Operational Hardening
 
-Status: **NOT STARTED** until M14 closes.
+Status: **BLOCKED UNTIL M14.4 Production closeout**.
 
 Goal: make failures diagnosable without exposing secrets or sensitive guest payloads.
 
@@ -159,9 +168,10 @@ Required scope:
 - non-secret health checks;
 - Production-safe critical alert routing;
 - adapter/import/export failure visibility distinct from core Supabase runtime availability;
+- controlled review/reactivation policy for native repair/mirror/reminder jobs that remain manual after the massage I/O incident;
 - extend existing `system_events` / email alerting rather than adding a parallel monitoring stack unless clearly justified.
 
-The existing dependency-audit and repository-wide lint debt may be reviewed here as operational risk, but must not be hidden inside unrelated feature work.
+The existing dependency-audit and repository-wide lint debt may be reviewed here as operational risk, but must not be hidden inside unrelated feature work. M15 must not silently activate a recurring job merely because an endpoint exists; each schedule needs an explicit safety, retry and alerting decision.
 
 ## M16 — Final Multi-Hotel Certification
 
@@ -171,7 +181,7 @@ Goal: certify the complete multi-hotel runtime and leave operational documentati
 
 Final certification covers:
 
-- generic third-hotel end-to-end flow;
+- generic third-hotel end-to-end flow using the onboarding model already proven in M14.4;
 - sandbox isolation;
 - staff notification parity;
 - checkout/read-only enforcement;
@@ -190,3 +200,5 @@ Final canonical documentation must include:
 - Stay-State Model;
 - Massage Source / Destination Safety;
 - M1–M16 release history.
+
+M16 is final certification/closure, not the stage where third-hotel architecture is first invented. M14.4 must already be closed before M15/M16 proceed.

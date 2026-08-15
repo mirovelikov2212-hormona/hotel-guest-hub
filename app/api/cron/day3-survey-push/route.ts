@@ -18,6 +18,7 @@ export const dynamic = "force-dynamic";
 
 const SURVEY_PUSH_START_MINUTES = 9 * 60;
 const MAX_ROWS_PER_RUN = 500;
+const DEFAULT_TIMEZONE = "UTC";
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
@@ -28,6 +29,7 @@ const NO_STORE_HEADERS = {
 type HotelRow = {
   id: string;
   slug: string;
+  timezone: string | null;
   active: boolean | null;
 };
 
@@ -50,7 +52,7 @@ function isAuthorizedCronRequest(req: NextRequest) {
 
 function getHotelTimeParts(timezone: string, date: Date) {
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone || "Europe/Sofia",
+    timeZone: timezone || DEFAULT_TIMEZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -124,7 +126,7 @@ export async function GET(req: NextRequest) {
 
   const { data: hotelsData, error: hotelsError } = await supabaseAdmin
     .from("hotels")
-    .select("id, slug, active")
+    .select("id, slug, timezone, active")
     .eq("active", true);
 
   if (hotelsError) {
@@ -237,7 +239,7 @@ export async function GET(req: NextRequest) {
     const checkInDate = String(row.check_in_date || row.first_confirmed_date_key || "");
     const checkOutDate = String(row.check_out_date || "");
     const surveyWindow = getGuestSurveyWindow(checkInDate, checkOutDate);
-    const timezone = String(row.hotel_timezone || "Europe/Sofia").trim() || "Europe/Sofia";
+    const timezone = String(hotel.timezone || DEFAULT_TIMEZONE).trim() || DEFAULT_TIMEZONE;
     const hotelNow = getHotelTimeParts(timezone, now);
     const insideSurveyWindow = Boolean(
       surveyWindow.hasWindow &&
@@ -347,7 +349,7 @@ export async function GET(req: NextRequest) {
     {
       ok: true,
       now: nowIso,
-      todaySofia: getDateKeyInTimezone(now, "Europe/Sofia"),
+      todayUtc: getDateKeyInTimezone(now, DEFAULT_TIMEZONE),
       ...results,
     },
     { headers: NO_STORE_HEADERS },

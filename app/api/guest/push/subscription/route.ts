@@ -64,7 +64,6 @@ export async function POST(req: NextRequest) {
   const surveyVersion = normalizeSurveyText(body?.surveyVersion, 40) || DAY3_SURVEY_VERSION;
   const requestedFirstConfirmedDateKey = normalizeDateKey(body?.firstConfirmedDateKey);
   const requestedTargetDateKey = normalizeDateKey(body?.targetDateKey) || (requestedFirstConfirmedDateKey ? addDaysToDateKey(requestedFirstConfirmedDateKey, 2) : null);
-  const hotelTimezone = normalizeSurveyText(body?.hotelTimezone, 80) || "Europe/Sofia";
   const stayId = String(body?.stayId || "").trim();
   const stayDeviceId = String(body?.stayDeviceId || "").trim();
   const requestedCheckInDate = normalizeDateKey(body?.checkInDate);
@@ -107,6 +106,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const hotelTimezone = roomValidation.timezone;
     const stayIdentity = await validateGuestStayIdentity({
       hotelId: hotel.id,
       room,

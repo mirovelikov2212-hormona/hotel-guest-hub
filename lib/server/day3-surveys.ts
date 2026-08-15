@@ -12,7 +12,7 @@ import {
 } from "@/lib/server/hotel-scope";
 
 export const DAY3_SURVEY_VERSION = "day3-v1";
-export const DEFAULT_SURVEY_TIMEZONE = "Europe/Sofia";
+export const DEFAULT_SURVEY_TIMEZONE = "UTC";
 
 export type GuestSurveyRow = {
   id: string;

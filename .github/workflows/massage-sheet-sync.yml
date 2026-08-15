@@ -1,4 +1,4 @@
-name: Massage Sheet Sync
+name: Massage External Snapshot Sync
 
 on:
   schedule:
@@ -6,16 +6,16 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: massage-sheet-sync-production
+  group: massage-external-snapshot-sync-production
   cancel-in-progress: false
 
 jobs:
-  call-massage-sheet-sync:
+  call-massage-snapshot-sync:
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
-      - name: Refresh massage snapshot and sync Sheet changes
+      - name: Refresh configured external massage snapshots
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
@@ -24,75 +24,34 @@ jobs:
             exit 1
           fi
 
-          call_endpoint() {
-            local label="$1"
-            local url="$2"
-            local max_attempts="$3"
-            local retry_transient_snapshot="$4"
-            local response
-            local body
-            local status
-            local attempt=1
+          attempt=1
+          max_attempts=2
 
-            while [ "$attempt" -le "$max_attempts" ]; do
-              echo "=== ${label} (attempt ${attempt}/${max_attempts}) ==="
-              if ! response=$(curl -sS --max-time 75 -w "\n%{http_code}" \
-                -H "Authorization: Bearer ${CRON_SECRET}" \
-                "$url"); then
-                if [ "$retry_transient_snapshot" = "true" ] && [ "$attempt" -lt "$max_attempts" ]; then
-                  echo "${label} transport failed; this snapshot/reconciliation endpoint is idempotent, retrying once after 5 seconds."
-                  sleep 5
-                  attempt=$((attempt + 1))
-                  continue
-                fi
-                echo "${label} transport failed."
-                return 1
-              fi
+          while [ "$attempt" -le "$max_attempts" ]; do
+            echo "=== Massage external snapshot refresh (attempt ${attempt}/${max_attempts}) ==="
 
+            if response=$(curl -sS --max-time 75 -w "\n%{http_code}" \
+              -H "Authorization: Bearer ${CRON_SECRET}" \
+              "https://www.stayhub.app/api/cron/massage-snapshot-sync"); then
               body=$(printf '%s\n' "$response" | sed '$d')
               status=$(printf '%s\n' "$response" | tail -n1)
-
               printf '%s\n' "$body"
 
               if [ "$status" = "200" ] && printf '%s' "$body" | python3 -c \
                 'import json, sys; raise SystemExit(0 if json.load(sys.stdin).get("ok") is True else 1)'; then
-                return 0
+                exit 0
               fi
+            else
+              status="transport_error"
+            fi
 
-              if [ "$retry_transient_snapshot" = "true" ] && [ "$attempt" -lt "$max_attempts" ] && \
-                printf '%s' "$body" | python3 -c 'import json,sys; payload=json.load(sys.stdin); detail=(payload.get("details") or [{}])[0]; code=detail.get("errorCode"); stage=detail.get("stage"); upstream=detail.get("upstreamStatus"); retryable_http=code=="MASSAGE_API_HTTP_ERROR" and upstream in {404,408,425,429,500,502,503,504}; raise SystemExit(0 if stage=="snapshot" and (retryable_http or code in {"MASSAGE_API_TIMEOUT","MASSAGE_API_UNAVAILABLE","MASSAGE_API_METHOD_MISMATCH"}) else 1)'; then
-                echo "Transient snapshot HTTP failure; retrying once after 5 seconds."
-                sleep 5
-                attempt=$((attempt + 1))
-                continue
-              fi
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              echo "Snapshot refresh did not complete successfully; retrying once after 5 seconds."
+              sleep 5
+              attempt=$((attempt + 1))
+              continue
+            fi
 
-              if [ "$status" != "200" ]; then
-                echo "${label} failed with HTTP ${status}."
-              else
-                echo "${label} returned HTTP 200 without ok=true."
-              fi
-              return 1
-            done
-
-            return 1
-          }
-
-          snapshot_status=0
-          call_endpoint \
-            "Massage snapshot refresh" \
-            "https://www.stayhub.app/api/cron/massage-snapshot-sync?hotelSlug=aquamarin" \
-            2 \
-            true || snapshot_status=$?
-
-          sheet_sync_status=0
-          call_endpoint \
-            "Massage Sheet sync" \
-            "https://www.stayhub.app/api/cron/massage-sheet-sync?hotelSlug=aquamarin&daysAhead=21" \
-            1 \
-            false || sheet_sync_status=$?
-
-          if [ "$snapshot_status" -ne 0 ] || [ "$sheet_sync_status" -ne 0 ]; then
-            echo "Massage workflow completed all stages, but at least one endpoint failed."
+            echo "Massage external snapshot refresh failed with status ${status}."
             exit 1
-          fi
+          done

@@ -92,15 +92,18 @@ test("sandbox massage confirmation rejects incomplete native service details ins
   assertNotContains(routeSource, "service?.price ?? null");
 });
 
-test("massage method mismatch waits for durable recovery before critical escalation", async () => {
+test("massage method mismatch keeps durable recovery behind the tenant-guarded legacy adapter", async () => {
   const apiSource = await readProjectFile("lib/server/massage-api.ts");
+  const legacyApiSource = await readProjectFile("lib/server/massage-api-legacy.ts");
   const snapshotSource = await readProjectFile(
     "lib/server/massage-snapshot.ts"
   );
 
-  assertContains(apiSource, "deferFailureLoggingCodes?: string[];");
+  assertContains(apiSource, "requireLegacyExternalSource");
+  assertContains(apiSource, 'source.config.adapter_key === "legacy_global"');
+  assertContains(legacyApiSource, "deferFailureLoggingCodes?: string[];");
   assertContains(
-    apiSource,
+    legacyApiSource,
     'deferFailureLoggingCodes: ["MASSAGE_API_METHOD_MISMATCH"]'
   );
   assertContains(

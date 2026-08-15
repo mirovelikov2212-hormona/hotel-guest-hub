@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { isDepartmentWorkingHoursForConfig } from "../../lib/staff/operations-hours-model.mjs";
 
-test("M10.4 uses normalized hotel timezone and department hours only after activation", () => {
+test("M14.4 uses tenant timezone and department hours as operational authority", () => {
   const config = {
     departmentRoutingRuntimeActivated: true,
     hotelTimezone: "Europe/Sofia",
@@ -30,7 +30,7 @@ test("M10.4 uses normalized hotel timezone and department hours only after activ
   );
 });
 
-test("M10.4 preserves legacy hours while normalized routing is inactive", () => {
+test("M14.4 does not fall back to global legacy hours when an old activation marker is false", () => {
   const config = {
     departmentRoutingRuntimeActivated: false,
     hotelTimezone: "UTC",
@@ -45,11 +45,19 @@ test("M10.4 preserves legacy hours while normalized routing is inactive", () => 
       department: "housekeeping",
       date: new Date("2026-01-15T06:30:00.000Z"),
     }),
+    false,
+  );
+  assert.equal(
+    isDepartmentWorkingHoursForConfig({
+      hotelConfig: config,
+      department: "housekeeping",
+      date: new Date("2026-01-15T22:30:00.000Z"),
+    }),
     true,
   );
 });
 
-test("M10.4 supports 24-hour and cross-midnight department schedules", () => {
+test("M14.4 supports 24-hour and cross-midnight department schedules", () => {
   assert.equal(
     isDepartmentWorkingHoursForConfig({
       hotelConfig: {
@@ -90,7 +98,7 @@ test("M10.4 supports 24-hour and cross-midnight department schedules", () => {
   );
 });
 
-test("M10.4 fails closed when activated hours or timezone are invalid", () => {
+test("M14.4 fails closed when tenant hours or timezone are invalid", () => {
   assert.equal(
     isDepartmentWorkingHoursForConfig({
       hotelConfig: {
@@ -111,6 +119,13 @@ test("M10.4 fails closed when activated hours or timezone are invalid", () => {
         hotelTimezone: "UTC",
         departmentHours: {},
       },
+      department: "housekeeping",
+    }),
+    false,
+  );
+  assert.equal(
+    isDepartmentWorkingHoursForConfig({
+      hotelConfig: null,
       department: "housekeeping",
     }),
     false,
