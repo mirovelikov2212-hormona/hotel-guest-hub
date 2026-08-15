@@ -1,0 +1,45 @@
+name: M15 Language Callback Dependencies
+
+on:
+  push:
+    branches:
+      - audit/m15-global-locales-ops-governance
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/m15-global-locales-ops-governance
+          fetch-depth: 0
+      - name: Apply exact dependency fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('components/GuestHub.tsx')
+          text = path.read_text()
+          needle = '''      language: String(safeLang),
+    });
+  }, []);
+  const hubOpenTrackedRef'''
+          replacement = '''      language: String(safeLang),
+    });
+  }, [config.languageDefault, config.languages]);
+  const hubOpenTrackedRef'''
+          if text.count(needle) != 1:
+              raise SystemExit('language callback dependency anchor mismatch')
+          path.write_text(text.replace(needle, replacement, 1))
+          PY
+          rm .github/workflows/m15-language-callback-deps.yml
+          git diff --check
+      - name: Commit patch
+        run: |
+          git config user.name "stayhub-release-bot"
+          git config user.email "stayhub-release-bot@users.noreply.github.com"
+          git add -A
+          git commit -m "M15: align language callback dependencies"
+          git push origin HEAD:audit/m15-global-locales-ops-governance
