@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
     try {
       snapshot = await refreshMassageCalendarSnapshot({
         hotelSlug: hotel.slug,
-        fromDate: getHotelDateIso(hotel.timezone),
+        fromDate: getHotelDateIso(String(hotel.timezone || "UTC")),
         daysAhead: getDaysAhead(),
         reason: "cron",
         allowProduction: true,
