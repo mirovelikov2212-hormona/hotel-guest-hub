@@ -1,0 +1,33 @@
+name: M15 Changed File Lint
+
+on:
+  push:
+    branches:
+      - ci/m15-changed-file-lint
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Lint changed TypeScript and JavaScript source files
+        run: |
+          git fetch origin main
+          mapfile -t files < <(git diff --name-only origin/main...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' '*.mts' | grep -v '^tests/' | grep -v '^supabase/' || true)
+          printf 'Changed lint targets:\n%s\n' "${files[*]}"
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No lintable changed source files."
+            exit 0
+          fi
+          npx eslint "${files[@]}"
