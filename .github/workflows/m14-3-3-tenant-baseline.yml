@@ -1,0 +1,138 @@
+name: M14.3.3 Tenant Baseline Review
+
+on:
+  push:
+    branches:
+      - audit/m14-3-3-tenant-baseline
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/m14-3-3-production-native-authority
+          fetch-depth: 0
+      - name: Apply reviewed tenant-query provenance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('tests/contracts/tenant-isolation-baseline.json')
+          data = json.loads(path.read_text())
+          data['checkpoint'] = 'm14.3.3-production-native-authority'
+          data['expectedNeedsReview'] = 64
+
+          moved = {
+            ('lib/server/massage-native-reconciliation.ts', 49, 'select'): (52, 'server_native_authority_hotel_exact_native_booking_staff_sync_read'),
+            ('lib/server/massage-native-reconciliation.ts', 70, 'update'): (73, 'server_native_authority_hotel_exact_confirmed_native_booking_staff_sync_update'),
+            ('lib/server/massage-native-reconciliation.ts', 231, 'select'): (234, 'server_native_authority_hotel_confirmed_native_staff_pending_reconcile_read'),
+            ('lib/server/massage-native-reconciliation.ts', 242, 'select'): (245, 'server_native_authority_hotel_confirmed_native_staff_orphan_reconcile_read'),
+          }
+          matched = set()
+          for entry in data['entries']:
+            key = (entry.get('filePath'), entry.get('line'), entry.get('operation'))
+            if key in moved:
+              new_line, provenance = moved[key]
+              entry['line'] = new_line
+              entry['provenance'] = provenance
+              matched.add(key)
+          if matched != set(moved):
+            raise SystemExit(f'missing moved baseline entries: {set(moved) - matched}')
+
+          additions = [
+            {
+              'filePath': 'app/api/cron/native-massage-reconcile/route.ts',
+              'line': 36,
+              'table': 'massage_runtime_authority_state',
+              'tableExpression': '"massage_runtime_authority_state"',
+              'operation': 'select',
+              'reasons': ['unclassified_table'],
+              'provenance': 'authorized_cron_native_authority_hotel_id_registry_read',
+            },
+            {
+              'filePath': 'app/api/cron/native-massage-sheet-mirror/route.ts',
+              'line': 23,
+              'table': 'massage_runtime_authority_state',
+              'tableExpression': '"massage_runtime_authority_state"',
+              'operation': 'select',
+              'reasons': ['unclassified_table'],
+              'provenance': 'authorized_mirror_cron_native_authority_hotel_id_registry_read',
+            },
+            {
+              'filePath': 'lib/server/massage-native-authority-booking.ts',
+              'line': 106,
+              'table': None,
+              'tableExpression': '"create_massage_runtime_booking_authority"',
+              'operation': 'rpc',
+              'reasons': ['rpc_requires_review'],
+              'provenance': 'server_resolved_hotel_stay_device_authority_gated_atomic_native_booking_rpc',
+            },
+            {
+              'filePath': 'lib/server/massage-native-sheet-mirror.ts',
+              'line': 40,
+              'table': 'massage_runtime_bookings',
+              'tableExpression': '"massage_runtime_bookings"',
+              'operation': 'update',
+              'reasons': ['unclassified_table'],
+              'provenance': 'server_native_authority_hotel_exact_confirmed_booking_mirror_state_update',
+            },
+            {
+              'filePath': 'lib/server/massage-native-sheet-mirror.ts',
+              'line': 60,
+              'table': 'massage_runtime_bookings',
+              'tableExpression': '"massage_runtime_bookings"',
+              'operation': 'select',
+              'reasons': ['unclassified_table'],
+              'provenance': 'server_native_authority_hotel_exact_confirmed_non_test_booking_mirror_read',
+            },
+            {
+              'filePath': 'lib/server/massage-native-sheet-mirror.ts',
+              'line': 170,
+              'table': 'massage_runtime_bookings',
+              'tableExpression': '"massage_runtime_bookings"',
+              'operation': 'select',
+              'reasons': ['unclassified_table'],
+              'provenance': 'server_native_authority_hotel_confirmed_non_test_pending_mirror_reconcile_read',
+            },
+            {
+              'filePath': 'lib/server/massage-runtime-authority.ts',
+              'line': 63,
+              'table': 'massage_runtime_authority_state',
+              'tableExpression': '"massage_runtime_authority_state"',
+              'operation': 'select',
+              'reasons': ['unclassified_table'],
+              'provenance': 'server_exact_hotel_runtime_authority_state_read',
+            },
+            {
+              'filePath': 'lib/server/massage-runtime-authority.ts',
+              'line': 91,
+              'table': None,
+              'tableExpression': '"set_massage_runtime_authority"',
+              'operation': 'rpc',
+              'reasons': ['rpc_requires_review'],
+              'provenance': 'server_exact_hotel_expected_revision_authority_cas_rpc',
+            },
+          ]
+          existing = {(e.get('filePath'), e.get('line'), e.get('operation')) for e in data['entries']}
+          for entry in additions:
+            key = (entry['filePath'], entry['line'], entry['operation'])
+            if key in existing:
+              raise SystemExit(f'duplicate reviewed entry: {key}')
+            data['entries'].append(entry)
+          path.write_text(json.dumps(data, indent=2) + '\n')
+          PY
+          node scripts/tenant-isolation-guard.mjs
+          git diff --check
+          git diff -- tests/contracts/tenant-isolation-baseline.json
+      - name: Commit reviewed baseline only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/contracts/tenant-isolation-baseline.json
+          git commit -m "Review M14.3.3 tenant query surfaces"
+          git push origin HEAD:audit/m14-3-3-production-native-authority
