@@ -14,7 +14,9 @@ StayHub is a multi-hotel digital concierge and Staff Hub built with Next.js, Sup
 - Supabase is the tenant-scoped runtime authority for normalized rooms/departments/routing, relational guest-request identity, canonical guest stay lifecycle/access and Production massage scheduling/booking authority.
 - M13 adds canonical stay states `active`, `checkout_pending`, `read_only` and `ended` and blocks guest mutations server-side whenever the stay is not writable.
 - M14.1–M14.3 progressively introduced the normalized massage projection, native schedule/atomic conflict engine, sandbox authority, durable staff reconciliation and the controlled Production cutover.
-- Production Aquamarine massage authority is now `native_supabase`; availability, conflicts and booking state are resolved from Supabase.
+- M14.4 proves the generic third-hotel path: slug/public-slug resolution, QR onboarding, timezone/department hours and external massage-adapter access are tenant-data driven rather than Aquamarine runtime branches.
+- Production Aquamarine massage authority is `native_supabase`; availability, conflicts and booking state are resolved from Supabase.
+- A certification tenant runs native massage availability with no external Sheet source and keeps operational/reporting history isolated under its own hotel id.
 - Allowed history reads remain tied to the exact hotel, room, stay and stay-device identity.
 - Google Sheets / Apps Script is an adapter surface, not a second runtime database: manual/external shared-Sheet occupancy may be imported read-only into Supabase, while StayHub-native bookings may be mirrored asynchronously for staff/integration visibility.
 
@@ -26,13 +28,14 @@ StayHub is a multi-hotel digital concierge and Staff Hub built with Next.js, Sup
 | M11 — True Sandbox Config Isolation | CLOSED / COMPLETE | `docs/runbooks/StayHub_M11_M16_execution_state.md` |
 | M12 — Staff Sound & Notification Parity | CLOSED / COMPLETE | `docs/operations/m12-staff-notification-parity.md` |
 | M13 — Checkout / Stay-End Read-Only Mode | CLOSED / COMPLETE | `docs/operations/m13-stay-read-only.md` |
-| M14 — Multi-Hotel Hardening | ACTIVE — M14.1–M14.3 CLOSED, M14.4 NEXT | `docs/architecture/m11-m16-roadmap.md`, `docs/operations/m14-3-3-production-native-massage-authority.md` |
-| M15 — Observability & Operational Hardening | NOT STARTED | `docs/architecture/m11-m16-roadmap.md` |
+| M14 — Multi-Hotel Hardening | ACTIVE — M14.4 RELEASE CANDIDATE / Production acceptance pending | `docs/architecture/m11-m16-roadmap.md`, `docs/operations/m14-4-generic-third-hotel-proof.md` |
+| M15 — Observability & Operational Hardening | BLOCKED UNTIL M14.4 Production closeout | `docs/architecture/m11-m16-roadmap.md` |
 | M16 — Final Multi-Hotel Certification | NOT STARTED | `docs/architecture/m11-m16-roadmap.md` |
 
 ## Architecture and operational documentation
 
 - [Canonical M11–M16 architecture roadmap](docs/architecture/m11-m16-roadmap.md)
+- [M14.4 — Generic Third-Hotel Proof](docs/operations/m14-4-generic-third-hotel-proof.md)
 - [M14.3.3 — Production Native Massage Authority Cutover](docs/operations/m14-3-3-production-native-massage-authority.md)
 - [M14.3.2 — Durable Native Massage Booking → Staff Reconciliation](docs/operations/m14-3-2-native-staff-reconciliation.md)
 - [M14.3.1 — Sandbox Native Massage Authority](docs/operations/m14-3-1-sandbox-native-massage-authority.md)
