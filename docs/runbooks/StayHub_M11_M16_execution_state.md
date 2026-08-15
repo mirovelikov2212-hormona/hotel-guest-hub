@@ -159,7 +159,7 @@ The runtime merge can be reverted while the additive lifecycle columns remain. L
 
 ## M14 — Multi-Hotel Hardening
 
-Status: **ACTIVE — M14.4 NEXT**.
+Status: **ACTIVE — M14.4 RELEASE CANDIDATE / Production acceptance pending**.
 
 ### M14.1 — Normalized Massage Runtime Shadow Projection
 
@@ -293,18 +293,36 @@ M15 will decide safe schedule/alerting reactivation for those repair/mirror/remi
 
 ### M14.4 — Generic Third-Hotel Proof + Remaining Runtime Hardcodes
 
-Status: **NEXT / ACTIVE WORK**.
+Status: **RELEASE CANDIDATE — Production acceptance pending**.
 
-A generic third hotel must run from configuration/data only, with no code fork or cross-tenant leakage. M14.4 will audit remaining host/slug/alias/config/routing/reporting/push assumptions, remove remaining runtime hardcodes where proven, preserve the M14.3 Supabase massage authority boundary, and certify Production/sandbox/third-hotel tenant separation.
+Detailed evidence: `docs/operations/m14-4-generic-third-hotel-proof.md`.
+
+Release-candidate evidence:
+
+- starting checkpoint: room-turnover hotfix `b66a8128e090ac0217a0b8b3d2c02bee88133109`;
+- milestone branch: `audit/m14-4-generic-third-hotel-proof-v2`;
+- runtime/data candidate head: `0e2b57f4f8a8993fa24e10c4de4e4847c3ed73fc`;
+- exact release Preview: `dpl_DKz4r521b9MbECReioNEwqtImZIh` — READY;
+- final exact acceptance gate: `dpl_G5ftNswpzrDzPKthT8FLQfWmFDoG` — READY;
+- final gate: `199/199` contracts, tenant isolation PASS (`162` total queries / `67` reviewed findings), differential changed-file ESLint PASS, Next production build PASS;
+- generic certification tenant id: `2a40d6fb-da53-461b-8432-2d9be0648721`, slug/public slug `certification-hotel` / `certification-hotel-public`, timezone `Europe/Berlin`, six languages, rooms `501–503`;
+- certification tenant has native Supabase massage authority and zero external massage-source rows;
+- native acceptance on `2026-08-17` returned `22` bookable starts from `10:00` through `15:15` after the schedule-rule seed was corrected;
+- certification operational/history/reporting isolation checks returned zero leaked guest/stay/survey/event/push/report rows;
+- Production Aquamarine external adapter is explicit read+mirror; sandbox is explicit read-only; no third hotel can inherit that adapter without a tenant row;
+- M14.4 migrations applied: `m14_4_generic_third_hotel_proof`, `m14_4_external_source_fk_index`, `m14_4_certification_massage_schedule_rules`;
+- no Native Staff Reconcile, Native Sheet Mirror or Massage Reminders schedule was activated.
+
+M14.4 is not closed and M15 is not started until the controlled PR is merged, exact automatic Production deployment matches the merge SHA and Production smoke is green.
 
 ## M15 — Observability & Operational Hardening
 
-Status: **NOT STARTED** until M14 closes.
+Status: **BLOCKED UNTIL M14.4 Production closeout**.
 
-Scope: normalized errors/events, correlation IDs, hotel/environment/version context, safe health checks, critical alerting, adapter failure visibility, and review of existing dependency/repository-wide lint debt as explicit operational risk.
+Scope: normalized errors/events, correlation IDs, hotel/environment/version context, safe health checks, critical alerting, adapter failure visibility, controlled review/reactivation of repair/mirror/reminder schedules, and review of existing dependency/repository-wide lint debt as explicit operational risk.
 
 ## M16 — Final Multi-Hotel Certification
 
 Status: **NOT STARTED** until M15 closes.
 
-Scope: generic third-hotel end-to-end certification, sandbox isolation, staff notification parity, stay read-only enforcement, reporting/analytics separation, massage source/destination safety, tenant rollback drills, Production smoke and final onboarding/recovery documentation.
+Scope: final generic multi-hotel end-to-end certification using the onboarding model already proven in M14.4, sandbox isolation, staff notification parity, stay read-only enforcement, reporting/analytics separation, massage source/destination safety, tenant rollback drills, Production smoke and final onboarding/recovery documentation.
