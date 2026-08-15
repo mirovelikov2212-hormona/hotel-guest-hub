@@ -539,7 +539,8 @@ const bootstrapLoadPromises = new Map<string, Promise<MassageBootstrapResult>>()
 
 function hydrateMassageBootstrapCache(
   hotelSlug: string,
-  result: MassageBootstrapResult
+  result: MassageBootstrapResult,
+  hotelTimezone: string,
 ) {
   const fromDate = result.fromDate || getHotelIsoDate(hotelTimezone);
   const servicesResult = result.services || { count: 0, services: [] };
@@ -591,7 +592,7 @@ export async function prefetchMassageBookingData(
   const cached = readMassageCache<MassageBootstrapResult>(cacheKey);
 
   if (cached) {
-    hydrateMassageBootstrapCache(hotelSlug, cached);
+    hydrateMassageBootstrapCache(hotelSlug, cached, hotelTimezone);
     return cached;
   }
 
@@ -607,7 +608,7 @@ export async function prefetchMassageBookingData(
     })
   )
     .then((result) => {
-      hydrateMassageBootstrapCache(hotelSlug, result);
+      hydrateMassageBootstrapCache(hotelSlug, result, hotelTimezone);
       return result;
     })
     .finally(() => {
