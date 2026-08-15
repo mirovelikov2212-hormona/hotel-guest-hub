@@ -397,8 +397,8 @@ test("massage POST requires validated stayId and stayDeviceId before a booking w
   assertBefore(
     postSource,
     "const stayIdentity = await requireMassageGuestStayIdentity({",
-    "if (isSandboxHotel(hotel))",
-    "Stay/device validation must happen before sandbox, controlled E2E, or production booking writes.",
+    "const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id);",
+    "Stay/device validation must happen before authority selection or any booking write.",
   );
   assertContains(componentSource, "stayId,");
   assertContains(componentSource, "stayDeviceId,");

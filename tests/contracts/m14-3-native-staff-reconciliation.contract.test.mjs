@@ -60,13 +60,13 @@ test("M14.3.2 staff synchronization never mutates native booking authority/statu
   assert.doesNotMatch(reconciliation, /createSandboxNativeMassageBooking/);
 });
 
-test("M14.3.2 reconciliation is physically sandbox-only", () => {
-  assert.match(reconciliation, /isSandboxHotel/);
-  assert.match(reconciliation, /MASSAGE_NATIVE_STAFF_SYNC_SANDBOX_ONLY/);
-  assert.match(cronRoute, /\.eq\("active", true\)/);
-  assert.match(cronRoute, /\.eq\("is_sandbox", true\)/);
-  assert.match(cronRoute, /sandboxOnly: true/);
-  assert.doesNotMatch(cronRoute, /\.eq\("is_sandbox", false\)/);
+test("M14.3.2 reconciliation remains fail-closed behind explicit native authority", () => {
+  assert.match(reconciliation, /getMassageRuntimeAuthority/);
+  assert.match(reconciliation, /authorityMode !== "native_supabase"/);
+  assert.match(reconciliation, /MASSAGE_NATIVE_STAFF_SYNC_AUTHORITY_DISABLED/);
+  assert.match(cronRoute, /\.from\("massage_runtime_authority_state"\)/);
+  assert.match(cronRoute, /\.eq\("authority_mode", "native_supabase"\)/);
+  assert.match(cronRoute, /authorityScoped: true/);
 });
 
 test("M14.3.2 confirmed booking survives synchronous staff-card failure", () => {
