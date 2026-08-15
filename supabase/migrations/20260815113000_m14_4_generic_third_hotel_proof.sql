@@ -47,7 +47,7 @@ begin
       using (true)
       with check (true);
   end if;
-end
+end;
 $$;
 
 comment on table public.massage_external_source_configs is
@@ -57,8 +57,6 @@ comment on column public.massage_external_source_configs.adapter_key is
 comment on column public.massage_external_source_configs.source_hotel_id is
   'Optional source tenant when a sandbox reads an explicitly shared production external calendar.';
 
--- Existing Aquamarine integrations become explicit tenant data. The sandbox may
--- read the production external calendar but is never allowed to mirror writes.
 insert into public.massage_external_source_configs (
   hotel_id,
   source_hotel_id,
@@ -396,11 +394,8 @@ begin
     (v_hotel_id, 'maintenance', 'scrypt$16384$8$1$e4c6a3390a6183ea2190efd7357028b3$1cef4cf415f0718f365c3c8f30e38f279ea646276fd937d0a4621c335663fc9f4918e10204d1971a4f48eec35fd10f42d2e9b951b52168b843cabbca9df83245', true),
     (v_hotel_id, 'manager', 'scrypt$16384$8$1$7b86ef5ff28ce3fb362821397e700390$675d21a6cc0e6bb0a2452af0a3115ba28aac55c001a43fb46c4133af9fcb018ef24a1fc87094644ca046ebde7b3b9bee657f00100dedcea75d3c4d2d20484108', true);
 
-  -- A third tenant without a row in massage_external_source_configs is the
-  -- required M14.4 fail-closed proof: native massage works, shared Sheet access does not.
   delete from public.massage_external_source_configs where hotel_id = v_hotel_id;
 end;
-end
 $$;
 
 commit;
