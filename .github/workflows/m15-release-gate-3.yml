@@ -1,0 +1,29 @@
+name: M15 Final Release Gate
+
+on:
+  push:
+    branches:
+      - ci/m15-release-gate-3
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: M15 contracts
+        run: npm run test:m15
+      - name: Tenant isolation
+        run: npm run test:tenant-isolation
+      - name: Full contract suite
+        run: npm run test:contracts
+      - name: Production build
+        run: npm run build
