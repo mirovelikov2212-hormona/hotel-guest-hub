@@ -2517,7 +2517,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       value: String(safeLang),
       language: String(safeLang),
     });
-  }, []);
+  }, [config.languageDefault, config.languages]);
   const hubOpenTrackedRef = useRef(false);
 
   const [aiQ, setAiQ] = useState("");
