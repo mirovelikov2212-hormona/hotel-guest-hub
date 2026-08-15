@@ -1,0 +1,26 @@
+name: M15 Global Locales GREEN Gate
+
+on:
+  push:
+    branches:
+      - ci/m15-global-locales-green
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: M15 contract
+        run: npm run test:m15
+      - name: Tenant isolation
+        run: npm run test:tenant-isolation
+      - name: Production build
+        run: npm run build
