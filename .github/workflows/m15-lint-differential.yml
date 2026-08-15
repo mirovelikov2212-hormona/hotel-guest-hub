@@ -1,0 +1,87 @@
+name: M15 Lint Differential
+
+on:
+  push:
+    branches:
+      - ci/m15-lint-differential
+
+permissions:
+  contents: read
+
+jobs:
+  lint-diff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Compare ESLint errors against main
+        run: |
+          git fetch origin main
+          mapfile -t files < <(git diff --name-only origin/main...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' '*.mts' | grep -v '^tests/' | grep -v '^supabase/' || true)
+          printf '%s\n' "${files[@]}" > /tmp/changed-files.txt
+          npx eslint "${files[@]}" -f json > /tmp/head-eslint.json || true
+
+          git worktree add /tmp/stayhub-main origin/main
+          cd /tmp/stayhub-main
+          npm ci >/dev/null
+          mapfile -t main_files < <(while read -r f; do [ -f "$f" ] && printf '%s\n' "$f"; done < /tmp/changed-files.txt)
+          if [ ${#main_files[@]} -gt 0 ]; then
+            npx eslint "${main_files[@]}" -f json > /tmp/main-eslint.json || true
+          else
+            echo '[]' > /tmp/main-eslint.json
+          fi
+
+          cd "$GITHUB_WORKSPACE"
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          def load(path):
+              return json.loads(Path(path).read_text() or '[]')
+
+          def relative(file_path):
+              marker = '/hotel-guest-hub/'
+              if marker in file_path:
+                  return file_path.split(marker, 1)[1]
+              marker = '/stayhub-main/'
+              if marker in file_path:
+                  return file_path.split(marker, 1)[1]
+              return file_path
+
+          def errors(rows):
+              out = Counter()
+              for row in rows:
+                  rel = relative(row.get('filePath', ''))
+                  for msg in row.get('messages', []):
+                      if int(msg.get('severity', 0)) != 2:
+                          continue
+                      key = (rel, msg.get('ruleId') or '', msg.get('message') or '')
+                      out[key] += 1
+              return out
+
+          head = errors(load('/tmp/head-eslint.json'))
+          base = errors(load('/tmp/main-eslint.json'))
+          new = head - base
+          removed = base - head
+
+          print(f'main errors: {sum(base.values())}')
+          print(f'M15 errors: {sum(head.values())}')
+          print(f'new M15 errors: {sum(new.values())}')
+          print(f'removed inherited errors: {sum(removed.values())}')
+
+          if new:
+              print('\nNew M15 lint errors:')
+              for (file_path, rule, message), count in sorted(new.items()):
+                  print(f'  + {count}x {file_path} [{rule}] {message}')
+              raise SystemExit(1)
+
+          print('PASS: M15 adds no ESLint errors relative to main.')
+          PY
