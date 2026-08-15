@@ -1,8 +1,6 @@
 name: Native Massage Sheet Mirror
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
