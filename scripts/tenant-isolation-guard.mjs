@@ -27,6 +27,17 @@ async function loadMilestoneDelta(path) {
   }
 }
 
+function findReviewedEntryMatches(entries, descriptor) {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) =>
+      entry.filePath === descriptor.filePath &&
+      Number(entry.line) === Number(descriptor.line ?? descriptor.fromLine) &&
+      (!descriptor.table || entry.table === descriptor.table) &&
+      (!descriptor.operation || entry.operation === descriptor.operation),
+    );
+}
+
 function applyReviewedDelta(base, delta) {
   if (!delta) return base;
   if (delta.baseCheckpoint !== base.checkpoint) {
@@ -37,16 +48,18 @@ function applyReviewedDelta(base, delta) {
 
   const entries = base.entries.map((entry) => ({ ...entry }));
 
-  for (const relocation of delta.relocations || []) {
-    const matches = entries
-      .map((entry, index) => ({ entry, index }))
-      .filter(({ entry }) =>
-        entry.filePath === relocation.filePath &&
-        Number(entry.line) === Number(relocation.fromLine) &&
-        (!relocation.table || entry.table === relocation.table) &&
-        (!relocation.operation || entry.operation === relocation.operation),
+  for (const removal of delta.removals || []) {
+    const matches = findReviewedEntryMatches(entries, removal);
+    if (matches.length !== 1) {
+      throw new Error(
+        `Tenant isolation removal must match exactly one reviewed entry: ${removal.filePath}:${removal.line}.`,
       );
+    }
+    entries.splice(matches[0].index, 1);
+  }
 
+  for (const relocation of delta.relocations || []) {
+    const matches = findReviewedEntryMatches(entries, relocation);
     if (matches.length !== 1) {
       throw new Error(
         `Tenant isolation relocation must match exactly one reviewed entry: ${relocation.filePath}:${relocation.fromLine}.`,
