@@ -22,7 +22,11 @@ jobs:
           node-version: '22'
           cache: npm
       - name: Install minimal non-major security upgrades
-        run: npm install --save-exact next@16.3.1 @supabase/supabase-js@2.112.3 openai@6.49.0 && npm install --save-dev --save-exact eslint-config-next@16.3.1
+        run: |
+          npm install --save-exact next@16.3.1 @supabase/supabase-js@2.112.3 openai@6.49.0
+          npm install --save-dev --save-exact eslint-config-next@16.3.1
+          npm pkg set overrides.ws=8.21.0
+          npm install
       - name: Require zero high or critical production vulnerabilities
         run: |
           set +e
@@ -46,7 +50,7 @@ jobs:
           }
           NODE
           if [ "$audit_status" -ne 0 ]; then
-            echo "npm audit returned nonzero only for lower severity findings; continuing because M16 blocker is high/critical."
+            echo "Only lower-severity production findings remain; M16 high/critical gate is satisfied."
           fi
       - name: Verify resolved runtime versions
         run: npm ls next @supabase/supabase-js openai ws postcss sharp nanoid
