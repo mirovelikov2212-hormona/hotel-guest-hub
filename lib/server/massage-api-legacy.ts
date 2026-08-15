@@ -121,6 +121,7 @@ export type MassageService = {
   nameRo: string;
   nameCs: string;
   nameRu: string;
+  nameI18n?: Record<string, string>;
   durationMinutes: number;
   price: number;
   currency: string;

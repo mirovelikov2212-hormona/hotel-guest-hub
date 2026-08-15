@@ -6,10 +6,10 @@
   "active": true,
   "isSandbox": true,
   "productionHotelId": null,
-  "languages": ["bg", "en", "de", "ro", "cs", "ru"],
+  "languages": ["en", "es", "tr", "ja", "ar", "pt-BR", "zh-Hans"],
   "languageDefault": "en",
   "opsLanguage": "en",
-  "hotelTimezone": "Europe/Berlin",
+  "hotelTimezone": "Pacific/Auckland",
   "urls": {},
   "rooms": [
     { "roomNumber": "501", "floor": "5", "active": true },

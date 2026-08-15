@@ -100,13 +100,13 @@ test("M14.4 external massage adapters are explicit tenant config and fail closed
   assertContains(workflow, "/api/cron/massage-snapshot-sync");
 });
 
-test("M14.4 generic certification tenant is data-only, six-language and has no external Sheet source", async () => {
+test("M14.4 generic certification tenant is data-only, tenant-localized and has no external Sheet source", async () => {
   const fixture = await readFixture();
   const validation = validateHotelOnboardingFixture(fixture);
   assert.deepEqual(validation, { ok: true, errors: [], warnings: [] });
   assert.equal(fixture.slug, "certification-hotel");
   assert.equal(fixture.publicSlug, "certification-hotel-public");
-  assert.deepEqual(new Set(fixture.languages), new Set(["bg", "en", "de", "ro", "cs", "ru"]));
+  assert.ok(Array.isArray(fixture.languages) && fixture.languages.length >= 1);
   assert.equal(fixture.externalMassageSource, null);
 
   const serialized = JSON.stringify(fixture).toLowerCase();

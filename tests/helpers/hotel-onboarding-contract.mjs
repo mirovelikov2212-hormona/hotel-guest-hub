@@ -1,4 +1,8 @@
-const SUPPORTED_LANGUAGES = new Set(["bg", "en", "de", "ro", "cs", "ru"]);
+import {
+  canonicalizeLocaleTag,
+  localeIdentity,
+} from "../../lib/i18n/locale-model.mjs";
+
 const ALLOWED_DEPARTMENTS = new Set([
   "none",
   "reception",
@@ -42,9 +46,21 @@ export function validateHotelOnboardingFixture(fixture) {
   const hotelSlug = text(fixture?.slug || fixture?.hotelSlug);
   const publicSlug = text(fixture?.publicSlug);
   const hotelName = text(fixture?.hotelName);
-  const languages = Array.isArray(fixture?.languages)
-    ? fixture.languages.map((lang) => text(lang).toLowerCase()).filter(Boolean)
+  const rawLanguages = Array.isArray(fixture?.languages)
+    ? fixture.languages.map((lang) => text(lang)).filter(Boolean)
     : [];
+  const languages = [];
+  const languageIdentities = [];
+
+  for (const rawLanguage of rawLanguages) {
+    const canonical = canonicalizeLocaleTag(rawLanguage);
+    if (!canonical) {
+      errors.push(`LANGUAGE_INVALID:${rawLanguage}`);
+      continue;
+    }
+    languages.push(canonical);
+    languageIdentities.push(localeIdentity(canonical));
+  }
 
   if (!hotelSlug) errors.push("HOTEL_SLUG_REQUIRED");
   if (hotelSlug && !isValidSlug(hotelSlug)) errors.push("HOTEL_SLUG_INVALID");
@@ -52,22 +68,17 @@ export function validateHotelOnboardingFixture(fixture) {
   if (!hotelName) errors.push("HOTEL_NAME_REQUIRED");
   if (fixture?.active === false) warnings.push("HOTEL_INACTIVE");
 
-  if (!languages.length) errors.push("LANGUAGES_REQUIRED");
-  if (new Set(languages).size !== languages.length) {
+  if (!rawLanguages.length) errors.push("LANGUAGES_REQUIRED");
+  if (new Set(languageIdentities).size !== languageIdentities.length) {
     errors.push("LANGUAGES_DUPLICATED");
   }
-  for (const lang of languages) {
-    if (!SUPPORTED_LANGUAGES.has(lang)) {
-      errors.push(`LANGUAGE_UNSUPPORTED:${lang}`);
-    }
-  }
 
-  const languageDefault = text(fixture?.languageDefault).toLowerCase();
-  const opsLanguage = text(fixture?.opsLanguage).toLowerCase();
-  if (!languageDefault || !languages.includes(languageDefault)) {
+  const languageDefault = canonicalizeLocaleTag(fixture?.languageDefault);
+  const opsLanguage = canonicalizeLocaleTag(fixture?.opsLanguage);
+  if (!languageDefault || !languageIdentities.includes(localeIdentity(languageDefault))) {
     errors.push("DEFAULT_LANGUAGE_NOT_ENABLED");
   }
-  if (!opsLanguage || !languages.includes(opsLanguage)) {
+  if (!opsLanguage || !languageIdentities.includes(localeIdentity(opsLanguage))) {
     errors.push("OPS_LANGUAGE_NOT_ENABLED");
   }
 

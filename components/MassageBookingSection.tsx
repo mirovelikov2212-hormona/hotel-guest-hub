@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LangKey } from "@/lib/types";
 import type { TrackHubPayload } from "@/lib/trackHubEvent";
+import { getLocaleFallbackOrder } from "@/lib/i18n/locale-model.mjs";
 
 type MassageService = {
   serviceId: string;
@@ -12,6 +13,7 @@ type MassageService = {
   nameRo: string;
   nameCs: string;
   nameRu: string;
+  nameI18n?: Record<string, string>;
   durationMinutes: number;
   price: number;
   currency: string;
@@ -364,23 +366,35 @@ const COPY: Record<LangKey, MassageCopy> = {
 };
 
 function normalizeLanguage(language: LangKey): LangKey {
-  return COPY[language] ? language : "bg";
+  const raw = String(language || "").trim();
+  const base = raw.split("-")[0].toLowerCase();
+  if (COPY[raw]) return raw;
+  if (COPY[base]) return base;
+  return "en";
 }
 
-function getSofiaIsoDate() {
+function getHotelIsoDate(hotelTimezone: string) {
+  const timeZone = String(hotelTimezone || "UTC").trim() || "UTC";
   const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Sofia",
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   }).formatToParts(new Date());
 
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
+  return String(values.year) + "-" + String(values.month) + "-" + String(values.day);
 }
 
 function serviceName(service: MassageService, language: LangKey) {
-  const names: Record<LangKey, string> = {
+  const dynamicNames = service.nameI18n || {};
+  for (const locale of getLocaleFallbackOrder(language, Object.keys(dynamicNames), "en")) {
+    const value = String(dynamicNames[locale] || "").trim();
+    if (value) return value;
+  }
+
+  const base = String(language || "").split("-")[0].toLowerCase();
+  const legacyNames: Record<string, string> = {
     bg: service.nameBg,
     en: service.nameEn,
     de: service.nameDe,
@@ -389,18 +403,15 @@ function serviceName(service: MassageService, language: LangKey) {
     ru: service.nameRu,
   };
 
-  return names[language] || service.nameEn || service.nameBg || service.serviceId;
+  return legacyNames[base] || service.nameEn || service.nameBg || service.serviceId;
 }
 
 function languageLocale(language: LangKey) {
-  return {
-    bg: "bg-BG",
-    en: "en-GB",
-    de: "de-DE",
-    ro: "ro-RO",
-    cs: "cs-CZ",
-    ru: "ru-RU",
-  }[language];
+  try {
+    return Intl.getCanonicalLocales(String(language || "en"))[0] || "en";
+  } catch {
+    return "en";
+  }
 }
 
 function formatDate(dateIso: string, language: LangKey) {
@@ -528,9 +539,10 @@ const bootstrapLoadPromises = new Map<string, Promise<MassageBootstrapResult>>()
 
 function hydrateMassageBootstrapCache(
   hotelSlug: string,
-  result: MassageBootstrapResult
+  result: MassageBootstrapResult,
+  hotelTimezone: string,
 ) {
-  const fromDate = result.fromDate || getSofiaIsoDate();
+  const fromDate = result.fromDate || getHotelIsoDate(hotelTimezone);
   const servicesResult = result.services || { count: 0, services: [] };
   const availabilityByService = result.availabilityByService || {};
 
@@ -569,17 +581,18 @@ function hydrateMassageBootstrapCache(
 }
 
 export async function prefetchMassageBookingData(
-  hotelSlugInput: string
+  hotelSlugInput: string,
+  hotelTimezone = "UTC",
 ): Promise<MassageBootstrapResult | null> {
   const hotelSlug = String(hotelSlugInput || "").trim().toLowerCase();
   if (!hotelSlug || typeof window === "undefined") return null;
 
-  const fromDate = getSofiaIsoDate();
+  const fromDate = getHotelIsoDate(hotelTimezone);
   const cacheKey = bootstrapCacheKey(hotelSlug, fromDate);
   const cached = readMassageCache<MassageBootstrapResult>(cacheKey);
 
   if (cached) {
-    hydrateMassageBootstrapCache(hotelSlug, cached);
+    hydrateMassageBootstrapCache(hotelSlug, cached, hotelTimezone);
     return cached;
   }
 
@@ -595,7 +608,7 @@ export async function prefetchMassageBookingData(
     })
   )
     .then((result) => {
-      hydrateMassageBootstrapCache(hotelSlug, result);
+      hydrateMassageBootstrapCache(hotelSlug, result, hotelTimezone);
       return result;
     })
     .finally(() => {
@@ -620,6 +633,7 @@ const selectedCardStyle = {
 
 export default function MassageBookingSection({
   hotelSlug,
+  hotelTimezone = "UTC",
   language,
   room,
   roomConfirmed,
@@ -634,6 +648,7 @@ export default function MassageBookingSection({
   onBookingConfirmed,
 }: {
   hotelSlug: string;
+  hotelTimezone?: string;
   language: LangKey;
   room: string;
   roomConfirmed: boolean;
@@ -709,7 +724,7 @@ export default function MassageBookingSection({
       setError("");
 
       try {
-        const bootstrap = await prefetchMassageBookingData(hotelSlug);
+        const bootstrap = await prefetchMassageBookingData(hotelSlug, hotelTimezone);
         if (bootstrap) {
           const nextServices = bootstrap.services?.services || [];
           setServices(nextServices);
@@ -745,10 +760,10 @@ export default function MassageBookingSection({
 
     servicesLoadPromiseRef.current = task;
     return task;
-  }, [hotelSlug]);
+  }, [hotelSlug, hotelTimezone]);
 
   const loadBookableDates = useCallback((serviceId: string, options?: { silent?: boolean }) => {
-    const fromDate = getSofiaIsoDate();
+    const fromDate = getHotelIsoDate(hotelTimezone);
     const cacheKey = datesCacheKey(hotelSlug, serviceId, fromDate);
     const embedded = availabilityByService[serviceId] || null;
     const cached = readMassageCache<BookableDatesResult>(cacheKey);
@@ -763,7 +778,7 @@ export default function MassageBookingSection({
 
     const task = (async () => {
       try {
-        const bootstrap = await prefetchMassageBookingData(hotelSlug);
+        const bootstrap = await prefetchMassageBookingData(hotelSlug, hotelTimezone);
         const bootstrapResult = bootstrap?.availabilityByService?.[serviceId] || null;
         if (bootstrapResult) {
           setAvailabilityByService((current) => ({
@@ -811,7 +826,7 @@ export default function MassageBookingSection({
 
     datesLoadPromiseRef.current.set(requestKey, task);
     return task;
-  }, [availabilityByService, hotelSlug]);
+  }, [availabilityByService, hotelSlug, hotelTimezone]);
 
 
   useEffect(() => {
@@ -832,7 +847,7 @@ export default function MassageBookingSection({
 
   const chooseService = async (serviceId: string) => {
     if (bookingVerificationPending) return;
-    const fromDate = getSofiaIsoDate();
+    const fromDate = getHotelIsoDate(hotelTimezone);
     const embedded = availabilityByService[serviceId] || null;
     const cached = readMassageCache<BookableDatesResult>(
       datesCacheKey(hotelSlug, serviceId, fromDate)
@@ -1138,7 +1153,7 @@ export default function MassageBookingSection({
 
         const alreadyConfirmed = payload.result.status === "BOOKING_ALREADY_CONFIRMED";
         invalidateMassageCacheForHotel(hotelSlug);
-        void prefetchMassageBookingData(hotelSlug).catch(() => undefined);
+        void prefetchMassageBookingData(hotelSlug, hotelTimezone).catch(() => undefined);
         setBookingConfirmed(true);
         setBookingFeedback({
           kind: "success",

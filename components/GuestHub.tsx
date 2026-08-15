@@ -243,6 +243,7 @@ import {
 } from "@/lib/utils";
 import { getRequestDefText } from "@/lib/request-defs";
 import { isRecoverableGuestStayErrorCode } from "@/lib/guest-stays/stale-state-recovery.mjs";
+import { findEnabledLocale, getLocaleFallbackOrder as getTenantLocaleFallbackOrder, normalizeLocaleList, resolveEnabledLocale } from "@/lib/i18n/locale-model.mjs";
 
 function clsx(...xs: Array<string | false | undefined | null>) {
   return xs.filter(Boolean).join(" ");
@@ -385,13 +386,11 @@ function normalizeCategory(v: VenueRow) {
   return aliasMap[raw] || raw || "other";
 }
 
-function getLanguageFallbackOrder(lang: LangKey | string): string[] {
-  const current = String(lang || "").trim().toLowerCase();
-  const alias = current === "cs" ? "cz" : current === "cz" ? "cs" : "";
-
-  return Array.from(
-    new Set([current, alias, "en", "bg", "de", "ro", "cs", "ru"].filter(Boolean))
-  );
+function getLanguageFallbackOrder(
+  lang: LangKey | string,
+  availableLocales: string[] = [],
+): string[] {
+  return getTenantLocaleFallbackOrder(lang, availableLocales, "en");
 }
 
 function getLocalizedValue(
@@ -401,7 +400,7 @@ function getLocalizedValue(
 ): string {
   const values = map ?? {};
 
-  for (const candidate of getLanguageFallbackOrder(lang)) {
+  for (const candidate of getLanguageFallbackOrder(lang, Object.keys(values))) {
     const value = String(values[candidate] || "").trim();
     if (value) return value;
   }
@@ -2225,30 +2224,25 @@ type AiChatMessage = {
 const GUEST_LANGUAGE_STORAGE_KEY = "stayhub_guest_language";
 const GUEST_INTRO_STORAGE_PREFIX = "stayhub_guest_intro_seen";
 const GUEST_INTRO_VERSION = "classic-v3";
-const SUPPORTED_GUEST_LANGS: LangKey[] = ["bg", "en", "de", "ro", "cs", "ru"];
-
-function parseGuestLang(value: unknown): LangKey | null {
-  const normalized = String(value || "").trim().toLowerCase();
-
-  if (
-    normalized === "bg" ||
-    normalized === "de" ||
-    normalized === "en" ||
-    normalized === "ro" ||
-    normalized === "cs" ||
-    normalized === "ru"
-  ) {
-    return normalized as LangKey;
-  }
-
-  return null;
+function getEnabledGuestLocales(languages: unknown): LangKey[] {
+  return normalizeLocaleList(Array.isArray(languages) ? languages : []) as LangKey[];
 }
 
-function normalizeGuestLang(value: unknown, fallback: LangKey = "bg"): LangKey {
-  return parseGuestLang(value) ?? fallback;
+function parseGuestLang(value: unknown, enabledLanguages: unknown): LangKey | null {
+  const enabled = getEnabledGuestLocales(enabledLanguages);
+  if (!enabled.length) return null;
+  return findEnabledLocale(value, enabled) as LangKey | null;
 }
 
-function getBrowserPreferredGuestLang(): LangKey | null {
+function normalizeGuestLang(
+  value: unknown,
+  enabledLanguages: unknown,
+  fallback: LangKey | string = "en",
+): LangKey {
+  return resolveEnabledLocale(value, enabledLanguages, fallback) as LangKey;
+}
+
+function getBrowserPreferredGuestLang(enabledLanguages: unknown): LangKey | null {
   if (typeof navigator === "undefined") return null;
 
   const candidates = [
@@ -2257,20 +2251,22 @@ function getBrowserPreferredGuestLang(): LangKey | null {
   ];
 
   for (const item of candidates) {
-    const direct = parseGuestLang(item);
-    if (direct) return direct;
-
-    const prefix = String(item || "").split("-")[0];
-    const byPrefix = parseGuestLang(prefix);
-    if (byPrefix) return byPrefix;
+    const matched = parseGuestLang(item, enabledLanguages);
+    if (matched) return matched;
   }
 
   return null;
 }
 
-function getInitialGuestLang(defaultLang?: string): LangKey {
+function getInitialGuestLang(defaultLang: string | undefined, enabledLanguages: unknown): LangKey {
+  const enabled = getEnabledGuestLocales(enabledLanguages);
+  const fallback = resolveEnabledLocale(defaultLang, enabled, enabled[0] || "en") as LangKey;
+
   if (typeof window !== "undefined") {
-    const urlLang = parseGuestLang(new URLSearchParams(window.location.search).get("lang"));
+    const urlLang = parseGuestLang(
+      new URLSearchParams(window.location.search).get("lang"),
+      enabled,
+    );
 
     if (urlLang) {
       try {
@@ -2279,20 +2275,17 @@ function getInitialGuestLang(defaultLang?: string): LangKey {
       return urlLang;
     }
 
-    const savedLang = parseGuestLang(window.localStorage.getItem(GUEST_LANGUAGE_STORAGE_KEY));
+    const savedLang = parseGuestLang(
+      window.localStorage.getItem(GUEST_LANGUAGE_STORAGE_KEY),
+      enabled,
+    );
+    if (savedLang) return savedLang;
 
-    if (savedLang) {
-      return savedLang;
-    }
-
-    const browserLang = getBrowserPreferredGuestLang();
-
-    if (browserLang) {
-      return browserLang;
-    }
+    const browserLang = getBrowserPreferredGuestLang(enabled);
+    if (browserLang) return browserLang;
   }
 
-  return normalizeGuestLang(defaultLang || "bg");
+  return fallback;
 }
 
 function getGuestIntroCopy(lang: LangKey, hotelName?: string) {
@@ -2502,17 +2495,17 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   // Keep the first server/client render identical. Browser, URL and localStorage
   // language detection runs after hydration to avoid React hydration error #418.
   const [lang, setLangState] = useState<LangKey>(() =>
-    normalizeGuestLang(config.languageDefault || "bg")
+    normalizeGuestLang(config.languageDefault || "en", config.languages, config.languageDefault || "en")
   );
 
   useEffect(() => {
-    const nextLang = getInitialGuestLang(config.languageDefault);
+    const nextLang = getInitialGuestLang(config.languageDefault, config.languages);
     setLangState(nextLang);
     writeGuestLang(nextLang);
-  }, [config.languageDefault]);
+  }, [config.languageDefault, config.languages]);
 
   const setLang = useCallback((nextLang: LangKey | string) => {
-    const safeLang = normalizeGuestLang(nextLang);
+    const safeLang = normalizeGuestLang(nextLang, config.languages, config.languageDefault || "en");
     setLangState(safeLang);
     writeGuestLang(safeLang);
     void trackHubEvent({
@@ -2524,7 +2517,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       value: String(safeLang),
       language: String(safeLang),
     });
-  }, []);
+  }, [config.languageDefault, config.languages]);
   const hubOpenTrackedRef = useRef(false);
 
   const [aiQ, setAiQ] = useState("");
@@ -2570,10 +2563,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   }, [sp]);
 
   const guestLanguageOptions = useMemo(() => {
-    const enabled = new Set((config.languages || []).map((item) => String(item).trim().toLowerCase()));
-    const filtered = SUPPORTED_GUEST_LANGS.filter((item) => enabled.size === 0 || enabled.has(item));
-    return filtered.length ? filtered : SUPPORTED_GUEST_LANGS;
-  }, [config.languages]);
+    const enabled = normalizeLocaleList(config.languages) as LangKey[];
+    if (enabled.length) return enabled;
+    return [resolveEnabledLocale(config.languageDefault, [], config.languageDefault || "en") as LangKey];
+  }, [config.languageDefault, config.languages]);
 
   const roomStateKey = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -3064,23 +3057,14 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     };
   }, [showRequestSuccess]);
 
-  const fallbackLangs = useMemo(() => {
-    // Do not use the hotel's default language as a content fallback.
-    // Example: Aquamarine default may be RO, but when the guest chooses BG,
-    // missing BG text must not suddenly fall back to Romanian.
-    const currentLang = normalizeGuestLang(lang);
-
-    const preferred =
-      currentLang === "ro"
-        ? ["ro", "en", "bg", "de", "cs", "ru"]
-        : currentLang === "cs"
-          ? ["cs", "en", "bg", "de", "ro", "ru"]
-          : currentLang === "ru"
-            ? ["ru", "en", "bg", "de", "ro", "cs"]
-            : [currentLang, "en", "bg", "de", "ro", "cs", "ru"];
-
-    return Array.from(new Set(preferred)) as LangKey[];
-  }, [lang]);
+  const fallbackLangs = useMemo(
+    () => getTenantLocaleFallbackOrder(
+      lang,
+      normalizeLocaleList(config.languages),
+      config.languageDefault || "en",
+    ) as LangKey[],
+    [config.languageDefault, config.languages, lang],
+  );
 
   const translateFromI18n = useCallback(
     (targetLang: LangKey, key: string) => {
@@ -5706,10 +5690,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   useEffect(() => {
     if (!massageBookingPreviewVisible || !hotelContentSlug) return;
 
-    void prefetchMassageBookingData(hotelContentSlug).catch(() => {
+    void prefetchMassageBookingData(hotelContentSlug, config.hotelTimezone || "UTC").catch(() => {
       // The on-demand flow remains available if background prefetch fails.
     });
-  }, [hotelContentSlug, massageBookingPreviewVisible]);
+  }, [config.hotelTimezone, hotelContentSlug, massageBookingPreviewVisible]);
 
   const activeGuestMassageBookings = useMemo(() => {
     if (!roomConfirmed || !room.trim()) return [];
@@ -9142,6 +9126,7 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
                 roomConfirmed && room.trim() ? (
                   <MassageBookingSection
                     hotelSlug={hotelContentSlug}
+                    hotelTimezone={config.hotelTimezone || "UTC"}
                     language={lang}
                     room={room}
                     roomConfirmed={roomConfirmed}

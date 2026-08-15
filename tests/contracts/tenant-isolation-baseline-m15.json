@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "checkpoint": "m15-global-locales-ops-governance",
+  "baseCheckpoint": "m14.4-generic-third-hotel-proof",
+  "expectedNeedsReview": 59,
+  "removals": [
+    { "filePath": "app/api/cron/massage-reminders/route.ts", "line": 171, "table": "guest_requests", "operation": "update" },
+    { "filePath": "app/api/cron/massage-reminders/route.ts", "line": 210, "table": "guest_requests", "operation": "select" },
+    { "filePath": "lib/server/massage-native-reconciliation.ts", "line": 52, "table": "massage_runtime_bookings", "operation": "select" },
+    { "filePath": "lib/server/massage-native-reconciliation.ts", "line": 73, "table": "massage_runtime_bookings", "operation": "update" },
+    { "filePath": "lib/server/massage-native-reconciliation.ts", "line": 234, "table": "massage_runtime_bookings", "operation": "select" },
+    { "filePath": "lib/server/massage-native-reconciliation.ts", "line": 245, "table": "massage_runtime_bookings", "operation": "select" },
+    { "filePath": "lib/server/massage-native-sheet-mirror.ts", "line": 40, "table": "massage_runtime_bookings", "operation": "update" },
+    { "filePath": "lib/server/massage-native-sheet-mirror.ts", "line": 60, "table": "massage_runtime_bookings", "operation": "select" },
+    { "filePath": "lib/server/massage-native-sheet-mirror.ts", "line": 170, "table": "massage_runtime_bookings", "operation": "select" }
+  ],
+  "relocations": [
+    { "filePath": "lib/server/massage-native-authority-booking.ts", "fromLine": 106, "toLine": 107, "operation": "rpc" },
+    { "filePath": "lib/server/massage-native-runtime.ts", "fromLine": 176, "toLine": 195, "table": "massage_runtime_services", "operation": "select" },
+    { "filePath": "lib/server/massage-native-runtime.ts", "fromLine": 211, "toLine": 230, "operation": "rpc" },
+    { "filePath": "lib/server/massage-native-runtime.ts", "fromLine": 240, "toLine": 259, "operation": "rpc" },
+    { "filePath": "lib/server/massage-native-runtime.ts", "fromLine": 391, "toLine": 410, "operation": "rpc" },
+    { "filePath": "lib/server/massage-native-runtime.ts", "fromLine": 420, "toLine": 439, "operation": "rpc" },
+    { "filePath": "app/api/cron/report-email/route.ts", "fromLine": 125, "toLine": 126, "table": "reporting_email_delivery_log", "operation": "select" },
+    { "filePath": "app/api/cron/report-email/route.ts", "fromLine": 149, "toLine": 150, "table": "reporting_email_delivery_log", "operation": "insert" },
+    { "filePath": "app/api/cron/report-email/route.ts", "fromLine": 193, "toLine": 194, "table": "reporting_email_delivery_log", "operation": "update" },
+    { "filePath": "app/api/cron/report-email/route.ts", "fromLine": 206, "toLine": 207, "table": "reporting_email_delivery_log", "operation": "update" },
+    { "filePath": "app/api/cron/report-email/route.ts", "fromLine": 291, "toLine": 276, "operation": "select" }
+  ],
+  "additions": [
+    {
+      "filePath": "app/api/cron/massage-reminders/route.ts",
+      "line": 160,
+      "table": "massage_runtime_bookings",
+      "tableExpression": "\"massage_runtime_bookings\"",
+      "operation": "select",
+      "reasons": ["hotel_scope_not_proven"],
+      "provenance": "authorized_platform_cron_due_confirmed_non_test_native_booking_scan"
+    }
+  ]
+}

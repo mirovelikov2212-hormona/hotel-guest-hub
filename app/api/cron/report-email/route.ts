@@ -6,7 +6,8 @@ import {
   type MonthlyReportRow,
   type WeeklyReportRow,
 } from "@/lib/server/weekly-report-email";
-import { getWeeklyReportRecipient, sendReportEmailViaSmtp } from "@/lib/server/report-email-smtp";
+import { sendReportEmailViaSmtp } from "@/lib/server/report-email-smtp";
+import { getHotelReportRecipient } from "@/lib/server/reporting-recipient";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 
@@ -259,23 +260,6 @@ export async function GET(req: NextRequest) {
   const dryRun = readBooleanParam(req, "dryRun");
   const retryFailed = readBooleanParam(req, "retryFailed");
   const hotelSlugFilter = String(req.nextUrl.searchParams.get("hotelSlug") || "").trim();
-  const recipientEmail = getWeeklyReportRecipient();
-
-  if (!recipientEmail) {
-    await logSystemError({
-      severity: "critical",
-      source: "cron",
-      eventType: `${definition.eventPrefix}_recipient_missing`,
-      message: "Report email recipient is not configured.",
-      error: new Error("Missing REPORTING_WEEKLY_EMAIL_TO or MONITORING_ALERT_EMAIL_TO."),
-      metadata: { report: definition.key },
-    });
-    return NextResponse.json(
-      { ok: false, error: "Report recipient is not configured.", report: definition.key },
-      { status: 500, headers: NO_STORE_HEADERS },
-    );
-  }
-
   const results = {
     report: definition.key,
     checked: 0,
@@ -283,6 +267,7 @@ export async function GET(req: NextRequest) {
     skippedDuplicate: 0,
     skippedPending: 0,
     skippedFailedRetryDisabled: 0,
+    skippedNoRecipient: 0,
     failed: 0,
     dryRun: dryRun ? 1 : 0,
   };
@@ -316,6 +301,18 @@ export async function GET(req: NextRequest) {
     const reportResults: Array<Record<string, unknown>> = [];
 
     for (const report of reports) {
+      const recipientEmail = await getHotelReportRecipient(report.hotel_id);
+      if (!recipientEmail) {
+        results.skippedNoRecipient += 1;
+        reportResults.push({
+          report: definition.key,
+          hotelSlug: report.hotel_slug,
+          status: "skipped",
+          reason: "tenant_recipient_not_configured",
+        });
+        continue;
+      }
+
       const periodStart = getRowString(report, definition.periodStartField);
       const periodEnd = getRowString(report, definition.periodEndField);
       const email = definition.buildEmail(report);
