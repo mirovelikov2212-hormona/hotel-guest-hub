@@ -6,13 +6,15 @@ begin;
 alter table public.massage_runtime_services
   alter column name_en drop not null;
 
+-- The booking API writes the tenant-selected canonical locale explicitly.
+-- Keep the storage column neutral rather than assuming any platform language.
 alter table public.massage_runtime_bookings
-  alter column guest_language set default 'en'::text;
+  alter column guest_language drop default;
 
 comment on column public.massage_runtime_services.name_en is
   'Legacy compatibility projection only. New tenants may use name_i18n without an English service name.';
 
 comment on column public.massage_runtime_bookings.guest_language is
-  'Canonical tenant guest locale (BCP-47). Default is neutral English only for legacy callers that omit the field.';
+  'Canonical tenant guest locale (BCP-47). Runtime writes this explicitly; storage has no fixed-language default.';
 
 commit;
