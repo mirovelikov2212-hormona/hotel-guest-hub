@@ -21,18 +21,16 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           path = Path('components/GuestHub.tsx')
-          text = path.read_text()
-          needle = '''      language: String(safeLang),
-    });
-  }, []);
-  const hubOpenTrackedRef'''
-          replacement = '''      language: String(safeLang),
-    });
-  }, [config.languageDefault, config.languages]);
-  const hubOpenTrackedRef'''
-          if text.count(needle) != 1:
-              raise SystemExit('language callback dependency anchor mismatch')
-          path.write_text(text.replace(needle, replacement, 1))
+          lines = path.read_text().splitlines()
+          anchors = [i for i, line in enumerate(lines) if 'language: String(safeLang),' in line]
+          if len(anchors) != 1:
+              raise SystemExit(f'expected one safeLang language anchor, found {len(anchors)}')
+          start = anchors[0]
+          matches = [i for i in range(start, min(start + 8, len(lines))) if lines[i].strip() == '}, []);']
+          if len(matches) != 1:
+              raise SystemExit(f'expected one callback dependency line, found {len(matches)}')
+          lines[matches[0]] = '  }, [config.languageDefault, config.languages]);'
+          path.write_text('\n'.join(lines) + '\n')
           PY
           rm .github/workflows/m15-language-callback-deps.yml
           git diff --check
