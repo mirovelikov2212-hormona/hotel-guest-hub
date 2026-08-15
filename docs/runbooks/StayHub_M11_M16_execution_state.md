@@ -10,7 +10,7 @@ Canonical continuation and release-evidence document for the autonomous M11–M1
 - No hotel-specific runtime hardcoding.
 - Preserve tenant isolation, Staff PIN release gate, six languages, PWA behavior and Production data.
 - Sandbox must not send live staff notifications/reports or write Production adapter destinations.
-- Supabase is the target tenant-scoped runtime authority; remaining Sheet/Apps Script integrations are treated as controlled external/editorial adapters, not a second general runtime database.
+- Supabase is the tenant-scoped runtime authority; remaining Sheet/Apps Script integrations are treated as controlled external/editorial adapters, not a second general runtime database.
 
 ## M10 closure checkpoint
 
@@ -42,7 +42,7 @@ Status: **CLOSED / COMPLETE**.
 - independent sandbox manual drafts use an exact sandbox-owned base revision and immutable runtime identity fields;
 - sandbox runtime reads its own published revision;
 - legacy sandbox massage Production Sheet live-write escape was removed;
-- sandbox massage write behavior is simulation-only with `sheetWrite: false`;
+- sandbox massage write behavior is simulation-only with `sheetWrite: false` at the M11 release checkpoint;
 - Production reporting/push side effects remain suppressed for sandbox/test contexts;
 - normalized sandbox IDs remain sandbox-owned.
 
@@ -159,7 +159,7 @@ The runtime merge can be reverted while the additive lifecycle columns remain. L
 
 ## M14 — Multi-Hotel Hardening
 
-Status: **ACTIVE**.
+Status: **ACTIVE — M14.4 NEXT**.
 
 ### M14.1 — Normalized Massage Runtime Shadow Projection
 
@@ -180,7 +180,7 @@ Release evidence:
 - sandbox exact parity: 8 services / 980 starts / 1 block;
 - real Production refresh path returned `runtimeProjection.ok=true`; projection timestamp advanced and exact snapshot lineage remained matched;
 - `massage_runtime_projection_failed` after release: `0`;
-- Guest Hub authority intentionally remained on the incumbent snapshot/legacy path.
+- Guest Hub authority intentionally remained on the incumbent snapshot/legacy path during M14.1.
 
 ### M14.2 — Native Supabase Schedule + Atomic Booking/Conflict Engine
 
@@ -200,16 +200,16 @@ Release evidence:
 - native Production availability parity: `1770 / 1770`, set difference `0`;
 - sandbox create / exact replay / conflict / external-block / overlap-constraint / cancellation acceptance passed;
 - sandbox availability returned `24 → 19 → 24` across create/cancel;
-- Production native booking remained physically rejected by `MASSAGE_NATIVE_BOOKING_SANDBOX_ONLY` and native Production booking rows remained `0`;
+- Production native booking remained physically rejected by `MASSAGE_NATIVE_BOOKING_SANDBOX_ONLY` and native Production booking rows remained `0` at the M14.2 checkpoint;
 - expired/read-only stay booking was rejected;
 - M14.1 shadow projection remained green after the shared advisory-lock boundary;
 - live Production guest route: HTTP `200`;
 - Production deployment runtime `error` / `warning` / `fatal`: none found;
-- Production Guest Hub authority intentionally remains unchanged until M14.3.
+- Production Guest Hub authority intentionally remained unchanged until M14.3.
 
 ### M14.3 — Sandbox → Production Cutover / Adapter Boundary
 
-Status: **ACTIVE**.
+Status: **CLOSED / COMPLETE**.
 
 #### M14.3.1 — Sandbox Native Massage Authority
 
@@ -223,7 +223,7 @@ Detailed evidence: `docs/operations/m14-3-1-sandbox-native-massage-authority.md`
 - Supabase migration: `20260814223956_m14_3_1_native_massage_availability_window`;
 - final correction gate: `169/169` contracts, tenant guard `52/52` reviewed, scoped lint passed;
 - live sandbox native create/replay/conflict/history acceptance: PASS;
-- Production massage authority remained on the incumbent snapshot + tracked Google Sheet adapter path.
+- Production massage authority remained on the incumbent snapshot + tracked Google Sheet adapter path at this stage.
 
 #### M14.3.2 — Durable Native Booking → Staff Reconciliation
 
@@ -244,17 +244,58 @@ Detailed evidence: `docs/operations/m14-3-2-native-staff-reconciliation.md`.
 
 #### M14.3.3 — Production Native Massage Authority Cutover
 
-Status: **NEXT / ACTIVE WORK**.
+Status: **CLOSED / COMPLETE**.
 
-Production native booking remains physically blocked until this separate stage passes its own gates. M14.3.3 must add an explicit hotel-scoped authority activation/rollback switch, prove Production native read parity at cutover time, preserve external/manual shared-sheet occupancy as an import adapter, prove Production staff/notification reconciliation, prevent double writes, and support rollback to the incumbent adapter path without deleting native audit history.
+Detailed evidence: `docs/operations/m14-3-3-production-native-massage-authority.md`.
 
-Google Sheet / Apps Script then becomes mirror/import/export integration rather than core booking authority. Sunny Castle may remain a read-only external block import until it becomes a first-class StayHub tenant, expected for the 2027 summer season.
+Release evidence:
+
+- final milestone head: `6693d5ca5880aa5f077a38c51dcd0473b3d39a3a`;
+- controlled PR: #20;
+- runtime merge commit: `32260757c56152d5b35aeacb46baba6bcfe4dc27`;
+- automatic Production deployment: `dpl_E7MGL4jT1fCfqRur1wjzMXRx7RjP` — READY;
+- exact Preview: `dpl_6gGN5XQBn297H9WjXNd8oQVzCUxm` — READY;
+- repo migrations: `20260815023500`, `20260815033000`, `20260815041000` M14.3.3 migrations;
+- applied Supabase history: `20260815081211`, `20260815081237`, `20260815082019`;
+- final gate: `192/192` contracts, tenant guard `64/64` reviewed, scoped ESLint PASS, Next build PASS;
+- Production authority cutover executed separately after deploy: `legacy_adapter` revision `1` → `native_supabase` revision `2`;
+- authority switch timestamp: `2026-08-15T10:12:38.383637Z`;
+- post-switch Production projection remained `ready`, external-only, with 8 services, 3 external/manual blocks and 0 active StayHub mirror blockers;
+- post-switch live `/api/guest/massages` traffic returned HTTP `200`;
+- Production runtime warning/error/fatal during acceptance: none;
+- safe negative Production native booking acceptance failed closed with `MASSAGE_STAY_REQUIRED` and created `0` rows;
+- final confirmed native real/test bookings: `0 / 0`;
+- final real staff/mirror pending: `0 / 0`.
+
+Parity outcome:
+
+- after adding the hotel-time same-day cutoff, native-only starts versus legacy were `0`;
+- the only remaining legacy-only difference was 8 `16:00` starts on `2026-08-16`;
+- those legacy starts were invalid because a manual/external `15:00` booking with 50-minute duration + 15-minute buffer occupies the resource through `16:05`;
+- native correctly rejects those overlaps and was not weakened to reproduce the legacy bug.
+
+Adapter outcome:
+
+- Production Guest Hub massage availability and booking authority is native Supabase;
+- Google Sheet / Apps Script is no longer Guest runtime authority;
+- manual/external shared-Sheet occupancy remains a read-only import feed into Supabase;
+- StayHub-owned Sheet mirrors are excluded from native blockers;
+- native→Sheet mirroring is asynchronous and operational only.
+
+Incident-safe workflow state at closeout:
+
+- Massage Sheet Sync: scheduled every 10 minutes for external/manual shared-Sheet feed refresh;
+- Native Massage Staff Reconcile: manual-only after the 2026-08-15 I/O incident;
+- Native Massage Sheet Mirror: manual-only after the incident;
+- Massage Reminders: manual-only after the incident.
+
+M15 will decide safe schedule/alerting reactivation for those repair/mirror/reminder jobs; M14.3.3 does not silently re-enable them.
 
 ### M14.4 — Generic Third-Hotel Proof + Remaining Runtime Hardcodes
 
-Status: **NOT STARTED** until M14.3 closes.
+Status: **NEXT / ACTIVE WORK**.
 
-A generic third hotel must run from configuration/data only, with no code fork or cross-tenant leakage.
+A generic third hotel must run from configuration/data only, with no code fork or cross-tenant leakage. M14.4 will audit remaining host/slug/alias/config/routing/reporting/push assumptions, remove remaining runtime hardcodes where proven, preserve the M14.3 Supabase massage authority boundary, and certify Production/sandbox/third-hotel tenant separation.
 
 ## M15 — Observability & Operational Hardening
 
