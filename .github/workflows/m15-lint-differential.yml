@@ -63,7 +63,7 @@ jobs:
                   for msg in row.get('messages', []):
                       if int(msg.get('severity', 0)) != 2:
                           continue
-                      key = (rel, msg.get('ruleId') or '', msg.get('message') or '')
+                      key = (rel, msg.get('ruleId') or 'unknown-rule')
                       out[key] += 1
               return out
 
@@ -74,13 +74,13 @@ jobs:
 
           print(f'main errors: {sum(base.values())}')
           print(f'M15 errors: {sum(head.values())}')
-          print(f'new M15 errors: {sum(new.values())}')
-          print(f'removed inherited errors: {sum(removed.values())}')
+          print(f'new M15 errors by file/rule count: {sum(new.values())}')
+          print(f'removed inherited errors by file/rule count: {sum(removed.values())}')
 
           if new:
               print('\nNew M15 lint errors:')
-              for (file_path, rule, message), count in sorted(new.items()):
-                  print(f'  + {count}x {file_path} [{rule}] {message}')
+              for (file_path, rule), count in sorted(new.items()):
+                  print(f'  + {count}x {file_path} [{rule}]')
               raise SystemExit(1)
 
           print('PASS: M15 adds no ESLint errors relative to main.')
