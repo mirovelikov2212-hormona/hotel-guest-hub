@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build",
+    "build": "npm run test:contracts && npm run test:tenant-isolation && npx eslint app/api/cron/day3-survey-push/route.ts app/api/cron/massage-reminders/route.ts app/api/cron/massage-sheet-sync/route.ts app/api/cron/massage-snapshot-sync/route.ts app/api/guest/push/subscription/route.ts app/api/staff/requests/route.ts 'app/qr/[hotelAlias]/route.ts' lib/hotels/hotel-slug.mjs lib/server/day3-surveys.ts lib/server/guest-stays.ts lib/server/hotel-public-alias.ts lib/server/massage-api-legacy.ts lib/server/massage-api.ts lib/server/massage-external-source.ts lib/staff/operations-hours-model.mjs scripts/tenant-isolation-guard.mjs tests/contracts/hotel-config.contract.test.mjs tests/contracts/m10-department-routing-runtime-reads.contract.test.mjs tests/contracts/m14-4-generic-third-hotel.contract.test.mjs tests/contracts/operational-contracts.test.mjs tests/contracts/operations-hours-model.contract.test.mjs tests/contracts/test-data-lifecycle.contract.test.mjs tests/helpers/hotel-onboarding-contract.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "npm run test:contracts && npm run test:tenant-isolation",
