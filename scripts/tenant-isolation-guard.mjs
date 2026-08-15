@@ -11,16 +11,16 @@ import {
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(scriptDir, "..");
 const baselinePath = resolve(projectRoot, "tests/contracts/tenant-isolation-baseline.json");
-const milestoneDeltaPath = resolve(
-  projectRoot,
-  "tests/contracts/tenant-isolation-baseline-m14-4.json",
-);
+const milestoneDeltaPaths = [
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-m14-4.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-m15.json"),
+];
 
 const baseBaseline = JSON.parse(await readFile(baselinePath, "utf8"));
 
-async function loadMilestoneDelta() {
+async function loadMilestoneDelta(path) {
   try {
-    return JSON.parse(await readFile(milestoneDeltaPath, "utf8"));
+    return JSON.parse(await readFile(path, "utf8"));
   } catch (error) {
     if (error?.code === "ENOENT") return null;
     throw error;
@@ -71,8 +71,11 @@ function applyReviewedDelta(base, delta) {
   };
 }
 
-const delta = await loadMilestoneDelta();
-const baseline = applyReviewedDelta(baseBaseline, delta);
+let baseline = baseBaseline;
+for (const path of milestoneDeltaPaths) {
+  baseline = applyReviewedDelta(baseline, await loadMilestoneDelta(path));
+}
+
 const findings = await scanTenantQueriesInDirectories({ projectRoot });
 const result = evaluateTenantIsolation(findings, baseline);
 
