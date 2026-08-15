@@ -122,6 +122,9 @@ test("M15 migrations make dynamic locale maps authoritative without dropping leg
   const localeMapMigration = await readProjectFile(
     "supabase/migrations/20260815185000_m15_global_locale_maps.sql",
   );
+  const authorityMigration = await readProjectFile(
+    "supabase/migrations/20260815185200_m15_global_locale_booking_authority.sql",
+  );
   const legacyRequirementMigration = await readProjectFile(
     "supabase/migrations/20260815185500_m15_remove_legacy_locale_requirements.sql",
   );
@@ -135,17 +138,22 @@ test("M15 migrations make dynamic locale maps authoritative without dropping leg
     "alter column name_bg drop not null",
     "alter column service_name_bg drop not null",
     "sync_massage_runtime_service_name_i18n",
+  ]) {
+    assertContains(localeMapMigration, fragment);
+  }
+
+  for (const fragment of [
     "create_massage_runtime_booking_authority",
     "coalesce(nullif(trim(p_guest_language), ''), 'en')",
     "service_name_i18n",
   ]) {
-    assertContains(localeMapMigration, fragment);
+    assertContains(authorityMigration, fragment);
   }
 
   assertContains(legacyRequirementMigration, "alter column name_en drop not null");
   assertContains(legacyRequirementMigration, "alter column guest_language drop default");
   assertNotContains(legacyRequirementMigration, "set default 'en'");
-  assertNotContains(localeMapMigration, "left(lower(trim(p_guest_language)), 8)");
+  assertNotContains(authorityMigration, "left(lower(trim(p_guest_language)), 8)");
   assertNotContains(localeMapMigration, "drop column name_bg");
   assertNotContains(localeMapMigration, "drop column service_name_bg");
 });
