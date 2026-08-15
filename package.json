@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "npm run test:contracts && npm run test:tenant-isolation && npm run lint && next build",
+    "build": "node -e \"console.log('VERCEL_JSON_BEFORE_TESTS\\n'+require('fs').readFileSync('vercel.json','utf8'))\" && npm run test:contracts && npm run test:tenant-isolation && npm run lint && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "npm run test:contracts && npm run test:tenant-isolation",
