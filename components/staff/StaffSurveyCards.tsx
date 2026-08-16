@@ -281,10 +281,6 @@ function SurveyDetailCard({
   const isUnread = !readAt && mode !== "report";
   const [isOpen, setIsOpen] = useState(isUnread || mode === "report");
 
-  useEffect(() => {
-    if (!isUnread && mode !== "report") setIsOpen(false);
-  }, [isUnread, mode]);
-
   const handleMarkRead = () => {
     setIsOpen(false);
     onMarkRead?.(survey.id);
