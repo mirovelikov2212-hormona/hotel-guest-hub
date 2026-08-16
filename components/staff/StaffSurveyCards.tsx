@@ -546,6 +546,13 @@ export function ManagerSurveyReportCard({
 }) {
   const copy = getCopy(lang);
   const summaries = useMemo(() => buildSurveyDaySummaries(surveys), [surveys]);
+  const overallAverageRating = useMemo(
+    () =>
+      surveys.length
+        ? surveys.reduce((sum, survey) => sum + survey.rating, 0) / surveys.length
+        : null,
+    [surveys],
+  );
 
   return (
     <div className="space-y-4">
@@ -553,7 +560,12 @@ export function ManagerSurveyReportCard({
         <h4 className="text-lg font-semibold text-white">
           {copy.reportTitle} · {surveys.length}
         </h4>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">{copy.reportIntro}</p>
+        {overallAverageRating !== null ? (
+        <p className="mt-2 text-base font-semibold text-white">
+          {copy.averageRating}: {overallAverageRating.toFixed(1)}/5
+        </p>
+      ) : null}
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">{copy.reportIntro}</p>
       </div>
 
       <div className="space-y-4">

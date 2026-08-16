@@ -526,7 +526,10 @@ export default function ManagerPage() {
   const requests = getAllRequests();
   const reportRequests = useMemo(() => requests.filter((request) => !request.isTest), [requests]);
   const operationalRequests = useMemo(
-    () => sortByTime(getOperationalAllRequests()),
+    () =>
+      sortByTime(
+        getOperationalAllRequests().filter((request) => isOpenStatus(request.status)),
+      ),
     [getOperationalAllRequests],
   );
   const {
