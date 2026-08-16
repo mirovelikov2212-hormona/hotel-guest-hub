@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "checkpoint": "post-m16-system-audit",
+  "baseCheckpoint": "post-m16-native-massage-mirror-hotfix",
+  "expectedNeedsReview": 63,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "app/api/cron/test-data-cleanup/route.ts",
+      "fromLine": 66,
+      "toLine": 73,
+      "operation": "rpc"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "app/api/cron/test-data-cleanup/route.ts",
+      "line": 97,
+      "table": null,
+      "tableExpression": "\"cleanup_expired_guest_stays\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authorized_platform_cron_exact_hotel_scoped_expired_guest_stay_lifecycle_cleanup_rpc"
+    }
+  ]
+}

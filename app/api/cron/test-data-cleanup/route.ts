@@ -15,6 +15,7 @@ const CLEANUP_CONCURRENCY = 5;
 type HotelRow = {
   id: string;
   slug: string;
+  is_sandbox: boolean | null;
 };
 
 function isAuthorizedCronRequest(req: NextRequest) {
@@ -36,13 +37,13 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("hotels")
-    .select("id, slug")
-    .eq("is_sandbox", false)
+    .select("id, slug, is_sandbox")
+    .eq("active", true)
     .eq("is_demo", false)
     .order("slug", { ascending: true });
 
   if (error) {
-    console.error("Failed to load production hotels for test-data cleanup", error);
+    console.error("Failed to load hotels for lifecycle cleanup", error);
     return NextResponse.json(
       { ok: false, error: "HOTEL_LIST_FAILED" },
       { status: 500, headers: NO_STORE_HEADERS },
@@ -53,8 +54,10 @@ export async function GET(req: NextRequest) {
   const results: Array<{
     hotelId: string;
     hotelSlug: string;
+    sandbox: boolean;
     ok: boolean;
-    cleanup?: unknown;
+    testDataCleanup?: unknown;
+    stayLifecycleCleanup?: unknown;
     error?: string;
   }> = [];
 
@@ -63,31 +66,63 @@ export async function GET(req: NextRequest) {
 
     const batchResults = await Promise.all(
       batch.map(async (hotel) => {
-        const { data: cleanup, error: cleanupError } = await supabaseAdmin.rpc(
-          "cleanup_expired_test_data",
+        const sandbox = Boolean(hotel.is_sandbox);
+        let testDataCleanup: unknown = null;
+
+        if (!sandbox) {
+          const { data: cleanup, error: cleanupError } = await supabaseAdmin.rpc(
+            "cleanup_expired_test_data",
+            { p_hotel_id: hotel.id },
+          );
+
+          if (cleanupError) {
+            console.error("Scheduled test-data cleanup failed", {
+              hotelId: hotel.id,
+              hotelSlug: hotel.slug,
+              error: cleanupError,
+            });
+
+            return {
+              hotelId: hotel.id,
+              hotelSlug: hotel.slug,
+              sandbox,
+              ok: false,
+              error: String(cleanupError.message || "test_data_cleanup_failed"),
+            };
+          }
+
+          testDataCleanup = cleanup;
+        }
+
+        const { data: stayLifecycleCleanup, error: stayLifecycleError } = await supabaseAdmin.rpc(
+          "cleanup_expired_guest_stays",
           { p_hotel_id: hotel.id },
         );
 
-        if (cleanupError) {
-          console.error("Scheduled test-data cleanup failed", {
+        if (stayLifecycleError) {
+          console.error("Scheduled guest-stay lifecycle cleanup failed", {
             hotelId: hotel.id,
             hotelSlug: hotel.slug,
-            error: cleanupError,
+            error: stayLifecycleError,
           });
 
           return {
             hotelId: hotel.id,
             hotelSlug: hotel.slug,
+            sandbox,
             ok: false,
-            error: String(cleanupError.message || "cleanup_failed"),
+            testDataCleanup,
+            error: String(stayLifecycleError.message || "stay_lifecycle_cleanup_failed"),
           };
         }
 
         return {
           hotelId: hotel.id,
           hotelSlug: hotel.slug,
+          sandbox,
           ok: true,
-          cleanup,
+          testDataCleanup,
+          stayLifecycleCleanup,
         };
       }),
     );

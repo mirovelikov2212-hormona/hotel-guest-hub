@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MassageApiError } from "@/lib/server/massage-api";
 import { reconcilePendingMassageBookingAttempts } from "@/lib/server/massage-booking-attempts";
-import { refreshMassageCalendarSnapshot } from "@/lib/server/massage-snapshot";
+import {
+  isMassageSnapshotRefreshEnabled,
+  refreshMassageCalendarSnapshot,
+} from "@/lib/server/massage-snapshot";
 import { listMassageExternalReadHotels } from "@/lib/server/massage-external-source";
 import { logSystemError } from "@/lib/server/system-events";
 
@@ -57,7 +60,7 @@ export async function GET(req: NextRequest) {
 
   const requestedSlug = normalizeSlug(req.nextUrl.searchParams.get("hotelSlug"));
   const configuredSources = await listMassageExternalReadHotels();
-  const sources = requestedSlug
+  const matchedSources = requestedSlug
     ? configuredSources.filter(({ hotel }) =>
         [hotel.slug, hotel.public_slug]
           .map(normalizeSlug)
@@ -65,6 +68,12 @@ export async function GET(req: NextRequest) {
           .includes(requestedSlug),
       )
     : configuredSources;
+  const sources = matchedSources.filter(({ hotel }) =>
+    isMassageSnapshotRefreshEnabled(hotel.slug),
+  );
+  const skippedDisabled = matchedSources
+    .filter(({ hotel }) => !isMassageSnapshotRefreshEnabled(hotel.slug))
+    .map(({ hotel }) => hotel.slug);
 
   if (!sources.length) {
     return NextResponse.json(
@@ -72,8 +81,9 @@ export async function GET(req: NextRequest) {
         ok: true,
         skipped: true,
         reason: requestedSlug
-          ? "No active external massage read source matches the requested hotel."
-          : "No active external massage read sources are configured.",
+          ? "The requested hotel has no enabled external massage snapshot refresh source."
+          : "No enabled external massage snapshot refresh sources are configured.",
+        skippedDisabled,
       },
       { headers: NO_STORE_HEADERS },
     );
@@ -140,7 +150,7 @@ export async function GET(req: NextRequest) {
       severity: "error",
       source: "cron",
       eventType: "massage_snapshot_cron_hotel_failed",
-      message: "Massage snapshot/reconciliation cron failed for one configured external source.",
+      message: "Massage snapshot/reconciliation cron failed for one enabled external source.",
       error: failureError,
       metadata: {
         hotelSlug: hotel.slug,
@@ -159,6 +169,7 @@ export async function GET(req: NextRequest) {
     {
       ok: failures === 0,
       hotelCount: sources.length,
+      skippedDisabled,
       failures,
       elapsedMs: Date.now() - startedAt,
       details,
