@@ -78,3 +78,33 @@ test("M15 existing Vercel operational crons remain explicit and limited", async 
     throw new Error("massage reminders must have one scheduler authority, GitHub Actions, not duplicate Vercel scheduling");
   }
 });
+
+test("Post-M16 native massage writes mirror immediately and retain automatic recovery", async () => {
+  const mirrorWorkflow = await readProjectFile(".github/workflows/native-massage-sheet-mirror.yml");
+  const staffWorkflow = await readProjectFile(".github/workflows/native-massage-reconcile.yml");
+  const authorityBooking = await readProjectFile("lib/server/massage-native-authority-booking.ts");
+  const mirror = await readProjectFile("lib/server/massage-native-sheet-mirror.ts");
+  const externalSync = await readProjectFile(".github/workflows/massage-sheet-sync.yml");
+  const conflictWatch = await readProjectFile("app/api/cron/native-massage-conflict-watch/route.ts");
+
+  assertContains(mirrorWorkflow, 'cron: "*/5 * * * *"');
+  assertContains(mirrorWorkflow, "concurrency:");
+  assertContains(mirrorWorkflow, "--retry 2");
+  assertContains(staffWorkflow, 'cron: "*/5 * * * *"');
+  assertContains(staffWorkflow, "concurrency:");
+
+  assertContains(authorityBooking, 'import { after } from "next/server"');
+  assertContains(authorityBooking, "mirrorNativeMassageBookingById");
+  assertContains(authorityBooking, "after(async () =>");
+  assertContains(authorityBooking, "scheduled reconciliation will retry it");
+
+  assertContains(mirror, '.from("massage_external_source_configs")');
+  assertContains(mirror, 'mirror_status: "not_required"');
+  assertContains(mirror, "mirrorNativeMassageBookingById");
+  assertContains(mirror, "automatic retry");
+
+  assertContains(externalSync, "native-massage-conflict-watch");
+  assertContains(conflictWatch, 'CONFLICT_EVENT_TYPE = "native_massage_external_conflict"');
+  assertContains(conflictWatch, 'severity: "critical"');
+  assertContains(conflictWatch, '.eq("is_stayhub_marker", false)');
+});
