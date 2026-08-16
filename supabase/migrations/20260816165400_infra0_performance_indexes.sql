@@ -1,0 +1,14 @@
+create index if not exists hotel_config_publication_state_last_good_fk_idx on public.hotel_config_publication_state (hotel_id, last_known_good_revision_id);
+create index if not exists hotel_config_publication_state_published_fk_idx on public.hotel_config_publication_state (hotel_id, published_revision_id);
+create index if not exists hotels_production_hotel_id_idx on public.hotels (production_hotel_id) where production_hotel_id is not null;
+create index if not exists massage_calendar_sync_state_current_snapshot_idx on public.massage_calendar_sync_state (current_snapshot_id) where current_snapshot_id is not null;
+create index if not exists massage_runtime_available_slots_source_snapshot_idx on public.massage_runtime_available_slots (source_snapshot_id) where source_snapshot_id is not null;
+create index if not exists massage_runtime_blocks_hotel_service_idx on public.massage_runtime_blocks (hotel_id, service_id) where service_id is not null;
+create index if not exists massage_runtime_blocks_source_snapshot_idx on public.massage_runtime_blocks (source_snapshot_id) where source_snapshot_id is not null;
+create index if not exists massage_runtime_bookings_hotel_service_idx on public.massage_runtime_bookings (hotel_id, service_id);
+create index if not exists massage_runtime_bookings_staff_request_idx on public.massage_runtime_bookings (staff_request_id) where staff_request_id is not null;
+create index if not exists massage_runtime_projection_state_source_snapshot_idx on public.massage_runtime_projection_state (source_snapshot_id) where source_snapshot_id is not null;
+create index if not exists massage_runtime_services_source_snapshot_idx on public.massage_runtime_services (source_snapshot_id) where source_snapshot_id is not null;
+create index if not exists guest_push_subscriptions_test_cleanup_idx on public.guest_push_subscriptions (hotel_id, test_expires_at) where is_test is true;
+create index if not exists guest_stay_devices_test_cleanup_idx on public.guest_stay_devices (hotel_id, test_expires_at) where is_test is true;
+create index if not exists guest_stays_test_cleanup_idx on public.guest_stays (hotel_id, test_expires_at) where is_test is true;

@@ -1,0 +1,1 @@
+drop index if exists public.staff_push_subscriptions_hotel_role_endpoint_idx;

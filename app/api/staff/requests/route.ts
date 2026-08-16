@@ -13,7 +13,6 @@ import {
   getOperationalRequestTitleBg,
 } from "@/lib/staff/ops-request-copy";
 import { translateGuestText } from "@/lib/server/staff-translation";
-import { cleanupExpiredTestData } from "@/lib/server/test-rooms";
 import type {
   StaffDepartment,
   StaffRequest,
@@ -196,6 +195,12 @@ async function backfillMissingRequestReportTranslations(rows: GuestRequestRow[])
   return rows.map((row) => updatedById.get(row.id) || row);
 }
 
+function isExpiredTestRow(row: Pick<GuestRequestRow, "is_test" | "test_expires_at">) {
+  if (!row.is_test || !row.test_expires_at) return false;
+  const expiresAt = Date.parse(row.test_expires_at);
+  return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+}
+
 function isValidRole(value: string): value is StaffRole {
   return (
     value === "reception" ||
@@ -318,23 +323,24 @@ export async function GET(req: NextRequest) {
     const scope = await resolveAuthorizedScope(hotelSlug, role);
     if ("error" in scope) return scope.error;
 
-    const operationalConfig = await getHotelConfig(scope.hotelSlug).catch((error) => {
-      console.error("Staff operational-hours config load failed", {
-        hotelId: scope.hotelId,
-        hotelSlug: scope.hotelSlug,
-        error,
-      });
-      return null;
-    });
+    const needsOperationalConfig = role === "housekeeping" || role === "maintenance";
+    const operationalConfig = needsOperationalConfig
+      ? await getHotelConfig(scope.hotelSlug).catch((error) => {
+          console.error("Staff operational-hours config load failed", {
+            hotelId: scope.hotelId,
+            hotelSlug: scope.hotelSlug,
+            error,
+          });
+          return null;
+        })
+      : null;
 
-    if (!operationalConfig) {
+    if (needsOperationalConfig && !operationalConfig) {
       return NextResponse.json(
         { ok: false, error: "Hotel operational configuration unavailable" },
         { status: 503, headers: NO_STORE_HEADERS },
       );
     }
-
-    await cleanupExpiredTestData(scope.hotelId);
 
     let query = supabaseAdmin
       .from("guest_requests")
@@ -357,7 +363,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const hydratedRows = await backfillMissingRequestReportTranslations(data as GuestRequestRow[]);
+    const visibleRows = ((data || []) as GuestRequestRow[]).filter((row) => !isExpiredTestRow(row));
+    const hydratedRows = await backfillMissingRequestReportTranslations(visibleRows);
     let requests = hydratedRows.map(mapRowToStaffRequest);
 
     if (role === "housekeeping" || role === "maintenance") {

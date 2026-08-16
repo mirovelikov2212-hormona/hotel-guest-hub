@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Day3Survey, Day3SurveyApiResponse } from "@/lib/staff/survey-types";
+import { fetchStaffFeedState } from "@/lib/staff/staff-feed-state-client";
 import {
   formatSurveyDateTime,
   getSurveyCategoryLabel,
@@ -11,6 +12,9 @@ import {
 } from "@/lib/staff/survey-display";
 
 type StaffRoleWithSurveys = "manager" | "reception";
+
+const STAFF_SURVEY_VISIBLE_POLL_MS = 30_000;
+const STAFF_SURVEY_HIDDEN_POLL_MS = 300_000;
 
 type SurveyCopy = {
   todayTitle: string;
@@ -155,6 +159,7 @@ export function useStaffSurveys({
   const [reportSurveys, setReportSurveys] = useState<Day3Survey[]>([]);
   const [loading, setLoading] = useState(false);
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const surveyFeedVersionRef = useRef<number | null>(null);
 
   const loadSurveys = useCallback(async () => {
     const slug = String(hotelSlug || "").trim().toLowerCase();
@@ -196,10 +201,72 @@ export function useStaffSurveys({
   }, [hotelSlug, role]);
 
   useEffect(() => {
-    void loadSurveys();
-    const interval = window.setInterval(() => void loadSurveys(), 5000);
-    return () => window.clearInterval(interval);
-  }, [loadSurveys]);
+    const slug = String(hotelSlug || "").trim().toLowerCase();
+    if (!slug) {
+      surveyFeedVersionRef.current = null;
+      void loadSurveys();
+      return;
+    }
+
+    let cancelled = false;
+    let timer: number | undefined;
+    let inFlight = false;
+
+    const getPollInterval = () =>
+      typeof document !== "undefined" && document.visibilityState === "hidden"
+        ? STAFF_SURVEY_HIDDEN_POLL_MS
+        : STAFF_SURVEY_VISIBLE_POLL_MS;
+
+    const refreshIfChanged = async (force = false) => {
+      if (cancelled || inFlight) return;
+      inFlight = true;
+      try {
+        const feedState = await fetchStaffFeedState({ hotelSlug: slug, role });
+        const changed =
+          surveyFeedVersionRef.current === null ||
+          surveyFeedVersionRef.current !== feedState.surveysVersion;
+        if (force || changed) {
+          await loadSurveys();
+        }
+        surveyFeedVersionRef.current = feedState.surveysVersion;
+      } catch (error) {
+        console.error("survey feed-state refresh failed; falling back to full survey refresh", error);
+        await loadSurveys();
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const scheduleNext = () => {
+      if (cancelled) return;
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(async () => {
+        await refreshIfChanged(false);
+        scheduleNext();
+      }, getPollInterval());
+    };
+
+    void refreshIfChanged(true).finally(scheduleNext);
+
+    const handleFocus = () => void refreshIfChanged(false).finally(scheduleNext);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void refreshIfChanged(false).finally(scheduleNext);
+      } else {
+        scheduleNext();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [hotelSlug, loadSurveys, role]);
 
   const markSurveyRead = useCallback(async (surveyId: string) => {
     const slug = String(hotelSlug || "").trim().toLowerCase();
@@ -280,10 +347,6 @@ function SurveyDetailCard({
   const readAt = getSurveyReadAt(survey, mode);
   const isUnread = !readAt && mode !== "report";
   const [isOpen, setIsOpen] = useState(isUnread || mode === "report");
-
-  useEffect(() => {
-    if (!isUnread && mode !== "report") setIsOpen(false);
-  }, [isUnread, mode]);
 
   const handleMarkRead = () => {
     setIsOpen(false);
