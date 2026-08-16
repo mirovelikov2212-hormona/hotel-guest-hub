@@ -97,10 +97,10 @@ test("INFRA-0 staff boards poll lightweight feed versions instead of full data e
   );
 });
 
-test("INFRA-0 staff heartbeat is one service-role-only tenant-authenticated RPC", async () => {
+test("INFRA-0 staff heartbeat is one service-role-only tenant-authenticated RPC and boots clean hotels at zero", async () => {
   const route = await readProjectFile("app/api/staff/feed-state/route.ts");
   const migration = await readProjectFile(
-    "supabase/migrations/20260816170600_infra0_staff_feed_state_rpc.sql",
+    "supabase/migrations/20260816171500_infra0_staff_feed_state_new_hotel_bootstrap.sql",
   );
 
   assertContains(route, 'getCurrentRawStaffToken');
@@ -116,6 +116,9 @@ test("INFRA-0 staff heartbeat is one service-role-only tenant-authenticated RPC"
   assertContains(migration, "s.role::text = lower(trim(p_role))");
   assertContains(migration, "lower(h.slug) = lower(trim(p_hotel_slug))");
   assertContains(migration, "lower(coalesce(h.public_slug, '')) = lower(trim(p_hotel_slug))");
+  assertContains(migration, "left join public.staff_feed_versions f");
+  assertContains(migration, "coalesce(f.requests_version, 0)::bigint");
+  assertContains(migration, "coalesce(f.surveys_version, 0)::bigint");
   assertContains(migration, "revoke all on function public.get_staff_feed_state(text, text, text) from anon");
   assertContains(migration, "revoke all on function public.get_staff_feed_state(text, text, text) from authenticated");
   assertContains(migration, "grant execute on function public.get_staff_feed_state(text, text, text) to service_role");
