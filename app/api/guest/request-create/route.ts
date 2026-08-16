@@ -524,6 +524,18 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
+    const reason = error instanceof Error ? error.message : "";
+    if (reason === "STAY_ENDED") {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "This stay has ended and can no longer create new requests.",
+          code: "STAY_ENDED",
+        },
+        { status: 409 },
+      );
+    }
+
     console.error("guest request-create POST error", error);
     await logSystemError({
       severity: "critical",
