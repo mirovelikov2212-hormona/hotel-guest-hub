@@ -6,10 +6,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
+import { fetchStaffFeedState } from "@/lib/staff/staff-feed-state-client";
 import type {
   StaffBillingStatus,
   StaffDepartment,
@@ -20,6 +22,9 @@ import type {
 } from "@/lib/staff/types";
 
 type StaffRole = "reception" | "housekeeping" | "maintenance" | "manager";
+
+const STAFF_REQUEST_VISIBLE_POLL_MS = 10_000;
+const STAFF_REQUEST_HIDDEN_POLL_MS = 60_000;
 
 type AddRequestInput = {
   room: string;
@@ -281,6 +286,7 @@ export function StaffStoreProvider({
 
   const [requests, setRequests] = useState<StaffRequest[]>([]);
   const [isReady, setIsReady] = useState(false);
+  const requestFeedVersionRef = useRef<number | null>(null);
 
   useEffect(() => {
     clearLegacyStaffCaches(staffCacheKey);
@@ -311,48 +317,66 @@ export function StaffStoreProvider({
     if (!shouldLoadStaffData) {
       setRequests([]);
       setIsReady(true);
+      requestFeedVersionRef.current = null;
       return;
     }
 
+    if (!normalizedHotelSlug || !currentRole) return;
+
     let cancelled = false;
+    let timer: number | undefined;
+    let inFlight = false;
 
-    const safeLoad = async () => {
-      if (cancelled) return;
+    const getPollInterval = () =>
+      typeof document !== "undefined" && document.visibilityState === "hidden"
+        ? STAFF_REQUEST_HIDDEN_POLL_MS
+        : STAFF_REQUEST_VISIBLE_POLL_MS;
 
-      const keepsPollingInBackground =
-        currentRole === "reception" ||
-        currentRole === "housekeeping" ||
-        currentRole === "maintenance" ||
-        currentRole === "manager";
-
-      if (
-        !keepsPollingInBackground &&
-        typeof document !== "undefined" &&
-        document.visibilityState === "hidden"
-      ) {
-        return;
-      }
+    const refreshIfChanged = async (force = false) => {
+      if (cancelled || inFlight) return;
+      inFlight = true;
 
       try {
-        await loadRequests();
+        const feedState = await fetchStaffFeedState({
+          hotelSlug: normalizedHotelSlug,
+          role: currentRole,
+        });
+        const changed =
+          requestFeedVersionRef.current === null ||
+          requestFeedVersionRef.current !== feedState.requestsVersion;
+
+        if (force || changed) {
+          await loadRequests();
+        }
+        requestFeedVersionRef.current = feedState.requestsVersion;
       } catch (error) {
-        console.error("auto refresh failed", error);
+        console.error("staff feed-state refresh failed; falling back to full request refresh", error);
+        await loadRequests();
+      } finally {
+        inFlight = false;
       }
     };
 
-    void safeLoad();
+    const scheduleNext = () => {
+      if (cancelled) return;
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(async () => {
+        await refreshIfChanged(false);
+        scheduleNext();
+      }, getPollInterval());
+    };
 
-    const interval = window.setInterval(() => {
-      void safeLoad();
-    }, 5000);
+    void refreshIfChanged(true).finally(scheduleNext);
 
     const handleFocus = () => {
-      void safeLoad();
+      void refreshIfChanged(false).finally(scheduleNext);
     };
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
-        void safeLoad();
+        void refreshIfChanged(false).finally(scheduleNext);
+      } else {
+        scheduleNext();
       }
     };
 
@@ -361,11 +385,11 @@ export function StaffStoreProvider({
 
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
+      if (timer !== undefined) window.clearTimeout(timer);
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [currentRole, loadRequests, shouldLoadStaffData]);
+  }, [currentRole, loadRequests, normalizedHotelSlug, shouldLoadStaffData]);
 
   const updateRequestStatus = useCallback(
     async (id: string, status: StaffRequestStatus) => {

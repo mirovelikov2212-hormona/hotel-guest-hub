@@ -6,7 +6,6 @@ import {
   resolveAuthorizedSurveyScope,
   type GuestSurveyRow,
 } from "@/lib/server/day3-surveys";
-import { cleanupExpiredTestData } from "@/lib/server/test-rooms";
 import { hasBulgarianLetters, translateGuestTextToBulgarian } from "@/lib/server/staff-translation";
 
 const NO_STORE_HEADERS = {
@@ -14,6 +13,12 @@ const NO_STORE_HEADERS = {
   Pragma: "no-cache",
   Expires: "0",
 };
+
+function isExpiredTestSurvey(row: Pick<GuestSurveyRow, "is_test" | "test_expires_at">) {
+  if (!row.is_test || !row.test_expires_at) return false;
+  const expiresAt = Date.parse(row.test_expires_at);
+  return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+}
 
 function isSurveyRole(value: string): value is Extract<StaffRole, "manager" | "reception"> {
   return value === "manager" || value === "reception";
@@ -136,8 +141,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    await cleanupExpiredTestData(scope.hotelId);
-
     const nowIso = new Date().toISOString();
     const recentCutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -166,7 +169,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const hydratedRows = await backfillMissingSurveyTranslations((data || []) as GuestSurveyRow[]);
+    const visibleRows = ((data || []) as GuestSurveyRow[]).filter((row) => !isExpiredTestSurvey(row));
+    const hydratedRows = await backfillMissingSurveyTranslations(visibleRows);
     const surveys = hydratedRows.map(mapSurveyRow);
     const activeSurveys = surveys.filter((survey) => new Date(survey.activeUntil).getTime() > Date.now());
     const reportSurveys = role === "manager"
