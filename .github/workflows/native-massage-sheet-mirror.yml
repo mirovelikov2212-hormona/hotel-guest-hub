@@ -1,10 +1,16 @@
 name: Native Massage Sheet Mirror
 
 on:
+  schedule:
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: native-massage-sheet-mirror-production
+  cancel-in-progress: false
 
 jobs:
   mirror:
@@ -16,6 +22,11 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -euo pipefail
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "CRON_SECRET is missing."
+            exit 1
+          fi
+
           curl --fail --silent --show-error \
             --retry 2 \
             --retry-all-errors \
