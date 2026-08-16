@@ -1,0 +1,29 @@
+name: Post-M16 Staff Slug Gate
+
+on:
+  push:
+    branches:
+      - hotfix/post-m16-staff-invalid-slug-20260816
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx eslint app/staff/[hotelSlug]/layout.tsx tests/contracts/staff-invalid-slug.contract.test.mjs
+      - name: Production build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+        run: npm run build
