@@ -45,6 +45,13 @@ type SurveyCopy = {
   showDetails: string;
   hideDetails: string;
   testLabel: string;
+  problemsMapTitle: string;
+  problemsMapIntro: string;
+  problemsTotal: string;
+  staffInformed: string;
+  staffNotInformed: string;
+  openProblems: string;
+  noProblems: string;
 };
 
 const COPY: Record<StaffSurveyLang, SurveyCopy> = {
@@ -77,6 +84,13 @@ const COPY: Record<StaffSurveyLang, SurveyCopy> = {
     showDetails: "Покажи детайли",
     hideDetails: "Скрий детайли",
     testLabel: "ТЕСТ",
+    problemsMapTitle: "Карта на проблемите",
+    problemsMapIntro: "Проблемите, описани от гостите, с видим статус дали екипът е бил уведомен и дали проблемът е решен.",
+    problemsTotal: "Описани проблеми",
+    staffInformed: "Подадени към персонала",
+    staffNotInformed: "Не са подадени",
+    openProblems: "Нерешени/частични",
+    noProblems: "Няма описани проблеми в тези анкети.",
   },
   en: {
     todayTitle: "Today's surveys",
@@ -107,6 +121,13 @@ const COPY: Record<StaffSurveyLang, SurveyCopy> = {
     showDetails: "Show details",
     hideDetails: "Hide details",
     testLabel: "TEST",
+    problemsMapTitle: "Problem map",
+    problemsMapIntro: "Problems described by guests, showing whether the team was informed and whether the issue was resolved.",
+    problemsTotal: "Reported problems",
+    staffInformed: "Reported to staff",
+    staffNotInformed: "Not reported to staff",
+    openProblems: "Unresolved/partial",
+    noProblems: "There are no described problems in these surveys.",
   },
   de: {
     todayTitle: "Umfragen heute",
@@ -137,6 +158,13 @@ const COPY: Record<StaffSurveyLang, SurveyCopy> = {
     showDetails: "Details anzeigen",
     hideDetails: "Details ausblenden",
     testLabel: "TEST",
+    problemsMapTitle: "Problemübersicht",
+    problemsMapIntro: "Von Gästen beschriebene Probleme mit sichtbarem Status, ob das Team informiert wurde und ob das Problem gelöst ist.",
+    problemsTotal: "Beschriebene Probleme",
+    staffInformed: "An Personal gemeldet",
+    staffNotInformed: "Nicht an Personal gemeldet",
+    openProblems: "Offen/teilweise",
+    noProblems: "In diesen Umfragen wurden keine Probleme beschrieben.",
   },
 };
 
@@ -440,6 +468,119 @@ function SurveyDetailCard({
   );
 }
 
+export type SurveyProblemEntry = {
+  survey: Day3Survey;
+  staffInformed: boolean;
+  unresolved: boolean;
+};
+
+export function buildSurveyProblemEntries(surveys: Day3Survey[]): SurveyProblemEntry[] {
+  return surveys
+    .filter((survey) => String(survey.problemText || "").trim().length > 0)
+    .map((survey) => ({
+      survey,
+      staffInformed: survey.resolutionStatus !== "not_informed",
+      unresolved:
+        survey.resolutionStatus !== "fully_resolved",
+    }))
+    .sort(
+      (a, b) =>
+        new Date(b.survey.guestSubmittedAt).getTime() -
+        new Date(a.survey.guestSubmittedAt).getTime(),
+    );
+}
+
+function SurveyProblemsMap({
+  surveys,
+  lang,
+  compact = false,
+}: {
+  surveys: Day3Survey[];
+  lang: StaffSurveyLang;
+  compact?: boolean;
+}) {
+  const copy = getCopy(lang);
+  const problems = useMemo(() => buildSurveyProblemEntries(surveys), [surveys]);
+  const informedCount = problems.filter((entry) => entry.staffInformed).length;
+  const notInformedCount = problems.length - informedCount;
+  const unresolvedCount = problems.filter((entry) => entry.unresolved).length;
+
+  if (!problems.length) {
+    if (compact) return null;
+    return (
+      <section className="rounded-2xl border border-white/10 bg-black/20 p-4">
+        <h5 className="font-semibold text-white">{copy.problemsMapTitle}</h5>
+        <p className="mt-2 text-sm text-white/55">{copy.noProblems}</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-rose-300/20 bg-rose-300/5 p-4">
+      <div>
+        <h5 className="text-base font-semibold text-white">{copy.problemsMapTitle}</h5>
+        <p className="mt-1 text-sm leading-6 text-white/60">{copy.problemsMapIntro}</p>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+          <p className="text-xs text-white/50">{copy.problemsTotal}</p>
+          <p className="mt-1 text-2xl font-semibold text-white">{problems.length}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-3">
+          <p className="text-xs text-emerald-100/70">{copy.staffInformed}</p>
+          <p className="mt-1 text-2xl font-semibold text-white">{informedCount}</p>
+        </div>
+        <div className="rounded-xl border border-rose-300/25 bg-rose-300/10 p-3">
+          <p className="text-xs text-rose-100/75">{copy.staffNotInformed}</p>
+          <p className="mt-1 text-2xl font-semibold text-white">{notInformedCount}</p>
+        </div>
+        <div className="rounded-xl border border-amber-300/20 bg-amber-300/10 p-3">
+          <p className="text-xs text-amber-100/75">{copy.openProblems}</p>
+          <p className="mt-1 text-2xl font-semibold text-white">{unresolvedCount}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        {problems.map(({ survey, staffInformed, unresolved }) => {
+          const categories = survey.selectedCategories.map((key) => getSurveyCategoryLabel(key, lang));
+          return (
+            <article key={survey.id} className="rounded-xl border border-white/10 bg-black/20 p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-white">{copy.room} {survey.room}</span>
+                <RatingBadge rating={survey.rating} />
+                <span
+                  className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                    staffInformed
+                      ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-100"
+                      : "border-rose-300/30 bg-rose-300/10 text-rose-100"
+                  }`}
+                >
+                  {staffInformed ? copy.staffInformed : copy.staffNotInformed}
+                </span>
+                <span
+                  className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                    unresolved
+                      ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
+                      : "border-emerald-300/25 bg-emerald-300/10 text-emerald-100"
+                  }`}
+                >
+                  {getSurveyResolutionLabel(survey.resolutionStatus, lang)}
+                </span>
+              </div>
+              <p className="mt-2 whitespace-pre-line text-sm leading-6 text-white/80">{survey.problemText}</p>
+              <p className="mt-2 text-xs text-white/45">
+                {formatSurveyDateTime(survey.guestSubmittedAt, lang)}
+                {categories.length ? ` · ${categories.join(", ")}` : ""}
+              </p>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export function ManagerTodaySurveysCard({
   surveys,
   lang,
@@ -468,6 +609,10 @@ export function ManagerTodaySurveysCard({
             {surveys.filter((survey) => !survey.managerReadAt).length} {copy.unread}
           </span>
         ) : null}
+      </div>
+
+      <div className="mt-5">
+        <SurveyProblemsMap surveys={surveys} lang={lang} compact />
       </div>
 
       <div className="mt-5 space-y-3">
@@ -624,12 +769,14 @@ export function ManagerSurveyReportCard({
           {copy.reportTitle} · {surveys.length}
         </h4>
         {overallAverageRating !== null ? (
-        <p className="mt-2 text-base font-semibold text-white">
-          {copy.averageRating}: {overallAverageRating.toFixed(1)}/5
-        </p>
-      ) : null}
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">{copy.reportIntro}</p>
+          <p className="mt-2 text-base font-semibold text-white">
+            {copy.averageRating}: {overallAverageRating.toFixed(1)}/5
+          </p>
+        ) : null}
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">{copy.reportIntro}</p>
       </div>
+
+      <SurveyProblemsMap surveys={surveys} lang={lang} />
 
       <div className="space-y-4">
         {summaries.length ? (
