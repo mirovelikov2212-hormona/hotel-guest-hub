@@ -40,7 +40,7 @@ type ReceptionHistoryCopy = {
   noBilling: string;
 };
 
-const HOTEL_TIME_ZONE = "Europe/Sofia";
+const HOTEL_TIME_ZONE = "UTC";
 
 const receptionHistoryCopy: Record<"bg" | "en" | "de", ReceptionHistoryCopy> = {
   bg: {

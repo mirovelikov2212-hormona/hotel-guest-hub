@@ -22,6 +22,7 @@ import {
   mapSurveyRow,
 } from "@/lib/server/day3-surveys";
 import { getHotelTimeParts, validateGuestStayIdentity } from "@/lib/server/guest-stays";
+import { canonicalizeLocaleTag } from "@/lib/i18n/locale-model.mjs";
 import {
   addDaysToStayDateKey,
   isDateInsideGuestSurveyWindow,
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
     const problemText = normalizeSurveyText(body?.problemText, 1000);
     const resolutionStatus = normalizeResolutionStatus(body?.resolutionStatus);
     const resolutionNote = normalizeSurveyText(body?.resolutionNote, 1000);
-    const language = String(body?.language || body?.guestLanguage || "bg").trim().toLowerCase().slice(0, 8) || "bg";
+    const language = canonicalizeLocaleTag(body?.language || body?.guestLanguage) || "en";
     const surveyVersion = normalizeSurveyText(body?.surveyVersion, 40) || DAY3_SURVEY_VERSION;
 
     if (!hotelSlug || !room || !stayId || !stayDeviceId || rating === null) {
@@ -138,7 +139,7 @@ export async function POST(req: NextRequest) {
     const checkOutDate = String(stayIdentity.stay.check_out_date || "");
     const targetDateKey = addDaysToStayDateKey(checkInDate, 2);
     const firstConfirmedDateKey = checkInDate;
-    const timezone = String(body?.hotelTimezone || roomValidation.timezone || "Europe/Sofia").trim() || "Europe/Sofia";
+    const timezone = String(body?.hotelTimezone || roomValidation.timezone || "UTC").trim() || "UTC";
     const submittedAt = new Date();
     const hotelNow = getHotelTimeParts(timezone, submittedAt);
     const insideSurveyWindow = isDateInsideGuestSurveyWindow({

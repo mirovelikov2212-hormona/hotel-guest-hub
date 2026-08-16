@@ -90,7 +90,7 @@ export function formatSurveyDateTime(iso: string, lang: StaffSurveyLang) {
   if (!Number.isFinite(date.getTime())) return "—";
 
   return date.toLocaleString(lang === "bg" ? "bg-BG" : lang === "de" ? "de-DE" : "en-GB", {
-    timeZone: "Europe/Sofia",
+    timeZone: "UTC",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

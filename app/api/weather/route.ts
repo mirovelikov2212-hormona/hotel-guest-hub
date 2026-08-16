@@ -350,7 +350,7 @@ export async function GET(request: NextRequest) {
     let longitude = toFiniteNumber(params.get("lon"));
     const locationQuery = String(params.get("query") || "").trim();
     let place = String(params.get("place") || "").trim();
-    const requestedTimezone = String(params.get("tz") || "Europe/Sofia").trim() || "Europe/Sofia";
+    const requestedTimezone = String(params.get("tz") || "UTC").trim() || "UTC";
 
     if (!hasUsableCoordinates(latitude, longitude)) {
       if (!locationQuery) {

@@ -7,8 +7,7 @@ import type {
   RequestDefTimeMode,
   RequestDefType,
 } from "@/lib/types";
-
-const DEFAULT_LANGS = ["bg", "en", "de", "ro", "cs", "ru"] as const;
+import { normalizeLocaleList } from "@/lib/i18n/locale-model.mjs";
 
 type LooseRow = Record<string, string>;
 
@@ -91,7 +90,7 @@ function buildTextMap(
   fallbackKeys: string[] = []
 ): RequestDefTextMap {
   const out: RequestDefTextMap = {};
-  const langList = Array.from(new Set([...DEFAULT_LANGS, ...langs.map((lang) => String(lang).trim()).filter(Boolean)]));
+  const langList = normalizeLocaleList(langs);
 
   for (const lang of langList) {
     const baseTitle = base
@@ -127,7 +126,7 @@ function buildListMap(
   langs: LangKey[]
 ): Partial<Record<LangKey, string[]>> {
   const out: Partial<Record<LangKey, string[]>> = {};
-  const langList = Array.from(new Set([...DEFAULT_LANGS, ...langs.map((lang) => String(lang).trim()).filter(Boolean)]));
+  const langList = normalizeLocaleList(langs);
 
   for (const lang of langList) {
     const upper = String(lang).toUpperCase();
@@ -148,7 +147,7 @@ function buildListMap(
 
 function buildOptionsMap(row: LooseRow, langs: LangKey[]): Partial<Record<LangKey, string[]>> {
   const out: Partial<Record<LangKey, string[]>> = {};
-  const langList = Array.from(new Set([...DEFAULT_LANGS, ...langs.map((lang) => String(lang).trim()).filter(Boolean)]));
+  const langList = normalizeLocaleList(langs);
 
   for (const lang of langList) {
     const upper = String(lang).toUpperCase();
@@ -171,7 +170,7 @@ function buildOptionsMap(row: LooseRow, langs: LangKey[]): Partial<Record<LangKe
 
 function buildOptionInfoMap(row: LooseRow, langs: LangKey[]): Partial<Record<LangKey, string[]>> {
   const out: Partial<Record<LangKey, string[]>> = {};
-  const langList = Array.from(new Set([...DEFAULT_LANGS, ...langs.map((lang) => String(lang).trim()).filter(Boolean)]));
+  const langList = normalizeLocaleList(langs);
 
   for (const lang of langList) {
     const upper = String(lang).toUpperCase();
@@ -208,7 +207,7 @@ export function getRequestDefText(
   def: Pick<RequestDef, "title" | "subtitle" | "description" | "policy" | "success" | "staffLabel">,
   lang: LangKey,
   field: keyof Pick<RequestDef, "title" | "subtitle" | "description" | "policy" | "success" | "staffLabel">,
-  fallbackLangs: LangKey[] = ["bg", "en", "de"]
+  fallbackLangs: LangKey[] = ["en"]
 ): string {
   const map = def[field] as RequestDefTextMap | undefined;
   if (!map) return "";

@@ -241,7 +241,7 @@ function normalizeLanguage(value: string): LangKey {
 
 function getSofiaIsoDate() {
   const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Sofia",
+    timeZone: "UTC",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

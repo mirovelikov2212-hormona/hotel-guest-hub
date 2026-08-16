@@ -52,7 +52,7 @@ function normalizeRoomNumber(value: unknown): string {
 }
 
 function getHotelAlias(): string {
-  if (typeof window === "undefined") return "aquamarine";
+  if (typeof window === "undefined") return "";
 
   const host = window.location.hostname.toLowerCase();
 
@@ -61,13 +61,13 @@ function getHotelAlias(): string {
     host !== "www.stayhub.app" &&
     host !== "stayhub.app"
   ) {
-    return sanitizeHotelSlug(host.replace(".stayhub.app", "")) || "aquamarine";
+    return sanitizeHotelSlug(host.replace(".stayhub.app", ""));
   }
 
   const match = window.location.pathname.match(/^\/h\/([^/]+)/);
-  if (match?.[1]) return sanitizeHotelSlug(match[1]) || "aquamarine";
+  if (match?.[1]) return sanitizeHotelSlug(match[1]);
 
-  return "aquamarine";
+  return "";
 }
 
 function getRoomStateLookupKeys(hotelAlias: string, hotelSlug: string) {
@@ -94,7 +94,7 @@ function getHotelSlug(alias: string): string {
   // Client-side tracking deliberately sends the visible hotel slug/alias only.
   // The API resolves it against Supabase hotels.slug/public_slug and stores the canonical DB slug.
   // This avoids hardcoded hotel IDs/slugs in the guest bundle and keeps tracking multi-hotel ready.
-  return sanitizeHotelSlug(alias) || "aquamarine";
+  return sanitizeHotelSlug(alias);
 }
 
 function getStoredValue(key: string): string | null {
@@ -276,6 +276,7 @@ export async function trackHubEvent(payload: TrackHubPayload) {
 
   const hotelAlias = getHotelAlias();
   const hotelSlug = getHotelSlug(hotelAlias);
+  if (!hotelAlias || !hotelSlug) return;
   const { roomNumber, roomConfirmed, roomSource } = resolveRoomContext(payload, hotelAlias, hotelSlug);
   const environment = inferTrackingEnvironment(hotelAlias);
   const sessionId = getOrCreateTrackingSessionId();
