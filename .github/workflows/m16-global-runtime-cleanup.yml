@@ -39,7 +39,7 @@ jobs:
           timezone_files = [
               'app/api/weather/route.ts',
               'app/api/guest/day3-survey/route.ts',
-              'app/api/internal/massage-calendar/changed/route.ts',
+              'app/api/internal/massage-calendar-changed/route.ts',
               'app/api/staff/surveys/display/route.ts',
               'app/reception/ReceptionPageContent.tsx',
               'components/Day3GuestSurvey.tsx',
