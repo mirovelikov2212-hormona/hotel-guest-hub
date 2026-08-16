@@ -173,3 +173,12 @@ test("M13 request history uses read access while guest mutation routes retain se
     assert.match(source, /validateGuestStayIdentity/);
   }
 });
+
+test("M13 ended guest request attempts are lifecycle conflicts, not critical server failures", () => {
+  const endedBranch = requestCreateRoute.indexOf('if (reason === "STAY_ENDED")');
+  const unexpectedLog = requestCreateRoute.indexOf('eventType: "guest_request_create_unexpected_error"');
+  assert.ok(endedBranch >= 0, "Expected explicit STAY_ENDED handling in guest request creation.");
+  assert.ok(unexpectedLog > endedBranch, "STAY_ENDED must be handled before unexpected critical logging.");
+  assert.match(requestCreateRoute, /code: "STAY_ENDED"/);
+  assert.match(requestCreateRoute, /status: 409/);
+});
