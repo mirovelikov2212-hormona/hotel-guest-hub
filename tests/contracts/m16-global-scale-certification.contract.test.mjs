@@ -26,8 +26,8 @@ test("M16 critical guest/runtime paths contain no Sofia timezone default", async
   for (const path of [
     "app/api/weather/route.ts",
     "app/api/guest/day3-survey/route.ts",
-    "app/api/internal/massage-calendar/changed/route.ts",
-    "app/api/staff/surveys/display/route.ts",
+    "app/api/internal/massage-calendar-changed/route.ts",
+    "app/api/staff/surveys/route.ts",
     "app/reception/ReceptionPageContent.tsx",
     "components/Day3GuestSurvey.tsx",
     "components/GuestHub.tsx",
