@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "checkpoint": "infra0-capacity-foundation",
+  "baseCheckpoint": "post-m16-system-audit",
+  "expectedNeedsReview": 64,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "app/api/staff/requests/route.ts",
+      "fromLine": 171,
+      "toLine": 170,
+      "table": "guest_requests",
+      "operation": "update"
+    },
+    {
+      "filePath": "app/api/staff/surveys/route.ts",
+      "fromLine": 90,
+      "toLine": 95,
+      "table": "guest_surveys",
+      "operation": "update"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "app/api/staff/feed-state/route.ts",
+      "line": 64,
+      "table": "staff_feed_versions",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "authenticated_staff_session_exact_hotel_scoped_feed_version_read"
+    }
+  ]
+}
