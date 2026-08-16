@@ -1,0 +1,150 @@
+name: INFRA-0 Apply and Test
+
+on:
+  push:
+    branches:
+      - infra/infra-0-capacity-foundation-20260816
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: infra0-build-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: infra/infra-0-capacity-foundation-20260816
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply INFRA-0 code changes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path):
+              return Path(path).read_text()
+
+          def write(path, text):
+              Path(path).write_text(text)
+
+          # Staff requests API: remove destructive cleanup from the hot read path,
+          # avoid config loading for roles that do not use operational hours,
+          # and hide expired test rows until the scheduled archival cleanup runs.
+          path = "app/api/staff/requests/route.ts"
+          text = read(path)
+          text = text.replace('import { cleanupExpiredTestData } from "@/lib/server/test-rooms";\n', '')
+          marker = 'function isValidRole(value: string): value is StaffRole {'
+          helper = '''function isExpiredTestRow(row: Pick<GuestRequestRow, "is_test" | "test_expires_at">) {\n  if (!row.is_test || !row.test_expires_at) return false;\n  const expiresAt = Date.parse(row.test_expires_at);\n  return Number.isFinite(expiresAt) && expiresAt <= Date.now();\n}\n\n'''
+          if helper not in text:
+              text = text.replace(marker, helper + marker)
+          old_config = '''    const operationalConfig = await getHotelConfig(scope.hotelSlug).catch((error) => {\n      console.error("Staff operational-hours config load failed", {\n        hotelId: scope.hotelId,\n        hotelSlug: scope.hotelSlug,\n        error,\n      });\n      return null;\n    });\n\n    if (!operationalConfig) {\n      return NextResponse.json(\n        { ok: false, error: "Hotel operational configuration unavailable" },\n        { status: 503, headers: NO_STORE_HEADERS },\n      );\n    }\n\n    await cleanupExpiredTestData(scope.hotelId);\n'''
+          new_config = '''    const needsOperationalConfig = role === "housekeeping" || role === "maintenance";\n    const operationalConfig = needsOperationalConfig\n      ? await getHotelConfig(scope.hotelSlug).catch((error) => {\n          console.error("Staff operational-hours config load failed", {\n            hotelId: scope.hotelId,\n            hotelSlug: scope.hotelSlug,\n            error,\n          });\n          return null;\n        })\n      : null;\n\n    if (needsOperationalConfig && !operationalConfig) {\n      return NextResponse.json(\n        { ok: false, error: "Hotel operational configuration unavailable" },\n        { status: 503, headers: NO_STORE_HEADERS },\n      );\n    }\n'''
+          if old_config not in text:
+              raise SystemExit("requests operational-config hot-path block not found")
+          text = text.replace(old_config, new_config)
+          old_hydrate = '    const hydratedRows = await backfillMissingRequestReportTranslations(data as GuestRequestRow[]);\n'
+          new_hydrate = '''    const visibleRows = ((data || []) as GuestRequestRow[]).filter((row) => !isExpiredTestRow(row));\n    const hydratedRows = await backfillMissingRequestReportTranslations(visibleRows);\n'''
+          if old_hydrate not in text:
+              raise SystemExit("requests hydration line not found")
+          text = text.replace(old_hydrate, new_hydrate)
+          write(path, text)
+
+          # Surveys API: same rule — read paths are read-only and expired test rows are filtered.
+          path = "app/api/staff/surveys/route.ts"
+          text = read(path)
+          text = text.replace('import { cleanupExpiredTestData } from "@/lib/server/test-rooms";\n', '')
+          marker = 'function isSurveyRole(value: string): value is Extract<StaffRole, "manager" | "reception"> {'
+          helper = '''function isExpiredTestSurvey(row: Pick<GuestSurveyRow, "is_test" | "test_expires_at">) {\n  if (!row.is_test || !row.test_expires_at) return false;\n  const expiresAt = Date.parse(row.test_expires_at);\n  return Number.isFinite(expiresAt) && expiresAt <= Date.now();\n}\n\n'''
+          if helper not in text:
+              text = text.replace(marker, helper + marker)
+          text = text.replace('    await cleanupExpiredTestData(scope.hotelId);\n\n', '')
+          old_hydrate = '    const hydratedRows = await backfillMissingSurveyTranslations((data || []) as GuestSurveyRow[]);\n'
+          new_hydrate = '''    const visibleRows = ((data || []) as GuestSurveyRow[]).filter((row) => !isExpiredTestSurvey(row));\n    const hydratedRows = await backfillMissingSurveyTranslations(visibleRows);\n'''
+          if old_hydrate not in text:
+              raise SystemExit("survey hydration line not found")
+          text = text.replace(old_hydrate, new_hydrate)
+          write(path, text)
+
+          # Staff requests client: poll a tiny feed-version row; only reload the heavy board when data changed.
+          path = "components/staff/store/StaffStoreProvider.tsx"
+          text = read(path)
+          text = text.replace('  useMemo,\n  useState,\n', '  useMemo,\n  useRef,\n  useState,\n')
+          nav_import = 'import { usePathname } from "next/navigation";\n'
+          feed_import = 'import { fetchStaffFeedState } from "@/lib/staff/staff-feed-state-client";\n'
+          if feed_import not in text:
+              text = text.replace(nav_import, nav_import + feed_import)
+          role_marker = 'type StaffRole = "reception" | "housekeeping" | "maintenance" | "manager";\n'
+          constants = '''type StaffRole = "reception" | "housekeeping" | "maintenance" | "manager";\n\nconst STAFF_REQUEST_VISIBLE_POLL_MS = 10_000;\nconst STAFF_REQUEST_HIDDEN_POLL_MS = 60_000;\n'''
+          text = text.replace(role_marker, constants)
+          state_marker = '  const [requests, setRequests] = useState<StaffRequest[]>([]);\n  const [isReady, setIsReady] = useState(false);\n'
+          state_repl = '''  const [requests, setRequests] = useState<StaffRequest[]>([]);\n  const [isReady, setIsReady] = useState(false);\n  const requestFeedVersionRef = useRef<number | null>(null);\n'''
+          if state_marker not in text:
+              raise SystemExit("staff store state marker not found")
+          text = text.replace(state_marker, state_repl)
+
+          effect_pattern = re.compile(r'''  useEffect\(\(\) => \{\n    if \(!shouldLoadStaffData\) \{.*?\n  \}, \[currentRole, loadRequests, shouldLoadStaffData\]\);''', re.S)
+          new_effect = '''  useEffect(() => {\n    if (!shouldLoadStaffData) {\n      setRequests([]);\n      setIsReady(true);\n      requestFeedVersionRef.current = null;\n      return;\n    }\n\n    if (!normalizedHotelSlug || !currentRole) return;\n\n    let cancelled = false;\n    let timer: number | undefined;\n    let inFlight = false;\n\n    const getPollInterval = () =>\n      typeof document !== "undefined" && document.visibilityState === "hidden"\n        ? STAFF_REQUEST_HIDDEN_POLL_MS\n        : STAFF_REQUEST_VISIBLE_POLL_MS;\n\n    const refreshIfChanged = async (force = false) => {\n      if (cancelled || inFlight) return;\n      inFlight = true;\n\n      try {\n        const feedState = await fetchStaffFeedState({\n          hotelSlug: normalizedHotelSlug,\n          role: currentRole,\n        });\n        const changed =\n          requestFeedVersionRef.current === null ||\n          requestFeedVersionRef.current !== feedState.requestsVersion;\n\n        if (force || changed) {\n          await loadRequests();\n        }\n        requestFeedVersionRef.current = feedState.requestsVersion;\n      } catch (error) {\n        console.error("staff feed-state refresh failed; falling back to full request refresh", error);\n        await loadRequests();\n      } finally {\n        inFlight = false;\n      }\n    };\n\n    const scheduleNext = () => {\n      if (cancelled) return;\n      if (timer !== undefined) window.clearTimeout(timer);\n      timer = window.setTimeout(async () => {\n        await refreshIfChanged(false);\n        scheduleNext();\n      }, getPollInterval());\n    };\n\n    void refreshIfChanged(true).finally(scheduleNext);\n\n    const handleFocus = () => {\n      void refreshIfChanged(false).finally(scheduleNext);\n    };\n\n    const handleVisibility = () => {\n      if (document.visibilityState === "visible") {\n        void refreshIfChanged(false).finally(scheduleNext);\n      } else {\n        scheduleNext();\n      }\n    };\n\n    window.addEventListener("focus", handleFocus);\n    document.addEventListener("visibilitychange", handleVisibility);\n\n    return () => {\n      cancelled = true;\n      if (timer !== undefined) window.clearTimeout(timer);\n      window.removeEventListener("focus", handleFocus);\n      document.removeEventListener("visibilitychange", handleVisibility);\n    };\n  }, [currentRole, loadRequests, normalizedHotelSlug, shouldLoadStaffData]);'''
+          text, count = effect_pattern.subn(new_effect, text, count=1)
+          if count != 1:
+              raise SystemExit(f"staff store polling effect replacement count={count}")
+          write(path, text)
+
+          # Survey client: surveys change far less often, so use the same feed-state signal with a slower cadence.
+          path = "components/staff/StaffSurveyCards.tsx"
+          text = read(path)
+          text = text.replace('import { useCallback, useEffect, useMemo, useState } from "react";', 'import { useCallback, useEffect, useMemo, useRef, useState } from "react";')
+          type_import = 'import type { Day3Survey, Day3SurveyApiResponse } from "@/lib/staff/survey-types";\n'
+          feed_import = 'import { fetchStaffFeedState } from "@/lib/staff/staff-feed-state-client";\n'
+          if feed_import not in text:
+              text = text.replace(type_import, type_import + feed_import)
+          role_marker = 'type StaffRoleWithSurveys = "manager" | "reception";\n'
+          constants = '''type StaffRoleWithSurveys = "manager" | "reception";\n\nconst STAFF_SURVEY_VISIBLE_POLL_MS = 30_000;\nconst STAFF_SURVEY_HIDDEN_POLL_MS = 300_000;\n'''
+          text = text.replace(role_marker, constants)
+          state_marker = '  const [markingId, setMarkingId] = useState<string | null>(null);\n'
+          state_repl = '''  const [markingId, setMarkingId] = useState<string | null>(null);\n  const surveyFeedVersionRef = useRef<number | null>(null);\n'''
+          if state_marker not in text:
+              raise SystemExit("survey hook state marker not found")
+          text = text.replace(state_marker, state_repl)
+          old_effect = '''  useEffect(() => {\n    void loadSurveys();\n    const interval = window.setInterval(() => void loadSurveys(), 5000);\n    return () => window.clearInterval(interval);\n  }, [loadSurveys]);\n'''
+          new_effect = '''  useEffect(() => {\n    const slug = String(hotelSlug || "").trim().toLowerCase();\n    if (!slug) {\n      surveyFeedVersionRef.current = null;\n      void loadSurveys();\n      return;\n    }\n\n    let cancelled = false;\n    let timer: number | undefined;\n    let inFlight = false;\n\n    const getPollInterval = () =>\n      typeof document !== "undefined" && document.visibilityState === "hidden"\n        ? STAFF_SURVEY_HIDDEN_POLL_MS\n        : STAFF_SURVEY_VISIBLE_POLL_MS;\n\n    const refreshIfChanged = async (force = false) => {\n      if (cancelled || inFlight) return;\n      inFlight = true;\n      try {\n        const feedState = await fetchStaffFeedState({ hotelSlug: slug, role });\n        const changed =\n          surveyFeedVersionRef.current === null ||\n          surveyFeedVersionRef.current !== feedState.surveysVersion;\n        if (force || changed) {\n          await loadSurveys();\n        }\n        surveyFeedVersionRef.current = feedState.surveysVersion;\n      } catch (error) {\n        console.error("survey feed-state refresh failed; falling back to full survey refresh", error);\n        await loadSurveys();\n      } finally {\n        inFlight = false;\n      }\n    };\n\n    const scheduleNext = () => {\n      if (cancelled) return;\n      if (timer !== undefined) window.clearTimeout(timer);\n      timer = window.setTimeout(async () => {\n        await refreshIfChanged(false);\n        scheduleNext();\n      }, getPollInterval());\n    };\n\n    void refreshIfChanged(true).finally(scheduleNext);\n\n    const handleFocus = () => void refreshIfChanged(false).finally(scheduleNext);\n    const handleVisibility = () => {\n      if (document.visibilityState === "visible") {\n        void refreshIfChanged(false).finally(scheduleNext);\n      } else {\n        scheduleNext();\n      }\n    };\n\n    window.addEventListener("focus", handleFocus);\n    document.addEventListener("visibilitychange", handleVisibility);\n\n    return () => {\n      cancelled = true;\n      if (timer !== undefined) window.clearTimeout(timer);\n      window.removeEventListener("focus", handleFocus);\n      document.removeEventListener("visibilitychange", handleVisibility);\n    };\n  }, [hotelSlug, loadSurveys, role]);\n'''
+          if old_effect not in text:
+              raise SystemExit("survey polling effect not found")
+          text = text.replace(old_effect, new_effect)
+          write(path, text)
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Contract tests
+        run: npm test
+
+      - name: Lint changed runtime files
+        run: npx eslint app/api/staff/feed-state/route.ts app/api/staff/requests/route.ts app/api/staff/surveys/route.ts components/staff/store/StaffStoreProvider.tsx components/staff/StaffSurveyCards.tsx lib/staff/staff-feed-state-client.ts
+
+      - name: Production build
+        run: npm run build
+
+      - name: Commit applied INFRA-0 runtime changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/api/staff/requests/route.ts app/api/staff/surveys/route.ts components/staff/store/StaffStoreProvider.tsx components/staff/StaffSurveyCards.tsx
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit"
+          else
+            git commit -m "INFRA-0: reduce staff hot-path database load"
+            git push origin HEAD:infra/infra-0-capacity-foundation-20260816
+          fi
