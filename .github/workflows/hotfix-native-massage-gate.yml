@@ -21,12 +21,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - name: Full contract and tenant-isolation gate
         run: npm test
       - name: Changed-file lint
-        run: npx eslint lib/server/massage-native-sheet-mirror.ts lib/server/massage-native-authority-booking.ts app/api/cron/native-massage-conflict-watch/route.ts tests/contracts/m15-automation-governance.contract.test.mjs
+        run: npx eslint lib/server/massage-native-sheet-mirror.ts lib/server/massage-native-authority-booking.ts app/api/cron/native-massage-conflict-watch/route.ts tests/contracts/m15-automation-governance.contract.test.mjs tests/contracts/m14-3-3-production-native-authority.contract.test.mjs tests/contracts/m14-3-native-staff-reconciliation.contract.test.mjs
       - name: Production build
         run: npm run build
