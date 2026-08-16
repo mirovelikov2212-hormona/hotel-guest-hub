@@ -1484,7 +1484,7 @@ function getOrCreateGuestStayDeviceToken() {
 
 function getDateKeyInClientTimezone(timezone: string, date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone || "Europe/Sofia",
+    timeZone: timezone || "UTC",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -2920,8 +2920,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       (config as any).hotelTimezone ??
       rawConfig.timezone ??
       rawConfig.hotelTimezone ??
-      "Europe/Sofia"
-  ).trim() || "Europe/Sofia";
+      "UTC"
+  ).trim() || "UTC";
 
   const hotelTodayDateKey = getDateKeyInClientTimezone(hotelTimezone);
 
@@ -7576,7 +7576,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       return new Intl.DateTimeFormat(weatherLocale[weatherLang] || "en-GB", {
         hour: "2-digit",
         minute: "2-digit",
-        timeZone: weatherData?.timezone || "Europe/Sofia",
+        timeZone: weatherData?.timezone || "UTC",
       }).format(new Date(weatherClock));
     } catch {
       return new Date(weatherClock).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });

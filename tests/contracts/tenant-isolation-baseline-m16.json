@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "checkpoint": "m16-global-scale-certification",
+  "baseCheckpoint": "m15-global-locales-ops-governance",
+  "expectedNeedsReview": 59,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "app/api/guest/day3-survey/route.ts",
+      "fromLine": 54,
+      "toLine": 55,
+      "table": "guest_surveys",
+      "operation": "select"
+    }
+  ],
+  "additions": []
+}

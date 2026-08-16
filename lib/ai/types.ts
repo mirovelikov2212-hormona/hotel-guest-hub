@@ -1,12 +1,12 @@
 import type { LangKey } from "@/lib/types";
+import { canonicalizeLocaleTag } from "@/lib/i18n/locale-model.mjs";
 
-export const AI_LANGS = ["bg", "en", "de", "ro", "cs", "ru"] as const;
-export type AiLang = (typeof AI_LANGS)[number];
+export type AiLang = string;
 
 export type AiRecordKind = "service" | "venue" | "info" | "hotel";
 
-export type LocalizedText = Partial<Record<AiLang, string>>;
-export type LocalizedList = Partial<Record<AiLang, string[]>>;
+export type LocalizedText = Partial<Record<string, string>>;
+export type LocalizedList = Partial<Record<string, string[]>>;
 
 export type AiCatalogRecord = {
   id: string;
@@ -17,7 +17,7 @@ export type AiCatalogRecord = {
   summaries: LocalizedText;
   aliases: LocalizedList;
   intentTags: string[];
-  pathByLang: Partial<Record<AiLang, string[]>>;
+  pathByLang: Partial<Record<string, string[]>>;
   urls: string[];
   targetDepartment?: string;
   requestType?: string;
@@ -87,9 +87,7 @@ export type AiDiagnostics = {
 };
 
 export function normalizeAiLang(value: LangKey | string | undefined): AiLang {
-  const normalized = String(value || "en").trim().toLowerCase();
-  if (normalized === "cz") return "cs";
-  return (AI_LANGS as readonly string[]).includes(normalized)
-    ? (normalized as AiLang)
-    : "en";
+  const raw = String(value || "").trim();
+  if (raw.toLowerCase() === "cz") return "cs";
+  return canonicalizeLocaleTag(raw) || "en";
 }

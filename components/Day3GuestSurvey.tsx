@@ -500,7 +500,7 @@ function writeStoredSurveyState(key: string, state: StoredSurveyState) {
 }
 
 function getHotelTimeParts(timezone: string) {
-  const safeTimezone = String(timezone || "Europe/Sofia").trim() || "Europe/Sofia";
+  const safeTimezone = String(timezone || "UTC").trim() || "UTC";
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: safeTimezone,
     year: "numeric",
