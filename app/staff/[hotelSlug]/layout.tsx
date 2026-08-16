@@ -12,9 +12,10 @@ export default async function StaffHotelScopedLayout({
 }) {
   const { hotelSlug } = await params;
 
-  const hotelId = await getHotelIdBySlug(hotelSlug);
-
-  if (!hotelId) {
+  let hotelId: string;
+  try {
+    hotelId = await getHotelIdBySlug(hotelSlug);
+  } catch {
     notFound();
   }
 
