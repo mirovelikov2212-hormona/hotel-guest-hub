@@ -85,6 +85,7 @@ test("Post-M16 native massage writes mirror immediately and retain automatic rec
   const authorityBooking = await readProjectFile("lib/server/massage-native-authority-booking.ts");
   const mirror = await readProjectFile("lib/server/massage-native-sheet-mirror.ts");
   const externalSync = await readProjectFile(".github/workflows/massage-sheet-sync.yml");
+  const snapshotCron = await readProjectFile("app/api/cron/massage-snapshot-sync/route.ts");
   const conflictWatch = await readProjectFile("app/api/cron/native-massage-conflict-watch/route.ts");
 
   assertContains(mirrorWorkflow, 'cron: "*/5 * * * *"');
@@ -103,7 +104,15 @@ test("Post-M16 native massage writes mirror immediately and retain automatic rec
   assertContains(mirror, "mirrorNativeMassageBookingById");
   assertContains(mirror, "automatic retry");
 
+  assertContains(snapshotCron, "isMassageSnapshotRefreshEnabled");
+  assertContains(snapshotCron, "skippedDisabled");
+  assertContains(snapshotCron, "matchedSources.filter");
+
+  assertContains(externalSync, 'cron: "*/10 * * * *"');
+  assertContains(externalSync, 'if: ${{ always() }}');
   assertContains(externalSync, "native-massage-conflict-watch");
+  assertContains(externalSync, "native-massage-sheet-mirror");
+  assertContains(externalSync, "native-massage-reconcile");
   assertContains(conflictWatch, 'CONFLICT_EVENT_TYPE = "native_massage_external_conflict"');
   assertContains(conflictWatch, 'severity: "critical"');
   assertContains(conflictWatch, '.eq("is_stayhub_marker", false)');
