@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "checkpoint": "post-m16-native-massage-mirror-hotfix",
+  "baseCheckpoint": "m16-global-scale-certification",
+  "expectedNeedsReview": 62,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "lib/server/massage-native-authority-booking.ts",
+      "fromLine": 107,
+      "toLine": 164,
+      "operation": "rpc"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "app/api/cron/native-massage-conflict-watch/route.ts",
+      "line": 97,
+      "table": "massage_runtime_authority_state",
+      "tableExpression": "\"massage_runtime_authority_state\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "authorized_platform_cron_native_authority_registry_discovery"
+    },
+    {
+      "filePath": "app/api/cron/native-massage-conflict-watch/route.ts",
+      "line": 138,
+      "table": "massage_runtime_blocks",
+      "tableExpression": "\"massage_runtime_blocks\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_resolved_hotel_filtered_external_conflict_scan"
+    },
+    {
+      "filePath": "lib/server/massage-native-sheet-mirror.ts",
+      "line": 51,
+      "table": "massage_external_source_configs",
+      "tableExpression": "\"massage_external_source_configs\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_resolved_hotel_filtered_explicit_mirror_configuration"
+    }
+  ]
+}
