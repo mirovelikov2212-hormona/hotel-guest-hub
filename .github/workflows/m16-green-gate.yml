@@ -1,0 +1,25 @@
+name: M16 Global Scale GREEN Gate
+
+on:
+  push:
+    branches:
+      - ci/m16-green-6622dc6
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: M16 contract
+        run: npm run test:m16
+      - name: Full contract suite
+        run: npm run test:contracts
+      - name: Tenant isolation
+        run: npm run test:tenant-isolation
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
