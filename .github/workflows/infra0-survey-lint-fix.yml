@@ -1,6 +1,11 @@
 name: INFRA-0 Survey Lint Fix
 
 on:
+  push:
+    branches:
+      - infra/infra-0-capacity-foundation-20260816
+    paths:
+      - .github/workflows/infra0-survey-lint-fix.yml
   workflow_dispatch:
 
 permissions:
