@@ -103,9 +103,11 @@ test("M14.3.2 cron is authenticated and fails visibly while repairs remain pendi
   assert.match(cronRoute, /ok \? 200 : 503/);
 });
 
-test("M14.3.2 reconciliation workflow remains manual-only after the I/O incident, authenticated, and never deploys Production", () => {
+test("M14.3.2 reconciliation workflow is post-M16 scheduled recovery, authenticated, and never deploys Production", () => {
   assert.match(workflow, /workflow_dispatch:/);
-  assert.doesNotMatch(workflow, /schedule:/);
+  assert.match(workflow, /schedule:/);
+  assert.match(workflow, /cron: "\*\/5 \* \* \* \*"/);
+  assert.match(workflow, /concurrency:/);
   assert.match(workflow, /secrets\.CRON_SECRET/);
   assert.match(workflow, /Authorization: Bearer \$\{CRON_SECRET\}/);
   assert.match(workflow, /api\/cron\/native-massage-reconcile/);

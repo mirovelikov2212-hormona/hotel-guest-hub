@@ -1,7 +1,10 @@
 import "server-only";
 
-import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { after } from "next/server";
 import { canonicalizeLocaleTag } from "@/lib/i18n/locale-model.mjs";
+import { mirrorNativeMassageBookingById } from "@/lib/server/massage-native-sheet-mirror";
+import { logSystemError } from "@/lib/server/system-events";
+import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d)(?:\.\d+)?)?$/;
@@ -91,6 +94,60 @@ function parseResult(value: unknown, expectedHotelId: string): AuthorityBookingR
   };
 }
 
+async function scheduleSheetMirror(result: AuthorityBookingResult) {
+  if (
+    result.status !== "confirmed" ||
+    result.isTest ||
+    result.mirrorStatus === "not_required" ||
+    result.mirrorStatus === "mirrored"
+  ) {
+    return;
+  }
+
+  try {
+    after(async () => {
+      try {
+        await mirrorNativeMassageBookingById({
+          hotelId: result.hotelId,
+          bookingId: result.bookingId,
+        });
+      } catch (error) {
+        await logSystemError({
+          hotelId: result.hotelId,
+          severity: "error",
+          source: "massage",
+          eventType: "native_massage_immediate_sheet_mirror_failed",
+          message: "Native massage booking is confirmed; immediate Sheet mirror failed and scheduled reconciliation will retry it.",
+          roomNumber: result.roomNumber,
+          error,
+          metadata: {
+            nativeBookingId: result.bookingId,
+            serviceId: result.serviceId,
+            bookingDate: result.date,
+            startTime: result.startTime,
+          },
+        });
+      }
+    });
+  } catch (error) {
+    await logSystemError({
+      hotelId: result.hotelId,
+      severity: "error",
+      source: "massage",
+      eventType: "native_massage_immediate_sheet_mirror_not_scheduled",
+      message: "Native massage booking is confirmed; immediate Sheet mirror could not be scheduled and cron reconciliation remains the recovery path.",
+      roomNumber: result.roomNumber,
+      error,
+      metadata: {
+        nativeBookingId: result.bookingId,
+        serviceId: result.serviceId,
+        bookingDate: result.date,
+        startTime: result.startTime,
+      },
+    });
+  }
+}
+
 export async function createAuthorityNativeMassageBooking(input: {
   hotelId: string;
   serviceId: string;
@@ -117,5 +174,8 @@ export async function createAuthorityNativeMassageBooking(input: {
     p_resource_key: requireText(input.resourceKey || "default", "MASSAGE_NATIVE_RESOURCE_INVALID", 80),
   });
   if (error) throw error;
-  return parseResult(data, hotelId);
+
+  const result = parseResult(data, hotelId);
+  await scheduleSheetMirror(result);
+  return result;
 }

@@ -47,6 +47,29 @@ async function updateMirrorState(input: {
   if (error) throw error;
 }
 
+async function hasConfiguredSheetMirror(hotelId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("massage_external_source_configs")
+    .select("active, mirror_enabled")
+    .eq("hotel_id", hotelId)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data?.active && data?.mirror_enabled);
+}
+
+async function loadProductionHotelForMirror(hotelId: string): Promise<HotelScope> {
+  const { data, error } = await supabaseAdmin
+    .from("hotels")
+    .select("id, slug, public_slug, name, timezone, active, is_sandbox, production_hotel_id")
+    .eq("id", hotelId)
+    .eq("active", true)
+    .maybeSingle();
+  if (error || !data) throw error || new Error("MASSAGE_NATIVE_MIRROR_HOTEL_NOT_FOUND");
+  const hotel = data as HotelScope;
+  if (hotel.is_sandbox) throw new Error("MASSAGE_NATIVE_MIRROR_SANDBOX_FORBIDDEN");
+  return hotel;
+}
+
 export async function mirrorNativeMassageBookingToSheet(input: {
   hotel: HotelScope;
   bookingId: string;
@@ -71,6 +94,18 @@ export async function mirrorNativeMassageBookingToSheet(input: {
   }
   if (booking.mirror_status === "mirrored") {
     return { ok: true as const, action: "already_mirrored" as const, bookingId: booking.id };
+  }
+
+  if (!(await hasConfiguredSheetMirror(input.hotel.id))) {
+    await updateMirrorState({
+      hotelId: input.hotel.id,
+      bookingId: booking.id,
+      patch: {
+        mirror_status: "not_required",
+        mirror_last_error: null,
+      },
+    });
+    return { ok: true as const, action: "not_required" as const, bookingId: booking.id };
   }
 
   const attemptedAt = new Date().toISOString();
@@ -147,13 +182,24 @@ export async function mirrorNativeMassageBookingToSheet(input: {
       severity: "error",
       source: "massage",
       eventType: "native_massage_sheet_mirror_failed",
-      message: "Native massage booking is confirmed, but the Google Sheet mirror remains pending for rollback safety.",
+      message: "Native massage booking is confirmed, but the Google Sheet mirror remains pending for automatic retry.",
       roomNumber: booking.room_number,
       error: mirrorError,
       metadata: { nativeBookingId: booking.id, hotelSlug: input.hotel.slug },
     });
     return { ok: false as const, action: "failed" as const, bookingId: booking.id, error: message };
   }
+}
+
+export async function mirrorNativeMassageBookingById(input: {
+  hotelId: string;
+  bookingId: string;
+}) {
+  const hotel = await loadProductionHotelForMirror(String(input.hotelId || "").trim());
+  return mirrorNativeMassageBookingToSheet({
+    hotel,
+    bookingId: String(input.bookingId || "").trim(),
+  });
 }
 
 export async function reconcileNativeMassageSheetMirrors(input: {
