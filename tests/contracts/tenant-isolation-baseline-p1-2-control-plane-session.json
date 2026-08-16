@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "checkpoint": "p1-2-control-plane-session",
+  "baseCheckpoint": "p1-control-plane-foundation",
+  "expectedNeedsReview": 73,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "lib/server/control-plane-auth.ts",
+      "fromLine": 32,
+      "toLine": 36,
+      "operation": "select"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/control-plane-audit.ts",
+      "line": 21,
+      "table": "control_plane_audit_log",
+      "tableExpression": "\"control_plane_audit_log\"",
+      "operation": "insert",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_control_plane_append_only_audit_write_after_platform_admin_action"
+    },
+    {
+      "filePath": "lib/server/control-plane-session.ts",
+      "line": 63,
+      "table": "platform_admin_sessions",
+      "tableExpression": "\"platform_admin_sessions\"",
+      "operation": "insert",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_platform_admin_short_lived_session_creation_using_hashed_random_token"
+    },
+    {
+      "filePath": "lib/server/control-plane-session.ts",
+      "line": 96,
+      "table": "platform_admin_sessions",
+      "tableExpression": "\"platform_admin_sessions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "control_plane_cookie_session_lookup_by_hmac_token_hash_with_revoked_session_exclusion"
+    },
+    {
+      "filePath": "lib/server/control-plane-session.ts",
+      "line": 108,
+      "table": "platform_admins",
+      "tableExpression": "\"platform_admins\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "control_plane_session_revalidation_of_exact_admin_id_and_active_platform_membership"
+    },
+    {
+      "filePath": "lib/server/control-plane-session.ts",
+      "line": 134,
+      "table": "platform_admin_sessions",
+      "tableExpression": "\"platform_admin_sessions\"",
+      "operation": "update",
+      "reasons": ["unclassified_table"],
+      "provenance": "control_plane_logout_revokes_only_session_matching_current_hmac_token_hash"
+    }
+  ]
+}

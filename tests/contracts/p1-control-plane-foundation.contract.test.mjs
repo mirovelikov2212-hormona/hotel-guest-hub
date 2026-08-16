@@ -66,11 +66,13 @@ test("P1.1 Control Plane audit log is append/read only for application service a
 test("P1.1 platform administrator authority is separate from hotel Manager PIN authority", async () => {
   const source = await readProjectFile("lib/server/control-plane-auth.ts");
 
+  assertContains(source, "loadActivePlatformAdmin");
   assertContains(source, "resolvePlatformAdminAccessToken");
   assertContains(source, "supabaseAdmin.auth.getUser(token)");
   assertContains(source, '.from("platform_admins")');
-  assertContains(source, '.eq("auth_user_id", user.id)');
+  assertContains(source, '.eq("auth_user_id", authUserId)');
   assertContains(source, '.eq("active", true)');
+  assertContains(source, "loadActivePlatformAdmin(user.id)");
   assertContains(source, 'role === "super_admin" || role === "operator"');
   assertNotContains(source, "manager_pin");
   assertNotContains(source, "staff_sessions");
