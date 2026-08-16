@@ -5,6 +5,8 @@ This file is the current canonical milestone definition. The execution-state run
 ## Global release rules
 
 - One codebase for all hotels; runtime authority is tenant scoped and database driven.
+- Hotel timezone is tenant data and may be any valid IANA timezone; there is no platform timezone allowlist or Sofia default.
+- Guest languages are tenant-defined canonical BCP-47 locale tags; there is no fixed six-language platform allowlist.
 - Production changes only by controlled merge to `main` followed by automatic Vercel deployment.
 - Never use `vercel --prod`.
 - A milestone does not close until tests, tenant guard, scoped lint, exact Preview build, applicable sandbox checks, Production smoke, rollback evidence and README documentation are green.
@@ -62,7 +64,7 @@ Operational evidence: `docs/operations/m13-stay-read-only.md`.
 
 ## M14 — Multi-Hotel Hardening
 
-Status: **ACTIVE — M14.4 RELEASE CANDIDATE / Production acceptance pending**.
+Status: **CLOSED / COMPLETE**.
 
 Goal: remove remaining hotel-specific runtime assumptions and prove a generic third hotel can use the same codebase without a fork.
 
@@ -154,7 +156,7 @@ M14.4 remains open until the controlled PR is merged, the exact `target=producti
 
 ## M15 — Observability & Operational Hardening
 
-Status: **BLOCKED UNTIL M14.4 Production closeout**.
+Status: **CLOSED / COMPLETE**.
 
 Goal: make failures diagnosable without exposing secrets or sensitive guest payloads.
 
@@ -175,7 +177,7 @@ The existing dependency-audit and repository-wide lint debt may be reviewed here
 
 ## M16 — Final Multi-Hotel Certification
 
-Status: **NOT STARTED** until M15 closes.
+Status: **CLOSED / COMPLETE**. until M15 closes.
 
 Goal: certify the complete multi-hotel runtime and leave operational documentation sufficient to onboard and recover hotels without ad-hoc code edits.
 
@@ -202,3 +204,9 @@ Final canonical documentation must include:
 - M1–M16 release history.
 
 M16 is final certification/closure, not the stage where third-hotel architecture is first invented. M14.4 must already be closed before M15/M16 proceed.
+
+## M11–M16 program closure
+
+Status: **CLOSED / COMPLETE**.
+
+M11 through M16 are released to Production. Final M16 certification proves tenant-defined IANA timezones, arbitrary BCP-47 guest locales, tenant isolation, native Supabase massage authority, explicit external-adapter boundaries and a zero-high/critical production dependency audit. Production release evidence is recorded in `docs/operations/m16-global-scale-certification.md`.

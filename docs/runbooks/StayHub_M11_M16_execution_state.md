@@ -8,7 +8,7 @@ Canonical continuation and release-evidence document for the autonomous M11–M1
 - Never use `vercel --prod`.
 - One milestone/risk class at a time.
 - No hotel-specific runtime hardcoding.
-- Preserve tenant isolation, Staff PIN release gate, six languages, PWA behavior and Production data.
+- Preserve tenant isolation, Staff PIN release gate, tenant-defined canonical BCP-47 locales, tenant-authoritative IANA timezone behavior, PWA behavior and Production data.
 - Sandbox must not send live staff notifications/reports or write Production adapter destinations.
 - Supabase is the tenant-scoped runtime authority; remaining Sheet/Apps Script integrations are treated as controlled external/editorial adapters, not a second general runtime database.
 
@@ -159,7 +159,7 @@ The runtime merge can be reverted while the additive lifecycle columns remain. L
 
 ## M14 — Multi-Hotel Hardening
 
-Status: **ACTIVE — M14.4 RELEASE CANDIDATE / Production acceptance pending**.
+Status: **CLOSED / COMPLETE**.
 
 ### M14.1 — Normalized Massage Runtime Shadow Projection
 
@@ -317,12 +317,25 @@ M14.4 is not closed and M15 is not started until the controlled PR is merged, ex
 
 ## M15 — Observability & Operational Hardening
 
-Status: **BLOCKED UNTIL M14.4 Production closeout**.
+Status: **CLOSED / COMPLETE**.
 
 Scope: normalized errors/events, correlation IDs, hotel/environment/version context, safe health checks, critical alerting, adapter failure visibility, controlled review/reactivation of repair/mirror/reminder schedules, and review of existing dependency/repository-wide lint debt as explicit operational risk.
 
 ## M16 — Final Multi-Hotel Certification
 
-Status: **NOT STARTED** until M15 closes.
+Status: **CLOSED / COMPLETE**. until M15 closes.
 
 Scope: final generic multi-hotel end-to-end certification using the onboarding model already proven in M14.4, sandbox isolation, staff notification parity, stay read-only enforcement, reporting/analytics separation, massage source/destination safety, tenant rollback drills, Production smoke and final onboarding/recovery documentation.
+
+## Final M11–M16 program state
+
+Status: **CLOSED / COMPLETE**.
+
+- M15 Production merge checkpoint: `8db60026c9d0b923b8a349ba9a218d75cd3dfcbc`.
+- M16 controlled PR: #26.
+- M16 Production merge checkpoint: `62663c426512e49cfc5864a35c6a37dd3a1019ee`.
+- Exact M16 Production deployment: `dpl_Ceo38umiJyR8NLh15bAnwxW9UQkt` — `READY`.
+- M16 gates: `9/9` milestone contracts, `219/219` full contracts, tenant isolation PASS at checkpoint `m16-global-scale-certification`, production dependency audit PASS.
+- Production smoke: certification Guest Hub PASS, Aquamarine Guest Hub PASS, Aquamarine Reception Staff PIN shell PASS.
+- Certification tenant: `Pacific/Auckland`, locales `en/es/tr/ja/ar/pt-BR/zh-Hans`, native massage 22 starts, zero external massage-source rows and zero operational-history leakage.
+- Exact M16 Production deployment returned no error/warning/fatal runtime logs during closeout smoke. The project-level `url.parse()` deprecation warning predates M16 and was last attributed to an earlier deployment, so it is tracked as post-M16 cleanup rather than a release regression.

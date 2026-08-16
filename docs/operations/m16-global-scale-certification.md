@@ -1,6 +1,6 @@
 # M16 — Global Scale & Production Certification
 
-Status: **RELEASE CANDIDATE — Production acceptance pending**
+Status: **CLOSED / COMPLETE**
 
 M16 is the final certification milestone for the StayHub multi-hotel runtime. It verifies that the platform can serve hotels globally without hotel-specific runtime forks, fixed timezone assumptions, or a fixed platform language allowlist.
 
@@ -99,3 +99,18 @@ M16 must not be marked CLOSED until all of the following are true:
 8. canonical roadmap/runbook/README status is updated to `M16 CLOSED / COMPLETE`.
 
 Until those checks pass, this document remains release-candidate evidence rather than a Production-closure claim.
+
+## Production closure evidence
+
+- Controlled PR: #26 — merged with exact head protection.
+- Production merge SHA: `62663c426512e49cfc5864a35c6a37dd3a1019ee`.
+- Automatic Vercel Production deployment: `dpl_Ceo38umiJyR8NLh15bAnwxW9UQkt` — `READY`.
+- Production build: Next.js 16.3.1 compile PASS, TypeScript PASS, 35/35 static pages generated.
+- `https://www.stayhub.app/h/certification-hotel-public`: Production Guest Hub PASS.
+- `https://aquamarine.stayhub.app`: Aquamarine Guest Hub PASS.
+- `/staff/aquamarin/reception`: HTTP 200 and correct Reception PIN gate PASS; no PIN was submitted during smoke.
+- Certification tenant isolation after deployment: 0 guest requests, 0 stays, 0 surveys, 0 hub events, 0 guest/staff push subscriptions and 0 staff sessions; expected 3 routing rules and 4 staff PIN records remain.
+- Certification native massage availability after deployment: 22 starts from 10:00 through 15:15; authority `native_supabase`; external source count 0. Aquamarine authority remains `native_supabase` with its explicitly configured external adapter.
+- Exact M16 deployment runtime log query returned no `error`, `warning` or `fatal` entries during closeout smoke.
+- Project-level `url.parse()` deprecation is inherited from earlier deployments and is not an M16 regression; it remains post-M16 cleanup.
+- `vercel --prod` was not used.
