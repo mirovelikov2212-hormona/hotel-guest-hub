@@ -1,0 +1,32 @@
+name: Native Massage Hotfix Gate
+
+on:
+  push:
+    branches:
+      - hotfix/native-massage-sheet-mirror-automation-20260816
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-massage-hotfix-gate
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Full contract and tenant-isolation gate
+        run: npm test
+      - name: Changed-file lint
+        run: npx eslint lib/server/massage-native-sheet-mirror.ts lib/server/massage-native-authority-booking.ts app/api/cron/native-massage-conflict-watch/route.ts tests/contracts/m15-automation-governance.contract.test.mjs
+      - name: Production build
+        run: npm run build
