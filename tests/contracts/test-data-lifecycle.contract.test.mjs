@@ -60,14 +60,19 @@ test("staff request reads trigger lifecycle cleanup before operational rows are 
   );
 });
 
-test("scheduled cleanup covers every non-sandbox non-demo hotel", async () => {
+test("scheduled cleanup keeps Production test TTL and normalizes expired stay lifecycle for every live tenant", async () => {
   const source = await readProjectFile("app/api/cron/test-data-cleanup/route.ts");
+  const migration = await readProjectFile(
+    "supabase/migrations/20260816124500_post_m16_guest_stay_lifecycle_cleanup.sql",
+  );
   const vercelConfig = JSON.parse(await readProjectFile("vercel.json"));
 
   assertContains(source, 'process.env.CRON_SECRET');
-  assertContains(source, '.eq("is_sandbox", false)');
+  assertContains(source, '.eq("active", true)');
   assertContains(source, '.eq("is_demo", false)');
+  assertContains(source, 'if (!sandbox)');
   assertContains(source, '"cleanup_expired_test_data"');
+  assertContains(source, '"cleanup_expired_guest_stays"');
   assertContains(source, "p_hotel_id: hotel.id");
 
   assertNotContains(
@@ -76,6 +81,15 @@ test("scheduled cleanup covers every non-sandbox non-demo hotel", async () => {
     "Scheduled cleanup must use semantic environment fields rather than slug hacks.",
   );
 
+  assertContains(migration, "where hotel_id = p_hotel_id");
+  assertContains(migration, "status = 'active'");
+  assertContains(migration, "coalesce(late_checkout_status, 'none') <> 'pending'");
+  assertContains(migration, "effective_check_out_at <= now()");
+  assertContains(migration, "status = 'ended'");
+  assertContains(migration, "lifecycle_state = 'read_only'");
+  assertContains(migration, "revoke all on function public.cleanup_expired_guest_stays(uuid) from anon");
+  assertContains(migration, "grant execute on function public.cleanup_expired_guest_stays(uuid) to service_role");
+
   assert.ok(Array.isArray(vercelConfig.crons), "Vercel cron configuration must be an array.");
   assert.ok(
     vercelConfig.crons.some(
@@ -83,6 +97,6 @@ test("scheduled cleanup covers every non-sandbox non-demo hotel", async () => {
         cron?.path === "/api/cron/test-data-cleanup" &&
         cron?.schedule === "17 2 * * *",
     ),
-    "Expected the daily production test-data cleanup cron with its canonical schedule.",
+    "Expected the daily lifecycle cleanup cron with its canonical schedule.",
   );
 });
