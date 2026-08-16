@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  assertBefore,
   assertContains,
   assertNotContains,
   readProjectFile,
@@ -43,21 +42,34 @@ test("production test-room TTL still comes from hotel_test_rooms policy", async 
   assertContains(source, "test_expires_at: policy.expiresAt");
 });
 
-test("staff request reads trigger lifecycle cleanup before operational rows are loaded", async () => {
-  const source = await readProjectFile("app/api/staff/requests/route.ts");
-  const getHandlerStart = source.indexOf("export async function GET");
+test("staff read paths stay read-only while expired test rows are hidden", async () => {
+  const requestsSource = await readProjectFile("app/api/staff/requests/route.ts");
+  const surveysSource = await readProjectFile("app/api/staff/surveys/route.ts");
 
-  if (getHandlerStart < 0) {
-    throw new Error("Missing staff requests GET handler.");
+  const requestsGetStart = requestsSource.indexOf("export async function GET");
+  const surveysGetStart = surveysSource.indexOf("export async function GET");
+
+  if (requestsGetStart < 0 || surveysGetStart < 0) {
+    throw new Error("Missing staff read handler.");
   }
 
-  const getHandler = source.slice(getHandlerStart);
-  assertContains(getHandler, "await cleanupExpiredTestData(scope.hotelId)");
-  assertBefore(
-    getHandler,
-    "await cleanupExpiredTestData(scope.hotelId)",
-    '.from("guest_requests")',
+  const requestsGet = requestsSource.slice(requestsGetStart);
+  const surveysGet = surveysSource.slice(surveysGetStart);
+
+  assertNotContains(
+    requestsGet,
+    "cleanupExpiredTestData",
+    "Staff request polling must never run archival/destructive lifecycle cleanup.",
   );
+  assertNotContains(
+    surveysGet,
+    "cleanupExpiredTestData",
+    "Staff survey polling must never run archival/destructive lifecycle cleanup.",
+  );
+  assertContains(requestsSource, "isExpiredTestRow");
+  assertContains(requestsSource, "visibleRows");
+  assertContains(surveysSource, "isExpiredTestSurvey");
+  assertContains(surveysSource, "visibleRows");
 });
 
 test("scheduled cleanup keeps Production test TTL and normalizes expired stay lifecycle for every live tenant", async () => {
