@@ -55,3 +55,16 @@ jobs:
             echo "Massage external snapshot refresh failed with status ${status}."
             exit 1
           done
+
+      - name: Detect native and external massage conflicts
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --retry 2 \
+            --retry-all-errors \
+            --connect-timeout 10 \
+            --max-time 60 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            https://www.stayhub.app/api/cron/native-massage-conflict-watch
