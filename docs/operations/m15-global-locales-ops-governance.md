@@ -1,6 +1,6 @@
 # M15 — Global Locales & Operations Governance
 
-Status: **RELEASE CANDIDATE — Production acceptance pending**
+Status: **CLOSED / COMPLETE**
 
 ## Scope
 
@@ -87,3 +87,9 @@ The repository-wide ESLint backlog predates M15. M15 release lint is evaluated d
 - Reminder automation can be disabled by reverting/removing the scheduled workflow without deleting booking state.
 - Tenant report delivery is fail-closed when a hotel has no enabled recipient setting.
 - No rollback should remove guest/request/booking/reporting history.
+
+## Production closure
+
+- Controlled M15 merge checkpoint: `8db60026c9d0b923b8a349ba9a218d75cd3dfcbc`.
+- Automatic Vercel Production deployment: `dpl_HwQy29pYmTKtvmVcZkaKU5aDKu7T` — `READY`.
+- M15 Production acceptance completed before M16 certification began.

@@ -25,6 +25,7 @@ StayHub is a multi-hotel digital concierge and Staff Hub built with Next.js, Sup
 - M14.1–M14.3 progressively introduced the normalized massage projection, native schedule/atomic conflict engine, sandbox authority, durable staff reconciliation and the controlled Production cutover.
 - M14.4 proves the generic third-hotel path: slug/public-slug resolution, QR onboarding, timezone/department hours and external massage-adapter access are tenant-data driven rather than Aquamarine runtime branches.
 - M15 makes locale/timezone handling global, moves massage reminders to native booking authority and scopes automated report delivery per tenant.
+- M16 completes global-scale certification: dynamic tenant locales/timezones, final isolation/security gates and exact Production smoke are closed.
 - Production Aquamarine massage authority is `native_supabase`; availability, conflicts and booking state are resolved from Supabase.
 - A certification tenant runs native massage availability with no external Sheet source and keeps operational/reporting history isolated under its own hotel id.
 - The certification massage service operates using `name_i18n` locale-map data without mandatory BG/EN/DE/RO/CS/RU service-name columns.
@@ -40,11 +41,12 @@ StayHub is a multi-hotel digital concierge and Staff Hub built with Next.js, Sup
 | M12 — Staff Sound & Notification Parity | CLOSED / COMPLETE | `docs/operations/m12-staff-notification-parity.md` |
 | M13 — Checkout / Stay-End Read-Only Mode | CLOSED / COMPLETE | `docs/operations/m13-stay-read-only.md` |
 | M14 — Multi-Hotel Hardening | CLOSED / COMPLETE | `docs/architecture/m11-m16-roadmap.md`, `docs/operations/m14-4-generic-third-hotel-proof.md` |
-| M15 — Global Locales & Operations Governance | RELEASE CANDIDATE / Production acceptance pending | `docs/operations/m15-global-locales-ops-governance.md` |
-| M16 — Final Global Multi-Hotel Certification | NEXT | `docs/architecture/m11-m16-roadmap.md` |
+| M15 — Global Locales & Operations Governance | CLOSED / COMPLETE | `docs/operations/m15-global-locales-ops-governance.md` |
+| M16 — Final Global Multi-Hotel Certification | CLOSED / COMPLETE | `docs/architecture/m11-m16-roadmap.md` |
 
 ## Architecture and operational documentation
 
+- [M16 — Global Scale & Production Certification](docs/operations/m16-global-scale-certification.md)
 - [Canonical M11–M16 architecture roadmap](docs/architecture/m11-m16-roadmap.md)
 - [M15 — Global Locales & Operations Governance](docs/operations/m15-global-locales-ops-governance.md)
 - [M14.4 — Generic Third-Hotel Proof](docs/operations/m14-4-generic-third-hotel-proof.md)
