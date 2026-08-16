@@ -16,7 +16,6 @@ import {
 } from "../fixtures/product-factory/p0-scenarios.mjs";
 import {
   assertContains,
-  assertNotContains,
   readProjectFile,
 } from "../helpers/source-contract.mjs";
 
@@ -100,5 +99,5 @@ test("P0 architecture contract locks zero-code onboarding and website separation
   assertContains(source, "an `if hotel === ...` runtime fork");
   assertContains(source, "Onboarding is idempotent");
   assertContains(source, "Website/commercial acquisition is a separate project layer");
-  assertNotContains(source, "Europe/Sofia` fallback");
+  assertContains(source, "no implicit `Europe/Sofia` fallback");
 });
