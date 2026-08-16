@@ -59,3 +59,11 @@ test("weekly report endpoint keeps duplicate-delivery protection too", async () 
   assertContains(source, 'maybeCode !== UNIQUE_VIOLATION_CODE');
   assertContains(source, '.eq("is_sandbox", false)');
 });
+
+
+test("manager survey report shows the arithmetic mean across all report surveys", async () => {
+  const source = await readProjectFile("components/staff/StaffSurveyCards.tsx");
+  assertContains(source, "const overallAverageRating = useMemo(");
+  assertContains(source, "surveys.reduce((sum, survey) => sum + survey.rating, 0) / surveys.length");
+  assertContains(source, "{copy.averageRating}: {overallAverageRating.toFixed(1)}/5");
+});

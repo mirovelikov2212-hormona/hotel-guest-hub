@@ -154,3 +154,11 @@ test("staff PIN verification keeps scrypt and timing-safe comparison", async () 
     "Expected staff PIN verification to use timingSafeEqual.",
   );
 });
+
+
+test("manager active operations exclude returned requests while preserving the returned drilldown", async () => {
+  const source = await readProjectFile("components/staff/pages/ManagerPageContent.tsx");
+  assertContains(source, 'getOperationalAllRequests().filter((request) => isOpenStatus(request.status))');
+  assertContains(source, 'value={summary.returnedCount}');
+  assertContains(source, 'status: "returned"');
+});
