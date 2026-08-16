@@ -52,6 +52,17 @@ test("P1.1 keeps Control Plane tables service-role only and RLS enabled", async 
   }
 });
 
+test("P1.1 Control Plane audit log is append/read only for application service authority", async () => {
+  const grantsMigration = await readProjectFile(
+    "supabase/migrations/20260816212500_p1_1_control_plane_audit_grants.sql",
+  );
+
+  assertContains(grantsMigration, "revoke all on table public.control_plane_audit_log from service_role");
+  assertContains(grantsMigration, "grant select, insert on table public.control_plane_audit_log to service_role");
+  assertNotContains(grantsMigration, "grant update");
+  assertNotContains(grantsMigration, "grant delete");
+});
+
 test("P1.1 platform administrator authority is separate from hotel Manager PIN authority", async () => {
   const source = await readProjectFile("lib/server/control-plane-auth.ts");
 
