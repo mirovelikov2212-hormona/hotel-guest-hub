@@ -1,0 +1,35 @@
+name: P1.2 Control Plane Session Gate
+
+on:
+  push:
+    branches:
+      - product-factory/p1-2-control-plane-session-20260816
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p1-2-control-plane-session-gate
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:p1-2
+      - run: npm test
+      - run: npx eslint lib/server/control-plane-auth.ts lib/server/control-plane-audit.ts lib/server/control-plane-origin.ts lib/server/control-plane-session.ts app/api/control-plane/login/route.ts app/api/control-plane/logout/route.ts app/control-plane/login/page.tsx app/control-plane/page.tsx tests/contracts/p1-2-control-plane-session.contract.test.mjs
+      - name: Production build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+          STAFF_SESSION_SECRET: ci-placeholder-session-secret
+        run: npm run build
