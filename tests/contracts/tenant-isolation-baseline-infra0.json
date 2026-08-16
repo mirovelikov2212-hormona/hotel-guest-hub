@@ -23,13 +23,14 @@
   "additions": [
     {
       "filePath": "app/api/staff/feed-state/route.ts",
-      "line": 64,
-      "table": "staff_feed_versions",
-      "operation": "select",
+      "line": 51,
+      "rpc": "get_staff_feed_state",
+      "tableExpression": "\"get_staff_feed_state\"",
+      "operation": "rpc",
       "reasons": [
-        "unclassified_table"
+        "rpc_requires_review"
       ],
-      "provenance": "authenticated_staff_session_exact_hotel_scoped_feed_version_read"
+      "provenance": "service_role_only_rpc_validates_hashed_staff_session_expiry_role_and_exact_tenant_slug_before_returning_tenant_feed_versions"
     }
   ]
 }
