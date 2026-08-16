@@ -72,6 +72,55 @@ test("staff read paths stay read-only while expired test rows are hidden", async
   assertContains(surveysSource, "visibleRows");
 });
 
+test("INFRA-0 staff boards poll lightweight feed versions instead of full data every five seconds", async () => {
+  const requestsClient = await readProjectFile("components/staff/store/StaffStoreProvider.tsx");
+  const surveysClient = await readProjectFile("components/staff/StaffSurveyCards.tsx");
+
+  assertContains(requestsClient, "fetchStaffFeedState");
+  assertContains(requestsClient, "STAFF_REQUEST_VISIBLE_POLL_MS = 10_000");
+  assertContains(requestsClient, "STAFF_REQUEST_HIDDEN_POLL_MS = 60_000");
+  assertContains(requestsClient, "requestFeedVersionRef.current !== feedState.requestsVersion");
+  assertNotContains(
+    requestsClient,
+    "window.setInterval(() =>",
+    "Staff request boards must not regress to a fixed full-data interval poll.",
+  );
+
+  assertContains(surveysClient, "fetchStaffFeedState");
+  assertContains(surveysClient, "STAFF_SURVEY_VISIBLE_POLL_MS = 30_000");
+  assertContains(surveysClient, "STAFF_SURVEY_HIDDEN_POLL_MS = 300_000");
+  assertContains(surveysClient, "surveyFeedVersionRef.current !== feedState.surveysVersion");
+  assertNotContains(
+    surveysClient,
+    "window.setInterval(() => void loadSurveys(), 5000)",
+    "Survey reporting must not regress to a five-second full-data poll.",
+  );
+});
+
+test("INFRA-0 staff heartbeat is one service-role-only tenant-authenticated RPC", async () => {
+  const route = await readProjectFile("app/api/staff/feed-state/route.ts");
+  const migration = await readProjectFile(
+    "supabase/migrations/20260816170600_infra0_staff_feed_state_rpc.sql",
+  );
+
+  assertContains(route, 'getCurrentRawStaffToken');
+  assertContains(route, 'hashSessionToken');
+  assertContains(route, '.rpc("get_staff_feed_state"');
+  assertNotContains(route, '.from("staff_sessions")');
+  assertNotContains(route, '.from("hotels")');
+  assertNotContains(route, '.from("staff_feed_versions")');
+
+  assertContains(migration, "s.session_token_hash = p_session_token_hash");
+  assertContains(migration, "s.revoked_at is null");
+  assertContains(migration, "s.expires_at > now()");
+  assertContains(migration, "s.role::text = lower(trim(p_role))");
+  assertContains(migration, "lower(h.slug) = lower(trim(p_hotel_slug))");
+  assertContains(migration, "lower(coalesce(h.public_slug, '')) = lower(trim(p_hotel_slug))");
+  assertContains(migration, "revoke all on function public.get_staff_feed_state(text, text, text) from anon");
+  assertContains(migration, "revoke all on function public.get_staff_feed_state(text, text, text) from authenticated");
+  assertContains(migration, "grant execute on function public.get_staff_feed_state(text, text, text) to service_role");
+});
+
 test("scheduled cleanup keeps Production test TTL and normalizes expired stay lifecycle for every live tenant", async () => {
   const source = await readProjectFile("app/api/cron/test-data-cleanup/route.ts");
   const migration = await readProjectFile(
