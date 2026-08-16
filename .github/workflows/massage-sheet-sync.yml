@@ -12,7 +12,7 @@ concurrency:
 jobs:
   call-massage-snapshot-sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
 
     steps:
       - name: Refresh configured external massage snapshots
@@ -57,6 +57,7 @@ jobs:
           done
 
       - name: Detect native and external massage conflicts
+        if: ${{ always() }}
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
@@ -68,3 +69,31 @@ jobs:
             --max-time 60 \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             https://www.stayhub.app/api/cron/native-massage-conflict-watch
+
+      - name: Recover pending native massage Sheet mirrors
+        if: ${{ always() }}
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --retry 2 \
+            --retry-all-errors \
+            --connect-timeout 10 \
+            --max-time 90 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            https://www.stayhub.app/api/cron/native-massage-sheet-mirror
+
+      - name: Recover pending native massage staff projections
+        if: ${{ always() }}
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --retry 2 \
+            --retry-all-errors \
+            --connect-timeout 10 \
+            --max-time 60 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            https://www.stayhub.app/api/cron/native-massage-reconcile
