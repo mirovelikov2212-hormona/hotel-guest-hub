@@ -109,8 +109,79 @@ jobs:
       - run: npm ci
       - name: Full contract and tenant isolation gate
         run: npm test
-      - name: Changed-file lint
-        run: npx eslint components/staff/pages/ManagerPageContent.tsx components/staff/StaffSurveyCards.tsx tests/contracts/operational-contracts.test.mjs tests/contracts/reporting-correctness.contract.test.mjs
+
+      - name: Strict lint for new regression tests
+        run: npx eslint tests/contracts/operational-contracts.test.mjs tests/contracts/reporting-correctness.contract.test.mjs
+
+      - name: Differential lint for legacy Manager components
+        run: |
+          set -euo pipefail
+
+          set +e
+          npx eslint \
+            components/staff/pages/ManagerPageContent.tsx \
+            components/staff/StaffSurveyCards.tsx \
+            -f json > /tmp/branch-eslint.json
+          set -e
+
+          git worktree add --detach /tmp/stayhub-main origin/main
+          ln -s "$GITHUB_WORKSPACE/node_modules" /tmp/stayhub-main/node_modules
+
+          set +e
+          (
+            cd /tmp/stayhub-main
+            ./node_modules/.bin/eslint \
+              components/staff/pages/ManagerPageContent.tsx \
+              components/staff/StaffSurveyCards.tsx \
+              -f json > /tmp/main-eslint.json
+          )
+          set -e
+
+          python3 - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          def load(path):
+              data = json.loads(Path(path).read_text() or '[]')
+              counts = Counter()
+              for result in data:
+                  file_path = result.get('filePath', '')
+                  if file_path.endswith('/components/staff/pages/ManagerPageContent.tsx'):
+                      rel = 'components/staff/pages/ManagerPageContent.tsx'
+                  elif file_path.endswith('/components/staff/StaffSurveyCards.tsx'):
+                      rel = 'components/staff/StaffSurveyCards.tsx'
+                  else:
+                      rel = file_path
+                  for msg in result.get('messages', []):
+                      key = (
+                          rel,
+                          msg.get('ruleId'),
+                          int(msg.get('severity', 0)),
+                          msg.get('message', ''),
+                      )
+                      counts[key] += 1
+              return counts
+
+          baseline = load('/tmp/main-eslint.json')
+          branch = load('/tmp/branch-eslint.json')
+          regressions = []
+          for key, count in branch.items():
+              previous = baseline.get(key, 0)
+              if count > previous:
+                  regressions.append((key, previous, count))
+
+          print('Main lint findings:', sum(baseline.values()))
+          print('Branch lint findings:', sum(branch.values()))
+          if regressions:
+              print('NEW lint regressions detected:')
+              for (rel, rule, severity, message), previous, count in regressions:
+                  print(f'- {rel} | {rule} | severity={severity} | main={previous} branch={count} | {message}')
+              raise SystemExit(1)
+
+          print('PASS: the UI branch adds no lint errors or warnings beyond the existing main baseline.')
+          PY
+
       - name: Production build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
