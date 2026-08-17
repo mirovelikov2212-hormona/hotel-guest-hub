@@ -1,4 +1,6 @@
-export type StaffRole = "reception" | "housekeeping" | "maintenance" | "manager";
+import type { StaffRole } from "@/lib/staff/role-code";
+
+export type { StaffRole } from "@/lib/staff/role-code";
 
 function sanitizeSegment(value: string) {
   return String(value || "")
