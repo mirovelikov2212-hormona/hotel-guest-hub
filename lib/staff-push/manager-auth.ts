@@ -3,16 +3,13 @@ import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import type { StaffRole } from "@/lib/staff-auth/cookie-name";
 import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
+import { resolveStaffRuntimeRoleForHotelId } from "@/lib/server/staff-runtime-role";
+import { normalizeStaffRoleCode } from "@/lib/staff/role-code";
 
 export type PushStaffRole = StaffRole;
 
 export function isValidPushStaffRole(value: string): value is PushStaffRole {
-  return (
-    value === "reception" ||
-    value === "housekeeping" ||
-    value === "maintenance" ||
-    value === "manager"
-  );
+  return normalizeStaffRoleCode(value) !== null;
 }
 
 export async function getAuthenticatedStaffHotel(
@@ -20,8 +17,8 @@ export async function getAuthenticatedStaffHotel(
   roleInput: string,
 ) {
   const hotelSlug = String(hotelSlugInput || "").trim().toLowerCase();
-  const role = String(roleInput || "").trim().toLowerCase();
-  if (!hotelSlug || !isValidPushStaffRole(role)) return null;
+  const role = normalizeStaffRoleCode(roleInput);
+  if (!hotelSlug || !role) return null;
 
   const session = await getCurrentStaffSession(hotelSlug, role);
   if (!session || session.role !== role) return null;
@@ -35,11 +32,15 @@ export async function getAuthenticatedStaffHotel(
 
   if (error || !hotel || !hotelMatchesRequestedSlug(hotel, hotelSlug)) return null;
 
+  const runtimeRole = await resolveStaffRuntimeRoleForHotelId(String(hotel.id), role);
+  if (!runtimeRole) return null;
+
   return {
     id: String(hotel.id),
     slug: String(hotel.slug),
     name: String(hotel.name || hotel.slug),
     role,
+    runtimeRole,
   };
 }
 
