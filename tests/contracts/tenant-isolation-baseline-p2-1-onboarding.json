@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "checkpoint": "p2-1-onboarding-foundation",
+  "baseCheckpoint": "p1-2-control-plane-session",
+  "expectedNeedsReview": 74,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-onboarding.ts",
+      "line": 50,
+      "rpc": "begin_factory_onboarding_v1",
+      "tableExpression": "\"begin_factory_onboarding_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_platform_mutation_calls_service_role_only_transaction_rpc_that_rechecks_active_admin_and_owns_idempotent_production_sandbox_creation"
+    }
+  ]
+}
