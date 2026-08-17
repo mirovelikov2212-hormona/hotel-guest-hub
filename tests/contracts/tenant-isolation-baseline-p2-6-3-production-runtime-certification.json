@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "checkpoint": "p2-6-3-production-runtime-certification",
+  "baseCheckpoint": "p2-6-2-production-publication",
+  "expectedNeedsReview": 81,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-production-runtime-certification.ts",
+      "line": 148,
+      "rpc": "certify_factory_production_runtime_v1",
+      "tableExpression": "\"certify_factory_production_runtime_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_platform_mutation_calls_service_role_only_security_definer_rpc_that_requires_immutable_p2_6_2_dark_publication_exact_production_hotel_revision_and_deployment_evidence_all_runtime_certification_checks_and_explicit_no_activation_approval_then_rechecks_full_factory_lineage_published_config_normalized_rooms_departments_routing_generic_staff_fail_closed_runtime_and_envelope_state_before_certifying_health_and_public_identity_only_while_transactionally_asserting_the_production_hotel_public_routes_operational_runtime_and_property_lifecycle_remain_inactive_certified_not_active_disabled_and_draft"
+    }
+  ]
+}
