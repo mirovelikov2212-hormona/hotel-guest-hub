@@ -68,3 +68,44 @@ test("P2.5 alert and push layers accept arbitrary department roles", async () =>
   assertContains(pushAuth, "resolveStaffRuntimeRoleForHotelId");
   assertContains(pushUi, 'role: string');
 });
+
+test("P2.5 certification ledger and RPC are immutable, service-role-only and Sandbox-only", async () => {
+  const migration = await readProjectFile("supabase/migrations/20260817123800_p2_5_sandbox_certification.sql");
+  assertContains(migration, "create table public.factory_sandbox_certification_runs");
+  assertContains(migration, "alter table public.factory_sandbox_certification_runs enable row level security");
+  assertContains(migration, "grant select, insert on table public.factory_sandbox_certification_runs to service_role");
+  assertNotContains(migration, "grant update");
+  assertNotContains(migration, "grant delete");
+  assertContains(migration, "create or replace function public.certify_factory_sandbox_v1");
+  assertContains(migration, "security definer");
+  assertContains(migration, "set search_path = pg_catalog, public");
+  assertContains(migration, "grant execute on function public.certify_factory_sandbox_v1(uuid,uuid,text,jsonb) to service_role");
+  assertContains(migration, "update public.hotels set active=true");
+  assertContains(migration, "where id=v_onboarding.sandbox_hotel_id");
+  assertContains(migration, "P2_5_PRODUCTION_STATE_CHANGED");
+  assertNotContains(migration, "where id=v_onboarding.production_hotel_id and active=false and is_sandbox=false;\n  update public.hotels set active=true");
+});
+
+test("P2.5 certification requires exact evidence gates and remains behind Platform Admin authority", async () => {
+  const service = await readProjectFile("lib/server/factory-sandbox-certification.ts");
+  const route = await readProjectFile("app/api/control-plane/onboarding/sandbox-certification/route.ts");
+  for (const check of [
+    "generic_staff_runtime",
+    "tenant_isolation",
+    "preview_build",
+    "runtime_errors",
+    "supabase_security",
+    "integration_placeholders",
+    "reporting_fail_closed",
+    "branding_placeholder",
+    "knowledge_placeholder",
+  ]) {
+    assertContains(service, `\"${check}\"`);
+  }
+  assertContains(service, "canMutateControlPlane(input.authority.role)");
+  assertContains(service, 'supabaseAdmin.rpc("certify_factory_sandbox_v1"');
+  assertContains(service, 'createHash("sha256")');
+  assertContains(route, "enforceControlPlaneSameOrigin(req)");
+  assertContains(route, "getCurrentPlatformAdminSession()");
+  assertContains(route, "certifyFactorySandbox");
+});
