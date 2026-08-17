@@ -117,6 +117,18 @@ test("P2.1 database transaction is idempotent, fail-closed and creates both isol
   assertNotContains(migration.toLowerCase(), "delete from public.");
 });
 
+test("P2.1 onboarding history covers every non-leading foreign key used by retention checks", async () => {
+  const migration = await readProjectFile(
+    "supabase/migrations/20260817092500_p2_1_onboarding_run_fk_indexes.sql",
+  );
+
+  assertContains(migration, "factory_onboarding_runs_organization_idx");
+  assertContains(migration, "factory_onboarding_runs_production_hotel_idx");
+  assertContains(migration, "factory_onboarding_runs_sandbox_hotel_idx");
+  assertContains(migration, "factory_onboarding_runs_production_revision_idx");
+  assertContains(migration, "factory_onboarding_runs_sandbox_revision_idx");
+});
+
 test("P2.1 server mutation is restricted to Control Plane mutation authority and one reviewed RPC", async () => {
   const source = await readProjectFile("lib/server/factory-onboarding.ts");
 
