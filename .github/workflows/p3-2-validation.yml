@@ -1,0 +1,27 @@
+name: P3.2 Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/control-plane/CommercialLifecyclePanel.tsx"
+      - "app/control-plane/page.tsx"
+      - "tests/contracts/p3-2-commercial-control-plane-ui.contract.test.mjs"
+      - "package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test

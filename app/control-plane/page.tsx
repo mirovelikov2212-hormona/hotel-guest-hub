@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import CommercialLifecyclePanel from "@/app/control-plane/CommercialLifecyclePanel";
 import { getControlPlaneRegistrySnapshot, type ControlPlaneCommercialState } from "@/lib/server/control-plane-registry";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 
@@ -54,12 +55,12 @@ export default async function ControlPlanePage() {
             </p>
             <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">Platform overview</h1>
             <p className="mt-2 text-sm text-neutral-400">
-              P3 commercial lifecycle foundation · {authority.email || "Platform Admin"} · {authority.role}
+              P3 commercial operations · {authority.email || "Platform Admin"} · {authority.role}
             </p>
           </div>
           <div className="flex items-center gap-3">
             <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-100">
-              Read only registry · Admin actions via API
+              Read only registry · Explicit commercial actions
             </span>
             <form action="/api/control-plane/logout" method="post">
               <button
@@ -155,6 +156,22 @@ export default async function ControlPlanePage() {
                         <p className="sm:col-span-2">Contract start: <span className="text-neutral-200">{formatUtc(property.commercial.contractStartedAt) || "—"}</span></p>
                       </div>
                     </div>
+
+                    <CommercialLifecyclePanel
+                      propertyId={property.id}
+                      displayName={property.displayName}
+                      productionLive={property.environments.some(
+                        (environment) => environment.environment === "production" && environment.active,
+                      )}
+                      commercial={{
+                        managed: property.commercial.managed,
+                        status: property.commercial.status,
+                        effectiveStatus: property.commercial.effectiveStatus,
+                        version: property.commercial.version,
+                        planCode: property.commercial.planCode,
+                        trialEndsAt: property.commercial.trialEndsAt,
+                      }}
+                    />
 
                     <div className="mt-4 space-y-3">
                       {property.environments.map((environment) => (
