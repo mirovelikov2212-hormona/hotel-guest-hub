@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "checkpoint": "p2-6-5-production-live-rollback",
+  "baseCheckpoint": "p2-6-4-production-live-activation",
+  "expectedNeedsReview": 84,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-production-live-rollback.ts",
+      "line": 148,
+      "rpc": "rollback_factory_production_live_v1",
+      "tableExpression": "\"rollback_factory_production_live_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_recovery_mutation_calls_service_role_only_security_definer_rpc_for_one_exact_immutable_p2_6_4_live_activation_target_rechecks_immutable_live_activation_certification_publication_target_and_fail_closed_operational_state_accepts_only_exact_live_or_recorded_snapshot_values_then_atomically_restores_the_same_tenant_to_its_pre_live_certified_dark_snapshot_without_mutating_credentials_published_revision_health_certification_or_other_tenants"
+    }
+  ]
+}
