@@ -25,6 +25,7 @@ const milestoneDeltaPaths = [
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-p2-3-operational-resources.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-p2-4-onboarding-envelope.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-p2-5-sandbox-certification.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-p2-6-1-production-readiness.json"),
 ];
 
 const baseBaseline = JSON.parse(await readFile(baselinePath, "utf8"));
@@ -83,9 +84,7 @@ function applyReviewedDelta(base, delta) {
     };
   }
 
-  for (const addition of delta.additions || []) {
-    entries.push({ ...addition });
-  }
+  for (const addition of delta.additions || []) entries.push({ ...addition });
 
   return {
     ...base,
@@ -96,9 +95,7 @@ function applyReviewedDelta(base, delta) {
 }
 
 let baseline = baseBaseline;
-for (const path of milestoneDeltaPaths) {
-  baseline = applyReviewedDelta(baseline, await loadMilestoneDelta(path));
-}
+for (const path of milestoneDeltaPaths) baseline = applyReviewedDelta(baseline, await loadMilestoneDelta(path));
 
 const findings = await scanTenantQueriesInDirectories({ projectRoot });
 const result = evaluateTenantIsolation(findings, baseline);
@@ -116,16 +113,12 @@ if (result.ok) {
 
 if (result.unexpected.length) {
   console.error("\nUnexpected tenant queries requiring review:");
-  for (const finding of result.unexpected) {
-    console.error(`  + ${makeTenantIsolationFindingKey(finding)}`);
-  }
+  for (const finding of result.unexpected) console.error(`  + ${makeTenantIsolationFindingKey(finding)}`);
 }
 
 if (result.stale.length) {
   console.error("\nAudited baseline entries no longer match source and must be re-reviewed:");
-  for (const entry of result.stale) {
-    console.error(`  - ${makeTenantIsolationFindingKey(entry)}`);
-  }
+  for (const entry of result.stale) console.error(`  - ${makeTenantIsolationFindingKey(entry)}`);
 }
 
 if (result.duplicateBaselineKeys.length) {
@@ -135,15 +128,11 @@ if (result.duplicateBaselineKeys.length) {
 
 if (result.unknownStatuses.length) {
   console.error("\nUnknown scanner statuses:");
-  for (const finding of result.unknownStatuses) {
-    console.error(`  ! ${finding.filePath}:${finding.line} ${finding.status}`);
-  }
+  for (const finding of result.unknownStatuses) console.error(`  ! ${finding.filePath}:${finding.line} ${finding.status}`);
 }
 
 if (result.countMismatch) {
-  console.error(
-    `\nBaseline count mismatch: expected ${baseline.expectedNeedsReview}, found ${result.needsReview}.`,
-  );
+  console.error(`\nBaseline count mismatch: expected ${baseline.expectedNeedsReview}, found ${result.needsReview}.`);
 }
 
 console.error("\nFAIL: tenant isolation review is required before this code can pass npm test.");
