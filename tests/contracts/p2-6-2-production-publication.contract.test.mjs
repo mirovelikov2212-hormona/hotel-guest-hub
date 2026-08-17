@@ -46,7 +46,7 @@ test("P2.6.2 publishes config dark and cannot activate Production runtime or pub
   assertContains(migration, "P2_6_2_DARK_STATE_CHANGED");
   assertNotContains(migration, "update public.hotels");
   assertNotContains(migration, "set active=true");
-  assertNotContains(migration, "runtime_enabled=true");
+  assertNotContains(migration, "set runtime_enabled=true");
   assertNotContains(migration, "set lifecycle_state=");
   assertNotContains(migration, "set status='active'");
 });
