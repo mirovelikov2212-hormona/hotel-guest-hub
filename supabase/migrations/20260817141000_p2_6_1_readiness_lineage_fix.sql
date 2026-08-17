@@ -8,8 +8,7 @@ declare
   v_definition text;
   v_old text := $old$
      or v_operational.production_revision_id is distinct from v_core.production_revision_id
-     or v_operational.sandbox_revision_id is distinct from v_core.sandbox_revision_id
-$old$;
+     or v_operational.sandbox_revision_id is distinct from v_core.sandbox_revision_id$old$;
   v_new text := $new$
      or not exists (
        select 1 from public.hotel_config_revisions r
@@ -42,8 +41,7 @@ $old$;
          and r.revision_no=3
          and r.status='draft'
          and r.source_type='factory_blueprint'
-     )
-$new$;
+     )$new$;
 begin
   select pg_get_functiondef(
     'public.assess_factory_production_readiness_v1(uuid,uuid,text,jsonb)'::regprocedure
