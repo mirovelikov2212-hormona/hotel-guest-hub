@@ -21,13 +21,14 @@ test("P2.5 runtime role resolution is hotel-scoped and fail-closed against activ
   assertContains(source, 'role === STAFF_MANAGER_ROLE');
 });
 
-test("P2.5 generic department feed and mutation are tenant + department scoped", async () => {
+test("P2.5 generic department feed and mutation are tenant + relational department scoped", async () => {
   const feed = await readProjectFile("app/api/staff/department-runtime/requests/route.ts");
   const mutation = await readProjectFile("app/api/staff/department-runtime/request-status/route.ts");
   assertContains(feed, '.eq("hotel_id", scope.hotelId)');
-  assertContains(feed, '.contains("metadata_json", { department: scope.departmentCode })');
+  assertContains(feed, '.eq("department_id", scope.departmentId)');
   assertContains(mutation, '.eq("hotel_id", scope.hotelId)');
-  assertContains(mutation, 'String(metadata.department || "") !== scope.departmentCode');
+  assertContains(mutation, 'String(requestRow.department_id || "") !== scope.departmentId');
+  assertContains(mutation, '.eq("department_id", scope.departmentId)');
   assertContains(mutation, "enforceStaffSameOrigin(req)");
 });
 
@@ -100,7 +101,7 @@ test("P2.5 certification requires exact evidence gates and remains behind Platfo
     "branding_placeholder",
     "knowledge_placeholder",
   ]) {
-    assertContains(service, `\"${check}\"`);
+    assertContains(service, `"${check}"`);
   }
   assertContains(service, "canMutateControlPlane(input.authority.role)");
   assertContains(service, 'supabaseAdmin.rpc("certify_factory_sandbox_v1"');
