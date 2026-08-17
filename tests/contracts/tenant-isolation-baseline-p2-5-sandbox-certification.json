@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "checkpoint": "p2-5-sandbox-certification",
+  "baseCheckpoint": "p2-4-onboarding-envelope",
+  "expectedNeedsReview": 78,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "app/qr/staff/[hotelSlug]/[department]/route.ts",
+      "fromLine": 101,
+      "toLine": 104,
+      "table": "qr_scans",
+      "operation": "insert"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-sandbox-certification.ts",
+      "line": 85,
+      "rpc": "certify_factory_sandbox_v1",
+      "tableExpression": "\"certify_factory_sandbox_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_platform_mutation_calls_service_role_only_security_definer_rpc_that_rechecks_active_platform_admin_exact_p2_4_to_p2_1_lineage_and_fail_closed_tenant_resources_then_certifies_and_activates_only_the_linked_sandbox_hotel_while_transactionally_asserting_production_remains_inactive_reserved_and_not_started"
+    }
+  ]
+}
