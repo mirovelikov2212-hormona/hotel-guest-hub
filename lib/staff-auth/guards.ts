@@ -3,14 +3,23 @@ import { redirect } from "next/navigation";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
+import { resolveStaffRuntimeRoleForHotelId } from "@/lib/server/staff-runtime-role";
+import { normalizeStaffRoleCode, type StaffRole } from "@/lib/staff/role-code";
 
-export type StaffRole = "reception" | "housekeeping" | "maintenance" | "manager";
+export type { StaffRole } from "@/lib/staff/role-code";
 
-export async function requireStaffAccess(hotelSlug: string, role: StaffRole) {
-  const nextPath = `/staff/${hotelSlug}/${role}`;
-  const redirectPath = `/staff/${hotelSlug}/pin?role=${role}&next=${encodeURIComponent(nextPath)}`;
+export async function requireStaffAccess(hotelSlug: string, roleInput: StaffRole) {
+  const role = normalizeStaffRoleCode(roleInput);
+  const safeRole = role || "invalid";
+  const nextPath = `/staff/${hotelSlug}/${safeRole}`;
+  const redirectPath = `/staff/${hotelSlug}/pin?role=${safeRole}&next=${encodeURIComponent(nextPath)}`;
 
-  const session = await getCurrentStaffSession(hotelSlug, role);
+  if (!role) {
+    redirect(redirectPath);
+  }
+
+  const currentRole = role;
+  const session = await getCurrentStaffSession(hotelSlug, currentRole);
   if (!session) {
     redirect(redirectPath);
   }
@@ -30,14 +39,23 @@ export async function requireStaffAccess(hotelSlug: string, role: StaffRole) {
 
   const currentHotel = hotel;
 
-  if (!hotelMatchesRequestedSlug(currentHotel, hotelSlug) || currentSession.role !== role) {
+  if (!hotelMatchesRequestedSlug(currentHotel, hotelSlug) || currentSession.role !== currentRole) {
+    redirect(redirectPath);
+  }
+
+  const runtimeRole = await resolveStaffRuntimeRoleForHotelId(
+    String(currentHotel.id),
+    currentRole,
+  );
+  if (!runtimeRole) {
     redirect(redirectPath);
   }
 
   return {
     hotelId: currentSession.hotel_id,
     hotelSlug: currentHotel.slug,
-    role: currentSession.role as StaffRole,
+    role: currentRole,
+    runtimeRole,
     expiresAt: currentSession.expires_at,
   };
 }
