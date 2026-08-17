@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "checkpoint": "p2-2-core-resources",
+  "baseCheckpoint": "p2-1-onboarding-foundation",
+  "expectedNeedsReview": 75,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-core-resources.ts",
+      "line": 48,
+      "rpc": "project_factory_core_resources_v1",
+      "tableExpression": "\"project_factory_core_resources_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_platform_mutation_calls_service_role_only_rpc_that_rechecks_active_platform_admin_and_projects_identical_fail_closed_room_department_resources_into_the_exact_p2_1_production_and_sandbox_tenants"
+    }
+  ]
+}
