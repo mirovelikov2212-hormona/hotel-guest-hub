@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "checkpoint": "p2-6-1-production-readiness",
+  "baseCheckpoint": "p2-5-sandbox-certification",
+  "expectedNeedsReview": 79,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-production-readiness.ts",
+      "line": 80,
+      "rpc": "assess_factory_production_readiness_v1",
+      "tableExpression": "\"assess_factory_production_readiness_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_platform_mutation_calls_service_role_only_security_definer_rpc_that_rechecks_active_platform_admin_exact_p2_5_to_p2_1_lineage_certified_sandbox_environment_and_fail_closed_production_revision_identity_health_runtime_and_tenant_parity_then_inserts_only_immutable_readiness_and_audit_ledger_rows_without_activating_publishing_certifying_or_updating_production_tenant_state"
+    }
+  ]
+}
