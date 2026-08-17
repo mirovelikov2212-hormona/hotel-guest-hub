@@ -10,16 +10,14 @@ export type { StaffRole } from "@/lib/staff/role-code";
 
 export async function requireStaffAccess(hotelSlug: string, roleInput: StaffRole) {
   const role = normalizeStaffRoleCode(roleInput);
-  const safeRole = role || "invalid";
-  const nextPath = `/staff/${hotelSlug}/${safeRole}`;
-  const redirectPath = `/staff/${hotelSlug}/pin?role=${safeRole}&next=${encodeURIComponent(nextPath)}`;
-
   if (!role) {
-    redirect(redirectPath);
+    const invalidNextPath = `/staff/${hotelSlug}/invalid`;
+    redirect(`/staff/${hotelSlug}/pin?role=invalid&next=${encodeURIComponent(invalidNextPath)}`);
   }
 
-  const currentRole = role;
-  const session = await getCurrentStaffSession(hotelSlug, currentRole);
+  const nextPath = `/staff/${hotelSlug}/${role}`;
+  const redirectPath = `/staff/${hotelSlug}/pin?role=${role}&next=${encodeURIComponent(nextPath)}`;
+  const session = await getCurrentStaffSession(hotelSlug, role);
   if (!session) {
     redirect(redirectPath);
   }
@@ -39,13 +37,13 @@ export async function requireStaffAccess(hotelSlug: string, roleInput: StaffRole
 
   const currentHotel = hotel;
 
-  if (!hotelMatchesRequestedSlug(currentHotel, hotelSlug) || currentSession.role !== currentRole) {
+  if (!hotelMatchesRequestedSlug(currentHotel, hotelSlug) || currentSession.role !== role) {
     redirect(redirectPath);
   }
 
   const runtimeRole = await resolveStaffRuntimeRoleForHotelId(
     String(currentHotel.id),
-    currentRole,
+    role,
   );
   if (!runtimeRole) {
     redirect(redirectPath);
@@ -54,7 +52,7 @@ export async function requireStaffAccess(hotelSlug: string, roleInput: StaffRole
   return {
     hotelId: currentSession.hotel_id,
     hotelSlug: currentHotel.slug,
-    role: currentRole,
+    role,
     runtimeRole,
     expiresAt: currentSession.expires_at,
   };
