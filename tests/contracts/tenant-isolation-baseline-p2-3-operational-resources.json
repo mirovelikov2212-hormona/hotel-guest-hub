@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "checkpoint": "p2-3-operational-resources",
+  "baseCheckpoint": "p2-2-core-resources",
+  "expectedNeedsReview": 76,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-operational-resources.ts",
+      "line": 54,
+      "rpc": "project_factory_operational_resources_v1",
+      "tableExpression": "\"project_factory_operational_resources_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_platform_mutation_calls_service_role_only_rpc_that_rechecks_active_platform_admin_and_exact_p2_2_lineage_then_projects_disabled_services_workflows_routing_and_placeholder_integrations_into_the_exact_production_and_sandbox_tenants"
+    }
+  ]
+}
