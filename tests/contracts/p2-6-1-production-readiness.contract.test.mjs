@@ -1,0 +1,85 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { assertContains, assertNotContains, readProjectFile } from "../helpers/source-contract.mjs";
+
+const migrationPath = "supabase/migrations/20260817133000_p2_6_1_production_readiness.sql";
+
+test("P2.6.1 readiness ledger is immutable and service-role-only", async () => {
+  const migration = await readProjectFile(migrationPath);
+  assertContains(migration, "create table public.factory_production_readiness_runs");
+  assertContains(migration, "alter table public.factory_production_readiness_runs enable row level security");
+  assertContains(migration, "grant select, insert on table public.factory_production_readiness_runs to service_role");
+  assertNotContains(migration, "grant update on table public.factory_production_readiness_runs");
+  assertNotContains(migration, "grant delete on table public.factory_production_readiness_runs");
+});
+
+test("P2.6.1 RPC is privileged, idempotent and exact-lineage gated", async () => {
+  const migration = await readProjectFile(migrationPath);
+  assertContains(migration, "create or replace function public.assess_factory_production_readiness_v1");
+  assertContains(migration, "security definer");
+  assertContains(migration, "set search_path = pg_catalog, public");
+  assertContains(migration, "grant execute on function public.assess_factory_production_readiness_v1(uuid,uuid,text,jsonb) to service_role");
+  assertContains(migration, "P2_6_1_LINEAGE_MISMATCH");
+  assertContains(migration, "P2_6_1_IDEMPOTENCY_CONFLICT");
+  assertContains(migration, "factory_sandbox_certification_runs");
+  assertContains(migration, "factory_onboarding_envelope_projection_runs");
+  assertContains(migration, "factory_operational_resource_projection_runs");
+  assertContains(migration, "factory_core_resource_projection_runs");
+  assertContains(migration, "factory_onboarding_runs");
+});
+
+test("P2.6.1 Production tenant remains fail-closed and unmodified", async () => {
+  const migration = await readProjectFile(migrationPath);
+  assertContains(migration, "h.active=false and h.is_sandbox=false");
+  assertContains(migration, "i.status='reserved'");
+  assertContains(migration, "h.status='pending' and h.certification_status='not_started'");
+  assertContains(migration, "r.status='draft'");
+  assertContains(migration, "P2_6_1_PRODUCTION_STATE_CHANGED");
+  assertNotContains(migration, "update public.hotels");
+  assertNotContains(migration, "update public.hotel_public_identity_configs");
+  assertNotContains(migration, "update public.hotel_health_certification_state");
+  assertNotContains(migration, "update public.hotel_config_revisions");
+});
+
+test("P2.6.1 readiness checks production/sandbox parity and runtime fail-closed gates", async () => {
+  const migration = await readProjectFile(migrationPath);
+  assertContains(migration, "P2_6_1_ROOM_PARITY_DRIFT");
+  assertContains(migration, "P2_6_1_DEPARTMENT_PARITY_DRIFT");
+  assertContains(migration, "P2_6_1_ROLE_TEMPLATE_GATE_INVALID");
+  assertContains(migration, "P2_6_1_OPERATIONAL_GATE_NOT_FAIL_CLOSED");
+  assertContains(migration, "P2_6_1_ENVELOPE_GATE_NOT_FAIL_CLOSED");
+  assertContains(migration, "ps.active_routing_rules_count=0");
+});
+
+test("P2.6.1 service requires evidence gates and authenticated Control Plane authority", async () => {
+  const service = await readProjectFile("lib/server/factory-production-readiness.ts");
+  const route = await readProjectFile("app/api/control-plane/onboarding/production-readiness/route.ts");
+  for (const check of [
+    "sandbox_certification",
+    "tenant_isolation",
+    "candidate_build",
+    "runtime_errors",
+    "supabase_security",
+    "guest_runtime_dry_run",
+    "staff_runtime_dry_run",
+    "rollback_plan",
+    "no_production_activation",
+  ]) assertContains(service, `"${check}"`);
+  assertContains(service, "canMutateControlPlane(input.authority.role)");
+  assertContains(service, 'supabaseAdmin.rpc("assess_factory_production_readiness_v1"');
+  assertContains(service, 'createHash("sha256")');
+  assertContains(route, "enforceControlPlaneSameOrigin(req)");
+  assertContains(route, "getCurrentPlatformAdminSession()");
+  assertContains(route, "assessFactoryProductionReadiness");
+});
+
+test("P2.6.1 does not provide a Production activation or publication endpoint", async () => {
+  const service = await readProjectFile("lib/server/factory-production-readiness.ts");
+  const route = await readProjectFile("app/api/control-plane/onboarding/production-readiness/route.ts");
+  assertNotContains(service, "activateFactoryProduction");
+  assertNotContains(service, "publishFactoryProduction");
+  assertNotContains(route, "activation");
+  assertNotContains(route, "publication");
+  assert.ok(service.length > 0 && route.length > 0);
+});
