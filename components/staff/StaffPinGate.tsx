@@ -6,13 +6,14 @@ import {
   getStaffLoginErrorMessage,
   getStaffLoginNetworkErrorMessage,
 } from "@/lib/staff-auth/login-response.mjs";
-
-type StaffRole = "reception" | "housekeeping" | "maintenance" | "manager";
+import { staffRoleDisplayName, type StaffRole } from "@/lib/staff/role-code";
 
 type Props = {
   hotelSlug: string;
   role: StaffRole;
   nextPath: string;
+  loginEndpoint?: string;
+  roleDisplayName?: string;
 };
 
 function getHotelDisplayName(slug: string) {
@@ -25,29 +26,23 @@ function getHotelDisplayName(slug: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function getRoleDisplayName(role: StaffRole) {
-  switch (role) {
-    case "reception":
-      return "Reception";
-    case "housekeeping":
-      return "Housekeeping";
-    case "maintenance":
-      return "Maintenance";
-    case "manager":
-      return "Manager";
-    default:
-      return role;
-  }
-}
-
-export default function StaffPinGate({ hotelSlug, role, nextPath }: Props) {
+export default function StaffPinGate({
+  hotelSlug,
+  role,
+  nextPath,
+  loginEndpoint = "/api/staff/auth/login",
+  roleDisplayName,
+}: Props) {
   const router = useRouter();
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const hotelLabel = useMemo(() => getHotelDisplayName(hotelSlug), [hotelSlug]);
-  const roleLabel = useMemo(() => getRoleDisplayName(role), [role]);
+  const roleLabel = useMemo(
+    () => roleDisplayName || staffRoleDisplayName(role),
+    [role, roleDisplayName],
+  );
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -55,7 +50,7 @@ export default function StaffPinGate({ hotelSlug, role, nextPath }: Props) {
     setError("");
 
     try {
-      const res = await fetch("/api/staff/auth/login", {
+      const res = await fetch(loginEndpoint, {
         method: "POST",
         credentials: "same-origin",
         headers: {
