@@ -1,6 +1,8 @@
 import "server-only";
 
 import type { HotelConfig } from "@/lib/types";
+import { attachGuestRequestRelationalAuthority } from "@/lib/server/guest-request-relational-ids.mjs";
+import { getFactoryProductionRelationalAuthority } from "@/lib/server/factory-production-relational-authority";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 type PublicationStateRow = {
@@ -20,6 +22,15 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
     value &&
       typeof value === "object" &&
       !Array.isArray(value),
+  );
+}
+
+function isFactoryLivePilot(validationJson: Record<string, unknown>) {
+  const warnings = Array.isArray(validationJson.warnings)
+    ? validationJson.warnings
+    : [];
+  return warnings.some(
+    (warning) => String(warning || "") === "FACTORY_PRODUCTION_LIVE_PILOT",
   );
 }
 
@@ -96,9 +107,20 @@ export async function getPublishedHotelConfigSnapshot(
     throw new Error("Published configuration revision checksum is malformed");
   }
 
+  const config = { ...(row.config_json as HotelConfig) } as HotelConfig;
+
+  if (isFactoryLivePilot(row.validation_json)) {
+    const relationalAuthority = await getFactoryProductionRelationalAuthority({
+      hotelId: normalizedHotelId,
+      revisionId: row.id,
+      sourceChecksum,
+    });
+    attachGuestRequestRelationalAuthority(config, relationalAuthority);
+  }
+
   return {
     revisionId: row.id,
     sourceChecksum,
-    config: row.config_json as HotelConfig,
+    config,
   };
 }
