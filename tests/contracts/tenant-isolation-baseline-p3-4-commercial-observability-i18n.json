@@ -8,7 +8,7 @@
   "additions": [
     {
       "filePath": "lib/server/commercial-observability.ts",
-      "line": 182,
+      "line": 181,
       "table": "property_commercial_lifecycle_events",
       "tableExpression": "\"property_commercial_lifecycle_events\"",
       "operation": "select",
