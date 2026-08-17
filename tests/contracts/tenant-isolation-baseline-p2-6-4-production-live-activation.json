@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "checkpoint": "p2-6-4-production-live-activation",
+  "baseCheckpoint": "p2-6-3-production-runtime-certification",
+  "expectedNeedsReview": 83,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-production-live-activation.ts",
+      "line": 168,
+      "rpc": "activate_factory_production_live_v1",
+      "tableExpression": "\"activate_factory_production_live_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_platform_mutation_calls_service_role_only_security_definer_rpc_that_requires_immutable_p2_6_3_certified_dark_lineage_exact_production_hotel_revision_public_slug_and_certified_deployment_explicit_live_approval_staff_access_readiness_rollback_anchor_and_fail_closed_operational_resources_then_atomically_switches_only_property_hotel_public_identity_and_publication_lifecycle_to_live_pilot_while_preserving_exact_published_config_semantic_authority_enabling_only_server_side_relational_id_authority_and_generating_no_credentials"
+    },
+    {
+      "filePath": "lib/server/factory-production-relational-authority.ts",
+      "line": 51,
+      "rpc": "get_factory_production_relational_authority_v1",
+      "tableExpression": "\"get_factory_production_relational_authority_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only_published_config_runtime_calls_service_role_only_security_definer_read_rpc_with_exact_hotel_revision_and_checksum_only_after_factory_live_revision_marker_the_database_rechecks_active_production_identity_health_publication_projection_and_fail_closed_routing_state_then_returns_internal_room_department_and_request_routing_ids_for_that_single_tenant_without_exposing_them_to_client_serialization"
+    }
+  ]
+}
