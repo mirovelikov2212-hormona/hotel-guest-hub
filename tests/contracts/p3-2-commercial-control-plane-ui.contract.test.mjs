@@ -26,6 +26,7 @@ test("P3.2 exposes the exact P3.1 commercial state-machine actions in the operat
     assert.match(panel, new RegExp(`"${action}"`));
   }
   assert.match(panel, /Start 14-day trial/);
+  assert.match(panel, /Стартирай 14-дневен тест/);
   assert.match(panel, /min=\{1\}/);
   assert.match(panel, /max=\{60\}/);
 });
@@ -48,7 +49,8 @@ test("P3.2 preserves optimistic version CAS and action-specific payloads", () =>
 test("P3.2 requires an audit reason and explicit confirmation before every mutation", () => {
   assert.match(panel, /reason\.trim\(\)\.length < 3/);
   assert.match(panel, /if \(!confirmed\)/);
-  assert.match(panel, /Потвърждавам изрично commercial промяната/);
+  assert.match(panel, /Потвърждавам изрично търговската промяна/);
+  assert.match(panel, /I explicitly confirm the commercial change/);
   assert.match(panel, /disabled=\{submitting \|\| !confirmed\}/);
 });
 
@@ -57,6 +59,7 @@ test("P3.2 fail-closes entitlement-granting actions when Production is not LIVE"
   assert.match(panel, /\["start_trial", "convert_to_customer", "resume"\]/);
   assert.match(panel, /disabled=\{blocked\}/);
   assert.match(panel, /Production трябва първо да е LIVE/);
+  assert.match(panel, /Production must be LIVE first/);
 });
 
 test("P3.2 renders action availability from commercial status rather than a hotel allowlist", () => {
@@ -70,21 +73,23 @@ test("P3.2 renders action availability from commercial status rather than a hote
 
 test("P3.2 makes trial time visible and refreshes server authority after a successful transition", () => {
   assert.match(panel, /daysRemaining/);
-  assert.match(panel, /Trial: <strong>\{daysRemaining\}<\/strong> дни остават/);
+  assert.match(panel, /commercial\.status === "trial"/);
+  assert.match(panel, /\{copy\.trial\}: <strong>\{daysRemaining\}<\/strong> \{copy\.daysLeft\}/);
   assert.match(panel, /router\.refresh\(\)/);
 });
 
 test("P3.2 Control Plane page remains authenticated and keeps the P1.2 read-only registry contract", () => {
   assert.match(page, /getCurrentPlatformAdminSession/);
-  assert.match(page, /if \(!authority\) redirect\("\/control-plane\/login"\)/);
+  assert.match(page, /if \(!authority\) redirect\(controlPlaneHref\("\/control-plane\/login", lang\)\)/);
   assert.match(page, /Read only registry/);
   assert.match(page, /CommercialLifecyclePanel/);
   assert.match(page, /environment\.environment === "production" && environment\.active/);
 });
 
-test("P3.2 explicitly documents that commercial UI does not silently enforce runtime access", () => {
-  assert.match(panel, /Commercial entitlement е отделно от техническия runtime/);
-  assert.match(panel, /runtime enforcement/);
+test("P3.2 explicitly documents that commercial UI does not silently own runtime access", () => {
+  assert.match(panel, /Commercial entitlement is separate from technical runtime/);
+  assert.match(panel, /Търговското право за достъп е отделно от техническия runtime/);
+  assert.match(panel, /enforced automatically in Production/);
 });
 
 test("P3.2 is wired into the full contract suite", () => {

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "checkpoint": "p3-4-commercial-observability-i18n",
+  "baseCheckpoint": "p3-3-runtime-entitlement-enforcement",
+  "expectedNeedsReview": 88,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/commercial-observability.ts",
+      "line": 181,
+      "table": "property_commercial_lifecycle_events",
+      "tableExpression": "\"property_commercial_lifecycle_events\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "authenticated_control_plane_platform_observability_read_of_immutable_commercial_lifecycle_history_across_properties_after_separate_platform_admin_session_authorization_bounded_newest_first_and_strictly_read_only"
+    }
+  ]
+}

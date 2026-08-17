@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
+
 type CommercialAction =
   | "initialize"
   | "start_trial"
@@ -29,21 +31,108 @@ type CommercialState = {
 };
 
 type Props = {
+  lang: ControlPlaneLang;
   propertyId: string;
   displayName: string;
   productionLive: boolean;
   commercial: CommercialState;
 };
 
-const ACTION_LABELS: Record<CommercialAction, string> = {
-  initialize: "Initialize commercial control",
-  start_trial: "Start trial",
-  extend_trial: "Extend trial",
-  convert_to_customer: "Convert to customer",
-  suspend: "Suspend access",
-  resume: "Resume access",
-  end: "End commercial service",
+const ACTION_LABELS: Record<ControlPlaneLang, Record<CommercialAction, string>> = {
+  bg: {
+    initialize: "Активирай търговско управление",
+    start_trial: "Стартирай пробен период",
+    extend_trial: "Удължи пробния период",
+    convert_to_customer: "Преобразувай в клиент",
+    suspend: "Спри достъпа",
+    resume: "Възстанови достъпа",
+    end: "Прекрати услугата",
+  },
+  en: {
+    initialize: "Initialize commercial control",
+    start_trial: "Start trial",
+    extend_trial: "Extend trial",
+    convert_to_customer: "Convert to customer",
+    suspend: "Suspend access",
+    resume: "Resume access",
+    end: "End commercial service",
+  },
 };
+
+const COPY = {
+  bg: {
+    actions: "Търговски действия",
+    actionSubtitle: "Изрични Platform Admin промени. Няма директни записи в базата от браузъра.",
+    production: "Продукция",
+    live: "LIVE",
+    notLive: "НЕ Е LIVE",
+    trial: "Пробен период",
+    daysLeft: "дни остават",
+    expired: "срокът е изтекъл",
+    noActions: "Няма разрешени търговски действия за този статус.",
+    runtimeNote: "Търговското право за достъп е отделно от техническия runtime и се прилага автоматично в Production.",
+    transition: "Търговска промяна",
+    close: "Затвори",
+    trialDays: "Дни на пробния период",
+    trialPlan: "Код на тестовия план",
+    newTrialEnd: "Нов край на пробния период",
+    contractPlan: "Код на договорния план",
+    contractPlanPlaceholder: "Въведи договорния plan code",
+    auditReason: "Причина / бележка за audit",
+    auditPlaceholder: "Напр. 14-дневен тест по договорка с хотелския мениджър",
+    explicitConfirm: "Потвърждавам изрично търговската промяна за",
+    saving: "Записване…",
+    confirm: "Потвърди",
+    productionRequired: "Production трябва първо да е LIVE.",
+    reasonRequired: "Добави кратка причина за audit историята.",
+    confirmRequired: "Потвърди изрично промяната.",
+    trialDaysInvalid: "Пробният период трябва да е между 1 и 60 дни.",
+    trialEndInvalid: "Избери валидна нова крайна дата.",
+    planRequired: "Въведи plan code за договорния клиент.",
+    success: "Промяната е записана успешно.",
+    noConnection: "Няма връзка с Control Plane API.",
+    stateConflict: "Статусът е променен междувременно. Обнови страницата и опитай отново.",
+    transitionRejected: "Промяната е отказана от търговската state machine.",
+    forbidden: "Нямаш валидно Platform Admin право за тази операция.",
+    genericError: "Операцията не беше завършена. Провери текущия статус и опитай отново.",
+  },
+  en: {
+    actions: "Commercial actions",
+    actionSubtitle: "Explicit Platform Admin transitions. No browser-side database writes.",
+    production: "Production",
+    live: "LIVE",
+    notLive: "NOT LIVE",
+    trial: "Trial",
+    daysLeft: "days left",
+    expired: "expired",
+    noActions: "No commercial actions are allowed for this status.",
+    runtimeNote: "Commercial entitlement is separate from technical runtime and is enforced automatically in Production.",
+    transition: "Commercial transition",
+    close: "Close",
+    trialDays: "Trial days",
+    trialPlan: "Trial plan code",
+    newTrialEnd: "New trial end",
+    contractPlan: "Contract plan code",
+    contractPlanPlaceholder: "Enter the contracted plan code",
+    auditReason: "Reason / audit note",
+    auditPlaceholder: "Example: 14-day trial agreed with the hotel manager",
+    explicitConfirm: "I explicitly confirm the commercial change for",
+    saving: "Saving…",
+    confirm: "Confirm",
+    productionRequired: "Production must be LIVE first.",
+    reasonRequired: "Add a short reason for the audit history.",
+    confirmRequired: "Explicitly confirm the change.",
+    trialDaysInvalid: "The trial period must be between 1 and 60 days.",
+    trialEndInvalid: "Choose a valid new trial end date.",
+    planRequired: "Enter a plan code for the contracted customer.",
+    success: "The change was saved successfully.",
+    noConnection: "Cannot connect to the Control Plane API.",
+    stateConflict: "The status changed in the meantime. Refresh the page and try again.",
+    transitionRejected: "The transition was rejected by the commercial state machine.",
+    forbidden: "You do not have valid Platform Admin authority for this operation.",
+    genericError: "The operation was not completed. Check the current status and try again.",
+  },
+} as const;
 
 function actionsFor(state: CommercialState): CommercialAction[] {
   if (!state.managed) return ["initialize"];
@@ -83,21 +172,16 @@ function defaultExtensionValue(trialEndsAt: string | null) {
   return toLocalInputValue(new Date(base + 7 * 24 * 60 * 60 * 1000));
 }
 
-function apiErrorMessage(code: unknown) {
-  if (code === "production_not_live") return "Production средата трябва първо да е LIVE.";
-  if (code === "commercial_state_conflict") return "Статусът е променен междувременно. Обнови страницата и опитай отново.";
-  if (code === "commercial_transition_rejected") return "Преходът е отказан от commercial state machine.";
-  if (code === "unauthorized" || code === "forbidden") return "Нямаш валидно Platform Admin право за тази операция.";
-  return "Операцията не беше завършена. Провери текущия статус и опитай отново.";
-}
-
 export default function CommercialLifecyclePanel({
+  lang,
   propertyId,
   displayName,
   productionLive,
   commercial,
 }: Props) {
   const router = useRouter();
+  const copy = COPY[lang];
+  const labels = ACTION_LABELS[lang];
   const [selectedAction, setSelectedAction] = useState<CommercialAction | null>(null);
   const [trialDays, setTrialDays] = useState("14");
   const [trialEndsAt, setTrialEndsAt] = useState(defaultExtensionValue(commercial.trialEndsAt));
@@ -113,6 +197,14 @@ export default function CommercialLifecyclePanel({
     const remaining = Date.parse(commercial.trialEndsAt) - Date.now();
     return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)));
   }, [commercial.trialEndsAt]);
+
+  function apiErrorMessage(code: unknown) {
+    if (code === "production_not_live") return copy.productionRequired;
+    if (code === "commercial_state_conflict") return copy.stateConflict;
+    if (code === "commercial_transition_rejected") return copy.transitionRejected;
+    if (code === "unauthorized" || code === "forbidden") return copy.forbidden;
+    return copy.genericError;
+  }
 
   function openAction(action: CommercialAction) {
     setSelectedAction(action);
@@ -133,11 +225,11 @@ export default function CommercialLifecyclePanel({
   async function submitTransition() {
     if (!selectedAction || submitting) return;
     if (reason.trim().length < 3) {
-      setFeedback("Добави кратка причина за audit историята.");
+      setFeedback(copy.reasonRequired);
       return;
     }
     if (!confirmed) {
-      setFeedback("Потвърди изрично промяната.");
+      setFeedback(copy.confirmRequired);
       return;
     }
 
@@ -153,7 +245,7 @@ export default function CommercialLifecyclePanel({
     if (selectedAction === "start_trial") {
       const days = Number(trialDays);
       if (!Number.isInteger(days) || days < 1 || days > 60) {
-        setFeedback("Trial периодът трябва да е между 1 и 60 дни.");
+        setFeedback(copy.trialDaysInvalid);
         return;
       }
       body.trialDays = days;
@@ -163,7 +255,7 @@ export default function CommercialLifecyclePanel({
     if (selectedAction === "extend_trial") {
       const parsed = new Date(trialEndsAt);
       if (!trialEndsAt || Number.isNaN(parsed.getTime())) {
-        setFeedback("Избери валидна нова крайна дата.");
+        setFeedback(copy.trialEndInvalid);
         return;
       }
       body.trialEndsAt = parsed.toISOString();
@@ -171,7 +263,7 @@ export default function CommercialLifecyclePanel({
 
     if (selectedAction === "convert_to_customer") {
       if (!planCode.trim()) {
-        setFeedback("Въведи plan code за договорния клиент.");
+        setFeedback(copy.planRequired);
         return;
       }
       body.planCode = planCode.trim();
@@ -196,11 +288,11 @@ export default function CommercialLifecyclePanel({
         return;
       }
 
-      setFeedback("Промяната е записана успешно.");
+      setFeedback(copy.success);
       setSelectedAction(null);
       router.refresh();
     } catch {
-      setFeedback("Няма връзка с Control Plane API.");
+      setFeedback(copy.noConnection);
     } finally {
       setSubmitting(false);
     }
@@ -211,11 +303,9 @@ export default function CommercialLifecyclePanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
-            Commercial actions
+            {copy.actions}
           </p>
-          <p className="mt-1 text-xs leading-5 text-neutral-500">
-            Explicit Platform Admin transitions. No browser-side database writes.
-          </p>
+          <p className="mt-1 text-xs leading-5 text-neutral-500">{copy.actionSubtitle}</p>
         </div>
         <span
           className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
@@ -224,14 +314,14 @@ export default function CommercialLifecyclePanel({
               : "border-amber-400/25 bg-amber-400/10 text-amber-200"
           }`}
         >
-          Production {productionLive ? "LIVE" : "NOT LIVE"}
+          {copy.production} {productionLive ? copy.live : copy.notLive}
         </span>
       </div>
 
       {commercial.status === "trial" && daysRemaining !== null ? (
         <div className="mt-3 rounded-xl border border-cyan-400/20 bg-cyan-400/5 px-3 py-2 text-xs text-cyan-100">
-          Trial: <strong>{daysRemaining}</strong> дни остават
-          {commercial.effectiveStatus === "trial_expired" ? " · срокът е изтекъл" : ""}
+          {copy.trial}: <strong>{daysRemaining}</strong> {copy.daysLeft}
+          {commercial.effectiveStatus === "trial_expired" ? ` · ${copy.expired}` : ""}
         </div>
       ) : null}
 
@@ -239,6 +329,12 @@ export default function CommercialLifecyclePanel({
         {actions.length ? (
           actions.map((action) => {
             const blocked = requiresLiveProduction(action) && !productionLive;
+            const label =
+              action === "start_trial"
+                ? lang === "bg"
+                  ? "Стартирай 14-дневен тест"
+                  : "Start 14-day trial"
+                : labels[action];
             return (
               <button
                 key={action}
@@ -246,21 +342,18 @@ export default function CommercialLifecyclePanel({
                 disabled={blocked}
                 onClick={() => openAction(action)}
                 className={`rounded-xl border px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-35 ${actionTone(action)}`}
-                title={blocked ? "Production трябва първо да е LIVE." : undefined}
+                title={blocked ? copy.productionRequired : undefined}
               >
-                {action === "start_trial" ? "Start 14-day trial" : ACTION_LABELS[action]}
+                {label}
               </button>
             );
           })
         ) : (
-          <p className="text-xs text-neutral-500">Няма разрешени commercial действия за този статус.</p>
+          <p className="text-xs text-neutral-500">{copy.noActions}</p>
         )}
       </div>
 
-      <p className="mt-3 text-[11px] leading-5 text-neutral-600">
-        Commercial entitlement е отделно от техническия runtime. Автоматичното runtime enforcement при
-        изтичане на trial е отделен защитен етап.
-      </p>
+      <p className="mt-3 text-[11px] leading-5 text-neutral-600">{copy.runtimeNote}</p>
 
       {feedback && !selectedAction ? (
         <p className="mt-3 rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-xs text-neutral-200">
@@ -278,9 +371,9 @@ export default function CommercialLifecyclePanel({
           <div className="w-full max-w-lg rounded-3xl border border-neutral-700 bg-neutral-950 p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-cyan-300/70">Commercial transition</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-cyan-300/70">{copy.transition}</p>
                 <h4 id={`commercial-dialog-${propertyId}`} className="mt-1 text-lg font-semibold text-neutral-100">
-                  {ACTION_LABELS[selectedAction]}
+                  {labels[selectedAction]}
                 </h4>
                 <p className="mt-1 text-xs text-neutral-500">{displayName}</p>
               </div>
@@ -290,14 +383,14 @@ export default function CommercialLifecyclePanel({
                 disabled={submitting}
                 className="rounded-xl border border-neutral-800 px-3 py-1.5 text-xs text-neutral-400 hover:border-neutral-600"
               >
-                Затвори
+                {copy.close}
               </button>
             </div>
 
             {selectedAction === "start_trial" ? (
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label className="text-xs text-neutral-400">
-                  Trial days
+                  {copy.trialDays}
                   <input
                     type="number"
                     min={1}
@@ -308,7 +401,7 @@ export default function CommercialLifecyclePanel({
                   />
                 </label>
                 <label className="text-xs text-neutral-400">
-                  Trial plan code
+                  {copy.trialPlan}
                   <input
                     value={planCode}
                     onChange={(event) => setPlanCode(event.target.value)}
@@ -321,7 +414,7 @@ export default function CommercialLifecyclePanel({
 
             {selectedAction === "extend_trial" ? (
               <label className="mt-5 block text-xs text-neutral-400">
-                New trial end
+                {copy.newTrialEnd}
                 <input
                   type="datetime-local"
                   value={trialEndsAt}
@@ -333,24 +426,24 @@ export default function CommercialLifecyclePanel({
 
             {selectedAction === "convert_to_customer" ? (
               <label className="mt-5 block text-xs text-neutral-400">
-                Contract plan code
+                {copy.contractPlan}
                 <input
                   value={planCode}
                   onChange={(event) => setPlanCode(event.target.value)}
-                  placeholder="Въведи договорния plan code"
+                  placeholder={copy.contractPlanPlaceholder}
                   className="mt-1.5 w-full rounded-xl border border-neutral-700 bg-neutral-900 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-emerald-500"
                 />
               </label>
             ) : null}
 
             <label className="mt-5 block text-xs text-neutral-400">
-              Причина / бележка за audit
+              {copy.auditReason}
               <textarea
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 rows={3}
                 maxLength={1000}
-                placeholder="Напр. 14-дневен тест по договорка с хотелския мениджър"
+                placeholder={copy.auditPlaceholder}
                 className="mt-1.5 w-full resize-none rounded-xl border border-neutral-700 bg-neutral-900 px-3 py-2.5 text-sm text-neutral-100 outline-none focus:border-cyan-500"
               />
             </label>
@@ -363,7 +456,7 @@ export default function CommercialLifecyclePanel({
                 className="mt-0.5 h-4 w-4"
               />
               <span>
-                Потвърждавам изрично commercial промяната за <strong>{displayName}</strong>.
+                {copy.explicitConfirm} <strong>{displayName}</strong>.
               </span>
             </label>
 
@@ -379,7 +472,7 @@ export default function CommercialLifecyclePanel({
               disabled={submitting || !confirmed}
               className="mt-4 w-full rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/60 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {submitting ? "Записване…" : `Потвърди: ${ACTION_LABELS[selectedAction]}`}
+              {submitting ? copy.saving : `${copy.confirm}: ${labels[selectedAction]}`}
             </button>
           </div>
         </div>

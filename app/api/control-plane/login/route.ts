@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+
+import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
 import { authenticatePlatformAdminCredentials } from "@/lib/server/control-plane-auth";
 import { logControlPlaneAudit } from "@/lib/server/control-plane-audit";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
@@ -16,9 +18,14 @@ const NO_STORE_HEADERS = {
   Expires: "0",
 };
 
+function requestLang(req: NextRequest) {
+  return normalizeControlPlaneLang(req.nextUrl.searchParams.get("lang"));
+}
+
 function redirectToLogin(req: NextRequest, code: string) {
   const url = new URL("/control-plane/login", req.url);
   url.searchParams.set("error", code);
+  url.searchParams.set("lang", requestLang(req));
   return NextResponse.redirect(url, { status: 303, headers: NO_STORE_HEADERS });
 }
 
@@ -56,7 +63,9 @@ export async function POST(req: NextRequest) {
       throw auditError;
     }
 
-    return NextResponse.redirect(new URL("/control-plane", req.url), {
+    const target = new URL("/control-plane", req.url);
+    target.searchParams.set("lang", requestLang(req));
+    return NextResponse.redirect(target, {
       status: 303,
       headers: NO_STORE_HEADERS,
     });

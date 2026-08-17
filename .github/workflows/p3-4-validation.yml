@@ -1,0 +1,32 @@
+name: P3.4 Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "lib/control-plane-i18n.ts"
+      - "lib/server/commercial-observability.ts"
+      - "app/control-plane/**"
+      - "app/api/control-plane/login/route.ts"
+      - "app/api/control-plane/logout/route.ts"
+      - "tests/contracts/p3-4-commercial-observability-i18n.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-p3-4-commercial-observability-i18n.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - "package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
