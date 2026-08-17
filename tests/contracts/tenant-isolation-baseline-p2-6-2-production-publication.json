@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "checkpoint": "p2-6-2-production-publication",
+  "baseCheckpoint": "p2-6-1-production-readiness",
+  "expectedNeedsReview": 80,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-production-publication.ts",
+      "line": 96,
+      "rpc": "publish_factory_production_revision_v1",
+      "tableExpression": "\"publish_factory_production_revision_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_platform_mutation_calls_service_role_only_security_definer_rpc_that_requires_immutable_p2_6_1_readiness_exact_target_ids_public_slug_and_explicit_dark_publication_approval_then_rechecks_p2_5_to_p2_1_lineage_and_cas_publishes_only_the_exact_production_config_revision_while_transactionally_asserting_hotel_public_identity_runtime_resources_property_lifecycle_and_production_certification_remain_inactive_reserved_disabled_draft_and_not_started"
+    }
+  ]
+}
