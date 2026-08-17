@@ -69,12 +69,13 @@ export async function GET(req: NextRequest) {
       .from("guest_requests")
       .select("id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, status, created_at, is_test, test_expires_at, metadata_json")
       .eq("hotel_id", scope.hotelId)
-      .contains("metadata_json", { department: scope.departmentCode })
+      .eq("department_id", scope.departmentId)
       .order("created_at", { ascending: false });
 
     if (error) {
       console.error("generic department requests query failed", {
         hotelId: scope.hotelId,
+        departmentId: scope.departmentId,
         role: scope.role,
         error,
       });
