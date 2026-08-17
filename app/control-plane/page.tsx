@@ -59,7 +59,7 @@ export default async function ControlPlanePage() {
           </div>
           <div className="flex items-center gap-3">
             <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-100">
-              Admin actions via API
+              Read only registry · Admin actions via API
             </span>
             <form action="/api/control-plane/logout" method="post">
               <button
