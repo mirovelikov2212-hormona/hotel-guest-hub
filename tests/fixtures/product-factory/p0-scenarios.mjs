@@ -2,6 +2,18 @@ function baseEnvironment() {
   return { production: true, sandbox: true };
 }
 
+function generatedRoomInventory(roomCount) {
+  return {
+    ranges: [
+      {
+        start: 1,
+        end: roomCount,
+        padTo: roomCount >= 100 ? 3 : 2,
+      },
+    ],
+  };
+}
+
 export const boutiqueHotelBlueprint = {
   version: 1,
   organization: { id: "org-boutique-demo", name: "Boutique Demo Group" },
@@ -13,11 +25,17 @@ export const boutiqueHotelBlueprint = {
     timezone: "Europe/Berlin",
     locales: ["de", "en"],
     roomCount: 30,
+    roomInventory: generatedRoomInventory(30),
   },
   environment: baseEnvironment(),
   departments: [
-    { id: "reception", name: "Reception" },
-    { id: "housekeeping", name: "Housekeeping" },
+    { id: "reception", name: "Reception", hours: { is24h: true } },
+    {
+      id: "housekeeping",
+      name: "Housekeeping",
+      hours: { open: "07:00", close: "17:00" },
+      afterHoursDepartmentId: "reception",
+    },
   ],
   integrations: [],
   workflows: [
@@ -55,16 +73,27 @@ export const allInclusiveResortBlueprint = {
     timezone: "Europe/Istanbul",
     locales: ["tr", "en", "de", "ru", "ar", "pl", "ro"],
     roomCount: 500,
+    roomInventory: generatedRoomInventory(500),
   },
   environment: baseEnvironment(),
   departments: [
-    { id: "reception", name: "Reception" },
-    { id: "housekeeping", name: "Housekeeping" },
-    { id: "maintenance", name: "Maintenance" },
-    { id: "spa", name: "SPA" },
-    { id: "pool", name: "Pool & Beach" },
-    { id: "guest-relations", name: "Guest Relations" },
-    { id: "restaurant", name: "Restaurant" },
+    { id: "reception", name: "Reception", hours: { is24h: true } },
+    {
+      id: "housekeeping",
+      name: "Housekeeping",
+      hours: { open: "07:00", close: "17:00" },
+      afterHoursDepartmentId: "reception",
+    },
+    {
+      id: "maintenance",
+      name: "Maintenance",
+      hours: { open: "07:00", close: "17:00" },
+      afterHoursDepartmentId: "reception",
+    },
+    { id: "spa", name: "SPA", hours: { open: "09:00", close: "20:00" } },
+    { id: "pool", name: "Pool & Beach", hours: { open: "08:00", close: "19:00" } },
+    { id: "guest-relations", name: "Guest Relations", hours: { open: "08:00", close: "22:00" } },
+    { id: "restaurant", name: "Restaurant", hours: { open: "07:00", close: "23:00" } },
   ],
   integrations: [
     { id: "pms-primary", kind: "pms", adapterKey: "generic-pms" },
@@ -131,6 +160,7 @@ function groupProperty(index) {
   const timezone = groupTimezones[index % groupTimezones.length];
   const locales = groupLocaleSets[index % groupLocaleSets.length];
   const suffix = String(index + 1).padStart(2, "0");
+  const roomCount = 80 + index * 11;
 
   return {
     version: 1,
@@ -142,13 +172,24 @@ function groupProperty(index) {
       countryCode: ["DE", "GB", "ES", "GR", "TR", "US", "AE", "SG"][index % 8],
       timezone,
       locales,
-      roomCount: 80 + index * 11,
+      roomCount,
+      roomInventory: generatedRoomInventory(roomCount),
     },
     environment: baseEnvironment(),
     departments: [
-      { id: "reception", name: "Reception" },
-      { id: "housekeeping", name: "Housekeeping" },
-      { id: "maintenance", name: "Maintenance" },
+      { id: "reception", name: "Reception", hours: { is24h: true } },
+      {
+        id: "housekeeping",
+        name: "Housekeeping",
+        hours: { open: "07:00", close: "17:00" },
+        afterHoursDepartmentId: "reception",
+      },
+      {
+        id: "maintenance",
+        name: "Maintenance",
+        hours: { open: "07:00", close: "17:00" },
+        afterHoursDepartmentId: "reception",
+      },
     ],
     integrations: integrated
       ? [{ id: "pms", kind: "pms", adapterKey: `portfolio-pms-${index % 3}` }]
