@@ -1,0 +1,70 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { assertContains, assertNotContains, readProjectFile } from "../helpers/source-contract.mjs";
+
+test("P2.5 staff role contract accepts tenant-defined department keys and reserves manager", async () => {
+  const source = await readProjectFile("lib/staff/role-code.ts");
+  assertContains(source, 'export type StaffRole = string');
+  assertContains(source, 'STAFF_MANAGER_ROLE = "manager"');
+  assertContains(source, "/^[a-z][a-z0-9_-]{0,62}$/");
+  assertContains(source, 'RESERVED_NON_ROLE_SEGMENTS = new Set(["pin"])');
+  assertNotContains(source, '"reception" | "housekeeping" | "maintenance"');
+});
+
+test("P2.5 runtime role resolution is hotel-scoped and fail-closed against active departments", async () => {
+  const source = await readProjectFile("lib/server/staff-runtime-role.ts");
+  assertContains(source, '.from("departments")');
+  assertContains(source, '.eq("hotel_id", hotelId)');
+  assertContains(source, '.eq("code", role)');
+  assertContains(source, '.eq("active", true)');
+  assertContains(source, 'role === STAFF_MANAGER_ROLE');
+});
+
+test("P2.5 generic department feed and mutation are tenant + department scoped", async () => {
+  const feed = await readProjectFile("app/api/staff/department-runtime/requests/route.ts");
+  const mutation = await readProjectFile("app/api/staff/department-runtime/request-status/route.ts");
+  assertContains(feed, '.eq("hotel_id", scope.hotelId)');
+  assertContains(feed, '.contains("metadata_json", { department: scope.departmentCode })');
+  assertContains(mutation, '.eq("hotel_id", scope.hotelId)');
+  assertContains(mutation, 'String(metadata.department || "") !== scope.departmentCode');
+  assertContains(mutation, "enforceStaffSameOrigin(req)");
+});
+
+test("P2.5 generic staff QR and PIN are registry-driven, not fixed-department allowlists", async () => {
+  const qr = await readProjectFile("app/qr/staff/[hotelSlug]/[department]/route.ts");
+  const pinPage = await readProjectFile("app/staff/[hotelSlug]/pin/page.tsx");
+  assertContains(qr, "resolveStaffRuntimeRoleForHotelId");
+  assertContains(qr, "normalizeStaffRoleCode(department)");
+  assertNotContains(qr, "ALLOWED_STAFF_DEPARTMENTS");
+  assertContains(pinPage, "resolveStaffRuntimeRoleByHotelSlug");
+  assertContains(pinPage, '"/api/staff/auth/department-login"');
+});
+
+test("P2.5 custom staff route preserves legacy static role implementations", async () => {
+  const genericPage = await readProjectFile("app/staff/[hotelSlug]/[departmentCode]/page.tsx");
+  assertContains(genericPage, "LEGACY_STATIC_ROLES");
+  assertContains(genericPage, "requireStaffAccess(hotelSlug, role)");
+  assertContains(genericPage, "GenericDepartmentPageContent");
+  for (const legacyPath of [
+    "app/staff/[hotelSlug]/reception/page.tsx",
+    "app/staff/[hotelSlug]/housekeeping/page.tsx",
+    "app/staff/[hotelSlug]/maintenance/page.tsx",
+    "app/staff/[hotelSlug]/manager/page.tsx",
+  ]) {
+    const legacy = await readProjectFile(legacyPath);
+    assert.ok(legacy.length > 0, `${legacyPath} must remain present`);
+  }
+});
+
+test("P2.5 alert and push layers accept arbitrary department roles", async () => {
+  const sound = await readProjectFile("components/staff/useStaffAlertSound.ts");
+  const title = await readProjectFile("components/staff/useStaffTabTitleAlert.ts");
+  const pushAuth = await readProjectFile("lib/staff-push/manager-auth.ts");
+  const pushUi = await readProjectFile("components/staff/GenericDepartmentPushControls.tsx");
+  assertContains(sound, "AlertableStaffRequest");
+  assertContains(title, "AlertableStaffRequest");
+  assertContains(pushAuth, "normalizeStaffRoleCode");
+  assertContains(pushAuth, "resolveStaffRuntimeRoleForHotelId");
+  assertContains(pushUi, 'role: string');
+});
