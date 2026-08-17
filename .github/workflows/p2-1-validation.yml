@@ -1,0 +1,41 @@
+name: P2.1 Validation
+
+on:
+  push:
+    branches:
+      - product-factory/p2-1-onboarding-foundation-20260817
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: P2.1 contract
+        run: npm run test:p2-1
+
+      - name: Tenant isolation gate
+        run: npm run test:tenant-isolation
+
+      - name: Full test suite
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
