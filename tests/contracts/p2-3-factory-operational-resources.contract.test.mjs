@@ -110,6 +110,19 @@ test("P2.3 schema creates tenant-scoped declarative resource tables with fail-cl
   assertNotContains(migration.toLowerCase(), "grant delete");
 });
 
+test("P2.3 covers tenant-safe composite service foreign keys with matching indexes", async () => {
+  const migration = await readProjectFile(
+    "supabase/migrations/20260817105200_p2_3_service_composite_fk_indexes.sql",
+  );
+
+  assertContains(migration, "hotel_service_definitions_hotel_department_fk_idx");
+  assertContains(migration, "(hotel_id, department_id)");
+  assertContains(migration, "hotel_service_definitions_hotel_workflow_fk_idx");
+  assertContains(migration, "(hotel_id, workflow_id)");
+  assertContains(migration, "hotel_service_definitions_hotel_integration_fk_idx");
+  assertContains(migration, "(hotel_id, integration_id)");
+});
+
 test("P2.3 projection is lineage-locked, idempotent and never enables runtime behavior", async () => {
   const migration = await readProjectFile(
     "supabase/migrations/20260817104500_p2_3_operational_resource_projection.sql",
