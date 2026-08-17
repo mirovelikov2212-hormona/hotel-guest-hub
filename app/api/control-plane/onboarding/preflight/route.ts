@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     }
 
     const prepared = prepareFactoryOnboarding({
-      blueprint: body.blueprint,
+      blueprint: body.blueprint as Record<string, unknown>,
       idempotencyKey: `preflight:${randomUUID()}`,
     });
     const summary = validateFactoryBlueprint(prepared.blueprint);

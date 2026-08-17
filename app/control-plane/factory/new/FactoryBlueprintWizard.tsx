@@ -155,7 +155,7 @@ export default function FactoryBlueprintWizard({ lang }: { lang: ControlPlaneLan
           [copy.internalSlug, propertySlug, (v:string)=>setPropertySlug(normalizeSlug(v))],
           [copy.publicSlug, publicSlug, (v:string)=>setPublicSlug(normalizeSlug(v))],
           [copy.country, countryCode, (v:string)=>setCountryCode(v.toUpperCase().slice(0,2))],
-        ].map(([label, value, setter]) => <label key={String(label)} className="text-xs text-neutral-400">{label}<input value={value as string} onChange={(e)=>(setter as (v:string)=>void)(e.target.value)} className={input}/></label>)}
+        ] as Array<[string, string, (value: string) => void]>).map(([label, value, setter]) => <label key={String(label)} className="text-xs text-neutral-400">{label}<input value={value as string} onChange={(e)=>(setter as (v:string)=>void)(e.target.value)} className={input}/></label>)}
         <label className="text-xs text-neutral-400 sm:col-span-2">{copy.timezone}<input value={timezone} onChange={(e)=>setTimezone(e.target.value)} placeholder="Europe/Berlin" className={input}/></label>
       </div>}
 
@@ -164,7 +164,7 @@ export default function FactoryBlueprintWizard({ lang }: { lang: ControlPlaneLan
         <label className="text-xs text-neutral-400">{copy.locales}<input value={localesText} onChange={(e)=>setLocalesText(e.target.value)} placeholder="de, en, bg" className={input}/></label>
         <label className="text-xs text-neutral-400">{copy.roomMode}<select value={roomMode} onChange={(e)=>setRoomMode(e.target.value as "range" | "explicit")} className={input}><option value="range">{copy.range}</option><option value="explicit">{copy.list}</option></select></label>
         {roomMode === "range" ? <div className="grid gap-3 sm:grid-cols-5">
-          {[[copy.start,rangeStart,setRangeStart],[copy.end,rangeEnd,setRangeEnd],[copy.pad,padTo,setPadTo],[copy.prefix,prefix,setPrefix],[copy.suffix,suffix,setSuffix]].map(([label,value,setter])=><label key={String(label)} className="text-xs text-neutral-400">{label}<input value={value as string} onChange={(e)=>(setter as (v:string)=>void)(e.target.value)} className={input}/></label>)}
+          {([[copy.start,rangeStart,setRangeStart],[copy.end,rangeEnd,setRangeEnd],[copy.pad,padTo,setPadTo],[copy.prefix,prefix,setPrefix],[copy.suffix,suffix,setSuffix]] as Array<[string, string, (value: string) => void]>).map(([label,value,setter])=><label key={String(label)} className="text-xs text-neutral-400">{label}<input value={value as string} onChange={(e)=>(setter as (v:string)=>void)(e.target.value)} className={input}/></label>)}
         </div> : <label className="text-xs text-neutral-400">{copy.explicit}<textarea rows={7} value={explicitRooms} onChange={(e)=>setExplicitRooms(e.target.value)} className={`${input} font-mono`}/></label>}
         <p className="text-sm text-neutral-400">Room count: <strong className="text-neutral-100">{roomCount}</strong></p>
       </div>}
