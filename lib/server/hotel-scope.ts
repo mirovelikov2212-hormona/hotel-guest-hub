@@ -5,6 +5,7 @@ import {
   getHotelSlugCandidates as getHotelSlugCandidatesCore,
   sanitizeHotelSlug,
 } from "@/lib/hotels/hotel-slug.mjs";
+import { requireHotelCommercialRuntimeAccess } from "@/lib/server/commercial-runtime-entitlement";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import type { TestRoomPolicy } from "@/lib/server/test-rooms";
 
@@ -50,6 +51,7 @@ export async function resolveHotelByAnySlugAdmin(inputSlug: string): Promise<Hot
     throw new Error(`Hotel not found for slug: ${candidates.join("|")}`);
   }
 
+  await requireHotelCommercialRuntimeAccess(data.id);
   return data as HotelScope;
 }
 

@@ -1,6 +1,10 @@
 import "server-only";
 import crypto from "crypto";
 import { cookies } from "next/headers";
+import {
+  isCommercialRuntimeAccessDeniedError,
+  requireHotelCommercialRuntimeAccess,
+} from "@/lib/server/commercial-runtime-entitlement";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { getStaffSessionCookieName, type StaffRole } from "@/lib/staff-auth/cookie-name";
 
@@ -93,6 +97,13 @@ export async function getCurrentStaffSession(hotelSlug: string, role: StaffRole)
   const expiresAt = new Date(data.expires_at);
   if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
     return null;
+  }
+
+  try {
+    await requireHotelCommercialRuntimeAccess(data.hotel_id);
+  } catch (commercialError) {
+    if (isCommercialRuntimeAccessDeniedError(commercialError)) return null;
+    throw commercialError;
   }
 
   return data;
