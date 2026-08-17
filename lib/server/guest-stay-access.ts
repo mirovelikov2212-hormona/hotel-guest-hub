@@ -5,6 +5,10 @@ import {
   getGuestStayAccessPolicy,
   type GuestStayLifecycleState,
 } from "@/lib/guest-stays/lifecycle-model.mjs";
+import {
+  isCommercialRuntimeAccessDeniedError,
+  requireHotelCommercialRuntimeAccess,
+} from "@/lib/server/commercial-runtime-entitlement";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export class GuestStayAccessError extends Error {
@@ -77,6 +81,21 @@ function lifecycleError(state: GuestStayLifecycleState) {
   );
 }
 
+async function requireCommercialGuestRuntimeAccess(hotelId: string) {
+  try {
+    return await requireHotelCommercialRuntimeAccess(hotelId);
+  } catch (error) {
+    if (isCommercialRuntimeAccessDeniedError(error)) {
+      throw new GuestStayAccessError(
+        "COMMERCIAL_ACCESS_BLOCKED",
+        "StayHub access is not currently available for this hotel.",
+        403,
+      );
+    }
+    throw error;
+  }
+}
+
 async function persistLifecycleState(input: {
   hotelId: string;
   stay: StayAccessRow;
@@ -133,6 +152,8 @@ export async function getGuestStayAccessState(input: {
       401,
     );
   }
+
+  await requireCommercialGuestRuntimeAccess(hotelId);
 
   const { data: stay, error: stayError } = await supabaseAdmin
     .from("guest_stays")

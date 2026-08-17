@@ -11,6 +11,8 @@ import {
   hasValidDemoAccessCookie,
   isDemoAccessConfigured,
 } from "@/lib/demo-access";
+import { isCommercialRuntimeAccessDeniedError } from "@/lib/server/commercial-runtime-entitlement";
+import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -80,6 +82,25 @@ function DemoAccessGate({
   );
 }
 
+function CommercialAccessUnavailable() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-neutral-950 px-4 text-neutral-50">
+      <section className="w-full max-w-md rounded-3xl border border-neutral-800 bg-neutral-900 p-6 text-center shadow-2xl sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-neutral-500">
+          StayHub
+        </p>
+        <h1 className="mt-3 text-2xl font-semibold">Digital concierge unavailable</h1>
+        <p className="mt-3 text-sm leading-6 text-neutral-300">
+          The hotel&apos;s digital concierge is temporarily unavailable.
+        </p>
+        <p className="mt-2 text-sm leading-6 text-neutral-400">
+          Please contact Reception for assistance.
+        </p>
+      </section>
+    </main>
+  );
+}
+
 export default async function HotelHubPage({ params, searchParams }: PageProps) {
   const { hotelSlug } = await params;
 
@@ -100,6 +121,15 @@ export default async function HotelHubPage({ params, searchParams }: PageProps) 
         />
       );
     }
+  }
+
+  try {
+    await resolveHotelByAnySlugAdmin(hotelSlug);
+  } catch (error) {
+    if (isCommercialRuntimeAccessDeniedError(error)) {
+      return <CommercialAccessUnavailable />;
+    }
+    return notFound();
   }
 
   const cfg = await getHotelConfig(hotelSlug);

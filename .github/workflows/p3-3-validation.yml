@@ -1,0 +1,33 @@
+name: P3.3 Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "lib/server/commercial-runtime-entitlement.ts"
+      - "lib/server/hotel-scope.ts"
+      - "lib/server/guest-stay-access.ts"
+      - "lib/staff-auth/session.ts"
+      - "app/h/[hotelSlug]/page.tsx"
+      - "supabase/migrations/*p3_3*"
+      - "tests/contracts/p3-3-runtime-entitlement-enforcement.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-p3-3-runtime-entitlement-enforcement.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - "package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test

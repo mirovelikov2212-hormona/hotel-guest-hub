@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "checkpoint": "p3-3-runtime-entitlement-enforcement",
+  "baseCheckpoint": "p3-1-commercial-lifecycle-trial-engine",
+  "expectedNeedsReview": 87,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/commercial-runtime-entitlement.ts",
+      "line": 146,
+      "rpc": "resolve_hotel_commercial_runtime_entitlement_v1",
+      "tableExpression": "\"resolve_hotel_commercial_runtime_entitlement_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_runtime_commercial_entitlement_read_calls_service_role_only_stable_security_definer_rpc_scoped_to_one_exact_hotel_id_deriving_production_access_from_property_environment_and_commercial_state_while_legacy_unmanaged_and_non_production_environments_remain_allowed_without_mutation"
+    }
+  ]
+}
