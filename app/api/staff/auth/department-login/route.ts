@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
           source: "staff_hub",
           eventType: "generic_staff_login_temporarily_locked",
           message: "Generic department login was temporarily locked after repeated invalid PIN attempts.",
-          departmentId: role,
+          departmentId: runtimeRole.departmentId,
           metadata: {
             hotelSlug,
             role,
