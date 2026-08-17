@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
     const { data: requestRow, error: requestError } = await supabaseAdmin
       .from("guest_requests")
-      .select("id, status, metadata_json")
+      .select("id, status, department_id")
       .eq("id", requestId)
       .eq("hotel_id", scope.hotelId)
       .maybeSingle();
@@ -45,8 +45,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const metadata = (requestRow.metadata_json || {}) as Record<string, unknown>;
-    if (String(metadata.department || "") !== scope.departmentCode) {
+    if (String(requestRow.department_id || "") !== scope.departmentId) {
       return NextResponse.json(
         { ok: false, error: "Request is outside this department scope" },
         { status: 403 },
@@ -69,11 +68,13 @@ export async function POST(req: NextRequest) {
       .from("guest_requests")
       .update(payload)
       .eq("id", requestId)
-      .eq("hotel_id", scope.hotelId);
+      .eq("hotel_id", scope.hotelId)
+      .eq("department_id", scope.departmentId);
 
     if (updateError) {
       console.error("generic department request status update failed", {
         hotelId: scope.hotelId,
+        departmentId: scope.departmentId,
         requestId,
         role: scope.role,
         status,
