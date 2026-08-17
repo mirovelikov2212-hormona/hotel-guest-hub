@@ -1,20 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import type { StaffRequest } from "@/lib/staff/types";
 
 const STAFF_ALERT_TITLE = "🔴 НОВА ЗАЯВКА";
 const STAFF_TITLE_BLINK_MS = 900;
 const DEFAULT_STAFF_TITLE = "GuestHub Staff";
 const INITIAL_ALERT_BASELINE_MS = 5000;
 
-function getCurrentNewRequestIds(requests: StaffRequest[]) {
+type AlertableStaffRequest = {
+  id: string;
+  status: string;
+  isTest?: boolean | null;
+};
+
+function getCurrentNewRequestIds(requests: AlertableStaffRequest[]) {
   return requests
     .filter((request) => request.status === "new" && !request.isTest)
     .map((request) => request.id);
 }
 
-export function useStaffTabTitleAlert(requests: StaffRequest[]) {
+export function useStaffTabTitleAlert(requests: AlertableStaffRequest[]) {
   const initializedRef = useRef(false);
   const seenNewIdsRef = useRef<Set<string>>(new Set());
   const latestRequestsRef = useRef(requests);
