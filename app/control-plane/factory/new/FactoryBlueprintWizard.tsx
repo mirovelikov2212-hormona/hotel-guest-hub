@@ -149,7 +149,7 @@ export default function FactoryBlueprintWizard({ lang }: { lang: ControlPlaneLan
 
       {step === 0 && <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <h2 className="sm:col-span-2 text-xl font-semibold">{copy.org}</h2>
-        {[
+        {([
           [copy.orgId, organizationId, (v:string)=>setOrganizationId(normalizeSlug(v))],
           [copy.orgName, organizationName, setOrganizationName], [copy.hotelName, hotelName, setHotelName],
           [copy.internalSlug, propertySlug, (v:string)=>setPropertySlug(normalizeSlug(v))],
