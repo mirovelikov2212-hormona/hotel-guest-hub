@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "checkpoint": "p2-4-onboarding-envelope",
+  "baseCheckpoint": "p2-3-operational-resources",
+  "expectedNeedsReview": 77,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-onboarding-envelope.ts",
+      "line": 33,
+      "rpc": "project_factory_onboarding_envelope_v1",
+      "tableExpression": "\"project_factory_onboarding_envelope_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_platform_mutation_calls_service_role_only_rpc_that_rechecks_active_platform_admin_and_exact_p2_3_lineage_then_reserves_fail_closed_roles_reporting_branding_knowledge_ai_public_identity_and_health_configuration_for_the_exact_production_and_sandbox_tenants_without_creating_credentials_or_runtime_authority"
+    }
+  ]
+}
