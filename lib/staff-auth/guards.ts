@@ -3,13 +3,20 @@ import { redirect } from "next/navigation";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
+import { resolveStaffRuntimeRoleForHotelId } from "@/lib/server/staff-runtime-role";
+import { normalizeStaffRoleCode, type StaffRole } from "@/lib/staff/role-code";
 
-export type StaffRole = "reception" | "housekeeping" | "maintenance" | "manager";
+export type { StaffRole } from "@/lib/staff/role-code";
 
-export async function requireStaffAccess(hotelSlug: string, role: StaffRole) {
+export async function requireStaffAccess(hotelSlug: string, roleInput: StaffRole) {
+  const role = normalizeStaffRoleCode(roleInput);
+  if (!role) {
+    const invalidNextPath = `/staff/${hotelSlug}/invalid`;
+    redirect(`/staff/${hotelSlug}/pin?role=invalid&next=${encodeURIComponent(invalidNextPath)}`);
+  }
+
   const nextPath = `/staff/${hotelSlug}/${role}`;
   const redirectPath = `/staff/${hotelSlug}/pin?role=${role}&next=${encodeURIComponent(nextPath)}`;
-
   const session = await getCurrentStaffSession(hotelSlug, role);
   if (!session) {
     redirect(redirectPath);
@@ -34,10 +41,19 @@ export async function requireStaffAccess(hotelSlug: string, role: StaffRole) {
     redirect(redirectPath);
   }
 
+  const runtimeRole = await resolveStaffRuntimeRoleForHotelId(
+    String(currentHotel.id),
+    role,
+  );
+  if (!runtimeRole) {
+    redirect(redirectPath);
+  }
+
   return {
     hotelId: currentSession.hotel_id,
     hotelSlug: currentHotel.slug,
-    role: currentSession.role as StaffRole,
+    role,
+    runtimeRole,
     expiresAt: currentSession.expires_at,
   };
 }

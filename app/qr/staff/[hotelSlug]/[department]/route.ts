@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
+import { resolveStaffRuntimeRoleForHotelId } from "@/lib/server/staff-runtime-role";
+import { normalizeStaffRoleCode } from "@/lib/staff/role-code";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const ALLOWED_STAFF_DEPARTMENTS = new Set([
-  "housekeeping",
-  "maintenance",
-  "reception",
-  "manager",
-]);
 
 function sanitizeSlug(value: unknown) {
   return String(value || "")
@@ -69,9 +64,9 @@ export async function GET(
 ) {
   const { hotelSlug, department } = await context.params;
   const requestedHotelSlug = sanitizeSlug(hotelSlug);
-  const normalizedDepartment = sanitizeSlug(department);
+  const normalizedDepartment = normalizeStaffRoleCode(department);
 
-  if (!ALLOWED_STAFF_DEPARTMENTS.has(normalizedDepartment)) {
+  if (!requestedHotelSlug || !normalizedDepartment) {
     return NextResponse.redirect(new URL("https://www.stayhub.app"), 307);
   }
 
@@ -83,8 +78,16 @@ export async function GET(
     return NextResponse.redirect(new URL("https://www.stayhub.app"), 307);
   }
 
+  const runtimeRole = await resolveStaffRuntimeRoleForHotelId(
+    String(hotel.id || ""),
+    normalizedDepartment,
+  );
+  if (!runtimeRole) {
+    return NextResponse.redirect(new URL("https://www.stayhub.app"), 307);
+  }
+
   const publicAlias = getPublicAlias(hotel);
-  if (!hotel.id || !hotel.slug || !publicAlias) {
+  if (!hotel.id || !hotel.slug || !publicAlias || hotel.active !== true) {
     return NextResponse.redirect(new URL("https://www.stayhub.app"), 307);
   }
 
@@ -122,6 +125,7 @@ export async function GET(
       resolvedPublicAlias: publicAlias,
       isSandbox: Boolean(hotel.is_sandbox),
       department: normalizedDepartment,
+      runtimeRoleKind: runtimeRole.kind,
       path: url.pathname,
       query: Object.fromEntries(url.searchParams.entries()),
     },

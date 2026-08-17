@@ -1,10 +1,6 @@
 import type { CanonicalStaffRequestType } from "@/lib/staff/request-contract.mjs";
 
-export type StaffDepartment =
-  | "housekeeping"
-  | "maintenance"
-  | "reception"
-  | "restaurant";
+export type StaffDepartment = string;
 
 export type StaffRequestStatus =
   | "new"
@@ -57,19 +53,31 @@ export type StaffRequest = {
   testExpiresAt?: string | null;
 };
 
-export const staffDepartmentLabels: Record<StaffDepartment, string> = {
+export const staffDepartmentLabels: Record<string, string> = {
   housekeeping: "Housekeeping",
   maintenance: "Maintenance",
   reception: "Reception",
   restaurant: "Restaurant",
 };
 
-export const staffDepartmentClasses: Record<StaffDepartment, string> = {
+export const staffDepartmentClasses: Record<string, string> = {
   housekeeping: "border-violet-400/30 bg-violet-400/15 text-violet-200",
   maintenance: "border-sky-400/30 bg-sky-400/15 text-sky-200",
   reception: "border-amber-400/30 bg-amber-400/15 text-amber-200",
   restaurant: "border-emerald-400/30 bg-emerald-400/15 text-emerald-200",
 };
+
+export function getStaffDepartmentLabel(department: StaffDepartment) {
+  return staffDepartmentLabels[department] || department
+    .split(/[-_]+/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+export function getStaffDepartmentClass(department: StaffDepartment) {
+  return staffDepartmentClasses[department] || "border-white/15 bg-white/10 text-white/80";
+}
 
 export const staffStatusLabels: Record<StaffRequestStatus, string> = {
   new: "New",

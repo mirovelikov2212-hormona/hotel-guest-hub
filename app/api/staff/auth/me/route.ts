@@ -1,25 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
-import type { StaffRole } from "@/lib/staff-auth/cookie-name";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
-
-function isValidRole(value: string): value is StaffRole {
-  return (
-    value === "reception" ||
-    value === "housekeeping" ||
-    value === "maintenance" ||
-    value === "manager"
-  );
-}
+import { resolveStaffRuntimeRoleForHotelId } from "@/lib/server/staff-runtime-role";
+import { normalizeStaffRoleCode } from "@/lib/staff/role-code";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const hotelSlug = String(searchParams.get("hotelSlug") || "").trim().toLowerCase();
-    const role = String(searchParams.get("role") || "").trim().toLowerCase();
+    const role = normalizeStaffRoleCode(searchParams.get("role"));
 
-    if (!hotelSlug || !isValidRole(role)) {
+    if (!hotelSlug || !role) {
       return NextResponse.json(
         { ok: false, error: "Missing hotelSlug or role" },
         { status: 400 }
@@ -50,8 +42,11 @@ export async function GET(req: NextRequest) {
 
     const hotelMatches = hotelMatchesRequestedSlug(hotel, hotelSlug);
     const roleMatches = session.role === role;
+    const runtimeRole = roleMatches
+      ? await resolveStaffRuntimeRoleForHotelId(String(hotel.id), role)
+      : null;
 
-    if (!hotelMatches || !roleMatches) {
+    if (!hotelMatches || !roleMatches || !runtimeRole) {
       return NextResponse.json(
         { ok: false, error: "Session does not match requested hotel/role" },
         { status: 403 }
@@ -65,6 +60,7 @@ export async function GET(req: NextRequest) {
         hotelSlug: hotel.slug,
         hotelName: hotel.name,
         role: session.role,
+        runtimeRole,
         expiresAt: session.expires_at,
       },
     });

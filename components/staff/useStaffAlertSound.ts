@@ -1,13 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { StaffDepartment, StaffRequest } from "@/lib/staff/types";
+import type { StaffDepartment } from "@/lib/staff/types";
 
 const ALERT_SOUND_STORAGE_PREFIX = "stayhub_staff_alert_sound";
 const DEFAULT_SOUND_SRC = "/sounds/new-request-chime.wav";
 const INITIAL_ALERT_BASELINE_MS = 5000;
 
 type StaffAlertScope = StaffDepartment | "manager";
+type AlertableStaffRequest = {
+  id: string;
+  status: string;
+  isTest?: boolean | null;
+};
 type WebkitAudioWindow = Window & {
   webkitAudioContext?: typeof AudioContext;
 };
@@ -16,7 +21,7 @@ function buildSoundKey(hotelSlug: string | undefined, department: StaffAlertScop
   return `${ALERT_SOUND_STORAGE_PREFIX}:${String(hotelSlug || "default").trim().toLowerCase()}:${department}`;
 }
 
-function getCurrentNewRequestIds(requests: StaffRequest[]) {
+function getCurrentNewRequestIds(requests: AlertableStaffRequest[]) {
   return requests
     .filter((request) => request.status === "new" && !request.isTest)
     .map((request) => request.id);
@@ -30,7 +35,7 @@ export function useStaffAlertSound({
 }: {
   hotelSlug?: string;
   department: StaffAlertScope;
-  requests: StaffRequest[];
+  requests: AlertableStaffRequest[];
   src?: string;
 }) {
   const storageKey = useMemo(

@@ -3,23 +3,15 @@ import {
   getCurrentRawStaffToken,
   hashSessionToken,
 } from "@/lib/staff-auth/session";
-import type { StaffRole } from "@/lib/staff-auth/cookie-name";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { normalizeStaffRoleCode } from "@/lib/staff/role-code";
+import { resolveStaffRuntimeRoleByHotelSlug } from "@/lib/server/staff-runtime-role";
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
   Pragma: "no-cache",
   Expires: "0",
 };
-
-function isValidRole(value: string): value is StaffRole {
-  return (
-    value === "reception" ||
-    value === "housekeeping" ||
-    value === "maintenance" ||
-    value === "manager"
-  );
-}
 
 type StaffFeedStateRpcRow = {
   requests_version: number | string | null;
@@ -31,12 +23,20 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const hotelSlug = String(searchParams.get("hotelSlug") || "").trim().toLowerCase();
-    const role = String(searchParams.get("role") || "").trim().toLowerCase();
+    const role = normalizeStaffRoleCode(searchParams.get("role"));
 
-    if (!hotelSlug || !isValidRole(role)) {
+    if (!hotelSlug || !role) {
       return NextResponse.json(
         { ok: false, error: "Missing hotelSlug or role" },
         { status: 400, headers: NO_STORE_HEADERS },
+      );
+    }
+
+    const runtimeRole = await resolveStaffRuntimeRoleByHotelSlug(hotelSlug, role);
+    if (!runtimeRole) {
+      return NextResponse.json(
+        { ok: false, error: "Staff runtime role unavailable" },
+        { status: 403, headers: NO_STORE_HEADERS },
       );
     }
 
