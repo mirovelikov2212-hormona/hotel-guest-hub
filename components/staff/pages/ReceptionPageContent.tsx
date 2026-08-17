@@ -380,7 +380,9 @@ export default function ReceptionPage() {
     setRequestBillingStatus,
     hotelSlug,
   } = useStaffStore();
-  const requests = getOperationalAllRequests();
+  const requests = getOperationalAllRequests().filter(
+    (request) => request.status !== "returned",
+  );
   const allRequests = getAllRequests();
   const {
     activeSurveys: receptionActiveSurveys,
@@ -393,11 +395,6 @@ export default function ReceptionPage() {
   const todayHotelDateKey = useMemo(
     () => hotelDateFormatter.format(new Date(nowMs)),
     [nowMs],
-  );
-
-  const returnedRequests = useMemo(
-    () => requests.filter((request) => request.status === "returned"),
-    [requests],
   );
 
   const filteredRequests = useMemo(() => {
@@ -486,7 +483,7 @@ export default function ReceptionPage() {
 
       {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="reception" /> : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StaffSummaryCard
           label={t.total}
           value={requests.length}
@@ -515,13 +512,6 @@ export default function ReceptionPage() {
           }
           active={activeStatus === "completed"}
           onClick={() => setActiveStatus("completed")}
-        />
-        <StaffSummaryCard
-          label={t.returned}
-          value={returnedRequests.length}
-          danger
-          active={activeStatus === "returned"}
-          onClick={() => setActiveStatus("returned")}
         />
       </section>
 
