@@ -1,0 +1,27 @@
+name: P4.1 Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/control-plane/factory/**"
+      - "app/api/control-plane/onboarding/preflight/route.ts"
+      - "tests/contracts/p4-1-onboarding-workspace-blueprint-wizard.contract.test.mjs"
+      - "package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
