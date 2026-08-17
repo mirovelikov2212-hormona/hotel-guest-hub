@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { getControlPlaneRegistrySnapshot } from "@/lib/server/control-plane-registry";
+
+import { getControlPlaneRegistrySnapshot, type ControlPlaneCommercialState } from "@/lib/server/control-plane-registry";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,33 @@ function badgeClass(environment: "production" | "sandbox" | "demo") {
   if (environment === "production") return "border-emerald-300/25 bg-emerald-300/10 text-emerald-100";
   if (environment === "sandbox") return "border-cyan-300/25 bg-cyan-300/10 text-cyan-100";
   return "border-fuchsia-300/25 bg-fuchsia-300/10 text-fuchsia-100";
+}
+
+function commercialBadgeClass(state: ControlPlaneCommercialState) {
+  if (state.effectiveStatus === "trial_active") return "border-cyan-300/25 bg-cyan-300/10 text-cyan-100";
+  if (state.effectiveStatus === "customer_active") return "border-emerald-300/25 bg-emerald-300/10 text-emerald-100";
+  if (state.effectiveStatus === "trial_expired") return "border-amber-300/25 bg-amber-300/10 text-amber-100";
+  if (state.effectiveStatus === "suspended") return "border-rose-300/25 bg-rose-300/10 text-rose-100";
+  if (state.effectiveStatus === "ended") return "border-neutral-600 bg-neutral-800 text-neutral-300";
+  if (state.effectiveStatus === "pending") return "border-violet-300/25 bg-violet-300/10 text-violet-100";
+  return "border-neutral-700 bg-neutral-950 text-neutral-400";
+}
+
+function commercialLabel(state: ControlPlaneCommercialState) {
+  if (state.effectiveStatus === "trial_active") return "TRIAL ACTIVE";
+  if (state.effectiveStatus === "trial_expired") return "TRIAL EXPIRED";
+  if (state.effectiveStatus === "customer_active") return "CUSTOMER";
+  if (state.effectiveStatus === "suspended") return "SUSPENDED";
+  if (state.effectiveStatus === "ended") return "ENDED";
+  if (state.effectiveStatus === "pending") return "PENDING";
+  return "UNMANAGED / LEGACY";
+}
+
+function formatUtc(value: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return `${parsed.toISOString().replace("T", " ").slice(0, 16)} UTC`;
 }
 
 export default async function ControlPlanePage() {
@@ -26,12 +54,12 @@ export default async function ControlPlanePage() {
             </p>
             <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">Platform overview</h1>
             <p className="mt-2 text-sm text-neutral-400">
-              Read-only P1.2 foundation · {authority.email || "Platform Admin"} · {authority.role}
+              P3 commercial lifecycle foundation · {authority.email || "Platform Admin"} · {authority.role}
             </p>
           </div>
           <div className="flex items-center gap-3">
             <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-100">
-              Read only
+              Admin actions via API
             </span>
             <form action="/api/control-plane/logout" method="post">
               <button
@@ -44,7 +72,7 @@ export default async function ControlPlanePage() {
           </div>
         </header>
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
           <article className="rounded-3xl border border-neutral-800 bg-neutral-900 p-5">
             <p className="text-sm text-neutral-400">Organizations</p>
             <p className="mt-2 text-3xl font-semibold">{snapshot.organizations.length}</p>
@@ -58,10 +86,16 @@ export default async function ControlPlanePage() {
             <p className="mt-2 text-3xl font-semibold">{snapshot.environmentCount}</p>
           </article>
           <article className="rounded-3xl border border-neutral-800 bg-neutral-900 p-5">
-            <p className="text-sm text-neutral-400">Registry generated</p>
-            <p className="mt-2 text-sm font-semibold text-neutral-200">
-              {new Date(snapshot.generatedAt).toISOString().replace("T", " ").slice(0, 19)} UTC
-            </p>
+            <p className="text-sm text-neutral-400">Commercial managed</p>
+            <p className="mt-2 text-3xl font-semibold">{snapshot.commercialManagedCount}</p>
+          </article>
+          <article className="rounded-3xl border border-neutral-800 bg-neutral-900 p-5">
+            <p className="text-sm text-neutral-400">Active trials</p>
+            <p className="mt-2 text-3xl font-semibold">{snapshot.activeTrialCount}</p>
+          </article>
+          <article className="rounded-3xl border border-neutral-800 bg-neutral-900 p-5">
+            <p className="text-sm text-neutral-400">Customers</p>
+            <p className="mt-2 text-3xl font-semibold">{snapshot.activeCustomerCount}</p>
           </article>
         </section>
 
@@ -89,9 +123,37 @@ export default async function ControlPlanePage() {
                         <h3 className="font-semibold text-neutral-100">{property.displayName}</h3>
                         <p className="mt-1 text-sm text-neutral-500">{property.propertyKey}</p>
                       </div>
-                      <span className="rounded-full border border-neutral-700 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-300">
-                        {property.lifecycleState}
-                      </span>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <span className="rounded-full border border-neutral-700 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-300">
+                          TECH {property.lifecycleState}
+                        </span>
+                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${commercialBadgeClass(property.commercial)}`}>
+                          {commercialLabel(property.commercial)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                          Commercial
+                        </p>
+                        {property.commercial.managed ? (
+                          <span className={`text-xs font-semibold ${property.commercial.accessAllowed ? "text-emerald-300" : "text-amber-300"}`}>
+                            {property.commercial.accessAllowed ? "ACCESS ENTITLED" : "ACCESS NOT ENTITLED"}
+                          </span>
+                        ) : (
+                          <span className="text-xs font-semibold text-neutral-500">NO P3 POLICY YET</span>
+                        )}
+                      </div>
+
+                      <div className="mt-3 grid gap-2 text-xs text-neutral-400 sm:grid-cols-2">
+                        <p>Plan: <span className="text-neutral-200">{property.commercial.planCode || "—"}</span></p>
+                        <p>Version: <span className="text-neutral-200">{property.commercial.version ?? "—"}</span></p>
+                        <p>Trial start: <span className="text-neutral-200">{formatUtc(property.commercial.trialStartedAt) || "—"}</span></p>
+                        <p>Trial end: <span className="text-neutral-200">{formatUtc(property.commercial.trialEndsAt) || "—"}</span></p>
+                        <p className="sm:col-span-2">Contract start: <span className="text-neutral-200">{formatUtc(property.commercial.contractStartedAt) || "—"}</span></p>
+                      </div>
                     </div>
 
                     <div className="mt-4 space-y-3">
@@ -120,6 +182,10 @@ export default async function ControlPlanePage() {
             </section>
           );
         })}
+
+        <p className="text-center text-xs text-neutral-600">
+          Registry generated {new Date(snapshot.generatedAt).toISOString().replace("T", " ").slice(0, 19)} UTC
+        </p>
       </div>
     </main>
   );

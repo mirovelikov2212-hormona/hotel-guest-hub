@@ -1,0 +1,32 @@
+name: P3.1 Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/api/control-plane/commercial/property-lifecycle/**"
+      - "app/control-plane/page.tsx"
+      - "lib/server/property-commercial-lifecycle.ts"
+      - "lib/server/control-plane-registry.ts"
+      - "supabase/migrations/20260817180000_p3_1_commercial_lifecycle_trial_engine.sql"
+      - "tests/contracts/p3-1-commercial-lifecycle-trial-engine.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-p3-1-commercial-lifecycle-trial-engine.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - "package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
