@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "checkpoint": "p3-1-commercial-lifecycle-trial-engine",
+  "baseCheckpoint": "p2-6-5-production-live-rollback",
+  "expectedNeedsReview": 86,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "lib/server/control-plane-registry.ts",
+      "fromLine": 80,
+      "toLine": 135,
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/control-plane-registry.ts",
+      "fromLine": 84,
+      "toLine": 139,
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/control-plane-registry.ts",
+      "fromLine": 88,
+      "toLine": 143,
+      "operation": "select"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/control-plane-registry.ts",
+      "line": 151,
+      "table": "property_commercial_state",
+      "tableExpression": "\"property_commercial_state\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "authenticated_control_plane_platform_registry_read_of_commercial_authority_state_across_properties_after_separate_platform_admin_session_authorization_existing_properties_without_rows_remain_explicitly_unmanaged_legacy"
+    },
+    {
+      "filePath": "lib/server/property-commercial-lifecycle.ts",
+      "line": 201,
+      "rpc": "transition_property_commercial_lifecycle_v1",
+      "tableExpression": "\"transition_property_commercial_lifecycle_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_commercial_lifecycle_mutation_calls_service_role_only_security_definer_rpc_scoped_to_one_exact_property_with_active_platform_admin_authority_optimistic_version_cas_idempotency_key_hash_live_production_gate_before_entitlement_grant_and_immutable_event_audit_history_without_mutating_technical_hotel_or_property_runtime_state"
+    }
+  ]
+}
