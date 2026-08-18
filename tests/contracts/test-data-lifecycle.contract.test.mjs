@@ -72,7 +72,7 @@ test("staff read paths stay read-only while expired test rows are hidden", async
   assertContains(surveysSource, "visibleRows");
 });
 
-test("INFRA-0 staff boards poll lightweight feed versions instead of full data every five seconds", async () => {
+test("INFRA-0 staff boards poll lightweight feed versions and force a full refresh after app resume", async () => {
   const requestsClient = await readProjectFile("components/staff/store/StaffStoreProvider.tsx");
   const surveysClient = await readProjectFile("components/staff/StaffSurveyCards.tsx");
 
@@ -80,6 +80,12 @@ test("INFRA-0 staff boards poll lightweight feed versions instead of full data e
   assertContains(requestsClient, "STAFF_REQUEST_VISIBLE_POLL_MS = 10_000");
   assertContains(requestsClient, "STAFF_REQUEST_HIDDEN_POLL_MS = 60_000");
   assertContains(requestsClient, "requestFeedVersionRef.current !== feedState.requestsVersion");
+  assertContains(requestsClient, "const forceResumeRefresh = () => {");
+  assertContains(requestsClient, "void refreshIfChanged(true).finally(scheduleNext);");
+  assertContains(requestsClient, 'window.addEventListener("focus", handleFocus);');
+  assertContains(requestsClient, 'window.addEventListener("pageshow", handlePageShow);');
+  assertContains(requestsClient, 'window.addEventListener("online", handleOnline);');
+  assertContains(requestsClient, 'document.addEventListener("visibilitychange", handleVisibility);');
   assertNotContains(
     requestsClient,
     "window.setInterval(() =>",
@@ -159,8 +165,8 @@ test("scheduled cleanup keeps Production test TTL and normalizes expired stay li
     vercelConfig.crons.some(
       (cron) =>
         cron?.path === "/api/cron/test-data-cleanup" &&
-        cron?.schedule === "17 2 * * *",
+        cron?.schedule === "17 * * * *",
     ),
-    "Expected the daily lifecycle cleanup cron with its canonical schedule.",
+    "Expected hourly lifecycle cleanup so checkout rows cannot remain active through same-day check-in.",
   );
 });
