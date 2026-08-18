@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useStaffHotelTimeZone } from "@/components/staff/StaffHotelTimeZoneProvider";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import type { StaffBillingStatus, StaffRequest } from "@/lib/staff/types";
 import { staffDepartmentClasses, staffStatusClasses } from "@/lib/staff/types";
@@ -99,9 +100,10 @@ function cleanRequestTitle(value: string) {
   return value.replace(/^[^\p{L}\p{N}]+/u, "").trim();
 }
 
-function formatRequestDateTime(iso: string, locale: string) {
+function formatRequestDateTime(iso: string, locale: string, timeZone?: string) {
   const date = new Date(iso);
   return date.toLocaleString(locale, {
+    ...(timeZone ? { timeZone } : {}),
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -161,6 +163,7 @@ export default function StaffRequestCard({
   forceBillingOnly = false,
 }: StaffRequestCardProps) {
   const { lang } = useStaffUi();
+  const hotelTimeZone = useStaffHotelTimeZone();
   const t = staffText(lang);
   const [billingActionsOpen, setBillingActionsOpen] = useState(false);
   const isNew = request.status === "new";
@@ -253,7 +256,7 @@ export default function StaffRequestCard({
             </div>
             <p className="mt-1 text-sm text-white/50">
               {t.requestedAt}{" "}
-              {formatRequestDateTime(request.createdAtIso, lang)}
+              {formatRequestDateTime(request.createdAtIso, lang, hotelTimeZone)}
             </p>
           </div>
 
