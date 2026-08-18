@@ -2,17 +2,20 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import FactoryProjectionWorkspace from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryProjectionWorkspace";
+import FactorySandboxEvidencePanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxEvidencePanel";
 import FactorySandboxPreflightPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxPreflightPanel";
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
 import { getFactoryOnboardingProgress } from "@/lib/server/factory-onboarding-progress";
+import { getFactoryReleaseEvidence } from "@/lib/server/factory-release-evidence";
 import { getFactorySandboxPreflight } from "@/lib/server/factory-sandbox-preflight";
+import { probeFactorySandboxGenericStaffRuntime } from "@/lib/server/factory-sandbox-runtime-probe";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 
 export const dynamic = "force-dynamic";
 
 const COPY = {
-  bg: { eyebrow: "P4.4 → P4.5 · Guided Factory Progress", back: "← Factory runs" },
-  en: { eyebrow: "P4.4 → P4.5 · Guided Factory Progress", back: "← Factory runs" },
+  bg: { eyebrow: "P4.4 → P4.6 · Guided Factory Progress", back: "← Factory runs" },
+  en: { eyebrow: "P4.4 → P4.6 · Guided Factory Progress", back: "← Factory runs" },
 } as const;
 
 export default async function FactoryRunWorkspacePage({
@@ -36,6 +39,13 @@ export default async function FactoryRunWorkspacePage({
     ? await getFactorySandboxPreflight(progress.envelope.projectionRunId)
     : null;
 
+  const trustedEvidence = preflight?.databaseStatus === "validated"
+    ? await Promise.all([
+        probeFactorySandboxGenericStaffRuntime(preflight),
+        getFactoryReleaseEvidence(),
+      ])
+    : null;
+
   return (
     <main className="min-h-screen bg-neutral-950 px-4 py-8 text-neutral-50 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -56,6 +66,13 @@ export default async function FactoryRunWorkspacePage({
 
         <FactoryProjectionWorkspace lang={lang} progress={progress} />
         {preflight && <FactorySandboxPreflightPanel lang={lang} preflight={preflight} />}
+        {trustedEvidence && (
+          <FactorySandboxEvidencePanel
+            lang={lang}
+            runtimeProbe={trustedEvidence[0]}
+            releaseEvidence={trustedEvidence[1]}
+          />
+        )}
       </div>
     </main>
   );
