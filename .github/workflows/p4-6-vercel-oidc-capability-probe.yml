@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - product-factory/p4-6-vercel-oidc-capability-20260818
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
