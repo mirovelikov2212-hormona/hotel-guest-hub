@@ -141,11 +141,16 @@ test("P2.1 server mutation is restricted to Control Plane mutation authority and
   assertNotContains(source, "staff_sessions");
 });
 
-test("P2.1 onboarding API requires same-origin Control Plane session authority", async () => {
+test("P2.1 onboarding API requires same-origin Control Plane session authority plus P4.3 exact preflight approval", async () => {
   const route = await readProjectFile("app/api/control-plane/onboarding/route.ts");
 
   assertContains(route, "enforceControlPlaneSameOrigin(req)");
   assertContains(route, "getCurrentPlatformAdminSession()");
+  assertContains(route, "prepareFactoryOnboarding");
+  assertContains(route, "expectedBlueprintHash");
+  assertContains(route, "hasExactFoundationApproval");
+  assertContains(route, "prepared.blueprintHash !== expectedBlueprintHash");
+  assertContains(route, 'error: "stale_preflight"');
   assertContains(route, "beginFactoryOnboarding");
   assertContains(route, "MAX_BODY_BYTES");
   assertContains(route, 'error: "unauthorized"');

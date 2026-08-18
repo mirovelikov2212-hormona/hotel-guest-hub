@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { prepareFactoryOnboarding } from "@/lib/product-factory/factory-onboarding-model.mjs";
 import { beginFactoryOnboarding } from "@/lib/server/factory-onboarding";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
@@ -8,14 +9,46 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_BODY_BYTES = 262_144;
+const BLUEPRINT_HASH_PATTERN = /^[a-f0-9]{64}$/;
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
   Pragma: "no-cache",
   Expires: "0",
 };
 
+type FoundationApproval = {
+  createDraftTenant?: unknown;
+  keepProductionInactive?: unknown;
+  keepSandboxInactive?: unknown;
+  publishRevision?: unknown;
+  activateLive?: unknown;
+};
+
 function jsonResponse(body: Record<string, unknown>, status: number) {
   return NextResponse.json(body, { status, headers: NO_STORE_HEADERS });
+}
+
+function hasExactFoundationApproval(value: unknown): value is FoundationApproval {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const approval = value as FoundationApproval;
+  const keys = Object.keys(approval).sort();
+  const expectedKeys = [
+    "activateLive",
+    "createDraftTenant",
+    "keepProductionInactive",
+    "keepSandboxInactive",
+    "publishRevision",
+  ];
+  if (keys.length !== expectedKeys.length || keys.some((key, index) => key !== expectedKeys[index])) {
+    return false;
+  }
+  return (
+    approval.createDraftTenant === true &&
+    approval.keepProductionInactive === true &&
+    approval.keepSandboxInactive === true &&
+    approval.publishRevision === false &&
+    approval.activateLive === false
+  );
 }
 
 function mapFactoryError(error: unknown) {
@@ -68,6 +101,8 @@ export async function POST(req: NextRequest) {
 
     const body = JSON.parse(rawBody) as {
       idempotencyKey?: unknown;
+      expectedBlueprintHash?: unknown;
+      approval?: unknown;
       blueprint?: unknown;
     };
 
@@ -79,10 +114,30 @@ export async function POST(req: NextRequest) {
       return jsonResponse({ ok: false, error: "invalid_blueprint" }, 400);
     }
 
+    if (!hasExactFoundationApproval(body.approval)) {
+      return jsonResponse({ ok: false, error: "approval_required" }, 400);
+    }
+
+    const idempotencyKey = String(body.idempotencyKey || "").trim();
+    const expectedBlueprintHash = String(body.expectedBlueprintHash || "").trim().toLowerCase();
+    if (!BLUEPRINT_HASH_PATTERN.test(expectedBlueprintHash)) {
+      return jsonResponse({ ok: false, error: "invalid_preflight_hash" }, 400);
+    }
+
+    // Re-run the exact P2.1 normalization and secret checks on the server. The
+    // approved hash must match the blueprint that is about to enter the DB transaction.
+    const prepared = prepareFactoryOnboarding({
+      idempotencyKey,
+      blueprint: body.blueprint as Record<string, unknown>,
+    });
+    if (prepared.blueprintHash !== expectedBlueprintHash) {
+      return jsonResponse({ ok: false, error: "stale_preflight" }, 409);
+    }
+
     const result = await beginFactoryOnboarding({
       authority,
-      idempotencyKey: String(body.idempotencyKey || ""),
-      blueprint: body.blueprint as Record<string, unknown>,
+      idempotencyKey,
+      blueprint: prepared.blueprint,
     });
 
     return jsonResponse(
@@ -98,6 +153,13 @@ export async function POST(req: NextRequest) {
         sandboxRevisionId: result.sandboxRevisionId,
         blueprintHash: result.blueprintHash,
         identities: result.identities,
+        foundation: {
+          propertyLifecycle: "draft",
+          productionActive: false,
+          sandboxActive: false,
+          revisionPublished: false,
+          liveActivated: false,
+        },
       },
       result.replayed ? 200 : 201,
     );

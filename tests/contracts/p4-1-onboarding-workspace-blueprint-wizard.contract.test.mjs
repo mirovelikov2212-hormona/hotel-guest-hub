@@ -4,10 +4,11 @@ import test from "node:test";
 
 const pagePath = new URL("../../app/control-plane/factory/new/page.tsx", import.meta.url);
 const wizardPath = new URL("../../app/control-plane/factory/new/FactoryBlueprintWizard.tsx", import.meta.url);
+const panelPath = new URL("../../app/control-plane/factory/new/FactoryFoundationCreatePanel.tsx", import.meta.url);
 const routePath = new URL("../../app/api/control-plane/onboarding/preflight/route.ts", import.meta.url);
 const packagePath = new URL("../../package.json", import.meta.url);
-const [page, wizard, route, packageRaw] = await Promise.all([
-  readFile(pagePath, "utf8"), readFile(wizardPath, "utf8"), readFile(routePath, "utf8"), readFile(packagePath, "utf8"),
+const [page, wizard, panel, route, packageRaw] = await Promise.all([
+  readFile(pagePath, "utf8"), readFile(wizardPath, "utf8"), readFile(panelPath, "utf8"), readFile(routePath, "utf8"), readFile(packagePath, "utf8"),
 ]);
 const pkg = JSON.parse(packageRaw);
 
@@ -21,7 +22,7 @@ test("P4.1 workspace is Platform Admin authenticated and preserves BG/EN", () =>
   assert.match(page, /New hotel · Blueprint workspace/);
 });
 
-test("P4.1 preflight is same-origin, authenticated, bounded, and does not call onboarding mutation", () => {
+test("P4.1 preflight stays same-origin, authenticated, bounded and mutation-free", () => {
   assert.match(route, /enforceControlPlaneSameOrigin\(req\)/);
   assert.match(route, /getCurrentPlatformAdminSession/);
   assert.match(route, /MAX_BODY_BYTES = 262_144/);
@@ -31,12 +32,13 @@ test("P4.1 preflight is same-origin, authenticated, bounded, and does not call o
   assert.doesNotMatch(route, /supabaseAdmin|\.rpc\(|\.from\(/);
 });
 
-test("P4.1 browser calls only the preflight endpoint and never creates a tenant", () => {
+test("P4.1 parent wizard keeps preflight separate from the later explicit creation panel", () => {
   assert.match(wizard, /fetch\("\/api\/control-plane\/onboarding\/preflight"/);
-  assert.match(wizard, /method:"POST"|method: "POST"/);
+  assert.match(wizard, /FactoryFoundationCreatePanel/);
   assert.doesNotMatch(wizard, /fetch\("\/api\/control-plane\/onboarding"\s*,/);
   assert.doesNotMatch(wizard, /production-live-activation|sandbox-certification|core-resources/);
   assert.doesNotMatch(wizard, /supabase|beginFactoryOnboarding/);
+  assert.match(panel, /fetch\("\/api\/control-plane\/onboarding"/);
 });
 
 test("P4.1 still builds a real version 1 dual-environment Product Factory blueprint", () => {
@@ -76,15 +78,16 @@ test("P4.1 supports generic departments, hours, and after-hours targets", () => 
   assert.doesNotMatch(wizard, /housekeeping-default|maintenance-default/);
 });
 
-test("P4.1/P4.2 never collect credential values", () => {
+test("P4 workspace never collects credential values", () => {
   assert.doesNotMatch(wizard, /type="password"/i);
-  assert.doesNotMatch(wizard, /\b(apiKey|accessToken|clientSecret|passwordValue|credentialValue)\b/);
+  assert.doesNotMatch(panel, /type="password"/i);
+  assert.doesNotMatch(wizard + panel, /\b(apiKey|accessToken|clientSecret|passwordValue|credentialValue)\b/);
   assert.match(route, /P2_FACTORY_SECRET_FORBIDDEN/);
 });
 
-test("P4.1 safety boundary survives P4.2 operational editing", () => {
-  assert.match(wizard, /P4\.2 не създава хотел/);
-  assert.match(wizard, /P4\.2 does not create a hotel/);
+test("P4.1 blueprint authoring remains free of direct server mutation authority", () => {
+  assert.match(wizard, /P4\.3 разрешава само audited P2\.1 foundation creation/);
+  assert.match(wizard, /P4\.3 permits only audited P2\.1 foundation creation/);
   assert.doesNotMatch(wizard, /beginFactoryOnboarding|projectFactoryCoreResources|projectFactoryOperationalResources/);
 });
 

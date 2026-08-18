@@ -1,0 +1,31 @@
+name: P4.3 Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/control-plane/factory/**"
+      - "app/api/control-plane/onboarding/route.ts"
+      - "tests/contracts/p2-1-factory-onboarding.contract.test.mjs"
+      - "tests/contracts/p4-1-onboarding-workspace-blueprint-wizard.contract.test.mjs"
+      - "tests/contracts/p4-2-operational-blueprint-builder.contract.test.mjs"
+      - "tests/contracts/p4-3-draft-foundation-create.contract.test.mjs"
+      - ".github/workflows/p4-3-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: node --test tests/contracts/p4-3-draft-foundation-create.contract.test.mjs
