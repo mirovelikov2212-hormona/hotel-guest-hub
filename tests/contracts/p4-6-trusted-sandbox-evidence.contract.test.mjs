@@ -27,7 +27,9 @@ test("P4.6 Generic Staff probe derives exact Sandbox from P4.5 lineage and remai
   assert.match(runtimeProbe, /\.eq\("active", true\)/);
   assert.match(runtimeProbe, /resolveStaffRuntimeRoleForHotelId\(sandboxHotelId, row\.code\)/);
   assert.match(runtimeProbe, /resolveStaffRuntimeRoleForHotelId\(sandboxHotelId, "manager"\)/);
-  assert.doesNotMatch(runtimeProbe.toLowerCase(), /\.insert\(|\.update\(|\.delete\(/);
+  assert.doesNotMatch(runtimeProbe, /\.(insert|upsert|delete)\(/);
+  assert.equal((runtimeProbe.match(/\.update\(/g) || []).length, 1);
+  assert.match(runtimeProbe, /createHash\("sha256"\)\.update\(canonicalize\(evidence\)\)/);
 });
 
 test("P4.6 runtime probe is deterministic and hashable", () => {
