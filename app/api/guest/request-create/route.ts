@@ -55,7 +55,9 @@ function getStaffPushRolesForRequest(input: {
       return;
     }
 
-    const configuredHours = input.hotelConfig.departmentHours?.[role];
+    const configuredHours = Object.entries(input.hotelConfig.departmentHours ?? {}).find(
+      ([departmentCode]) => departmentCode === role,
+    )?.[1];
     const working = configuredHours
       ? isDepartmentWorkingHoursForConfig({
           hotelConfig: input.hotelConfig,
