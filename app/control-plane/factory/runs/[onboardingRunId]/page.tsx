@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import FactoryProjectionWorkspace from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryProjectionWorkspace";
+import FactorySandboxCertificationPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxCertificationPanel";
 import FactorySandboxEvidencePanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxEvidencePanel";
 import FactorySandboxPreflightPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxPreflightPanel";
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
@@ -14,8 +15,8 @@ import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-sessi
 export const dynamic = "force-dynamic";
 
 const COPY = {
-  bg: { eyebrow: "P4.4 → P4.6 · Guided Factory Progress", back: "← Factory runs" },
-  en: { eyebrow: "P4.4 → P4.6 · Guided Factory Progress", back: "← Factory runs" },
+  bg: { eyebrow: "P4.4 → P4.11 · Guided Factory Progress", back: "← Factory runs" },
+  en: { eyebrow: "P4.4 → P4.11 · Guided Factory Progress", back: "← Factory runs" },
 } as const;
 
 export default async function FactoryRunWorkspacePage({
@@ -66,12 +67,20 @@ export default async function FactoryRunWorkspacePage({
 
         <FactoryProjectionWorkspace lang={lang} progress={progress} />
         {preflight && <FactorySandboxPreflightPanel lang={lang} preflight={preflight} />}
-        {trustedEvidence && (
-          <FactorySandboxEvidencePanel
-            lang={lang}
-            runtimeProbe={trustedEvidence[0]}
-            releaseEvidence={trustedEvidence[1]}
-          />
+        {trustedEvidence && preflight && (
+          <>
+            <FactorySandboxEvidencePanel
+              lang={lang}
+              runtimeProbe={trustedEvidence[0]}
+              releaseEvidence={trustedEvidence[1]}
+            />
+            <FactorySandboxCertificationPanel
+              lang={lang}
+              preflight={preflight}
+              runtimeProbe={trustedEvidence[0]}
+              releaseEvidence={trustedEvidence[1]}
+            />
+          </>
         )}
       </div>
     </main>
