@@ -9,12 +9,12 @@ test("invalid Staff Hub hotel slugs resolve to notFound instead of a server erro
   const source = await readProjectFile("app/staff/[hotelSlug]/layout.tsx");
 
   assertContains(source, "try {");
-  assertContains(source, "hotelId = await getHotelIdBySlug(hotelSlug)");
+  assertContains(source, "hotel = await getHotelByAnySlug(hotelSlug)");
   assertContains(source, "} catch {");
   assertContains(source, "notFound();");
   assertBefore(
     source,
-    "hotelId = await getHotelIdBySlug(hotelSlug)",
+    "hotel = await getHotelByAnySlug(hotelSlug)",
     "notFound();",
     "Unknown Staff Hub slugs must be converted to a 404 instead of escaping as a 500.",
   );
