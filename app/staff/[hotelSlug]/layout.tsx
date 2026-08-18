@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
+import StaffHotelTimeZoneProvider from "@/components/staff/StaffHotelTimeZoneProvider";
 import { StaffStoreProvider } from "@/components/staff/store/StaffStoreProvider";
-import { getHotelIdBySlug } from "@/lib/hotels/getHotelIdBySlug";
+import { getHotelByAnySlug } from "@/lib/hotels/getHotelByAnySlug";
 
 export default async function StaffHotelScopedLayout({
   children,
@@ -12,16 +13,18 @@ export default async function StaffHotelScopedLayout({
 }) {
   const { hotelSlug } = await params;
 
-  let hotelId: string;
+  let hotel: Awaited<ReturnType<typeof getHotelByAnySlug>>;
   try {
-    hotelId = await getHotelIdBySlug(hotelSlug);
+    hotel = await getHotelByAnySlug(hotelSlug);
   } catch {
     notFound();
   }
 
   return (
-    <StaffStoreProvider hotelSlug={hotelSlug} hotelId={hotelId}>
-      {children}
-    </StaffStoreProvider>
+    <StaffHotelTimeZoneProvider timeZone={hotel.timezone}>
+      <StaffStoreProvider hotelSlug={hotelSlug} hotelId={hotel.id}>
+        {children}
+      </StaffStoreProvider>
+    </StaffHotelTimeZoneProvider>
   );
 }
