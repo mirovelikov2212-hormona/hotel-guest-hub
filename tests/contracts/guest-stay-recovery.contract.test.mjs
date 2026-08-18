@@ -44,6 +44,35 @@ test("safe room turnover releases only a stale previous stay after hotel check-i
   assert.equal(shouldAutoReleaseRoomTurnover({ ...base, overlappingLastSeenLocalDate: "2026-08-15" }), false);
 });
 
+test("database integrity permits only one active stay per room and preserves pending late checkout", async () => {
+  const migration = await readProjectFile(
+    "supabase/migrations/20260818150000_guest_stay_single_active_integrity.sql",
+  );
+
+  assertContains(migration, "lock table public.guest_stays in share row exclusive mode");
+  assertContains(migration, "status = 'ended'");
+  assertContains(migration, "lifecycle_state = 'read_only'");
+  assertContains(migration, "coalesce(late_checkout_status, 'none') <> 'pending'");
+  assertContains(migration, "effective_check_out_at <= now()");
+  assertContains(migration, "normalize_guest_stay_room_before_active_write_v1");
+  assertContains(migration, "before insert or update of status, hotel_id, room_number");
+  assertContains(migration, "where status = 'active';");
+  assertContains(migration, "guest_stays_one_active_per_room_idx");
+  assertContains(migration, "on public.guest_stays (hotel_id, room_number)");
+});
+
+test("guest request cards use the hotel timezone for both new and restored request timestamps", async () => {
+  const createRoute = await readProjectFile("app/api/guest/request-create/route.ts");
+  const historyRoute = await readProjectFile("app/api/guest/requests/route.ts");
+
+  assertContains(createRoute, 'const hotelTimeZone = String(hotelConfig.hotelTimezone || "UTC")');
+  assertContains(createRoute, "timeZone: hotelTimeZone");
+  assertContains(historyRoute, '.select("id, slug, public_slug, name, active, timezone")');
+  assertContains(historyRoute, 'const hotelTimeZone = String(hotel.timezone || "UTC")');
+  assertContains(historyRoute, "timeZone: hotelTimeZone");
+  assertContains(historyRoute, 'toLocaleDateString("sv-SE", {');
+});
+
 test("Guest Hub clears stale stay state, dependent local data and preserves the device token", async () => {
   const source = await readProjectFile("components/GuestHub.tsx");
   const refreshStart = source.indexOf("const refreshStay = async () => {");
