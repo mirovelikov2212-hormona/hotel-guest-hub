@@ -23,8 +23,16 @@ import {
   shouldSuppressLivePush,
 } from "@/lib/server/hotel-scope";
 
+const STAFF_ROLE_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
+
 function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
+}
+
+function normalizePushRole(value: unknown): PushStaffRole | null {
+  const role = String(value || "").trim().toLowerCase();
+  if (!STAFF_ROLE_PATTERN.test(role) || role === "manager") return null;
+  return role;
 }
 
 function getStaffPushRolesForRequest(input: {
@@ -39,31 +47,43 @@ function getStaffPushRolesForRequest(input: {
     value: string,
     configuredAfterHoursDepartment: StaffDepartment | null = null,
   ) => {
-    if (value === "reception") {
+    const role = normalizePushRole(value);
+    if (!role) return;
+
+    if (role === "reception") {
+      roles.add(role);
+      return;
+    }
+
+    const configuredHours = Object.entries(input.hotelConfig.departmentHours ?? {}).find(
+      ([departmentCode]) => departmentCode === role,
+    )?.[1];
+    const working = configuredHours
+      ? isDepartmentWorkingHoursForConfig({
+          hotelConfig: input.hotelConfig,
+          department: role,
+        })
+      : true;
+
+    if (working) {
+      roles.add(role);
+      return;
+    }
+
+    const configuredFallback = normalizePushRole(configuredAfterHoursDepartment);
+    if (configuredFallback) {
+      roles.add(configuredFallback);
+      return;
+    }
+
+    if (role === "housekeeping" || role === "maintenance") {
       roles.add("reception");
       return;
     }
 
-    if (value === "housekeeping" || value === "maintenance") {
-      const working = isDepartmentWorkingHoursForConfig({
-        hotelConfig: input.hotelConfig,
-        department: value,
-      });
-      if (working) {
-        roles.add(value);
-        return;
-      }
-
-      const afterHoursDepartment =
-        configuredAfterHoursDepartment || "reception";
-      if (
-        afterHoursDepartment === "reception" ||
-        afterHoursDepartment === "housekeeping" ||
-        afterHoursDepartment === "maintenance"
-      ) {
-        roles.add(afterHoursDepartment);
-      }
-    }
+    // A tenant-defined department without an explicit after-hours handoff keeps
+    // its own notification path instead of silently dropping the request alert.
+    roles.add(role);
   };
 
   addDepartmentRole(input.department, input.afterHoursDepartment);
@@ -234,10 +254,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const normalizedType = normalizeStaffRequestType(
+    const legacyNormalizedType = normalizeStaffRequestType(
       requestAuthority.requestType,
       requestAuthority.department ?? undefined,
     );
+    // Keep the historical routing contract explicit while P4.12 separately
+    // preserves tenant service identity for persistence and relational lookup.
+    const normalizedType = legacyNormalizedType;
+    const authoritativeRequestType = requestAuthority.sourceRequestDef
+      ? String(requestAuthority.requestType)
+      : legacyNormalizedType;
     const department =
       requestAuthority.department ?? getDepartmentForRequestType(normalizedType);
     const afterHoursDepartment = requestAuthority.afterHoursDepartment ?? null;
@@ -249,7 +275,7 @@ export async function POST(req: NextRequest) {
     const relationalIds = resolveGuestRequestRelationalIds(hotelConfig, {
       roomNumber: room,
       departmentCode: department,
-      requestType: normalizedType,
+      requestType: authoritativeRequestType,
     });
 
     if (!relationalIds.ok) {
@@ -265,7 +291,8 @@ export async function POST(req: NextRequest) {
         metadata: {
           hotelSlug,
           rawType,
-          normalizedType,
+          authoritativeRequestType,
+          legacyNormalizedType,
           code: relationalIds.code,
         },
       });
@@ -282,7 +309,7 @@ export async function POST(req: NextRequest) {
     const translatedGuestNoteBg = note && !hasBulgarianLetters(note)
       ? await translateGuestTextToBulgarian(note, {
           sourceLanguage: guestLanguage,
-          context: `StayHub guest request note. Request type: ${normalizedType}. Staff department: ${department}.`,
+          context: `StayHub guest request note. Request type: ${authoritativeRequestType}. Staff department: ${department}.`,
           maxLength: 1000,
         })
       : note;
@@ -301,17 +328,19 @@ export async function POST(req: NextRequest) {
       guestNoteOriginal: note,
       guestNoteBg: translatedGuestNoteBg || null,
       rawType,
+      authoritativeRequestType,
+      canonicalRequestType: legacyNormalizedType,
       billingStatus: requiresBilling ? "pending" : undefined,
       stayId: stayIdentity?.stay.id ?? null,
       stayDeviceId: stayIdentity?.device.id ?? null,
-      lateCheckoutRequestedTime: normalizedType === "late_checkout" ? lateCheckoutRequestedTime : null,
+      lateCheckoutRequestedTime: legacyNormalizedType === "late_checkout" ? lateCheckoutRequestedTime : null,
       normalizedRelationalIdsActive: relationalIds.active,
       normalizedRelationalRevisionId: relationalIds.revisionId,
       normalizedRelationalSourceChecksum: relationalIds.sourceChecksum,
       ...isolationMetadata,
     };
     const staffTitleBg = getOperationalRequestTitleBg({
-      requestType: normalizedType,
+      requestType: legacyNormalizedType,
       title: typeLabel,
       message: noteForStaffCopy,
       metadata: {
@@ -320,7 +349,7 @@ export async function POST(req: NextRequest) {
       },
     });
     const staffNoteBg = getOperationalRequestNoteBg({
-      requestType: normalizedType,
+      requestType: legacyNormalizedType,
       title: typeLabel,
       message: noteForStaffCopy,
       metadata: {
@@ -372,8 +401,8 @@ export async function POST(req: NextRequest) {
         source: "guest_hub",
         channel: "pwa",
         guest_language: guestLanguage,
-        request_type: normalizedType,
-        category: normalizedType === "restaurant_reservation" ? "reservation" : normalizedType === "information" || normalizedType === "information_request" ? "info" : "service",
+        request_type: authoritativeRequestType,
+        category: legacyNormalizedType === "restaurant_reservation" ? "reservation" : legacyNormalizedType === "information" || legacyNormalizedType === "information_request" ? "info" : "service",
         priority: "normal",
         title: typeLabel,
         message: note,
@@ -411,12 +440,12 @@ export async function POST(req: NextRequest) {
         roomNumber: room,
         departmentId: department,
         error: error || new Error("No guest request row returned after insert."),
-        metadata: { hotelSlug, rawType, normalizedType, requiresBilling, notifyDepartments },
+        metadata: { hotelSlug, rawType, authoritativeRequestType, legacyNormalizedType, requiresBilling, notifyDepartments },
       });
       return NextResponse.json({ ok: false, error: error?.message || "Failed to create request" }, { status: 500 });
     }
 
-    if (normalizedType === "late_checkout" && lateCheckoutRequestedTime) {
+    if (legacyNormalizedType === "late_checkout" && lateCheckoutRequestedTime) {
       await markLateCheckoutRequested({
         stayId: stayIdentity.stay.id,
         requestId: String(data.id),
@@ -453,7 +482,7 @@ export async function POST(req: NextRequest) {
           departmentId: "manager",
           requestId: String(data.id),
           error: pushError,
-          metadata: { hotelSlug, rawType, normalizedType },
+          metadata: { hotelSlug, rawType, authoritativeRequestType, legacyNormalizedType },
         });
       });
 
@@ -483,7 +512,7 @@ export async function POST(req: NextRequest) {
             departmentId: department,
             requestId: String(data.id),
             error: pushError,
-            metadata: { hotelSlug, rawType, normalizedType, staffPushRoles },
+            metadata: { hotelSlug, rawType, authoritativeRequestType, legacyNormalizedType, staffPushRoles },
           });
         });
       }
