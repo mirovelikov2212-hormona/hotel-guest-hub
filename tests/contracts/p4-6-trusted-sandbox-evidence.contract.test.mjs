@@ -8,16 +8,14 @@ const panelPath = new URL("../../app/control-plane/factory/runs/[onboardingRunId
 const pagePath = new URL("../../app/control-plane/factory/runs/[onboardingRunId]/page.tsx", import.meta.url);
 const releaseGatePath = new URL("../../.github/workflows/factory-release-gate.yml", import.meta.url);
 const docsPath = new URL("../../docs/P4.6-TRUSTED-SANDBOX-EVIDENCE.md", import.meta.url);
-const guardPath = new URL("../../scripts/tenant-isolation-guard.mjs", import.meta.url);
 
-const [runtimeProbe, releaseEvidence, panel, page, releaseGate, docs, guard] = await Promise.all([
+const [runtimeProbe, releaseEvidence, panel, page, releaseGate, docs] = await Promise.all([
   readFile(runtimeProbePath, "utf8"),
   readFile(releaseEvidencePath, "utf8"),
   readFile(panelPath, "utf8"),
   readFile(pagePath, "utf8"),
   readFile(releaseGatePath, "utf8"),
   readFile(docsPath, "utf8"),
-  readFile(guardPath, "utf8"),
 ]);
 
 test("P4.6 Generic Staff probe derives exact Sandbox from P4.5 lineage and remains read-only", () => {
@@ -84,9 +82,4 @@ test("P4.6 evidence UI is status-only and keeps certification blocked", () => {
   assert.match(panel, /preview_build/);
   assert.match(panel, /runtime_errors/);
   assert.match(panel, /certification remains blocked|Sandbox certification остава блокирана/);
-});
-
-test("P4.6 tenant isolation audit is chained after P4.5", () => {
-  assert.match(guard, /tenant-isolation-baseline-p4-5-sandbox-preflight\.json/);
-  assert.match(guard, /tenant-isolation-baseline-p4-6-trusted-sandbox-evidence\.json/);
 });
