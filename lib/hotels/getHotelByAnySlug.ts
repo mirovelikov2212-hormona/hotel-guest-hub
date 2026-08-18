@@ -11,7 +11,7 @@ export async function getHotelByAnySlug(inputSlug?: string) {
 
   const { data, error } = await supabase
     .from("hotels")
-    .select("id, slug, public_slug, name, active")
+    .select("id, slug, public_slug, name, active, timezone")
     .or(`slug.eq.${slug},public_slug.eq.${slug}`)
     .eq("active", true)
     .maybeSingle();
