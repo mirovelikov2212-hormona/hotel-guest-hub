@@ -78,22 +78,38 @@ export async function getFactoryReleaseEvidence(): Promise<FactoryReleaseEvidenc
   const rawRuntimeSha = String(process.env.VERCEL_GIT_COMMIT_SHA || "").trim().toLowerCase();
   const runtimeGitSha = SHA_PATTERN.test(rawRuntimeSha) ? rawRuntimeSha : null;
 
-  const pending = (candidateGitSha: string | null, lineageMode: FactoryReleaseEvidence["lineageMode"]): FactoryReleaseEvidence => buildEvidence({
+  const baseEvidence = (
+    status: CheckState,
+    candidateGitSha: string | null,
+    lineageMode: FactoryReleaseEvidence["lineageMode"],
+    releaseGateState: CheckState,
+    releaseConclusion: string | null,
+  ): Omit<FactoryReleaseEvidence, "evidenceHash"> => ({
     schemaVersion: "p4.6-release-evidence-v1",
-    status: "pending",
+    status,
     environment,
     runtimeDeploymentId,
     runtimeProjectId,
     runtimeGitSha,
     candidateGitSha,
     lineageMode,
-    releaseGate: { state: "pending", workflow: RELEASE_GATE_WORKFLOW, runId: null, htmlUrl: null, conclusion: null },
-    vercelPreview: { state: "pending", context: VERCEL_STATUS_CONTEXT, targetUrl: null },
-    requiredChecks: { tenant_isolation: "pending", preview_build: "pending", runtime_errors: "pending" },
+    releaseGate: {
+      state: releaseGateState,
+      workflow: RELEASE_GATE_WORKFLOW,
+      runId: null,
+      htmlUrl: null,
+      conclusion: releaseConclusion,
+    },
+    vercelPreview: { state: status === "failed" ? "failed" : "pending", context: VERCEL_STATUS_CONTEXT, targetUrl: null },
+    requiredChecks: {
+      tenant_isolation: releaseGateState,
+      preview_build: status === "failed" ? "failed" : "pending",
+      runtime_errors: "pending",
+    },
     runtimeErrorsReason: "trusted_vercel_log_attestation_not_available",
   });
 
-  if (!runtimeGitSha) return pending(null, "unavailable");
+  if (!runtimeGitSha) return buildEvidence(baseEvidence("pending", null, "unavailable", "pending", null));
 
   try {
     let candidateGitSha = runtimeGitSha;
@@ -106,13 +122,7 @@ export async function getFactoryReleaseEvidence(): Promise<FactoryReleaseEvidenc
       const parents = Array.isArray(commit.parents) ? commit.parents : [];
       const mergeParent = String(parents[1]?.sha || "").trim().toLowerCase();
       if (parents.length !== 2 || !SHA_PATTERN.test(mergeParent)) {
-        return buildEvidence({
-          ...pending(null, "unavailable"),
-          evidenceHash: undefined as never,
-          status: "failed",
-          lineageMode: "unavailable",
-          releaseGate: { state: "failed", workflow: RELEASE_GATE_WORKFLOW, runId: null, htmlUrl: null, conclusion: "unsupported_release_lineage" },
-        });
+        return buildEvidence(baseEvidence("failed", null, "unavailable", "failed", "unsupported_release_lineage"));
       }
       candidateGitSha = mergeParent;
       lineageMode = "production_merge_parent";
@@ -175,6 +185,6 @@ export async function getFactoryReleaseEvidence(): Promise<FactoryReleaseEvidenc
       runtimeErrorsReason: "trusted_vercel_log_attestation_not_available",
     });
   } catch {
-    return pending(null, "unavailable");
+    return buildEvidence(baseEvidence("pending", null, "unavailable", "pending", null));
   }
 }
