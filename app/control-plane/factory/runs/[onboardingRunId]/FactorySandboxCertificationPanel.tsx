@@ -325,7 +325,7 @@ export default function FactorySandboxCertificationPanel({
                 onClick={certifySandbox}
                 className="mt-4 rounded-xl border border-emerald-300/30 bg-emerald-300/15 px-4 py-2 text-sm font-semibold text-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {phase === "certifying" ? copy.certifying : copy.certify}
+                {copy.certify}
               </button>
             </div>
           )}
