@@ -5,6 +5,8 @@ const MARKER_PREFIX = "STAYHUB_FACTORY_SMOKE_V1:";
 const ALLOWED_LEVELS = new Set(["debug", "error", "fatal", "info", "trace", "warning"]);
 const ALLOWED_ENVIRONMENTS = new Set(["preview", "production"]);
 const ALLOWED_PHASES = new Set(["start", "end", "settle"]);
+const NODE_URL_PARSE_DEPRECATION_CODE = "[DEP0169] DeprecationWarning: `url.parse()`";
+const NODE_URL_PARSE_DEPRECATION_GUIDANCE = "Use the WHATWG URL API instead";
 
 function asText(value, maxLength) {
   const text = String(value ?? "").trim();
@@ -29,6 +31,21 @@ async function sha256Hex(value) {
   const bytes = new TextEncoder().encode(String(value ?? ""));
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export function isKnownBenignRuntimeDiagnostic(input) {
+  const level = String(input?.level || "").trim().toLowerCase();
+  const source = String(input?.source || "").trim().toLowerCase();
+  const message = String(input?.message || "").trim();
+  const statusCode = input?.statusCode ?? null;
+
+  if (level !== "error") return false;
+  if (source !== "lambda") return false;
+  if (statusCode !== null && Number(statusCode) >= 500) return false;
+  if (!message.startsWith("(node:")) return false;
+  if (!message.includes(NODE_URL_PARSE_DEPRECATION_CODE)) return false;
+  if (!message.includes(NODE_URL_PARSE_DEPRECATION_GUIDANCE)) return false;
+  return true;
 }
 
 export function parseFactorySmokeMarker(message, expected) {
@@ -85,11 +102,17 @@ export async function normalizeVercelLogBatch(payload, expectedProjectId) {
     const message = typeof raw.message === "string" ? raw.message : "";
     const marker = parseFactorySmokeMarker(message, { projectId, deploymentId });
     const statusCode = normalizeStatusCode(raw);
+    const knownBenignDiagnostic = isKnownBenignRuntimeDiagnostic({
+      level,
+      source,
+      message,
+      statusCode,
+    });
     const kind = marker
       ? "factory_smoke_marker"
       : level === "fatal"
         ? "fatal"
-        : level === "error"
+        : level === "error" && !knownBenignDiagnostic
           ? "error"
           : statusCode !== null && statusCode >= 500
             ? "http_5xx"
