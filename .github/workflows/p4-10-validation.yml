@@ -1,0 +1,36 @@
+name: P4.10 Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/api/control-plane/onboarding/sandbox-certification/route.ts"
+      - "lib/server/factory-trusted-sandbox-certification.ts"
+      - "tests/contracts/p4-10-trusted-sandbox-certification.contract.test.mjs"
+      - "docs/P4.10-TRUSTED-SANDBOX-CERTIFICATION-BRIDGE.md"
+      - ".github/workflows/p4-10-validation.yml"
+      - "package.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:p4-10
+      - run: npm run test:tenant-isolation
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
