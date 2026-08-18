@@ -11,6 +11,7 @@ on:
       - "docs/P4.7-VERCEL-RUNTIME-LOG-ATTESTATION-FOUNDATION.md"
       - ".github/workflows/p4-7-validation.yml"
       - "package.json"
+      - "tsconfig.json"
 
 permissions:
   contents: read
@@ -33,3 +34,20 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+      - name: Verify deployed drain endpoint fails closed without a signature
+        run: |
+          set -euo pipefail
+          status=$(curl -sS -o /tmp/p4_7_edge.json -w '%{http_code}' \
+            -X POST \
+            -H 'content-type: application/json' \
+            --data '[]' \
+            'https://zbpwxifcsyknorpsrzbo.supabase.co/functions/v1/vercel-runtime-log-drain')
+          body=$(cat /tmp/p4_7_edge.json)
+          if [ "$status" = "503" ]; then
+            node -e 'const b=JSON.parse(process.argv[1]); if (b?.error !== "drain_not_configured") process.exit(1)' "$body"
+          elif [ "$status" = "403" ]; then
+            node -e 'const b=JSON.parse(process.argv[1]); if (b?.error !== "invalid_signature") process.exit(1)' "$body"
+          else
+            echo "Expected fail-closed 503/403 from unsigned drain request; got HTTP ${status}" >&2
+            exit 1
+          fi
