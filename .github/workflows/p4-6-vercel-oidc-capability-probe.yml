@@ -1,0 +1,58 @@
+name: P4.6 Vercel OIDC Capability Probe
+
+on:
+  push:
+    branches:
+      - product-factory/p4-6-vercel-oidc-capability-20260818
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Get GitHub OIDC token
+        uses: actions/github-script@v7
+        id: oidc
+        with:
+          script: |
+            const token = await core.getIDToken();
+            core.setSecret(token);
+            core.setOutput('token', token);
+
+      - name: Wait for Preview and probe Vercel management API auth
+        env:
+          TRUSTED_OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          PROBE_URL: https://hotel-guest-hub-git-product-f-9f82d9-miroslav-velikovs-projects.vercel.app/api/internal/p4-6-vercel-oidc-capability
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            code=$(curl -sS -o probe.json -w '%{http_code}' \
+              -H "x-vercel-trusted-oidc-idp-token: ${TRUSTED_OIDC_TOKEN}" \
+              "${PROBE_URL}" || true)
+            if [ "$code" = "200" ]; then
+              node - <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('probe.json', 'utf8'));
+          const safe = {
+            ok: data.ok,
+            systemIdentityAvailable: data.systemIdentityAvailable,
+            oidcAvailable: data.oidcAvailable,
+            managementApiStatus: data.managementApiStatus,
+            managementApiAuthenticated: data.managementApiAuthenticated,
+            deploymentMatches: data.deploymentMatches,
+            responseShape: data.responseShape,
+            identity: data.identity,
+          };
+          console.log(JSON.stringify(safe, null, 2));
+          NODE
+              exit 0
+            fi
+            echo "Preview probe attempt ${attempt}: HTTP ${code}"
+            sleep 10
+          done
+          echo "Preview probe never reached application endpoint" >&2
+          exit 1
