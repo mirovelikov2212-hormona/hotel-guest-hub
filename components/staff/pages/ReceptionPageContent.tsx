@@ -40,8 +40,6 @@ type ReceptionHistoryCopy = {
   noBilling: string;
 };
 
-const HOTEL_TIME_ZONE = "UTC";
-
 const receptionHistoryCopy: Record<"bg" | "en" | "de", ReceptionHistoryCopy> = {
   bg: {
     title: "Дневна история",
@@ -81,19 +79,6 @@ const receptionHistoryCopy: Record<"bg" | "en" | "de", ReceptionHistoryCopy> = {
   },
 };
 
-const hotelDateFormatter = new Intl.DateTimeFormat("sv-SE", {
-  timeZone: HOTEL_TIME_ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
-
-const hotelTimeFormatter = new Intl.DateTimeFormat("bg-BG", {
-  timeZone: HOTEL_TIME_ZONE,
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
 const RECEPTION_OVERDUE_AFTER_MINUTES = 10;
 
 const priorityOrder: Record<StaffRequestStatus, number> = {
@@ -123,21 +108,37 @@ function isOverdueForReception(request: StaffRequest, nowMs: number) {
   );
 }
 
-function getHotelDateKey(iso: string) {
+function getHotelDateKey(iso: string, hotelTimeZone: string) {
   const date = new Date(iso);
   if (!Number.isFinite(date.getTime())) return "";
-  return hotelDateFormatter.format(date);
+
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: hotelTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
-function formatHotelTime(iso: string) {
+function formatHotelTime(iso: string, hotelTimeZone: string) {
   const date = new Date(iso);
   if (!Number.isFinite(date.getTime())) return "--:--";
-  return hotelTimeFormatter.format(date);
+
+  return new Intl.DateTimeFormat("bg-BG", {
+    timeZone: hotelTimeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
-function formatRequestDateTime(iso: string, locale: string) {
+function formatRequestDateTime(
+  iso: string,
+  locale: string,
+  hotelTimeZone: string,
+) {
   const date = new Date(iso);
   return date.toLocaleString(locale, {
+    timeZone: hotelTimeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -226,10 +227,12 @@ function ReceptionDailyHistory({
   requests,
   lang,
   todayKey,
+  hotelTimeZone,
 }: {
   requests: StaffRequest[];
   lang: "bg" | "en" | "de";
   todayKey: string;
+  hotelTimeZone: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const copy = receptionHistoryCopy[lang];
@@ -237,10 +240,11 @@ function ReceptionDailyHistory({
     () =>
       sortNewestFirst(
         requests.filter(
-          (request) => getHotelDateKey(request.createdAtIso) === todayKey,
+          (request) =>
+            getHotelDateKey(request.createdAtIso, hotelTimeZone) === todayKey,
         ),
       ),
-    [requests, todayKey],
+    [hotelTimeZone, requests, todayKey],
   );
 
   return (
@@ -279,7 +283,7 @@ function ReceptionDailyHistory({
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-white">
-                        {formatHotelTime(request.createdAtIso)} ·{" "}
+                        {formatHotelTime(request.createdAtIso, hotelTimeZone)} ·{" "}
                         {request.typeLabel}
                       </p>
                       <p className="mt-1 text-xs text-white/50">
@@ -312,7 +316,11 @@ function ReceptionDailyHistory({
                     </p>
                     <p className="mt-1 text-white/50">
                       {staffText(lang).requestedAt}{" "}
-                      {formatRequestDateTime(request.createdAtIso, lang)}
+                      {formatRequestDateTime(
+                        request.createdAtIso,
+                        lang,
+                        hotelTimeZone,
+                      )}
                     </p>
                   </div>
 
@@ -356,7 +364,11 @@ function ReceptionDailyHistory({
   );
 }
 
-export default function ReceptionPage() {
+export default function ReceptionPage({
+  hotelTimeZone,
+}: {
+  hotelTimeZone: string;
+}) {
   const { lang } = useStaffUi();
   const t = staffText(lang);
   const [activeDepartment, setActiveDepartment] =
@@ -393,8 +405,8 @@ export default function ReceptionPage() {
     role: "reception",
   });
   const todayHotelDateKey = useMemo(
-    () => hotelDateFormatter.format(new Date(nowMs)),
-    [nowMs],
+    () => getHotelDateKey(new Date(nowMs).toISOString(), hotelTimeZone),
+    [hotelTimeZone, nowMs],
   );
 
   const filteredRequests = useMemo(() => {
@@ -628,6 +640,7 @@ export default function ReceptionPage() {
         requests={allRequests}
         lang={lang}
         todayKey={todayHotelDateKey}
+        hotelTimeZone={hotelTimeZone}
       />
     </main>
   );
