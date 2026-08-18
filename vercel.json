@@ -1,4 +1,5 @@
 {
+  "buildCommand": "node scripts/p4-6-vercel-oidc-build-probe.mjs && npm run build",
   "crons": [
     {
       "path": "/api/cron/day3-survey-push",
