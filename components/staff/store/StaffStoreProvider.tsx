@@ -368,25 +368,41 @@ export function StaffStoreProvider({
 
     void refreshIfChanged(true).finally(scheduleNext);
 
+    const forceResumeRefresh = () => {
+      void refreshIfChanged(true).finally(scheduleNext);
+    };
+
     const handleFocus = () => {
-      void refreshIfChanged(false).finally(scheduleNext);
+      forceResumeRefresh();
     };
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
-        void refreshIfChanged(false).finally(scheduleNext);
+        forceResumeRefresh();
       } else {
         scheduleNext();
       }
     };
 
+    const handlePageShow = () => {
+      forceResumeRefresh();
+    };
+
+    const handleOnline = () => {
+      forceResumeRefresh();
+    };
+
     window.addEventListener("focus", handleFocus);
+    window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("online", handleOnline);
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       cancelled = true;
       if (timer !== undefined) window.clearTimeout(timer);
       window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("online", handleOnline);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [currentRole, loadRequests, normalizedHotelSlug, shouldLoadStaffData]);

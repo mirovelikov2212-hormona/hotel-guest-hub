@@ -20,7 +20,7 @@ async function getHotelByAnySlugAdmin(inputSlug: string) {
   const slug = String(inputSlug || "").trim().toLowerCase();
   const { data, error } = await supabaseAdmin
     .from("hotels")
-    .select("id, slug, public_slug, name, active")
+    .select("id, slug, public_slug, name, active, timezone")
     .or(`slug.eq.${slug},public_slug.eq.${slug}`)
     .eq("active", true)
     .maybeSingle();
@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
     }
 
     const hotel = await getHotelByAnySlugAdmin(hotelSlug);
+    const hotelTimeZone = String(hotel.timezone || "UTC").trim() || "UTC";
     const stayIdentity = await requireGuestStayReadAccess({
       hotelId: hotel.id,
       room,
@@ -86,6 +87,7 @@ export async function GET(req: NextRequest) {
       rawType: row.request_type,
       status: row.status as StaffRequestStatus,
       createdAt: new Date(row.created_at).toLocaleString([], {
+        timeZone: hotelTimeZone,
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
@@ -93,7 +95,9 @@ export async function GET(req: NextRequest) {
         minute: "2-digit",
       }),
       createdAtIso: row.created_at,
-      createdDateKey: new Date(row.created_at).toLocaleDateString("sv-SE"),
+      createdDateKey: new Date(row.created_at).toLocaleDateString("sv-SE", {
+        timeZone: hotelTimeZone,
+      }),
     }));
 
     return NextResponse.json({
