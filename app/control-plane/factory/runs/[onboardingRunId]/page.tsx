@@ -2,15 +2,17 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import FactoryProjectionWorkspace from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryProjectionWorkspace";
+import FactorySandboxPreflightPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxPreflightPanel";
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
 import { getFactoryOnboardingProgress } from "@/lib/server/factory-onboarding-progress";
+import { getFactorySandboxPreflight } from "@/lib/server/factory-sandbox-preflight";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 
 export const dynamic = "force-dynamic";
 
 const COPY = {
-  bg: { eyebrow: "P4.4 · Guided Resource Projection", back: "← Factory runs" },
-  en: { eyebrow: "P4.4 · Guided Resource Projection", back: "← Factory runs" },
+  bg: { eyebrow: "P4.4 → P4.5 · Guided Factory Progress", back: "← Factory runs" },
+  en: { eyebrow: "P4.4 → P4.5 · Guided Factory Progress", back: "← Factory runs" },
 } as const;
 
 export default async function FactoryRunWorkspacePage({
@@ -29,6 +31,10 @@ export default async function FactoryRunWorkspacePage({
 
   const progress = await getFactoryOnboardingProgress(onboardingRunId);
   if (!progress) notFound();
+
+  const preflight = progress.envelope
+    ? await getFactorySandboxPreflight(progress.envelope.projectionRunId)
+    : null;
 
   return (
     <main className="min-h-screen bg-neutral-950 px-4 py-8 text-neutral-50 sm:px-6 lg:px-8">
@@ -49,6 +55,7 @@ export default async function FactoryRunWorkspacePage({
         </header>
 
         <FactoryProjectionWorkspace lang={lang} progress={progress} />
+        {preflight && <FactorySandboxPreflightPanel lang={lang} preflight={preflight} />}
       </div>
     </main>
   );
