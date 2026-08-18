@@ -8,7 +8,7 @@ const [wizard, route] = await Promise.all([
   readFile(wizardPath, "utf8"), readFile(routePath, "utf8"),
 ]);
 
-test("P4.2 expands the bilingual wizard to five steps", () => {
+test("P4.2 keeps the bilingual wizard at five operational authoring steps", () => {
   assert.match(wizard, /Услуги · Workflows · Integrations/);
   assert.match(wizard, /Services · Workflows · Integrations/);
   assert.match(wizard, /sm:grid-cols-5/);
@@ -62,7 +62,7 @@ test("P4.2 removes dangling references when operational resources are deleted", 
   assert.match(wizard, /workflowId:""|workflowId: ""/);
 });
 
-test("P4.2 still uses only the P4.1 preflight mutation boundary", () => {
+test("P4.2 operational authoring itself still reaches only the preflight boundary", () => {
   assert.match(wizard, /fetch\("\/api\/control-plane\/onboarding\/preflight"/);
   assert.doesNotMatch(wizard, /fetch\("\/api\/control-plane\/onboarding"\s*,/);
   assert.doesNotMatch(wizard, /production-live-activation|sandbox-certification|projectFactoryOperationalResources|beginFactoryOnboarding/);
@@ -70,7 +70,8 @@ test("P4.2 still uses only the P4.1 preflight mutation boundary", () => {
   assert.match(route, /validateFactoryBlueprint/);
 });
 
-test("P4.2 tells operators no tenant or credentials are created", () => {
-  assert.match(wizard, /P4\.2 не създава хотел и не записва credentials/);
-  assert.match(wizard, /P4\.2 does not create a hotel or store credentials/);
+test("P4.2 operational blueprint remains credential-free as P4.3 adds a separate foundation action", () => {
+  assert.match(wizard, /P4\.3 разрешава само audited P2\.1 foundation creation/);
+  assert.match(wizard, /P4\.3 permits only audited P2\.1 foundation creation/);
+  assert.doesNotMatch(wizard, /type="password"/i);
 });
