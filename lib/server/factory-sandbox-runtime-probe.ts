@@ -19,6 +19,7 @@ function canonicalize(value: unknown): string {
 export type FactorySandboxRuntimeProbe = {
   schemaVersion: "p4.6-sandbox-runtime-probe-v1";
   status: "validated" | "failed";
+  reason: "none" | "departments_read_failed" | "no_active_departments" | "role_resolution_failed";
   envelopeProjectionRunId: string;
   sandboxHotelId: string;
   sandboxRevisionId: string;
@@ -32,12 +33,20 @@ export type FactorySandboxRuntimeProbe = {
   evidenceHash: string;
 };
 
+type ProbeEvidence = Omit<FactorySandboxRuntimeProbe, "evidenceHash">;
+
+function finish(evidence: ProbeEvidence): FactorySandboxRuntimeProbe {
+  const evidenceHash = createHash("sha256").update(canonicalize(evidence)).digest("hex");
+  return { ...evidence, evidenceHash };
+}
+
 export async function probeFactorySandboxGenericStaffRuntime(
   preflight: FactorySandboxPreflight,
 ): Promise<FactorySandboxRuntimeProbe> {
   const envelopeProjectionRunId = String(preflight.envelopeProjectionRunId || "");
   const sandboxHotelId = String(preflight.lineage.sandboxHotelId || "");
   const sandboxRevisionId = String(preflight.lineage.sandboxRevisionId || "");
+  const base = { envelopeProjectionRunId, sandboxHotelId, sandboxRevisionId };
 
   const { data, error } = await supabaseAdmin
     .from("departments")
@@ -47,7 +56,15 @@ export async function probeFactorySandboxGenericStaffRuntime(
     .order("code", { ascending: true });
 
   if (error) {
-    throw new Error(`P4_6_SANDBOX_RUNTIME_DEPARTMENTS_READ_FAILED:${error.message}`);
+    return finish({
+      schemaVersion: "p4.6-sandbox-runtime-probe-v1",
+      status: "failed",
+      reason: "departments_read_failed",
+      ...base,
+      departmentCount: 0,
+      departments: [],
+      managerResolved: false,
+    });
   }
 
   const rows = (data || []).map((row) => ({
@@ -55,9 +72,21 @@ export async function probeFactorySandboxGenericStaffRuntime(
     code: String(row.code || "").trim().toLowerCase(),
   }));
 
+  if (rows.length === 0) {
+    return finish({
+      schemaVersion: "p4.6-sandbox-runtime-probe-v1",
+      status: "failed",
+      reason: "no_active_departments",
+      ...base,
+      departmentCount: 0,
+      departments: [],
+      managerResolved: false,
+    });
+  }
+
   const departments = await Promise.all(
     rows.map(async (row) => {
-      const resolved = await resolveStaffRuntimeRoleForHotelId(sandboxHotelId, row.code);
+      const resolved = await resolveStaffRuntimeRoleForHotelId(sandboxHotelId, row.code).catch(() => null);
       return {
         id: row.id,
         code: row.code,
@@ -71,23 +100,19 @@ export async function probeFactorySandboxGenericStaffRuntime(
     }),
   );
 
-  const manager = await resolveStaffRuntimeRoleForHotelId(sandboxHotelId, "manager");
+  const manager = await resolveStaffRuntimeRoleForHotelId(sandboxHotelId, "manager").catch(() => null);
   const managerResolved = Boolean(manager && manager.kind === "manager" && manager.departmentId === null);
-  const status = rows.length > 0 && departments.every((department) => department.resolved) && managerResolved
+  const status = departments.every((department) => department.resolved) && managerResolved
     ? "validated"
     : "failed";
 
-  const evidence = {
-    schemaVersion: "p4.6-sandbox-runtime-probe-v1" as const,
-    envelopeProjectionRunId,
-    sandboxHotelId,
-    sandboxRevisionId,
+  return finish({
+    schemaVersion: "p4.6-sandbox-runtime-probe-v1",
+    status,
+    reason: status === "validated" ? "none" : "role_resolution_failed",
+    ...base,
     departmentCount: departments.length,
     departments,
     managerResolved,
-    status,
-  };
-  const evidenceHash = createHash("sha256").update(canonicalize(evidence)).digest("hex");
-
-  return { ...evidence, evidenceHash };
+  });
 }
