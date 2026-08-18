@@ -1,5 +1,5 @@
-import ReceptionPageContent from "@/components/staff/pages/ReceptionPageContent";
+import { notFound } from "next/navigation";
 
 export default function StaffReceptionPage() {
-  return <ReceptionPageContent />;
+  notFound();
 }
