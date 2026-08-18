@@ -11,12 +11,14 @@ const migrationPath = new URL("../../supabase/migrations/20260818111500_p4_7_ver
 const edgePath = new URL("../../supabase/functions/vercel-runtime-log-drain/index.ts", import.meta.url);
 const normalizerPath = new URL("../../supabase/functions/vercel-runtime-log-drain/vercel-log-normalizer.mjs", import.meta.url);
 const docsPath = new URL("../../docs/P4.7-VERCEL-RUNTIME-LOG-ATTESTATION-FOUNDATION.md", import.meta.url);
+const tsconfigPath = new URL("../../tsconfig.json", import.meta.url);
 
-const [migration, edge, normalizer, docs] = await Promise.all([
+const [migration, edge, normalizer, docs, tsconfig] = await Promise.all([
   readFile(migrationPath, "utf8"),
   readFile(edgePath, "utf8"),
   readFile(normalizerPath, "utf8"),
   readFile(docsPath, "utf8"),
+  readFile(tsconfigPath, "utf8"),
 ]);
 
 const PROJECT_ID = "prj_KUkOL6tRgwxr0QD9tc1TVClCdf9Y";
@@ -64,6 +66,12 @@ test("P4.7 Edge receiver fails closed without configured signing secret and veri
   assert.match(edge, /EXPECTED_PROJECT_ID = "prj_KUkOL6tRgwxr0QD9tc1TVClCdf9Y"/);
   assert.match(edge, /ingest_factory_vercel_runtime_log_batch_v1/);
   assert.doesNotMatch(edge, /VERCEL_LOG_DRAIN_SECRET\s*=\s*["'][^"']+["']/);
+});
+
+test("P4.7 Edge Function stays outside the Next.js TypeScript runtime", () => {
+  const config = JSON.parse(tsconfig);
+  assert.ok(Array.isArray(config.exclude));
+  assert.ok(config.exclude.includes("supabase/functions/**"));
 });
 
 test("P4.7 normalizer stores only qualifying evidence and never returns raw messages", async () => {
