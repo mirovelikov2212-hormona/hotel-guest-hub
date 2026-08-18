@@ -65,7 +65,8 @@ test("P4.6 canonical release gate proves canonical tests plus build", () => {
 test("P4.6 refuses to manufacture runtime error evidence", () => {
   assert.match(releaseEvidence, /runtime_errors: "pending"/);
   assert.match(releaseEvidence, /trusted_vercel_log_attestation_not_available/);
-  assert.match(panel, /HTTP smoke|HTTP 200 smoke/);
+  assert.match(panel, /Vercel Drain/);
+  assert.match(panel, /tenant-specific runtime evidence/);
   assert.match(docs, /runtime_errors.*pending/s);
   assert.match(docs, /HTTP 200 smoke is not treated as a substitute/);
 });
@@ -77,11 +78,11 @@ test("P4.6 workspace only runs trusted evidence after database preflight validat
   assert.match(page, /FactorySandboxEvidencePanel/);
 });
 
-test("P4.6 evidence UI is status-only and keeps certification blocked", () => {
+test("P4.6 evidence UI remains status-only while later signed-smoke certification stays separate", () => {
   assert.doesNotMatch(panel, /fetch\(|POST|sandbox-certification|certifyFactorySandbox|onClick|<button/);
   assert.match(panel, /runtimeProbe\.status/);
   assert.match(panel, /tenant_isolation/);
   assert.match(panel, /preview_build/);
   assert.match(panel, /runtime_errors/);
-  assert.match(panel, /certification remains blocked|Sandbox certification остава блокирана/);
+  assert.match(panel, /Continue with step 7|Продължи със стъпка 7/);
 });
