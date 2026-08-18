@@ -7,6 +7,7 @@ import type {
   MassageService,
   MassageServicesResult,
 } from "@/lib/server/massage-api";
+import { collectMassageNativeAvailabilityPages } from "@/lib/server/massage-native-pagination.mjs";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -256,19 +257,24 @@ async function getNativeMassageAvailabilityWindow(input: {
   const fromDate = requireIsoDate(input.fromDate);
   const daysAhead = requireDaysAhead(input.daysAhead);
   const resourceKey = requireText(input.resourceKey || "default", "MASSAGE_NATIVE_RESOURCE_INVALID", 80);
-  const { data, error } = await supabaseAdmin.rpc(
-    "get_massage_runtime_availability_window",
-    {
-      p_hotel_id: hotelId,
-      p_from_date: fromDate,
-      p_days_ahead: daysAhead,
-      p_resource_key: resourceKey,
-    },
-  );
+  const data = await collectMassageNativeAvailabilityPages(async ({ from, to }) => {
+    const { data: page, error } = await supabaseAdmin
+      .rpc(
+        "get_massage_runtime_availability_window",
+        {
+          p_hotel_id: hotelId,
+          p_from_date: fromDate,
+          p_days_ahead: daysAhead,
+          p_resource_key: resourceKey,
+        },
+      )
+      .range(from, to);
 
-  if (error) throw error;
+    if (error) throw error;
+    return Array.isArray(page) ? page : [];
+  });
 
-  return (Array.isArray(data) ? data : []).map((row) => {
+  return data.map((row) => {
     const value = row as NativeAvailabilityWindowRow;
     return {
       serviceId: requireText(value.service_id, "MASSAGE_NATIVE_SERVICE_INVALID", 80),
