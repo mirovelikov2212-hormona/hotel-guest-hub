@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "checkpoint": "p4-8-preview-runtime-smoke",
+  "baseCheckpoint": "p4-5-sandbox-preflight",
+  "expectedNeedsReview": 92,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-preview-runtime-smoke.ts",
+      "line": 131,
+      "table": "factory_vercel_runtime_log_events",
+      "tableExpression": "\"factory_vercel_runtime_log_events\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "authenticated_same_origin_platform_admin_preview_smoke_reads_privacy_minimal_service_role_only_vercel_evidence_ledger_by_exact_server_derived_deployment_and_smoke_run_after_p2_4_preflight_lineage_validation_without_hotel_runtime_mutation"
+    },
+    {
+      "filePath": "lib/server/factory-preview-runtime-smoke.ts",
+      "line": 271,
+      "rpc": "get_factory_vercel_runtime_log_window_v1",
+      "tableExpression": "\"get_factory_vercel_runtime_log_window_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_same_origin_platform_admin_preview_smoke_reads_service_role_only_stable_p4_7_runtime_log_window_rpc_for_exact_server_derived_deployment_and_smoke_run_after_p2_4_preflight_lineage_validation_without_certification_or_tenant_activation"
+    }
+  ]
+}

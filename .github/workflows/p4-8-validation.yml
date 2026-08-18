@@ -1,0 +1,35 @@
+name: P4.8 Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "lib/server/factory-preview-runtime-smoke.ts"
+      - "app/api/control-plane/onboarding/sandbox-runtime-smoke/**"
+      - "tests/contracts/p4-8-preview-runtime-smoke.contract.test.mjs"
+      - "docs/P4.8-PREVIEW-RUNTIME-SMOKE-ORCHESTRATION.md"
+      - ".github/workflows/p4-8-validation.yml"
+      - "supabase/functions/vercel-runtime-log-drain/vercel-log-normalizer.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/contracts/p4-8-preview-runtime-smoke.contract.test.mjs
+      - run: npm run test:tenant-isolation
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
