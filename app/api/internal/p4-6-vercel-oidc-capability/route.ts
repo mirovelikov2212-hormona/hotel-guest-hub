@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+// Temporary Preview-only probe. It never returns the OIDC token itself.
 export async function GET() {
   if (process.env.VERCEL_ENV !== "preview") {
     return new NextResponse(null, { status: 404 });
