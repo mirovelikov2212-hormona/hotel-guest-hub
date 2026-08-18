@@ -27,7 +27,6 @@ function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
 }
 
-
 function getStaffPushRolesForRequest(input: {
   department: StaffDepartment;
   afterHoursDepartment: StaffDepartment | null;
@@ -72,7 +71,6 @@ function getStaffPushRolesForRequest(input: {
 
   return Array.from(roles);
 }
-
 
 export async function POST(req: NextRequest) {
   try {
@@ -480,7 +478,7 @@ export async function POST(req: NextRequest) {
             hotelId: hotel.id,
             source: "push",
             eventType: "department_push_failed_after_guest_request",
-            message: "Department push notification failed after a guest request was created.",
+            message: "Department staff push notification failed after a guest request was created.",
             roomNumber: room,
             departmentId: department,
             requestId: String(data.id),
@@ -492,6 +490,7 @@ export async function POST(req: NextRequest) {
     }
 
     const created = new Date(data.created_at);
+    const hotelTimeZone = String(hotelConfig.hotelTimezone || "UTC").trim() || "UTC";
 
     return NextResponse.json({
       ok: true,
@@ -510,6 +509,7 @@ export async function POST(req: NextRequest) {
         sourceRequestDef: data.metadata_json?.sourceRequestDef ?? sourceRequestDef ?? undefined,
         billingStatus: data.metadata_json?.billingStatus ?? (requiresBilling ? "pending" : undefined),
         createdAt: created.toLocaleString([], {
+          timeZone: hotelTimeZone,
           year: "numeric",
           month: "2-digit",
           day: "2-digit",
@@ -517,7 +517,9 @@ export async function POST(req: NextRequest) {
           minute: "2-digit",
         }),
         createdAtIso: data.created_at,
-        createdDateKey: created.toLocaleDateString("sv-SE"),
+        createdDateKey: created.toLocaleDateString("sv-SE", {
+          timeZone: hotelTimeZone,
+        }),
         note: data.metadata_json?.note ?? data.message ?? undefined,
         isTest: Boolean(data.metadata_json?.isTest),
         testExpiresAt: data.metadata_json?.testExpiresAt ?? undefined,
