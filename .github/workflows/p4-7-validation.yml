@@ -1,0 +1,35 @@
+name: P4.7 Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/20260818111500_p4_7_vercel_runtime_log_attestation_foundation.sql"
+      - "supabase/functions/vercel-runtime-log-drain/**"
+      - "tests/contracts/p4-7-vercel-runtime-log-attestation.contract.test.mjs"
+      - "docs/P4.7-VERCEL-RUNTIME-LOG-ATTESTATION-FOUNDATION.md"
+      - ".github/workflows/p4-7-validation.yml"
+      - "package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:p4-7
+      - run: npm run test:tenant-isolation
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
