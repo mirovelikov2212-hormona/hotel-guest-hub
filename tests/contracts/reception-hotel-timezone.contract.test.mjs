@@ -10,15 +10,37 @@ const scopedPagePath = new URL(
   "../../app/staff/[hotelSlug]/reception/page.tsx",
   import.meta.url,
 );
+const scopedLayoutPath = new URL(
+  "../../app/staff/[hotelSlug]/layout.tsx",
+  import.meta.url,
+);
 const hotelLookupPath = new URL(
   "../../lib/hotels/getHotelByAnySlug.ts",
   import.meta.url,
 );
+const requestCardPath = new URL(
+  "../../components/staff/StaffRequestCard.tsx",
+  import.meta.url,
+);
+const timeZoneProviderPath = new URL(
+  "../../components/staff/StaffHotelTimeZoneProvider.tsx",
+  import.meta.url,
+);
 
-const [receptionPage, scopedPage, hotelLookup] = await Promise.all([
+const [
+  receptionPage,
+  scopedPage,
+  scopedLayout,
+  hotelLookup,
+  requestCard,
+  timeZoneProvider,
+] = await Promise.all([
   readFile(receptionPagePath, "utf8"),
   readFile(scopedPagePath, "utf8"),
+  readFile(scopedLayoutPath, "utf8"),
   readFile(hotelLookupPath, "utf8"),
+  readFile(requestCardPath, "utf8"),
+  readFile(timeZoneProviderPath, "utf8"),
 ]);
 
 test("Reception daily history renders request timestamps in the configured hotel timezone", () => {
@@ -42,4 +64,15 @@ test("Reception resolves timezone from the exact hotel row instead of an Aquamar
   assert.match(scopedPage, /hotelTimeZone=\{hotelTimeZone\}/);
   assert.doesNotMatch(scopedPage, /Europe\/Sofia/);
   assert.doesNotMatch(receptionPage, /Europe\/Sofia/);
+});
+
+test("hotel-scoped staff request cards use hotel timezone rather than the device timezone", () => {
+  assert.match(scopedLayout, /getHotelByAnySlug\(hotelSlug\)/);
+  assert.match(scopedLayout, /StaffHotelTimeZoneProvider timeZone=\{hotel\.timezone\}/);
+  assert.match(timeZoneProvider, /StaffHotelTimeZoneContext/);
+  assert.match(requestCard, /useStaffHotelTimeZone\(\)/);
+  assert.match(requestCard, /formatRequestDateTime\(request\.createdAtIso, lang, hotelTimeZone\)/);
+  assert.match(requestCard, /\.\.\.\(timeZone \? \{ timeZone \} : \{\}\)/);
+  assert.doesNotMatch(scopedLayout, /Europe\/Sofia/);
+  assert.doesNotMatch(requestCard, /Europe\/Sofia/);
 });
