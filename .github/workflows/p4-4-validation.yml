@@ -1,0 +1,31 @@
+name: P4.4 Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/control-plane/factory/**"
+      - "lib/server/factory-onboarding-progress.ts"
+      - "supabase/migrations/20260818050000_p4_4_factory_progress_read.sql"
+      - "tests/contracts/p4-4-guided-resource-projection-workspace.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-p4-4-guided-resource-projection-workspace.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/p4-4-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: node --test tests/contracts/p4-4-guided-resource-projection-workspace.contract.test.mjs

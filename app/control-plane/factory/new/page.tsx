@@ -2,9 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import FactoryBlueprintWizard from "@/app/control-plane/factory/new/FactoryBlueprintWizard";
-import {
-  normalizeControlPlaneLang,
-} from "@/lib/control-plane-i18n";
+import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 
 export const dynamic = "force-dynamic";
@@ -13,16 +11,16 @@ const COPY = {
   bg: {
     eyebrow: "P4 · One-click Hotel Factory",
     title: "Нов хотел · Blueprint workspace",
-    subtitle:
-      "Изгради и валидирай основния hotel blueprint. Тази стъпка не създава tenant и не активира Production.",
+    subtitle: "Изгради, валидирай и създай fail-closed draft foundation. Production не се активира.",
     back: "← Към Control Plane",
+    runs: "Factory runs",
   },
   en: {
     eyebrow: "P4 · One-click Hotel Factory",
     title: "New hotel · Blueprint workspace",
-    subtitle:
-      "Build and validate the base hotel blueprint. This step does not create a tenant or activate Production.",
+    subtitle: "Build, validate and create a fail-closed draft foundation. Production is not activated.",
     back: "← Back to Control Plane",
+    runs: "Factory runs",
   },
 } as const;
 
@@ -44,41 +42,17 @@ export default async function FactoryBlueprintWorkspacePage({
         <header className="rounded-3xl border border-neutral-800 bg-neutral-900 p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/70">
-                {copy.eyebrow}
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/70">{copy.eyebrow}</p>
               <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">{copy.title}</h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-400">{copy.subtitle}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Link
-                href="/control-plane/factory/new?lang=bg"
-                className={`rounded-xl border px-3 py-2 text-xs font-semibold ${
-                  lang === "bg"
-                    ? "border-neutral-200 bg-neutral-100 text-neutral-950"
-                    : "border-neutral-700 text-neutral-400"
-                }`}
-              >
-                BG
-              </Link>
-              <Link
-                href="/control-plane/factory/new?lang=en"
-                className={`rounded-xl border px-3 py-2 text-xs font-semibold ${
-                  lang === "en"
-                    ? "border-neutral-200 bg-neutral-100 text-neutral-950"
-                    : "border-neutral-700 text-neutral-400"
-                }`}
-              >
-                EN
-              </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href={`/control-plane/factory/runs?lang=${lang}`} className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-100">{copy.runs}</Link>
+              <Link href="/control-plane/factory/new?lang=bg" className={`rounded-xl border px-3 py-2 text-xs font-semibold ${lang === "bg" ? "border-neutral-200 bg-neutral-100 text-neutral-950" : "border-neutral-700 text-neutral-400"}`}>BG</Link>
+              <Link href="/control-plane/factory/new?lang=en" className={`rounded-xl border px-3 py-2 text-xs font-semibold ${lang === "en" ? "border-neutral-200 bg-neutral-100 text-neutral-950" : "border-neutral-700 text-neutral-400"}`}>EN</Link>
             </div>
           </div>
-          <Link
-            href={`/control-plane?lang=${lang}`}
-            className="mt-5 inline-flex text-sm font-semibold text-cyan-200 hover:text-cyan-100"
-          >
-            {copy.back}
-          </Link>
+          <Link href={`/control-plane?lang=${lang}`} className="mt-5 inline-flex text-sm font-semibold text-cyan-200 hover:text-cyan-100">{copy.back}</Link>
         </header>
 
         <FactoryBlueprintWizard lang={lang} />

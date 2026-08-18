@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "checkpoint": "p4-4-guided-resource-projection-workspace",
+  "baseCheckpoint": "p3-4-commercial-observability-i18n",
+  "expectedNeedsReview": 89,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-onboarding-progress.ts",
+      "line": 80,
+      "rpc": "get_factory_onboarding_progress_v1",
+      "tableExpression": "\"get_factory_onboarding_progress_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_platform_factory_progress_read_calls_service_role_only_stable_security_definer_rpc_for_immutable_p2_1_to_p2_4_lineage_and_actual_fail_closed_property_hotel_state_bounded_to_one_exact_run_or_latest_50_runs_without_mutation"
+    }
+  ]
+}
