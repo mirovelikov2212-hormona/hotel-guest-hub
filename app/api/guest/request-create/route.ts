@@ -258,11 +258,14 @@ export async function POST(req: NextRequest) {
       requestAuthority.requestType,
       requestAuthority.department ?? undefined,
     );
+    // Keep the historical routing contract explicit while P4.12 separately
+    // preserves tenant service identity for persistence and relational lookup.
+    const normalizedType = legacyNormalizedType;
     const authoritativeRequestType = requestAuthority.sourceRequestDef
       ? String(requestAuthority.requestType)
       : legacyNormalizedType;
     const department =
-      requestAuthority.department ?? getDepartmentForRequestType(legacyNormalizedType);
+      requestAuthority.department ?? getDepartmentForRequestType(normalizedType);
     const afterHoursDepartment = requestAuthority.afterHoursDepartment ?? null;
     const notifyDepartments = requestAuthority.notifyDepartments;
     const requiresBilling = requestAuthority.requiresBilling;
