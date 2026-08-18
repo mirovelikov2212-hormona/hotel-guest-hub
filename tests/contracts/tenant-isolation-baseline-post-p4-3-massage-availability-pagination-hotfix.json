@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "checkpoint": "post-p4-3-massage-availability-pagination-hotfix",
+  "baseCheckpoint": "p3-4-commercial-observability-i18n",
+  "expectedNeedsReview": 88,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "lib/server/massage-native-runtime.ts",
+      "fromLine": 195,
+      "toLine": 196,
+      "table": "massage_runtime_services",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/massage-native-runtime.ts",
+      "fromLine": 230,
+      "toLine": 231,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/massage-native-runtime.ts",
+      "fromLine": 259,
+      "toLine": 261,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/massage-native-runtime.ts",
+      "fromLine": 410,
+      "toLine": 416,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/massage-native-runtime.ts",
+      "fromLine": 439,
+      "toLine": 445,
+      "operation": "rpc"
+    }
+  ],
+  "additions": []
+}
