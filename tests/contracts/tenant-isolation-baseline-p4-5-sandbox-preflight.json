@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "checkpoint": "p4-5-sandbox-preflight",
+  "baseCheckpoint": "p4-4-guided-resource-projection-workspace",
+  "expectedNeedsReview": 90,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-sandbox-preflight.ts",
+      "line": 73,
+      "rpc": "get_factory_sandbox_preflight_v1",
+      "tableExpression": "\"get_factory_sandbox_preflight_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_factory_workspace_read_calls_service_role_only_stable_security_definer_preflight_rpc_for_exact_p2_1_to_p2_5_lineage_database_gates_and_stored_certification_state_without_any_sandbox_or_production_mutation"
+    }
+  ]
+}
