@@ -67,7 +67,7 @@ export default async function FactoryRunWorkspacePage({
 
         <FactoryProjectionWorkspace lang={lang} progress={progress} />
         {preflight && <FactorySandboxPreflightPanel lang={lang} preflight={preflight} />}
-        {trustedEvidence && (
+        {trustedEvidence && preflight && (
           <>
             <FactorySandboxEvidencePanel
               lang={lang}
