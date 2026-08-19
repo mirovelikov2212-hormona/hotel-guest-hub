@@ -49,6 +49,20 @@ test("proof runner invokes canonical P4.8/P4.10 helpers with no direct Supabase 
   assertNotContains(source, "factory_production_live_activation_runs");
 });
 
+test("one-click browser orchestrator stays same-origin and can only sequence canonical proof actions", async () => {
+  const source = await readProjectFile(ROUTE);
+
+  assertContains(source, 'if (action === "run")');
+  assertContains(source, "credentials: 'same-origin'");
+  assertContains(source, "await call('start')");
+  assertContains(source, "await call('settle', smokeRunId)");
+  assertContains(source, "await call('status', smokeRunId)");
+  assertContains(source, "await call('certify', smokeRunId)");
+  assertContains(source, "P2.5 CERTIFIED — Sandbox is active; Production remains inactive.");
+  assertNotContains(source, "localStorage");
+  assertNotContains(source, "sessionStorage");
+});
+
 test("certification authority is fixed and the canonical RPC still rechecks active admin authority", async () => {
   const source = await readProjectFile(ROUTE);
   const certification = await readProjectFile("lib/server/factory-sandbox-certification.ts");
