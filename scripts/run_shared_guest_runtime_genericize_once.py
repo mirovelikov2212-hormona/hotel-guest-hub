@@ -15,6 +15,35 @@ if code.count(old_header) != 1:
     raise SystemExit("GuestHub header replacement target mismatch")
 code = code.replace(old_header, new_header, 1)
 
+old_explore = '''    .map((item) => {
+      const href = String(item?.linkUrl || "").trim();
+      const title = getHotelInfoText(item, "title");
+      if (!href || !title) return null;
+      const icon = String(item?.icon || "📍").trim();
+      return {
+        label: `${icon ? `${icon} ` : ""}${title}`.trim(),
+        kind: "link" as const,
+        href,
+        newTab: true,
+      } satisfies HubItem;
+    })
+    .filter((item): item is HubItem => Boolean(item));'''
+new_explore = '''    .flatMap((item): HubItem[] => {
+      const href = String(item?.linkUrl || "").trim();
+      const title = getHotelInfoText(item, "title");
+      if (!href || !title) return [];
+      const icon = String(item?.icon || "📍").trim();
+      return [{
+        label: `${icon ? `${icon} ` : ""}${title}`.trim(),
+        kind: "link" as const,
+        href,
+        newTab: true,
+      } satisfies HubItem];
+    });'''
+if code.count(old_explore) != 1:
+    raise SystemExit(f"Explore materialization target mismatch: {code.count(old_explore)}")
+code = code.replace(old_explore, new_explore, 1)
+
 marker = "\nlower = source.lower()\n"
 if code.count(marker) != 1:
     raise SystemExit("final guard marker mismatch")
