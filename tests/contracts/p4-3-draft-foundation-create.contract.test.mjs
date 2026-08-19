@@ -62,11 +62,12 @@ test("P4.3 invalidates preflight when room inventory fields are edited", () => {
   }
 });
 
-test("P4.3 generates one retry-stable idempotency key per mounted approved preflight", () => {
-  assert.match(panel, /useState\(\(\) => `control-plane:\$\{crypto\.randomUUID\(\)\}`\)/);
+test("P4.3 acceptance harness generates one retry-stable disposable proof key per mounted approved preflight", () => {
+  assert.match(panel, /useState\(\(\) => `proof:acceptance:\$\{crypto\.randomUUID\(\)\}`\)/);
   assert.match(panel, /idempotencyKey,/);
   assert.match(panel, /retry safely replays a transaction/);
   assert.doesNotMatch(panel, /setIdempotencyKey/);
+  assert.doesNotMatch(panel, /`control-plane:\$\{crypto\.randomUUID\(\)\}`/);
 });
 
 test("P4.3 browser sends the exact hash and draft-only approval to the single onboarding API", () => {
