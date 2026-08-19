@@ -79,6 +79,17 @@ test("GuestHub no longer patches tenant prices or games-room business copy in sh
   assertNotContains(lower, "izvora-kranevo.com");
 });
 
+test("shared Guest stylesheet has no tenant-specific hero asset or sandbox framing", async () => {
+  const source = await readProjectFile("app/globals.css");
+  const lower = source.toLowerCase();
+
+  assertNotContains(lower, "/images/aquamarine-test-hero-v6.jpg");
+  assertNotContains(lower, ".stayhub-premium-hero-sandbox");
+  assertNotContains(lower, ".stayhub-premium-hero-image-sandbox");
+  assertNotContains(lower, ".stayhub-premium-hero-overlay-sandbox");
+  assertNotContains(lower, ".stayhub-premium-hero-wrap-sandbox");
+});
+
 test("Explore recommendations are materialized from HOTEL_INFO data", async () => {
   const source = await readProjectFile("components/GuestHub.tsx");
   assertContains(source, "configuredExplorePlaces");
