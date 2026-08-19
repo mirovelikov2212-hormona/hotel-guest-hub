@@ -217,6 +217,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import type { StaffDepartment, StaffRequestType, StaffServiceTime, StaffRequestStatus } from "@/lib/staff/types";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { HotelConfig, LangKey, HubSection, DepartmentKey, HubItem, RequestDef } from "@/lib/types";
+import { deriveGuestRuntimeCapabilities } from "@/lib/guest/guest-runtime-capabilities.mjs";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { persistQrContextFromUrl, trackHubEvent, type TrackHubPayload } from "@/lib/trackHubEvent";
 import InstallAppButton from "@/components/InstallAppButton";
@@ -468,14 +469,6 @@ const RESTAURANT_MEAL_LABELS_BY_LANG: Record<string, string[]> = {
   ru: ["Завтрак", "Обед", "Полдник", "Ужин"],
 };
 
-const GAME_ROOM_PRICING_BY_LANG: Record<string, string> = {
-  bg: "Билярдът и тенисът на маса се ползват срещу 5,00 € на час. Останалите игри в залата са безплатни.",
-  en: "Billiards and table tennis cost 5.00 € per hour. All other games in the games room are free of charge.",
-  de: "Billard und Tischtennis kosten 5,00 € pro Stunde. Alle anderen Spiele im Spielraum sind kostenlos.",
-  ro: "Biliardul și tenisul de masă costă 5,00 € pe oră. Celelalte jocuri din sala de jocuri sunt gratuite.",
-  cs: "Kulečník a stolní tenis stojí 5,00 € za hodinu. Ostatní hry v herně jsou zdarma.",
-  ru: "Бильярд и настольный теннис стоят 5,00 € в час. Остальные игры в игровой комнате бесплатны.",
-};
 
 function formatRestaurantHoursForLanguage(rawValue: string, lang: LangKey | string): string {
   const normalized = String(rawValue || "")
@@ -2289,7 +2282,7 @@ function getInitialGuestLang(defaultLang: string | undefined, enabledLanguages: 
 }
 
 function getGuestIntroCopy(lang: LangKey, hotelName?: string) {
-  const name = String(hotelName || "Hotel Aquamarine").trim();
+  const name = String(hotelName || "StayHub").trim();
 
   const copy: Record<LangKey, { title: string; body: string; button: string }> = {
     bg: {
@@ -2490,8 +2483,15 @@ function writeGuestLang(nextLang: LangKey) {
 }
 
 export default function GuestHub({ config }: { config: HotelConfig }) {
-  const guestHubPathname = usePathname();
-  const isAquamarineHub = /\/h\/aquamarine(?:-test)?(?:\/|$)/i.test(guestHubPathname);
+  const guestRuntimeCapabilities = useMemo(
+    () => deriveGuestRuntimeCapabilities({
+      hotelSlug: config.hotelSlug,
+      publicSlug: config.publicSlug,
+      coverImage: config.coverImage,
+      requestDefs: config.requestDefs,
+    }),
+    [config.coverImage, config.hotelSlug, config.publicSlug, config.requestDefs]
+  );
   // Keep the first server/client render identical. Browser, URL and localStorage
   // language detection runs after hydration to avoid React hydration error #418.
   const [lang, setLangState] = useState<LangKey>(() =>
@@ -3210,7 +3210,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           headers: { "Content-Type": "application/json" },
           cache: "no-store",
           body: JSON.stringify({
-            hotelSlug: String(config.hotelSlug || roomStateKey || "aquamarin"),
+            hotelSlug: String(config.hotelSlug || roomStateKey || ""),
             stayId: activeStayId,
             stayDeviceId,
             deviceToken: stayDeviceToken,
@@ -3891,7 +3891,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          hotelSlug: String(config.hotelSlug || hotelContentSlug || "aquamarin"),
+          hotelSlug: String(config.hotelSlug || hotelContentSlug || ""),
           room: nextRoom,
           ...(dates.datesRequired
             ? {
@@ -4367,19 +4367,6 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         .filter((item) => item && !junkValues.has(item.toLowerCase()))
         .join("\n\n");
 
-      const defId = String(def.id || "").trim().toLowerCase();
-      const requestType = String(def.requestType || "").trim().toLowerCase();
-      const currentHotelSlug = String((config as any)?.hotelSlug || "").trim().toLowerCase();
-      const isAquamarine =
-        ["aquamarin", "aquamarine"].includes(currentHotelSlug) ||
-        /aquamarine/i.test(String(config.hotelName || ""));
-      const isCoffeeCapsules = defId === "coffee_capsules" || requestType === "coffee_capsules";
-
-      // Keep old descriptive texts from Google Sheets consistent with the
-      // current Aquamarine unit price until the sheet cache is refreshed.
-      if (isAquamarine && isCoffeeCapsules) {
-        return rawMessage.replace(/2(?:[.,]00)\s*(€|EUR)/gi, "2,05 €");
-      }
 
       return rawMessage;
     },
@@ -5116,25 +5103,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     return undefined;
   }
 
-  function isAquamarineCoffeeCapsulesRequest(def: RequestDef) {
-    const defId = String(def.id || "").trim().toLowerCase();
-    const requestType = String(def.requestType || "").trim().toLowerCase();
-    const currentHotelSlug = String((config as any)?.hotelSlug || "").trim().toLowerCase();
-    const isAquamarine =
-      ["aquamarin", "aquamarine"].includes(currentHotelSlug) ||
-      /aquamarine/i.test(String(config.hotelName || ""));
-
-    return isAquamarine && (defId === "coffee_capsules" || requestType === "coffee_capsules");
-  }
-
   function getRequestDefEffectivePrice(def: RequestDef) {
-    if (isAquamarineCoffeeCapsulesRequest(def)) return "2,05";
     if (def.id === "late_checkout") return def.price || "25,00";
     return def.price;
   }
 
   function getRequestDefEffectiveCurrency(def: RequestDef) {
-    if (isAquamarineCoffeeCapsulesRequest(def)) return "€";
     if (def.id === "late_checkout") return def.currency || "€";
     return def.currency;
   }
@@ -5603,53 +5577,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const taxiProviders = config.taxiProviders ?? [];
 
-  const hotelContentSlug = String((config as any)?.hotelSlug || "").trim().toLowerCase();
-  const isAquamarineHotel =
-    ["aquamarin", "aquamarine"].includes(hotelContentSlug) ||
-    /aquamarine/i.test(String(config.hotelName || ""));
+  const hotelContentSlug = guestRuntimeCapabilities.hotelSlug;
 
   const rawVenueRows = (((config as any).venueRows ?? []) as Array<VenueRow>)
     .filter(
       (v) => v && (v.name || getVenueText(v, "name", lang)) && (v.type || v.category) && v.active !== false
-    )
-    .map((venue) => {
-      if (!isAquamarineHotel) return venue;
-
-      const venueIdentity = [
-        venue.type,
-        venue.category,
-        venue.name,
-        ...Object.values(venue.nameByLang || {}),
-        venue.shortDescription,
-        ...Object.values(venue.shortDescriptionByLang || {}),
-      ]
-        .map((value) => String(value || "").trim().toLowerCase())
-        .filter(Boolean)
-        .join(" ");
-
-      const isGamesRoom = /games?.?room|игрална|spielzimmer|sal[ăa] de jocuri|herna/i.test(venueIdentity);
-      if (!isGamesRoom) return venue;
-
-      const descriptionByLang = { ...(venue.descriptionByLang || {}) };
-      for (const languageKey of ["bg", "en", "de", "ro", "cs", "ru"]) {
-        const existing = String(descriptionByLang[languageKey] || "").trim();
-        const pricing = GAME_ROOM_PRICING_BY_LANG[languageKey];
-        if (!pricing || /5(?:[.,]00)?\s*€/.test(existing)) continue;
-        descriptionByLang[languageKey] = [existing, pricing].filter(Boolean).join("\n\n");
-      }
-
-      const fallbackDescription = String(venue.description || "").trim();
-      const fallbackPricing = GAME_ROOM_PRICING_BY_LANG.en;
-
-      return {
-        ...venue,
-        description:
-          fallbackDescription && /5(?:[.,]00)?\s*€/.test(fallbackDescription)
-            ? fallbackDescription
-            : [fallbackDescription, fallbackPricing].filter(Boolean).join("\n\n"),
-        descriptionByLang,
-      };
-    });
+    );
 
   const groupedOutlets = useMemo(() => {
     const grouped = rawVenueRows.reduce<Record<string, VenueRow[]>>((acc, row) => {
@@ -5683,9 +5616,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       }
       : null;
 
-  const massageBookingDef = requestDefs.find((def) => isMassageRequestDef(def)) || null;
   const massageBookingPreviewVisible =
-    Boolean(massageBookingDef) && Boolean(hotelContentSlug) && isAquamarineHotel;
+    guestRuntimeCapabilities.massageBookingEnabled && Boolean(hotelContentSlug);
 
   useEffect(() => {
     if (!massageBookingPreviewVisible || !hotelContentSlug) return;
@@ -5839,12 +5771,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     return () => window.clearInterval(timer);
   }, [activeStayId, refreshGuestMassageBookingsFromServer, room, roomConfirmed, stayDeviceId]);
 
-  // Aquamarine's Spa Center keeps only its venue information and working hours.
-  // Massage selection moves into the separate top-level “Book a massage” section below.
-  const spaRequestDefItems =
-    massageBookingPreviewVisible && isAquamarineHotel
-      ? []
-      : buildRequestDefItems("spa");
+  // Hotels with a dedicated massage booking capability keep massage selection in the top-level booking flow.
+  const spaRequestDefItems = massageBookingPreviewVisible ? [] : buildRequestDefItems("spa");
 
   const buildStaffMessage = (msgKey: string, filledOPS?: string, filledHELP?: string) => {
     const baseOPS = filledOPS ?? String(tOPS(msgKey));
@@ -7207,11 +7135,11 @@ EN: ${helpMsg}` : opsMsg,
   });
 
   const coffeeCapsulesPrice = coffeeCapsulesRequestDef
-    ? String(getRequestDefEffectivePrice(coffeeCapsulesRequestDef) || "2,05").trim()
-    : "2,05";
+    ? String(getRequestDefEffectivePrice(coffeeCapsulesRequestDef) || "").trim()
+    : "";
   const coffeeCapsulesCurrency = coffeeCapsulesRequestDef
-    ? String(getRequestDefEffectiveCurrency(coffeeCapsulesRequestDef) || "€").trim() || "€"
-    : "€";
+    ? String(getRequestDefEffectiveCurrency(coffeeCapsulesRequestDef) || "").trim()
+    : "";
 
   const mainRestaurantVenue = [...rawVenueRows]
     .filter((venue) => normalizeCategory(venue) === "restaurants")
@@ -7234,29 +7162,26 @@ EN: ${helpMsg}` : opsMsg,
       let icon = item?.icon ? String(item.icon).trim() : "";
       let title = getHotelInfoText(item, "title");
       let info = getHotelInfoText(item, "text");
+      const stableKey = String(item?.key || item?.id || "").trim().toLowerCase();
+      const isRestaurantHoursInfo =
+        ["breakfast", "breakfast_hours", "info_breakfast"].includes(stableKey) ||
+        /(^|\s)(breakfast|закуска|frühstück|mic dejun|snídaně)(\s|$)/i.test(identity);
 
-      if (isAquamarineHotel) {
-        const stableKey = String(item?.key || item?.id || "").trim().toLowerCase();
-        const isRestaurantHoursInfo =
-          ["breakfast", "breakfast_hours", "info_breakfast"].includes(stableKey) ||
-          /(^|\s)(breakfast|закуска|frühstück|mic dejun|snídaně)(\s|$)/i.test(identity);
+      if (isRestaurantHoursInfo && restaurantHoursText) {
+        const languageKey = ["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang)) ? String(lang) : "en";
+        icon = "🍽️";
+        title = RESTAURANT_HOURS_TITLE_BY_LANG[languageKey] || RESTAURANT_HOURS_TITLE_BY_LANG.en;
+        info = restaurantHoursText;
+      }
 
-        if (isRestaurantHoursInfo && restaurantHoursText) {
-          const languageKey = ["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang)) ? String(lang) : "en";
-          icon = "🍽️";
-          title = RESTAURANT_HOURS_TITLE_BY_LANG[languageKey] || RESTAURANT_HOURS_TITLE_BY_LANG.en;
-          info = restaurantHoursText;
-        }
+      const isCoffeeCapsulesInfo =
+        stableKey === "coffee_capsules" ||
+        /coffee.?capsule|кафе.?капсул|kaffeekapsel|capsule de cafea|kávové kapsle/i.test(identity);
 
-        const isCoffeeCapsulesInfo =
-          stableKey === "coffee_capsules" ||
-          /coffee.?capsule|кафе.?капсул|kaffeekapsel|capsule de cafea|kávové kapsle/i.test(identity);
-
-        if (isCoffeeCapsulesInfo && info) {
-          const displayPrice = `${coffeeCapsulesPrice} ${coffeeCapsulesCurrency}`.trim();
-          const replaced = info.replace(/\d+(?:[.,]\d{1,2})?\s*(?:€|EUR)/i, displayPrice);
-          info = replaced === info && !info.includes(displayPrice) ? `${info} ${displayPrice}`.trim() : replaced;
-        }
+      if (isCoffeeCapsulesInfo && info && coffeeCapsulesPrice) {
+        const displayPrice = [coffeeCapsulesPrice, coffeeCapsulesCurrency].filter(Boolean).join(" ").trim();
+        const replaced = info.replace(/\d+(?:[.,]\d{1,2})?\s*(?:€|EUR)/i, displayPrice);
+        info = replaced === info && !info.includes(displayPrice) ? `${info} ${displayPrice}`.trim() : replaced;
       }
 
       return {
@@ -7270,7 +7195,6 @@ EN: ${helpMsg}` : opsMsg,
       coffeeCapsulesPrice,
       getHotelInfoIdentity,
       getHotelInfoText,
-      isAquamarineHotel,
       lang,
       restaurantHoursText,
     ]
@@ -7466,69 +7390,37 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     [config.hotelName, config.location?.query]
       .map((item) => String(item || "").trim())
       .filter(Boolean)
-      .join(", ") ||
-    "Hotel Aquamarine Kranevo, Kranevo, Bulgaria"
+      .join(", ")
   ).replace(/,\s*Bulgaria,\s*Bulgaria$/i, ", Bulgaria");
 
   const mapsSearchUrl = (query: string) =>
     `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 
-  const nearbyAnchorQuery = hotelAreaSearchQuery || "Hotel Aquamarine Kranevo, Kranevo, Bulgaria";
+  const nearbyAnchorQuery = hotelAreaSearchQuery;
   const nearbyAttractionsQuery =
     `landmarks museums historical sites and tourist attractions within 20 km of ${nearbyAnchorQuery}`;
   const nearbyRestaurantsQuery = `restaurants near ${nearbyAnchorQuery}`;
   const nearbyPharmacyQuery = `pharmacy near ${nearbyAnchorQuery}`;
 
-  const recommendedPlaceLang = (["bg", "en", "de", "ro", "cs", "ru"].includes(String(lang))
-    ? String(lang)
-    : "en") as LangKey;
-
-  const aquamarineRecommendedPlaceLabels: Record<
-    LangKey,
-    { delMar: string; izvora: string }
-  > = {
-    bg: {
-      delMar: "Del Mar Fish Restaurant & BBQ",
-      izvora: "Ресторант Извора",
-    },
-    en: {
-      delMar: "Del Mar Fish Restaurant & BBQ",
-      izvora: "Restaurant Izvora",
-    },
-    de: {
-      delMar: "Del Mar Fish Restaurant & BBQ",
-      izvora: "Restaurant Izvora",
-    },
-    ro: {
-      delMar: "Del Mar Fish Restaurant & BBQ",
-      izvora: "Restaurant Izvora",
-    },
-    cs: {
-      delMar: "Del Mar Fish Restaurant & BBQ",
-      izvora: "Restaurace Izvora",
-    },
-    ru: {
-      delMar: "Del Mar Fish Restaurant & BBQ",
-      izvora: "Ресторан «Извора»",
-    },
-  };
-
-  const aquamarineRecommendedPlaces: HubItem[] = isAquamarineHotel
-    ? [
-        {
-          label: `📍 ${aquamarineRecommendedPlaceLabels[recommendedPlaceLang].delMar}`,
-          kind: "link" as const,
-          href: "https://www.facebook.com/p/Del-Mar-Fish-Restaurant-BBQ-100040199001878/",
-          newTab: true,
-        },
-        {
-          label: `📍 ${aquamarineRecommendedPlaceLabels[recommendedPlaceLang].izvora}`,
-          kind: "link" as const,
-          href: "https://izvora-kranevo.com/",
-          newTab: true,
-        },
-      ]
-    : [];
+  const configuredExplorePlaces: HubItem[] = hotelInfoItems
+    .filter(
+      (item) =>
+        item &&
+        item.active !== false &&
+        String(item?.uiSectionId || "").trim().toLowerCase() === "explore"
+    )
+    .flatMap((item): HubItem[] => {
+      const href = String(item?.linkUrl || "").trim();
+      const title = getHotelInfoText(item, "title");
+      if (!href || !title) return [];
+      const icon = String(item?.icon || "📍").trim();
+      return [{
+        label: `${icon ? `${icon} ` : ""}${title}`.trim(),
+        kind: "link" as const,
+        href,
+        newTab: true,
+      } satisfies HubItem];
+    });
 
   const exploreSection = hotelAreaSearchQuery
     ? ({
@@ -7541,7 +7433,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           href: mapsSearchUrl(nearbyAttractionsQuery),
           newTab: true,
         },
-        ...aquamarineRecommendedPlaces,
+        ...configuredExplorePlaces,
         {
           label: String(tUI("restaurants_nearby") || "Restaurants nearby"),
           kind: "link" as const,
@@ -8473,17 +8365,17 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
   return (
     <div className="stayhub-premium-screen mx-auto min-h-screen max-w-md" style={themeStyle}>
-      <div className={isAquamarineHub ? "relative stayhub-premium-hero-wrap-sandbox" : "relative"}>
-        <div className={isAquamarineHub ? "stayhub-premium-hero stayhub-premium-hero-sandbox relative w-full overflow-hidden" : "stayhub-premium-hero relative h-[246px] sm:h-[270px] md:h-[300px] w-full overflow-hidden"}>
+      <div className="relative">
+        <div className="stayhub-premium-hero relative h-[246px] sm:h-[270px] md:h-[300px] w-full overflow-hidden">
           <img
-            src={isAquamarineHub ? "/images/aquamarine-test-hero-v6.jpg" : config.coverImage}
-            alt={config.hotelName}
-            className={isAquamarineHub ? "stayhub-premium-hero-image-sandbox" : "h-full w-full object-cover"}
-            style={isAquamarineHub ? undefined : { objectPosition: config.coverImagePosition || "center center" }}
+            src={guestRuntimeCapabilities.coverImage}
+            alt={config.hotelName || "StayHub"}
+            className="h-full w-full object-cover"
+            style={{ objectPosition: config.coverImagePosition || "center center" }}
           />
         </div>
 
-        <div className={isAquamarineHub ? "stayhub-premium-hero-overlay stayhub-premium-hero-overlay-sandbox absolute inset-0" : "stayhub-premium-hero-overlay absolute inset-0"} />
+        <div className="stayhub-premium-hero-overlay absolute inset-0" />
 
         <div className="stayhub-premium-hero-content absolute inset-0 z-10 flex flex-col p-4">
           <div className="flex items-start justify-between gap-3">
@@ -8546,7 +8438,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               />
             </div>
             <GuestSurveyPushControls
-              hotelSlug={String(config.hotelSlug || hotelContentSlug || "aquamarin")}
+              hotelSlug={String(config.hotelSlug || hotelContentSlug || "")}
               room={room}
               roomConfirmed={roomConfirmed}
               lang={lang}
@@ -8875,7 +8767,7 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
 
       {roomConfirmed ? (
         <Day3GuestSurvey
-          hotelSlug={String(config.hotelSlug || hotelContentSlug || "aquamarin")}
+          hotelSlug={String(config.hotelSlug || hotelContentSlug || "")}
           room={room}
           roomConfirmed={roomConfirmed}
           lang={lang}
