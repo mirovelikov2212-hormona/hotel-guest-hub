@@ -57,8 +57,16 @@ legacy = replaceExact(
   legacy,
   `stayhubRoomMarker: buildMassageStayHubSheetRoomMarker({\n        hotelSlug: input.hotelSlug,\n        room: input.room,\n      }),`,
   `stayhubRoomMarker: buildMassageStayHubSheetRoomMarker({\n        hotelSlug: input.hotelSlug,\n        hotelCode: input.hotelCode,\n        room: input.room,\n      }),`,
-  4,
-  "legacy write/verify room markers",
+  3,
+  "standard legacy write/verify room markers",
+);
+
+legacy = replaceExact(
+  legacy,
+  `stayhubRoomMarker: buildMassageStayHubSheetRoomMarker({\n          hotelSlug: input.hotelSlug,\n          room: input.room,\n        }),`,
+  `stayhubRoomMarker: buildMassageStayHubSheetRoomMarker({\n          hotelSlug: input.hotelSlug,\n          hotelCode: input.hotelCode,\n          room: input.room,\n        }),`,
+  1,
+  "nested booking room marker",
 );
 
 wrapper = replaceExact(
