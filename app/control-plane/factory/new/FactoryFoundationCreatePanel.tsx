@@ -87,7 +87,7 @@ export default function FactoryFoundationCreatePanel({
   const [creating, setCreating] = useState(false);
   const [result, setResult] = useState<FoundationResult | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [idempotencyKey] = useState(() => `control-plane:${crypto.randomUUID()}`);
+  const [idempotencyKey] = useState(() => `proof:acceptance:${crypto.randomUUID()}`);
 
   async function createDraftHotel() {
     if (!confirmed || creating || result?.ok) return;
