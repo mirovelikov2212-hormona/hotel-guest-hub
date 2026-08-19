@@ -84,7 +84,7 @@ jobs:
           endpoint="${PREVIEW_BASE_URL}/api/factory-proof/runtime"
           oidc_header="x-vercel-trusted-oidc-idp-token: ${VERCEL_TRUSTED_OIDC_TOKEN}"
 
-          start_json=$(curl --fail-with-body -fsS -H "$oidc_header" "${endpoint}?action=start")
+          start_json=$(curl --fail-with-body -sS -H "$oidc_header" "${endpoint}?action=start")
           smoke_run_id=$(node -e '
             const value=JSON.parse(process.argv[1]);
             if (!value.ok || !value.smokeRunId) process.exit(1);
@@ -94,7 +94,7 @@ jobs:
 
           settled=0
           for attempt in $(seq 1 30); do
-            settle_json=$(curl --fail-with-body -fsS -H "$oidc_header" "${endpoint}?action=settle&smokeRunId=${smoke_run_id}")
+            settle_json=$(curl --fail-with-body -sS -H "$oidc_header" "${endpoint}?action=settle&smokeRunId=${smoke_run_id}")
             settle_state=$(node -e '
               const value=JSON.parse(process.argv[1]);
               process.stdout.write(String(value.state||""));
@@ -118,7 +118,7 @@ jobs:
           observed=0
           status_json=""
           for attempt in $(seq 1 30); do
-            status_json=$(curl --fail-with-body -fsS -H "$oidc_header" "${endpoint}?action=status&smokeRunId=${smoke_run_id}")
+            status_json=$(curl --fail-with-body -sS -H "$oidc_header" "${endpoint}?action=status&smokeRunId=${smoke_run_id}")
             observation_status=$(node -e '
               const value=JSON.parse(process.argv[1]);
               process.stdout.write(String(value?.observation?.status||""));
@@ -140,7 +140,7 @@ jobs:
             exit 25
           fi
 
-          certification_json=$(curl --fail-with-body -fsS -H "$oidc_header" "${endpoint}?action=certify&smokeRunId=${smoke_run_id}")
+          certification_json=$(curl --fail-with-body -sS -H "$oidc_header" "${endpoint}?action=certify&smokeRunId=${smoke_run_id}")
           node -e '
             const value=JSON.parse(process.argv[1]);
             if (!value.ok || !value.certificationRunId || !value.sandboxHotelId || !value.evidenceHash) process.exit(1);
