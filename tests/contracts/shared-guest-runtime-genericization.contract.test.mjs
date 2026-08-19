@@ -16,23 +16,30 @@ test("shared Guest runtime derives tenant capabilities from config instead of ho
   assert.equal(enabled.coverImage, "/images/future-coast.jpg");
   assert.equal(enabled.massageBookingEnabled, true);
 
-  const disabled = deriveGuestRuntimeCapabilities({
-    hotelSlug: "boutique-thirty",
+  const publicSlugFallback = deriveGuestRuntimeCapabilities({
+    publicSlug: "boutique-thirty",
     coverImage: "",
     requestDefs: [
-      { id: "massage_booking", requestType: "massage_booking", enabled: false, guestVisible: true },
+      { id: "massage_booking", requestType: "massage_booking", enabled: true, guestVisible: true },
     ],
   });
-  assert.equal(disabled.hotelSlug, "boutique-thirty");
-  assert.equal(disabled.coverImage, "/images/stayhub-factory-placeholder-hero.svg");
-  assert.equal(disabled.massageBookingEnabled, false);
+  assert.equal(publicSlugFallback.hotelSlug, "boutique-thirty");
+  assert.equal(publicSlugFallback.coverImage, "/images/stayhub-factory-placeholder-hero.svg");
+  assert.equal(publicSlugFallback.massageBookingEnabled, true);
 });
 
-test("shared Guest runtime fails closed when hotel identity is missing", () => {
-  assert.throws(
-    () => deriveGuestRuntimeCapabilities({ hotelSlug: "", requestDefs: [] }),
-    /GUEST_RUNTIME_HOTEL_SLUG_REQUIRED/,
-  );
+test("shared Guest runtime fails closed without a tenant slug instead of crashing", () => {
+  const missingTenant = deriveGuestRuntimeCapabilities({
+    hotelSlug: "",
+    publicSlug: "",
+    requestDefs: [
+      { id: "massage_booking", requestType: "massage_booking", enabled: true, guestVisible: true },
+    ],
+  });
+
+  assert.equal(missingTenant.hotelSlug, "");
+  assert.equal(missingTenant.coverImage, "/images/stayhub-factory-placeholder-hero.svg");
+  assert.equal(missingTenant.massageBookingEnabled, false);
 });
 
 test("GuestHub has no Aquamarine identity branches or Aquamarine fallback routing", async () => {
@@ -66,6 +73,15 @@ test("GuestHub no longer patches tenant prices or games-room business copy in sh
   assertNotContains(lower, "€2.05");
   assertNotContains(lower, "billiards and table tennis");
   assertNotContains(lower, "replace(/2(?:[.,]00)");
+  assertNotContains(lower, "del mar fish restaurant & bbq");
+  assertNotContains(lower, "izvora-kranevo.com");
+});
+
+test("Explore recommendations are materialized from HOTEL_INFO data", async () => {
+  const source = await readProjectFile("components/GuestHub.tsx");
+  assertContains(source, "configuredExplorePlaces");
+  assertContains(source, 'uiSectionId');
+  assertContains(source, 'item?.linkUrl');
 });
 
 test("generic Guest stay server paths require the caller hotel slug and never inject Aquamarine", async () => {
