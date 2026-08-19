@@ -4,6 +4,8 @@ import test from "node:test";
 import { deriveGuestRuntimeCapabilities } from "../../lib/guest/guest-runtime-capabilities.mjs";
 import { assertContains, assertNotContains, readProjectFile } from "../helpers/source-contract.mjs";
 
+// This contract file is also the exact-head checkpoint used to trigger release validation after the guarded runtime transform.
+
 test("shared Guest runtime derives tenant capabilities from config instead of hotel identity", () => {
   const enabled = deriveGuestRuntimeCapabilities({
     hotelSlug: "future-coast",
