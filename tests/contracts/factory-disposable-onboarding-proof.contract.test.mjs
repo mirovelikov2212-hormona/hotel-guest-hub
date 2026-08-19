@@ -45,8 +45,8 @@ test("discard keeps audit tombstone and deletes lineage before tenant resources"
   assertContains(sql, "delete from public.property_environments");
   assertContains(sql, "delete from public.hotels where id = v_run.sandbox_hotel_id");
   assertContains(sql, "delete from public.hotels where id = v_run.production_hotel_id");
-  assertContains(sql, "delete from public.properties where id = v_run.property_id");
-  assertContains(sql, "delete from public.organizations where id = v_run.organization_id");
+  assertContains(sql, "delete from public.properties p where p.id = v_run.property_id");
+  assertContains(sql, "delete from public.organizations o where o.id = v_run.organization_id");
 });
 
 test("discard refuses non-Factory or published revision state and is not client executable", async () => {
