@@ -1,9 +1,11 @@
 name: Disposable Factory P2.5 Proof Execution
 
 on:
-  push:
+  pull_request:
     branches:
-      - proof-runner/disposable-e2e-20260819-0835
+      - main
+    types:
+      - synchronize
     paths:
       - "app/api/factory-proof/runtime/route.ts"
       - "tests/contracts/disposable-proof-runner.contract.test.mjs"
@@ -15,12 +17,14 @@ permissions:
 
 jobs:
   proof:
+    if: github.head_ref == 'proof-runner/disposable-e2e-20260819-0835'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       PREVIEW_BASE_URL: https://hotel-guest-hub-git-proof-run-ac3f3f-miroslav-velikovs-projects.vercel.app
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       GH_TOKEN: ${{ github.token }}
+      PROOF_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,17 +46,17 @@ jobs:
             runs=$(curl -fsS \
               -H "Authorization: Bearer ${GH_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/factory-release-gate.yml/runs?head_sha=${GITHUB_SHA}&event=pull_request&per_page=20")
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/factory-release-gate.yml/runs?head_sha=${PROOF_HEAD_SHA}&event=pull_request&per_page=20")
             release_ok=$(node -e '
               const input=JSON.parse(process.argv[1]);
-              const ok=(input.workflow_runs||[]).some((run)=>run.head_sha===process.env.GITHUB_SHA && run.status==="completed" && run.conclusion==="success");
+              const ok=(input.workflow_runs||[]).some((run)=>run.head_sha===process.env.PROOF_HEAD_SHA && run.status==="completed" && run.conclusion==="success");
               process.stdout.write(ok ? "1" : "0");
             ' "$runs")
 
             statuses=$(curl -fsS \
               -H "Authorization: Bearer ${GH_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/statuses?per_page=100")
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${PROOF_HEAD_SHA}/statuses?per_page=100")
             vercel_ok=$(node -e '
               const input=JSON.parse(process.argv[1]);
               const ok=Array.isArray(input) && input.some((status)=>status.state==="success" && /vercel/i.test(String(status.context||"")));
@@ -66,7 +70,7 @@ jobs:
             sleep 5
           done
           if [ "$ready" != "1" ]; then
-            echo "Exact Factory Release Gate / Vercel Preview did not become green for ${GITHUB_SHA}." >&2
+            echo "Exact Factory Release Gate / Vercel Preview did not become green for ${PROOF_HEAD_SHA}." >&2
             exit 21
           fi
 
@@ -151,6 +155,6 @@ jobs:
       - name: Upload non-secret proof result
         uses: actions/upload-artifact@v4
         with:
-          name: disposable-p2-5-proof-${{ github.sha }}
+          name: disposable-p2-5-proof-${{ github.event.pull_request.head.sha }}
           path: proof-result.json
           retention-days: 1
