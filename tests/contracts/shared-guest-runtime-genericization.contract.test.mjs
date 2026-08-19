@@ -8,7 +8,7 @@ import {
 import { resolveGuestRequestAuthority } from "../../lib/server/guest-request-authority.mjs";
 import { assertContains, assertNotContains, readProjectFile } from "../helpers/source-contract.mjs";
 
-// Final exact-head checkpoint after guarded Guest runtime and shared hero CSS genericization.
+// Exact-head release checkpoint after the guarded strict Factory Guest transform.
 
 test("shared Guest runtime derives tenant capabilities from config instead of hotel identity", () => {
   const enabled = deriveGuestRuntimeCapabilities({
