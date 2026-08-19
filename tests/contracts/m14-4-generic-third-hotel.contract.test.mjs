@@ -100,6 +100,30 @@ test("M14.4 external massage adapters are explicit tenant config and fail closed
   assertContains(workflow, "/api/cron/massage-snapshot-sync");
 });
 
+test("M14.4 legacy massage writes use the configured tenant hotel code as authority", async () => {
+  const massageApi = await readProjectFile("lib/server/massage-api.ts");
+  const legacy = await readProjectFile("lib/server/massage-api-legacy.ts");
+
+  assert.equal(
+    (massageApi.match(/hotelCode: source\.config\.hotel_code/g) || []).length,
+    3,
+    "All guarded legacy write/verify entry points must pass the configured tenant hotel_code.",
+  );
+  assertContains(legacy, "explicitHotelCode?: unknown");
+  assertContains(legacy, "if (explicitHotelCode) return explicitHotelCode;");
+  assertContains(legacy, "hotelCode?: unknown;");
+  assert.equal(
+    (legacy.match(/getMassageHotelCode\(input\.hotelSlug, input\.hotelCode\)/g) || []).length,
+    5,
+    "Booking, verification, controlled E2E and marker generation must all prefer the explicit hotel code.",
+  );
+  assert.equal(
+    (legacy.match(/hotelCode: input\.hotelCode/g) || []).length,
+    4,
+    "Every StayHub room marker created by a legacy write or verification path must receive the same explicit code.",
+  );
+});
+
 test("M14.4 generic certification tenant is data-only, tenant-localized and has no external Sheet source", async () => {
   const fixture = await readFixture();
   const validation = validateHotelOnboardingFixture(fixture);
