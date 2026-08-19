@@ -110,3 +110,29 @@ test("P2.5 certification requires exact evidence gates and remains behind Platfo
   assertContains(route, "getCurrentPlatformAdminSession()");
   assertContains(route, "certifyFactorySandbox");
 });
+
+test("P2.5 forward fix never mutates immutable config revision content", async () => {
+  const migration = await readProjectFile(
+    "supabase/migrations/20260819112000_p2_5_sandbox_certification_revision_immutability_fix.sql",
+  );
+  const replacementFunction = migration.split("-- Migration-level regression guard")[0];
+
+  assertContains(replacementFunction, "create or replace function public.certify_factory_sandbox_v1");
+  assertContains(replacementFunction, "security definer");
+  assertContains(replacementFunction, "set search_path = pg_catalog, public");
+  assertContains(replacementFunction, "update public.hotel_health_certification_state set");
+  assertContains(replacementFunction, "update public.hotel_config_projection_state set");
+  assertContains(replacementFunction, "update public.hotels set active=true");
+  assertContains(replacementFunction, "P2_5_PRODUCTION_STATE_CHANGED");
+  assertContains(replacementFunction, "insert into public.factory_sandbox_certification_runs");
+  assertContains(replacementFunction, "insert into public.control_plane_audit_log");
+  assertNotContains(replacementFunction, "update public.hotel_config_revisions");
+
+  assertContains(migration, "P2_5_CERTIFICATION_REVISION_IMMUTABILITY_REGRESSION");
+  assertContains(migration, "P2_5_REVISION_IMMUTABILITY_TRIGGER_MISSING");
+  assertContains(migration, "guard_hotel_config_revision_update");
+  assertContains(migration, "t.tgenabled <> 'D'");
+  assertContains(migration, "(t.tgtype & 2) = 2");
+  assertContains(migration, "(t.tgtype & 16) = 16");
+  assertContains(migration, "grant execute on function public.certify_factory_sandbox_v1(uuid,uuid,text,jsonb) to service_role");
+});
