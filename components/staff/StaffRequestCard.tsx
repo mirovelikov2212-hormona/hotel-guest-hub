@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useStaffHotelTimeZone } from "@/components/staff/StaffHotelTimeZoneProvider";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import type { StaffBillingStatus, StaffRequest } from "@/lib/staff/types";
-import { staffDepartmentClasses, staffStatusClasses } from "@/lib/staff/types";
+import { getStaffDepartmentClass, staffStatusClasses } from "@/lib/staff/types";
 import { isMassageBookingLikeRequest } from "@/lib/staff/request-type-utils";
 import {
   staffText,
@@ -217,7 +217,7 @@ export default function StaffRequestCard({
 
             {mode !== "department" ? (
               <span
-                className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${staffDepartmentClasses[request.department]}`}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${getStaffDepartmentClass(request.department)}`}
               >
                 {translateDepartment(request.department, lang)}
               </span>

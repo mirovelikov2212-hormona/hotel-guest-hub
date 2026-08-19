@@ -364,6 +364,14 @@ function ReceptionDailyHistory({
   );
 }
 
+function isReceptionOperationalDepartment(department: string) {
+  return (
+    department === "reception" ||
+    department === "housekeeping" ||
+    department === "maintenance"
+  );
+}
+
 export default function ReceptionPage({
   hotelTimeZone,
 }: {
@@ -423,17 +431,6 @@ export default function ReceptionPage({
 
     return sortRequests(base, sortMode, nowMs);
   }, [requests, activeDepartment, activeStatus, sortMode, nowMs]);
-
-  const actionableRequests = useMemo(
-    () =>
-      filteredRequests.filter(
-        (request) =>
-          request.department === "reception" ||
-          request.department === "housekeeping" ||
-          request.department === "maintenance",
-      ),
-    [filteredRequests],
-  );
 
   const receptionSurveyAlertRequests = useMemo(
     () =>
@@ -604,23 +601,24 @@ export default function ReceptionPage({
           </p>
         </div>
 
-        {actionableRequests.length ? (
-          actionableRequests.map((request) => {
+        {filteredRequests.length ? (
+          filteredRequests.map((request) => {
             const requestAgeMinutes = getRequestAgeMinutes(request, nowMs);
+            const canReceptionAct = isReceptionOperationalDepartment(request.department);
 
             return (
               <StaffRequestCard
                 key={request.id}
                 request={request}
                 mode="reception"
-                canAct
+                canAct={canReceptionAct}
                 forceBillingOnly={isMassageBookingLikeRequest(request)}
                 isOverdue={isOverdueForReception(request, nowMs)}
                 overdueMinutes={requestAgeMinutes}
                 onStart={(id) => void updateRequestStatus(id, "in_progress")}
                 onDone={(id) => void updateRequestStatus(id, "completed")}
                 onReturn={(id) => void updateRequestStatus(id, "returned")}
-                canCharge={Boolean(request.requiresBilling)}
+                canCharge={canReceptionAct && Boolean(request.requiresBilling)}
                 onCharge={(id) => void setRequestBillingStatus(id, "charged")}
                 onWaive={(id) => void setRequestBillingStatus(id, "waived")}
                 onCancelBilling={(id) =>
