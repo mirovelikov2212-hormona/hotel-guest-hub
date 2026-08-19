@@ -1,5 +1,3 @@
-import { createHash, timingSafeEqual } from "node:crypto";
-
 import { NextRequest, NextResponse } from "next/server";
 
 import type { PlatformAdminAuthority } from "@/lib/server/control-plane-auth";
@@ -21,7 +19,6 @@ const EXPECTED_PRODUCTION_HOTEL_ID = "2fe51e8f-4ae8-4ac3-a96b-d97f3cee62ed";
 const EXPECTED_SANDBOX_HOTEL_ID = "88be3201-6306-45df-835f-18916f70c832";
 const EXPECTED_PRODUCTION_REVISION_ID = "f41dd750-6e61-48d7-b544-75b859189f57";
 const EXPECTED_SANDBOX_REVISION_ID = "adac0791-466e-4ecf-99fc-9c0c5c1552eb";
-const PROOF_TOKEN_SHA256 = "992322135cc118e382372e23faa229361787610c378da0ea9a6c36e0cb2fd7be";
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
   Pragma: "no-cache",
@@ -37,13 +34,6 @@ const PROOF_AUTHORITY: PlatformAdminAuthority = {
 
 function response(body: Record<string, unknown>, status: number) {
   return NextResponse.json(body, { status, headers: NO_STORE_HEADERS });
-}
-
-function hasValidOneTimeToken(req: NextRequest) {
-  const supplied = String(req.nextUrl.searchParams.get("token") || "");
-  const suppliedDigest = createHash("sha256").update(supplied).digest();
-  const expectedDigest = Buffer.from(PROOF_TOKEN_SHA256, "hex");
-  return suppliedDigest.length === expectedDigest.length && timingSafeEqual(suppliedDigest, expectedDigest);
 }
 
 async function requireExactDisposableProofLineage() {
@@ -81,10 +71,6 @@ export async function GET(req: NextRequest) {
     process.env.VERCEL_ENV !== "preview"
     || process.env.VERCEL_GIT_COMMIT_REF !== EXPECTED_BRANCH
   ) {
-    return response({ ok: false, error: "not_found" }, 404);
-  }
-
-  if (!hasValidOneTimeToken(req)) {
     return response({ ok: false, error: "not_found" }, 404);
   }
 
