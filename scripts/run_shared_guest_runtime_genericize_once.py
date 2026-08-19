@@ -34,11 +34,12 @@ replace_once(
     '          hotelSlug: String(config.hotelSlug || hotelContentSlug || ""),\n',
     "stay confirm tenant fallback",
 )
-replace_once(
-    '          hotelSlug={String(config.hotelSlug || hotelContentSlug || "aquamarin")}\n',
-    '          hotelSlug={String(config.hotelSlug || hotelContentSlug || "")}\n',
-    "day3 survey tenant fallback",
-)
+day3_old = '          hotelSlug={String(config.hotelSlug || hotelContentSlug || "aquamarin")}\n'
+day3_new = '          hotelSlug={String(config.hotelSlug || hotelContentSlug || "")}\n'
+day3_count = source.count(day3_old)
+if day3_count != 2:
+    raise SystemExit(f"day3 survey tenant fallback: expected exactly 2 matches, got {day3_count}")
+source = source.replace(day3_old, day3_new)
 replace_once(
     '  const name = String(hotelName || "Hotel Aquamarine").trim();\n',
     '  const name = String(hotelName || "StayHub").trim();\n',
