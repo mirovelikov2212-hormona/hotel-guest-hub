@@ -8,16 +8,14 @@ import {
 
 const ROUTE = "app/api/factory-proof/runtime/route.ts";
 
-test("disposable proof runner is exact-branch Preview-only and one-time-token gated", async () => {
+test("disposable proof runner is exact-branch Preview-only behind Vercel Deployment Protection", async () => {
   const source = await readProjectFile(ROUTE);
 
   assertContains(source, 'process.env.VERCEL_ENV !== "preview"');
   assertContains(source, 'process.env.VERCEL_GIT_COMMIT_REF !== EXPECTED_BRANCH');
   assertContains(source, 'const EXPECTED_BRANCH = "proof-runner/disposable-e2e-20260819-0835"');
-  assertContains(source, 'const PROOF_TOKEN_SHA256 = "992322135cc118e382372e23faa229361787610c378da0ea9a6c36e0cb2fd7be"');
-  assertContains(source, 'req.nextUrl.searchParams.get("token")');
-  assertContains(source, 'timingSafeEqual(suppliedDigest, expectedDigest)');
-  assertNotContains(source, "VnJH9eb2hmazkDXI96rCZlU16ONc3p6JdrwQXtAaR1mm9qd_fKxQVqSRwHvZ-LR7");
+  assertNotContains(source, "PROOF_TOKEN_SHA256");
+  assertNotContains(source, 'searchParams.get("token")');
 });
 
 test("proof runner is pinned to the authoritative disposable P2.4 lineage and pre-certification state", async () => {
