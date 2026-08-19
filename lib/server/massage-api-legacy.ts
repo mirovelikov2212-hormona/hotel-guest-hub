@@ -419,7 +419,14 @@ function getFirstConfiguredFlag(prefix: string, candidates: string[]) {
   return undefined;
 }
 
-export function getMassageHotelCode(inputHotelSlug: unknown) {
+export function getMassageHotelCode(inputHotelSlug: unknown, explicitHotelCode?: unknown) {
+  explicitHotelCode = String(explicitHotelCode || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "")
+    .slice(0, 6);
+  if (explicitHotelCode) return explicitHotelCode;
+
   const normalized = normalizeMassageHotelSlug(inputHotelSlug);
   const candidates = getMassageConfigSlugCandidates(inputHotelSlug);
   const configured = String(
@@ -437,10 +444,11 @@ export function getMassageHotelCode(inputHotelSlug: unknown) {
 
 export function buildMassageStayHubSheetRoomMarker(input: {
   hotelSlug: unknown;
+  hotelCode?: unknown;
   room: unknown;
 }) {
   const room = String(input.room || "").trim();
-  const hotelCode = getMassageHotelCode(input.hotelSlug);
+  const hotelCode = getMassageHotelCode(input.hotelSlug, input.hotelCode);
   return [room, hotelCode, "SH"].filter(Boolean).join(" ");
 }
 
@@ -1235,6 +1243,7 @@ async function waitForMassageVerification(delayMs: number) {
 
 async function verifyMassageBookingAfterAmbiguousFailure(input: {
   hotelSlug: unknown;
+  hotelCode?: unknown;
   serviceId: string;
   date: string;
   time: string;
@@ -1249,9 +1258,10 @@ async function verifyMassageBookingAfterAmbiguousFailure(input: {
       time: input.time,
       room: input.room,
       stayhubRoomNumber: input.room,
-      stayhubHotelCode: getMassageHotelCode(input.hotelSlug),
+      stayhubHotelCode: getMassageHotelCode(input.hotelSlug, input.hotelCode),
       stayhubRoomMarker: buildMassageStayHubSheetRoomMarker({
         hotelSlug: input.hotelSlug,
+        hotelCode: input.hotelCode,
         room: input.room,
       }),
     },
@@ -1289,6 +1299,7 @@ async function verifyMassageBookingAfterAmbiguousFailure(input: {
 
 export async function createMassageBooking(input: {
   hotelSlug: unknown;
+  hotelCode?: unknown;
   serviceId: string;
   date: string;
   time: string;
@@ -1307,9 +1318,10 @@ export async function createMassageBooking(input: {
         time: input.time,
         room: input.room,
         stayhubRoomNumber: input.room,
-        stayhubHotelCode: getMassageHotelCode(input.hotelSlug),
+        stayhubHotelCode: getMassageHotelCode(input.hotelSlug, input.hotelCode),
         stayhubRoomMarker: buildMassageStayHubSheetRoomMarker({
           hotelSlug: input.hotelSlug,
+          hotelCode: input.hotelCode,
           room: input.room,
         }),
         testMode: false,
@@ -1513,6 +1525,7 @@ export async function createMassageBooking(input: {
 
 export async function verifyMassageBooking(input: {
   hotelSlug: unknown;
+  hotelCode?: unknown;
   serviceId: string;
   date: string;
   time: string;
@@ -1527,9 +1540,10 @@ export async function verifyMassageBooking(input: {
       time: input.time,
       room: input.room,
       stayhubRoomNumber: input.room,
-      stayhubHotelCode: getMassageHotelCode(input.hotelSlug),
+      stayhubHotelCode: getMassageHotelCode(input.hotelSlug, input.hotelCode),
       stayhubRoomMarker: buildMassageStayHubSheetRoomMarker({
         hotelSlug: input.hotelSlug,
+        hotelCode: input.hotelCode,
         room: input.room,
       }),
       testMode: false,
@@ -1560,6 +1574,7 @@ export async function verifyMassageBooking(input: {
 
 export async function createMassageControlledE2EBooking(input: {
   hotelSlug: unknown;
+  hotelCode?: unknown;
   serviceId: string;
   date: string;
   time: string;
@@ -1590,9 +1605,10 @@ export async function createMassageControlledE2EBooking(input: {
       time: input.time,
       room: input.room,
       stayhubRoomNumber: input.room,
-      stayhubHotelCode: getMassageHotelCode(input.hotelSlug),
+      stayhubHotelCode: getMassageHotelCode(input.hotelSlug, input.hotelCode),
       stayhubRoomMarker: buildMassageStayHubSheetRoomMarker({
         hotelSlug: input.hotelSlug,
+        hotelCode: input.hotelCode,
         room: input.room,
       }),
     },

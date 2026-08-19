@@ -112,14 +112,14 @@ export async function createMassageBooking(
   input: Parameters<typeof legacy.createMassageBooking>[0],
 ) {
   const source = await requireLegacyExternalSource(input.hotelSlug, "mirror");
-  return legacy.createMassageBooking({ ...input, hotelSlug: source.hotel.slug });
+  return legacy.createMassageBooking({ ...input, hotelSlug: source.hotel.slug, hotelCode: source.config.hotel_code });
 }
 
 export async function verifyMassageBooking(
   input: Parameters<typeof legacy.verifyMassageBooking>[0],
 ) {
   const source = await requireLegacyExternalSource(input.hotelSlug, "mirror");
-  return legacy.verifyMassageBooking({ ...input, hotelSlug: source.hotel.slug });
+  return legacy.verifyMassageBooking({ ...input, hotelSlug: source.hotel.slug, hotelCode: source.config.hotel_code });
 }
 
 export async function createMassageControlledE2EBooking(
@@ -129,5 +129,6 @@ export async function createMassageControlledE2EBooking(
   return legacy.createMassageControlledE2EBooking({
     ...input,
     hotelSlug: source.hotel.slug,
+    hotelCode: source.config.hotel_code,
   });
 }
