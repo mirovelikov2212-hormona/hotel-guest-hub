@@ -35,6 +35,11 @@ replace_once(
     "stay confirm tenant fallback",
 )
 replace_once(
+    '          hotelSlug={String(config.hotelSlug || hotelContentSlug || "aquamarin")}\n',
+    '          hotelSlug={String(config.hotelSlug || hotelContentSlug || "")}\n',
+    "day3 survey tenant fallback",
+)
+replace_once(
     '  const name = String(hotelName || "Hotel Aquamarine").trim();\n',
     '  const name = String(hotelName || "StayHub").trim();\n',
     "guest intro tenant fallback",
