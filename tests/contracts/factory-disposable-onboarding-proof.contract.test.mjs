@@ -40,8 +40,8 @@ test("discard keeps audit tombstone and deletes lineage before tenant resources"
   assertContains(sql, "delete from public.hotel_config_projection_state");
   assertContains(sql, "delete from public.hotel_config_revisions");
   assertContains(sql, "delete from public.property_environments");
-  assertContains(sql, "delete from public.hotels where id = v_sandbox_hotel_id");
-  assertContains(sql, "delete from public.hotels where id = v_production_hotel_id");
+  assertContains(sql, "delete from public.hotels where id = v_run.sandbox_hotel_id");
+  assertContains(sql, "delete from public.hotels where id = v_run.production_hotel_id");
   assertContains(sql, "delete from public.properties where id = v_run.property_id");
   assertContains(sql, "delete from public.organizations where id = v_run.organization_id");
 });
