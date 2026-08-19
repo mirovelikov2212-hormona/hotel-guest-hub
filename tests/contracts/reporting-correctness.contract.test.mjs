@@ -50,6 +50,23 @@ test("report email queries keep sandbox exclusion at the application boundary", 
   );
 });
 
+test("scheduled weekly reporting uses tenant-scoped recipient delivery", async () => {
+  const workflow = await readProjectFile(".github/workflows/weekly-report.yml");
+  const route = await readProjectFile("app/api/cron/report-email/route.ts");
+
+  assertContains(
+    workflow,
+    "https://www.stayhub.app/api/cron/report-email?report=weekly",
+    "The scheduled weekly report must use the tenant-scoped report-email route.",
+  );
+  assertNotContains(
+    workflow,
+    "https://www.stayhub.app/api/cron/weekly-report",
+    "The scheduler must not bypass per-hotel report recipients through the legacy weekly route.",
+  );
+  assertContains(route, "getHotelReportRecipient(report.hotel_id)");
+});
+
 test("weekly report endpoint keeps duplicate-delivery protection too", async () => {
   const source = await readProjectFile("app/api/cron/weekly-report/route.ts");
 

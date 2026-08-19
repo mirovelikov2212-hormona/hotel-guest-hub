@@ -26,7 +26,7 @@ jobs:
 
           response=$(curl --fail-with-body --retry 2 --retry-delay 5 --max-time 90 -sS -w "\n%{http_code}" \
             -H "Authorization: Bearer ${CRON_SECRET}" \
-            "https://www.stayhub.app/api/cron/weekly-report")
+            "https://www.stayhub.app/api/cron/report-email?report=weekly")
 
           body=$(echo "$response" | sed '$d')
           status=$(echo "$response" | tail -n1)
