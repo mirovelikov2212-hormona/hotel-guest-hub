@@ -130,6 +130,9 @@ test("P2.5 forward fix never mutates immutable config revision content", async (
 
   assertContains(migration, "P2_5_CERTIFICATION_REVISION_IMMUTABILITY_REGRESSION");
   assertContains(migration, "P2_5_REVISION_IMMUTABILITY_TRIGGER_MISSING");
-  assertContains(migration, "trg_prevent_hotel_config_revision_mutation");
+  assertContains(migration, "guard_hotel_config_revision_update");
+  assertContains(migration, "t.tgenabled <> 'D'");
+  assertContains(migration, "(t.tgtype & 2) = 2");
+  assertContains(migration, "(t.tgtype & 16) = 16");
   assertContains(migration, "grant execute on function public.certify_factory_sandbox_v1(uuid,uuid,text,jsonb) to service_role");
 });
