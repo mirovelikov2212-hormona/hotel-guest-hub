@@ -20,15 +20,15 @@ test("disposable proof runner is exact-branch Preview-only and one-time-token ga
   assertNotContains(source, "VnJH9eb2hmazkDXI96rCZlU16ONc3p6JdrwQXtAaR1mm9qd_fKxQVqSRwHvZ-LR7");
 });
 
-test("proof runner is pinned to the exact disposable P2.4 lineage and pre-certification state", async () => {
+test("proof runner is pinned to the authoritative disposable P2.4 lineage and pre-certification state", async () => {
   const source = await readProjectFile(ROUTE);
 
   assertContains(source, 'const EXPECTED_ENVELOPE_ID = "523e5f46-7871-4061-bf4d-115b555cfc98"');
   assertContains(source, 'const EXPECTED_ONBOARDING_RUN_ID = "c22be8f6-6cb0-4fd1-89a8-1489af42cb18"');
-  assertContains(source, 'const EXPECTED_PRODUCTION_HOTEL_ID = "5db54dda-0a0e-4ece-88ad-91058fb888a1"');
-  assertContains(source, 'const EXPECTED_SANDBOX_HOTEL_ID = "12206286-7a5a-4856-9610-4c75f0455202"');
-  assertContains(source, 'const EXPECTED_PRODUCTION_REVISION_ID = "4341b8a3-5cc8-4006-a33c-68abe471ba62"');
-  assertContains(source, 'const EXPECTED_SANDBOX_REVISION_ID = "9eaa845d-e7c8-47d9-8f55-80906f502a35"');
+  assertContains(source, 'const EXPECTED_PRODUCTION_HOTEL_ID = "2fe51e8f-4ae8-4ac3-a96b-d97f3cee62ed"');
+  assertContains(source, 'const EXPECTED_SANDBOX_HOTEL_ID = "88be3201-6306-45df-835f-18916f70c832"');
+  assertContains(source, 'const EXPECTED_PRODUCTION_REVISION_ID = "f41dd750-6e61-48d7-b544-75b859189f57"');
+  assertContains(source, 'const EXPECTED_SANDBOX_REVISION_ID = "adac0791-466e-4ecf-99fc-9c0c5c1552eb"');
   assertContains(source, 'preflight.databaseStatus !== "validated"');
   assertContains(source, 'preflight.environment.propertyLifecycleState !== "draft"');
   assertContains(source, "preflight.environment.productionActive");
