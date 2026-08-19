@@ -1,0 +1,30 @@
+name: Disposable Factory Proof Runner Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/api/factory-proof/runtime/route.ts"
+      - "tests/contracts/disposable-proof-runner.contract.test.mjs"
+      - ".github/workflows/disposable-proof-runner.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/contracts/disposable-proof-runner.contract.test.mjs
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
