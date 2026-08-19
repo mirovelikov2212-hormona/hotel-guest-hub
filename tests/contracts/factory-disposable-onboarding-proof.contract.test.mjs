@@ -18,7 +18,9 @@ test("disposable Factory onboarding proof is operator-only, proof-namespaced, an
   assertContains(sql, "v_property_key not like 'proof-%'");
   assertContains(sql, "P2_PROOF_DISCARD_PRODUCTION_ACTIVE_FORBIDDEN");
   assertContains(sql, "P2_PROOF_DISCARD_PRODUCTION_GATE_STARTED");
-  assertContains(sql, "factory_production_readiness_runs");
+  assertContains(sql, "from public.factory_production_readiness_runs pr");
+  assertContains(sql, "pr.production_hotel_id = v_run.production_hotel_id");
+  assertContains(sql, "pr.sandbox_hotel_id = v_run.sandbox_hotel_id");
   assertContains(sql, "factory_production_publication_runs");
   assertContains(sql, "factory_production_runtime_certification_runs");
   assertContains(sql, "factory_production_live_activation_runs");
@@ -32,8 +34,9 @@ test("discard keeps audit tombstone and deletes lineage before tenant resources"
   assertContains(sql, "delete from public.factory_vercel_runtime_log_events");
   assertContains(sql, "delete from public.factory_sandbox_certification_runs");
   assertContains(sql, "delete from public.factory_onboarding_envelope_projection_runs");
-  assertContains(sql, "delete from public.factory_operational_resource_projection_runs");
-  assertContains(sql, "delete from public.factory_core_resource_projection_runs");
+  assertContains(sql, "delete from public.factory_operational_resource_projection_runs op");
+  assertContains(sql, "delete from public.factory_core_resource_projection_runs c");
+  assertContains(sql, "c.onboarding_run_id = v_run.id");
   assertContains(sql, "delete from public.factory_onboarding_runs");
   assertContains(sql, "delete from public.hotel_health_certification_state");
   assertContains(sql, "delete from public.hotel_config_publication_state");
