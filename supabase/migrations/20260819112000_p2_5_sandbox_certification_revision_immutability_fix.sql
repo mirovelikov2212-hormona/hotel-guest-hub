@@ -189,7 +189,8 @@ comment on function public.certify_factory_sandbox_v1(uuid,uuid,text,jsonb) is
   'P2.5 audited Sandbox-only certification. Certification metadata is stored outside immutable config revisions; Production remains inactive/reserved.';
 
 -- Migration-level regression guard: the certification function must not mutate
--- immutable revision content, and the revision immutability trigger must remain installed.
+-- immutable revision content, and an enabled BEFORE UPDATE immutability guard
+-- must remain installed on hotel_config_revisions.
 do $guard$
 declare
   v_function_def text;
@@ -206,9 +207,15 @@ begin
     from pg_catalog.pg_trigger t
     join pg_catalog.pg_class c on c.oid=t.tgrelid
     join pg_catalog.pg_namespace n on n.oid=c.relnamespace
+    join pg_catalog.pg_proc p on p.oid=t.tgfoid
+    join pg_catalog.pg_namespace pn on pn.oid=p.pronamespace
     where n.nspname='public'
       and c.relname='hotel_config_revisions'
-      and t.tgname='trg_prevent_hotel_config_revision_mutation'
+      and pn.nspname='public'
+      and p.proname='guard_hotel_config_revision_update'
+      and t.tgenabled <> 'D'
+      and (t.tgtype & 2) = 2
+      and (t.tgtype & 16) = 16
       and not t.tgisinternal
   ) then
     raise exception 'P2_5_REVISION_IMMUTABILITY_TRIGGER_MISSING';
