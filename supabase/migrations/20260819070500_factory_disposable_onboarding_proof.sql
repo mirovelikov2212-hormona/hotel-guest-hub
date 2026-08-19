@@ -35,11 +35,11 @@ begin
     raise exception 'P2_PROOF_DISCARD_REQUIRED_ID_MISSING';
   end if;
 
-  select role
+  select pa.role
     into v_actor_role
-  from public.platform_admins
-  where id = p_actor_admin_id
-    and active = true;
+  from public.platform_admins pa
+  where pa.id = p_actor_admin_id
+    and pa.active = true;
 
   if v_actor_role is null or v_actor_role not in ('super_admin', 'operator') then
     raise exception 'P2_PROOF_DISCARD_ADMIN_FORBIDDEN';
@@ -60,10 +60,10 @@ begin
     hashtextextended('stayhub:p2:proof-discard:' || p_onboarding_run_id::text, 0)
   );
 
-  select *
+  select f.*
     into v_run
-  from public.factory_onboarding_runs
-  where id = p_onboarding_run_id
+  from public.factory_onboarding_runs f
+  where f.id = p_onboarding_run_id
   for update;
 
   if not found or v_run.status <> 'completed' then
@@ -101,10 +101,10 @@ begin
     raise exception 'P2_PROOF_DISCARD_PROPERTY_LIFECYCLE_FORBIDDEN';
   end if;
 
-  select *
+  select h.*
     into v_production
-  from public.hotels
-  where id = v_run.production_hotel_id
+  from public.hotels h
+  where h.id = v_run.production_hotel_id
   for update;
 
   if not found
@@ -117,10 +117,10 @@ begin
     raise exception 'P2_PROOF_DISCARD_PRODUCTION_ACTIVE_FORBIDDEN';
   end if;
 
-  select *
+  select h.*
     into v_sandbox
-  from public.hotels
-  where id = v_run.sandbox_hotel_id
+  from public.hotels h
+  where h.id = v_run.sandbox_hotel_id
   for update;
 
   if not found
@@ -132,85 +132,85 @@ begin
 
   select count(*)
     into v_environment_count
-  from public.property_environments
-  where property_id = v_run.property_id;
+  from public.property_environments pe
+  where pe.property_id = v_run.property_id;
 
   if v_environment_count <> 2
      or not exists (
-       select 1 from public.property_environments
-       where property_id = v_run.property_id
-         and hotel_id = v_run.production_hotel_id
-         and environment = 'production'
+       select 1 from public.property_environments pe
+       where pe.property_id = v_run.property_id
+         and pe.hotel_id = v_run.production_hotel_id
+         and pe.environment = 'production'
      )
      or not exists (
-       select 1 from public.property_environments
-       where property_id = v_run.property_id
-         and hotel_id = v_run.sandbox_hotel_id
-         and environment = 'sandbox'
+       select 1 from public.property_environments pe
+       where pe.property_id = v_run.property_id
+         and pe.hotel_id = v_run.sandbox_hotel_id
+         and pe.environment = 'sandbox'
      ) then
     raise exception 'P2_PROOF_DISCARD_ENVIRONMENT_LINEAGE_INVALID';
   end if;
 
   if exists (
     select 1
-    from public.property_commercial_state
-    where property_id = v_run.property_id
+    from public.property_commercial_state pcs
+    where pcs.property_id = v_run.property_id
   ) or exists (
     select 1
-    from public.property_commercial_lifecycle_events
-    where property_id = v_run.property_id
+    from public.property_commercial_lifecycle_events pce
+    where pce.property_id = v_run.property_id
   ) then
     raise exception 'P2_PROOF_DISCARD_COMMERCIAL_STATE_FORBIDDEN';
   end if;
 
   if exists (
-    select 1 from public.factory_production_readiness_runs
-    where production_hotel_id = v_run.production_hotel_id
-       or sandbox_hotel_id = v_run.sandbox_hotel_id
+    select 1 from public.factory_production_readiness_runs pr
+    where pr.production_hotel_id = v_run.production_hotel_id
+       or pr.sandbox_hotel_id = v_run.sandbox_hotel_id
   ) or exists (
-    select 1 from public.factory_production_publication_runs
-    where production_hotel_id = v_run.production_hotel_id
+    select 1 from public.factory_production_publication_runs pp
+    where pp.production_hotel_id = v_run.production_hotel_id
   ) or exists (
-    select 1 from public.factory_production_runtime_certification_runs
-    where production_hotel_id = v_run.production_hotel_id
+    select 1 from public.factory_production_runtime_certification_runs pc
+    where pc.production_hotel_id = v_run.production_hotel_id
   ) or exists (
-    select 1 from public.factory_production_live_activation_runs
-    where production_hotel_id = v_run.production_hotel_id
+    select 1 from public.factory_production_live_activation_runs pla
+    where pla.production_hotel_id = v_run.production_hotel_id
   ) or exists (
-    select 1 from public.factory_production_live_rollback_runs
-    where production_hotel_id = v_run.production_hotel_id
+    select 1 from public.factory_production_live_rollback_runs plr
+    where plr.production_hotel_id = v_run.production_hotel_id
   ) then
     raise exception 'P2_PROOF_DISCARD_PRODUCTION_GATE_STARTED';
   end if;
 
   if exists (
     select 1
-    from public.hotel_config_publication_state
-    where hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id)
-      and (published_revision_id is not null or last_known_good_revision_id is not null)
+    from public.hotel_config_publication_state ps
+    where ps.hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id)
+      and (ps.published_revision_id is not null or ps.last_known_good_revision_id is not null)
   ) then
     raise exception 'P2_PROOF_DISCARD_PUBLISHED_STATE_FORBIDDEN';
   end if;
 
   select count(*)
     into v_revision_count
-  from public.hotel_config_revisions
-  where hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id);
+  from public.hotel_config_revisions r
+  where r.hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id);
 
   if v_revision_count < 2
      or not exists (
-       select 1 from public.hotel_config_revisions
-       where hotel_id = v_run.production_hotel_id
+       select 1 from public.hotel_config_revisions r
+       where r.hotel_id = v_run.production_hotel_id
      )
      or not exists (
-       select 1 from public.hotel_config_revisions
-       where hotel_id = v_run.sandbox_hotel_id
+       select 1 from public.hotel_config_revisions r
+       where r.hotel_id = v_run.sandbox_hotel_id
      )
      or exists (
        select 1
-       from public.hotel_config_revisions
-       where hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id)
-         and (source_type <> 'factory_blueprint' or status <> 'draft')
+       from public.hotel_config_revisions r
+       where r.hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id)
+         and (r.source_type <> 'factory_blueprint' or r.status <> 'draft')
      ) then
     raise exception 'P2_PROOF_DISCARD_REVISION_STATE_FORBIDDEN';
   end if;
@@ -278,50 +278,50 @@ begin
     )
   );
 
-  delete from public.factory_vercel_runtime_log_events
-  where envelope_projection_run_id = any(v_envelope_run_ids);
+  delete from public.factory_vercel_runtime_log_events l
+  where l.envelope_projection_run_id = any(v_envelope_run_ids);
 
-  delete from public.factory_sandbox_certification_runs
-  where envelope_projection_run_id = any(v_envelope_run_ids);
+  delete from public.factory_sandbox_certification_runs s
+  where s.envelope_projection_run_id = any(v_envelope_run_ids);
 
-  delete from public.factory_onboarding_envelope_projection_runs
-  where id = any(v_envelope_run_ids);
+  delete from public.factory_onboarding_envelope_projection_runs e
+  where e.id = any(v_envelope_run_ids);
 
-  delete from public.factory_operational_resource_projection_runs
-  where core_projection_run_id in (
-    select id
-    from public.factory_core_resource_projection_runs
-    where onboarding_run_id = v_run.id
+  delete from public.factory_operational_resource_projection_runs op
+  where op.core_projection_run_id in (
+    select c.id
+    from public.factory_core_resource_projection_runs c
+    where c.onboarding_run_id = v_run.id
   );
 
-  delete from public.factory_core_resource_projection_runs
-  where onboarding_run_id = v_run.id;
+  delete from public.factory_core_resource_projection_runs c
+  where c.onboarding_run_id = v_run.id;
 
-  delete from public.factory_onboarding_runs
-  where id = v_run.id;
+  delete from public.factory_onboarding_runs f
+  where f.id = v_run.id;
 
-  delete from public.hotel_health_certification_state
-  where hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id);
+  delete from public.hotel_health_certification_state hs
+  where hs.hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id);
 
-  delete from public.hotel_config_publication_state
-  where hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id);
+  delete from public.hotel_config_publication_state ps
+  where ps.hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id);
 
-  delete from public.hotel_config_projection_state
-  where hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id);
+  delete from public.hotel_config_projection_state ps
+  where ps.hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id);
 
-  delete from public.property_environments
-  where property_id = v_run.property_id;
+  delete from public.property_environments pe
+  where pe.property_id = v_run.property_id;
 
-  delete from public.hotel_config_revisions
-  where hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id);
+  delete from public.hotel_config_revisions r
+  where r.hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id);
 
   delete from public.hotels where id = v_run.sandbox_hotel_id;
   delete from public.hotels where id = v_run.production_hotel_id;
 
-  delete from public.properties where id = v_run.property_id;
+  delete from public.properties p where p.id = v_run.property_id;
 
-  delete from public.organizations where id = v_run.organization_id
-    and slug like 'proof-%'
+  delete from public.organizations o where o.id = v_run.organization_id
+    and o.slug like 'proof-%'
     and not exists (
       select 1 from public.properties p where p.organization_id = v_run.organization_id
     )
