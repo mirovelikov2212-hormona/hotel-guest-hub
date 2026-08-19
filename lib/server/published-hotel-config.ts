@@ -3,6 +3,7 @@ import "server-only";
 import type { HotelConfig } from "@/lib/types";
 import { attachGuestRequestRelationalAuthority } from "@/lib/server/guest-request-relational-ids.mjs";
 import { getFactoryProductionRelationalAuthority } from "@/lib/server/factory-production-relational-authority";
+import { getFactorySandboxRelationalAuthority } from "@/lib/server/factory-sandbox-relational-authority";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 type PublicationStateRow = {
@@ -25,12 +26,45 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
   );
 }
 
-function isFactoryLivePilot(validationJson: Record<string, unknown>) {
+function hasValidationWarning(
+  validationJson: Record<string, unknown>,
+  expectedWarning: string,
+) {
   const warnings = Array.isArray(validationJson.warnings)
     ? validationJson.warnings
     : [];
   return warnings.some(
-    (warning) => String(warning || "") === "FACTORY_PRODUCTION_LIVE_PILOT",
+    (warning) => String(warning || "") === expectedWarning,
+  );
+}
+
+function isFactoryLivePilot(validationJson: Record<string, unknown>) {
+  return hasValidationWarning(validationJson, "FACTORY_PRODUCTION_LIVE_PILOT");
+}
+
+function isFactorySandboxAcceptance(validationJson: Record<string, unknown>) {
+  return hasValidationWarning(
+    validationJson,
+    "FACTORY_SANDBOX_ACCEPTANCE_CERTIFIED",
+  );
+}
+
+function getConfiguredGuestRequestTypes(config: HotelConfig) {
+  const defs = Array.isArray(config.requestDefs) ? config.requestDefs : [];
+  return Array.from(
+    new Set(
+      defs
+        .filter(
+          (definition) =>
+            definition &&
+            definition.enabled !== false &&
+            definition.guestVisible !== false,
+        )
+        .map((definition) =>
+          String(definition.requestType || definition.id || "").trim(),
+        )
+        .filter(Boolean),
+    ),
   );
 }
 
@@ -114,6 +148,14 @@ export async function getPublishedHotelConfigSnapshot(
       hotelId: normalizedHotelId,
       revisionId: row.id,
       sourceChecksum,
+    });
+    attachGuestRequestRelationalAuthority(config, relationalAuthority);
+  } else if (isFactorySandboxAcceptance(row.validation_json)) {
+    const relationalAuthority = await getFactorySandboxRelationalAuthority({
+      hotelId: normalizedHotelId,
+      revisionId: row.id,
+      sourceChecksum,
+      requestTypes: getConfiguredGuestRequestTypes(config),
     });
     attachGuestRequestRelationalAuthority(config, relationalAuthority);
   }
