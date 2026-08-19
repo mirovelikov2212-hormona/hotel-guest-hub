@@ -315,8 +315,8 @@ begin
   delete from public.hotel_config_revisions
   where hotel_id in (v_run.production_hotel_id, v_run.sandbox_hotel_id);
 
-  delete from public.hotels where id = v_sandbox_hotel_id;
-  delete from public.hotels where id = v_production_hotel_id;
+  delete from public.hotels where id = v_run.sandbox_hotel_id;
+  delete from public.hotels where id = v_run.production_hotel_id;
 
   delete from public.properties where id = v_run.property_id;
 
