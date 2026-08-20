@@ -8,7 +8,7 @@ import {
 import { resolveGuestRequestAuthority } from "../../lib/server/guest-request-authority.mjs";
 import { assertContains, assertNotContains, readProjectFile } from "../helpers/source-contract.mjs";
 
-// Exact-head release checkpoint after the guarded strict Factory Guest transform.
+// Exact-head release checkpoint after strict Factory Guest authority propagation.
 
 test("shared Guest runtime derives tenant capabilities from config instead of hotel identity", () => {
   const enabled = deriveGuestRuntimeCapabilities({
@@ -93,6 +93,28 @@ test("Factory-managed Guest config disables legacy request fallbacks", () => {
   });
 });
 
+test("serialized Factory request definitions preserve strict Guest authority", () => {
+  const serializedGuestSubset = {
+    hotelSlug: "factory-sandbox",
+    publicSlug: "factory-sandbox",
+    coverImage: "/images/stayhub-factory-placeholder-hero.svg",
+    requestDefs: [
+      {
+        id: "extra-towel",
+        requestType: "extra-towel",
+        enabled: true,
+        guestVisible: true,
+        factoryManagedGuestRuntime: true,
+      },
+    ],
+  };
+
+  assert.equal(isFactoryManagedGuestConfig(serializedGuestSubset), true);
+  const capabilities = deriveGuestRuntimeCapabilities(serializedGuestSubset);
+  assert.equal(capabilities.factoryManaged, true);
+  assert.equal(capabilities.legacyRequestFallbacksEnabled, false);
+});
+
 test("GuestHub has no Aquamarine identity branches or Aquamarine fallback routing", async () => {
   const source = await readProjectFile("components/GuestHub.tsx");
   const lower = source.toLowerCase();
@@ -135,6 +157,8 @@ test("Factory-managed GuestHub gates legacy request menus and premium fallbacks"
   );
   assertContains(publishedConfig, "getFactorySandboxRelationalAuthority");
   assertContains(publishedConfig, "FACTORY_SANDBOX_ACCEPTANCE_CERTIFIED");
+  assertContains(publishedConfig, "factoryManagedGuestRuntime: true");
+  assertContains(publishedConfig, "markFactoryManagedGuestRuntime(config);");
 });
 
 test("GuestHub no longer patches tenant prices or games-room business copy in shared code", async () => {

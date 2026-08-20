@@ -49,6 +49,24 @@ function isFactorySandboxAcceptance(validationJson: Record<string, unknown>) {
   );
 }
 
+function isFactoryManagedConfigPayload(config: HotelConfig) {
+  const payload = config as unknown as Record<string, unknown>;
+  return Boolean(
+    isJsonObject(payload.factoryBlueprint) &&
+      isJsonObject(payload.factoryOnboardingEnvelope),
+  );
+}
+
+function markFactoryManagedGuestRuntime(config: HotelConfig) {
+  if (!isFactoryManagedConfigPayload(config)) return;
+
+  const definitions = Array.isArray(config.requestDefs) ? config.requestDefs : [];
+  config.requestDefs = definitions.map((definition) => ({
+    ...definition,
+    factoryManagedGuestRuntime: true,
+  })) as HotelConfig["requestDefs"];
+}
+
 function getConfiguredGuestRequestTypes(config: HotelConfig) {
   const defs = Array.isArray(config.requestDefs) ? config.requestDefs : [];
   return Array.from(
@@ -142,6 +160,7 @@ export async function getPublishedHotelConfigSnapshot(
   }
 
   const config = { ...(row.config_json as HotelConfig) } as HotelConfig;
+  markFactoryManagedGuestRuntime(config);
 
   if (isFactoryLivePilot(row.validation_json)) {
     const relationalAuthority = await getFactoryProductionRelationalAuthority({
