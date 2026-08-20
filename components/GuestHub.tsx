@@ -2282,8 +2282,21 @@ function getInitialGuestLang(defaultLang: string | undefined, enabledLanguages: 
   return fallback;
 }
 
-function getGuestIntroCopy(lang: LangKey, hotelName?: string) {
+function getGuestIntroCopy(lang: LangKey, hotelName?: string, strictFactory = false) {
   const name = String(hotelName || "StayHub").trim();
+
+  if (strictFactory) {
+    const strictCopy: Record<LangKey, { title: string; body: string; button: string }> = {
+      bg: { title: "Добре дошли в дигиталния консиерж", body: `Това е Вашият дигитален помощник по време на престоя в ${name}. Тук можете да използвате само услугите и хотелските отдели, които са активирани за Вашия престой. За да свържем услугата с Вашата стая, моля въведете номера на стаята си.`, button: "Разбрах, продължи" },
+      en: { title: "Welcome to your digital concierge", body: `This is your digital assistant during your stay at ${name}. Here you can use only the services and hotel departments enabled for your stay. To connect the service with your room, please enter your room number.`, button: "Got it, continue" },
+      de: { title: "Willkommen bei Ihrem digitalen Concierge", body: `Dies ist Ihr digitaler Assistent während Ihres Aufenthalts im ${name}. Hier können Sie nur die Services und Hotelabteilungen nutzen, die für Ihren Aufenthalt aktiviert wurden. Damit wir den Service Ihrem Zimmer zuordnen können, geben Sie bitte Ihre Zimmernummer ein.`, button: "Verstanden, weiter" },
+      ro: { title: "Bine ați venit la concierge-ul digital", body: `Acesta este asistentul digital pentru șederea dvs. la ${name}. Aici puteți utiliza numai serviciile și departamentele hotelului activate pentru șederea dvs. Pentru a conecta serviciul cu camera dvs., vă rugăm să introduceți numărul camerei.`, button: "Am înțeles, continuă" },
+      cs: { title: "Vítejte u svého digitálního concierge", body: `Toto je váš digitální asistent během pobytu v ${name}. Zde můžete využívat pouze služby a hotelová oddělení aktivovaná pro váš pobyt. Abychom službu přiřadili k vašemu pokoji, zadejte prosím číslo pokoje.`, button: "Rozumím, pokračovat" },
+      ru: { title: "Добро пожаловать в цифровой консьерж", body: `Это ваш цифровой помощник во время пребывания в ${name}. Здесь доступны только услуги и отделы отеля, активированные для вашего проживания. Чтобы связать услугу с вашим номером, пожалуйста, введите номер комнаты.`, button: "Понятно, продолжить" },
+    };
+
+    return strictCopy[lang] ?? strictCopy.bg;
+  }
 
   const copy: Record<LangKey, { title: string; body: string; button: string }> = {
     bg: {
@@ -2484,14 +2497,25 @@ function writeGuestLang(nextLang: LangKey) {
 }
 
 export default function GuestHub({ config }: { config: HotelConfig }) {
+  const factoryOnboardingEnvelope = (config as any).factoryOnboardingEnvelope;
+  const explicitWeatherEnabled = (config as any).weatherEnabled;
   const guestRuntimeCapabilities = useMemo(
     () => deriveGuestRuntimeCapabilities({
       hotelSlug: config.hotelSlug,
       publicSlug: config.publicSlug,
       coverImage: config.coverImage,
       requestDefs: config.requestDefs,
+      factoryOnboardingEnvelope,
+      weatherEnabled: explicitWeatherEnabled,
     }),
-    [config.coverImage, config.hotelSlug, config.publicSlug, config.requestDefs]
+    [
+      config.coverImage,
+      config.hotelSlug,
+      config.publicSlug,
+      config.requestDefs,
+      explicitWeatherEnabled,
+      factoryOnboardingEnvelope,
+    ]
   );
   // Keep the first server/client render identical. Browser, URL and localStorage
   // language detection runs after hydration to avoid React hydration error #418.
@@ -2621,8 +2645,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   }, [roomStateKey, config.hotelSlug]);
 
   const guestIntroCopy = useMemo(
-    () => getGuestIntroCopy(lang, config.hotelName),
-    [lang, config.hotelName]
+    () => getGuestIntroCopy(lang, config.hotelName, guestRuntimeCapabilities.factoryManaged),
+    [guestRuntimeCapabilities.factoryManaged, lang, config.hotelName]
   );
 
   useEffect(() => {
@@ -2938,6 +2962,13 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   }, []);
 
   useEffect(() => {
+    if (!guestRuntimeCapabilities.weatherEnabled) {
+      setWeatherData(null);
+      setWeatherError(false);
+      setWeatherLoading(false);
+      return;
+    }
+
     const controller = new AbortController();
     let refreshTimer: number | undefined;
 
@@ -2976,7 +3007,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       controller.abort();
       if (refreshTimer) window.clearInterval(refreshTimer);
     };
-  }, [config.hotelName, config.location?.query, hotelLatitude, hotelLongitude, hotelTimezone]);
+  }, [config.hotelName, config.location?.query, guestRuntimeCapabilities.weatherEnabled, hotelLatitude, hotelLongitude, hotelTimezone]);
 
   const ensureGuestIsNearHotel = useCallback(async () => {
     if (!canUseGeoGuard) {
@@ -5762,6 +5793,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   }, [room, roomConfirmed]);
 
   useEffect(() => {
+    if (!guestRuntimeCapabilities.massageBookingEnabled) return;
     if (!roomConfirmed || !room.trim() || !activeStayId || !stayDeviceId) return;
 
     void refreshGuestMassageBookingsFromServer();
@@ -5770,7 +5802,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     }, 2 * 60_000);
 
     return () => window.clearInterval(timer);
-  }, [activeStayId, refreshGuestMassageBookingsFromServer, room, roomConfirmed, stayDeviceId]);
+  }, [activeStayId, guestRuntimeCapabilities.massageBookingEnabled, refreshGuestMassageBookingsFromServer, room, roomConfirmed, stayDeviceId]);
 
   // Hotels with a dedicated massage booking capability keep massage selection in the top-level booking flow.
   const spaRequestDefItems = massageBookingPreviewVisible ? [] : buildRequestDefItems("spa");
@@ -9144,10 +9176,11 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
         </div>
       ) : null}
 
-      <div className="px-4 pb-7">
-      <button
-        type="button"
-        onClick={openAiPanel}
+      {guestRuntimeCapabilities.aiEnabled ? (
+        <div className="px-4 pb-7">
+        <button
+          type="button"
+          onClick={openAiPanel}
         className={clsx(
           "stayhub-ai-trigger w-full inline-flex items-center gap-3 rounded-[24px] px-5 py-4 text-sm font-semibold shadow-lg transition hover:opacity-95 active:scale-[0.98]",
           roomConfirmed ? "ring-1 ring-white/25" : "border"
@@ -9198,10 +9231,11 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
             </svg>
           </span>
         ) : null}
-      </button>
-      </div>
+        </button>
+        </div>
+      ) : null}
 
-      {aiPanelOpen ? (
+      {guestRuntimeCapabilities.aiEnabled && aiPanelOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-3 sm:items-center">
           <div className="stayhub-ai-panel-shell w-full max-w-md rounded-2xl stayhub-section-shell p-4 shadow-2xl">
             <div className="flex flex-wrap items-center justify-between gap-2">
