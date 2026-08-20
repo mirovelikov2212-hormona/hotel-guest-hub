@@ -4,6 +4,6 @@ export type FactoryGuestDepartmentGroup<T> = {
   requestDefs: T[];
 };
 
-export function buildFactoryGuestDepartmentGroups<
-  T extends Record<string, unknown>,
->(definitions?: T[]): FactoryGuestDepartmentGroup<T>[];
+export function buildFactoryGuestDepartmentGroups<T extends object>(
+  definitions?: T[],
+): FactoryGuestDepartmentGroup<T>[];
