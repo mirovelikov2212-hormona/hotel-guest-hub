@@ -5,6 +5,7 @@ import {
   deriveGuestRuntimeCapabilities,
   isFactoryManagedGuestConfig,
 } from "../../lib/guest/guest-runtime-capabilities.mjs";
+import { buildFactoryGuestDepartmentGroups } from "../../lib/guest/factory-guest-navigation.mjs";
 import { resolveGuestRequestAuthority } from "../../lib/server/guest-request-authority.mjs";
 import { assertContains, assertNotContains, readProjectFile } from "../helpers/source-contract.mjs";
 
@@ -113,6 +114,49 @@ test("serialized Factory request definitions preserve strict Guest authority", (
   const capabilities = deriveGuestRuntimeCapabilities(serializedGuestSubset);
   assert.equal(capabilities.factoryManaged, true);
   assert.equal(capabilities.legacyRequestFallbacksEnabled, false);
+});
+
+test("Factory Guest navigation groups configured services by arbitrary target department", async () => {
+  const groups = buildFactoryGuestDepartmentGroups([
+    {
+      id: "extra-towel",
+      targetDepartment: "housekeeping",
+      factoryDepartmentName: "Housekeeping",
+      enabled: true,
+      guestVisible: true,
+    },
+    {
+      id: "guest-relations-help",
+      targetDepartment: "guest-relations",
+      factoryDepartmentName: "Guest Relations",
+      enabled: true,
+      guestVisible: true,
+    },
+    {
+      id: "hidden-service",
+      targetDepartment: "guest-relations",
+      enabled: true,
+      guestVisible: false,
+    },
+  ]);
+
+  assert.equal(groups.length, 2);
+  assert.deepEqual(
+    groups.map((group) => [group.departmentCode, group.departmentName, group.requestDefs.map((def) => def.id)]),
+    [
+      ["housekeeping", "Housekeeping", ["extra-towel"]],
+      ["guest-relations", "Guest Relations", ["guest-relations-help"]],
+    ],
+  );
+
+  const guestHub = await readProjectFile("components/GuestHub.tsx");
+  assertContains(guestHub, "buildFactoryGuestDepartmentGroups");
+  assertContains(guestHub, "factoryConfiguredDepartmentTiles");
+  assertContains(guestHub, "factoryPremiumTiles");
+  assertContains(
+    guestHub,
+    "guestRuntimeCapabilities.factoryManaged\n    ? factoryPremiumTiles\n    : legacyPremiumTiles",
+  );
 });
 
 test("GuestHub has no Aquamarine identity branches or Aquamarine fallback routing", async () => {

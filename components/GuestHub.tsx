@@ -218,6 +218,7 @@ import type { StaffDepartment, StaffRequestType, StaffServiceTime, StaffRequestS
 import { usePathname, useSearchParams } from "next/navigation";
 import type { HotelConfig, LangKey, HubSection, DepartmentKey, HubItem, RequestDef } from "@/lib/types";
 import { deriveGuestRuntimeCapabilities } from "@/lib/guest/guest-runtime-capabilities.mjs";
+import { buildFactoryGuestDepartmentGroups } from "@/lib/guest/factory-guest-navigation.mjs";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { persistQrContextFromUrl, trackHubEvent, type TrackHubPayload } from "@/lib/trackHubEvent";
 import InstallAppButton from "@/components/InstallAppButton";
@@ -8198,7 +8199,37 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   const maintenanceHubSection = sectionById("maintenance");
   const emergencyTileSection = sectionById("emergency");
 
-  const premiumTiles = [
+  type PremiumTileModel = {
+    id: string;
+    iconId: string;
+    title: string;
+    section?: HubSection | null;
+    requiresRoom: boolean;
+    special?: "massage" | "emergency";
+    outletCategories?: string[];
+  };
+
+  const factoryConfiguredDepartmentTiles: PremiumTileModel[] =
+    guestRuntimeCapabilities.factoryManaged
+      ? buildFactoryGuestDepartmentGroups(
+          requestDefs.filter((def) => isRenderableRequestDef(def)),
+        ).map((group) => {
+          const tileId = `factory_department_${group.departmentCode.replace(/[^a-z0-9_-]+/g, "_")}`;
+          return {
+            id: tileId,
+            iconId: group.departmentCode,
+            title: group.departmentName,
+            section: {
+              id: tileId,
+              title: group.departmentName,
+              items: group.requestDefs.map((def) => buildStandaloneRequestDefHubItem(def)),
+            } satisfies HubSection,
+            requiresRoom: true,
+          };
+        })
+      : [];
+
+  const legacyPremiumTiles: PremiumTileModel[] = [
     { id: "info", iconId: "info", title: premiumSectionCopy.hotelInfo, section: infoCombinedSection, requiresRoom: true },
     { id: "hotel_policies", iconId: "policy", title: getPremiumServiceTitle(lang, "hotelPolicy"), section: policyCombinedSection, requiresRoom: false },
     { id: "emergency", iconId: "emergency", title: lang === "bg" ? "Спешно повикване" : String(emergencyTileSection?.title || "Emergency call"), section: emergencyTileSection, requiresRoom: false, special: "emergency" as const },
@@ -8224,6 +8255,38 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     (tile.special === "emergency" &&
       (Boolean(emergencyTileSection) || guestRuntimeCapabilities.legacyRequestFallbacksEnabled))
   );
+
+  const factoryPremiumTiles: PremiumTileModel[] = [
+    ...(infoCombinedSection
+      ? [{ id: "info", iconId: "info", title: premiumSectionCopy.hotelInfo, section: infoCombinedSection, requiresRoom: true }]
+      : []),
+    ...(policyCombinedSection
+      ? [{ id: "hotel_policies", iconId: "policy", title: getPremiumServiceTitle(lang, "hotelPolicy"), section: policyCombinedSection, requiresRoom: false }]
+      : []),
+    ...factoryConfiguredDepartmentTiles,
+    ...(emergencyTileSection
+      ? [{ id: "emergency", iconId: "emergency", title: lang === "bg" ? "Спешно повикване" : String(emergencyTileSection.title || "Emergency call"), section: emergencyTileSection, requiresRoom: false, special: "emergency" as const }]
+      : []),
+    ...(restaurantOutletSection
+      ? [{ id: "restaurants", iconId: "restaurant", title: lang === "bg" ? "Ресторант" : String(restaurantOutletSection.title || "Restaurant"), section: restaurantOutletSection, requiresRoom: true, outletCategories: ["restaurants"] }]
+      : []),
+    ...(barsOutletSection
+      ? [{ id: "bars", iconId: "bars", title: lang === "bg" ? "Бар" : String(barsOutletSection.title || "Bars"), section: barsOutletSection, requiresRoom: true, outletCategories: ["bars"] }]
+      : []),
+    ...(otherEntertainmentSection
+      ? [{ id: "entertainment", iconId: "entertainment", title: premiumSectionCopy.otherEntertainment, section: otherEntertainmentSection, requiresRoom: true, outletCategories: ["kids", "entertainment", "gym", "spa", "pool", "other", "room_service"] }]
+      : []),
+    ...(configuredExplorePlaces.length > 0 && exploreHubSection
+      ? [{ id: "explore", iconId: "explore", title: lang === "bg" ? "Около хотела" : String(exploreHubSection.title || "Around the hotel"), section: exploreHubSection, requiresRoom: true }]
+      : []),
+    ...(reviewsCombinedSection
+      ? [{ id: "reviews", iconId: "reviews", title: lang === "bg" ? "Отзиви" : reviewsDisplaySection.title, section: reviewsCombinedSection, requiresRoom: true }]
+      : []),
+  ];
+
+  const premiumTiles: PremiumTileModel[] = guestRuntimeCapabilities.factoryManaged
+    ? factoryPremiumTiles
+    : legacyPremiumTiles;
 
   const selectedPremiumTile = openQuickServiceId
     ? premiumTiles.find((tile) => tile.id === openQuickServiceId) || null
