@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { validateGuestRequestCreatePayload } from "@/lib/server/guest-request-input-validation.mjs";
 import { resolveGuestRequestAuthority } from "@/lib/server/guest-request-authority.mjs";
+import { isFactoryManagedGuestConfig } from "@/lib/guest/guest-runtime-capabilities.mjs";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { getOperationalRequestNoteBg, getOperationalRequestTitleBg } from "@/lib/staff/ops-request-copy";
@@ -223,6 +224,7 @@ export async function POST(req: NextRequest) {
 
     const requestAuthority = resolveGuestRequestAuthority({
       requestDefs: hotelConfig?.requestDefs,
+      strictConfiguredRequests: isFactoryManagedGuestConfig(hotelConfig),
       rawType,
       sourceRequestDef: requestedSourceRequestDef,
       note,

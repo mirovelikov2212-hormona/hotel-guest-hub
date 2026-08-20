@@ -7648,7 +7648,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       subtitle: getDepartmentSectionIntro(lang, "reception"),
       items: [
         ...buildRequestDefItems("reception"),
-        ...(!requestDefIds.has("luggage_help")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("luggage_help")
           ? [
             {
               label: formatGuestRequestLabel("luggage_help", String(tUI("luggage_help") || "Luggage assistance")),
@@ -7661,7 +7661,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("late_checkout")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("late_checkout")
           ? [
             {
               label: formatGuestRequestLabel("late_checkout", String(tUI("late_checkout") || "Late checkout")),
@@ -7696,7 +7696,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("taxi")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("taxi")
           ? [
             {
               label: formatGuestRequestLabel("taxi", String(tUI("taxi") || "Taxi")),
@@ -7709,7 +7709,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("wake_up_call")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("wake_up_call")
           ? [
             {
               label: formatGuestRequestLabel("wake_up_call", String(tUI("wake_up") || "Wake-up call")),
@@ -7743,7 +7743,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           return !["coffee_capsules", "coffee_capsules_request", "pillow_menu", "pillow_menu_request"].includes(defId) &&
             !["coffee_capsules", "pillow_menu"].includes(requestType);
         }),
-        ...(!requestDefIds.has("towels")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("towels")
           ? [
             {
               label: formatGuestRequestLabel("towels", String(tUI("towels") || "Towels")),
@@ -7756,7 +7756,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("toilet_paper")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("toilet_paper")
           ? [
             {
               label: formatGuestRequestLabel("toilet_paper", String(tUI("toilet_paper") || "Toilet paper")),
@@ -7769,7 +7769,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("extra_pillow")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("extra_pillow")
           ? [
             {
               label: formatGuestRequestLabel("extra_pillow", String(tUI("extra_pillows") || "Extra pillows")),
@@ -7853,7 +7853,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       subtitle: getDepartmentSectionIntro(lang, "maintenance"),
       items: [
         ...buildRequestDefItems("maintenance"),
-        ...(!requestDefIds.has("air_conditioning")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("air_conditioning")
           ? [
             {
               label: formatGuestRequestLabel("air_conditioning", String(tUI("ac_issue") || "Air conditioning issue")),
@@ -7866,7 +7866,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("no_hot_water")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("no_hot_water")
           ? [
             {
               label: formatGuestRequestLabel("no_hot_water", String(tUI("water_issue") || "No hot water")),
@@ -7879,7 +7879,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("tv_issue")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("tv_issue")
           ? [
             {
               label: formatGuestRequestLabel("tv_issue", String(tUI("tv_issue") || "TV issue")),
@@ -7892,7 +7892,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("light_not_working")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("light_not_working")
           ? [
             {
               label: formatGuestRequestLabel("light_not_working", String(tUI("light_not_working") || tUI("light_issue") || "Light issue")),
@@ -7905,7 +7905,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("bathroom_issue")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("bathroom_issue")
           ? [
             {
               label: formatGuestRequestLabel("bathroom_issue", String(tUI("bathroom_issue") || "Bathroom issue")),
@@ -7918,7 +7918,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("door_lock_issue")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("door_lock_issue")
           ? [
             {
               label: formatGuestRequestLabel("door_lock_issue", String(tUI("door_lock_issue") || "Door / lock issue")),
@@ -7931,7 +7931,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("wifi_issue")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("wifi_issue")
           ? [
             {
               label: formatGuestRequestLabel("wifi_issue", String(tUI("wifi_issue") || "Wi-Fi issue")),
@@ -7944,7 +7944,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("power_outlet_issue")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("power_outlet_issue")
           ? [
             {
               label: formatGuestRequestLabel("power_outlet_issue", String(tUI("power_outlet_issue") || "Power outlet issue")),
@@ -7957,7 +7957,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("safe_issue")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("safe_issue")
           ? [
             {
               label: formatGuestRequestLabel("safe_issue", String(tUI("safe_issue") || "Safe issue")),
@@ -7970,7 +7970,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("balcony_door_issue")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("balcony_door_issue")
           ? [
             {
               label: formatGuestRequestLabel("balcony_door_issue", String(tUI("balcony_door_issue") || "Balcony door issue")),
@@ -7983,7 +7983,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("minibar_not_cooling")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("minibar_not_cooling")
           ? [
             {
               label: formatGuestRequestLabel("minibar_not_cooling", String(tUI("minibar_not_cooling") || "Minibar not cooling")),
@@ -7996,7 +7996,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("coffee_machine")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("coffee_machine")
           ? [
             {
               label: premiumSectionCopy.coffeeMachineIssue,
@@ -8009,7 +8009,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             },
           ]
           : []),
-        ...(!requestDefIds.has("other_technical_issue")
+        ...(guestRuntimeCapabilities.legacyRequestFallbacksEnabled && !requestDefIds.has("other_technical_issue")
           ? [
             {
               label: formatGuestRequestLabel("other_technical_issue", String(tUI("something_broken") || "Something broken")),
@@ -8208,8 +8208,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     { id: "maintenance", iconId: "maintenance", title: premiumSectionCopy.onlineMaintenance, section: maintenanceHubSection, requiresRoom: true },
 
     { id: "massage_booking", iconId: "massage", title: getPremiumServiceTitle(lang, "bookMassage"), section: null, requiresRoom: true, special: "massage" as const },
-    { id: "pillow_menu", iconId: "pillow", title: getPremiumServiceTitle(lang, "sleepPillows"), section: pillowMenuSection, requiresRoom: true },
-    { id: "coffee_capsules", iconId: "coffee", title: getPremiumServiceTitle(lang, "orderCoffeeCapsules"), section: coffeeCapsulesSection, requiresRoom: true },
+    { id: "pillow_menu", iconId: "pillow", title: getPremiumServiceTitle(lang, "sleepPillows"), section: pillowMenuDef || guestRuntimeCapabilities.legacyRequestFallbacksEnabled ? pillowMenuSection : null, requiresRoom: true },
+    { id: "coffee_capsules", iconId: "coffee", title: getPremiumServiceTitle(lang, "orderCoffeeCapsules"), section: coffeeCapsulesDef || guestRuntimeCapabilities.legacyRequestFallbacksEnabled ? coffeeCapsulesSection : null, requiresRoom: true },
 
     { id: "restaurants", iconId: "restaurant", title: lang === "bg" ? "Ресторант" : String(restaurantOutletSection?.title || "Restaurant"), section: restaurantOutletSection, requiresRoom: true, outletCategories: ["restaurants"] },
     { id: "bars", iconId: "bars", title: lang === "bg" ? "Бар" : String(barsOutletSection?.title || "Bars"), section: barsOutletSection, requiresRoom: true, outletCategories: ["bars"] },
@@ -8217,8 +8217,13 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
     { id: "explore", iconId: "explore", title: lang === "bg" ? "Около хотела" : String(exploreHubSection?.title || "Around the hotel"), section: exploreHubSection, requiresRoom: true },
     { id: "weather", iconId: "weather", title: lang === "bg" ? "Времето" : String(weatherSection.title || "Weather"), section: weatherSection, requiresRoom: true },
-    { id: "reviews", iconId: "reviews", title: lang === "bg" ? "Отзиви" : reviewsDisplaySection.title, section: reviewsDisplaySection, requiresRoom: true },
-  ].filter((tile) => tile.section || tile.special === "massage" || tile.special === "emergency");
+    { id: "reviews", iconId: "reviews", title: lang === "bg" ? "Отзиви" : reviewsDisplaySection.title, section: reviewsCombinedSection || (guestRuntimeCapabilities.legacyRequestFallbacksEnabled ? reviewsDisplaySection : null), requiresRoom: true },
+  ].filter((tile) =>
+    tile.section ||
+    (tile.special === "massage" && massageBookingPreviewVisible) ||
+    (tile.special === "emergency" &&
+      (Boolean(emergencyTileSection) || guestRuntimeCapabilities.legacyRequestFallbacksEnabled))
+  );
 
   const selectedPremiumTile = openQuickServiceId
     ? premiumTiles.find((tile) => tile.id === openQuickServiceId) || null

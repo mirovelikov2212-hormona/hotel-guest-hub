@@ -47,6 +47,7 @@ export type GuestRequestAuthorityResult =
 
 export function resolveGuestRequestAuthority(input: {
   requestDefs?: GuestRequestAuthorityRequestDef[] | null;
+  strictConfiguredRequests?: boolean;
   rawType: unknown;
   sourceRequestDef?: unknown;
   note?: unknown;
