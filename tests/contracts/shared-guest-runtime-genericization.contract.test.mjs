@@ -24,6 +24,8 @@ test("shared Guest runtime derives tenant capabilities from config instead of ho
   assert.equal(enabled.massageBookingEnabled, true);
   assert.equal(enabled.factoryManaged, false);
   assert.equal(enabled.legacyRequestFallbacksEnabled, true);
+  assert.equal(enabled.aiEnabled, true);
+  assert.equal(enabled.weatherEnabled, true);
 
   const publicSlugFallback = deriveGuestRuntimeCapabilities({
     publicSlug: "boutique-thirty",
@@ -71,6 +73,8 @@ test("Factory-managed Guest config disables legacy request fallbacks", () => {
   const capabilities = deriveGuestRuntimeCapabilities(config);
   assert.equal(capabilities.factoryManaged, true);
   assert.equal(capabilities.legacyRequestFallbacksEnabled, false);
+  assert.equal(capabilities.aiEnabled, false);
+  assert.equal(capabilities.weatherEnabled, false);
 
   const configured = resolveGuestRequestAuthority({
     requestDefs: config.requestDefs,
@@ -114,6 +118,25 @@ test("serialized Factory request definitions preserve strict Guest authority", (
   const capabilities = deriveGuestRuntimeCapabilities(serializedGuestSubset);
   assert.equal(capabilities.factoryManaged, true);
   assert.equal(capabilities.legacyRequestFallbacksEnabled, false);
+  assert.equal(capabilities.aiEnabled, false);
+  assert.equal(capabilities.weatherEnabled, false);
+});
+
+test("Factory Guest capabilities require explicit AI/weather authority", () => {
+  const capabilities = deriveGuestRuntimeCapabilities({
+    hotelSlug: "factory-enabled",
+    factoryBlueprint: { version: 1 },
+    factoryOnboardingEnvelope: {
+      schema_version: "p2.4",
+      ai_permissions: { actions: { READ: true } },
+    },
+    weatherEnabled: true,
+    requestDefs: [],
+  });
+
+  assert.equal(capabilities.factoryManaged, true);
+  assert.equal(capabilities.aiEnabled, true);
+  assert.equal(capabilities.weatherEnabled, true);
 });
 
 test("Factory Guest navigation groups configured services by arbitrary target department", async () => {
@@ -187,6 +210,11 @@ test("Factory-managed GuestHub gates legacy request menus and premium fallbacks"
   const publishedConfig = await readProjectFile("lib/server/published-hotel-config.ts");
 
   assertContains(guestHub, "guestRuntimeCapabilities.legacyRequestFallbacksEnabled");
+  assertContains(guestHub, "guestRuntimeCapabilities.weatherEnabled");
+  assertContains(guestHub, "if (!guestRuntimeCapabilities.massageBookingEnabled) return;");
+  assertContains(guestHub, "guestRuntimeCapabilities.aiEnabled ? (");
+  assertContains(guestHub, "guestRuntimeCapabilities.aiEnabled && aiPanelOpen");
+  assertContains(guestHub, "getGuestIntroCopy(lang, config.hotelName, guestRuntimeCapabilities.factoryManaged)");
   assertContains(
     guestHub,
     'tile.special === "massage" && massageBookingPreviewVisible',
