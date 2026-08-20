@@ -57,14 +57,38 @@ function isFactoryManagedConfigPayload(config: HotelConfig) {
   );
 }
 
+function getFactoryDepartmentNameByCode(config: HotelConfig) {
+  const payload = config as unknown as Record<string, unknown>;
+  const coreResources = isJsonObject(payload.factoryCoreResources)
+    ? payload.factoryCoreResources
+    : null;
+  const departments = coreResources && Array.isArray(coreResources.departments)
+    ? coreResources.departments
+    : [];
+
+  const names = new Map<string, string>();
+  for (const candidate of departments) {
+    if (!isJsonObject(candidate)) continue;
+    const code = String(candidate.code || "").trim().toLowerCase();
+    const name = String(candidate.name || "").trim();
+    if (code && name) names.set(code, name);
+  }
+  return names;
+}
+
 function markFactoryManagedGuestRuntime(config: HotelConfig) {
   if (!isFactoryManagedConfigPayload(config)) return;
 
+  const departmentNameByCode = getFactoryDepartmentNameByCode(config);
   const definitions = Array.isArray(config.requestDefs) ? config.requestDefs : [];
-  config.requestDefs = definitions.map((definition) => ({
-    ...definition,
-    factoryManagedGuestRuntime: true,
-  })) as HotelConfig["requestDefs"];
+  config.requestDefs = definitions.map((definition) => {
+    const departmentCode = String(definition.targetDepartment || "").trim().toLowerCase();
+    return {
+      ...definition,
+      factoryManagedGuestRuntime: true,
+      factoryDepartmentName: departmentNameByCode.get(departmentCode) || undefined,
+    };
+  }) as HotelConfig["requestDefs"];
 }
 
 function getConfiguredGuestRequestTypes(config: HotelConfig) {
