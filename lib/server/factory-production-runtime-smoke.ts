@@ -53,6 +53,18 @@ async function requireProductionIdentity(): Promise<RuntimeIdentity> {
     || evidence.vercelPreview.state !== "validated"
     || evidence.lineageMode === "unavailable"
   ) {
+    console.error("P2_6_PRODUCTION_RELEASE_EVIDENCE_STATE", {
+      environment: evidence.environment,
+      status: evidence.status,
+      lineageMode: evidence.lineageMode,
+      releaseGateState: evidence.releaseGate.state,
+      releaseConclusion: evidence.releaseGate.conclusion,
+      vercelPreviewState: evidence.vercelPreview.state,
+      hasRuntimeDeploymentId: Boolean(deploymentId),
+      hasRuntimeProjectId: Boolean(projectId),
+      hasRuntimeGitSha: Boolean(gitSha),
+      hasCandidateGitSha: Boolean(evidence.candidateGitSha),
+    });
     throw new Error("P2_6_PRODUCTION_RELEASE_EVIDENCE_NOT_VALIDATED");
   }
   if (!/^dpl_[A-Za-z0-9]+$/.test(deploymentId)) throw new Error("P2_6_PRODUCTION_DEPLOYMENT_ID_MISSING");
