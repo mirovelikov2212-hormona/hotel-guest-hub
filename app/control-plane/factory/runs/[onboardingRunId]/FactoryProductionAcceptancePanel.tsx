@@ -1,13 +1,20 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
-import type { FactoryProductionAcceptanceProgress } from "@/lib/server/factory-production-acceptance-progress";
 import type { FactoryReleaseEvidence } from "@/lib/server/factory-release-evidence";
 
 type Action = "readiness" | "publication" | "certification";
+
+type StoredProgress = {
+  readinessRunId?: string;
+  publicationRunId?: string;
+  certificationRunId?: string;
+  certifiedDeploymentId?: string;
+};
+
+type ApiResult = StoredProgress & { ok?: boolean; error?: string };
 
 const COPY = {
   bg: {
@@ -31,7 +38,6 @@ const COPY = {
     production: "Production hotel",
     revision: "Production revision",
     publicSlug: "Public slug",
-    identity: "Public identity",
     deployment: "Certified deployment",
     failed: "Стъпката не премина server-side gate-а. Няма извършена следваща активация.",
     unauthorized: "Control Plane сесията е изтекла. Влез отново и повтори само текущата стъпка.",
@@ -57,7 +63,6 @@ const COPY = {
     production: "Production hotel",
     revision: "Production revision",
     publicSlug: "Public slug",
-    identity: "Public identity",
     deployment: "Certified deployment",
     failed: "The step did not pass the server-side gate. No later activation was performed.",
     unauthorized: "The Control Plane session expired. Sign in again and retry only the current step.",
@@ -70,24 +75,45 @@ async function postJson(url: string, body: Record<string, unknown>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const result = await response.json().catch(() => ({})) as { ok?: boolean; error?: string };
+  const result = await response.json().catch(() => ({})) as ApiResult;
   return { response, result };
 }
 
 export default function FactoryProductionAcceptancePanel({
   lang,
-  progress,
+  sandboxCertificationRunId,
+  productionHotelId,
+  productionRevisionId,
+  publicSlug,
   releaseEvidence,
 }: {
   lang: ControlPlaneLang;
-  progress: FactoryProductionAcceptanceProgress;
+  sandboxCertificationRunId: string;
+  productionHotelId: string;
+  productionRevisionId: string;
+  publicSlug: string;
   releaseEvidence: FactoryReleaseEvidence;
 }) {
   const copy = COPY[lang];
-  const router = useRouter();
+  const storageKey = useMemo(
+    () => `stayhub.factory.p2.6-dark.${sandboxCertificationRunId}`,
+    [sandboxCertificationRunId],
+  );
+  const [progress, setProgress] = useState<StoredProgress>({});
   const [confirmed, setConfirmed] = useState<Action | null>(null);
   const [busy, setBusy] = useState<Action | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem(storageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as StoredProgress;
+      if (parsed && typeof parsed === "object") setProgress(parsed);
+    } catch {
+      window.sessionStorage.removeItem(storageKey);
+    }
+  }, [storageKey]);
 
   const releaseReady =
     releaseEvidence.environment === "production"
@@ -95,13 +121,18 @@ export default function FactoryProductionAcceptancePanel({
     && releaseEvidence.releaseGate.state === "validated"
     && releaseEvidence.vercelPreview.state === "validated";
 
-  const stage: Action | "complete" = progress.runtimeCertification
+  const stage: Action | "complete" = progress.certificationRunId
     ? "complete"
-    : progress.publication
+    : progress.publicationRunId
       ? "certification"
-      : progress.readiness
+      : progress.readinessRunId
         ? "publication"
         : "readiness";
+
+  function save(next: StoredProgress) {
+    setProgress(next);
+    window.sessionStorage.setItem(storageKey, JSON.stringify(next));
+  }
 
   async function run(action: Action) {
     if (!releaseReady || stage !== action || confirmed !== action || busy) return;
@@ -109,13 +140,13 @@ export default function FactoryProductionAcceptancePanel({
     setFeedback(null);
     try {
       let response: Response;
-      let result: { ok?: boolean; error?: string };
+      let result: ApiResult;
 
       if (action === "readiness") {
         ({ response, result } = await postJson(
           "/api/control-plane/onboarding/production-readiness",
           {
-            sandboxCertificationRunId: progress.sandboxCertificationRunId,
+            sandboxCertificationRunId,
             approval: {
               assessReadiness: true,
               keepProductionDark: true,
@@ -124,15 +155,17 @@ export default function FactoryProductionAcceptancePanel({
             },
           },
         ));
+        if (!response.ok || !result.ok || !result.readinessRunId) throw new Error(response.status === 401 ? "unauthorized" : "failed");
+        save({ ...progress, readinessRunId: result.readinessRunId });
       } else if (action === "publication") {
-        if (!progress.readiness) return;
+        if (!progress.readinessRunId) return;
         ({ response, result } = await postJson(
           "/api/control-plane/onboarding/production-publication",
           {
-            readinessRunId: progress.readiness.id,
-            expectedProductionHotelId: progress.productionHotelId,
-            expectedProductionRevisionId: progress.productionRevisionId,
-            expectedPublicSlug: progress.publicSlug,
+            readinessRunId: progress.readinessRunId,
+            expectedProductionHotelId: productionHotelId,
+            expectedProductionRevisionId: productionRevisionId,
+            expectedPublicSlug: publicSlug,
             approval: {
               publishConfiguration: true,
               keepProductionDark: true,
@@ -142,12 +175,14 @@ export default function FactoryProductionAcceptancePanel({
             },
           },
         ));
+        if (!response.ok || !result.ok || !result.publicationRunId) throw new Error(response.status === 401 ? "unauthorized" : "failed");
+        save({ ...progress, publicationRunId: result.publicationRunId });
       } else {
-        if (!progress.publication) return;
+        if (!progress.publicationRunId) return;
         ({ response, result } = await postJson(
           "/api/control-plane/onboarding/production-runtime-certification",
           {
-            publicationRunId: progress.publication.id,
+            publicationRunId: progress.publicationRunId,
             approval: {
               certifyRuntime: true,
               keepProductionDark: true,
@@ -157,25 +192,26 @@ export default function FactoryProductionAcceptancePanel({
             },
           },
         ));
+        if (!response.ok || !result.ok || !result.certificationRunId) throw new Error(response.status === 401 ? "unauthorized" : "failed");
+        save({
+          ...progress,
+          certificationRunId: result.certificationRunId,
+          certifiedDeploymentId: result.certifiedDeploymentId || (result as { deploymentId?: string }).deploymentId,
+        });
       }
 
-      if (!response.ok || !result.ok) {
-        setFeedback(response.status === 401 ? copy.unauthorized : copy.failed);
-        return;
-      }
       setConfirmed(null);
-      router.refresh();
-    } catch {
-      setFeedback(copy.failed);
+    } catch (error) {
+      setFeedback(error instanceof Error && error.message === "unauthorized" ? copy.unauthorized : copy.failed);
     } finally {
       setBusy(null);
     }
   }
 
   const steps: Array<{ action: Action; title: string; confirm: string; button: string; done: boolean }> = [
-    { action: "readiness", title: copy.readiness, confirm: copy.readinessConfirm, button: copy.runReadiness, done: Boolean(progress.readiness) },
-    { action: "publication", title: copy.publication, confirm: copy.publicationConfirm, button: copy.runPublication, done: Boolean(progress.publication) },
-    { action: "certification", title: copy.certification, confirm: copy.certificationConfirm, button: copy.runCertification, done: Boolean(progress.runtimeCertification) },
+    { action: "readiness", title: copy.readiness, confirm: copy.readinessConfirm, button: copy.runReadiness, done: Boolean(progress.readinessRunId) },
+    { action: "publication", title: copy.publication, confirm: copy.publicationConfirm, button: copy.runPublication, done: Boolean(progress.publicationRunId) },
+    { action: "certification", title: copy.certification, confirm: copy.certificationConfirm, button: copy.runCertification, done: Boolean(progress.certificationRunId) },
   ];
 
   return (
@@ -191,11 +227,10 @@ export default function FactoryProductionAcceptancePanel({
       </div>
 
       <div className="mt-5 grid gap-2 rounded-2xl border border-neutral-800 bg-neutral-950/45 p-4 text-xs text-neutral-400 md:grid-cols-2">
-        <p className="break-all">{copy.production}: {progress.productionHotelId}</p>
-        <p className="break-all">{copy.revision}: {progress.productionRevisionId}</p>
-        <p className="break-all">{copy.publicSlug}: {progress.publicSlug}</p>
-        <p>{copy.identity}: {progress.publicIdentityStatus}</p>
-        {progress.runtimeCertification?.deploymentId && <p className="break-all md:col-span-2">{copy.deployment}: {progress.runtimeCertification.deploymentId}</p>}
+        <p className="break-all">{copy.production}: {productionHotelId}</p>
+        <p className="break-all">{copy.revision}: {productionRevisionId}</p>
+        <p className="break-all md:col-span-2">{copy.publicSlug}: {publicSlug}</p>
+        {progress.certifiedDeploymentId && <p className="break-all md:col-span-2">{copy.deployment}: {progress.certifiedDeploymentId}</p>}
       </div>
 
       <div className="mt-5 space-y-4">
@@ -210,9 +245,7 @@ export default function FactoryProductionAcceptancePanel({
 
               {active && !item.done && (
                 <>
-                  {item.action === "certification" && (
-                    <p className="mt-3 text-xs leading-5 text-amber-100/80">{copy.smokeNotice}</p>
-                  )}
+                  {item.action === "certification" && <p className="mt-3 text-xs leading-5 text-amber-100/80">{copy.smokeNotice}</p>}
                   <label className="mt-4 flex items-start gap-3 text-sm leading-6 text-neutral-300">
                     <input
                       type="checkbox"
@@ -237,9 +270,7 @@ export default function FactoryProductionAcceptancePanel({
         })}
       </div>
 
-      <p className="mt-5 rounded-2xl border border-rose-400/20 bg-rose-400/5 px-4 py-3 text-sm font-semibold text-rose-100/90">
-        {copy.liveLocked}
-      </p>
+      <p className="mt-5 rounded-2xl border border-rose-400/20 bg-rose-400/5 px-4 py-3 text-sm font-semibold text-rose-100/90">{copy.liveLocked}</p>
       {feedback && <p className="mt-4 text-sm text-rose-200">{feedback}</p>}
     </section>
   );
