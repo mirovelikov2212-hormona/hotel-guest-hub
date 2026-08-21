@@ -33,6 +33,12 @@ export type FactorySandboxRuntimeProbe = {
   evidenceHash: string;
 };
 
+export type FactorySandboxRuntimeProbeLineage = {
+  envelopeProjectionRunId: string;
+  sandboxHotelId: string;
+  sandboxRevisionId: string;
+};
+
 type ProbeEvidence = Omit<FactorySandboxRuntimeProbe, "evidenceHash">;
 
 function finish(evidence: ProbeEvidence): FactorySandboxRuntimeProbe {
@@ -40,12 +46,12 @@ function finish(evidence: ProbeEvidence): FactorySandboxRuntimeProbe {
   return { ...evidence, evidenceHash };
 }
 
-export async function probeFactorySandboxGenericStaffRuntime(
-  preflight: FactorySandboxPreflight,
+export async function probeFactorySandboxGenericStaffRuntimeByLineage(
+  lineage: FactorySandboxRuntimeProbeLineage,
 ): Promise<FactorySandboxRuntimeProbe> {
-  const envelopeProjectionRunId = String(preflight.envelopeProjectionRunId || "");
-  const sandboxHotelId = String(preflight.lineage.sandboxHotelId || "");
-  const sandboxRevisionId = String(preflight.lineage.sandboxRevisionId || "");
+  const envelopeProjectionRunId = String(lineage.envelopeProjectionRunId || "");
+  const sandboxHotelId = String(lineage.sandboxHotelId || "");
+  const sandboxRevisionId = String(lineage.sandboxRevisionId || "");
   const base = { envelopeProjectionRunId, sandboxHotelId, sandboxRevisionId };
 
   const { data, error } = await supabaseAdmin
@@ -114,5 +120,15 @@ export async function probeFactorySandboxGenericStaffRuntime(
     departmentCount: departments.length,
     departments,
     managerResolved,
+  });
+}
+
+export async function probeFactorySandboxGenericStaffRuntime(
+  preflight: FactorySandboxPreflight,
+): Promise<FactorySandboxRuntimeProbe> {
+  return probeFactorySandboxGenericStaffRuntimeByLineage({
+    envelopeProjectionRunId: String(preflight.envelopeProjectionRunId || ""),
+    sandboxHotelId: String(preflight.lineage.sandboxHotelId || ""),
+    sandboxRevisionId: String(preflight.lineage.sandboxRevisionId || ""),
   });
 }
