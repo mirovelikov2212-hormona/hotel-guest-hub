@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/massage-snapshot-sync",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/factory-production-runtime-smoke",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
