@@ -104,6 +104,20 @@ test("P4.12 Guest write preserves tenant service identity for relational routing
   assertNotContains(route, 'value === "housekeeping" || value === "maintenance"');
 });
 
+test("P4.12 tracking keeps legacy extra environment aligned with authoritative hotel scope", async () => {
+  const route = await readProjectFile("app/api/track/route.ts");
+  const resolvedExtraStart = route.indexOf("const resolvedExtra = {");
+  const legacyPayloadStart = route.indexOf("const legacyPayload = {");
+
+  assert.ok(resolvedExtraStart >= 0);
+  assert.ok(legacyPayloadStart > resolvedExtraStart);
+  const resolvedExtraBlock = route.slice(resolvedExtraStart, legacyPayloadStart);
+  assertContains(resolvedExtraBlock, "...legacyExtra,");
+  assertContains(resolvedExtraBlock, "environment: resolvedEnvironment,");
+  assertContains(route, "extra: resolvedExtra,");
+  assertNotContains(route, "extra: legacyExtra,");
+});
+
 test("P4.12 DB guard materializes only future Factory revision 4 and fails closed on malformed candidates", async () => {
   const migration = await readProjectFile("supabase/migrations/20260818194000_p4_12_factory_guest_runtime_materialization.sql");
 
