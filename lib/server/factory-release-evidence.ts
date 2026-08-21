@@ -76,6 +76,10 @@ function buildEvidence(input: Omit<FactoryReleaseEvidence, "evidenceHash">): Fac
   return { ...input, evidenceHash };
 }
 
+function logProductionLineageDiagnostic(reason: string, details: Record<string, unknown>) {
+  console.error("P2_6_PRODUCTION_LINEAGE_DIAGNOSTIC", { reason, ...details });
+}
+
 async function resolveProductionLineage(runtimeGitSha: string): Promise<ProductionLineage | null> {
   const commit = await githubJson(`/commits/${runtimeGitSha}`) as {
     parents?: Array<{ sha?: string }>;
@@ -83,31 +87,72 @@ async function resolveProductionLineage(runtimeGitSha: string): Promise<Producti
   };
   const parents = Array.isArray(commit.parents) ? commit.parents : [];
   const mergeParent = String(parents[1]?.sha || "").trim().toLowerCase();
+  const commitTitle = String(commit.commit?.message || "").split(/\r?\n/, 1)[0].trim();
 
   if (parents.length === 2 && SHA_PATTERN.test(mergeParent)) {
     return { candidateGitSha: mergeParent, mode: "production_merge_parent" };
   }
 
-  if (parents.length !== 1) return null;
+  if (parents.length !== 1) {
+    logProductionLineageDiagnostic("unsupported_parent_count", {
+      runtimeGitSha,
+      parentCount: parents.length,
+      mergeParentValid: SHA_PATTERN.test(mergeParent),
+      commitTitle,
+    });
+    return null;
+  }
 
-  const commitTitle = String(commit.commit?.message || "").split(/\r?\n/, 1)[0].trim();
   const pullMatch = commitTitle.match(/\(#([1-9]\d*)\)\s*$/);
-  if (!pullMatch) return null;
+  if (!pullMatch) {
+    logProductionLineageDiagnostic("squash_pr_number_missing", {
+      runtimeGitSha,
+      parentCount: parents.length,
+      commitTitle,
+    });
+    return null;
+  }
   const pullNumber = Number(pullMatch[1]);
-  if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0) return null;
+  if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0) {
+    logProductionLineageDiagnostic("invalid_squash_pr_number", {
+      runtimeGitSha,
+      pullNumber: pullMatch[1],
+      commitTitle,
+    });
+    return null;
+  }
 
   const pull = await githubJson(`/pulls/${pullNumber}`) as Record<string, unknown>;
   const mergeCommitSha = String(pull.merge_commit_sha || "").trim().toLowerCase();
   const base = pull.base as Record<string, unknown> | undefined;
+  const baseRef = String(base?.ref || "");
+  const mergedAtPresent = Boolean(pull.merged_at);
   if (
     mergeCommitSha !== runtimeGitSha
-    || !Boolean(pull.merged_at)
-    || String(base?.ref || "") !== "main"
-  ) return null;
+    || !mergedAtPresent
+    || baseRef !== "main"
+  ) {
+    logProductionLineageDiagnostic("squash_pr_validation_failed", {
+      runtimeGitSha,
+      pullNumber,
+      mergeCommitSha,
+      mergeCommitMatchesRuntime: mergeCommitSha === runtimeGitSha,
+      mergedAtPresent,
+      baseRef,
+    });
+    return null;
+  }
 
   const head = pull.head as Record<string, unknown> | undefined;
   const candidateGitSha = String(head?.sha || "").trim().toLowerCase();
-  if (!SHA_PATTERN.test(candidateGitSha)) return null;
+  if (!SHA_PATTERN.test(candidateGitSha)) {
+    logProductionLineageDiagnostic("invalid_squash_pr_head", {
+      runtimeGitSha,
+      pullNumber,
+      candidateGitSha,
+    });
+    return null;
+  }
 
   return { candidateGitSha, mode: "production_squash_pr_head" };
 }
