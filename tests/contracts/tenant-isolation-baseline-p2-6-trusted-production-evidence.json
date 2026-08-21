@@ -136,7 +136,7 @@
     },
     {
       "filePath": "lib/server/factory-production-runtime-smoke.ts",
-      "line": 66,
+      "line": 78,
       "table": "factory_sandbox_certification_runs",
       "tableExpression": "\"factory_sandbox_certification_runs\"",
       "operation": "select",
@@ -145,7 +145,7 @@
     },
     {
       "filePath": "lib/server/factory-production-runtime-smoke.ts",
-      "line": 85,
+      "line": 97,
       "table": "factory_production_runtime_certification_runs",
       "tableExpression": "\"factory_production_runtime_certification_runs\"",
       "operation": "select",
