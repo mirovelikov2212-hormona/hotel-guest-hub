@@ -7,7 +7,7 @@ import { certifyFactoryProductionRuntime } from "@/lib/server/factory-production
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_BODY_BYTES = 131_072;
+const MAX_BODY_BYTES = 65_536;
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
   Pragma: "no-cache",
@@ -46,28 +46,35 @@ export async function POST(req: NextRequest) {
 
     const body = JSON.parse(rawBody) as {
       publicationRunId?: unknown;
+      approval?: unknown;
       expectedProductionHotelId?: unknown;
       expectedProductionRevisionId?: unknown;
       deploymentId?: unknown;
       deploymentSha?: unknown;
       checks?: unknown;
       evidence?: unknown;
-      approval?: unknown;
     };
 
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       return jsonResponse({ ok: false, error: "invalid_request" }, 400);
     }
 
+    for (const forbidden of [
+      "expectedProductionHotelId",
+      "expectedProductionRevisionId",
+      "deploymentId",
+      "deploymentSha",
+      "checks",
+      "evidence",
+    ] as const) {
+      if (Object.prototype.hasOwnProperty.call(body, forbidden)) {
+        throw new Error(`P2_6_3_CLIENT_EVIDENCE_FORBIDDEN:${forbidden}`);
+      }
+    }
+
     const result = await certifyFactoryProductionRuntime({
       authority,
       publicationRunId: body.publicationRunId,
-      expectedProductionHotelId: body.expectedProductionHotelId,
-      expectedProductionRevisionId: body.expectedProductionRevisionId,
-      deploymentId: body.deploymentId,
-      deploymentSha: body.deploymentSha,
-      checks: body.checks,
-      evidence: body.evidence,
       approval: body.approval,
     });
 

@@ -4,6 +4,9 @@ import test from "node:test";
 import { assertContains, assertNotContains, readProjectFile } from "../helpers/source-contract.mjs";
 
 const migrationPath = "supabase/migrations/20260817133000_p2_6_1_production_readiness.sql";
+const servicePath = "lib/server/factory-production-readiness.ts";
+const evidencePath = "lib/server/factory-production-readiness-evidence.ts";
+const routePath = "app/api/control-plane/onboarding/production-readiness/route.ts";
 
 test("P2.6.1 readiness ledger is immutable and service-role-only", async () => {
   const migration = await readProjectFile(migrationPath);
@@ -52,9 +55,11 @@ test("P2.6.1 readiness checks production/sandbox parity and runtime fail-closed 
   assertContains(migration, "ps.active_routing_rules_count=0");
 });
 
-test("P2.6.1 service requires evidence gates and authenticated Control Plane authority", async () => {
-  const service = await readProjectFile("lib/server/factory-production-readiness.ts");
-  const route = await readProjectFile("app/api/control-plane/onboarding/production-readiness/route.ts");
+test("P2.6.1 evidence is system-derived from signed Production runtime and completed Sandbox lifecycle", async () => {
+  const service = await readProjectFile(servicePath);
+  const evidence = await readProjectFile(evidencePath);
+  const route = await readProjectFile(routePath);
+
   for (const check of [
     "sandbox_certification",
     "tenant_isolation",
@@ -65,21 +70,35 @@ test("P2.6.1 service requires evidence gates and authenticated Control Plane aut
     "staff_runtime_dry_run",
     "rollback_plan",
     "no_production_activation",
-  ]) assertContains(service, `"${check}"`);
-  assertContains(service, "canMutateControlPlane(input.authority.role)");
+  ]) assertContains(evidence, `${check}: true`);
+
+  assertContains(evidence, 'source: "system_derived"');
+  assertContains(evidence, 'getFactoryReleaseEvidence()');
+  assertContains(evidence, 'get_factory_vercel_runtime_log_window_v1');
+  assertContains(evidence, 'factory_vercel_runtime_log_events');
+  assertContains(evidence, 'request_created');
+  assertContains(evidence, 'request_seen_by_staff');
+  assertContains(evidence, 'request_in_progress');
+  assertContains(evidence, 'request_completed');
+  assertContains(service, "deriveFactoryProductionReadinessEvidence");
+  assertContains(service, "assessReadiness: true");
+  assertContains(service, "keepProductionDark: true");
+  assertContains(service, "activateHotel: false");
   assertContains(service, 'supabaseAdmin.rpc("assess_factory_production_readiness_v1"');
+  assertContains(route, "P2_6_1_CLIENT_EVIDENCE_FORBIDDEN");
+  assertContains(route, 'hasOwnProperty.call(body, "checks")');
+  assertContains(route, 'hasOwnProperty.call(body, "evidence")');
+});
+
+test("P2.6.1 service remains authenticated Control Plane authority and readiness-only", async () => {
+  const service = await readProjectFile(servicePath);
+  const route = await readProjectFile(routePath);
+  assertContains(service, "canMutateControlPlane(input.authority.role)");
   assertContains(service, 'createHash("sha256")');
   assertContains(route, "enforceControlPlaneSameOrigin(req)");
   assertContains(route, "getCurrentPlatformAdminSession()");
   assertContains(route, "assessFactoryProductionReadiness");
-});
-
-test("P2.6.1 does not provide a Production activation or publication endpoint", async () => {
-  const service = await readProjectFile("lib/server/factory-production-readiness.ts");
-  const route = await readProjectFile("app/api/control-plane/onboarding/production-readiness/route.ts");
   assertNotContains(service, "activateFactoryProduction");
   assertNotContains(service, "publishFactoryProduction");
-  assertNotContains(route, "activation");
-  assertNotContains(route, "publication");
   assert.ok(service.length > 0 && route.length > 0);
 });

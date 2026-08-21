@@ -5,7 +5,7 @@ import { assessFactoryProductionReadiness } from "@/lib/server/factory-productio
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const MAX_BODY_BYTES = 131_072;
+const MAX_BODY_BYTES = 65_536;
 const NO_STORE_HEADERS = { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate", Pragma: "no-cache", Expires: "0" };
 
 function jsonResponse(body: Record<string, unknown>, status: number) {
@@ -32,14 +32,21 @@ export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
     if (Buffer.byteLength(rawBody, "utf8") > MAX_BODY_BYTES) return jsonResponse({ ok: false, error: "payload_too_large" }, 413);
-    const body = JSON.parse(rawBody) as { sandboxCertificationRunId?: unknown; checks?: unknown; evidence?: unknown };
+    const body = JSON.parse(rawBody) as {
+      sandboxCertificationRunId?: unknown;
+      approval?: unknown;
+      checks?: unknown;
+      evidence?: unknown;
+    };
     if (!body || typeof body !== "object" || Array.isArray(body)) return jsonResponse({ ok: false, error: "invalid_request" }, 400);
+    if (Object.prototype.hasOwnProperty.call(body, "checks") || Object.prototype.hasOwnProperty.call(body, "evidence")) {
+      throw new Error("P2_6_1_CLIENT_EVIDENCE_FORBIDDEN");
+    }
 
     const result = await assessFactoryProductionReadiness({
       authority,
       sandboxCertificationRunId: body.sandboxCertificationRunId,
-      checks: body.checks,
-      evidence: body.evidence,
+      approval: body.approval,
     });
     return jsonResponse({ ok: true, ...result }, result.replayed ? 200 : 201);
   } catch (error) {
