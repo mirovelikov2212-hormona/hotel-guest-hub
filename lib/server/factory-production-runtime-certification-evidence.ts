@@ -118,7 +118,7 @@ export async function deriveFactoryProductionRuntimeCertificationEvidence(public
       .maybeSingle(),
     supabaseAdmin
       .from("hotel_config_projection_state")
-      .select("projected_revision_id, projection_status, active_routing_rules_count, projected_room_count, projected_department_count")
+      .select("projected_revision_id, projection_status, active_routing_rules_count, rooms_count, departments_count")
       .eq("hotel_id", publication.production_hotel_id)
       .maybeSingle(),
   ]);
@@ -197,8 +197,8 @@ export async function deriveFactoryProductionRuntimeCertificationEvidence(public
     projection: {
       projectedRevisionId: String(projectionState.projected_revision_id || ""),
       projectionStatus: String(projectionState.projection_status || ""),
-      projectedRoomCount: Number(projectionState.projected_room_count || 0),
-      projectedDepartmentCount: Number(projectionState.projected_department_count || 0),
+      projectedRoomCount: Number(projectionState.rooms_count || 0),
+      projectedDepartmentCount: Number(projectionState.departments_count || 0),
       activeRoutingRulesCount: Number(projectionState.active_routing_rules_count || 0),
     },
     checks: {
