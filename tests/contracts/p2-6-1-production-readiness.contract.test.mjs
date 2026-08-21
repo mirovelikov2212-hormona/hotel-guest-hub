@@ -80,6 +80,8 @@ test("P2.6.1 evidence is system-derived from signed Production runtime and compl
   assertContains(evidence, 'request_seen_by_staff');
   assertContains(evidence, 'request_in_progress');
   assertContains(evidence, 'request_completed');
+  assertContains(evidence, '.contains("extra", { requestId: request.id })');
+  assertNotContains(evidence, '.eq("request_id", request.id)');
   assertContains(service, "deriveFactoryProductionReadinessEvidence");
   assertContains(service, "assessReadiness: true");
   assertContains(service, "keepProductionDark: true");
