@@ -167,6 +167,10 @@ export async function POST(request: NextRequest) {
       environment: body.environment,
       hotelScope,
     });
+    const resolvedExtra = {
+      ...legacyExtra,
+      environment: resolvedEnvironment,
+    };
     const testRoomPolicy = await getTestRoomPolicy(resolvedHotelId, roomNumber);
 
     const legacyPayload = {
@@ -181,7 +185,7 @@ export async function POST(request: NextRequest) {
       section: body.section ?? body.sectionKey ?? null,
       label: body.label ?? null,
       value: body.value ?? null,
-      extra: legacyExtra,
+      extra: resolvedExtra,
     };
 
     const enrichedPayload = {
