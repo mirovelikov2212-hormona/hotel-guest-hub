@@ -79,6 +79,7 @@ function buildEvidence(input: Omit<FactoryReleaseEvidence, "evidenceHash">): Fac
 async function resolveProductionLineage(runtimeGitSha: string): Promise<ProductionLineage | null> {
   const commit = await githubJson(`/commits/${runtimeGitSha}`) as {
     parents?: Array<{ sha?: string }>;
+    commit?: { message?: string };
   };
   const parents = Array.isArray(commit.parents) ? commit.parents : [];
   const mergeParent = String(parents[1]?.sha || "").trim().toLowerCase();
@@ -89,30 +90,26 @@ async function resolveProductionLineage(runtimeGitSha: string): Promise<Producti
 
   if (parents.length !== 1) return null;
 
-  const associatedPullsRaw = await githubJson(`/commits/${runtimeGitSha}/pulls?per_page=20`);
-  const associatedPulls = Array.isArray(associatedPullsRaw) ? associatedPullsRaw : [];
-  for (const entry of associatedPulls) {
-    const summary = entry as Record<string, unknown>;
-    const pullNumber = Number(summary.number);
-    if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0) continue;
+  const commitTitle = String(commit.commit?.message || "").split(/\r?\n/, 1)[0].trim();
+  const pullMatch = commitTitle.match(/\(#([1-9]\d*)\)\s*$/);
+  if (!pullMatch) return null;
+  const pullNumber = Number(pullMatch[1]);
+  if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0) return null;
 
-    const pull = await githubJson(`/pulls/${pullNumber}`) as Record<string, unknown>;
-    const mergeCommitSha = String(pull.merge_commit_sha || "").trim().toLowerCase();
-    const base = pull.base as Record<string, unknown> | undefined;
-    if (
-      mergeCommitSha !== runtimeGitSha
-      || !Boolean(pull.merged_at)
-      || String(base?.ref || "") !== "main"
-    ) continue;
+  const pull = await githubJson(`/pulls/${pullNumber}`) as Record<string, unknown>;
+  const mergeCommitSha = String(pull.merge_commit_sha || "").trim().toLowerCase();
+  const base = pull.base as Record<string, unknown> | undefined;
+  if (
+    mergeCommitSha !== runtimeGitSha
+    || !Boolean(pull.merged_at)
+    || String(base?.ref || "") !== "main"
+  ) return null;
 
-    const head = pull.head as Record<string, unknown> | undefined;
-    const candidateGitSha = String(head?.sha || "").trim().toLowerCase();
-    if (!SHA_PATTERN.test(candidateGitSha)) continue;
+  const head = pull.head as Record<string, unknown> | undefined;
+  const candidateGitSha = String(head?.sha || "").trim().toLowerCase();
+  if (!SHA_PATTERN.test(candidateGitSha)) return null;
 
-    return { candidateGitSha, mode: "production_squash_pr_head" };
-  }
-
-  return null;
+  return { candidateGitSha, mode: "production_squash_pr_head" };
 }
 
 export async function getFactoryReleaseEvidence(): Promise<FactoryReleaseEvidence> {
