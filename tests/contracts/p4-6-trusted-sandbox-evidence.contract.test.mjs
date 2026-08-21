@@ -55,6 +55,11 @@ test("P4.6 release evidence binds Vercel runtime identity to exact GitHub releas
   assert.match(releaseEvidence, /pullMatch/);
   assert.match(releaseEvidence, /\/pulls\/\$\{pullNumber\}/);
   assert.match(releaseEvidence, /merge_commit_sha/);
+  assert.match(releaseEvidence, /if \(!mergeCommitSha\)/);
+  assert.match(releaseEvidence, /\/issues\/\$\{pullNumber\}\/events\?per_page=100/);
+  assert.match(releaseEvidence, /item\.event === "merged"/);
+  assert.match(releaseEvidence, /item\.commit_id/);
+  assert.match(releaseEvidence, /mergeCommitMatchesRuntime \|\| \(!mergeCommitSha && mergedEventMatchesRuntime\)/);
   assert.match(releaseEvidence, /head\?\.sha/);
   assert.doesNotMatch(releaseEvidence, /\/commits\/\$\{runtimeGitSha\}\/pulls/);
   assert.doesNotMatch(releaseEvidence, /\/pulls\?state=closed&base=main&sort=updated/);
