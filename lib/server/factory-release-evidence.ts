@@ -36,6 +36,11 @@ async function githubJson(path: string): Promise<unknown> {
 
 type CheckState = "pending" | "validated" | "failed";
 
+type ProductionLineage = {
+  candidateGitSha: string;
+  mode: "production_merge_parent" | "production_squash_pr_head";
+};
+
 export type FactoryReleaseEvidence = {
   schemaVersion: "p4.6-release-evidence-v1";
   status: CheckState;
@@ -44,7 +49,7 @@ export type FactoryReleaseEvidence = {
   runtimeProjectId: string | null;
   runtimeGitSha: string | null;
   candidateGitSha: string | null;
-  lineageMode: "preview_self" | "production_merge_parent" | "unavailable";
+  lineageMode: "preview_self" | "production_merge_parent" | "production_squash_pr_head" | "unavailable";
   releaseGate: {
     state: CheckState;
     workflow: string;
@@ -69,6 +74,34 @@ export type FactoryReleaseEvidence = {
 function buildEvidence(input: Omit<FactoryReleaseEvidence, "evidenceHash">): FactoryReleaseEvidence {
   const evidenceHash = createHash("sha256").update(canonicalize(input)).digest("hex");
   return { ...input, evidenceHash };
+}
+
+async function resolveProductionLineage(runtimeGitSha: string): Promise<ProductionLineage | null> {
+  const commit = await githubJson(`/commits/${runtimeGitSha}`) as {
+    parents?: Array<{ sha?: string }>;
+  };
+  const parents = Array.isArray(commit.parents) ? commit.parents : [];
+  const mergeParent = String(parents[1]?.sha || "").trim().toLowerCase();
+
+  if (parents.length === 2 && SHA_PATTERN.test(mergeParent)) {
+    return { candidateGitSha: mergeParent, mode: "production_merge_parent" };
+  }
+
+  if (parents.length !== 1) return null;
+
+  const pullsRaw = await githubJson("/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100");
+  const pulls = Array.isArray(pullsRaw) ? pullsRaw : [];
+  const matchedPull = pulls.find((entry) => {
+    const item = entry as Record<string, unknown>;
+    return String(item.merge_commit_sha || "").trim().toLowerCase() === runtimeGitSha
+      && Boolean(item.merged_at)
+      && String((item.base as Record<string, unknown> | undefined)?.ref || "") === "main";
+  }) as Record<string, unknown> | undefined;
+  const head = matchedPull?.head as Record<string, unknown> | undefined;
+  const candidateGitSha = String(head?.sha || "").trim().toLowerCase();
+  if (!SHA_PATTERN.test(candidateGitSha)) return null;
+
+  return { candidateGitSha, mode: "production_squash_pr_head" };
 }
 
 export async function getFactoryReleaseEvidence(): Promise<FactoryReleaseEvidence> {
@@ -116,16 +149,12 @@ export async function getFactoryReleaseEvidence(): Promise<FactoryReleaseEvidenc
     let lineageMode: FactoryReleaseEvidence["lineageMode"] = "preview_self";
 
     if (environment === "production") {
-      const commit = await githubJson(`/commits/${runtimeGitSha}`) as {
-        parents?: Array<{ sha?: string }>;
-      };
-      const parents = Array.isArray(commit.parents) ? commit.parents : [];
-      const mergeParent = String(parents[1]?.sha || "").trim().toLowerCase();
-      if (parents.length !== 2 || !SHA_PATTERN.test(mergeParent)) {
+      const productionLineage = await resolveProductionLineage(runtimeGitSha);
+      if (!productionLineage) {
         return buildEvidence(baseEvidence("failed", null, "unavailable", "failed", "unsupported_release_lineage"));
       }
-      candidateGitSha = mergeParent;
-      lineageMode = "production_merge_parent";
+      candidateGitSha = productionLineage.candidateGitSha;
+      lineageMode = productionLineage.mode;
     }
 
     const [workflowRunsRaw, statusesRaw] = await Promise.all([
