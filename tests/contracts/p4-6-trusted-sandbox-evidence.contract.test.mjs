@@ -51,8 +51,11 @@ test("P4.6 release evidence binds Vercel runtime identity to exact GitHub releas
   assert.match(releaseEvidence, /VERCEL_TARGET_PREFIX/);
   assert.match(releaseEvidence, /production_merge_parent/);
   assert.match(releaseEvidence, /production_squash_pr_head/);
+  assert.match(releaseEvidence, /\/commits\/\$\{runtimeGitSha\}\/pulls\?per_page=20/);
+  assert.match(releaseEvidence, /\/pulls\/\$\{pullNumber\}/);
   assert.match(releaseEvidence, /merge_commit_sha/);
   assert.match(releaseEvidence, /head\?\.sha/);
+  assert.doesNotMatch(releaseEvidence, /\/pulls\?state=closed&base=main&sort=updated/);
 });
 
 test("P4.6 canonical release gate proves canonical tests plus build", () => {

@@ -89,19 +89,30 @@ async function resolveProductionLineage(runtimeGitSha: string): Promise<Producti
 
   if (parents.length !== 1) return null;
 
-  const pullsRaw = await githubJson("/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100");
-  const pulls = Array.isArray(pullsRaw) ? pullsRaw : [];
-  const matchedPull = pulls.find((entry) => {
-    const item = entry as Record<string, unknown>;
-    return String(item.merge_commit_sha || "").trim().toLowerCase() === runtimeGitSha
-      && Boolean(item.merged_at)
-      && String((item.base as Record<string, unknown> | undefined)?.ref || "") === "main";
-  }) as Record<string, unknown> | undefined;
-  const head = matchedPull?.head as Record<string, unknown> | undefined;
-  const candidateGitSha = String(head?.sha || "").trim().toLowerCase();
-  if (!SHA_PATTERN.test(candidateGitSha)) return null;
+  const associatedPullsRaw = await githubJson(`/commits/${runtimeGitSha}/pulls?per_page=20`);
+  const associatedPulls = Array.isArray(associatedPullsRaw) ? associatedPullsRaw : [];
+  for (const entry of associatedPulls) {
+    const summary = entry as Record<string, unknown>;
+    const pullNumber = Number(summary.number);
+    if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0) continue;
 
-  return { candidateGitSha, mode: "production_squash_pr_head" };
+    const pull = await githubJson(`/pulls/${pullNumber}`) as Record<string, unknown>;
+    const mergeCommitSha = String(pull.merge_commit_sha || "").trim().toLowerCase();
+    const base = pull.base as Record<string, unknown> | undefined;
+    if (
+      mergeCommitSha !== runtimeGitSha
+      || !Boolean(pull.merged_at)
+      || String(base?.ref || "") !== "main"
+    ) continue;
+
+    const head = pull.head as Record<string, unknown> | undefined;
+    const candidateGitSha = String(head?.sha || "").trim().toLowerCase();
+    if (!SHA_PATTERN.test(candidateGitSha)) continue;
+
+    return { candidateGitSha, mode: "production_squash_pr_head" };
+  }
+
+  return null;
 }
 
 export async function getFactoryReleaseEvidence(): Promise<FactoryReleaseEvidence> {
