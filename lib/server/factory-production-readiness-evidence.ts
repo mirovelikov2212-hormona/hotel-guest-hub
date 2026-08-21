@@ -136,11 +136,11 @@ async function requireGuestStaffDryRun(certification: CertificationRow) {
 
     const { data: events, error: eventsError } = await supabaseAdmin
       .from("hub_events")
-      .select("event_name, created_at, environment, is_test, hotel_id, request_id")
+      .select("event_name, created_at, environment, is_test, hotel_id, request_id, extra")
       .eq("hotel_id", certification.sandbox_hotel_id)
-      .eq("request_id", request.id)
       .eq("environment", "sandbox")
       .eq("is_test", true)
+      .contains("extra", { requestId: request.id })
       .in("event_name", [...REQUIRED_LIFECYCLE])
       .order("created_at", { ascending: true });
     if (eventsError) throw new Error(`P2_6_1_DRY_RUN_EVENT_READ_FAILED:${eventsError.message}`);
