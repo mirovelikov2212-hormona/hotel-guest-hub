@@ -127,8 +127,25 @@ async function resolveProductionLineage(runtimeGitSha: string): Promise<Producti
   const base = pull.base as Record<string, unknown> | undefined;
   const baseRef = String(base?.ref || "");
   const mergedAtPresent = Boolean(pull.merged_at);
+  const mergeCommitMatchesRuntime = mergeCommitSha === runtimeGitSha;
+  let mergedEventMatchesRuntime = false;
+
+  // GitHub's public PR detail can transiently or persistently omit merge_commit_sha
+  // after a squash merge. Only when that field is absent, bind the same exact PR
+  // to the runtime commit through GitHub's system-generated merged issue event.
+  if (!mergeCommitSha) {
+    const issueEventsRaw = await githubJson(`/issues/${pullNumber}/events?per_page=100`);
+    const issueEvents = Array.isArray(issueEventsRaw) ? issueEventsRaw : [];
+    mergedEventMatchesRuntime = issueEvents.some((entry) => {
+      const item = entry as Record<string, unknown>;
+      return item.event === "merged"
+        && String(item.commit_id || "").trim().toLowerCase() === runtimeGitSha;
+    });
+  }
+
+  const mergeBindingMatchesRuntime = mergeCommitMatchesRuntime || (!mergeCommitSha && mergedEventMatchesRuntime);
   if (
-    mergeCommitSha !== runtimeGitSha
+    !mergeBindingMatchesRuntime
     || !mergedAtPresent
     || baseRef !== "main"
   ) {
@@ -136,7 +153,9 @@ async function resolveProductionLineage(runtimeGitSha: string): Promise<Producti
       runtimeGitSha,
       pullNumber,
       mergeCommitSha,
-      mergeCommitMatchesRuntime: mergeCommitSha === runtimeGitSha,
+      mergeCommitMatchesRuntime,
+      mergedEventFallbackUsed: !mergeCommitSha,
+      mergedEventMatchesRuntime,
       mergedAtPresent,
       baseRef,
     });
