@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import FactoryProductionAcceptancePanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryProductionAcceptancePanel";
 import FactoryProjectionWorkspace from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryProjectionWorkspace";
 import FactorySandboxCertificationPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxCertificationPanel";
 import FactorySandboxEvidencePanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxEvidencePanel";
 import FactorySandboxPreflightPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxPreflightPanel";
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
 import { getFactoryOnboardingProgress } from "@/lib/server/factory-onboarding-progress";
+import { getFactoryProductionAcceptanceProgress } from "@/lib/server/factory-production-acceptance-progress";
 import { getFactoryReleaseEvidence } from "@/lib/server/factory-release-evidence";
 import { getFactorySandboxPreflight } from "@/lib/server/factory-sandbox-preflight";
 import { probeFactorySandboxGenericStaffRuntime } from "@/lib/server/factory-sandbox-runtime-probe";
@@ -15,8 +17,8 @@ import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-sessi
 export const dynamic = "force-dynamic";
 
 const COPY = {
-  bg: { eyebrow: "P4.4 → P4.11 · Guided Factory Progress", back: "← Factory runs" },
-  en: { eyebrow: "P4.4 → P4.11 · Guided Factory Progress", back: "← Factory runs" },
+  bg: { eyebrow: "P4.4 → P2.6.3 · Guided Factory Progress", back: "← Factory runs" },
+  en: { eyebrow: "P4.4 → P2.6.3 · Guided Factory Progress", back: "← Factory runs" },
 } as const;
 
 export default async function FactoryRunWorkspacePage({
@@ -45,6 +47,15 @@ export default async function FactoryRunWorkspacePage({
         probeFactorySandboxGenericStaffRuntime(preflight),
         getFactoryReleaseEvidence(),
       ])
+    : null;
+
+  const productionAcceptance = preflight?.certification.status === "complete"
+    && preflight.certification.certificationRunId
+    ? await getFactoryProductionAcceptanceProgress({
+        sandboxCertificationRunId: preflight.certification.certificationRunId,
+        productionHotelId: preflight.lineage.productionHotelId,
+        productionRevisionId: preflight.lineage.productionRevisionId,
+      })
     : null;
 
   return (
@@ -81,6 +92,13 @@ export default async function FactoryRunWorkspacePage({
               releaseEvidence={trustedEvidence[1]}
             />
           </>
+        )}
+        {trustedEvidence && productionAcceptance && (
+          <FactoryProductionAcceptancePanel
+            lang={lang}
+            progress={productionAcceptance}
+            releaseEvidence={trustedEvidence[1]}
+          />
         )}
       </div>
     </main>
