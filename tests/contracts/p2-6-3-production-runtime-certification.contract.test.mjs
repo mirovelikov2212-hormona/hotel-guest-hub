@@ -4,6 +4,7 @@ import { assertContains, assertNotContains, readProjectFile } from "../helpers/s
 
 const MIGRATION = "supabase/migrations/20260817153000_p2_6_3_production_runtime_certification.sql";
 const SERVICE = "lib/server/factory-production-runtime-certification.ts";
+const EVIDENCE = "lib/server/factory-production-runtime-certification-evidence.ts";
 const ROUTE = "app/api/control-plane/onboarding/production-runtime-certification/route.ts";
 
 test("P2.6.3 certification ledger is immutable and service-role-only", async () => {
@@ -63,8 +64,9 @@ test("P2.6.3 rechecks normalized room, department, routing and generic-staff inv
   assertContains(migration, "rt.runtime_enabled=false");
 });
 
-test("P2.6.3 server requires every runtime evidence gate and explicit no-activation approval", async () => {
+test("P2.6.3 server derives every runtime gate and exact deployment after publication", async () => {
   const service = await readProjectFile(SERVICE);
+  const evidence = await readProjectFile(EVIDENCE);
   for (const check of [
     "exact_production_deployment",
     "published_config_runtime",
@@ -79,26 +81,37 @@ test("P2.6.3 server requires every runtime evidence gate and explicit no-activat
     "public_route_fail_closed",
     "runtime_resources_fail_closed",
     "no_production_activation",
-  ]) assertContains(service, `"${check}"`);
+  ]) assertContains(evidence, `${check}: true`);
 
+  assertContains(evidence, 'source: "system_derived"');
+  assertContains(evidence, 'getFactoryReleaseEvidence()');
+  assertContains(evidence, 'get_factory_vercel_runtime_log_window_v1');
+  assertContains(evidence, '.gte("event_timestamp", input.notBefore)');
+  assertContains(evidence, 'factory_production_publication_runs');
+  assertContains(evidence, 'hotel_config_publication_state');
+  assertContains(service, "deriveFactoryProductionRuntimeCertificationEvidence");
   assertContains(service, "certifyRuntime: true");
   assertContains(service, "keepProductionDark: true");
   assertContains(service, "activateHotel: false");
   assertContains(service, "activatePublicIdentity: false");
   assertContains(service, "enableRuntimeResources: false");
-  assertContains(service, 'schemaVersion: "p2.6.3"');
+  assertContains(service, 'schemaVersion: "p2.6.3-trusted"');
   assertContains(service, 'supabaseAdmin.rpc("certify_factory_production_runtime_v1"');
   assertContains(service, "canMutateControlPlane(input.authority.role)");
   assertContains(service, 'createHash("sha256")');
 });
 
-test("P2.6.3 API remains same-origin and Platform Admin authenticated", async () => {
+test("P2.6.3 API forbids caller-selected deployment/checks/evidence", async () => {
   const route = await readProjectFile(ROUTE);
   assertContains(route, "enforceControlPlaneSameOrigin(req)");
   assertContains(route, "getCurrentPlatformAdminSession()");
   assertContains(route, "certifyFactoryProductionRuntime");
   assertContains(route, 'error: "unauthorized"');
-  assertContains(route, "MAX_BODY_BYTES");
+  assertContains(route, "P2_6_3_CLIENT_EVIDENCE_FORBIDDEN");
+  assertContains(route, '"deploymentId"');
+  assertContains(route, '"deploymentSha"');
+  assertContains(route, '"checks"');
+  assertContains(route, '"evidence"');
 });
 
 test("real Guest runtime still requires an active hotel after dark certification", async () => {
