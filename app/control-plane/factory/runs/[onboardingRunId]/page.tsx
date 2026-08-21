@@ -16,8 +16,8 @@ import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-sessi
 export const dynamic = "force-dynamic";
 
 const COPY = {
-  bg: { eyebrow: "P4.4 → P2.6.3 · Guided Factory Progress", back: "← Factory runs" },
-  en: { eyebrow: "P4.4 → P2.6.3 · Guided Factory Progress", back: "← Factory runs" },
+  bg: { eyebrow: "P4.4 → P4.11 · Guided Factory Progress", back: "← Factory runs" },
+  en: { eyebrow: "P4.4 → P4.11 · Guided Factory Progress", back: "← Factory runs" },
 } as const;
 
 export default async function FactoryRunWorkspacePage({
