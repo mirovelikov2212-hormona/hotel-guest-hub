@@ -8,7 +8,6 @@ import FactorySandboxEvidencePanel from "@/app/control-plane/factory/runs/[onboa
 import FactorySandboxPreflightPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxPreflightPanel";
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
 import { getFactoryOnboardingProgress } from "@/lib/server/factory-onboarding-progress";
-import { getFactoryProductionAcceptanceProgress } from "@/lib/server/factory-production-acceptance-progress";
 import { getFactoryReleaseEvidence } from "@/lib/server/factory-release-evidence";
 import { getFactorySandboxPreflight } from "@/lib/server/factory-sandbox-preflight";
 import { probeFactorySandboxGenericStaffRuntime } from "@/lib/server/factory-sandbox-runtime-probe";
@@ -49,14 +48,12 @@ export default async function FactoryRunWorkspacePage({
       ])
     : null;
 
-  const productionAcceptance = preflight?.certification.status === "complete"
+  const productionPanelReady = Boolean(
+    trustedEvidence
+    && preflight?.certification.status === "complete"
     && preflight.certification.certificationRunId
-    ? await getFactoryProductionAcceptanceProgress({
-        sandboxCertificationRunId: preflight.certification.certificationRunId,
-        productionHotelId: preflight.lineage.productionHotelId,
-        productionRevisionId: preflight.lineage.productionRevisionId,
-      })
-    : null;
+    && progress.production.publicSlug,
+  );
 
   return (
     <main className="min-h-screen bg-neutral-950 px-4 py-8 text-neutral-50 sm:px-6 lg:px-8">
@@ -93,10 +90,13 @@ export default async function FactoryRunWorkspacePage({
             />
           </>
         )}
-        {trustedEvidence && productionAcceptance && (
+        {productionPanelReady && trustedEvidence && preflight?.certification.certificationRunId && progress.production.publicSlug && (
           <FactoryProductionAcceptancePanel
             lang={lang}
-            progress={productionAcceptance}
+            sandboxCertificationRunId={preflight.certification.certificationRunId}
+            productionHotelId={preflight.lineage.productionHotelId}
+            productionRevisionId={preflight.lineage.productionRevisionId}
+            publicSlug={progress.production.publicSlug}
             releaseEvidence={trustedEvidence[1]}
           />
         )}
