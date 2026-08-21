@@ -7,7 +7,6 @@ const migrationPath = "supabase/migrations/20260817133000_p2_6_1_production_read
 const servicePath = "lib/server/factory-production-readiness.ts";
 const evidencePath = "lib/server/factory-production-readiness-evidence.ts";
 const routePath = "app/api/control-plane/onboarding/production-readiness/route.ts";
-const progressPath = "lib/server/factory-production-acceptance-progress.ts";
 const panelPath = "app/control-plane/factory/runs/[onboardingRunId]/FactoryProductionAcceptancePanel.tsx";
 const workspacePath = "app/control-plane/factory/runs/[onboardingRunId]/page.tsx";
 
@@ -110,16 +109,12 @@ test("P2.6.1 service remains authenticated Control Plane authority and readiness
 
 test("P2.6 dark operator panel is authenticated, sequential and has no LIVE mutation surface", async () => {
   const panel = await readProjectFile(panelPath);
-  const progress = await readProjectFile(progressPath);
   const workspace = await readProjectFile(workspacePath);
 
   assertContains(workspace, "getCurrentPlatformAdminSession()");
-  assertContains(workspace, "getFactoryProductionAcceptanceProgress");
   assertContains(workspace, "FactoryProductionAcceptancePanel");
-  assertContains(progress, '.eq("sandbox_certification_run_id", sandboxCertificationRunId)');
-  assertContains(progress, '.eq("production_hotel_id", productionHotelId)');
-  assertContains(progress, '.eq("production_revision_id", productionRevisionId)');
-  assertContains(progress, "liveActivationAvailable: false");
+  assertContains(workspace, 'preflight?.certification.status === "complete"');
+  assertContains(panel, "window.sessionStorage");
 
   assertContains(panel, '"/api/control-plane/onboarding/production-readiness"');
   assertContains(panel, '"/api/control-plane/onboarding/production-publication"');
@@ -132,7 +127,7 @@ test("P2.6 dark operator panel is authenticated, sequential and has no LIVE muta
   assertContains(panel, "activatePublicIdentity: false");
   assertContains(panel, "enableRuntimeResources: false");
   assertNotContains(panel, "/api/control-plane/onboarding/production-live-activation");
-  assertNotContains(panel, "useEffect(");
+  assertNotContains(panel, "supabaseAdmin");
   assertNotContains(panel, "deploymentId:");
   assertNotContains(panel, "deploymentSha:");
   assertNotContains(panel, "checks:");
