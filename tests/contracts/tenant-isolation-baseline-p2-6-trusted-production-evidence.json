@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "checkpoint": "p2-6-trusted-production-evidence",
+  "baseCheckpoint": "p4-8-preview-runtime-smoke",
+  "expectedNeedsReview": 105,
+  "removals": [
+    {
+      "filePath": "lib/server/factory-production-readiness.ts",
+      "line": 80,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification.ts",
+      "line": 148,
+      "operation": "rpc"
+    }
+  ],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-production-readiness-evidence.ts",
+      "line": 30,
+      "table": "factory_sandbox_certification_runs",
+      "tableExpression": "\"factory_sandbox_certification_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_1_trusted_evidence_reads_one_exact_caller_selected_immutable_sandbox_certification_id_and_requires_passed_status_before_deriving_any_production_readiness_evidence"
+    },
+    {
+      "filePath": "lib/server/factory-production-readiness-evidence.ts",
+      "line": 47,
+      "table": "hotel_public_identity_configs",
+      "tableExpression": "\"hotel_public_identity_configs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_1_trusted_evidence_reads_public_identity_by_exact_production_hotel_id_from_passed_sandbox_certification_lineage_and_requires_reserved_fail_closed_state"
+    },
+    {
+      "filePath": "lib/server/factory-production-readiness-evidence.ts",
+      "line": 52,
+      "table": "factory_production_live_activation_runs",
+      "tableExpression": "\"factory_production_live_activation_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_1_trusted_evidence_counts_live_activation_ledger_rows_by_exact_certified_production_hotel_id_and_requires_zero_before_readiness"
+    },
+    {
+      "filePath": "lib/server/factory-production-readiness-evidence.ts",
+      "line": 72,
+      "table": "factory_vercel_runtime_log_events",
+      "tableExpression": "\"factory_vercel_runtime_log_events\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_1_trusted_evidence_reads_privacy_minimal_signed_vercel_marker_ledger_scoped_to_exact_current_production_deployment_environment_envelope_and_git_sha_from_certified_factory_lineage"
+    },
+    {
+      "filePath": "lib/server/factory-production-readiness-evidence.ts",
+      "line": 87,
+      "rpc": "get_factory_vercel_runtime_log_window_v1",
+      "tableExpression": "\"get_factory_vercel_runtime_log_window_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "server_only_p2_6_1_trusted_evidence_calls_service_role_only_stable_p4_7_observation_rpc_with_exact_current_production_deployment_and_signed_smoke_run_then_revalidates_project_environment_envelope_and_git_sha"
+    },
+    {
+      "filePath": "lib/server/factory-production-readiness.ts",
+      "line": 70,
+      "rpc": "assess_factory_production_readiness_v1",
+      "tableExpression": "\"assess_factory_production_readiness_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_platform_mutation_calls_service_role_only_security_definer_readiness_rpc_only_after_server_derived_signed_runtime_security_guest_staff_and_dark_production_evidence_then_database_rechecks_exact_factory_lineage_and_inserts_only_immutable_readiness_and_audit_ledgers_without_activation_or_publication"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification-evidence.ts",
+      "line": 19,
+      "table": "factory_vercel_runtime_log_events",
+      "tableExpression": "\"factory_vercel_runtime_log_events\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_3_trusted_evidence_reads_signed_vercel_settle_marker_scoped_to_exact_current_production_deployment_environment_envelope_git_sha_and_not_before_the_exact_dark_publication_timestamp"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification-evidence.ts",
+      "line": 35,
+      "rpc": "get_factory_vercel_runtime_log_window_v1",
+      "tableExpression": "\"get_factory_vercel_runtime_log_window_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "server_only_p2_6_3_trusted_evidence_calls_service_role_only_stable_p4_7_observation_rpc_for_exact_post_publication_production_smoke_and_revalidates_project_environment_deployment_envelope_git_sha_and_clean_three_marker_window"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification-evidence.ts",
+      "line": 65,
+      "table": "factory_production_publication_runs",
+      "tableExpression": "\"factory_production_publication_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_3_trusted_evidence_reads_one_exact_immutable_publication_run_id_and_requires_published_pending_certification_before_deriving_runtime_certification_evidence"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification-evidence.ts",
+      "line": 75,
+      "table": "factory_production_readiness_runs",
+      "tableExpression": "\"factory_production_readiness_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_3_trusted_evidence_reads_exact_readiness_run_id_from_immutable_publication_lineage_and_revalidates_same_production_hotel_revision_before_reusing_p2_6_1_trusted_evidence"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification-evidence.ts",
+      "line": 138,
+      "table": "hotel_service_definitions",
+      "tableExpression": "\"hotel_service_definitions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_3_trusted_evidence_counts_runtime_enabled_services_by_exact_production_hotel_id_from_publication_lineage_and_requires_zero_before_dark_certification"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification-evidence.ts",
+      "line": 143,
+      "table": "hotel_workflow_definitions",
+      "tableExpression": "\"hotel_workflow_definitions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_3_trusted_evidence_counts_runtime_enabled_workflows_by_exact_production_hotel_id_from_publication_lineage_and_requires_zero_before_dark_certification"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification.ts",
+      "line": 86,
+      "rpc": "certify_factory_production_runtime_v1",
+      "tableExpression": "\"certify_factory_production_runtime_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_platform_mutation_calls_service_role_only_security_definer_runtime_certification_rpc_only_after_server_derived_exact_post_publication_signed_runtime_and_fail_closed_evidence_then_database_rechecks_full_factory_lineage_and_keeps_hotel_public_routes_and_runtime_resources_dark"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-smoke.ts",
+      "line": 66,
+      "table": "factory_sandbox_certification_runs",
+      "tableExpression": "\"factory_sandbox_certification_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "cron_authenticated_server_only_production_smoke_reads_bounded_recent_passed_factory_sandbox_certifications_as_platform_evidence_then_filters_each_candidate_against_exact_linked_inactive_production_and_active_sandbox_environment_state_without_mutation"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-smoke.ts",
+      "line": 85,
+      "table": "factory_production_runtime_certification_runs",
+      "tableExpression": "\"factory_production_runtime_certification_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "cron_authenticated_server_only_production_smoke_reads_runtime_certification_ledger_for_the_bounded_candidate_production_hotel_ids_only_to_exclude_already_certified_tenants_and_make_the_smoke_inert_after_p2_6_3"
+    }
+  ]
+}
