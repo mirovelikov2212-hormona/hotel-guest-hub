@@ -3,6 +3,7 @@ import test from "node:test";
 import { assertContains, assertNotContains, readProjectFile } from "../helpers/source-contract.mjs";
 
 const MIGRATION = "supabase/migrations/20260817153000_p2_6_3_production_runtime_certification.sql";
+const IMMUTABLE_FIX = "supabase/migrations/20260822083000_p2_6_dark_immutable_production_revisions.sql";
 const SERVICE = "lib/server/factory-production-runtime-certification.ts";
 const EVIDENCE = "lib/server/factory-production-runtime-certification-evidence.ts";
 const ROUTE = "app/api/control-plane/onboarding/production-runtime-certification/route.ts";
@@ -99,6 +100,26 @@ test("P2.6.3 server derives every runtime gate and exact deployment after public
   assertContains(service, 'supabaseAdmin.rpc("certify_factory_production_runtime_v1"');
   assertContains(service, "canMutateControlPlane(input.authority.role)");
   assertContains(service, 'createHash("sha256")');
+});
+
+test("P2.6.3 immutable correction binds the published derivative to the P2.6.1 source and never rewrites revision content", async () => {
+  const fix = await readProjectFile(IMMUTABLE_FIX);
+  const evidence = await readProjectFile(EVIDENCE);
+  assertContains(fix, "published.id<>source.id");
+  assertContains(fix, "published.revision_no=source.revision_no+1");
+  assertContains(fix, "published.source_checksum=source.source_checksum");
+  assertContains(fix, "P2_6_3_PUBLISHED_REVISION_IMMUTABILITY_DRIFT");
+  assertContains(fix, "P2_6_DARK_IMMUTABLE_CERTIFICATION_GUARD_FAILED");
+  assertContains(fix, "'sourceProductionRevisionId',v_readiness.production_revision_id");
+  assertContains(fix, "'publishedProductionRevisionId',v_revision.id");
+  assertContains(evidence, '.from("hotel_config_revisions")');
+  assertContains(evidence, 'String(readiness.production_revision_id) === String(publication.production_revision_id)');
+  assertContains(evidence, 'sourceValidation.ok !== false');
+  assertContains(evidence, 'publishedValidation.ok !== true');
+  assertContains(evidence, '"FACTORY_PRODUCTION_RUNTIME_CERTIFICATION_PENDING"');
+  assertContains(evidence, 'String(publishedProvenance.stage || "") !== "production_dark_publication"');
+  assertContains(evidence, "sourceProductionRevisionId: String(readiness.production_revision_id)");
+  assertNotContains(evidence, 'String(readiness.production_revision_id) !== String(publication.production_revision_id)');
 });
 
 test("P2.6.3 API forbids caller-selected deployment/checks/evidence", async () => {

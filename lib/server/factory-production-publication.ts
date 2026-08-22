@@ -89,10 +89,10 @@ export async function publishFactoryProductionConfiguration(input: {
     }))
     .digest("hex");
 
-  // Reviewed platform-authority mutation: the service-role-only RPC publishes only the exact
-  // P2.6.1-ready factory revision into config publication state. It transactionally rechecks
-  // lineage and CAS targets while keeping the Production hotel inactive, public identity
-  // reserved, runtime resources disabled and Production certification not started.
+  // Reviewed platform-authority mutation: the service-role-only RPC treats the P2.6.1-ready
+  // revision as immutable source/CAS and publishes an exact derivative. It rechecks lineage
+  // while keeping Production inactive, public identity reserved, runtime disabled and certification pending.
+  // The browser never receives service-role database authority from this path.
   const { data, error } = await supabaseAdmin.rpc("publish_factory_production_revision_v1", {
     p_actor_admin_id: input.authority.adminId,
     p_readiness_run_id: readinessRunId,
@@ -106,9 +106,13 @@ export async function publishFactoryProductionConfiguration(input: {
   const row = (Array.isArray(data) ? data[0] : data) as PublicationRpcRow | null;
   if (!row) throw new Error("P2_6_2_PRODUCTION_PUBLICATION_EMPTY_RESULT");
 
+  const publishedRevisionId = normalizeUuid(
+    row.production_revision_id,
+    "P2_6_2_PUBLISHED_REVISION_ID_INVALID",
+  );
   if (
     String(row.production_hotel_id) !== expectedProductionHotelId
-    || String(row.production_revision_id) !== expectedProductionRevisionId
+    || publishedRevisionId === expectedProductionRevisionId
   ) {
     throw new Error("P2_6_2_PRODUCTION_PUBLICATION_RESULT_MISMATCH");
   }
@@ -116,7 +120,8 @@ export async function publishFactoryProductionConfiguration(input: {
   return {
     publicationRunId: row.publication_run_id,
     productionHotelId: row.production_hotel_id,
-    productionRevisionId: row.production_revision_id,
+    productionRevisionId: publishedRevisionId,
+    sourceProductionRevisionId: expectedProductionRevisionId,
     expectedPublicSlug,
     approvalHash,
     status: "published_pending_certification" as const,

@@ -82,7 +82,7 @@ export async function deriveFactoryProductionRuntimeCertificationEvidence(public
     !readiness
     || readiness.status !== "ready"
     || String(readiness.production_hotel_id) !== String(publication.production_hotel_id)
-    || String(readiness.production_revision_id) !== String(publication.production_revision_id)
+    || String(readiness.production_revision_id) === String(publication.production_revision_id)
   ) {
     throw new Error("P2_6_3_READINESS_LINEAGE_INVALID");
   }
@@ -90,7 +90,7 @@ export async function deriveFactoryProductionRuntimeCertificationEvidence(public
   const readinessEvidence = await deriveFactoryProductionReadinessEvidence(String(readiness.sandbox_certification_run_id));
   if (
     readinessEvidence.certification.productionHotelId !== String(publication.production_hotel_id)
-    || readinessEvidence.certification.productionRevisionId !== String(publication.production_revision_id)
+    || readinessEvidence.certification.productionRevisionId !== String(readiness.production_revision_id)
   ) {
     throw new Error("P2_6_3_CERTIFICATION_LINEAGE_MISMATCH");
   }
@@ -156,6 +156,56 @@ export async function deriveFactoryProductionRuntimeCertificationEvidence(public
     throw new Error("P2_6_3_RUNTIME_RESOURCES_NOT_FAIL_CLOSED");
   }
 
+  const hasString = (values: unknown, expected: string) => (
+    Array.isArray(values) && values.some((value) => String(value) === expected)
+  );
+  const [{ data: sourceRevision, error: sourceRevisionError }, { data: publishedRevision, error: publishedRevisionError }] = await Promise.all([
+    supabaseAdmin
+      .from("hotel_config_revisions")
+      .select("id, hotel_id, revision_no, status, source_type, source_checksum, validation_json, provenance_json")
+      .eq("hotel_id", publication.production_hotel_id)
+      .eq("id", readiness.production_revision_id)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("hotel_config_revisions")
+      .select("id, hotel_id, revision_no, status, source_type, source_checksum, validation_json, provenance_json")
+      .eq("hotel_id", publication.production_hotel_id)
+      .eq("id", publication.production_revision_id)
+      .maybeSingle(),
+  ]);
+  if (sourceRevisionError || publishedRevisionError) throw new Error("P2_6_3_REVISION_LINEAGE_READ_FAILED");
+  if (!sourceRevision || !publishedRevision) throw new Error("P2_6_3_REVISION_LINEAGE_MISSING");
+
+  const sourceValidation = isRecord(sourceRevision.validation_json) ? sourceRevision.validation_json : {};
+  const publishedValidation = isRecord(publishedRevision.validation_json) ? publishedRevision.validation_json : {};
+  const publishedProvenance = isRecord(publishedRevision.provenance_json) ? publishedRevision.provenance_json : {};
+  if (
+    Number(sourceRevision.revision_no) !== 4
+    || String(sourceRevision.status) !== "draft"
+    || String(sourceRevision.source_type) !== "factory_blueprint"
+    || sourceValidation.ok !== false
+    || !hasString(sourceValidation.errors, "FACTORY_SANDBOX_CERTIFICATION_PENDING")
+    || Number(publishedRevision.revision_no) !== Number(sourceRevision.revision_no) + 1
+    || String(publishedRevision.status) !== "published"
+    || String(publishedRevision.source_type) !== "factory_blueprint"
+    || String(publishedRevision.source_checksum) !== String(sourceRevision.source_checksum)
+    || publishedValidation.ok !== true
+    || !hasString(publishedValidation.warnings, "FACTORY_PRODUCTION_RUNTIME_CERTIFICATION_PENDING")
+    || String(publishedValidation.sourceRevisionId || "") !== String(sourceRevision.id)
+    || String(publishedValidation.readinessRunId || "") !== String(publication.readiness_run_id)
+    || String(publishedValidation.sandboxCertificationRunId || "") !== String(readiness.sandbox_certification_run_id)
+    || String(publishedValidation.envelopeProjectionRunId || "") !== readinessEvidence.certification.envelopeProjectionRunId
+    || String(publishedProvenance.stage || "") !== "production_dark_publication"
+    || String(publishedProvenance.source || "") !== "stayhub_product_factory"
+    || String(publishedProvenance.sourceRevisionId || "") !== String(sourceRevision.id)
+    || String(publishedProvenance.readinessRunId || "") !== String(publication.readiness_run_id)
+    || String(publishedProvenance.sandboxCertificationRunId || "") !== String(readiness.sandbox_certification_run_id)
+    || String(publishedProvenance.envelopeProjectionRunId || "") !== readinessEvidence.certification.envelopeProjectionRunId
+    || String(publishedProvenance.productionHotelId || "") !== String(publication.production_hotel_id)
+  ) {
+    throw new Error("P2_6_3_PUBLISHED_REVISION_LINEAGE_INVALID");
+  }
+
   const runtime = await requirePostPublicationRuntimeWindow({
     envelopeProjectionRunId: readinessEvidence.certification.envelopeProjectionRunId,
     deploymentId,
@@ -170,6 +220,7 @@ export async function deriveFactoryProductionRuntimeCertificationEvidence(public
       publicationRunId: String(publication.id),
       readinessRunId: String(publication.readiness_run_id),
       productionHotelId: String(publication.production_hotel_id),
+      sourceProductionRevisionId: String(readiness.production_revision_id),
       productionRevisionId: String(publication.production_revision_id),
       expectedPublicSlug: String(publication.expected_public_slug),
       createdAt: String(publication.created_at),
