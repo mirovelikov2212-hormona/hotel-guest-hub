@@ -5,6 +5,7 @@ import test from "node:test";
 const source = fs.readFileSync("components/GuestHub.tsx", "utf8");
 
 test("configured test rooms silently recover stale guest stay identity without weakening real-room expiry alerts", () => {
+  // The exception must stay tenant-config-driven; Aquamarine currently maps only room 103 here.
   assert.match(source, /const testRoomSet = useMemo\([\s\S]*config\.testRoomNumbers/);
   assert.match(source, /const isDateExemptTestRoom = useCallback\([\s\S]*testRoomSet\.has\(normalizeRoomNumber\(candidate\)\)/);
   assert.match(source, /const staleRoom = normalizeRoomNumber\(room \|\| manualRoomInput \|\| qrRoom\);[\s\S]*if \(!isDateExemptTestRoom\(staleRoom\) && !stayExpiredNotifiedRef\.current\) \{[\s\S]*window\.alert\(stayCopy\.expired\)/);
