@@ -4,6 +4,7 @@ import { assertContains, assertNotContains, readProjectFile } from "../helpers/s
 
 const MIGRATION = "supabase/migrations/20260817153000_p2_6_3_production_runtime_certification.sql";
 const IMMUTABLE_FIX = "supabase/migrations/20260822083000_p2_6_dark_immutable_production_revisions.sql";
+const RELEASE_RECERTIFICATION = "supabase/migrations/20260822152000_p2_6_3_exact_release_recertification.sql";
 const SERVICE = "lib/server/factory-production-runtime-certification.ts";
 const EVIDENCE = "lib/server/factory-production-runtime-certification-evidence.ts";
 const ROUTE = "app/api/control-plane/onboarding/production-runtime-certification/route.ts";
@@ -17,6 +18,19 @@ test("P2.6.3 certification ledger is immutable and service-role-only", async () 
   assertContains(migration, "grant select, insert on table public.factory_production_runtime_certification_runs to service_role");
   assertNotContains(migration, "grant update");
   assertNotContains(migration, "grant delete");
+});
+
+test("P2.6.3 exact-release recertification preserves history and scopes idempotency to deployment", async () => {
+  const migration = await readProjectFile(RELEASE_RECERTIFICATION);
+  assertContains(migration, "drop constraint if exists factory_production_runtime_certification_publication_run_id_key");
+  assertContains(migration, "unique (publication_run_id, deployment_id, deployment_sha)");
+  assertContains(migration, "where publication_run_id=p_publication_run_id");
+  assertContains(migration, "and deployment_id=p_deployment_id");
+  assertContains(migration, "and deployment_sha=p_deployment_sha");
+  assertContains(migration, "P2_6_3_RELEASE_RECERTIFICATION_SOURCE_GUARD_FAILED");
+  assertContains(migration, "P2_6_3_RELEASE_RECERTIFICATION_PATCH_GUARD_FAILED");
+  assertNotContains(migration, "update public.factory_production_runtime_certification_runs");
+  assertNotContains(migration, "delete from public.factory_production_runtime_certification_runs");
 });
 
 test("P2.6.3 requires the exact P2.6.2 publication, target and deployment evidence", async () => {
