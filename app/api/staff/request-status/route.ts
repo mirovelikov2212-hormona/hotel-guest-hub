@@ -176,10 +176,10 @@ export async function POST(req: NextRequest) {
     if ("error" in scope) return scope.error;
 
     const operationalConfig =
-      scope.environment === "sandbox"
+      role === "housekeeping" || role === "maintenance"
         ? await getHotelConfig(scope.hotelSlug).catch((error) => {
             console.error(
-              "Sandbox request-status operational-hours config load failed; using legacy hours",
+              "Staff request-status operational-hours config load failed; denying mutation",
               error,
             );
             return null;
@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json(
         { ok: false, error: "Role is not allowed to update this request" },
-        { status: 403 }
+        { status: 409 }
       );
     }
 
