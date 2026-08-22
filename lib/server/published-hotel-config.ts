@@ -8,6 +8,7 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 type PublicationStateRow = {
   published_revision_id: string | null;
+  last_known_good_revision_id: string | null;
 };
 
 type PublishedRevisionRow = {
@@ -36,10 +37,6 @@ function hasValidationWarning(
   return warnings.some(
     (warning) => String(warning || "") === expectedWarning,
   );
-}
-
-function isFactoryLivePilot(validationJson: Record<string, unknown>) {
-  return hasValidationWarning(validationJson, "FACTORY_PRODUCTION_LIVE_PILOT");
 }
 
 function isFactorySandboxAcceptance(validationJson: Record<string, unknown>) {
@@ -125,7 +122,7 @@ export async function getPublishedHotelConfigSnapshot(
 
   const { data: publicationState, error: stateError } = await supabaseAdmin
     .from("hotel_config_publication_state")
-    .select("published_revision_id")
+    .select("published_revision_id, last_known_good_revision_id")
     .eq("hotel_id", normalizedHotelId)
     .maybeSingle();
 
@@ -186,7 +183,10 @@ export async function getPublishedHotelConfigSnapshot(
   const config = { ...(row.config_json as HotelConfig) } as HotelConfig;
   markFactoryManagedGuestRuntime(config);
 
-  if (isFactoryLivePilot(row.validation_json)) {
+  // P2.6.4 keeps the published revision immutable. LIVE reachability is therefore
+  // represented by the publication rollback anchor (LKG) plus the fail-closed
+  // relational-authority RPC, not by rewriting validation_json on the revision.
+  if (state?.last_known_good_revision_id === row.id) {
     const relationalAuthority = await getFactoryProductionRelationalAuthority({
       hotelId: normalizedHotelId,
       revisionId: row.id,
