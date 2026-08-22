@@ -72,3 +72,27 @@ test("P2.6.2 API remains same-origin and Platform Admin authenticated", async ()
   assertContains(route, 'error: "unauthorized"');
   assertContains(route, "MAX_BODY_BYTES");
 });
+
+test("P2.6.2 corrective migration binds the immutable P2.5 source to its exact certified derivative", async () => {
+  const fix = await readProjectFile("supabase/migrations/20260822060000_p2_6_2_certified_sandbox_lineage_fix.sql");
+  assertContains(fix, "P2_6_2_CERTIFIED_SANDBOX_LINEAGE_FIX_SOURCE_MISMATCH");
+  assertContains(fix, "v_definition := replace(v_definition,v_old,v_new)");
+  assertContains(fix, "r.id=v_readiness.sandbox_revision_id");
+  assertContains(fix, "r.id=v_cert.sandbox_revision_id");
+  assertContains(fix, "coalesce((r.validation_json->>'ok')::boolean,false)=false");
+  assertContains(fix, "r.validation_json->'errors' ? 'FACTORY_SANDBOX_CERTIFICATION_PENDING'");
+  assertContains(fix, "certified.status='published'");
+  assertContains(fix, "certified.source_checksum=r.source_checksum");
+  assertContains(fix, "certified.validation_json->'warnings' ? 'FACTORY_SANDBOX_ACCEPTANCE_CERTIFIED'");
+  assertContains(fix, "certified.validation_json->>'sourceRevisionId'=r.id::text");
+  assertContains(fix, "certified.validation_json->>'certificationRunId'=v_cert.id::text");
+  assertContains(fix, "certified.provenance_json->>'stage'='sandbox_acceptance_activation'");
+  assertContains(fix, "certified.provenance_json->>'source'='stayhub_product_factory'");
+  assertContains(fix, "certified.provenance_json->>'sourceRevisionId'=r.id::text");
+  assertContains(fix, "certified.provenance_json->>'certificationRunId'=v_cert.id::text");
+  assertContains(fix, "certified.provenance_json->>'productionHotelId'=v_onboarding.production_hotel_id::text");
+  assertContains(fix, "certified.created_at>=v_cert.created_at");
+  assertContains(fix, "grant execute on function public.publish_factory_production_revision_v1(uuid,uuid,uuid,uuid,text,text)");
+  assertNotContains(fix, "update public.hotels");
+  assertNotContains(fix, "set active=true");
+});
