@@ -3,23 +3,8 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import { canMutateControlPlane, type PlatformAdminAuthority } from "@/lib/server/control-plane-auth";
+import { deriveFactoryProductionLiveActivationEvidence } from "@/lib/server/factory-production-live-activation-evidence";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
-
-const REQUIRED_LIVE_CHECKS = [
-  "runtime_certification",
-  "exact_certified_deployment",
-  "published_revision_exact",
-  "guest_runtime_ready",
-  "qr_runtime_ready",
-  "staff_access_ready",
-  "production_relational_authority_ready",
-  "tenant_isolation",
-  "supabase_security",
-  "runtime_logs_clean",
-  "rollback_anchor_ready",
-  "operational_runtime_fail_closed",
-  "production_activation_approved",
-] as const;
 
 const REQUIRED_APPROVAL = {
   activateProduction: true,
@@ -32,8 +17,6 @@ const REQUIRED_APPROVAL = {
   enableFactoryOperationalResources: false,
   generateCredentials: false,
 } as const;
-
-type LiveCheckKey = (typeof REQUIRED_LIVE_CHECKS)[number];
 
 type LiveActivationRpcRow = {
   activation_run_id: string;
@@ -51,44 +34,11 @@ function normalizeUuid(value: unknown, code: string) {
   return id;
 }
 
-function normalizePublicSlug(value: unknown) {
-  const slug = String(value || "").trim().toLowerCase();
-  if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(slug)) {
-    throw new Error("P2_6_4_PUBLIC_SLUG_INVALID");
-  }
-  return slug;
-}
-
-function normalizeDeploymentId(value: unknown) {
-  const deploymentId = String(value || "").trim();
-  if (!/^dpl_[A-Za-z0-9]+$/.test(deploymentId)) {
-    throw new Error("P2_6_4_DEPLOYMENT_ID_INVALID");
-  }
-  return deploymentId;
-}
-
-function normalizeDeploymentSha(value: unknown) {
-  const sha = String(value || "").trim().toLowerCase();
-  if (!/^[a-f0-9]{40}$/.test(sha)) {
-    throw new Error("P2_6_4_DEPLOYMENT_SHA_INVALID");
-  }
-  return sha;
-}
-
 function normalizeObject(value: unknown, code: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(code);
   }
   return value as Record<string, unknown>;
-}
-
-function buildChecks(input: Record<string, unknown>) {
-  const checks: Record<LiveCheckKey, true> = Object.create(null);
-  for (const key of REQUIRED_LIVE_CHECKS) {
-    if (input[key] !== true) throw new Error(`P2_6_4_REQUIRED_CHECK_NOT_PASSED:${key}`);
-    checks[key] = true;
-  }
-  return checks;
 }
 
 function normalizeApproval(value: unknown) {
@@ -112,13 +62,6 @@ function canonicalize(value: unknown): string {
 export async function activateFactoryProductionLive(input: {
   authority: PlatformAdminAuthority;
   runtimeCertificationRunId: unknown;
-  expectedProductionHotelId: unknown;
-  expectedProductionRevisionId: unknown;
-  expectedPublicSlug: unknown;
-  certifiedDeploymentId: unknown;
-  certifiedDeploymentSha: unknown;
-  checks: unknown;
-  evidence: unknown;
   approval: unknown;
 }) {
   if (!canMutateControlPlane(input.authority.role)) {
@@ -129,26 +72,44 @@ export async function activateFactoryProductionLive(input: {
     input.runtimeCertificationRunId,
     "P2_6_4_RUNTIME_CERTIFICATION_RUN_ID_INVALID",
   );
-  const expectedProductionHotelId = normalizeUuid(
-    input.expectedProductionHotelId,
-    "P2_6_4_PRODUCTION_HOTEL_ID_INVALID",
-  );
-  const expectedProductionRevisionId = normalizeUuid(
-    input.expectedProductionRevisionId,
-    "P2_6_4_PRODUCTION_REVISION_ID_INVALID",
-  );
-  const expectedPublicSlug = normalizePublicSlug(input.expectedPublicSlug);
-  const certifiedDeploymentId = normalizeDeploymentId(input.certifiedDeploymentId);
-  const certifiedDeploymentSha = normalizeDeploymentSha(input.certifiedDeploymentSha);
-  const checksInput = normalizeObject(input.checks, "P2_6_4_CHECKS_INVALID");
-  const evidence = normalizeObject(input.evidence, "P2_6_4_EVIDENCE_INVALID");
-  const requiredChecks = buildChecks(checksInput);
   const approval = normalizeApproval(input.approval);
-  const checks = { ...requiredChecks, evidence, approval };
+
+  // All target identity, release identity and gate evidence are derived from
+  // trusted server/DB state. The browser/operator is intentionally unable to
+  // provide checks, evidence, deployment IDs, Git SHAs, hotel IDs, revision IDs
+  // or public slugs for this irreversible reachability switch.
+  const trusted = await deriveFactoryProductionLiveActivationEvidence(
+    runtimeCertificationRunId,
+  );
+  const expectedProductionHotelId = trusted.certification.productionHotelId;
+  const expectedProductionRevisionId = trusted.certification.productionRevisionId;
+  const expectedPublicSlug = trusted.publication.expectedPublicSlug;
+  const certifiedDeploymentId = trusted.certification.deploymentId;
+  const certifiedDeploymentSha = trusted.certification.deploymentSha;
+  const checks = {
+    ...trusted.checks,
+    evidence: {
+      source: "server_derived_p2_6_4_v2",
+      certification: trusted.certification,
+      publication: trusted.publication,
+      currentRelease: {
+        environment: trusted.release.environment,
+        runtimeDeploymentId: trusted.release.runtimeDeploymentId,
+        runtimeGitSha: trusted.release.runtimeGitSha,
+        candidateGitSha: trusted.release.candidateGitSha,
+        lineageMode: trusted.release.lineageMode,
+        releaseGateRunId: trusted.release.releaseGate.runId,
+        releaseGateState: trusted.release.releaseGate.state,
+        vercelPreviewState: trusted.release.vercelPreview.state,
+        evidenceHash: trusted.release.evidenceHash,
+      },
+    },
+    approval,
+  };
 
   const activationHash = createHash("sha256")
     .update(canonicalize({
-      schemaVersion: "p2.6.4",
+      schemaVersion: "p2.6.4-trusted-v2",
       runtimeCertificationRunId,
       expectedProductionHotelId,
       expectedProductionRevisionId,
@@ -159,12 +120,6 @@ export async function activateFactoryProductionLive(input: {
     }))
     .digest("hex");
 
-  // Reviewed platform-authority mutation: the service-role-only RPC accepts only
-  // an immutable P2.6.3 certified-dark Production target with the exact certified
-  // deployment, explicit LIVE approval, staff-access readiness and a rollback
-  // anchor. The database rechecks the complete factory lineage and performs one
-  // atomic public lifecycle transition while preserving published-config semantic
-  // authority and keeping factory operational resources fail-closed.
   const { data, error } = await supabaseAdmin.rpc("activate_factory_production_live_v1", {
     p_actor_admin_id: input.authority.adminId,
     p_runtime_certification_run_id: runtimeCertificationRunId,
