@@ -72,6 +72,45 @@ test("staff read paths stay read-only while expired test rows are hidden", async
   assertContains(surveysSource, "visibleRows");
 });
 
+test("guest request status hides expired Production test-room requests without destructive cleanup", async () => {
+  const source = await readProjectFile("app/api/guest/requests/route.ts");
+  const getStart = source.indexOf("export async function GET");
+  if (getStart < 0) throw new Error("Missing guest request status GET handler.");
+  const getSource = source.slice(getStart);
+
+  assertContains(
+    source,
+    '.select("id, room_number_snapshot, request_type, title, status, created_at, is_test, test_expires_at")',
+  );
+  assertContains(
+    source,
+    "!row.is_test || !row.test_expires_at || Date.parse(row.test_expires_at) > Date.now()",
+  );
+  assertNotContains(
+    getSource,
+    "cleanupExpiredTestData",
+    "Guest request polling must remain read-only; lifecycle cleanup is scheduled separately.",
+  );
+});
+
+test("Production housekeeping and maintenance status mutations use tenant operational hours", async () => {
+  const source = await readProjectFile("app/api/staff/request-status/route.ts");
+
+  assertContains(source, 'role === "housekeeping" || role === "maintenance"');
+  assertContains(source, "await getHotelConfig(scope.hotelSlug)");
+  assertNotContains(
+    source,
+    'scope.environment === "sandbox"\n        ? await getHotelConfig(scope.hotelSlug)',
+    "Production department mutations must not be forced into after-hours by a null hotel config.",
+  );
+  assertContains(source, '{ status: 409 }');
+  assertNotContains(
+    source,
+    '{ ok: false, error: "Role is not allowed to update this request" },\n        { status: 403 }',
+    "Operational permission denial must not masquerade as an expired staff session.",
+  );
+});
+
 test("INFRA-0 staff boards poll lightweight feed versions and force a full refresh after app resume", async () => {
   const requestsClient = await readProjectFile("components/staff/store/StaffStoreProvider.tsx");
   const surveysClient = await readProjectFile("components/staff/StaffSurveyCards.tsx");

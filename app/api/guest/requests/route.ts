@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from("guest_requests")
-      .select("id, room_number_snapshot, request_type, title, status, created_at")
+      .select("id, room_number_snapshot, request_type, title, status, created_at, is_test, test_expires_at")
       .eq("hotel_id", hotel.id)
       .eq("room_number_snapshot", room)
       .eq("stay_id", stayIdentity.stay.id)
@@ -79,7 +79,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     }
 
-    const requests = ((data ?? []) as GuestRequestStatusRow[]).map((row) => ({
+    const requests = ((data ?? []) as Array<GuestRequestStatusRow & { is_test?: boolean | null; test_expires_at?: string | null }>)
+      .filter((row) => !row.is_test || !row.test_expires_at || Date.parse(row.test_expires_at) > Date.now())
+      .map((row) => ({
       id: row.id,
       room: row.room_number_snapshot ?? room,
       title: row.title,
