@@ -208,7 +208,8 @@ test("P2.6.4 server derives every LIVE gate and exact release from trusted state
   assert.match(evidence, /getFactoryReleaseEvidence/i);
   assert.match(evidence, /P2_6_4_CERTIFIED_RELEASE_STALE/i);
   assert.match(evidence, /staff_access_pins/i);
-  assert.match(evidence, /factory_production_live_rollback_runs/i);
+  assert.match(evidence, /last_known_good_revision_id/i);
+  assert.match(evidence, /P2_6_4_PUBLICATION_STATE_INVALID/i);
   assert.match(service, /canMutateControlPlane/i);
   assert.match(service, /activate_factory_production_live_v1/i);
 });
