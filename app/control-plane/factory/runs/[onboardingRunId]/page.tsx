@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import FactoryProductionAcceptancePanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryProductionAcceptancePanel";
 import FactoryProjectionWorkspace from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryProjectionWorkspace";
 import FactorySandboxCertificationPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxCertificationPanel";
 import FactorySandboxEvidencePanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxEvidencePanel";
@@ -47,6 +48,13 @@ export default async function FactoryRunWorkspacePage({
       ])
     : null;
 
+  const productionPanelReady = Boolean(
+    trustedEvidence
+    && preflight?.certification.status === "complete"
+    && preflight.certification.certificationRunId
+    && progress.production.publicSlug,
+  );
+
   return (
     <main className="min-h-screen bg-neutral-950 px-4 py-8 text-neutral-50 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -81,6 +89,16 @@ export default async function FactoryRunWorkspacePage({
               releaseEvidence={trustedEvidence[1]}
             />
           </>
+        )}
+        {productionPanelReady && trustedEvidence && preflight?.certification.certificationRunId && progress.production.publicSlug && (
+          <FactoryProductionAcceptancePanel
+            lang={lang}
+            sandboxCertificationRunId={preflight.certification.certificationRunId}
+            productionHotelId={preflight.lineage.productionHotelId}
+            productionRevisionId={preflight.lineage.productionRevisionId}
+            publicSlug={progress.production.publicSlug}
+            releaseEvidence={trustedEvidence[1]}
+          />
         )}
       </div>
     </main>
