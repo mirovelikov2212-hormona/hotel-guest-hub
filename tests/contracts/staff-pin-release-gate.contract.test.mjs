@@ -79,6 +79,7 @@ test("Manager-protected Reception PIN repair rehashes the existing operator-know
   assertContains(route, 'eventType: "staff_pin_hash_repair_failed"');
   assert.match(route, /\.update\(\{\s*pin_hash: nextPinHash,\s*updated_at: repairedAt,\s*\}\)/);
   assert.doesNotMatch(route, /\.from\("staff_sessions"\)/);
+  assert.doesNotMatch(route, /\.from\("staff_login_throttle_state"\)/);
   assert.doesNotMatch(route, /\.update\(\{[\s\S]*?rotated_at:/);
 
   assertContains(form, 'credentials: "same-origin"');
