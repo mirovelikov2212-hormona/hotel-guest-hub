@@ -41,9 +41,14 @@ declare
           and certified.created_at>=v_cert.created_at
           and certified.source_checksum=r.source_checksum
           and coalesce((certified.validation_json->>'ok')::boolean,false)=true
-          and certified.validation_json->>'source'='factory_sandbox_certification'
+          and (certified.validation_json->'warnings' ? 'FACTORY_SANDBOX_ACCEPTANCE_CERTIFIED')
           and certified.validation_json->>'sourceRevisionId'=r.id::text
           and certified.validation_json->>'certificationRunId'=v_cert.id::text
+          and certified.provenance_json->>'stage'='sandbox_acceptance_activation'
+          and certified.provenance_json->>'source'='stayhub_product_factory'
+          and certified.provenance_json->>'sourceRevisionId'=r.id::text
+          and certified.provenance_json->>'certificationRunId'=v_cert.id::text
+          and certified.provenance_json->>'productionHotelId'=v_onboarding.production_hotel_id::text
       )
   ) then raise exception 'P2_6_2_SANDBOX_REVISION_DRIFT'; end if;$new$;
 begin
@@ -60,7 +65,8 @@ begin
   if position(v_old in v_definition)>0
      or position($needle$certified.validation_json->>'sourceRevisionId'=r.id::text$needle$ in v_definition)=0
      or position($needle$certified.validation_json->>'certificationRunId'=v_cert.id::text$needle$ in v_definition)=0
-     or position('certified.source_checksum=r.source_checksum' in v_definition)=0 then
+     or position('certified.source_checksum=r.source_checksum' in v_definition)=0
+     or position($needle$certified.provenance_json->>'stage'='sandbox_acceptance_activation'$needle$ in v_definition)=0 then
     raise exception 'P2_6_2_CERTIFIED_SANDBOX_LINEAGE_FIX_REWRITE_FAILED';
   end if;
 
@@ -74,7 +80,7 @@ grant execute on function public.publish_factory_production_revision_v1(uuid,uui
   to service_role;
 
 comment on function public.publish_factory_production_revision_v1(uuid,uuid,uuid,uuid,text,text) is
-  'P2.6.2 dark Production publication. Sandbox lineage requires the exact immutable P2.5 source revision plus its exact published certification derivative bound by certification run and checksum.';
+  'P2.6.2 dark Production publication. Sandbox lineage requires the exact immutable P2.5 source revision plus its exact published certification derivative bound by certification run, provenance and checksum.';
 
 -- Migration-level fail-closed regression guard.
 do $guard$
@@ -88,7 +94,12 @@ begin
   if position($needle$certified.validation_json->>'sourceRevisionId'=r.id::text$needle$ in v_definition)=0
      or position($needle$certified.validation_json->>'certificationRunId'=v_cert.id::text$needle$ in v_definition)=0
      or position('certified.source_checksum=r.source_checksum' in v_definition)=0
-     or position($needle$certified.validation_json->>'source'='factory_sandbox_certification'$needle$ in v_definition)=0
+     or position($needle$certified.validation_json->'warnings' ? 'FACTORY_SANDBOX_ACCEPTANCE_CERTIFIED'$needle$ in v_definition)=0
+     or position($needle$certified.provenance_json->>'stage'='sandbox_acceptance_activation'$needle$ in v_definition)=0
+     or position($needle$certified.provenance_json->>'source'='stayhub_product_factory'$needle$ in v_definition)=0
+     or position($needle$certified.provenance_json->>'sourceRevisionId'=r.id::text$needle$ in v_definition)=0
+     or position($needle$certified.provenance_json->>'certificationRunId'=v_cert.id::text$needle$ in v_definition)=0
+     or position($needle$certified.provenance_json->>'productionHotelId'=v_onboarding.production_hotel_id::text$needle$ in v_definition)=0
      or position($needle$coalesce((r.validation_json->>'ok')::boolean,false)=false$needle$ in v_definition)=0
      or position($needle$r.validation_json->'errors' ? 'FACTORY_SANDBOX_CERTIFICATION_PENDING'$needle$ in v_definition)=0 then
     raise exception 'P2_6_2_CERTIFIED_SANDBOX_LINEAGE_GUARD_FAILED';
