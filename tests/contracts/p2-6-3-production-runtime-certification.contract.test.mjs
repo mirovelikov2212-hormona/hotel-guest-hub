@@ -7,6 +7,7 @@ const IMMUTABLE_FIX = "supabase/migrations/20260822083000_p2_6_dark_immutable_pr
 const RELEASE_RECERTIFICATION = "supabase/migrations/20260822152000_p2_6_3_exact_release_recertification.sql";
 const SERVICE = "lib/server/factory-production-runtime-certification.ts";
 const EVIDENCE = "lib/server/factory-production-runtime-certification-evidence.ts";
+const SMOKE = "lib/server/factory-production-runtime-smoke.ts";
 const ROUTE = "app/api/control-plane/onboarding/production-runtime-certification/route.ts";
 
 test("P2.6.3 certification ledger is immutable and service-role-only", async () => {
@@ -31,6 +32,17 @@ test("P2.6.3 exact-release recertification preserves history and scopes idempote
   assertContains(migration, "P2_6_3_RELEASE_RECERTIFICATION_PATCH_GUARD_FAILED");
   assertNotContains(migration, "update public.factory_production_runtime_certification_runs");
   assertNotContains(migration, "delete from public.factory_production_runtime_certification_runs");
+});
+
+test("P2.6.3 Production smoke candidates are scoped to the exact current release", async () => {
+  const smoke = await readProjectFile(SMOKE);
+  assertContains(smoke, "async function listPendingCandidates(identity: RuntimeIdentity)");
+  assertContains(smoke, '.select("production_hotel_id, deployment_id, deployment_sha")');
+  assertContains(smoke, '.eq("deployment_id", identity.deploymentId)');
+  assertContains(smoke, '.eq("deployment_sha", identity.gitSha)');
+  assertContains(smoke, "alreadyCertifiedForRelease");
+  assertContains(smoke, "!alreadyCertifiedForRelease.has(productionHotelId)");
+  assertContains(smoke, "const candidates = await listPendingCandidates(identity)");
 });
 
 test("P2.6.3 requires the exact P2.6.2 publication, target and deployment evidence", async () => {
