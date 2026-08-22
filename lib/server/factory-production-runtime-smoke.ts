@@ -74,7 +74,7 @@ async function requireProductionIdentity(): Promise<RuntimeIdentity> {
   return { deploymentId, projectId, gitSha };
 }
 
-async function listPendingCandidates(): Promise<Candidate[]> {
+async function listPendingCandidates(identity: RuntimeIdentity): Promise<Candidate[]> {
   const { data: certifiedRows, error: certificationError } = await supabaseAdmin
     .from("factory_sandbox_certification_runs")
     .select("id, envelope_projection_run_id, production_hotel_id, sandbox_hotel_id, sandbox_revision_id, created_at")
@@ -96,14 +96,16 @@ async function listPendingCandidates(): Promise<Candidate[]> {
       ]))),
     supabaseAdmin
       .from("factory_production_runtime_certification_runs")
-      .select("production_hotel_id")
-      .in("production_hotel_id", productionHotelIds),
+      .select("production_hotel_id, deployment_id, deployment_sha")
+      .in("production_hotel_id", productionHotelIds)
+      .eq("deployment_id", identity.deploymentId)
+      .eq("deployment_sha", identity.gitSha),
   ]);
   if (hotelsError) throw new Error(`P2_6_PRODUCTION_SMOKE_HOTEL_READ_FAILED:${hotelsError.message}`);
   if (runtimeCertsError) throw new Error(`P2_6_PRODUCTION_SMOKE_RUNTIME_CERT_READ_FAILED:${runtimeCertsError.message}`);
 
   const hotelMap = new Map((hotels || []).map((hotel) => [String(hotel.id), hotel]));
-  const alreadyCertified = new Set((runtimeCerts || []).map((row) => String(row.production_hotel_id)));
+  const alreadyCertifiedForRelease = new Set((runtimeCerts || []).map((row) => String(row.production_hotel_id)));
 
   return (certifiedRows || [])
     .filter((row) => {
@@ -111,7 +113,7 @@ async function listPendingCandidates(): Promise<Candidate[]> {
       const sandboxHotelId = String(row.sandbox_hotel_id);
       const production = hotelMap.get(productionHotelId);
       const sandbox = hotelMap.get(sandboxHotelId);
-      return !alreadyCertified.has(productionHotelId)
+      return !alreadyCertifiedForRelease.has(productionHotelId)
         && production?.active === false
         && production?.is_sandbox === false
         && sandbox?.active === true
@@ -131,7 +133,7 @@ async function listPendingCandidates(): Promise<Candidate[]> {
 
 export async function runFactoryProductionRuntimeSmoke() {
   const identity = await requireProductionIdentity();
-  const candidates = await listPendingCandidates();
+  const candidates = await listPendingCandidates(identity);
   if (candidates.length === 0) {
     return {
       schemaVersion: "p2.6-production-runtime-smoke-v1" as const,
