@@ -5,6 +5,7 @@ import { assertContains, assertNotContains, readProjectFile } from "../helpers/s
 const MIGRATION = "supabase/migrations/20260817153000_p2_6_3_production_runtime_certification.sql";
 const IMMUTABLE_FIX = "supabase/migrations/20260822083000_p2_6_dark_immutable_production_revisions.sql";
 const RELEASE_RECERTIFICATION = "supabase/migrations/20260822152000_p2_6_3_exact_release_recertification.sql";
+const RECERTIFICATION_STATE_CAS = "supabase/migrations/20260822190000_p2_6_3_recertification_state_cas.sql";
 const SERVICE = "lib/server/factory-production-runtime-certification.ts";
 const EVIDENCE = "lib/server/factory-production-runtime-certification-evidence.ts";
 const SMOKE = "lib/server/factory-production-runtime-smoke.ts";
@@ -32,6 +33,32 @@ test("P2.6.3 exact-release recertification preserves history and scopes idempote
   assertContains(migration, "P2_6_3_RELEASE_RECERTIFICATION_PATCH_GUARD_FAILED");
   assertNotContains(migration, "update public.factory_production_runtime_certification_runs");
   assertNotContains(migration, "delete from public.factory_production_runtime_certification_runs");
+});
+
+test("P2.6.3 exact-release recertification CAS is anchored to the latest immutable certification", async () => {
+  const migration = await readProjectFile(RECERTIFICATION_STATE_CAS);
+  assertContains(migration, "v_previous_cert public.factory_production_runtime_certification_runs%rowtype");
+  assertContains(migration, "order by created_at desc,id desc");
+  assertContains(migration, "v_is_recertification := found");
+  assertContains(migration, "i.status='certified'");
+  assertContains(migration, "h.status='healthy'");
+  assertContains(migration, "h.certification_status='passed'");
+  assertContains(migration, "h.checks_json->>'deploymentId'=v_previous_cert.deployment_id");
+  assertContains(migration, "h.checks_json->>'deploymentSha'=v_previous_cert.deployment_sha");
+  assertContains(migration, "h.checks_json->>'evidenceHash'=v_previous_cert.evidence_hash");
+  assertContains(migration, "ps.metadata_json->>'runtimeCertificationEvidenceHash'=v_previous_cert.evidence_hash");
+  assertContains(migration, "ps.metadata_json->>'deploymentId'=v_previous_cert.deployment_id");
+  assertContains(migration, "ps.metadata_json->>'deploymentSha'=v_previous_cert.deployment_sha");
+  assertContains(migration, "P2_6_3_RECERTIFICATION_HEALTH_DRIFT");
+  assertContains(migration, "P2_6_3_RECERTIFICATION_PROJECTION_DRIFT");
+  assertContains(migration, "P2_6_3_RECERTIFICATION_HEALTH_CAS_FAILED");
+  assertContains(migration, "P2_6_3_RECERTIFICATION_PROJECTION_CAS_FAILED");
+  assertContains(migration, "P2_6_3_DARK_CERTIFIED_STATE_INVALID");
+  assertNotContains(migration, "update public.factory_production_runtime_certification_runs");
+  assertNotContains(migration, "delete from public.factory_production_runtime_certification_runs");
+  assertNotContains(migration, "set active=true");
+  assertNotContains(migration, "set runtime_enabled=true");
+  assertNotContains(migration, "last_known_good_revision_id=");
 });
 
 test("P2.6.3 Production smoke candidates are scoped to the exact current release", async () => {
