@@ -92,6 +92,7 @@ export async function publishFactoryProductionConfiguration(input: {
   // Reviewed platform-authority mutation: the service-role-only RPC treats the P2.6.1-ready
   // revision as immutable source/CAS and publishes an exact derivative. It rechecks lineage
   // while keeping Production inactive, public identity reserved, runtime disabled and certification pending.
+  // The browser never receives service-role database authority from this path.
   const { data, error } = await supabaseAdmin.rpc("publish_factory_production_revision_v1", {
     p_actor_admin_id: input.authority.adminId,
     p_readiness_run_id: readinessRunId,
