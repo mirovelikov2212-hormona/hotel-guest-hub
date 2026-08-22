@@ -38,6 +38,14 @@ function requireTrue(value: unknown, code: string) {
   if (value !== true) throw new Error(code);
 }
 
+function requireRow<T>(
+  result: { data: unknown; error: { message?: string } | null },
+  code: string,
+): T {
+  if (result.error || !result.data) throw new Error(code);
+  return result.data as T;
+}
+
 function hasWarning(value: unknown, warning: string) {
   if (!isObject(value) || !Array.isArray(value.warnings)) return false;
   return value.warnings.some((entry) => String(entry || "") === warning);
@@ -56,26 +64,16 @@ function roleTemplateIsFailClosed(row: { runtime_enabled?: unknown; permissions_
   return Array.isArray(permissions.permissions) && permissions.permissions.length === 0;
 }
 
-async function requireSingle<T>(
-  table: string,
-  select: string,
-  filters: Array<[string, string]>,
-  code: string,
-): Promise<T> {
-  let query = supabaseAdmin.from(table).select(select);
-  for (const [key, value] of filters) query = query.eq(key, value);
-  const { data, error } = await query.maybeSingle();
-  if (error || !data) throw new Error(code);
-  return data as T;
-}
-
 export async function deriveFactoryProductionLiveActivationEvidence(
   runtimeCertificationRunId: string,
 ) {
-  const certification = await requireSingle<CertificationRow>(
-    "factory_production_runtime_certification_runs",
-    "id, publication_run_id, production_hotel_id, production_revision_id, deployment_id, deployment_sha, status, checks_json",
-    [["id", runtimeCertificationRunId]],
+  const certificationResult = await supabaseAdmin
+    .from("factory_production_runtime_certification_runs")
+    .select("id, publication_run_id, production_hotel_id, production_revision_id, deployment_id, deployment_sha, status, checks_json")
+    .eq("id", runtimeCertificationRunId)
+    .maybeSingle();
+  const certification = requireRow<CertificationRow>(
+    certificationResult,
     "P2_6_4_RUNTIME_CERTIFICATION_INVALID",
   );
 
@@ -83,10 +81,13 @@ export async function deriveFactoryProductionLiveActivationEvidence(
     throw new Error("P2_6_4_RUNTIME_CERTIFICATION_INVALID");
   }
 
-  const publication = await requireSingle<PublicationRow>(
-    "factory_production_publication_runs",
-    "id, readiness_run_id, production_hotel_id, production_revision_id, expected_public_slug, status",
-    [["id", certification.publication_run_id]],
+  const publicationResult = await supabaseAdmin
+    .from("factory_production_publication_runs")
+    .select("id, readiness_run_id, production_hotel_id, production_revision_id, expected_public_slug, status")
+    .eq("id", certification.publication_run_id)
+    .maybeSingle();
+  const publication = requireRow<PublicationRow>(
+    publicationResult,
     "P2_6_4_PUBLICATION_INVALID",
   );
 
@@ -140,21 +141,25 @@ export async function deriveFactoryProductionLiveActivationEvidence(
   const revisionId = certification.production_revision_id;
   const expectedPublicSlug = publication.expected_public_slug;
 
-  const environment = await requireSingle<{ property_id: string }>(
-    "property_environments",
-    "property_id",
-    [["hotel_id", hotelId], ["environment", "production"]],
+  const environmentResult = await supabaseAdmin
+    .from("property_environments")
+    .select("property_id")
+    .eq("hotel_id", hotelId)
+    .eq("environment", "production")
+    .maybeSingle();
+  const environment = requireRow<{ property_id: string }>(
+    environmentResult,
     "P2_6_4_PRODUCTION_ENVIRONMENT_INVALID",
   );
 
   const [
-    hotel,
-    property,
-    identity,
-    publicationState,
-    projection,
-    revision,
-    health,
+    hotelResult,
+    propertyResult,
+    identityResult,
+    publicationStateResult,
+    projectionResult,
+    revisionResult,
+    healthResult,
     departmentsResult,
     pinsResult,
     routingResult,
@@ -166,50 +171,43 @@ export async function deriveFactoryProductionLiveActivationEvidence(
     brandingResult,
     knowledgeResult,
     aiResult,
-    rollbackLedgerResult,
   ] = await Promise.all([
-    requireSingle<{ active: boolean; is_sandbox: boolean; is_demo: boolean; public_slug: string | null }>(
-      "hotels",
-      "active, is_sandbox, is_demo, public_slug",
-      [["id", hotelId]],
-      "P2_6_4_PRODUCTION_HOTEL_INVALID",
-    ),
-    requireSingle<{ lifecycle_state: string }>(
-      "properties",
-      "lifecycle_state",
-      [["id", environment.property_id]],
-      "P2_6_4_PROPERTY_INVALID",
-    ),
-    requireSingle<{ status: string; public_slug: string; guest_route: string; qr_route: string }>(
-      "hotel_public_identity_configs",
-      "status, public_slug, guest_route, qr_route",
-      [["hotel_id", hotelId]],
-      "P2_6_4_PUBLIC_IDENTITY_INVALID",
-    ),
-    requireSingle<{ published_revision_id: string | null; last_known_good_revision_id: string | null }>(
-      "hotel_config_publication_state",
-      "published_revision_id, last_known_good_revision_id",
-      [["hotel_id", hotelId]],
-      "P2_6_4_PUBLICATION_STATE_INVALID",
-    ),
-    requireSingle<{ projected_revision_id: string | null; projection_status: string; active_routing_rules_count: number; metadata_json: unknown }>(
-      "hotel_config_projection_state",
-      "projected_revision_id, projection_status, active_routing_rules_count, metadata_json",
-      [["hotel_id", hotelId]],
-      "P2_6_4_PROJECTION_STATE_INVALID",
-    ),
-    requireSingle<{ revision_no: number; status: string; source_type: string; validation_json: unknown; provenance_json: unknown }>(
-      "hotel_config_revisions",
-      "revision_no, status, source_type, validation_json, provenance_json",
-      [["id", revisionId], ["hotel_id", hotelId]],
-      "P2_6_4_CERTIFIED_REVISION_INVALID",
-    ),
-    requireSingle<{ status: string; certification_status: string; certified_revision_id: string | null; checks_json: unknown }>(
-      "hotel_health_certification_state",
-      "status, certification_status, certified_revision_id, checks_json",
-      [["hotel_id", hotelId]],
-      "P2_6_4_HEALTH_CERTIFICATION_INVALID",
-    ),
+    supabaseAdmin
+      .from("hotels")
+      .select("active, is_sandbox, is_demo, public_slug")
+      .eq("id", hotelId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("properties")
+      .select("lifecycle_state")
+      .eq("id", environment.property_id)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("hotel_public_identity_configs")
+      .select("status, public_slug, guest_route, qr_route")
+      .eq("hotel_id", hotelId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("hotel_config_publication_state")
+      .select("published_revision_id, last_known_good_revision_id")
+      .eq("hotel_id", hotelId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("hotel_config_projection_state")
+      .select("projected_revision_id, projection_status, active_routing_rules_count, metadata_json")
+      .eq("hotel_id", hotelId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("hotel_config_revisions")
+      .select("revision_no, status, source_type, validation_json, provenance_json")
+      .eq("id", revisionId)
+      .eq("hotel_id", hotelId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("hotel_health_certification_state")
+      .select("status, certification_status, certified_revision_id, checks_json")
+      .eq("hotel_id", hotelId)
+      .maybeSingle(),
     supabaseAdmin.from("departments").select("code, active").eq("hotel_id", hotelId).eq("active", true),
     supabaseAdmin.from("staff_access_pins").select("role, active").eq("hotel_id", hotelId).eq("active", true),
     supabaseAdmin.from("routing_rules").select("id").eq("hotel_id", hotelId).eq("active", true),
@@ -221,8 +219,36 @@ export async function deriveFactoryProductionLiveActivationEvidence(
     supabaseAdmin.from("hotel_branding_configs").select("status").eq("hotel_id", hotelId),
     supabaseAdmin.from("hotel_knowledge_configs").select("status").eq("hotel_id", hotelId),
     supabaseAdmin.from("hotel_ai_permission_configs").select("status, actions_json").eq("hotel_id", hotelId),
-    supabaseAdmin.from("factory_production_live_rollback_runs").select("id").limit(1),
   ]);
+
+  const hotel = requireRow<{ active: boolean; is_sandbox: boolean; is_demo: boolean; public_slug: string | null }>(
+    hotelResult,
+    "P2_6_4_PRODUCTION_HOTEL_INVALID",
+  );
+  const property = requireRow<{ lifecycle_state: string }>(
+    propertyResult,
+    "P2_6_4_PROPERTY_INVALID",
+  );
+  const identity = requireRow<{ status: string; public_slug: string; guest_route: string; qr_route: string }>(
+    identityResult,
+    "P2_6_4_PUBLIC_IDENTITY_INVALID",
+  );
+  const publicationState = requireRow<{ published_revision_id: string | null; last_known_good_revision_id: string | null }>(
+    publicationStateResult,
+    "P2_6_4_PUBLICATION_STATE_INVALID",
+  );
+  const projection = requireRow<{ projected_revision_id: string | null; projection_status: string; active_routing_rules_count: number; metadata_json: unknown }>(
+    projectionResult,
+    "P2_6_4_PROJECTION_STATE_INVALID",
+  );
+  const revision = requireRow<{ revision_no: number; status: string; source_type: string; validation_json: unknown; provenance_json: unknown }>(
+    revisionResult,
+    "P2_6_4_CERTIFIED_REVISION_INVALID",
+  );
+  const health = requireRow<{ status: string; certification_status: string; certified_revision_id: string | null; checks_json: unknown }>(
+    healthResult,
+    "P2_6_4_HEALTH_CERTIFICATION_INVALID",
+  );
 
   for (const result of [
     departmentsResult,
@@ -236,7 +262,6 @@ export async function deriveFactoryProductionLiveActivationEvidence(
     brandingResult,
     knowledgeResult,
     aiResult,
-    rollbackLedgerResult,
   ]) {
     if (result.error) throw new Error(`P2_6_4_PREFLIGHT_READ_FAILED:${result.error.message}`);
   }
@@ -306,10 +331,14 @@ export async function deriveFactoryProductionLiveActivationEvidence(
     throw new Error("P2_6_4_CERTIFIED_REVISION_INVALID");
   }
 
-  const sourceRevision = await requireSingle<{ revision_no: number; status: string; source_type: string; validation_json: unknown }>(
-    "hotel_config_revisions",
-    "revision_no, status, source_type, validation_json",
-    [["id", sourceRevisionId], ["hotel_id", hotelId]],
+  const sourceRevisionResult = await supabaseAdmin
+    .from("hotel_config_revisions")
+    .select("revision_no, status, source_type, validation_json")
+    .eq("id", sourceRevisionId)
+    .eq("hotel_id", hotelId)
+    .maybeSingle();
+  const sourceRevision = requireRow<{ revision_no: number; status: string; source_type: string; validation_json: unknown }>(
+    sourceRevisionResult,
     "P2_6_4_SOURCE_REVISION_INVALID",
   );
   if (
