@@ -61,6 +61,34 @@ test("staff PIN gate safely parses API responses and clears rejected secrets", a
   assertContains(source, 'aria-live="polite"');
 });
 
+test("Manager-protected Reception PIN repair rehashes the existing operator-known PIN without rotating credentials", async () => {
+  const route = await readProjectFile("app/api/staff/credentials/reception-pin-repair/route.ts");
+  const page = await readProjectFile("app/staff/[hotelSlug]/manager/reception-pin-repair/page.tsx");
+  const form = await readProjectFile("components/staff/ReceptionPinRepair.tsx");
+
+  assertContains(page, 'requireStaffAccess(hotelSlug, "manager")');
+  assertContains(route, "enforceStaffSameOrigin(req)");
+  assertContains(route, 'getCurrentStaffSession(hotelSlug, "manager")');
+  assertContains(route, 'const TARGET_ROLE = "reception";');
+  assertContains(route, "const SIX_DIGIT_PIN = /^\\d{6}$/;");
+  assertContains(route, '.eq("hotel_id", hotel.id)');
+  assertContains(route, '.eq("role", TARGET_ROLE)');
+  assertContains(route, "verifyPin(pin, credential.pin_hash)");
+  assertContains(route, "const nextPinHash = hashPin(pin);");
+  assertContains(route, 'eventType: "staff_pin_hash_repaired"');
+  assertContains(route, 'eventType: "staff_pin_hash_repair_failed"');
+  assert.match(route, /\.update\(\{\s*pin_hash: nextPinHash,\s*updated_at: repairedAt,\s*\}\)/);
+  assert.doesNotMatch(route, /\.from\("staff_sessions"\)/);
+  assert.doesNotMatch(route, /\.update\(\{[\s\S]*?rotated_at:/);
+
+  assertContains(form, 'credentials: "same-origin"');
+  assertContains(form, 'pattern="[0-9]{6}"');
+  assertContains(form, "repairReceptionPin: approved");
+  assertContains(form, 'setPin("")');
+  assertContains(form, 'setConfirmPin("")');
+  assertContains(form, "same 6-digit Reception PIN twice");
+});
+
 test("production release gate covers every scoped staff role without storing PINs", async () => {
   const runbook = await readProjectFile(
     "docs/runbooks/staff-pin-production-smoke.md",
