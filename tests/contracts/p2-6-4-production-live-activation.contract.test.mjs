@@ -80,10 +80,8 @@ test("P2.6.4 hardening follows immutable Production revisions and current normal
   assert.match(migration, /permissions_json->>'configured'/i);
   assert.match(migration, /permissions_json->'permissions'/i);
   assert.match(migration, /update public\.hotel_config_publication_state[\s\S]*last_known_good_revision_id=v_cert\.production_revision_id/i);
-  assert.doesNotMatch(
-    migration,
-    /set validation_json=jsonb_build_object\([\s\S]{0,300}FACTORY_PRODUCTION_LIVE_PILOT/i,
-  );
+  assert.match(migration, /P2_6_4_HARDENING_ACTIVATION_GUARD_FAILED/i);
+  assert.match(migration, /position\('update public\.hotel_config_revisions' in v_activation\)>0/i);
   assert.match(migration, /update public\.hotel_public_identity_configs[\s\S]*set status='active'/i);
   assert.match(migration, /update public\.properties[\s\S]*set lifecycle_state='pilot'/i);
   assert.match(migration, /update public\.hotels[\s\S]*set active=true/i);
