@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "checkpoint": "p2-6-4-live-safety-hardening",
+  "baseCheckpoint": "p2-6-trusted-production-evidence",
+  "expectedNeedsReview": 124,
+  "removals": [
+    {
+      "filePath": "lib/server/factory-production-live-activation.ts",
+      "line": 168,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-rollback.ts",
+      "line": 148,
+      "operation": "rpc"
+    }
+  ],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-production-live-activation-evidence.ts",
+      "line": 70,
+      "table": "factory_production_runtime_certification_runs",
+      "tableExpression": "\"factory_production_runtime_certification_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_4_trusted_preflight_reads_one_exact_immutable_runtime_certification_id_then_requires_passed_status_and_derives_production_hotel_revision_deployment_and_publication_lineage_from_that_row"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation-evidence.ts",
+      "line": 84,
+      "table": "factory_production_publication_runs",
+      "tableExpression": "\"factory_production_publication_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_4_trusted_preflight_reads_the_exact_publication_run_id_from_the_passed_certification_and_revalidates_same_production_hotel_revision_and_pending_certification_state"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation-evidence.ts",
+      "line": 144,
+      "table": "property_environments",
+      "tableExpression": "\"property_environments\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_4_trusted_preflight_resolves_the_production_property_only_by_exact_certified_production_hotel_id_plus_environment_production_before_any_property_lifecycle_check"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation-evidence.ts",
+      "line": 180,
+      "table": "properties",
+      "tableExpression": "\"properties\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_4_trusted_preflight_reads_one_exact_property_id_derived_from_the_certified_production_environment_and_requires_draft_lifecycle_before_live_activation"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation-evidence.ts",
+      "line": 185,
+      "table": "hotel_public_identity_configs",
+      "tableExpression": "\"hotel_public_identity_configs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_4_trusted_preflight_reads_public_identity_by_exact_certified_production_hotel_id_and_requires_certified_slug_guest_route_and_qr_route_to_match_immutable_publication_lineage"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation-evidence.ts",
+      "line": 206,
+      "table": "hotel_health_certification_state",
+      "tableExpression": "\"hotel_health_certification_state\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_4_trusted_preflight_reads_health_certification_by_exact_certified_production_hotel_id_and_revalidates_passed_revision_deployment_id_and_sha_before_live"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation-evidence.ts",
+      "line": 214,
+      "table": "hotel_service_definitions",
+      "tableExpression": "\"hotel_service_definitions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_4_trusted_preflight_reads_runtime_enabled_services_only_for_exact_certified_production_hotel_id_and_requires_zero_to_preserve_operational_fail_closed_state"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation-evidence.ts",
+      "line": 215,
+      "table": "hotel_workflow_definitions",
+      "tableExpression": "\"hotel_workflow_definitions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_4_trusted_preflight_reads_runtime_enabled_workflows_only_for_exact_certified_production_hotel_id_and_requires_zero_to_preserve_operational_fail_closed_state"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation-evidence.ts",
+      "line": 216,
+      "table": "hotel_integration_configs",
+      "tableExpression": "\"hotel_integration_configs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_4_trusted_preflight_reads_integrations_only_for_exact_certified_production_hotel_id_and_requires_every_entry_to_remain_placeholder_before_live"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation-evidence.ts",
+      "line": 217,
+      "table": "hotel_role_templates",
+      "tableExpression": "\"hotel_role_templates\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_4_trusted_preflight_reads_role_templates_only_for_exact_certified_production_hotel_id_and_requires_runtime_disabled_unconfigured_empty_permissions_fail_closed_state"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation-evidence.ts",
+      "line": 218,
+      "table": "hotel_reporting_configs",
+      "tableExpression": "\"hotel_reporting_configs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_4_trusted_preflight_reads_reporting_configs_only_for_exact_certified_production_hotel_id_and_requires_disabled_empty_recipients_fail_closed_state"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation-evidence.ts",
+      "line": 219,
+      "table": "hotel_branding_configs",
+      "tableExpression": "\"hotel_branding_configs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_4_trusted_preflight_reads_branding_only_for_exact_certified_production_hotel_id_and_requires_placeholder_state_before_live"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation-evidence.ts",
+      "line": 220,
+      "table": "hotel_knowledge_configs",
+      "tableExpression": "\"hotel_knowledge_configs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_4_trusted_preflight_reads_knowledge_config_only_for_exact_certified_production_hotel_id_and_requires_placeholder_state_before_live"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation-evidence.ts",
+      "line": 221,
+      "table": "hotel_ai_permission_configs",
+      "tableExpression": "\"hotel_ai_permission_configs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_4_trusted_preflight_reads_ai_permissions_only_for_exact_certified_production_hotel_id_and_requires_pending_all_actions_false_fail_closed_state"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation.ts",
+      "line": 123,
+      "rpc": "activate_factory_production_live_v1",
+      "tableExpression": "\"activate_factory_production_live_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_same_origin_control_plane_platform_mutation_calls_service_role_only_security_definer_live_rpc_only_after_server_derives_exact_certification_hotel_revision_slug_current_production_deployment_sha_and_all_fail_closed_checks_then_database_rechecks_full_lineage_atomically"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-rollback-evidence.ts",
+      "line": 47,
+      "table": "factory_production_live_activation_runs",
+      "tableExpression": "\"factory_production_live_activation_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_5_trusted_rollback_preflight_reads_one_exact_immutable_live_activation_id_and_derives_canonical_production_hotel_revision_public_slug_certification_and_rollback_snapshot_from_that_row"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-rollback-evidence.ts",
+      "line": 58,
+      "table": "factory_production_runtime_certification_runs",
+      "tableExpression": "\"factory_production_runtime_certification_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_5_trusted_rollback_preflight_reads_the_exact_certification_id_from_activation_lineage_and_revalidates_same_hotel_revision_deployment_id_sha_and_passed_status"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-rollback-evidence.ts",
+      "line": 111,
+      "table": "hotel_service_definitions",
+      "tableExpression": "\"hotel_service_definitions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_5_trusted_rollback_preflight_reads_runtime_enabled_services_only_for_the_exact_activation_production_hotel_and_requires_zero_before_rollback"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-rollback-evidence.ts",
+      "line": 112,
+      "table": "hotel_workflow_definitions",
+      "tableExpression": "\"hotel_workflow_definitions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_5_trusted_rollback_preflight_reads_runtime_enabled_workflows_only_for_the_exact_activation_production_hotel_and_requires_zero_before_rollback"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-rollback-evidence.ts",
+      "line": 113,
+      "table": "hotel_role_templates",
+      "tableExpression": "\"hotel_role_templates\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_5_trusted_rollback_preflight_reads_runtime_enabled_role_templates_only_for_the_exact_activation_production_hotel_and_requires_zero_before_rollback"
+    },
+    {
+      "filePath": "lib/server/factory-production-live-rollback.ts",
+      "line": 108,
+      "rpc": "rollback_factory_production_live_v1",
+      "tableExpression": "\"rollback_factory_production_live_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_same_origin_control_plane_platform_mutation_calls_service_role_only_security_definer_rollback_rpc_only_after_server_derives_exact_activation_tenant_revision_slug_certification_snapshot_and_fail_closed_checks_then_database_restores_only_recorded_lifecycle_and_projection_anchors"
+    }
+  ]
+}
