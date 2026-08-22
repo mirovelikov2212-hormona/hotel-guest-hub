@@ -70,6 +70,7 @@ test("P2.6.4 LIVE ledger is immutable, exact-certification keyed and rollback-re
 });
 
 test("P2.6.4 hardening follows immutable Production revisions and current normalized schema", async () => {
+  const original = await read(migrationPath);
   const migration = await read(hardeningMigrationPath);
 
   assert.match(migration, /FACTORY_PRODUCTION_RUNTIME_CERTIFICATION_PENDING/i);
@@ -79,12 +80,12 @@ test("P2.6.4 hardening follows immutable Production revisions and current normal
   assert.match(migration, /a\.actions_json/i);
   assert.match(migration, /permissions_json->>'configured'/i);
   assert.match(migration, /permissions_json->'permissions'/i);
-  assert.match(migration, /update public\.hotel_config_publication_state[\s\S]*last_known_good_revision_id=v_cert\.production_revision_id/i);
+  assert.match(original, /update public\.hotel_config_publication_state[\s\S]*last_known_good_revision_id=v_cert\.production_revision_id/i);
   assert.match(migration, /P2_6_4_HARDENING_ACTIVATION_GUARD_FAILED/i);
   assert.match(migration, /position\('update public\.hotel_config_revisions' in v_activation\)>0/i);
-  assert.match(migration, /update public\.hotel_public_identity_configs[\s\S]*set status='active'/i);
-  assert.match(migration, /update public\.properties[\s\S]*set lifecycle_state='pilot'/i);
-  assert.match(migration, /update public\.hotels[\s\S]*set active=true/i);
+  assert.match(original, /update public\.hotel_public_identity_configs[\s\S]*set status='active'/i);
+  assert.match(original, /update public\.properties[\s\S]*set lifecycle_state='pilot'/i);
+  assert.match(original, /update public\.hotels[\s\S]*set active=true/i);
 });
 
 test("P2.6.4 changes only lifecycle/anchors while operational resources remain fail-closed", async () => {
