@@ -7,7 +7,7 @@ import { activateFactoryProductionLive } from "@/lib/server/factory-production-l
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_BODY_BYTES = 131_072;
+const MAX_BODY_BYTES = 16_384;
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
   Pragma: "no-cache",
@@ -46,13 +46,6 @@ export async function POST(req: NextRequest) {
 
     const body = JSON.parse(rawBody) as {
       runtimeCertificationRunId?: unknown;
-      expectedProductionHotelId?: unknown;
-      expectedProductionRevisionId?: unknown;
-      expectedPublicSlug?: unknown;
-      certifiedDeploymentId?: unknown;
-      certifiedDeploymentSha?: unknown;
-      checks?: unknown;
-      evidence?: unknown;
       approval?: unknown;
     };
 
@@ -63,13 +56,6 @@ export async function POST(req: NextRequest) {
     const result = await activateFactoryProductionLive({
       authority,
       runtimeCertificationRunId: body.runtimeCertificationRunId,
-      expectedProductionHotelId: body.expectedProductionHotelId,
-      expectedProductionRevisionId: body.expectedProductionRevisionId,
-      expectedPublicSlug: body.expectedPublicSlug,
-      certifiedDeploymentId: body.certifiedDeploymentId,
-      certifiedDeploymentSha: body.certifiedDeploymentSha,
-      checks: body.checks,
-      evidence: body.evidence,
       approval: body.approval,
     });
 

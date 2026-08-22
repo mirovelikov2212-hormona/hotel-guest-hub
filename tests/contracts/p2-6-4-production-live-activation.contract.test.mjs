@@ -13,7 +13,10 @@ const read = (path) => readFile(resolve(root, path), "utf8");
 
 const migrationPath =
   "supabase/migrations/20260817161000_p2_6_4_production_live_activation.sql";
+const hardeningMigrationPath =
+  "supabase/migrations/20260822133000_p2_6_4_live_safety_hardening.sql";
 const servicePath = "lib/server/factory-production-live-activation.ts";
+const evidencePath = "lib/server/factory-production-live-activation-evidence.ts";
 const relationalServicePath =
   "lib/server/factory-production-relational-authority.ts";
 const routePath =
@@ -66,8 +69,29 @@ test("P2.6.4 LIVE ledger is immutable, exact-certification keyed and rollback-re
   );
 });
 
-test("P2.6.4 activation is exact-target CAS and changes only public lifecycle", async () => {
-  const migration = await read(migrationPath);
+test("P2.6.4 hardening follows immutable Production revisions and current normalized schema", async () => {
+  const original = await read(migrationPath);
+  const migration = await read(hardeningMigrationPath);
+
+  assert.match(migration, /FACTORY_PRODUCTION_RUNTIME_CERTIFICATION_PENDING/i);
+  assert.match(migration, /P2_6_4_PUBLISHED_REVISION_IMMUTABILITY_DRIFT/i);
+  assert.match(migration, /i\.qr_route/i);
+  assert.match(migration, /r\.recipients_json/i);
+  assert.match(migration, /a\.actions_json/i);
+  assert.match(migration, /permissions_json->>'configured'/i);
+  assert.match(migration, /permissions_json->'permissions'/i);
+  assert.match(original, /update public\.hotel_config_publication_state[\s\S]*last_known_good_revision_id=v_cert\.production_revision_id/i);
+  assert.match(migration, /P2_6_4_HARDENING_ACTIVATION_GUARD_FAILED/i);
+  assert.match(migration, /position\('update public\.hotel_config_revisions' in v_activation\)>0/i);
+  assert.match(original, /update public\.hotel_public_identity_configs[\s\S]*set status='active'/i);
+  assert.match(original, /update public\.properties[\s\S]*set lifecycle_state='pilot'/i);
+  assert.match(original, /update public\.hotels[\s\S]*set active=true/i);
+});
+
+test("P2.6.4 changes only lifecycle/anchors while operational resources remain fail-closed", async () => {
+  const original = await read(migrationPath);
+  const hardening = await read(hardeningMigrationPath);
+  const combined = `${original}\n${hardening}`;
 
   for (const table of [
     "factory_production_runtime_certification_runs",
@@ -79,41 +103,21 @@ test("P2.6.4 activation is exact-target CAS and changes only public lifecycle", 
     "factory_core_resource_projection_runs",
     "factory_onboarding_runs",
   ]) {
-    assert.match(migration, new RegExp(`public\\.${table}`));
+    assert.match(original, new RegExp(`public\\.${table}`));
   }
 
-  assert.match(migration, /v_cert\.deployment_id<>p_certified_deployment_id/i);
-  assert.match(migration, /v_cert\.deployment_sha<>p_certified_deployment_sha/i);
-  assert.match(
-    migration,
-    /warnings' \? 'FACTORY_PRODUCTION_RUNTIME_CERTIFIED_DARK'/i,
-  );
-  assert.match(
-    migration,
-    /update public\.hotel_config_publication_state[\s\S]*last_known_good_revision_id=v_cert\.production_revision_id/i,
-  );
-  assert.match(
-    migration,
-    /update public\.hotel_public_identity_configs[\s\S]*set status='active'/i,
-  );
-  assert.match(
-    migration,
-    /update public\.properties[\s\S]*set lifecycle_state='pilot'/i,
-  );
-  assert.match(
-    migration,
-    /update public\.hotels[\s\S]*set active=true/i,
-  );
-
-  assert.doesNotMatch(migration, /update public\.routing_rules/i);
-  assert.doesNotMatch(migration, /update public\.hotel_service_definitions/i);
-  assert.doesNotMatch(migration, /update public\.hotel_workflow_definitions/i);
-  assert.doesNotMatch(migration, /update public\.hotel_role_templates/i);
-  assert.doesNotMatch(migration, /update public\.hotel_integration_configs/i);
+  assert.match(original, /v_cert\.deployment_id<>p_certified_deployment_id/i);
+  assert.match(original, /v_cert\.deployment_sha<>p_certified_deployment_sha/i);
+  assert.doesNotMatch(combined, /update public\.routing_rules/i);
+  assert.doesNotMatch(combined, /update public\.hotel_service_definitions/i);
+  assert.doesNotMatch(combined, /update public\.hotel_workflow_definitions/i);
+  assert.doesNotMatch(combined, /update public\.hotel_role_templates/i);
+  assert.doesNotMatch(combined, /update public\.hotel_integration_configs/i);
 });
 
-test("P2.6.4 keeps published config semantic authority but restores Production relational IDs", async () => {
+test("P2.6.4 keeps published config semantic authority and derives LIVE authority from immutable LKG state", async () => {
   const migration = await read(migrationPath);
+  const hardening = await read(hardeningMigrationPath);
   const published = await read("lib/server/published-hotel-config.ts");
   const relationalService = await read(relationalServicePath);
   const normalizedRuntime = await read(
@@ -131,18 +135,13 @@ test("P2.6.4 keeps published config semantic authority but restores Production r
     migration,
     /create or replace function public\.get_factory_production_relational_authority_v1/i,
   );
-  assert.match(
-    migration,
-    /FACTORY_PRODUCTION_LIVE_PILOT/i,
-  );
+  assert.match(hardening, /FACTORY_PRODUCTION_LIVE_PILOT[\s\S]*v_relational/i);
   assert.match(
     published,
-    /isFactoryLivePilot\(row\.validation_json\)[\s\S]*getFactoryProductionRelationalAuthority/i,
+    /last_known_good_revision_id === row\.id[\s\S]*getFactoryProductionRelationalAuthority/i,
   );
-  assert.match(
-    relationalService,
-    /get_factory_production_relational_authority_v1/i,
-  );
+  assert.doesNotMatch(published, /isFactoryLivePilot/i);
+  assert.match(relationalService, /get_factory_production_relational_authority_v1/i);
 
   // Legacy M10 activation stays sandbox-only; P2.6.4 does not silently widen it.
   assert.match(normalizedRuntime, /if \(!input\.isSandbox\)/i);
@@ -173,8 +172,10 @@ test("relational authority survives internal spreads but cannot leak through JSO
   assert.equal(serialized.includes(departmentId), false);
 });
 
-test("P2.6.4 server contract requires every LIVE gate and forbids implicit resource/credential activation", async () => {
+test("P2.6.4 server derives every LIVE gate and exact release from trusted state", async () => {
   const service = await read(servicePath);
+  const evidence = await read(evidencePath);
+  const combined = `${service}\n${evidence}`;
 
   for (const check of [
     "runtime_certification",
@@ -191,7 +192,7 @@ test("P2.6.4 server contract requires every LIVE gate and forbids implicit resou
     "operational_runtime_fail_closed",
     "production_activation_approved",
   ]) {
-    assert.match(service, new RegExp(`"${check}"`));
+    assert.match(combined, new RegExp(`${check}`));
   }
 
   assert.match(service, /activateProduction: true/i);
@@ -202,22 +203,39 @@ test("P2.6.4 server contract requires every LIVE gate and forbids implicit resou
   assert.match(service, /enableNormalizedProductionAuthority: false/i);
   assert.match(service, /enableFactoryOperationalResources: false/i);
   assert.match(service, /generateCredentials: false/i);
+  assert.match(service, /deriveFactoryProductionLiveActivationEvidence/i);
+  assert.match(service, /server_derived_p2_6_4_v2/i);
+  assert.match(evidence, /getFactoryReleaseEvidence/i);
+  assert.match(evidence, /P2_6_4_CERTIFIED_RELEASE_STALE/i);
+  assert.match(evidence, /staff_access_pins/i);
+  assert.match(evidence, /last_known_good_revision_id/i);
+  assert.match(evidence, /P2_6_4_PUBLICATION_STATE_INVALID/i);
   assert.match(service, /canMutateControlPlane/i);
   assert.match(service, /activate_factory_production_live_v1/i);
 });
 
-test("P2.6.4 Control Plane API remains same-origin and Platform Admin authenticated", async () => {
+test("P2.6.4 API cannot accept client-authored target, deployment, checks or evidence", async () => {
   const route = await read(routePath);
 
   assert.match(route, /enforceControlPlaneSameOrigin\(req\)/i);
   assert.match(route, /getCurrentPlatformAdminSession\(\)/i);
-  assert.match(route, /MAX_BODY_BYTES = 131_072/i);
+  assert.match(route, /MAX_BODY_BYTES = 16_384/i);
+  assert.match(route, /runtimeCertificationRunId\?: unknown/i);
+  assert.match(route, /approval\?: unknown/i);
+  assert.doesNotMatch(route, /certifiedDeploymentId\?: unknown/i);
+  assert.doesNotMatch(route, /certifiedDeploymentSha\?: unknown/i);
+  assert.doesNotMatch(route, /expectedProductionHotelId\?: unknown/i);
+  assert.doesNotMatch(route, /expectedProductionRevisionId\?: unknown/i);
+  assert.doesNotMatch(route, /expectedPublicSlug\?: unknown/i);
+  assert.doesNotMatch(route, /checks\?: unknown/i);
+  assert.doesNotMatch(route, /evidence\?: unknown/i);
   assert.match(route, /activateFactoryProductionLive/i);
   assert.doesNotMatch(route, /export async function GET/i);
 });
 
-test("P2.6.4 relational runtime read is service-role-only and fail-closed on LIVE-state drift", async () => {
+test("P2.6.4 relational runtime read remains service-role-only and projection/LKG fail-closed", async () => {
   const migration = await read(migrationPath);
+  const hardening = await read(hardeningMigrationPath);
 
   assert.match(
     migration,
@@ -228,14 +246,8 @@ test("P2.6.4 relational runtime read is service-role-only and fail-closed on LIV
     /grant execute on function public\.get_factory_production_relational_authority_v1\([\s\S]*to service_role/i,
   );
   assert.match(migration, /h\.active=true[\s\S]*i\.status='active'/i);
-  assert.match(
-    migration,
-    /ps\.last_known_good_revision_id=p_revision_id/i,
-  );
-  assert.match(
-    migration,
-    /r\.validation_json->'warnings' \? 'FACTORY_PRODUCTION_LIVE_PILOT'/i,
-  );
+  assert.match(migration, /ps\.last_known_good_revision_id=p_revision_id/i);
+  assert.match(hardening, /FACTORY_PRODUCTION_LIVE_PILOT[\s\S]*v_relational/i);
   assert.match(
     migration,
     /rr\.hotel_id=p_hotel_id and rr\.active=true/i,

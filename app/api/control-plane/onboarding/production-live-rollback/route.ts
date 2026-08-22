@@ -7,7 +7,7 @@ import { rollbackFactoryProductionLive } from "@/lib/server/factory-production-l
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_BODY_BYTES = 131_072;
+const MAX_BODY_BYTES = 16_384;
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
   Pragma: "no-cache",
@@ -46,12 +46,7 @@ export async function POST(req: NextRequest) {
 
     const body = JSON.parse(rawBody) as {
       activationRunId?: unknown;
-      expectedProductionHotelId?: unknown;
-      expectedProductionRevisionId?: unknown;
-      expectedPublicSlug?: unknown;
       reason?: unknown;
-      checks?: unknown;
-      evidence?: unknown;
       approval?: unknown;
     };
 
@@ -62,12 +57,7 @@ export async function POST(req: NextRequest) {
     const result = await rollbackFactoryProductionLive({
       authority,
       activationRunId: body.activationRunId,
-      expectedProductionHotelId: body.expectedProductionHotelId,
-      expectedProductionRevisionId: body.expectedProductionRevisionId,
-      expectedPublicSlug: body.expectedPublicSlug,
       reason: body.reason,
-      checks: body.checks,
-      evidence: body.evidence,
       approval: body.approval,
     });
 

@@ -3,18 +3,8 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import { canMutateControlPlane, type PlatformAdminAuthority } from "@/lib/server/control-plane-auth";
+import { deriveFactoryProductionLiveRollbackEvidence } from "@/lib/server/factory-production-live-rollback-evidence";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
-
-const REQUIRED_ROLLBACK_CHECKS = [
-  "live_activation_exact",
-  "published_revision_exact",
-  "runtime_certification_still_passed",
-  "rollback_snapshot_valid",
-  "tenant_isolation",
-  "supabase_security",
-  "operational_runtime_fail_closed",
-  "rollback_approved",
-] as const;
 
 const REQUIRED_APPROVAL = {
   rollbackProduction: true,
@@ -27,8 +17,6 @@ const REQUIRED_APPROVAL = {
   preserveCredentials: true,
   mutateOperationalResources: false,
 } as const;
-
-type RollbackCheckKey = (typeof REQUIRED_ROLLBACK_CHECKS)[number];
 
 type RollbackRpcRow = {
   rollback_run_id: string;
@@ -46,14 +34,6 @@ function normalizeUuid(value: unknown, code: string) {
   return id;
 }
 
-function normalizePublicSlug(value: unknown) {
-  const slug = String(value || "").trim().toLowerCase();
-  if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(slug)) {
-    throw new Error("P2_6_5_PUBLIC_SLUG_INVALID");
-  }
-  return slug;
-}
-
 function normalizeReason(value: unknown) {
   const reason = String(value || "").trim();
   if (reason.length < 3 || reason.length > 1000) {
@@ -67,15 +47,6 @@ function normalizeObject(value: unknown, code: string): Record<string, unknown> 
     throw new Error(code);
   }
   return value as Record<string, unknown>;
-}
-
-function buildChecks(input: Record<string, unknown>) {
-  const checks: Record<RollbackCheckKey, true> = Object.create(null);
-  for (const key of REQUIRED_ROLLBACK_CHECKS) {
-    if (input[key] !== true) throw new Error(`P2_6_5_REQUIRED_CHECK_NOT_PASSED:${key}`);
-    checks[key] = true;
-  }
-  return checks;
 }
 
 function normalizeApproval(value: unknown) {
@@ -99,12 +70,7 @@ function canonicalize(value: unknown): string {
 export async function rollbackFactoryProductionLive(input: {
   authority: PlatformAdminAuthority;
   activationRunId: unknown;
-  expectedProductionHotelId: unknown;
-  expectedProductionRevisionId: unknown;
-  expectedPublicSlug: unknown;
   reason: unknown;
-  checks: unknown;
-  evidence: unknown;
   approval: unknown;
 }) {
   if (!canMutateControlPlane(input.authority.role)) {
@@ -112,25 +78,24 @@ export async function rollbackFactoryProductionLive(input: {
   }
 
   const activationRunId = normalizeUuid(input.activationRunId, "P2_6_5_ACTIVATION_RUN_ID_INVALID");
-  const expectedProductionHotelId = normalizeUuid(
-    input.expectedProductionHotelId,
-    "P2_6_5_PRODUCTION_HOTEL_ID_INVALID",
-  );
-  const expectedProductionRevisionId = normalizeUuid(
-    input.expectedProductionRevisionId,
-    "P2_6_5_PRODUCTION_REVISION_ID_INVALID",
-  );
-  const expectedPublicSlug = normalizePublicSlug(input.expectedPublicSlug);
   const reason = normalizeReason(input.reason);
-  const checksInput = normalizeObject(input.checks, "P2_6_5_CHECKS_INVALID");
-  const evidence = normalizeObject(input.evidence, "P2_6_5_EVIDENCE_INVALID");
-  const requiredChecks = buildChecks(checksInput);
   const approval = normalizeApproval(input.approval);
-  const checks = { ...requiredChecks, evidence, approval };
+  const trusted = await deriveFactoryProductionLiveRollbackEvidence(activationRunId);
+  const expectedProductionHotelId = trusted.activation.productionHotelId;
+  const expectedProductionRevisionId = trusted.activation.productionRevisionId;
+  const expectedPublicSlug = trusted.activation.publicSlug;
+  const checks = {
+    ...trusted.checks,
+    evidence: {
+      source: "server_derived_p2_6_5_v2",
+      activation: trusted.activation,
+    },
+    approval,
+  };
 
   const rollbackHash = createHash("sha256")
     .update(canonicalize({
-      schemaVersion: "p2.6.5",
+      schemaVersion: "p2.6.5-trusted-v2",
       activationRunId,
       expectedProductionHotelId,
       expectedProductionRevisionId,
@@ -140,11 +105,6 @@ export async function rollbackFactoryProductionLive(input: {
     }))
     .digest("hex");
 
-  // Reviewed platform-authority recovery mutation. The service-role-only RPC
-  // accepts one immutable P2.6.4 activation run, verifies the exact published
-  // and certified target plus snapshot, tolerates only LIVE-or-snapshot states,
-  // and atomically restores the pre-LIVE certified-dark boundary. It never
-  // changes credentials, published revision content, or operational resources.
   const { data, error } = await supabaseAdmin.rpc("rollback_factory_production_live_v1", {
     p_actor_admin_id: input.authority.adminId,
     p_activation_run_id: activationRunId,
