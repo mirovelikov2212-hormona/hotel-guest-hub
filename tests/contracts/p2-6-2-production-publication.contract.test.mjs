@@ -83,9 +83,14 @@ test("P2.6.2 corrective migration binds the immutable P2.5 source to its exact c
   assertContains(fix, "r.validation_json->'errors' ? 'FACTORY_SANDBOX_CERTIFICATION_PENDING'");
   assertContains(fix, "certified.status='published'");
   assertContains(fix, "certified.source_checksum=r.source_checksum");
-  assertContains(fix, "certified.validation_json->>'source'='factory_sandbox_certification'");
+  assertContains(fix, "certified.validation_json->'warnings' ? 'FACTORY_SANDBOX_ACCEPTANCE_CERTIFIED'");
   assertContains(fix, "certified.validation_json->>'sourceRevisionId'=r.id::text");
   assertContains(fix, "certified.validation_json->>'certificationRunId'=v_cert.id::text");
+  assertContains(fix, "certified.provenance_json->>'stage'='sandbox_acceptance_activation'");
+  assertContains(fix, "certified.provenance_json->>'source'='stayhub_product_factory'");
+  assertContains(fix, "certified.provenance_json->>'sourceRevisionId'=r.id::text");
+  assertContains(fix, "certified.provenance_json->>'certificationRunId'=v_cert.id::text");
+  assertContains(fix, "certified.provenance_json->>'productionHotelId'=v_onboarding.production_hotel_id::text");
   assertContains(fix, "certified.created_at>=v_cert.created_at");
   assertContains(fix, "grant execute on function public.publish_factory_production_revision_v1(uuid,uuid,uuid,uuid,text,text)");
   assertNotContains(fix, "update public.hotels");
