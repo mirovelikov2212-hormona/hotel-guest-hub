@@ -8,6 +8,7 @@ const read = (path) => readFile(resolve(root, path), "utf8");
 const migrationPath = "supabase/migrations/20260817172000_p2_6_5_production_live_rollback.sql";
 const hardeningMigrationPath = "supabase/migrations/20260822133000_p2_6_4_live_safety_hardening.sql";
 const servicePath = "lib/server/factory-production-live-rollback.ts";
+const evidencePath = "lib/server/factory-production-live-rollback-evidence.ts";
 const routePath = "app/api/control-plane/onboarding/production-live-rollback/route.ts";
 
 test("P2.6.5 rollback ledger is immutable and unique by LIVE activation", async () => {
@@ -32,8 +33,7 @@ test("P2.6.5 restores lifecycle and projection snapshot without rewriting immuta
   assert.match(hardening, /FACTORY_PRODUCTION_RUNTIME_CERTIFICATION_PENDING/i);
   assert.match(hardening, /perform 1 from public\.hotel_config_revisions/i);
   assert.match(hardening, /P2_6_5_REVISION_ROLLBACK_CAS_FAILED/i);
-  assert.match(hardening, /update public\.hotel_config_revisions set validation_json=[\s\S]*v_old/i);
-  assert.match(hardening, /update public\.hotel_config_revisions set validation_json=' in v_rollback\)>0/i);
+  assert.match(hardening, /P2_6_5_HARDENING_ROLLBACK_REWRITE_FAILED/i);
   assert.doesNotMatch(migration, /update public\.factory_production_live_activation_runs/i);
 });
 
@@ -71,8 +71,11 @@ test("P2.6.5 does not mutate credentials or operational runtime resources", asyn
   assert.match(migration, /P2_6_5_OPERATIONAL_RUNTIME_NOT_FAIL_CLOSED/i);
 });
 
-test("P2.6.5 server contract requires explicit rollback approval", async () => {
+test("P2.6.5 server derives rollback target/checks from trusted activation state", async () => {
   const service = await read(servicePath);
+  const evidence = await read(evidencePath);
+  const combined = `${service}\n${evidence}`;
+
   for (const check of [
     "live_activation_exact",
     "published_revision_exact",
@@ -82,21 +85,34 @@ test("P2.6.5 server contract requires explicit rollback approval", async () => {
     "supabase_security",
     "operational_runtime_fail_closed",
     "rollback_approved",
-  ]) assert.match(service, new RegExp(`"${check}"`));
+  ]) assert.match(combined, new RegExp(`${check}`));
+
   assert.match(service, /rollbackProduction: true/i);
   assert.match(service, /deactivateHotel: true/i);
   assert.match(service, /restorePublicIdentityStatus: "certified"/i);
   assert.match(service, /restorePropertyLifecycle: "draft"/i);
   assert.match(service, /preserveCredentials: true/i);
   assert.match(service, /mutateOperationalResources: false/i);
+  assert.match(service, /deriveFactoryProductionLiveRollbackEvidence/i);
+  assert.match(service, /server_derived_p2_6_5_v2/i);
+  assert.match(evidence, /factory_production_live_activation_runs/i);
+  assert.match(evidence, /factory_production_runtime_certification_runs/i);
   assert.match(service, /rollback_factory_production_live_v1/i);
 });
 
-test("P2.6.5 Control Plane endpoint is same-origin, authenticated and POST-only", async () => {
+test("P2.6.5 Control Plane API cannot accept client-authored target/checks/evidence", async () => {
   const route = await read(routePath);
   assert.match(route, /enforceControlPlaneSameOrigin\(req\)/i);
   assert.match(route, /getCurrentPlatformAdminSession\(\)/i);
-  assert.match(route, /MAX_BODY_BYTES = 131_072/i);
+  assert.match(route, /MAX_BODY_BYTES = 16_384/i);
+  assert.match(route, /activationRunId\?: unknown/i);
+  assert.match(route, /reason\?: unknown/i);
+  assert.match(route, /approval\?: unknown/i);
+  assert.doesNotMatch(route, /expectedProductionHotelId\?: unknown/i);
+  assert.doesNotMatch(route, /expectedProductionRevisionId\?: unknown/i);
+  assert.doesNotMatch(route, /expectedPublicSlug\?: unknown/i);
+  assert.doesNotMatch(route, /checks\?: unknown/i);
+  assert.doesNotMatch(route, /evidence\?: unknown/i);
   assert.match(route, /rollbackFactoryProductionLive/i);
   assert.doesNotMatch(route, /export async function GET/i);
 });
