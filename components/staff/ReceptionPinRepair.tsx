@@ -42,7 +42,7 @@ export default function ReceptionPinRepair({ hotelSlug }: Props) {
       setMessage(
         data.hashRepaired
           ? "Reception PIN hash was repaired. Use the same PIN to sign in to Reception."
-          : "The current Reception PIN hash is already valid. Login throttle was reset.",
+          : "The current Reception PIN hash already validates this PIN. Retry Reception sign-in once.",
       );
     } catch {
       setError("Reception PIN repair could not reach the server.");
@@ -61,7 +61,7 @@ export default function ReceptionPinRepair({ hotelSlug }: Props) {
         <h1 className="mt-2 text-2xl font-semibold">Reception PIN hash repair</h1>
         <p className="mt-3 text-sm leading-6 text-white/65">
           Enter the same 6-digit Reception PIN twice. This does not intentionally change the PIN digits.
-          It regenerates the stored hash only if the existing hash no longer validates, and resets the Reception login throttle.
+          It regenerates the stored hash only if the existing hash no longer validates this PIN.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
