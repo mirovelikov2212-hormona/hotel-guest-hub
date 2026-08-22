@@ -1,13 +1,82 @@
 import "server-only";
 
 import { getFactoryReleaseEvidence } from "@/lib/server/factory-release-evidence";
-import { deriveFactoryProductionReadinessEvidence } from "@/lib/server/factory-production-readiness-evidence";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 const EXPECTED_VERCEL_PROJECT_ID = "prj_KUkOL6tRgwxr0QD9tc1TVClCdf9Y";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function requireStoredReadinessEvidence(readiness: {
+  id: string;
+  sandbox_certification_run_id: string;
+  production_hotel_id: string;
+  production_revision_id: string;
+  evidence_hash: string;
+  checks_json: unknown;
+}) {
+  const checks = isRecord(readiness.checks_json) ? readiness.checks_json : {};
+  for (const key of [
+    "sandbox_certification",
+    "tenant_isolation",
+    "candidate_build",
+    "runtime_errors",
+    "supabase_security",
+    "guest_runtime_dry_run",
+    "staff_runtime_dry_run",
+    "rollback_plan",
+    "no_production_activation",
+  ]) {
+    if (checks[key] !== true) throw new Error(`P2_6_3_READINESS_CHECK_MISSING:${key}`);
+  }
+
+  const evidence = isRecord(checks.evidence) ? checks.evidence : null;
+  const certification = evidence && isRecord(evidence.certification) ? evidence.certification : null;
+  const release = evidence && isRecord(evidence.release) ? evidence.release : null;
+  const dryRun = evidence && isRecord(evidence.dryRun) ? evidence.dryRun : null;
+  const evidenceChecks = evidence && isRecord(evidence.checks) ? evidence.checks : null;
+
+  if (
+    !evidence
+    || evidence.schemaVersion !== "p2.6.1-trusted-readiness-evidence-v1"
+    || evidence.source !== "system_derived"
+    || !certification
+    || !release
+    || !dryRun
+    || !evidenceChecks
+    || String(certification.sandboxCertificationRunId || "") !== readiness.sandbox_certification_run_id
+    || String(certification.productionHotelId || "") !== readiness.production_hotel_id
+    || String(certification.productionRevisionId || "") !== readiness.production_revision_id
+    || !/^[0-9a-f-]{36}$/i.test(String(certification.envelopeProjectionRunId || ""))
+    || dryRun.status !== "completed"
+    || !/^[a-f0-9]{64}$/i.test(String(readiness.evidence_hash || ""))
+    || !/^[a-f0-9]{64}$/i.test(String(release.evidenceHash || ""))
+  ) {
+    throw new Error("P2_6_3_STORED_READINESS_EVIDENCE_INVALID");
+  }
+
+  for (const key of [
+    "sandbox_certification",
+    "tenant_isolation",
+    "candidate_build",
+    "runtime_errors",
+    "supabase_security",
+    "guest_runtime_dry_run",
+    "staff_runtime_dry_run",
+    "rollback_plan",
+    "no_production_activation",
+  ]) {
+    if (evidenceChecks[key] !== true) throw new Error(`P2_6_3_STORED_READINESS_EVIDENCE_CHECK_MISSING:${key}`);
+  }
+
+  return {
+    envelopeProjectionRunId: String(certification.envelopeProjectionRunId),
+    dryRun,
+    readinessEvidenceHash: String(readiness.evidence_hash).toLowerCase(),
+    readinessReleaseEvidenceHash: String(release.evidenceHash).toLowerCase(),
+  };
 }
 
 async function requirePostPublicationRuntimeWindow(input: {
@@ -74,7 +143,7 @@ export async function deriveFactoryProductionRuntimeCertificationEvidence(public
 
   const { data: readiness, error: readinessError } = await supabaseAdmin
     .from("factory_production_readiness_runs")
-    .select("id, sandbox_certification_run_id, production_hotel_id, production_revision_id, status")
+    .select("id, sandbox_certification_run_id, production_hotel_id, production_revision_id, evidence_hash, checks_json, status")
     .eq("id", publication.readiness_run_id)
     .maybeSingle();
   if (readinessError) throw new Error(`P2_6_3_READINESS_READ_FAILED:${readinessError.message}`);
@@ -87,13 +156,14 @@ export async function deriveFactoryProductionRuntimeCertificationEvidence(public
     throw new Error("P2_6_3_READINESS_LINEAGE_INVALID");
   }
 
-  const readinessEvidence = await deriveFactoryProductionReadinessEvidence(String(readiness.sandbox_certification_run_id));
-  if (
-    readinessEvidence.certification.productionHotelId !== String(publication.production_hotel_id)
-    || readinessEvidence.certification.productionRevisionId !== String(readiness.production_revision_id)
-  ) {
-    throw new Error("P2_6_3_CERTIFICATION_LINEAGE_MISMATCH");
-  }
+  const readinessEvidence = requireStoredReadinessEvidence({
+    id: String(readiness.id),
+    sandbox_certification_run_id: String(readiness.sandbox_certification_run_id),
+    production_hotel_id: String(readiness.production_hotel_id),
+    production_revision_id: String(readiness.production_revision_id),
+    evidence_hash: String(readiness.evidence_hash),
+    checks_json: readiness.checks_json,
+  });
 
   const release = await getFactoryReleaseEvidence();
   const deploymentId = String(release.runtimeDeploymentId || "");
@@ -110,7 +180,12 @@ export async function deriveFactoryProductionRuntimeCertificationEvidence(public
     throw new Error("P2_6_3_EXACT_PRODUCTION_DEPLOYMENT_NOT_VALIDATED");
   }
 
-  const [{ data: publicationState, error: publicationStateError }, { data: projectionState, error: projectionError }] = await Promise.all([
+  const [
+    { data: publicationState, error: publicationStateError },
+    { data: projectionState, error: projectionError },
+    { data: identityState, error: identityError },
+    { data: previousCertRows, error: previousCertError },
+  ] = await Promise.all([
     supabaseAdmin
       .from("hotel_config_publication_state")
       .select("published_revision_id, last_known_good_revision_id, updated_at")
@@ -121,8 +196,25 @@ export async function deriveFactoryProductionRuntimeCertificationEvidence(public
       .select("projected_revision_id, projection_status, active_routing_rules_count, rooms_count, departments_count")
       .eq("hotel_id", publication.production_hotel_id)
       .maybeSingle(),
+    supabaseAdmin
+      .from("hotel_public_identity_configs")
+      .select("status")
+      .eq("hotel_id", publication.production_hotel_id)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("factory_production_runtime_certification_runs")
+      .select("id, deployment_id, deployment_sha, evidence_hash, status, created_at")
+      .eq("publication_run_id", publication.id)
+      .eq("production_hotel_id", publication.production_hotel_id)
+      .eq("production_revision_id", publication.production_revision_id)
+      .eq("status", "passed")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(1),
   ]);
-  if (publicationStateError || projectionError) throw new Error("P2_6_3_PUBLISHED_STATE_READ_FAILED");
+  if (publicationStateError || projectionError || identityError || previousCertError) {
+    throw new Error("P2_6_3_PUBLISHED_STATE_READ_FAILED");
+  }
   if (
     !publicationState
     || String(publicationState.published_revision_id || "") !== String(publication.production_revision_id)
@@ -132,6 +224,16 @@ export async function deriveFactoryProductionRuntimeCertificationEvidence(public
   }
   if (!projectionState || String(projectionState.projected_revision_id || "") !== String(publication.production_revision_id)) {
     throw new Error("P2_6_3_PROJECTION_STATE_INVALID");
+  }
+
+  const previousCertification = previousCertRows?.[0] || null;
+  const certificationMode = previousCertification ? "recertification" : "initial";
+  const publicIdentityStatus = String(identityState?.status || "");
+  if (
+    (certificationMode === "initial" && publicIdentityStatus !== "reserved")
+    || (certificationMode === "recertification" && publicIdentityStatus !== "certified")
+  ) {
+    throw new Error("P2_6_3_CERTIFICATION_MODE_STATE_INVALID");
   }
 
   const [{ count: enabledServices, error: servicesError }, { count: enabledWorkflows, error: workflowsError }, { count: activeRoutes, error: routesError }] = await Promise.all([
@@ -194,20 +296,20 @@ export async function deriveFactoryProductionRuntimeCertificationEvidence(public
     || String(publishedValidation.sourceRevisionId || "") !== String(sourceRevision.id)
     || String(publishedValidation.readinessRunId || "") !== String(publication.readiness_run_id)
     || String(publishedValidation.sandboxCertificationRunId || "") !== String(readiness.sandbox_certification_run_id)
-    || String(publishedValidation.envelopeProjectionRunId || "") !== readinessEvidence.certification.envelopeProjectionRunId
+    || String(publishedValidation.envelopeProjectionRunId || "") !== readinessEvidence.envelopeProjectionRunId
     || String(publishedProvenance.stage || "") !== "production_dark_publication"
     || String(publishedProvenance.source || "") !== "stayhub_product_factory"
     || String(publishedProvenance.sourceRevisionId || "") !== String(sourceRevision.id)
     || String(publishedProvenance.readinessRunId || "") !== String(publication.readiness_run_id)
     || String(publishedProvenance.sandboxCertificationRunId || "") !== String(readiness.sandbox_certification_run_id)
-    || String(publishedProvenance.envelopeProjectionRunId || "") !== readinessEvidence.certification.envelopeProjectionRunId
+    || String(publishedProvenance.envelopeProjectionRunId || "") !== readinessEvidence.envelopeProjectionRunId
     || String(publishedProvenance.productionHotelId || "") !== String(publication.production_hotel_id)
   ) {
     throw new Error("P2_6_3_PUBLISHED_REVISION_LINEAGE_INVALID");
   }
 
   const runtime = await requirePostPublicationRuntimeWindow({
-    envelopeProjectionRunId: readinessEvidence.certification.envelopeProjectionRunId,
+    envelopeProjectionRunId: readinessEvidence.envelopeProjectionRunId,
     deploymentId,
     gitSha: deploymentSha,
     notBefore: String(publication.created_at),
@@ -236,11 +338,19 @@ export async function deriveFactoryProductionRuntimeCertificationEvidence(public
       evidenceHash: release.evidenceHash,
     },
     runtime,
-    readinessEvidenceHash: readinessEvidence.release.evidenceHash,
+    readinessEvidenceHash: readinessEvidence.readinessEvidenceHash,
+    readinessReleaseEvidenceHash: readinessEvidence.readinessReleaseEvidenceHash,
     dryRun: readinessEvidence.dryRun,
+    priorCertification: previousCertification ? {
+      certificationRunId: String(previousCertification.id),
+      deploymentId: String(previousCertification.deployment_id),
+      deploymentSha: String(previousCertification.deployment_sha),
+      evidenceHash: String(previousCertification.evidence_hash),
+    } : null,
     failClosed: {
       productionActive: false as const,
-      publicIdentityStatus: "reserved" as const,
+      publicIdentityStatus,
+      certificationMode,
       enabledServices: 0 as const,
       enabledWorkflows: 0 as const,
       activeRoutingRules: 0 as const,

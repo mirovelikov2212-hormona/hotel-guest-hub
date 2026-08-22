@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "checkpoint": "p2-6-3-recertification-evidence",
+  "baseCheckpoint": "p2-6-4-live-safety-hardening",
+  "expectedNeedsReview": 126,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "lib/server/factory-production-runtime-certification-evidence.ts",
+      "fromLine": 19,
+      "toLine": 88,
+      "table": "factory_vercel_runtime_log_events",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification-evidence.ts",
+      "fromLine": 35,
+      "toLine": 104,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification-evidence.ts",
+      "fromLine": 65,
+      "toLine": 134,
+      "table": "factory_production_publication_runs",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification-evidence.ts",
+      "fromLine": 75,
+      "toLine": 144,
+      "table": "factory_production_readiness_runs",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification-evidence.ts",
+      "fromLine": 138,
+      "toLine": 240,
+      "table": "hotel_service_definitions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification-evidence.ts",
+      "fromLine": 143,
+      "toLine": 245,
+      "table": "hotel_workflow_definitions",
+      "operation": "select"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-production-runtime-certification-evidence.ts",
+      "line": 199,
+      "table": "hotel_public_identity_configs",
+      "tableExpression": "\"hotel_public_identity_configs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_3_recertification_reads_public_identity_only_for_the_exact_immutable_publication_production_hotel_and_requires_reserved_for_initial_certification_or_certified_for_recertification_while_production_remains_dark"
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification-evidence.ts",
+      "line": 204,
+      "table": "factory_production_runtime_certification_runs",
+      "tableExpression": "\"factory_production_runtime_certification_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_p2_6_3_recertification_reads_only_the_latest_passed_immutable_certification_for_the_exact_publication_hotel_and_published_revision_to_derive_initial_vs_recertification_mode_and_previous_exact_release_lineage_without_mutating_history"
+    }
+  ]
+}
