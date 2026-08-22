@@ -3302,7 +3302,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             effectiveCheckOutAt: "",
           });
 
-          if (!stayExpiredNotifiedRef.current) {
+          if (!isDateExemptTestRoom(staleRoom) && !stayExpiredNotifiedRef.current) {
             stayExpiredNotifiedRef.current = true;
             window.alert(stayCopy.expired);
           }
@@ -3312,13 +3312,15 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         setEffectiveCheckOutAt(payload.stay.effectiveCheckOutAt);
         if (payload.stay.active) return;
 
+        const expiredRoom = normalizeRoomNumber(room || manualRoomInput || qrRoom);
+
         setRoomConfirmed(false);
         setRoom("");
         setActiveStayId("");
         setStayDeviceId("");
         setEffectiveCheckOutAt("");
         setManualRoomInput(qrRoom || "");
-        if (!stayExpiredNotifiedRef.current) {
+        if (!isDateExemptTestRoom(expiredRoom) && !stayExpiredNotifiedRef.current) {
           stayExpiredNotifiedRef.current = true;
           window.alert(stayCopy.expired);
         }
@@ -3344,6 +3346,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     room,
     roomConfirmed,
     roomStateHydrated,
+    isDateExemptTestRoom,
     roomStateKey,
     stayCopy.expired,
     stayDeviceId,

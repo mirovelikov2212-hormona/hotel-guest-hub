@@ -102,3 +102,18 @@ test("Guest Hub clears stale stay state, dependent local data and preserves the 
     "The client must classify the server error before clearing a guest stay.",
   );
 });
+
+test("configured test rooms silently recover stale identity without weakening real-room expiry alerts", async () => {
+  const source = await readProjectFile("components/GuestHub.tsx");
+  const refreshStart = source.indexOf("const refreshStay = async () => {");
+  const refreshEnd = source.indexOf("\n    void refreshStay();", refreshStart);
+  const refreshSource = source.slice(refreshStart, refreshEnd);
+
+  assert.match(source, /const testRoomSet = useMemo\([\s\S]*config\.testRoomNumbers/);
+  assert.match(source, /const isDateExemptTestRoom = useCallback\([\s\S]*testRoomSet\.has\(normalizeRoomNumber\(candidate\)\)/);
+  assertContains(refreshSource, "!isDateExemptTestRoom(staleRoom) && !stayExpiredNotifiedRef.current");
+  assertContains(refreshSource, "const expiredRoom = normalizeRoomNumber(room || manualRoomInput || qrRoom);");
+  assertContains(refreshSource, "!isDateExemptTestRoom(expiredRoom) && !stayExpiredNotifiedRef.current");
+  assertContains(source, "roomStateHydrated,\n    isDateExemptTestRoom,\n    roomStateKey,");
+  assert.doesNotMatch(source, /isDateExemptTestRoom\([^)]*["']103["']/);
+});
