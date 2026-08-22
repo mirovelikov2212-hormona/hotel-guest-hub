@@ -79,27 +79,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { error: throttleError } = await supabaseAdmin
-      .from("staff_login_throttle_state")
-      .delete()
-      .eq("hotel_id", hotel.id)
-      .eq("role", TARGET_ROLE);
-
-    if (throttleError) {
-      await logSystemError({
-        hotelId: hotel.id,
-        source: "staff_hub",
-        eventType: "staff_pin_hash_repair_throttle_reset_failed",
-        message: "Reception PIN hash repair stopped because Reception login throttle could not be reset.",
-        error: throttleError,
-        metadata: { actorRole: "manager", targetRole: TARGET_ROLE },
-      });
-      return NextResponse.json(
-        { ok: false, code: "THROTTLE_RESET_FAILED", error: "Reception PIN hash was not changed." },
-        { status: 503 },
-      );
-    }
-
     const alreadyValid = verifyPin(pin, credential.pin_hash);
     if (!alreadyValid) {
       const repairedAt = new Date().toISOString();
@@ -155,7 +134,6 @@ export async function POST(req: NextRequest) {
       role: TARGET_ROLE,
       hashRepaired: !alreadyValid,
       alreadyValid,
-      throttleReset: true,
     });
   } catch (error) {
     console.error("Reception PIN hash repair failed", error instanceof Error ? error.message : "unknown error");
