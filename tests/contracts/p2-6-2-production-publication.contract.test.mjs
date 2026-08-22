@@ -96,3 +96,19 @@ test("P2.6.2 corrective migration binds the immutable P2.5 source to its exact c
   assertNotContains(fix, "update public.hotels");
   assertNotContains(fix, "set active=true");
 });
+
+test("P2.6.2 corrective migration publishes an immutable derivative instead of mutating the P2.6.1 source", async () => {
+  const fix = await readProjectFile("supabase/migrations/20260822083000_p2_6_dark_immutable_production_revisions.sql");
+  const service = await readProjectFile("lib/server/factory-production-publication.ts");
+  assertContains(fix, "insert into public.hotel_config_revisions(");
+  assertContains(fix, "returning * into v_revision");
+  assertContains(fix, "P2_6_2_PRODUCTION_REVISION_DRIFT");
+  assertContains(fix, "'stage','production_dark_publication'");
+  assertContains(fix, "'sourceProductionRevisionId',v_readiness.production_revision_id");
+  assertContains(fix, "'publishedProductionRevisionId',v_revision.id");
+  assertContains(fix, "published.source_checksum=source.source_checksum");
+  assertContains(fix, "P2_6_DARK_IMMUTABLE_PUBLICATION_GUARD_FAILED");
+  assertContains(service, "P2_6_2_PUBLISHED_REVISION_ID_INVALID");
+  assertContains(service, "publishedRevisionId === expectedProductionRevisionId");
+  assertContains(service, "sourceProductionRevisionId: expectedProductionRevisionId");
+});
