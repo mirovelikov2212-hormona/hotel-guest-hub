@@ -89,11 +89,9 @@ export async function publishFactoryProductionConfiguration(input: {
     }))
     .digest("hex");
 
-  // Reviewed platform-authority mutation: the service-role-only RPC treats the
-  // P2.6.1-ready revision as the immutable source/CAS target and publishes a
-  // new immutable derivative bound to that exact source. It transactionally
-  // rechecks lineage while keeping Production inactive, public identity
-  // reserved, runtime resources disabled and Production certification pending.
+  // Reviewed platform-authority mutation: the service-role-only RPC treats the P2.6.1-ready
+  // revision as immutable source/CAS and publishes an exact derivative. It rechecks lineage
+  // while keeping Production inactive, public identity reserved, runtime disabled and certification pending.
   const { data, error } = await supabaseAdmin.rpc("publish_factory_production_revision_v1", {
     p_actor_admin_id: input.authority.adminId,
     p_readiness_run_id: readinessRunId,
