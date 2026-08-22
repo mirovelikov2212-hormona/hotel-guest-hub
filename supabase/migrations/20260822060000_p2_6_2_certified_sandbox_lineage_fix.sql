@@ -58,8 +58,8 @@ begin
   v_definition := replace(v_definition,v_old,v_new);
 
   if position(v_old in v_definition)>0
-     or position("certified.validation_json->>'sourceRevisionId'=r.id::text" in v_definition)=0
-     or position("certified.validation_json->>'certificationRunId'=v_cert.id::text" in v_definition)=0
+     or position($needle$certified.validation_json->>'sourceRevisionId'=r.id::text$needle$ in v_definition)=0
+     or position($needle$certified.validation_json->>'certificationRunId'=v_cert.id::text$needle$ in v_definition)=0
      or position('certified.source_checksum=r.source_checksum' in v_definition)=0 then
     raise exception 'P2_6_2_CERTIFIED_SANDBOX_LINEAGE_FIX_REWRITE_FAILED';
   end if;
@@ -85,12 +85,12 @@ begin
     'public.publish_factory_production_revision_v1(uuid,uuid,uuid,uuid,text,text)'::regprocedure
   ) into v_definition;
 
-  if position("certified.validation_json->>'sourceRevisionId'=r.id::text" in v_definition)=0
-     or position("certified.validation_json->>'certificationRunId'=v_cert.id::text" in v_definition)=0
+  if position($needle$certified.validation_json->>'sourceRevisionId'=r.id::text$needle$ in v_definition)=0
+     or position($needle$certified.validation_json->>'certificationRunId'=v_cert.id::text$needle$ in v_definition)=0
      or position('certified.source_checksum=r.source_checksum' in v_definition)=0
-     or position("certified.validation_json->>'source'='factory_sandbox_certification'" in v_definition)=0
-     or position("coalesce((r.validation_json->>'ok')::boolean,false)=false" in v_definition)=0
-     or position("r.validation_json->'errors' ? 'FACTORY_SANDBOX_CERTIFICATION_PENDING'" in v_definition)=0 then
+     or position($needle$certified.validation_json->>'source'='factory_sandbox_certification'$needle$ in v_definition)=0
+     or position($needle$coalesce((r.validation_json->>'ok')::boolean,false)=false$needle$ in v_definition)=0
+     or position($needle$r.validation_json->'errors' ? 'FACTORY_SANDBOX_CERTIFICATION_PENDING'$needle$ in v_definition)=0 then
     raise exception 'P2_6_2_CERTIFIED_SANDBOX_LINEAGE_GUARD_FAILED';
   end if;
 end;
