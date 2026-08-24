@@ -20,6 +20,9 @@ export type {
 
 type ExternalAccessMode = "read" | "mirror";
 
+const MASSAGE_SNAPSHOT_RETRY_MAX_FIRST_ATTEMPT_MS = 30_000;
+const MASSAGE_SNAPSHOT_RETRY_DELAY_MS = 250;
+
 async function requireLegacyExternalSource(
   inputHotelSlug: unknown,
   mode: ExternalAccessMode,
@@ -41,6 +44,23 @@ async function requireLegacyExternalSource(
   }
 
   return source;
+}
+
+function isRetryableSnapshotReadFailure(error: unknown) {
+  if (!(error instanceof legacy.MassageApiError)) return false;
+
+  if (error.code === "MASSAGE_API_METHOD_MISMATCH") return true;
+
+  return (
+    error.code === "MASSAGE_API_HTTP_ERROR" &&
+    error.upstreamStatus === 404
+  );
+}
+
+async function waitForSnapshotRetry() {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, MASSAGE_SNAPSHOT_RETRY_DELAY_MS);
+  });
 }
 
 export function normalizeMassageHotelSlug(value: unknown) {
@@ -79,7 +99,29 @@ export async function getMassageSnapshotSourceBundle(
   input: Parameters<typeof legacy.getMassageSnapshotSourceBundle>[0],
 ) {
   const source = await requireLegacyExternalSource(input.hotelSlug, "read");
-  return legacy.getMassageSnapshotSourceBundle({ ...input, hotelSlug: source.hotel.slug });
+  const scopedInput = { ...input, hotelSlug: source.hotel.slug };
+  const firstAttemptStartedAt = Date.now();
+
+  try {
+    return await legacy.getMassageSnapshotSourceBundle(scopedInput);
+  } catch (error) {
+    const firstAttemptElapsedMs = Date.now() - firstAttemptStartedAt;
+
+    // Apps Script occasionally returns a short-lived 404 or a valid JSON envelope
+    // for the wrong action/method. Those failures are safe to retry because this
+    // path is strictly read-only. Timeouts are intentionally NOT retried: aborting
+    // the client request does not stop Apps Script, so retrying a timeout could
+    // create overlapping long-running Google executions.
+    if (
+      !isRetryableSnapshotReadFailure(error) ||
+      firstAttemptElapsedMs > MASSAGE_SNAPSHOT_RETRY_MAX_FIRST_ATTEMPT_MS
+    ) {
+      throw error;
+    }
+
+    await waitForSnapshotRetry();
+    return legacy.getMassageSnapshotSourceBundle(scopedInput);
+  }
 }
 
 export async function getMassageServices(hotelSlug: unknown) {
