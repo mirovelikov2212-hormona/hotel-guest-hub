@@ -11,7 +11,9 @@ on:
       - "lib/server/published-hotel-config.ts"
       - "lib/server/guest-request-relational-ids.mjs"
       - "supabase/migrations/20260817161000_p2_6_4_production_live_activation.sql"
+      - "supabase/migrations/20260825083500_p2_6_4_published_derivative_lineage_fix.sql"
       - "tests/contracts/p2-6-4-production-live-activation.contract.test.mjs"
+      - "tests/contracts/p2-6-4-published-derivative-lineage.contract.test.mjs"
       - "tests/contracts/tenant-isolation-baseline-p2-6-4-production-live-activation.json"
       - "scripts/tenant-isolation-guard.mjs"
       - "package.json"
@@ -31,3 +33,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - run: node --test tests/contracts/p2-6-4-published-derivative-lineage.contract.test.mjs
