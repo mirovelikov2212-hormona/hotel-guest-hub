@@ -3,23 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
+import type { FactoryProductionAcceptanceProgress } from "@/lib/server/factory-production-acceptance-progress";
 import type { FactoryReleaseEvidence } from "@/lib/server/factory-release-evidence";
 
 type Action = "readiness" | "publication" | "certification";
 
-type StoredProgress = {
-  readinessRunId?: string;
-  publicationRunId?: string;
-  certificationRunId?: string;
-  certifiedDeploymentId?: string;
-};
+type StoredProgress = FactoryProductionAcceptanceProgress;
 
-type ApiResult = StoredProgress & { ok?: boolean; error?: string };
+type ApiResult = StoredProgress & {
+  ok?: boolean;
+  error?: string;
+  deploymentId?: string;
+  deploymentSha?: string;
+  activationRunId?: string;
+};
 
 const COPY = {
   bg: {
-    title: "8. Production acceptance · dark only",
-    subtitle: "Тези стъпки използват съществуващите authenticated Control Plane APIs. Evidence, deployment и runtime checks се извеждат server-side; Production остава inactive.",
+    title: "8. Production acceptance",
+    subtitle: "Dark acceptance и LIVE използват само authenticated Control Plane APIs. Target identity, deployment, SHA, evidence и runtime checks се извеждат server-side и се валидират повторно fail-closed.",
     releaseReady: "CURRENT PRODUCTION RELEASE VALIDATED",
     releaseBlocked: "CURRENT PRODUCTION RELEASE BLOCKED",
     readiness: "P2.6.1 · Production Readiness",
@@ -29,22 +31,32 @@ const COPY = {
     complete: "Завършено",
     runReadiness: "Потвърди P2.6.1 readiness",
     runPublication: "Публикувай конфигурацията dark",
-    runCertification: "Сертифицирай runtime dark",
+    runCertification: "Сертифицирай current Production runtime",
     readinessConfirm: "Потвърждавам readiness оценка. Production и public identity остават неактивни.",
     publicationConfirm: "Потвърждавам dark publication. Runtime certification остава задължителна и Production не се активира.",
     certificationConfirm: "Потвърждавам dark runtime certification. Runtime resources, Production и public identity не се активират.",
-    smokeNotice: "След dark publication трябва да има нов signed Production smoke. Ако той още не е наблюдаван, P2.6.3 API ще fail-close-не; опитай отново само след потвърден clean smoke.",
-    liveLocked: "LIVE activation не е налична от този панел.",
+    smokeNotice: "P2.6.3 се допуска само за текущия exact Production deployment. Ако няма нов signed clean smoke, API ще fail-close-не.",
+    liveTitle: "P2.6.4 · LIVE pilot activation",
+    liveReady: "EXACT CURRENT CERTIFICATION READY",
+    liveBlocked: "LIVE BLOCKED UNTIL EXACT CURRENT CERTIFICATION",
+    liveWarning: "Това е реална Production активация само за този Factory tenant. Property lifecycle става pilot, hotel active=true, public identity=active и published revision става LKG. Normalized services/workflows/routing остават изключени и credentials не се генерират.",
+    liveConfirm: "Потвърждавам, че искам този exact Factory tenant да бъде активиран LIVE pilot. Не активирам Aquamarine или друг tenant.",
+    livePhrase: "Напиши LIVE за финално потвърждение",
+    runLive: "Активирай LIVE pilot",
+    liveDone: "LIVE PILOT ACTIVATED",
+    liveSuccess: "LIVE activation е записана успешно. Следва задължителна post-LIVE verification.",
     production: "Production hotel",
     revision: "Production revision",
     publicSlug: "Public slug",
     deployment: "Certified deployment",
+    certificationRun: "Runtime certification",
+    activationRun: "LIVE activation run",
     failed: "Стъпката не премина server-side gate-а. Няма извършена следваща активация.",
     unauthorized: "Control Plane сесията е изтекла. Влез отново и повтори само текущата стъпка.",
   },
   en: {
-    title: "8. Production acceptance · dark only",
-    subtitle: "These steps use the existing authenticated Control Plane APIs. Evidence, deployment and runtime checks are derived server-side; Production remains inactive.",
+    title: "8. Production acceptance",
+    subtitle: "Dark acceptance and LIVE use authenticated Control Plane APIs only. Target identity, deployment, SHA, evidence and runtime checks are server-derived and revalidated fail-closed.",
     releaseReady: "CURRENT PRODUCTION RELEASE VALIDATED",
     releaseBlocked: "CURRENT PRODUCTION RELEASE BLOCKED",
     readiness: "P2.6.1 · Production Readiness",
@@ -54,16 +66,26 @@ const COPY = {
     complete: "Complete",
     runReadiness: "Confirm P2.6.1 readiness",
     runPublication: "Publish configuration dark",
-    runCertification: "Certify runtime dark",
+    runCertification: "Certify current Production runtime",
     readinessConfirm: "I confirm readiness assessment. Production and public identity remain inactive.",
     publicationConfirm: "I confirm dark publication. Runtime certification remains mandatory and Production is not activated.",
     certificationConfirm: "I confirm dark runtime certification. Runtime resources, Production and public identity are not activated.",
-    smokeNotice: "After dark publication a new signed Production smoke is required. If it has not been observed yet, the P2.6.3 API will fail closed; retry only after a confirmed clean smoke.",
-    liveLocked: "LIVE activation is not available from this panel.",
+    smokeNotice: "P2.6.3 is allowed only for the exact current Production deployment. Without a new signed clean smoke the API fails closed.",
+    liveTitle: "P2.6.4 · LIVE pilot activation",
+    liveReady: "EXACT CURRENT CERTIFICATION READY",
+    liveBlocked: "LIVE BLOCKED UNTIL EXACT CURRENT CERTIFICATION",
+    liveWarning: "This is a real Production activation for this Factory tenant only. Property lifecycle becomes pilot, hotel active=true, public identity=active and the published revision becomes LKG. Normalized services/workflows/routing remain disabled and no credentials are generated.",
+    liveConfirm: "I confirm that I want this exact Factory tenant activated as LIVE pilot. I am not activating Aquamarine or any other tenant.",
+    livePhrase: "Type LIVE for final confirmation",
+    runLive: "Activate LIVE pilot",
+    liveDone: "LIVE PILOT ACTIVATED",
+    liveSuccess: "LIVE activation was recorded successfully. Mandatory post-LIVE verification is next.",
     production: "Production hotel",
     revision: "Production revision",
     publicSlug: "Public slug",
     deployment: "Certified deployment",
+    certificationRun: "Runtime certification",
+    activationRun: "LIVE activation run",
     failed: "The step did not pass the server-side gate. No later activation was performed.",
     unauthorized: "The Control Plane session expired. Sign in again and retry only the current step.",
   },
@@ -86,6 +108,7 @@ export default function FactoryProductionAcceptancePanel({
   productionRevisionId,
   publicSlug,
   releaseEvidence,
+  initialProgress,
 }: {
   lang: ControlPlaneLang;
   sandboxCertificationRunId: string;
@@ -93,27 +116,49 @@ export default function FactoryProductionAcceptancePanel({
   productionRevisionId: string;
   publicSlug: string;
   releaseEvidence: FactoryReleaseEvidence;
+  initialProgress: FactoryProductionAcceptanceProgress;
 }) {
   const copy = COPY[lang];
   const storageKey = useMemo(
     () => `stayhub.factory.p2.6-dark.${sandboxCertificationRunId}`,
     [sandboxCertificationRunId],
   );
-  const [progress, setProgress] = useState<StoredProgress>({});
+  const [progress, setProgress] = useState<StoredProgress>(initialProgress);
   const [confirmed, setConfirmed] = useState<Action | null>(null);
   const [busy, setBusy] = useState<Action | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [liveConfirmed, setLiveConfirmed] = useState(false);
+  const [livePhrase, setLivePhrase] = useState("");
+  const [liveBusy, setLiveBusy] = useState(false);
 
   useEffect(() => {
     try {
       const raw = window.sessionStorage.getItem(storageKey);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as StoredProgress;
-      if (parsed && typeof parsed === "object") setProgress(parsed);
+      const stored = raw ? JSON.parse(raw) as StoredProgress : {};
+      const storedCertificationIsCurrent = Boolean(
+        stored.certificationRunId
+        && stored.certifiedDeploymentId
+        && stored.certifiedDeploymentSha
+        && stored.certifiedDeploymentId === releaseEvidence.runtimeDeploymentId
+        && stored.certifiedDeploymentSha.toLowerCase() === String(releaseEvidence.runtimeGitSha || "").toLowerCase(),
+      );
+      const next: StoredProgress = {
+        readinessRunId: stored.readinessRunId || initialProgress.readinessRunId,
+        publicationRunId: stored.publicationRunId || initialProgress.publicationRunId,
+        certificationRunId: storedCertificationIsCurrent ? stored.certificationRunId : initialProgress.certificationRunId,
+        certifiedDeploymentId: storedCertificationIsCurrent ? stored.certifiedDeploymentId : initialProgress.certifiedDeploymentId,
+        certifiedDeploymentSha: storedCertificationIsCurrent ? stored.certifiedDeploymentSha : initialProgress.certifiedDeploymentSha,
+        liveActivationRunId: storedCertificationIsCurrent
+          ? stored.liveActivationRunId || initialProgress.liveActivationRunId
+          : initialProgress.liveActivationRunId,
+      };
+      setProgress(next);
+      window.sessionStorage.setItem(storageKey, JSON.stringify(next));
     } catch {
       window.sessionStorage.removeItem(storageKey);
+      setProgress(initialProgress);
     }
-  }, [storageKey]);
+  }, [initialProgress, releaseEvidence.runtimeDeploymentId, releaseEvidence.runtimeGitSha, storageKey]);
 
   const releaseReady =
     releaseEvidence.environment === "production"
@@ -129,13 +174,22 @@ export default function FactoryProductionAcceptancePanel({
         ? "publication"
         : "readiness";
 
+  const exactCertificationReady = Boolean(
+    releaseReady
+    && progress.certificationRunId
+    && progress.certifiedDeploymentId
+    && progress.certifiedDeploymentSha
+    && progress.certifiedDeploymentId === releaseEvidence.runtimeDeploymentId
+    && progress.certifiedDeploymentSha.toLowerCase() === String(releaseEvidence.runtimeGitSha || "").toLowerCase(),
+  );
+
   function save(next: StoredProgress) {
     setProgress(next);
     window.sessionStorage.setItem(storageKey, JSON.stringify(next));
   }
 
   async function run(action: Action) {
-    if (!releaseReady || stage !== action || confirmed !== action || busy) return;
+    if (!releaseReady || stage !== action || confirmed !== action || busy || liveBusy) return;
     setBusy(action);
     setFeedback(null);
     try {
@@ -192,11 +246,15 @@ export default function FactoryProductionAcceptancePanel({
             },
           },
         ));
-        if (!response.ok || !result.ok || !result.certificationRunId) throw new Error(response.status === 401 ? "unauthorized" : "failed");
+        if (!response.ok || !result.ok || !result.certificationRunId || !result.deploymentId || !result.deploymentSha) {
+          throw new Error(response.status === 401 ? "unauthorized" : "failed");
+        }
         save({
           ...progress,
           certificationRunId: result.certificationRunId,
-          certifiedDeploymentId: result.certifiedDeploymentId || (result as { deploymentId?: string }).deploymentId,
+          certifiedDeploymentId: result.deploymentId,
+          certifiedDeploymentSha: result.deploymentSha.toLowerCase(),
+          liveActivationRunId: undefined,
         });
       }
 
@@ -205,6 +263,51 @@ export default function FactoryProductionAcceptancePanel({
       setFeedback(error instanceof Error && error.message === "unauthorized" ? copy.unauthorized : copy.failed);
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function runLive() {
+    if (
+      !exactCertificationReady
+      || !progress.certificationRunId
+      || progress.liveActivationRunId
+      || !liveConfirmed
+      || livePhrase.trim().toUpperCase() !== "LIVE"
+      || busy
+      || liveBusy
+    ) return;
+
+    setLiveBusy(true);
+    setFeedback(null);
+    try {
+      const { response, result } = await postJson(
+        "/api/control-plane/onboarding/production-live-activation",
+        {
+          runtimeCertificationRunId: progress.certificationRunId,
+          approval: {
+            activateProduction: true,
+            activateHotel: true,
+            activatePublicIdentity: true,
+            targetPropertyLifecycle: "pilot",
+            preserveCertifiedRevision: true,
+            enableProductionRelationalAuthority: true,
+            enableNormalizedProductionAuthority: false,
+            enableFactoryOperationalResources: false,
+            generateCredentials: false,
+          },
+        },
+      );
+      if (!response.ok || !result.ok || !result.activationRunId) {
+        throw new Error(response.status === 401 ? "unauthorized" : "failed");
+      }
+      save({ ...progress, liveActivationRunId: result.activationRunId });
+      setLiveConfirmed(false);
+      setLivePhrase("");
+      setFeedback(copy.liveSuccess);
+    } catch (error) {
+      setFeedback(error instanceof Error && error.message === "unauthorized" ? copy.unauthorized : copy.failed);
+    } finally {
+      setLiveBusy(false);
     }
   }
 
@@ -231,6 +334,8 @@ export default function FactoryProductionAcceptancePanel({
         <p className="break-all">{copy.revision}: {productionRevisionId}</p>
         <p className="break-all md:col-span-2">{copy.publicSlug}: {publicSlug}</p>
         {progress.certifiedDeploymentId && <p className="break-all md:col-span-2">{copy.deployment}: {progress.certifiedDeploymentId}</p>}
+        {progress.certificationRunId && <p className="break-all md:col-span-2">{copy.certificationRun}: {progress.certificationRunId}</p>}
+        {progress.liveActivationRunId && <p className="break-all md:col-span-2">{copy.activationRun}: {progress.liveActivationRunId}</p>}
       </div>
 
       <div className="mt-5 space-y-4">
@@ -257,7 +362,7 @@ export default function FactoryProductionAcceptancePanel({
                   </label>
                   <button
                     type="button"
-                    disabled={!releaseReady || confirmed !== item.action || Boolean(busy)}
+                    disabled={!releaseReady || confirmed !== item.action || Boolean(busy) || liveBusy}
                     onClick={() => run(item.action)}
                     className="mt-4 rounded-xl border border-violet-300/30 bg-violet-300/15 px-4 py-2 text-sm font-semibold text-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -270,8 +375,46 @@ export default function FactoryProductionAcceptancePanel({
         })}
       </div>
 
-      <p className="mt-5 rounded-2xl border border-rose-400/20 bg-rose-400/5 px-4 py-3 text-sm font-semibold text-rose-100/90">{copy.liveLocked}</p>
-      {feedback && <p className="mt-4 text-sm text-rose-200">{feedback}</p>}
+      <div className={`mt-5 rounded-2xl border p-5 ${progress.liveActivationRunId ? "border-emerald-400/30 bg-emerald-400/10" : exactCertificationReady ? "border-rose-300/35 bg-rose-300/10" : "border-neutral-800 bg-neutral-950/45"}`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-base font-semibold text-neutral-100">{copy.liveTitle}</h3>
+          <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${progress.liveActivationRunId || exactCertificationReady ? "border-emerald-300/30 text-emerald-100" : "border-neutral-700 text-neutral-400"}`}>
+            {progress.liveActivationRunId ? copy.liveDone : exactCertificationReady ? copy.liveReady : copy.liveBlocked}
+          </span>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-rose-100/90">{copy.liveWarning}</p>
+
+        {!progress.liveActivationRunId && exactCertificationReady && (
+          <>
+            <label className="mt-4 flex items-start gap-3 text-sm leading-6 text-neutral-200">
+              <input
+                type="checkbox"
+                checked={liveConfirmed}
+                onChange={(event) => setLiveConfirmed(event.target.checked)}
+                className="mt-1 h-4 w-4"
+              />
+              <span>{copy.liveConfirm}</span>
+            </label>
+            <input
+              value={livePhrase}
+              onChange={(event) => setLivePhrase(event.target.value)}
+              placeholder={copy.livePhrase}
+              autoComplete="off"
+              className="mt-4 w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-rose-300/60"
+            />
+            <button
+              type="button"
+              disabled={!liveConfirmed || livePhrase.trim().toUpperCase() !== "LIVE" || Boolean(busy) || liveBusy}
+              onClick={runLive}
+              className="mt-4 rounded-xl border border-rose-300/40 bg-rose-300/15 px-4 py-2 text-sm font-semibold text-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {liveBusy ? "…" : copy.runLive}
+            </button>
+          </>
+        )}
+      </div>
+
+      {feedback && <p className={`mt-4 text-sm ${progress.liveActivationRunId ? "text-emerald-200" : "text-rose-200"}`}>{feedback}</p>}
     </section>
   );
 }

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "checkpoint": "p2-6-4-control-plane-live-trigger",
+  "baseCheckpoint": "p2-6-3-recertification-evidence",
+  "expectedNeedsReview": 129,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-production-acceptance-progress.ts",
+      "line": 34,
+      "table": "factory_production_publication_runs",
+      "tableExpression": "\"factory_production_publication_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_control_plane_acceptance_progress_reads_the_latest_dark_publication_scoped_to_the_exact_production_hotel_and_revision_after_authenticated_factory_lineage_resolution"
+    },
+    {
+      "filePath": "lib/server/factory-production-acceptance-progress.ts",
+      "line": 61,
+      "table": "factory_production_runtime_certification_runs",
+      "tableExpression": "\"factory_production_runtime_certification_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_control_plane_acceptance_progress_reads_only_a_passed_certification_bound_to_the_exact_publication_production_hotel_revision_and_current_trusted_production_deployment_id_and_sha"
+    },
+    {
+      "filePath": "lib/server/factory-production-acceptance-progress.ts",
+      "line": 89,
+      "table": "factory_production_live_activation_runs",
+      "tableExpression": "\"factory_production_live_activation_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_control_plane_acceptance_progress_reads_only_a_live_activation_bound_to_the_exact_certification_production_hotel_revision_and_current_trusted_production_deployment_id_and_sha"
+    }
+  ]
+}

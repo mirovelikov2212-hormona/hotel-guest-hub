@@ -9,6 +9,7 @@ const evidencePath = "lib/server/factory-production-readiness-evidence.ts";
 const routePath = "app/api/control-plane/onboarding/production-readiness/route.ts";
 const panelPath = "app/control-plane/factory/runs/[onboardingRunId]/FactoryProductionAcceptancePanel.tsx";
 const workspacePath = "app/control-plane/factory/runs/[onboardingRunId]/page.tsx";
+const acceptanceProgressPath = "lib/server/factory-production-acceptance-progress.ts";
 
 test("P2.6.1 readiness ledger is immutable and service-role-only", async () => {
   const migration = await readProjectFile(migrationPath);
@@ -107,15 +108,26 @@ test("P2.6.1 service remains authenticated Control Plane authority and readiness
   assert.ok(service.length > 0 && route.length > 0);
 });
 
-test("P2.6 dark operator panel is authenticated, sequential and has no LIVE mutation surface", async () => {
+test("P2.6 operator panel keeps dark acceptance sequential and gates LIVE on the exact current certification", async () => {
   const panel = await readProjectFile(panelPath);
   const workspace = await readProjectFile(workspacePath);
+  const acceptanceProgress = await readProjectFile(acceptanceProgressPath);
 
   assertContains(workspace, "getCurrentPlatformAdminSession()");
   assertContains(workspace, "FactoryProductionAcceptancePanel");
   assertContains(workspace, 'preflight?.certification.status === "complete"');
-  assertContains(panel, "window.sessionStorage");
+  assertContains(workspace, "getFactoryProductionAcceptanceProgress");
+  assertContains(workspace, "currentDeploymentId: trustedEvidence[1].runtimeDeploymentId");
+  assertContains(workspace, "currentDeploymentSha: trustedEvidence[1].runtimeGitSha");
 
+  assertContains(acceptanceProgress, '.from("factory_production_runtime_certification_runs")');
+  assertContains(acceptanceProgress, '.eq("deployment_id", currentDeploymentId)');
+  assertContains(acceptanceProgress, '.eq("deployment_sha", currentDeploymentSha)');
+  assertContains(acceptanceProgress, '.eq("status", "passed")');
+  assertContains(acceptanceProgress, '.from("factory_production_live_activation_runs")');
+  assertContains(acceptanceProgress, '.eq("status", "live")');
+
+  assertContains(panel, "window.sessionStorage");
   assertContains(panel, '"/api/control-plane/onboarding/production-readiness"');
   assertContains(panel, '"/api/control-plane/onboarding/production-publication"');
   assertContains(panel, '"/api/control-plane/onboarding/production-runtime-certification"');
@@ -126,10 +138,24 @@ test("P2.6 dark operator panel is authenticated, sequential and has no LIVE muta
   assertContains(panel, "activateHotel: false");
   assertContains(panel, "activatePublicIdentity: false");
   assertContains(panel, "enableRuntimeResources: false");
-  assertNotContains(panel, "/api/control-plane/onboarding/production-live-activation");
+
+  assertContains(panel, '"/api/control-plane/onboarding/production-live-activation"');
+  assertContains(panel, "exactCertificationReady");
+  assertContains(panel, "progress.certifiedDeploymentId === releaseEvidence.runtimeDeploymentId");
+  assertContains(panel, 'progress.certifiedDeploymentSha.toLowerCase() === String(releaseEvidence.runtimeGitSha || "").toLowerCase()');
+  assertContains(panel, 'livePhrase.trim().toUpperCase() !== "LIVE"');
+  assertContains(panel, "runtimeCertificationRunId: progress.certificationRunId");
+  assertContains(panel, "activateProduction: true");
+  assertContains(panel, "activateHotel: true");
+  assertContains(panel, "activatePublicIdentity: true");
+  assertContains(panel, 'targetPropertyLifecycle: "pilot"');
+  assertContains(panel, "preserveCertifiedRevision: true");
+  assertContains(panel, "enableProductionRelationalAuthority: true");
+  assertContains(panel, "enableNormalizedProductionAuthority: false");
+  assertContains(panel, "enableFactoryOperationalResources: false");
+  assertContains(panel, "generateCredentials: false");
+
   assertNotContains(panel, "supabaseAdmin");
-  assertNotContains(panel, "deploymentId:");
-  assertNotContains(panel, "deploymentSha:");
   assertNotContains(panel, "checks:");
   assertNotContains(panel, "evidence:");
 });
