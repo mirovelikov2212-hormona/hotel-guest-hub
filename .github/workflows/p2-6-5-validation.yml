@@ -8,7 +8,9 @@ on:
       - "app/api/control-plane/onboarding/production-live-rollback/**"
       - "lib/server/factory-production-live-rollback.ts"
       - "supabase/migrations/20260817172000_p2_6_5_production_live_rollback.sql"
+      - "supabase/migrations/20260825091341_p2_6_5_rollback_qualification_fix.sql"
       - "tests/contracts/p2-6-5-production-live-rollback.contract.test.mjs"
+      - "tests/contracts/p2-6-5-rollback-qualification.contract.test.mjs"
       - "tests/contracts/tenant-isolation-baseline-p2-6-5-production-live-rollback.json"
       - "scripts/tenant-isolation-guard.mjs"
       - "package.json"
@@ -28,3 +30,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - run: node --test tests/contracts/p2-6-5-rollback-qualification.contract.test.mjs
