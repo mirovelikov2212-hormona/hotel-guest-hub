@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
+import { normalizeAdminNextTarget } from "@/lib/control-plane-next";
 import { authenticatePlatformAdminCredentials } from "@/lib/server/control-plane-auth";
 import { logControlPlaneAudit } from "@/lib/server/control-plane-audit";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
@@ -22,10 +23,18 @@ function requestLang(req: NextRequest) {
   return normalizeControlPlaneLang(req.nextUrl.searchParams.get("lang"));
 }
 
+function requestNext(req: NextRequest) {
+  return normalizeAdminNextTarget(
+    req.nextUrl.searchParams.get("next"),
+    requestLang(req),
+  );
+}
+
 function redirectToLogin(req: NextRequest, code: string) {
   const url = new URL("/control-plane/login", req.url);
   url.searchParams.set("error", code);
   url.searchParams.set("lang", requestLang(req));
+  url.searchParams.set("next", requestNext(req));
   return NextResponse.redirect(url, { status: 303, headers: NO_STORE_HEADERS });
 }
 
@@ -56,6 +65,7 @@ export async function POST(req: NextRequest) {
         metadata: {
           role: authority.role,
           expiresAt: expiresAt.toISOString(),
+          destination: requestNext(req),
         },
       });
     } catch (auditError) {
@@ -63,14 +73,13 @@ export async function POST(req: NextRequest) {
       throw auditError;
     }
 
-    const target = new URL("/control-plane", req.url);
-    target.searchParams.set("lang", requestLang(req));
+    const target = new URL(requestNext(req), req.url);
     return NextResponse.redirect(target, {
       status: 303,
       headers: NO_STORE_HEADERS,
     });
   } catch (error) {
-    console.error("Control Plane login failed", error);
+    console.error("Control Panel login failed", error);
     return redirectToLogin(req, "unavailable");
   }
 }

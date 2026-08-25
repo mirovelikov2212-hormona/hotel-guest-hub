@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const i18nPath = new URL("../../lib/control-plane-i18n.ts", import.meta.url);
+const nextPath = new URL("../../lib/control-plane-next.ts", import.meta.url);
 const observabilityPath = new URL("../../lib/server/commercial-observability.ts", import.meta.url);
 const pagePath = new URL("../../app/control-plane/page.tsx", import.meta.url);
 const panelPath = new URL("../../app/control-plane/CommercialLifecyclePanel.tsx", import.meta.url);
@@ -11,9 +12,10 @@ const loginRoutePath = new URL("../../app/api/control-plane/login/route.ts", imp
 const logoutRoutePath = new URL("../../app/api/control-plane/logout/route.ts", import.meta.url);
 const packagePath = new URL("../../package.json", import.meta.url);
 
-const [i18n, observability, page, panel, loginPage, loginRoute, logoutRoute, packageRaw] =
+const [i18n, nextRouting, observability, page, panel, loginPage, loginRoute, logoutRoute, packageRaw] =
   await Promise.all([
     readFile(i18nPath, "utf8"),
+    readFile(nextPath, "utf8"),
     readFile(observabilityPath, "utf8"),
     readFile(pagePath, "utf8"),
     readFile(panelPath, "utf8"),
@@ -29,8 +31,8 @@ test("P3.4 exposes only Bulgarian and English Control Plane UI languages with Bu
   assert.match(i18n, /=== "en" \? "en" : "bg"/);
   assert.match(page, /href="\/control-plane\?lang=bg"/);
   assert.match(page, /href="\/control-plane\?lang=en"/);
-  assert.match(loginPage, /href="\/control-plane\/login\?lang=bg"/);
-  assert.match(loginPage, /href="\/control-plane\/login\?lang=en"/);
+  assert.match(loginPage, /\/control-plane\/login\?lang=bg&next=/);
+  assert.match(loginPage, /\/control-plane\/login\?lang=en&next=/);
 });
 
 test("P3.4 translates visible platform, property, environment and commercial status presentation", () => {
@@ -74,11 +76,18 @@ test("P3.4 commercial action panel is bilingual while machine action codes stay 
   assert.match(page, /lang=\{lang\}/);
 });
 
-test("P3.4 preserves selected language through login, login errors, success and logout", () => {
-  assert.match(loginPage, /action=\{`\/api\/control-plane\/login\?lang=\$\{lang\}`\}/);
+test("P3.4 preserves selected language and safe workspace destination through login and logout", () => {
+  assert.match(loginPage, /action=\{`\/api\/control-plane\/login\?lang=\$\{lang\}&next=\$\{encodeURIComponent\(nextTarget\)\}`\}/);
+  assert.match(loginPage, /if \(existing\) redirect\(nextTarget\)/);
   assert.match(loginRoute, /normalizeControlPlaneLang\(req\.nextUrl\.searchParams\.get\("lang"\)\)/);
   assert.match(loginRoute, /url\.searchParams\.set\("lang", requestLang\(req\)\)/);
-  assert.match(loginRoute, /target\.searchParams\.set\("lang", requestLang\(req\)\)/);
+  assert.match(loginRoute, /url\.searchParams\.set\("next", requestNext\(req\)\)/);
+  assert.match(loginRoute, /new URL\(requestNext\(req\), req\.url\)/);
+  assert.match(nextRouting, /"\/control-panel"/);
+  assert.match(nextRouting, /"\/hotel-factory"/);
+  assert.match(nextRouting, /"\/control-plane"/);
+  assert.match(nextRouting, /raw\.startsWith\("\/\/"\)/);
+  assert.match(nextRouting, /parsed\.searchParams\.set\("lang", lang\)/);
   assert.match(page, /action=\{`\/api\/control-plane\/logout\?lang=\$\{lang\}`\}/);
   assert.match(logoutRoute, /target\.searchParams\.set\("lang", lang\)/);
 });
