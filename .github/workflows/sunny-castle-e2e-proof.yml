@@ -1,0 +1,78 @@
+name: Temporary Sunny Castle E2E Proof
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  sunny-e2e:
+    if: github.head_ref == 'proof/sunny-e2e-20260825'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Confirm Sunny Castle stay and create Housekeeping request
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://www.stayhub.app'
+          HOTEL='sunny-castle-sandbox'
+          ROOM='SC-T03'
+          DEVICE='sunny-proof-20260825-7f5e90d4'
+          MARKER='SUNNY_E2E_20260825 тест 7f5e90d4'
+
+          stay_payload=$(jq -nc \
+            --arg hotelSlug "$HOTEL" \
+            --arg room "$ROOM" \
+            --arg checkInDate '2026-08-25' \
+            --arg checkOutDate '2026-08-27' \
+            --arg deviceToken "$DEVICE" \
+            --arg language 'bg' \
+            '{hotelSlug:$hotelSlug,room:$room,checkInDate:$checkInDate,checkOutDate:$checkOutDate,deviceToken:$deviceToken,language:$language}')
+
+          stay_body=$(mktemp)
+          stay_status=$(curl --silent --show-error --location \
+            --output "$stay_body" --write-out '%{http_code}' \
+            -X POST "$BASE/api/guest/stay/confirm" \
+            -H 'content-type: application/json' \
+            -H 'user-agent: StayHub-Sunny-E2E-Proof/1.0' \
+            --data "$stay_payload")
+          echo "STAY_HTTP_STATUS=$stay_status"
+          cat "$stay_body" | jq -c '{ok,stay:{id:.stay.id,stayDeviceId:.stay.stayDeviceId,room:.stay.room,active:.stay.active},error}'
+          test "$stay_status" = '200'
+          test "$(jq -r '.ok' "$stay_body")" = 'true'
+          stay_id=$(jq -r '.stay.id' "$stay_body")
+          stay_device_id=$(jq -r '.stay.stayDeviceId' "$stay_body")
+          test -n "$stay_id" && test "$stay_id" != 'null'
+          test -n "$stay_device_id" && test "$stay_device_id" != 'null'
+
+          request_payload=$(jq -nc \
+            --arg hotelSlug "$HOTEL" \
+            --arg room "$ROOM" \
+            --arg type 'extra-towel' \
+            --arg typeLabel 'Допълнителна кърпа' \
+            --arg note "$MARKER" \
+            --arg serviceTime 'now' \
+            --arg sourceRequestDef 'extra-towel' \
+            --arg guestLanguage 'bg' \
+            --arg stayId "$stay_id" \
+            --arg stayDeviceId "$stay_device_id" \
+            '{hotelSlug:$hotelSlug,room:$room,type:$type,typeLabel:$typeLabel,note:$note,serviceTime:$serviceTime,sourceRequestDef:$sourceRequestDef,guestLanguage:$guestLanguage,stayId:$stayId,stayDeviceId:$stayDeviceId}')
+
+          request_body=$(mktemp)
+          request_status=$(curl --silent --show-error --location \
+            --output "$request_body" --write-out '%{http_code}' \
+            -X POST "$BASE/api/guest/request-create" \
+            -H 'content-type: application/json' \
+            -H 'user-agent: StayHub-Sunny-E2E-Proof/1.0' \
+            --data "$request_payload")
+          echo "REQUEST_HTTP_STATUS=$request_status"
+          cat "$request_body" | jq -c '{ok,id:(.request.id // .id),type:(.request.request_type // .request.type // .type),status:(.request.status // .status),error,code}'
+          test "$request_status" = '200'
+          test "$(jq -r '.ok' "$request_body")" = 'true'
+          echo "SUNNY_E2E_STAY_ID=$stay_id"
+          echo "SUNNY_E2E_STAY_DEVICE_ID=$stay_device_id"
+          echo "SUNNY_E2E_MARKER=$MARKER"
