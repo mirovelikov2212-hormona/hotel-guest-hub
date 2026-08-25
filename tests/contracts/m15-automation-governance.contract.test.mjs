@@ -66,13 +66,23 @@ test("M15 scheduled report processing is timezone-neutral and idempotency-driven
 
 test("M15 existing Vercel operational crons remain explicit and limited", async () => {
   const vercel = JSON.parse(await readProjectFile("vercel.json"));
-  const cronPaths = new Set((vercel.crons || []).map((entry) => entry.path));
+  const cronEntries = Array.isArray(vercel.crons) ? vercel.crons : [];
+  const cronPaths = new Set(cronEntries.map((entry) => entry.path));
+  const massageSnapshotCrons = cronEntries.filter(
+    (entry) => entry.path === "/api/cron/massage-snapshot-sync",
+  );
 
   if (!cronPaths.has("/api/cron/day3-survey-push")) {
     throw new Error("day3 survey cron must remain scheduled");
   }
   if (!cronPaths.has("/api/cron/test-data-cleanup")) {
     throw new Error("test-data cleanup cron must remain scheduled");
+  }
+  if (
+    massageSnapshotCrons.length !== 1
+    || massageSnapshotCrons[0]?.schedule !== "*/5 * * * *"
+  ) {
+    throw new Error("massage snapshot sync must have exactly one five-minute Vercel scheduler authority");
   }
   if (cronPaths.has("/api/cron/massage-reminders")) {
     throw new Error("massage reminders must have one scheduler authority, GitHub Actions, not duplicate Vercel scheduling");
@@ -108,7 +118,9 @@ test("Post-M16 native massage writes mirror immediately and retain automatic rec
   assertContains(snapshotCron, "skippedDisabled");
   assertContains(snapshotCron, "matchedSources.filter");
 
-  assertContains(externalSync, 'cron: "*/10 * * * *"');
+  assertContains(externalSync, "workflow_dispatch:");
+  assertNotContains(externalSync, "schedule:");
+  assertNotContains(externalSync, 'cron: "*/10 * * * *"');
   assertContains(externalSync, 'if: ${{ always() }}');
   assertContains(externalSync, "native-massage-conflict-watch");
   assertContains(externalSync, "native-massage-sheet-mirror");
