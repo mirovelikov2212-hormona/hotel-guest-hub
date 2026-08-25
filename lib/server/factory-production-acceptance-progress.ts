@@ -94,7 +94,7 @@ export async function getFactoryProductionAcceptanceProgress(input: {
     .eq("production_revision_id", productionRevisionId)
     .eq("certified_deployment_id", currentDeploymentId)
     .eq("certified_deployment_sha", currentDeploymentSha)
-    .eq("status", "activated")
+    .eq("status", "live")
     .order("created_at", { ascending: false })
     .limit(1);
 
