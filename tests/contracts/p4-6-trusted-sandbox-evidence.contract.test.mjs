@@ -54,6 +54,9 @@ test("P4.6 release evidence binds Vercel runtime identity to exact GitHub releas
   assert.match(releaseEvidence, /commit\.commit\?\.message/);
   assert.match(releaseEvidence, /pullMatch/);
   assert.match(releaseEvidence, /\/pulls\/\$\{pullNumber\}/);
+  assert.match(releaseEvidence, /\/commits\/\$\{runtimeGitSha\}\/pulls\?per_page=10/);
+  assert.match(releaseEvidence, /mergedMainPulls\.length !== 1/);
+  assert.match(releaseEvidence, /squash_pr_association_unresolved/);
   assert.match(releaseEvidence, /merge_commit_sha/);
   assert.match(releaseEvidence, /if \(!mergeCommitSha\)/);
   assert.match(releaseEvidence, /\/issues\/\$\{pullNumber\}\/events\?per_page=100/);
@@ -61,7 +64,6 @@ test("P4.6 release evidence binds Vercel runtime identity to exact GitHub releas
   assert.match(releaseEvidence, /item\.commit_id/);
   assert.match(releaseEvidence, /mergeCommitMatchesRuntime \|\| \(!mergeCommitSha && mergedEventMatchesRuntime\)/);
   assert.match(releaseEvidence, /head\?\.sha/);
-  assert.doesNotMatch(releaseEvidence, /\/commits\/\$\{runtimeGitSha\}\/pulls/);
   assert.doesNotMatch(releaseEvidence, /\/pulls\?state=closed&base=main&sort=updated/);
 });
 
