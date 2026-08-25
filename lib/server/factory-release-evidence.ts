@@ -104,25 +104,52 @@ async function resolveProductionLineage(runtimeGitSha: string): Promise<Producti
   }
 
   const pullMatch = commitTitle.match(/\(#([1-9]\d*)\)\s*$/);
-  if (!pullMatch) {
-    logProductionLineageDiagnostic("squash_pr_number_missing", {
-      runtimeGitSha,
-      parentCount: parents.length,
-      commitTitle,
-    });
-    return null;
-  }
-  const pullNumber = Number(pullMatch[1]);
-  if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0) {
-    logProductionLineageDiagnostic("invalid_squash_pr_number", {
-      runtimeGitSha,
-      pullNumber: pullMatch[1],
-      commitTitle,
-    });
-    return null;
+  let pullNumber: number;
+  let pull: Record<string, unknown>;
+
+  if (pullMatch) {
+    pullNumber = Number(pullMatch[1]);
+    if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0) {
+      logProductionLineageDiagnostic("invalid_squash_pr_number", {
+        runtimeGitSha,
+        pullNumber: pullMatch[1],
+        commitTitle,
+      });
+      return null;
+    }
+    pull = await githubJson(`/pulls/${pullNumber}`) as Record<string, unknown>;
+  } else {
+    const associatedPullsRaw = await githubJson(`/commits/${runtimeGitSha}/pulls?per_page=10`);
+    const associatedPulls = Array.isArray(associatedPullsRaw) ? associatedPullsRaw : [];
+    const mergedMainPulls = associatedPulls.filter((entry) => {
+      const item = entry as Record<string, unknown>;
+      const base = item.base as Record<string, unknown> | undefined;
+      return Boolean(item.merged_at) && String(base?.ref || "") === "main";
+    }) as Array<Record<string, unknown>>;
+
+    if (mergedMainPulls.length !== 1) {
+      logProductionLineageDiagnostic("squash_pr_association_unresolved", {
+        runtimeGitSha,
+        parentCount: parents.length,
+        commitTitle,
+        associatedPullCount: associatedPulls.length,
+        mergedMainPullCount: mergedMainPulls.length,
+      });
+      return null;
+    }
+
+    pull = mergedMainPulls[0];
+    pullNumber = Number(pull.number);
+    if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0) {
+      logProductionLineageDiagnostic("invalid_associated_squash_pr_number", {
+        runtimeGitSha,
+        pullNumber: pull.number,
+        commitTitle,
+      });
+      return null;
+    }
   }
 
-  const pull = await githubJson(`/pulls/${pullNumber}`) as Record<string, unknown>;
   const mergeCommitSha = String(pull.merge_commit_sha || "").trim().toLowerCase();
   const base = pull.base as Record<string, unknown> | undefined;
   const baseRef = String(base?.ref || "");
