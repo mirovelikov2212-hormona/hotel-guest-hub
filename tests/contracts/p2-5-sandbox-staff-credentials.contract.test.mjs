@@ -6,6 +6,10 @@ const migration = fs.readFileSync(
   "supabase/migrations/20260825190000_p2_5_sandbox_staff_credentials.sql",
   "utf8",
 );
+const grantsHardening = fs.readFileSync(
+  "supabase/migrations/20260825193500_p2_5_sandbox_staff_credentials_grant_hardening.sql",
+  "utf8",
+);
 const route = fs.readFileSync(
   "app/api/control-plane/sandbox-credentials/route.ts",
   "utf8",
@@ -34,6 +38,15 @@ test("P2.5 Sandbox staff credential provisioning is certified, sandbox-only and 
   assert.match(migration, /revoke all on function public\.provision_factory_sandbox_staff_credentials_v1/);
   assert.match(migration, /grant execute on function[\s\S]*to service_role, postgres/);
   assert.doesNotMatch(migration, /to anon|to authenticated/);
+});
+
+test("P2.5 Sandbox credential RPC explicitly removes Supabase client-role EXECUTE grants", () => {
+  assert.match(grantsHardening, /revoke all on function[\s\S]*from public/i);
+  assert.match(grantsHardening, /revoke execute on function[\s\S]*from anon/i);
+  assert.match(grantsHardening, /revoke execute on function[\s\S]*from authenticated/i);
+  assert.match(grantsHardening, /grant execute on function[\s\S]*to service_role, postgres/i);
+  assert.doesNotMatch(grantsHardening, /grant execute[\s\S]*to anon/i);
+  assert.doesNotMatch(grantsHardening, /grant execute[\s\S]*to authenticated/i);
 });
 
 test("Control Plane generates one-time Sandbox PINs server-side and sends only hashes to the RPC", () => {
