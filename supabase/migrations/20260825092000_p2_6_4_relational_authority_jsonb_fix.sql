@@ -39,9 +39,9 @@ begin
   v_authority := replace(v_authority,v_old,v_new);
 
   if position('jsonb_object_length' in v_authority)>0
-     or position("coalesce(v_room_map,'{}'::jsonb)='{}'::jsonb" in v_authority)=0
-     or position("coalesce(v_department_map,'{}'::jsonb)='{}'::jsonb" in v_authority)=0
-     or position("coalesce(v_routing_map,'{}'::jsonb)='{}'::jsonb" in v_authority)=0
+     or position($check$coalesce(v_room_map,'{}'::jsonb)='{}'::jsonb$check$ in v_authority)=0
+     or position($check$coalesce(v_department_map,'{}'::jsonb)='{}'::jsonb$check$ in v_authority)=0
+     or position($check$coalesce(v_routing_map,'{}'::jsonb)='{}'::jsonb$check$ in v_authority)=0
      or position('P2_6_4_RELATIONAL_AUTHORITY_EMPTY' in v_authority)=0 then
     raise exception 'P2_6_4_RELATIONAL_AUTHORITY_JSONB_REWRITE_FAILED';
   end if;
@@ -57,9 +57,9 @@ declare
   );
 begin
   if position('jsonb_object_length' in v_authority)>0
-     or position("coalesce(v_room_map,'{}'::jsonb)='{}'::jsonb" in v_authority)=0
-     or position("coalesce(v_department_map,'{}'::jsonb)='{}'::jsonb" in v_authority)=0
-     or position("coalesce(v_routing_map,'{}'::jsonb)='{}'::jsonb" in v_authority)=0
+     or position($check$coalesce(v_room_map,'{}'::jsonb)='{}'::jsonb$check$ in v_authority)=0
+     or position($check$coalesce(v_department_map,'{}'::jsonb)='{}'::jsonb$check$ in v_authority)=0
+     or position($check$coalesce(v_routing_map,'{}'::jsonb)='{}'::jsonb$check$ in v_authority)=0
      or position('P2_6_4_RELATIONAL_AUTHORITY_LIVE_STATE_INVALID' in v_authority)=0
      or position('P2_6_4_RELATIONAL_AUTHORITY_RESOURCE_DRIFT' in v_authority)=0
      or position('P2_6_4_RELATIONAL_AUTHORITY_ROUTING_DUPLICATE' in v_authority)=0 then
