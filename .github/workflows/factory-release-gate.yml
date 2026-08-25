@@ -27,3 +27,41 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+      - name: P2.6.4 LIVE public API proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://www.stayhub.app'
+          marker='LIVE_E2E_6b626517_20260825'
+          device='factory-live-proof-6b626517-20260825'
+
+          stay_response="$(curl --fail-with-body --silent --show-error \
+            --request POST "${base}/api/guest/stay/confirm" \
+            --header 'content-type: application/json' \
+            --data "{\"hotelSlug\":\"proof-miro-stayhub-test\",\"room\":\"205\",\"checkInDate\":\"2026-08-25\",\"checkOutDate\":\"2026-08-26\",\"deviceToken\":\"${device}\",\"language\":\"en\"}")"
+
+          test "$(jq -r '.ok' <<<"${stay_response}")" = 'true'
+          stay_id="$(jq -r '.stay.id // empty' <<<"${stay_response}")"
+          stay_device_id="$(jq -r '.stay.stayDeviceId // empty' <<<"${stay_response}")"
+          test -n "${stay_id}"
+          test -n "${stay_device_id}"
+          test "$(jq -r '.stay.room' <<<"${stay_response}")" = '205'
+          test "$(jq -r '.stay.active' <<<"${stay_response}")" = 'true'
+
+          request_response="$(curl --fail-with-body --silent --show-error \
+            --request POST "${base}/api/guest/request-create" \
+            --header 'content-type: application/json' \
+            --data "{\"hotelSlug\":\"proof-miro-stayhub-test\",\"room\":\"205\",\"type\":\"extra-towel\",\"typeLabel\":\"Extra towel\",\"note\":\"${marker}\",\"serviceTime\":\"now\",\"sourceRequestDef\":\"extra-towel\",\"guestLanguage\":\"en\",\"stayId\":\"${stay_id}\",\"stayDeviceId\":\"${stay_device_id}\"}")"
+
+          test "$(jq -r '.ok' <<<"${request_response}")" = 'true'
+          request_id="$(jq -r '.request.id // empty' <<<"${request_response}")"
+          test -n "${request_id}"
+          test "$(jq -r '.request.room' <<<"${request_response}")" = '205'
+          test "$(jq -r '.request.type' <<<"${request_response}")" = 'extra-towel'
+          test "$(jq -r '.request.department' <<<"${request_response}")" = 'housekeeping'
+          test "$(jq -r '.request.status' <<<"${request_response}")" = 'new'
+          test "$(jq -r '.request.sourceRequestDef' <<<"${request_response}")" = 'extra-towel'
+          test "$(jq -r '.request.note' <<<"${request_response}")" = "${marker}"
+
+          echo "Proof stay ${stay_id}"
+          echo "Proof request ${request_id}"
