@@ -4,6 +4,7 @@ import { assertContains, assertNotContains, readProjectFile } from "../helpers/s
 
 const migrationPath = "supabase/migrations/20260826123000_factory_guided_native_content_stage.sql";
 const replayHardeningPath = "supabase/migrations/20260826123500_factory_guided_native_replay_hash_hardening.sql";
+const communicationsMigrationPath = "supabase/migrations/20260826150000_factory_communications_projection.sql";
 
 test("STEP 2C.3 guided native projection is service-role-only and tied to completed Envelope lineage", async () => {
   const migration = await readProjectFile(migrationPath);
@@ -71,8 +72,9 @@ test("STEP 2C.3 idempotent replay revalidates exact blueprint and operational ha
   assertContains(migration, "to service_role");
 });
 
-test("STEP 2C.3 Sandbox certification requires exact native projection before mature P2.5 authority", async () => {
+test("STEP 2C.3 Sandbox certification keeps exact native projection as a required downstream boundary", async () => {
   const migration = await readProjectFile(migrationPath);
+  const communicationsMigration = await readProjectFile(communicationsMigrationPath);
   const service = await readProjectFile("lib/server/factory-sandbox-certification.ts");
   const route = await readProjectFile("app/api/control-plane/onboarding/sandbox-certification/route.ts");
 
@@ -81,13 +83,14 @@ test("STEP 2C.3 Sandbox certification requires exact native projection before ma
   assertContains(migration, "P2C_SANDBOX_NATIVE_PROJECTION_REQUIRED");
   assertContains(migration, "P2C_SANDBOX_NATIVE_FAIL_CLOSED_STATE_INVALID");
   assertContains(migration, "from public.certify_factory_sandbox_v1(");
-  assertContains(service, '"certify_factory_sandbox_after_native_v1"');
+  assertContains(communicationsMigration, "from public.certify_factory_sandbox_after_native_v1(");
+  assertContains(service, '"certify_factory_sandbox_after_communications_v1"');
   assertNotContains(service, 'rpc("certify_factory_sandbox_v1"');
   assertContains(route, 'message.includes("P2C_SANDBOX_NATIVE_")');
   assertContains(route, 'code: "native_content_not_ready"');
 });
 
-test("STEP 2C.3 progress read exposes an explicit native stage and workspace never auto-chains it", async () => {
+test("STEP 2C.3 progress read keeps Native explicit and never auto-chains its successor", async () => {
   const migration = await readProjectFile(migrationPath);
   const helper = await readProjectFile("lib/server/factory-onboarding-progress.ts");
   const workspace = await readProjectFile("app/control-plane/factory/runs/[onboardingRunId]/FactoryProjectionWorkspace.tsx");
@@ -100,11 +103,11 @@ test("STEP 2C.3 progress read exposes an explicit native stage and workspace nev
   assertContains(helper, '"get_factory_onboarding_progress_v2"');
   assertContains(helper, "nativeContentCompleted: boolean");
   assertContains(helper, "native: NativeProjection | null");
-  assertContains(workspace, 'type Stage = "core" | "operational" | "envelope" | "native_content"');
+  assertContains(workspace, '"native_content" | "communications"');
   assertContains(workspace, 'url: "/api/control-plane/onboarding/native-content-venues"');
   assertContains(workspace, "enabled: Boolean(progress.envelope) && !progress.native");
-  assertContains(workspace, "{progress.native && (");
-  assertContains(page, "progress.envelope && progress.native");
+  assertContains(workspace, "enabled: Boolean(progress.native) && !progress.communications");
+  assertContains(page, "progress.envelope && progress.native && progress.communications");
   assertNotContains(workspace, "Promise.all");
 });
 

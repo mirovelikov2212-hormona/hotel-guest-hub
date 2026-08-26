@@ -87,10 +87,11 @@ test("P2.5 certification ledger and RPC are immutable, service-role-only and San
   assertNotContains(migration, "where id=v_onboarding.production_hotel_id and active=false and is_sandbox=false;\n  update public.hotels set active=true");
 });
 
-test("P2.5 certification requires exact evidence gates and remains behind Platform Admin plus native-lineage authority", async () => {
+test("P2.5 certification requires exact evidence gates and remains behind Platform Admin, Communications and native-lineage authority", async () => {
   const service = await readProjectFile("lib/server/factory-sandbox-certification.ts");
   const route = await readProjectFile("app/api/control-plane/onboarding/sandbox-certification/route.ts");
   const guidedMigration = await readProjectFile("supabase/migrations/20260826123000_factory_guided_native_content_stage.sql");
+  const communicationsMigration = await readProjectFile("supabase/migrations/20260826150000_factory_communications_projection.sql");
   for (const check of [
     "generic_staff_runtime",
     "tenant_isolation",
@@ -105,13 +106,17 @@ test("P2.5 certification requires exact evidence gates and remains behind Platfo
     assertContains(service, `"${check}"`);
   }
   assertContains(service, "canMutateControlPlane(input.authority.role)");
-  assertContains(service, 'supabaseAdmin.rpc("certify_factory_sandbox_after_native_v1"');
+  assertContains(service, 'supabaseAdmin.rpc("certify_factory_sandbox_after_communications_v1"');
+  assertContains(communicationsMigration, "from public.factory_communications_projection_runs");
+  assertContains(communicationsMigration, "from public.certify_factory_sandbox_after_native_v1(");
   assertContains(guidedMigration, "from public.factory_native_content_projection_runs");
   assertContains(guidedMigration, "from public.certify_factory_sandbox_v1(");
+  assertNotContains(service, 'rpc("certify_factory_sandbox_v1"');
   assertContains(service, 'createHash("sha256")');
   assertContains(route, "enforceControlPlaneSameOrigin(req)");
   assertContains(route, "getCurrentPlatformAdminSession()");
   assertContains(route, "certifyFactorySandbox");
+  assertContains(route, 'message.includes("P2D_SANDBOX_COMMUNICATION_")');
 });
 
 test("P2.5 forward fix never mutates immutable config revision content", async () => {
