@@ -6,7 +6,7 @@ import { useState } from "react";
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
 import type { FactoryRunProgress } from "@/lib/server/factory-onboarding-progress";
 
-type Stage = "core" | "operational" | "envelope" | "native_content";
+type Stage = "core" | "operational" | "envelope" | "native_content" | "communications";
 
 const COPY = {
   bg: {
@@ -17,6 +17,7 @@ const COPY = {
     operational: "3. Operational resources",
     envelope: "4. Onboarding envelope",
     native: "5. Native content & venues",
+    communications: "6. Communications",
     complete: "ЗАВЪРШЕНО",
     ready: "ГОТОВО ЗА СТАРТ",
     waiting: "ИЗЧАКВА ПРЕДИШНАТА СТЪПКА",
@@ -24,14 +25,16 @@ const COPY = {
     runOperational: "Проектирай услуги, workflows и routing",
     runEnvelope: "Създай fail-closed onboarding envelope",
     runNative: "Проектирай native съдържание и обекти",
+    runCommunications: "Проектирай guest комуникации",
     running: "Изпълнение…",
     foundationText: "Draft Property и отделни Production/Sandbox identities са създадени. И двете среди трябва да останат неактивни.",
     coreText: "Създава normalized rooms и departments и нови draft revisions. Не активира runtime.",
     operationalText: "Създава services/workflows/integration placeholders и routing structures. Всички execution flags остават изключени.",
     envelopeText: "Създава disabled roles, reporting off, branding/knowledge placeholders, AI permissions off, reserved public identities и health pending.",
     nativeText: "Записва многоезична хотелска информация, Wi-Fi и venues в native Supabase authority. Knowledge lifecycle остава placeholder, а всички venues остават неактивни.",
+    communicationsText: "Записва canonical guest-facing phone, WhatsApp и email към normalized departments за Production и Sandbox. Не променя отдели, работно време, routing или activation state.",
     next: "Следва: Sandbox certification",
-    nextText: "Guided projection спира тук. Sandbox certification остава отделна explicit стъпка; Production остава неактивен.",
+    nextText: "Guided projection е завършен. Sandbox certification остава отделна explicit стъпка; Production остава неактивен.",
     failed: "Стъпката не можа да бъде завършена. Нищо след нея не е стартирано автоматично.",
     conflict: "Lineage вече е проектиран с различен hash или състоянието е променено. Презареди workspace-а и провери.",
     invalid: "Authoritative blueprint/lineage не премина Product Factory валидирането.",
@@ -52,6 +55,10 @@ const COPY = {
     roles: "role templates",
     infoItems: "инфо елемента",
     venues: "venues",
+    configuredDepartments: "отдела с контакти",
+    phone: "phone",
+    whatsapp: "WhatsApp",
+    email: "email",
   },
   en: {
     title: "Product Factory progress",
@@ -61,6 +68,7 @@ const COPY = {
     operational: "3. Operational resources",
     envelope: "4. Onboarding envelope",
     native: "5. Native content & venues",
+    communications: "6. Communications",
     complete: "COMPLETED",
     ready: "READY TO RUN",
     waiting: "WAITING FOR PREVIOUS STEP",
@@ -68,14 +76,16 @@ const COPY = {
     runOperational: "Project services, workflows and routing",
     runEnvelope: "Create fail-closed onboarding envelope",
     runNative: "Project native content and venues",
+    runCommunications: "Project guest communications",
     running: "Running…",
     foundationText: "A draft Property and separate Production/Sandbox identities exist. Both environments must remain inactive.",
     coreText: "Creates normalized rooms and departments plus new draft revisions. Runtime is not activated.",
     operationalText: "Creates services/workflows/integration placeholders and routing structures. All execution flags remain disabled.",
     envelopeText: "Creates disabled roles, reporting off, branding/knowledge placeholders, AI permissions off, reserved public identities and pending health.",
     nativeText: "Persists multilingual hotel information, Wi-Fi and venues in native Supabase authority. Knowledge lifecycle stays placeholder and every venue remains inactive.",
+    communicationsText: "Persists canonical guest-facing phone, WhatsApp and email on normalized departments for Production and Sandbox. Department identity, hours, routing and activation state are unchanged.",
     next: "Next: Sandbox certification",
-    nextText: "Guided projection stops here. Sandbox certification remains a separate explicit step; Production stays inactive.",
+    nextText: "Guided projection is complete. Sandbox certification remains a separate explicit step; Production stays inactive.",
     failed: "The stage could not be completed. No later stage was started automatically.",
     conflict: "The lineage was already projected with a different hash or state changed. Refresh the workspace and inspect it.",
     invalid: "The authoritative blueprint/lineage failed Product Factory validation.",
@@ -96,6 +106,10 @@ const COPY = {
     roles: "role templates",
     infoItems: "info items",
     venues: "venues",
+    configuredDepartments: "departments with contacts",
+    phone: "phone",
+    whatsapp: "WhatsApp",
+    email: "email",
   },
 } as const;
 
@@ -145,10 +159,15 @@ export default function FactoryProjectionWorkspace({
                 url: "/api/control-plane/onboarding/envelope",
                 body: { operationalProjectionRunId: progress.operational?.projectionRunId, blueprint: progress.blueprint },
               }
-            : {
-                url: "/api/control-plane/onboarding/native-content-venues",
-                body: { operationalProjectionRunId: progress.operational?.projectionRunId, blueprint: progress.blueprint },
-              };
+            : stage === "native_content"
+              ? {
+                  url: "/api/control-plane/onboarding/native-content-venues",
+                  body: { operationalProjectionRunId: progress.operational?.projectionRunId, blueprint: progress.blueprint },
+                }
+              : {
+                  url: "/api/control-plane/onboarding/communications",
+                  body: { operationalProjectionRunId: progress.operational?.projectionRunId, blueprint: progress.blueprint },
+                };
 
     try {
       const response = await fetch(target.url, {
@@ -217,6 +236,16 @@ export default function FactoryProjectionWorkspace({
       description: copy.nativeText,
       detail: progress.native ? `${progress.native.hotelInfoItemsCount} ${copy.infoItems} · ${progress.native.venuesCount} ${copy.venues}` : null,
     },
+    {
+      key: "communications",
+      label: copy.communications,
+      done: Boolean(progress.communications),
+      enabled: Boolean(progress.native) && !progress.communications,
+      description: copy.communicationsText,
+      detail: progress.communications
+        ? `${progress.communications.configuredDepartmentsCount} ${copy.configuredDepartments} · ${progress.communications.phoneChannelsCount} ${copy.phone} · ${progress.communications.whatsappChannelsCount} ${copy.whatsapp} · ${progress.communications.emailChannelsCount} ${copy.email}`
+        : null,
+    },
   ] as const;
 
   return (
@@ -263,7 +292,9 @@ export default function FactoryProjectionWorkspace({
                         ? copy.runOperational
                         : stageKey === "envelope"
                           ? copy.runEnvelope
-                          : copy.runNative}
+                          : stageKey === "native_content"
+                            ? copy.runNative
+                            : copy.runCommunications}
                 </button>
               )}
               {waiting && <div className="mt-3 h-px bg-neutral-800" />}
@@ -275,7 +306,7 @@ export default function FactoryProjectionWorkspace({
       {replayed && <p className="rounded-2xl border border-cyan-400/20 bg-cyan-400/5 px-4 py-3 text-sm text-cyan-100">{copy.replayed}</p>}
       {feedback && <p className="rounded-2xl border border-rose-400/20 bg-rose-400/5 px-4 py-3 text-sm text-rose-100">{feedback}</p>}
 
-      {progress.native && (
+      {progress.communications && (
         <div className="rounded-3xl border border-violet-400/25 bg-violet-400/5 p-5">
           <h3 className="font-semibold text-violet-100">{copy.next}</h3>
           <p className="mt-2 text-sm leading-6 text-violet-100/75">{copy.nextText}</p>
