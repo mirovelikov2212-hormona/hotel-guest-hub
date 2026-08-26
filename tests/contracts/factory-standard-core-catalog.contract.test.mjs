@@ -6,9 +6,26 @@ import {
   FACTORY_STANDARD_LANGUAGES,
   FACTORY_STANDARD_VENUE_CAPABILITIES,
 } from "../../lib/product-factory/factory-standard-catalog.mjs";
+import {
+  FACTORY_COMMON_LANGUAGE_OPTIONS,
+  isFactoryLocaleSupported,
+  normalizeFactoryLocale,
+} from "../../lib/product-factory/factory-language-options.mjs";
 import { prepareFactoryGuestRuntimeConfig } from "../../lib/product-factory/factory-guest-runtime-config-model.mjs";
 
-const EXPECTED_LANGUAGES = ["bg", "en", "de", "ro", "cs", "ru"];
+const BASE_TRANSLATED_LANGUAGES = ["bg", "en", "de", "ro", "cs", "ru"];
+const RUNTIME_LANGUAGES = [
+  ...BASE_TRANSLATED_LANGUAGES,
+  "pl",
+  "tr",
+  "el",
+  "es",
+  "fr",
+  "it",
+  "pt",
+  "uk",
+  "ar",
+];
 const EXPECTED_CORE_SERVICES = [
   "contact-reception",
   "late-checkout",
@@ -29,7 +46,7 @@ const FORBIDDEN_AQUAMARINE_PAID_PRODUCTS = [
   "spa-extra-towel",
 ];
 
-function blueprint() {
+function blueprint(locales = RUNTIME_LANGUAGES) {
   return {
     version: 1,
     organization: { id: "standard-test-org", name: "Standard Test" },
@@ -39,7 +56,7 @@ function blueprint() {
       name: "Standard Test Hotel",
       countryCode: "BG",
       timezone: "Europe/Sofia",
-      locales: [...EXPECTED_LANGUAGES],
+      locales: [...locales],
       roomCount: 1,
       roomInventory: { explicit: [{ number: "T-01" }] },
     },
@@ -73,13 +90,20 @@ function blueprint() {
   };
 }
 
-test("Factory Standard v1 has the six canonical guest languages", () => {
-  assert.deepEqual(FACTORY_STANDARD_LANGUAGES, EXPECTED_LANGUAGES);
+test("Factory has a translated baseline but does not use it as a locale allow-list", () => {
+  assert.deepEqual(FACTORY_STANDARD_LANGUAGES, BASE_TRANSLATED_LANGUAGES);
+  assert.ok(FACTORY_COMMON_LANGUAGE_OPTIONS.length >= 20);
+  for (const locale of ["pl", "tr", "el", "es", "fr", "it", "pt", "uk", "ar", "ja", "zh-CN"]) {
+    assert.equal(isFactoryLocaleSupported(locale), true, `${locale} should be a valid Factory locale`);
+  }
+  assert.equal(normalizeFactoryLocale("zh-cn"), "zh-CN");
+  assert.equal(isFactoryLocaleSupported("not_a_locale_@@"), false);
+
   for (const service of FACTORY_STANDARD_CORE_SERVICES) {
     assert.equal(service.billable, false);
-    assert.deepEqual(Object.keys(service.title), EXPECTED_LANGUAGES);
-    assert.deepEqual(Object.keys(service.description), EXPECTED_LANGUAGES);
-    for (const locale of EXPECTED_LANGUAGES) {
+    assert.deepEqual(Object.keys(service.title), BASE_TRANSLATED_LANGUAGES);
+    assert.deepEqual(Object.keys(service.description), BASE_TRANSLATED_LANGUAGES);
+    for (const locale of BASE_TRANSLATED_LANGUAGES) {
       assert.ok(service.title[locale]?.trim(), `${service.id} missing ${locale} title`);
       assert.ok(service.description[locale]?.trim(), `${service.id} missing ${locale} description`);
     }
@@ -117,26 +141,30 @@ test("Factory Standard venue taxonomy supports multiple hotel outlets without ho
   }
   for (const capability of FACTORY_STANDARD_VENUE_CAPABILITIES) {
     assert.equal(capability.multiple, true);
-    assert.deepEqual(Object.keys(capability.title), EXPECTED_LANGUAGES);
+    assert.deepEqual(Object.keys(capability.title), BASE_TRANSLATED_LANGUAGES);
   }
   assert.equal(JSON.stringify(FACTORY_STANDARD_VENUE_CAPABILITIES).includes("Aquamarine"), false);
 });
 
-test("Factory guest runtime materializes real localized core service text", () => {
+test("Factory guest runtime materializes native text and safe fallback for additional locales", () => {
   const result = prepareFactoryGuestRuntimeConfig({ blueprint: blueprint() });
   const byId = new Map(result.config.requestDefs.map((item) => [item.id, item]));
 
   assert.equal(result.config.requestDefs.length, EXPECTED_CORE_SERVICES.length);
+  assert.deepEqual(result.config.languages, RUNTIME_LANGUAGES);
   assert.equal(byId.get("extra-towel")?.title.bg, "Допълнителна кърпа");
   assert.equal(byId.get("extra-towel")?.title.en, "Extra towel");
   assert.equal(byId.get("extra-towel")?.title.de, "Zusätzliches Handtuch");
   assert.equal(byId.get("extra-towel")?.title.ro, "Prosop suplimentar");
   assert.equal(byId.get("extra-towel")?.title.cs, "Ručník navíc");
   assert.equal(byId.get("extra-towel")?.title.ru, "Дополнительное полотенце");
+  assert.equal(byId.get("extra-towel")?.title.pl, "Extra towel");
+  assert.equal(byId.get("extra-towel")?.title.tr, "Extra towel");
+  assert.equal(byId.get("extra-towel")?.title.ar, "Extra towel");
 
   for (const requestDef of result.config.requestDefs) {
     assert.equal(requestDef.requiresBilling, false);
-    for (const locale of EXPECTED_LANGUAGES) {
+    for (const locale of RUNTIME_LANGUAGES) {
       assert.ok(requestDef.title[locale]?.trim(), `${requestDef.id} missing ${locale} runtime title`);
       assert.ok(
         requestDef.description[locale]?.trim(),
