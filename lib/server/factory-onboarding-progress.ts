@@ -33,7 +33,8 @@ export type FactoryRunSummary = {
   coreCompleted: boolean;
   operationalCompleted: boolean;
   envelopeCompleted: boolean;
-  currentStage: "foundation" | "core" | "operational" | "envelope";
+  nativeContentCompleted: boolean;
+  currentStage: "foundation" | "core" | "operational" | "envelope" | "native_content";
 };
 
 type ProjectionBase = {
@@ -44,9 +45,18 @@ type ProjectionBase = {
   createdAt: string;
 };
 
+type NativeProjection = {
+  projectionRunId: string;
+  status: "completed";
+  nativeResourcesHash: string;
+  hotelInfoItemsCount: number;
+  venuesCount: number;
+  createdAt: string;
+};
+
 export type FactoryRunProgress = Omit<
   FactoryRunSummary,
-  "coreCompleted" | "operationalCompleted" | "envelopeCompleted" | "currentStage"
+  "coreCompleted" | "operationalCompleted" | "envelopeCompleted" | "nativeContentCompleted" | "currentStage"
 > & {
   blueprint: Record<string, unknown>;
   foundation: {
@@ -70,7 +80,8 @@ export type FactoryRunProgress = Omit<
   envelope: (ProjectionBase & {
     roleTemplatesCount: number;
   }) | null;
-  nextStage: "core" | "operational" | "envelope" | "sandbox_certification";
+  native: NativeProjection | null;
+  nextStage: "core" | "operational" | "envelope" | "native_content" | "sandbox_certification";
 };
 
 async function readFactoryProgress(
@@ -78,7 +89,7 @@ async function readFactoryProgress(
   limit: number,
 ): Promise<unknown> {
   const { data, error } = await supabaseAdmin.rpc(
-    "get_factory_onboarding_progress_v1",
+    "get_factory_onboarding_progress_v2",
     {
       p_onboarding_run_id: onboardingRunId,
       p_limit: Math.max(1, Math.min(limit, 100)),
