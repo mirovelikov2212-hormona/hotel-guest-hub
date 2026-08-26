@@ -1,0 +1,310 @@
+name: Temporary Smart Setup Core catalog integration v2
+
+on:
+  push:
+    branches:
+      - feature/factory-smart-setup-core-catalog-20260826
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/factory-smart-setup-core-catalog-20260826
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Patch versioned Core catalog Smart Setup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'{label} anchor missing')
+              return text.replace(old, new, 1)
+
+          # Canonical catalog version + department-aware recommended defaults.
+          p = Path('lib/product-factory/factory-standard-catalog.mjs')
+          s = p.read_text()
+          anchor = 'export const FACTORY_STANDARD_LANGUAGES = Object.freeze([...SUPPORTED_LANGUAGES]);'
+          s = replace_once(s, anchor, 'export const FACTORY_STANDARD_CATALOG_VERSION = "factory-standard-v2";\n' + anchor, 'catalog version')
+          p.write_text(s)
+
+          p = Path('lib/product-factory/factory-standard-service-expansion.mjs')
+          s = p.read_text()
+          for service_id in ('restaurant-assistance', 'spa-assistance'):
+              pattern = rf'(  "{re.escape(service_id)}": \{{\n    )starterDefault: false,'
+              s, count = re.subn(pattern, r'\1starterDefault: true,', s, count=1)
+              if count != 1:
+                  raise SystemExit(f'{service_id} starter default anchor missing')
+          p.write_text(s)
+
+          # Manager Smart Setup: no parallel service/language arrays.
+          p = Path('app/hotel-factory/new/HotelManagerOnboardingWizard.tsx')
+          s = p.read_text()
+          s = replace_once(
+              s,
+              'import { useMemo, useState } from "react";\nimport type { ControlPlaneLang } from "@/lib/control-plane-i18n";',
+              '''import { useMemo, useState } from "react";
+          import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
+          import {
+            FACTORY_STANDARD_CATALOG_VERSION,
+            FACTORY_STANDARD_CORE_SERVICES,
+          } from "@/lib/product-factory/factory-standard-catalog.mjs";
+          import { FACTORY_COMMON_LANGUAGE_OPTIONS } from "@/lib/product-factory/factory-language-options.mjs";''',
+              'Smart Setup imports',
+          )
+          s = replace_once(
+              s,
+              'type ServiceTemplate = { id: string; bg: string; en: string; departmentId: DepartmentId };',
+              '''type ServiceTemplate = {
+            id: string;
+            departmentId: DepartmentId;
+            title: Record<string, string>;
+            description: Record<string, string>;
+            staffLabel: Record<string, string>;
+            success: Record<string, string>;
+            starterDefault?: boolean;
+            requestKind?: string;
+            requiresNote?: boolean;
+            requiresQuantity?: boolean;
+            minQty?: number;
+            maxQty?: number;
+            requiresTime?: boolean;
+            timeMode?: string;
+            aiVisible?: boolean;
+            intentTags?: readonly string[];
+          };''',
+              'ServiceTemplate',
+          )
+          s, count = re.subn(
+              r'const LANGUAGES = \[.*?\] as const;\n\nconst COUNTRIES =',
+              '''const LANGUAGES = FACTORY_COMMON_LANGUAGE_OPTIONS.map(
+            (item) => [item.code, item.nativeName, item.englishName] as const,
+          );
+
+          const COUNTRIES =''',
+              s,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('language catalog replacement failed')
+
+          core_projection = '''const CORE_SERVICES: ServiceTemplate[] = FACTORY_STANDARD_CORE_SERVICES
+            .filter((service) => DEPARTMENTS.some((department) => department.id === service.departmentId))
+            .map((service) => ({ ...service, departmentId: service.departmentId as DepartmentId }));
+
+          const DEFAULT_DEPARTMENTS: DepartmentId[] = ["reception", "housekeeping", "maintenance"];
+          const DEFAULT_SERVICE_IDS = CORE_SERVICES
+            .filter(
+              (service) =>
+                DEFAULT_DEPARTMENTS.includes(service.departmentId) && service.starterDefault === true,
+            )
+            .map((service) => service.id);'''
+          s, count = re.subn(r'const SERVICES: ServiceTemplate\[\] = \[.*?\];', core_projection, s, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit('static service list replacement failed')
+
+          s = replace_once(
+              s,
+              '  const [selectedDepartments, setSelectedDepartments] = useState<DepartmentId[]>(["reception", "housekeeping", "maintenance"]);\n  const [selectedServices, setSelectedServices] = useState<string[]>(["contact-reception", "extra-towel", "extra-pillow", "technical-problem"]);',
+              '  const [selectedDepartments, setSelectedDepartments] = useState<DepartmentId[]>(() => [...DEFAULT_DEPARTMENTS]);\n  const [selectedServices, setSelectedServices] = useState<string[]>(() => [...DEFAULT_SERVICE_IDS]);',
+              'default Smart Setup selections',
+          )
+          s = replace_once(s, '  const visibleServices = SERVICES.filter((service) => selectedDepartments.includes(service.departmentId));\n', '', 'visible service list')
+
+          s = replace_once(
+              s,
+              '    services: SERVICES.filter((service) => selectedServices.includes(service.id) && selectedDepartments.includes(service.departmentId)).map((service) => ({ id: service.id, name: service.en, mode: "configurable", departmentId: service.departmentId, priorityDefault: "normal" })),',
+              '''    services: CORE_SERVICES
+              .filter(
+                (service) =>
+                  selectedServices.includes(service.id) &&
+                  selectedDepartments.includes(service.departmentId),
+              )
+              .map((service) => ({
+                id: service.id,
+                name: service.title.en,
+                mode: "configurable",
+                departmentId: service.departmentId,
+                priorityDefault: "normal",
+                catalogRef: service.id,
+                catalogVersion: FACTORY_STANDARD_CATALOG_VERSION,
+                title: { ...service.title },
+                description: { ...service.description },
+                staffLabel: { ...service.staffLabel },
+                success: { ...service.success },
+                requestKind: service.requestKind || "standard",
+                requiresNote: Boolean(service.requiresNote),
+                requiresQuantity: Boolean(service.requiresQuantity),
+                ...(typeof service.minQty === "number" ? { minQty: service.minQty } : {}),
+                ...(typeof service.maxQty === "number" ? { maxQty: service.maxQty } : {}),
+                requiresTime: Boolean(service.requiresTime),
+                timeMode: service.timeMode || "none",
+                aiVisible: Boolean(service.aiVisible),
+                intentTags: [...(service.intentTags || [service.id])],
+              })),''',
+              'blueprint service projection',
+          )
+
+          toggle_pattern = re.compile(r'  function toggleDepartment\(id: DepartmentId\) \{.*?\n  \}\n  function toggleService', re.S)
+          toggle = '''  function toggleDepartment(id: DepartmentId) {
+            if (id === "reception") return;
+            const enabling = !selectedDepartments.includes(id);
+            setSelectedDepartments((xs) =>
+              xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id],
+            );
+            setSelectedServices((xs) => {
+              if (!enabling) {
+                return xs.filter((serviceId) => {
+                  const service = CORE_SERVICES.find((item) => item.id === serviceId);
+                  return service ? service.departmentId !== id : false;
+                });
+              }
+              const recommended = CORE_SERVICES
+                .filter((service) => service.departmentId === id && service.starterDefault === true)
+                .map((service) => service.id);
+              return [...new Set([...xs, ...recommended])];
+            });
+            invalidate();
+          }
+          function toggleService'''
+          s, count = toggle_pattern.subn(toggle, s, count=1)
+          if count != 1:
+              raise SystemExit('toggleDepartment structural replacement failed')
+
+          render_anchor = '  const serviceLabels = SERVICES.filter((s) => selectedServices.includes(s.id) && selectedDepartments.includes(s.departmentId)).map((s) => lang === "bg" ? s.bg : s.en);\n\n  return <section'
+          render_block = '''  const serviceLabels = CORE_SERVICES
+            .filter(
+              (service) =>
+                selectedServices.includes(service.id) &&
+                selectedDepartments.includes(service.departmentId),
+            )
+            .map((service) => service.title[lang] || service.title.en || service.id);
+          const serviceGroups = selectedDepartments.map((departmentId) => {
+            const department = DEPARTMENTS.find((item) => item.id === departmentId) || DEPARTMENTS[0];
+            const departmentServices = CORE_SERVICES.filter((service) => service.departmentId === departmentId);
+            return {
+              department,
+              recommended: departmentServices.filter((service) => service.starterDefault === true),
+              optional: departmentServices.filter((service) => service.starterDefault !== true),
+            };
+          });
+
+          function renderServiceOption(service: ServiceTemplate) {
+            const active = selectedServices.includes(service.id);
+            const detail = service.description[lang] || service.description.en || "";
+            const traits = [
+              service.requiresQuantity ? (lang === "bg" ? "брой" : "quantity") : null,
+              service.requiresTime ? (lang === "bg" ? "час" : "time") : null,
+              service.requiresNote ? (lang === "bg" ? "детайли" : "details") : null,
+            ].filter(Boolean);
+            return (
+              <button key={service.id} type="button" onClick={() => toggleService(service.id)} className={`rounded-2xl border p-4 text-left transition ${active ? "border-cyan-300/40 bg-cyan-300/10" : "border-white/5 bg-black/20 hover:border-white/15"}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <p className={active ? "font-semibold text-cyan-50" : "font-semibold text-neutral-300"}>{active ? "✓ " : ""}{service.title[lang] || service.title.en}</p>
+                  {traits.length > 0 && <span className="shrink-0 text-[10px] uppercase tracking-wide text-neutral-600">{traits.join(" · ")}</span>}
+                </div>
+                {detail && <p className="mt-2 text-xs leading-5 text-neutral-500">{detail}</p>}
+              </button>
+            );
+          }
+
+          return <section'''
+          s = replace_once(s, render_anchor, render_block, 'service labels/render helper')
+
+          step3_pattern = re.compile(r'\{step === 3 && <Panel title=\{copy\.servicesTitle\} help=\{copy\.servicesHelp\}>.*?</Panel>\}', re.S)
+          step3 = '''{step === 3 && <Panel title={copy.servicesTitle} help={copy.servicesHelp}>
+            <div className="space-y-5">
+              {serviceGroups.map(({ department, recommended, optional }) => (
+                <section key={department.id} className="rounded-3xl border border-white/5 bg-black/15 p-4 sm:p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-neutral-200">{lang === "bg" ? department.bg : department.en}</p>
+                      <p className="mt-1 text-xs text-neutral-500">{selectedServices.filter((id) => CORE_SERVICES.some((service) => service.id === id && service.departmentId === department.id)).length} {lang === "bg" ? "избрани" : "selected"}</p>
+                    </div>
+                    <span className="rounded-full border border-cyan-300/15 bg-cyan-300/5 px-3 py-1 text-[10px] uppercase tracking-wide text-cyan-100/70">{lang === "bg" ? "Core каталог" : "Core catalog"}</span>
+                  </div>
+                  {recommended.length > 0 && <div className="mt-4"><p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-200/70">{lang === "bg" ? "Препоръчани" : "Recommended"}</p><div className="grid gap-3 sm:grid-cols-2">{recommended.map(renderServiceOption)}</div></div>}
+                  {optional.length > 0 && <details className="mt-4" open={optional.some((service) => selectedServices.includes(service.id))}><summary className="cursor-pointer rounded-2xl border border-white/5 bg-black/20 px-4 py-3 text-sm font-medium text-neutral-400 hover:border-white/10 hover:text-neutral-300">+ {optional.length} {lang === "bg" ? "още опции" : "more options"}</summary><div className="mt-3 grid gap-3 sm:grid-cols-2">{optional.map(renderServiceOption)}</div></details>}
+                </section>
+              ))}
+            </div>
+          </Panel>}'''
+          s, count = step3_pattern.subn(step3, s, count=1)
+          if count != 1:
+              raise SystemExit('step 3 Core service UI replacement failed')
+          p.write_text(s)
+
+          # Contracts: one source of truth + blueprint snapshot semantics.
+          p = Path('tests/contracts/control-panel-factory-routing.contract.test.mjs')
+          s = p.read_text()
+          s = replace_once(
+              s,
+              'import test from "node:test";',
+              '''import test from "node:test";
+          import {
+            FACTORY_STANDARD_CATALOG_VERSION,
+            FACTORY_STANDARD_CORE_SERVICES,
+          } from "../../lib/product-factory/factory-standard-catalog.mjs";''',
+              'routing contract import',
+          )
+          s += '''
+
+          test("Hotel Factory Smart Setup consumes versioned Core catalogs instead of parallel lists", () => {
+            assert.equal(FACTORY_STANDARD_CATALOG_VERSION, "factory-standard-v2");
+            assert.ok(FACTORY_STANDARD_CORE_SERVICES.length >= 30);
+            assert.match(smartWizard, /FACTORY_STANDARD_CORE_SERVICES/);
+            assert.match(smartWizard, /FACTORY_COMMON_LANGUAGE_OPTIONS/);
+            assert.match(smartWizard, /const CORE_SERVICES/);
+            assert.doesNotMatch(smartWizard, /const SERVICES: ServiceTemplate/);
+            assert.doesNotMatch(smartWizard, /const LANGUAGES = \[\s*\["bg"/);
+            assert.match(smartWizard, /DEFAULT_SERVICE_IDS/);
+            assert.match(smartWizard, /starterDefault === true/);
+            assert.match(smartWizard, /catalogVersion: FACTORY_STANDARD_CATALOG_VERSION/);
+            assert.match(smartWizard, /catalogRef: service\.id/);
+            assert.match(smartWizard, /title: \{ \.\.\.service\.title \}/);
+            assert.match(smartWizard, /description: \{ \.\.\.service\.description \}/);
+            assert.match(smartWizard, /staffLabel: \{ \.\.\.service\.staffLabel \}/);
+            assert.match(smartWizard, /success: \{ \.\.\.service\.success \}/);
+            assert.match(smartWizard, /requestKind: service\.requestKind/);
+            assert.match(smartWizard, /requiresQuantity: Boolean\(service\.requiresQuantity\)/);
+            assert.match(smartWizard, /requiresTime: Boolean\(service\.requiresTime\)/);
+            assert.match(smartWizard, /intentTags: \[\.\.\.\(service\.intentTags/);
+            assert.match(smartWizard, /Core каталог|Core catalog/);
+            assert.match(smartWizard, /още опции|more options/);
+          });
+          '''
+          p.write_text(s)
+
+          p = Path('tests/contracts/factory-standard-core-catalog.contract.test.mjs')
+          s = p.read_text()
+          s = replace_once(s, '  FACTORY_STANDARD_CORE_SERVICES,\n', '  FACTORY_STANDARD_CATALOG_VERSION,\n  FACTORY_STANDARD_CORE_SERVICES,\n', 'core contract import')
+          anchor = 'test("Factory has a translated baseline but does not use it as a locale allow-list", () => {'
+          s = replace_once(s, anchor, 'test("Factory Standard catalog is explicitly versioned", () => {\n  assert.equal(FACTORY_STANDARD_CATALOG_VERSION, "factory-standard-v2");\n});\n\n' + anchor, 'core version test')
+          p.write_text(s)
+          PY
+      - name: Validate exact slice
+        run: |
+          npm ci
+          node --test tests/contracts/control-panel-factory-routing.contract.test.mjs tests/contracts/factory-standard-core-catalog.contract.test.mjs
+          npm test
+          npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+      - name: Commit validated slice
+        run: |
+          git config user.name "StayHub Factory Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add app/hotel-factory/new/HotelManagerOnboardingWizard.tsx lib/product-factory/factory-standard-catalog.mjs lib/product-factory/factory-standard-service-expansion.mjs tests/contracts/control-panel-factory-routing.contract.test.mjs tests/contracts/factory-standard-core-catalog.contract.test.mjs
+          git commit -m "Connect Smart Setup to versioned Factory Core catalog"
+          git push origin HEAD:feature/factory-smart-setup-core-catalog-20260826
