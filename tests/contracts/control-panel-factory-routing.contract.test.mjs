@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import {
+  FACTORY_STANDARD_CATALOG_VERSION,
+  FACTORY_STANDARD_CORE_SERVICES,
+} from "../../lib/product-factory/factory-standard-catalog.mjs";
 
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), "utf8");
 
@@ -58,4 +62,29 @@ test("Hotel Factory unauthenticated flow returns to Hotel Factory after login", 
   assert.match(factoryPage, /normalizeAdminNextTarget\(`\/hotel-factory\/new\?lang=\$\{lang\}`/);
   assert.match(factoryPage, /\/control-plane\/login\?lang=\$\{lang\}&next=/);
   assert.match(advancedPage, /normalizeAdminNextTarget\(`\/hotel-factory\/advanced\/new\?lang=\$\{lang\}`/);
+});
+
+
+test("Hotel Factory Smart Setup consumes versioned Core catalogs instead of parallel lists", () => {
+  assert.equal(FACTORY_STANDARD_CATALOG_VERSION, "factory-standard-v2");
+  assert.ok(FACTORY_STANDARD_CORE_SERVICES.length >= 30);
+  assert.match(smartWizard, /FACTORY_STANDARD_CORE_SERVICES/);
+  assert.match(smartWizard, /FACTORY_COMMON_LANGUAGE_OPTIONS/);
+  assert.match(smartWizard, /const CORE_SERVICES/);
+  assert.doesNotMatch(smartWizard, /const SERVICES: ServiceTemplate/);
+  assert.doesNotMatch(smartWizard, /const LANGUAGES = \[\s*\["bg"/);
+  assert.match(smartWizard, /DEFAULT_SERVICE_IDS/);
+  assert.match(smartWizard, /starterDefault === true/);
+  assert.match(smartWizard, /catalogVersion: FACTORY_STANDARD_CATALOG_VERSION/);
+  assert.match(smartWizard, /catalogRef: service\.id/);
+  assert.match(smartWizard, /title: \{ \.\.\.service\.title \}/);
+  assert.match(smartWizard, /description: \{ \.\.\.service\.description \}/);
+  assert.match(smartWizard, /staffLabel: \{ \.\.\.service\.staffLabel \}/);
+  assert.match(smartWizard, /success: \{ \.\.\.service\.success \}/);
+  assert.match(smartWizard, /requestKind: service\.requestKind/);
+  assert.match(smartWizard, /requiresQuantity: Boolean\(service\.requiresQuantity\)/);
+  assert.match(smartWizard, /requiresTime: Boolean\(service\.requiresTime\)/);
+  assert.match(smartWizard, /intentTags: \[\.\.\.\(service\.intentTags/);
+  assert.match(smartWizard, /Core каталог|Core catalog/);
+  assert.match(smartWizard, /още опции|more options/);
 });

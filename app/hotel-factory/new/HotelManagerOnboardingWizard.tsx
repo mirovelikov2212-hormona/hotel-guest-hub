@@ -2,23 +2,37 @@
 
 import { useMemo, useState } from "react";
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
+import {
+  FACTORY_STANDARD_CATALOG_VERSION,
+  FACTORY_STANDARD_CORE_SERVICES,
+} from "@/lib/product-factory/factory-standard-catalog.mjs";
+import { FACTORY_COMMON_LANGUAGE_OPTIONS } from "@/lib/product-factory/factory-language-options.mjs";
 
 type DepartmentId = "reception" | "housekeeping" | "maintenance" | "restaurant" | "spa";
-type ServiceTemplate = { id: string; bg: string; en: string; departmentId: DepartmentId };
+type ServiceTemplate = {
+  id: string;
+  departmentId: DepartmentId;
+  title: Record<string, string>;
+  description: Record<string, string>;
+  staffLabel: Record<string, string>;
+  success: Record<string, string>;
+  starterDefault?: boolean;
+  requestKind?: string;
+  requiresNote?: boolean;
+  requiresQuantity?: boolean;
+  minQty?: number;
+  maxQty?: number;
+  requiresTime?: boolean;
+  timeMode?: string;
+  aiVisible?: boolean;
+  intentTags?: readonly string[];
+};
 type PreflightResult = { ok?: boolean; error?: string; blueprintHash?: string; identities?: { productionSlug: string; productionPublicSlug: string; sandboxSlug: string; sandboxPublicSlug: string } };
 type FoundationResult = { ok?: boolean; error?: string; replayed?: boolean; onboardingRunId?: string; propertyId?: string; productionHotelId?: string; sandboxHotelId?: string };
 
-const LANGUAGES = [
-  ["bg", "Български", "Bulgarian"], ["en", "English", "English"], ["de", "Deutsch", "German"],
-  ["ro", "Română", "Romanian"], ["cs", "Čeština", "Czech"], ["ru", "Русский", "Russian"],
-  ["pl", "Polski", "Polish"], ["tr", "Türkçe", "Turkish"], ["el", "Ελληνικά", "Greek"],
-  ["es", "Español", "Spanish"], ["fr", "Français", "French"], ["it", "Italiano", "Italian"],
-  ["pt", "Português", "Portuguese"], ["nl", "Nederlands", "Dutch"], ["uk", "Українська", "Ukrainian"],
-  ["hu", "Magyar", "Hungarian"], ["sk", "Slovenčina", "Slovak"], ["sl", "Slovenščina", "Slovenian"],
-  ["hr", "Hrvatski", "Croatian"], ["sr", "Српски", "Serbian"], ["da", "Dansk", "Danish"],
-  ["sv", "Svenska", "Swedish"], ["no", "Norsk", "Norwegian"], ["fi", "Suomi", "Finnish"],
-  ["he", "עברית", "Hebrew"], ["ar", "العربية", "Arabic"],
-] as const;
+const LANGUAGES = FACTORY_COMMON_LANGUAGE_OPTIONS.map(
+  (item) => [item.code, item.nativeName, item.englishName] as const,
+);
 
 const COUNTRIES = [
   ["BG", "България", "Bulgaria", "Europe/Sofia"], ["DE", "Германия", "Germany", "Europe/Berlin"],
@@ -38,16 +52,17 @@ const DEPARTMENTS: Array<{ id: DepartmentId; bg: string; en: string; icon: strin
   { id: "spa", bg: "SPA", en: "SPA", icon: "◇", helpBg: "SPA и wellness заявки", helpEn: "SPA and wellness requests" },
 ];
 
-const SERVICES: ServiceTemplate[] = [
-  { id: "contact-reception", bg: "Свържи се с рецепция", en: "Contact reception", departmentId: "reception" },
-  { id: "late-checkout", bg: "Късно освобождаване", en: "Late checkout", departmentId: "reception" },
-  { id: "extra-towel", bg: "Допълнителна кърпа", en: "Extra towel", departmentId: "housekeeping" },
-  { id: "extra-pillow", bg: "Допълнителна възглавница", en: "Extra pillow", departmentId: "housekeeping" },
-  { id: "room-cleaning", bg: "Почистване на стаята", en: "Room cleaning", departmentId: "housekeeping" },
-  { id: "technical-problem", bg: "Технически проблем", en: "Technical problem", departmentId: "maintenance" },
-  { id: "restaurant-assistance", bg: "Въпрос към ресторанта", en: "Restaurant assistance", departmentId: "restaurant" },
-  { id: "spa-assistance", bg: "Въпрос към SPA", en: "SPA assistance", departmentId: "spa" },
-];
+const CORE_SERVICES: ServiceTemplate[] = FACTORY_STANDARD_CORE_SERVICES
+  .filter((service) => DEPARTMENTS.some((department) => department.id === service.departmentId))
+  .map((service) => ({ ...service, departmentId: service.departmentId as DepartmentId }));
+
+const DEFAULT_DEPARTMENTS: DepartmentId[] = ["reception", "housekeeping", "maintenance"];
+const DEFAULT_SERVICE_IDS = CORE_SERVICES
+  .filter(
+    (service) =>
+      DEFAULT_DEPARTMENTS.includes(service.departmentId) && service.starterDefault === true,
+  )
+  .map((service) => service.id);
 
 const COPY = {
   bg: {
@@ -95,8 +110,8 @@ export default function HotelManagerOnboardingWizard({ lang }: { lang: ControlPl
   const [rangeEnd, setRangeEnd] = useState("105");
   const [explicitRooms, setExplicitRooms] = useState("SC-T01\nSC-T02\nSC-T03");
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["bg", "en"]);
-  const [selectedDepartments, setSelectedDepartments] = useState<DepartmentId[]>(["reception", "housekeeping", "maintenance"]);
-  const [selectedServices, setSelectedServices] = useState<string[]>(["contact-reception", "extra-towel", "extra-pillow", "technical-problem"]);
+  const [selectedDepartments, setSelectedDepartments] = useState<DepartmentId[]>(() => [...DEFAULT_DEPARTMENTS]);
+  const [selectedServices, setSelectedServices] = useState<string[]>(() => [...DEFAULT_SERVICE_IDS]);
   const [preflight, setPreflight] = useState<PreflightResult | null>(null);
   const [preflightJson, setPreflightJson] = useState<string | null>(null);
   const [validating, setValidating] = useState(false);
@@ -110,7 +125,6 @@ export default function HotelManagerOnboardingWizard({ lang }: { lang: ControlPl
   const hotelSlug = slugify(hotelName);
   const roomList = useMemo(() => explicitRooms.split(/\r?\n/).map((v) => v.trim()).filter(Boolean), [explicitRooms]);
   const roomCount = roomMode === "explicit" ? new Set(roomList).size : Math.max(0, Number(rangeEnd) - Number(rangeStart) + 1);
-  const visibleServices = SERVICES.filter((service) => selectedDepartments.includes(service.departmentId));
 
   const blueprint = useMemo(() => ({
     version: 1,
@@ -130,7 +144,34 @@ export default function HotelManagerOnboardingWizard({ lang }: { lang: ControlPl
       return { id, name: "SPA", hours: { open: "09:00", close: "20:00" } };
     }),
     integrations: [], workflows: [],
-    services: SERVICES.filter((service) => selectedServices.includes(service.id) && selectedDepartments.includes(service.departmentId)).map((service) => ({ id: service.id, name: service.en, mode: "configurable", departmentId: service.departmentId, priorityDefault: "normal" })),
+    services: CORE_SERVICES
+    .filter(
+      (service) =>
+        selectedServices.includes(service.id) &&
+        selectedDepartments.includes(service.departmentId),
+    )
+    .map((service) => ({
+      id: service.id,
+      name: service.title.en,
+      mode: "configurable",
+      departmentId: service.departmentId,
+      priorityDefault: "normal",
+      catalogRef: service.id,
+      catalogVersion: FACTORY_STANDARD_CATALOG_VERSION,
+      title: { ...service.title },
+      description: { ...service.description },
+      staffLabel: { ...service.staffLabel },
+      success: { ...service.success },
+      requestKind: service.requestKind || "standard",
+      requiresNote: Boolean(service.requiresNote),
+      requiresQuantity: Boolean(service.requiresQuantity),
+      ...(typeof service.minQty === "number" ? { minQty: service.minQty } : {}),
+      ...(typeof service.maxQty === "number" ? { maxQty: service.maxQty } : {}),
+      requiresTime: Boolean(service.requiresTime),
+      timeMode: service.timeMode || "none",
+      aiVisible: Boolean(service.aiVisible),
+      intentTags: [...(service.intentTags || [service.id])],
+    })),
   }), [hotelSlug, hotelName, countryCode, country, selectedLanguages, roomCount, roomMode, rangeStart, rangeEnd, roomList, selectedDepartments, selectedServices]);
 
   const blueprintJson = JSON.stringify(blueprint);
@@ -138,15 +179,26 @@ export default function HotelManagerOnboardingWizard({ lang }: { lang: ControlPl
   function invalidate() { setPreflight(null); setPreflightJson(null); setConfirmed(false); setResult(null); setFeedback(null); }
   function toggleLanguage(id: string) { setSelectedLanguages((xs) => xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]); invalidate(); }
   function toggleDepartment(id: DepartmentId) {
-    if (id === "reception") return;
-    setSelectedDepartments((xs) => xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]);
-    setSelectedServices((xs) => xs.filter((serviceId) => {
-      const service = SERVICES.find((item) => item.id === serviceId);
-      return service ? (service.departmentId === id ? !selectedDepartments.includes(id) : true) : false;
-    }));
-    invalidate();
-  }
-  function toggleService(id: string) { setSelectedServices((xs) => xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]); invalidate(); }
+  if (id === "reception") return;
+  const enabling = !selectedDepartments.includes(id);
+  setSelectedDepartments((xs) =>
+    xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id],
+  );
+  setSelectedServices((xs) => {
+    if (!enabling) {
+      return xs.filter((serviceId) => {
+        const service = CORE_SERVICES.find((item) => item.id === serviceId);
+        return service ? service.departmentId !== id : false;
+      });
+    }
+    const recommended = CORE_SERVICES
+      .filter((service) => service.departmentId === id && service.starterDefault === true)
+      .map((service) => service.id);
+    return [...new Set([...xs, ...recommended])];
+  });
+  invalidate();
+}
+function toggleService(id: string) { setSelectedServices((xs) => xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]); invalidate(); }
   function canAdvance() {
     setFeedback(null);
     if (step === 0 && (!hotelName.trim() || !hotelSlug || !countryCode)) return false;
@@ -180,9 +232,43 @@ export default function HotelManagerOnboardingWizard({ lang }: { lang: ControlPl
 
   const teamLabels = selectedDepartments.map((id) => { const x = DEPARTMENTS.find((d) => d.id === id); return x ? (lang === "bg" ? x.bg : x.en) : id; });
   const languageLabels = selectedLanguages.map((id) => { const x = LANGUAGES.find((d) => d[0] === id); return x ? (lang === "bg" ? x[1] : x[2]) : id; });
-  const serviceLabels = SERVICES.filter((s) => selectedServices.includes(s.id) && selectedDepartments.includes(s.departmentId)).map((s) => lang === "bg" ? s.bg : s.en);
+  const serviceLabels = CORE_SERVICES
+  .filter(
+    (service) =>
+      selectedServices.includes(service.id) &&
+      selectedDepartments.includes(service.departmentId),
+  )
+  .map((service) => service.title[lang] || service.title.en || service.id);
+const serviceGroups = selectedDepartments.map((departmentId) => {
+  const department = DEPARTMENTS.find((item) => item.id === departmentId) || DEPARTMENTS[0];
+  const departmentServices = CORE_SERVICES.filter((service) => service.departmentId === departmentId);
+  return {
+    department,
+    recommended: departmentServices.filter((service) => service.starterDefault === true),
+    optional: departmentServices.filter((service) => service.starterDefault !== true),
+  };
+});
 
-  return <section className="relative overflow-hidden rounded-[2rem] border border-cyan-300/15 bg-neutral-900/90 p-5 shadow-[0_30px_120px_rgba(6,182,212,0.08)] backdrop-blur sm:p-7">
+function renderServiceOption(service: ServiceTemplate) {
+  const active = selectedServices.includes(service.id);
+  const detail = service.description[lang] || service.description.en || "";
+  const traits = [
+    service.requiresQuantity ? (lang === "bg" ? "брой" : "quantity") : null,
+    service.requiresTime ? (lang === "bg" ? "час" : "time") : null,
+    service.requiresNote ? (lang === "bg" ? "детайли" : "details") : null,
+  ].filter(Boolean);
+  return (
+    <button key={service.id} type="button" onClick={() => toggleService(service.id)} className={`rounded-2xl border p-4 text-left transition ${active ? "border-cyan-300/40 bg-cyan-300/10" : "border-white/5 bg-black/20 hover:border-white/15"}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className={active ? "font-semibold text-cyan-50" : "font-semibold text-neutral-300"}>{active ? "✓ " : ""}{service.title[lang] || service.title.en}</p>
+        {traits.length > 0 && <span className="shrink-0 text-[10px] uppercase tracking-wide text-neutral-600">{traits.join(" · ")}</span>}
+      </div>
+      {detail && <p className="mt-2 text-xs leading-5 text-neutral-500">{detail}</p>}
+    </button>
+  );
+}
+
+return <section className="relative overflow-hidden rounded-[2rem] border border-cyan-300/15 bg-neutral-900/90 p-5 shadow-[0_30px_120px_rgba(6,182,212,0.08)] backdrop-blur sm:p-7">
     <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
     <div className="pointer-events-none absolute -bottom-32 -left-24 h-72 w-72 rounded-full bg-teal-400/10 blur-3xl" />
     <div className="relative">
@@ -207,7 +293,23 @@ export default function HotelManagerOnboardingWizard({ lang }: { lang: ControlPl
 
       {step === 2 && <Panel title={copy.teamsTitle} help={copy.teamsHelp}><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{DEPARTMENTS.map((department) => { const active = selectedDepartments.includes(department.id); return <button key={department.id} type="button" onClick={() => toggleDepartment(department.id)} className={`group rounded-3xl border p-5 text-left transition ${active ? "border-cyan-300/40 bg-cyan-300/10 shadow-[0_12px_40px_rgba(6,182,212,.07)]" : "border-white/5 bg-black/20 hover:border-white/15"}`}><div className="flex items-start justify-between"><span className={`text-2xl ${active ? "text-cyan-200" : "text-neutral-600"}`}>{department.icon}</span>{department.id === "reception" && <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-wide text-neutral-500">{copy.required}</span>}</div><p className={`mt-5 font-semibold ${active ? "text-cyan-50" : "text-neutral-300"}`}>{active ? "✓ " : ""}{lang === "bg" ? department.bg : department.en}</p><p className="mt-2 text-xs leading-5 text-neutral-500">{lang === "bg" ? department.helpBg : department.helpEn}</p></button>; })}</div></Panel>}
 
-      {step === 3 && <Panel title={copy.servicesTitle} help={copy.servicesHelp}><div className="grid gap-3 sm:grid-cols-2">{visibleServices.map((service) => { const active = selectedServices.includes(service.id); const department = DEPARTMENTS.find((d) => d.id === service.departmentId); return <button key={service.id} type="button" onClick={() => toggleService(service.id)} className={`rounded-2xl border p-4 text-left transition ${active ? "border-cyan-300/40 bg-cyan-300/10" : "border-white/5 bg-black/20 hover:border-white/15"}`}><p className={active ? "font-semibold text-cyan-50" : "font-semibold text-neutral-300"}>{active ? "✓ " : ""}{lang === "bg" ? service.bg : service.en}</p><p className="mt-2 text-xs text-neutral-500">→ {department ? (lang === "bg" ? department.bg : department.en) : service.departmentId}</p></button>; })}</div></Panel>}
+      {step === 3 && <Panel title={copy.servicesTitle} help={copy.servicesHelp}>
+  <div className="space-y-5">
+    {serviceGroups.map(({ department, recommended, optional }) => (
+      <section key={department.id} className="rounded-3xl border border-white/5 bg-black/15 p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="font-semibold text-neutral-200">{lang === "bg" ? department.bg : department.en}</p>
+            <p className="mt-1 text-xs text-neutral-500">{selectedServices.filter((id) => CORE_SERVICES.some((service) => service.id === id && service.departmentId === department.id)).length} {lang === "bg" ? "избрани" : "selected"}</p>
+          </div>
+          <span className="rounded-full border border-cyan-300/15 bg-cyan-300/5 px-3 py-1 text-[10px] uppercase tracking-wide text-cyan-100/70">{lang === "bg" ? "Core каталог" : "Core catalog"}</span>
+        </div>
+        {recommended.length > 0 && <div className="mt-4"><p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-200/70">{lang === "bg" ? "Препоръчани" : "Recommended"}</p><div className="grid gap-3 sm:grid-cols-2">{recommended.map(renderServiceOption)}</div></div>}
+        {optional.length > 0 && <details className="mt-4" open={optional.some((service) => selectedServices.includes(service.id))}><summary className="cursor-pointer rounded-2xl border border-white/5 bg-black/20 px-4 py-3 text-sm font-medium text-neutral-400 hover:border-white/10 hover:text-neutral-300">+ {optional.length} {lang === "bg" ? "още опции" : "more options"}</summary><div className="mt-3 grid gap-3 sm:grid-cols-2">{optional.map(renderServiceOption)}</div></details>}
+      </section>
+    ))}
+  </div>
+</Panel>}
 
       {step === 4 && <Panel title={copy.reviewTitle} help={copy.reviewHelp}>
         <div className="grid gap-3 sm:grid-cols-2"><Metric label={copy.hotel} value={hotelName} /><Metric label={copy.rooms} value={String(roomCount)} /><Metric label={copy.languages} value={languageLabels.join(", ")} /><Metric label={copy.teams} value={teamLabels.join(", ")} /><div className="sm:col-span-2"><Metric label={copy.services} value={serviceLabels.length ? serviceLabels.join(", ") : "—"} /></div></div>
