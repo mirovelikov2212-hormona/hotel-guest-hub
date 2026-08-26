@@ -7,6 +7,7 @@ import {
   type PreparedFactoryOnboarding,
 } from "@/lib/product-factory/factory-onboarding-model.mjs";
 import { prepareFactoryNativeContentVenues } from "@/lib/product-factory/factory-native-content-venues-model.mjs";
+import { prepareFactoryCommunications } from "@/lib/product-factory/factory-communications-model.mjs";
 
 type FactoryOnboardingRpcRow = {
   onboarding_run_id: string;
@@ -48,6 +49,10 @@ export async function beginFactoryOnboarding(input: {
   const nativePrepared = prepareFactoryNativeContentVenues({ blueprint: prepared.blueprint });
   if (nativePrepared.blueprintHash !== prepared.blueprintHash) {
     throw new Error("P2_FACTORY_NATIVE_BLUEPRINT_HASH_DRIFT");
+  }
+  const communicationsPrepared = prepareFactoryCommunications({ blueprint: prepared.blueprint });
+  if (communicationsPrepared.blueprintHash !== prepared.blueprintHash) {
+    throw new Error("P2D_COMMUNICATION_BLUEPRINT_HASH_DRIFT");
   }
 
   // Reviewed platform-authority write: the SECURITY DEFINER RPC rechecks the exact
