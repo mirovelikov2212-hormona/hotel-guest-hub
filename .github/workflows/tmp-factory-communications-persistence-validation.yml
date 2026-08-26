@@ -32,7 +32,9 @@ jobs:
         run: npm run test:p2-5
       - name: P4.11 guided certification contract
         run: npm run test:p4-11
-      - name: Full canonical suite
-        run: npm test
+      - name: Canonical contracts
+        run: npm run test:contracts
+      - name: Tenant isolation guard
+        run: npm run test:tenant-isolation
       - name: Production build
         run: npm run build
