@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { prepareFactoryOnboarding } from "@/lib/product-factory/factory-onboarding-model.mjs";
 import { prepareFactoryNativeContentVenues } from "@/lib/product-factory/factory-native-content-venues-model.mjs";
+import { prepareFactoryCommunications } from "@/lib/product-factory/factory-communications-model.mjs";
 import { validateFactoryBlueprint } from "@/lib/product-factory/factory-blueprint-model.mjs";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
@@ -27,7 +28,8 @@ function mapPreflightError(error: unknown) {
   if (
     message.includes("P0_FACTORY_") ||
     message.includes("P2_FACTORY_INVALID_") ||
-    message.includes("P2_FACTORY_NATIVE_")
+    message.includes("P2_FACTORY_NATIVE_") ||
+    message.includes("P2D_COMMUNICATION_")
   ) {
     return "invalid_blueprint";
   }
@@ -66,6 +68,10 @@ export async function POST(req: NextRequest) {
     if (nativePrepared.blueprintHash !== prepared.blueprintHash) {
       throw new Error("P2_FACTORY_NATIVE_BLUEPRINT_HASH_DRIFT");
     }
+    const communicationsPrepared = prepareFactoryCommunications({ blueprint: prepared.blueprint });
+    if (communicationsPrepared.blueprintHash !== prepared.blueprintHash) {
+      throw new Error("P2D_COMMUNICATION_BLUEPRINT_HASH_DRIFT");
+    }
 
     return jsonResponse(
       {
@@ -81,8 +87,12 @@ export async function POST(req: NextRequest) {
           integrationCount: summary.integrationCount,
           nativeHotelInfoItemsCount: nativePrepared.counts.hotelInfoItems,
           nativeVenuesCount: nativePrepared.counts.venues,
+          communicationDepartmentsCount: communicationsPrepared.counts.departments,
+          configuredCommunicationDepartmentsCount:
+            communicationsPrepared.counts.configuredDepartments,
         },
         nativeResourcesHash: nativePrepared.nativeResourcesHash,
+        communicationsHash: communicationsPrepared.communicationsHash,
       },
       200,
     );

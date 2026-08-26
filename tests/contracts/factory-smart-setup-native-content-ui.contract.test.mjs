@@ -8,8 +8,8 @@ const nativeStepPath = "app/control-plane/factory/new/FactoryNativeContentStep.t
 test("STEP 2C.4 Smart Setup adds Native Content before review and persists it inside the immutable blueprint", async () => {
   const wizard = await readProjectFile(wizardPath);
 
-  assertContains(wizard, '"Native съдържание"');
-  assertContains(wizard, '"Native content"');
+  assertContains(wizard, "Native съдържание");
+  assertContains(wizard, "Native content");
   assertContains(wizard, "FactoryNativeContentStep");
   assertContains(wizard, "buildFactoryNativeBlueprintInput(nativeSetup, localeList)");
   assertContains(wizard, "nativeContent: nativeBlueprint.nativeContent");

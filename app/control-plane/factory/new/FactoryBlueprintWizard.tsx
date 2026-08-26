@@ -9,6 +9,9 @@ import FactoryNativeContentStep, {
   type NativeSetupDraft,
   validateNativeSetupDraft,
 } from "./FactoryNativeContentStep";
+import FactoryCommunicationsStep, {
+  validateCommunicationDepartments,
+} from "./FactoryCommunicationsStep";
 
 type DepartmentDraft = {
   key: string;
@@ -18,6 +21,9 @@ type DepartmentDraft = {
   opensAt: string;
   closesAt: string;
   afterHoursDepartmentId: string;
+  phone: string;
+  whatsapp: string;
+  email: string;
 };
 type IntegrationDraft = { key: string; id: string; kind: string; adapterKey: string };
 type WorkflowAction = "assign" | "condition" | "approval" | "wait" | "billing" | "notification" | "escalation" | "integration_action" | "complete";
@@ -54,7 +60,7 @@ const LAST_STEP = 5;
 
 const COPY = {
   bg: {
-    steps: ["Организация и хотел", "Стаи и езици", "Отдели", "Услуги · Workflows · Integrations", "Native съдържание", "Преглед и създаване"],
+    steps: ["Организация и хотел", "Стаи и езици", "Отдели", "Услуги · Workflows · Integrations", "Native съдържание · Комуникации", "Преглед и създаване"],
     next: "Напред", back: "Назад", validate: "Валидирай blueprint", validating: "Валидиране…",
     org: "Организация и хотел", rooms: "Стаи и езици", departments: "Отдели", operations: "Услуги · Workflows · Integrations", review: "Преглед · Preflight · Draft foundation",
     orgId: "Organization ID / slug", orgName: "Име на организацията", hotelName: "Име на хотела", internalSlug: "Вътрешен hotel slug", publicSlug: "Публичен slug", country: "Държава (ISO 2)", timezone: "IANA timezone",
@@ -67,7 +73,7 @@ const COPY = {
     note: "P4.3 разрешава само audited P2.1 foundation creation след exact preflight. Създадените Production и Sandbox identities остават неактивни; няма публикация, certification, LIVE activation или trial.",
   },
   en: {
-    steps: ["Organization & hotel", "Rooms & locales", "Departments", "Services · Workflows · Integrations", "Native content", "Review & creation"],
+    steps: ["Organization & hotel", "Rooms & locales", "Departments", "Services · Workflows · Integrations", "Native content · Communications", "Review & creation"],
     next: "Next", back: "Back", validate: "Validate blueprint", validating: "Validating…",
     org: "Organization & hotel", rooms: "Rooms & locales", departments: "Departments", operations: "Services · Workflows · Integrations", review: "Review · Preflight · Draft foundation",
     orgId: "Organization ID / slug", orgName: "Organization name", hotelName: "Hotel name", internalSlug: "Internal hotel slug", publicSlug: "Public slug", country: "Country (ISO 2)", timezone: "IANA timezone",
@@ -107,7 +113,18 @@ export default function FactoryBlueprintWizard({ lang }: { lang: ControlPlaneLan
   const [suffix, setSuffix] = useState("");
   const [explicitRooms, setExplicitRooms] = useState("");
   const [departments, setDepartments] = useState<DepartmentDraft[]>([
-    { key: "department-reception", id: "reception", name: "Reception", hoursMode: "24h", opensAt: "07:00", closesAt: "17:00", afterHoursDepartmentId: "" },
+    {
+      key: "department-reception",
+      id: "reception",
+      name: "Reception",
+      hoursMode: "24h",
+      opensAt: "07:00",
+      closesAt: "17:00",
+      afterHoursDepartmentId: "",
+      phone: "",
+      whatsapp: "",
+      email: "",
+    },
   ]);
   const [integrations, setIntegrations] = useState<IntegrationDraft[]>([]);
   const [workflows, setWorkflows] = useState<WorkflowDraft[]>([]);
@@ -153,6 +170,11 @@ export default function FactoryBlueprintWizard({ lang }: { lang: ControlPlaneLan
       name: department.name.trim(),
       hours: department.hoursMode === "24h" ? { is24h: true } : { open: department.opensAt, close: department.closesAt },
       afterHoursDepartmentId: optionalRef(department.afterHoursDepartmentId),
+      contact: {
+        phone: department.phone.trim(),
+        whatsapp: department.whatsapp.trim(),
+        email: department.email.trim(),
+      },
     })),
     integrations: integrations.map((integration) => ({ id: normalizeKey(integration.id), kind: normalizeKey(integration.kind), adapterKey: normalizeKey(integration.adapterKey) })),
     workflows: workflows.map((workflow) => ({
@@ -226,7 +248,11 @@ export default function FactoryBlueprintWizard({ lang }: { lang: ControlPlaneLan
     if (step === 1 && (!roomCount || !localeList.length)) return false;
     if (step === 2 && (!departments.length || departments.some((item) => !item.id.trim() || !item.name.trim()))) return false;
     if (step === 3 && (integrations.some((item) => !item.id.trim() || !item.kind.trim() || !item.adapterKey.trim()) || workflows.some((item) => !item.id.trim() || !item.trigger.trim() || !item.steps.length) || services.some((item) => !item.id.trim() || !item.name.trim()))) return false;
-    if (step === 4 && !validateNativeSetupDraft(nativeSetup, localeList)) return false;
+    if (
+      step === 4 &&
+      (!validateNativeSetupDraft(nativeSetup, localeList) ||
+        !validateCommunicationDepartments(departments))
+    ) return false;
     return true;
   }
 
@@ -302,7 +328,7 @@ export default function FactoryBlueprintWizard({ lang }: { lang: ControlPlaneLan
         <div className="mt-6 space-y-4">
           <div className="flex justify-between gap-3">
             <h2 className="text-xl font-semibold">{copy.departments}</h2>
-            <button type="button" onClick={() => { setDepartments((items) => [...items, { key: makeKey("department"), id: "", name: "", hoursMode: "window", opensAt: "07:00", closesAt: "17:00", afterHoursDepartmentId: "" }]); invalidate(); }} className={small}>{copy.addDepartment}</button>
+            <button type="button" onClick={() => { setDepartments((items) => [...items, { key: makeKey("department"), id: "", name: "", hoursMode: "window", opensAt: "07:00", closesAt: "17:00", afterHoursDepartmentId: "", phone: "", whatsapp: "", email: "" }]); invalidate(); }} className={small}>{copy.addDepartment}</button>
           </div>
           {departments.map((department) => (
             <div key={department.key} className="rounded-2xl border border-neutral-800 bg-neutral-950 p-4">
@@ -406,12 +432,19 @@ export default function FactoryBlueprintWizard({ lang }: { lang: ControlPlaneLan
       )}
 
       {step === 4 && (
-        <FactoryNativeContentStep
-          lang={lang}
-          locales={localeList}
-          value={nativeSetup}
-          onChange={(next) => { setNativeSetup(next); invalidate(); }}
-        />
+        <div className="space-y-8">
+          <FactoryNativeContentStep
+            lang={lang}
+            locales={localeList}
+            value={nativeSetup}
+            onChange={(next) => { setNativeSetup(next); invalidate(); }}
+          />
+          <FactoryCommunicationsStep
+            lang={lang}
+            departments={departments}
+            onPatch={(key, patch) => patchDepartment(key, patch)}
+          />
+        </div>
       )}
 
       {step === 5 && (
