@@ -1,0 +1,172 @@
+name: Temporary Factory Standard services v2b
+
+on:
+  push:
+    branches:
+      - feature/factory-standard-services-v2-20260826
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/factory-standard-services-v2-20260826
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Patch catalog runtime and contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # Expand the canonical service export while preserving the proven v1 definitions.
+          p = Path('lib/product-factory/factory-standard-catalog.mjs')
+          s = p.read_text()
+          s = 'import { FACTORY_STANDARD_SERVICE_ADDITIONS, FACTORY_STANDARD_SERVICE_METADATA } from "./factory-standard-service-expansion.mjs";\n\n' + s
+          old = '''function freezeService(service) {
+            return Object.freeze({
+              ...service,
+              title: freezeLocalized(service.title),
+              description: freezeLocalized(service.description),
+              staffLabel: freezeLocalized(service.staffLabel || service.title),
+            });
+          }'''
+          new = '''function defaultSuccess(title) {
+            return {
+              bg: `Заявката „${title.bg}“ е изпратена.`, en: `Your “${title.en}” request has been sent.`,
+              de: `Ihre Anfrage „${title.de}“ wurde gesendet.`, ro: `Solicitarea „${title.ro}” a fost trimisă.`,
+              cs: `Požadavek „${title.cs}“ byl odeslán.`, ru: `Запрос «${title.ru}» отправлен.`,
+            };
+          }
+
+          function freezeService(service) {
+            return Object.freeze({
+              ...service,
+              billable: false,
+              title: freezeLocalized(service.title),
+              description: freezeLocalized(service.description),
+              staffLabel: freezeLocalized(service.staffLabel || service.title),
+              success: freezeLocalized(service.success || defaultSuccess(service.title)),
+              intentTags: Object.freeze([...(service.intentTags || [service.id])]),
+            });
+          }'''
+          if old not in s: raise SystemExit('catalog freeze block missing')
+          s = s.replace(old, new, 1).replace('const CORE_SERVICES = [', 'const BASE_CORE_SERVICES = [', 1)
+          marker = '].map(freezeService);\n\nconst VENUE_CAPABILITIES = ['
+          if marker not in s: raise SystemExit('catalog service marker missing')
+          s = s.replace(marker, '''];
+
+          const CORE_SERVICES = [
+            ...BASE_CORE_SERVICES.map((service) => ({ ...service, ...(FACTORY_STANDARD_SERVICE_METADATA[service.id] || {}) })),
+            ...FACTORY_STANDARD_SERVICE_ADDITIONS,
+          ].map(freezeService);
+
+          const VENUE_CAPABILITIES = [''', 1)
+          p.write_text(s)
+
+          # Project rich service metadata into the guest runtime.
+          p = Path('lib/product-factory/factory-guest-runtime-config-model.mjs')
+          s = p.read_text()
+          start = s.index('    const workflow = service.workflow_key ? workflows.get(service.workflow_key) : null;')
+          end_marker = '      canonicalRef: service.key,\n    };'
+          end = s.index(end_marker, start) + len(end_marker)
+          block = '''    const workflow = service.workflow_key ? workflows.get(service.workflow_key) : null;
+            const department = service.department_code ? departments.get(service.department_code) : null;
+            const guestVisible = Boolean(service.department_code && department);
+            const requestKind = String(definition.requestKind || standard?.requestKind || "standard");
+            const requiresNote = typeof definition.requiresNote === "boolean" ? definition.requiresNote : Boolean(standard?.requiresNote);
+            const requiresQuantity = typeof definition.requiresQuantity === "boolean" ? definition.requiresQuantity : Boolean(standard?.requiresQuantity);
+            const requiresTime = typeof definition.requiresTime === "boolean" ? definition.requiresTime : Boolean(standard?.requiresTime);
+            const timeMode = String(definition.timeMode || standard?.timeMode || "none");
+            const success = localizedTextMap(locales, definition.success, standard?.success);
+            const section = String(definition.section || standard?.departmentId || "services");
+            const intentTags = Array.isArray(definition.intentTags) ? definition.intentTags : Array.isArray(standard?.intentTags) ? standard.intentTags : [service.key];
+            const options = Array.isArray(definition.options) ? definition.options : [];
+            const minQty = Number(definition.minQty ?? standard?.minQty);
+            const maxQty = Number(definition.maxQty ?? standard?.maxQty);
+
+            return {
+              id: service.key, type: "request", category: section, enabled: guestVisible, sortOrder: index + 1,
+              requestKind, targetDepartment: service.department_code || "none",
+              ...(department?.after_hours_department_code ? { afterHoursDepartment: department.after_hours_department_code } : {}),
+              requestType: service.key, requiresNote, requiresQuantity,
+              ...(requiresQuantity && Number.isFinite(minQty) ? { minQty } : {}),
+              ...(requiresQuantity && Number.isFinite(maxQty) ? { maxQty } : {}),
+              requiresTime, timeMode, options, guestVisible, staffVisible: guestVisible,
+              aiVisible: typeof definition.aiVisible === "boolean" ? definition.aiVisible : Boolean(standard?.aiVisible),
+              confirmationMode: workflow?.hasApproval ? "staff_required" : "instant",
+              title, subtitle: {}, description, policy: {}, success, staffLabel, section,
+              requiresBilling: Boolean(workflow?.hasBilling), notifyDepartments: [],
+              keywords: [service.key, ...new Set(Object.values(title).filter(Boolean))], aliasesByLang: {},
+              intentTags: [...intentTags], uiSectionId: String(definition.uiSectionId || section),
+              canonicalRef: String(definition.canonicalRef || standard?.id || service.key),
+            };'''
+          s = s[:start] + block + s[end:]
+          p.write_text(s)
+
+          # Evolve the existing contract from the initial 8-service slice to the rich non-paid catalog.
+          p = Path('tests/contracts/factory-standard-core-catalog.contract.test.mjs')
+          s = p.read_text()
+          start = s.index('const EXPECTED_CORE_SERVICES = [')
+          end = s.index('];\nconst FORBIDDEN_AQUAMARINE_PAID_PRODUCTS', start) + 2
+          ids = [
+            'contact-reception','late-checkout','extra-towel','extra-pillow','room-cleaning','technical-problem','restaurant-assistance','spa-assistance',
+            'toilet-paper','extra-blanket','bathrobe','slippers','baby-cot','iron','laundry','minibar-refill','other-housekeeping',
+            'air-conditioning','no-hot-water','tv-issue','lighting-issue','bathroom-issue','door-lock-issue','wifi-issue','power-outlet-issue','safe-issue','balcony-door-issue','minibar-not-cooling','other-technical-issue','coffee-machine-issue',
+            'wake-up-call','taxi','information-request','reservation-assistance','luggage-assistance','other-reception','special-occasion'
+          ]
+          expected = 'const EXPECTED_CORE_SERVICES = [\n' + ''.join(f'  "{x}",\n' for x in ids) + '];'
+          s = s[:start] + expected + s[end:]
+          paid_start = s.index('const FORBIDDEN_AQUAMARINE_PAID_PRODUCTS = [')
+          paid_end = s.index('];', paid_start) + 2
+          paid = '''const FORBIDDEN_AQUAMARINE_PAID_PRODUCTS = [
+            "coffee_capsules", "coffee-capsules", "pillow_menu", "pillow-menu", "massage_booking", "massage-booking", "spa-massage",
+          ];'''
+          s = s[:paid_start] + paid + s[paid_end:]
+          old_assert = '  assert.equal(JSON.stringify(FACTORY_STANDARD_CORE_SERVICES).includes("Aquamarine"), false);'
+          new_assert = '''  const serialized = JSON.stringify(FACTORY_STANDARD_CORE_SERVICES);
+            assert.equal(serialized.includes("Aquamarine"), false);
+            for (const price of ["2.05", "2,05", "11.00", "11,00", "25.00", "25,00"]) assert.equal(serialized.includes(price), false);
+            assert.equal(FACTORY_STANDARD_CORE_SERVICES.every((service) => service.billable === false), true);'''
+          if old_assert not in s: raise SystemExit('contract Aquamarine assertion missing')
+          s = s.replace(old_assert, new_assert, 1)
+          needle = '  assert.equal(byId.get("extra-towel")?.title.ar, "Extra towel");'
+          extra = '''  assert.equal(byId.get("extra-towel")?.title.ar, "Extra towel");
+            assert.equal(byId.get("extra-towel")?.requestKind, "quantity");
+            assert.equal(byId.get("extra-towel")?.requiresQuantity, true);
+            assert.equal(byId.get("extra-towel")?.minQty, 1);
+            assert.equal(byId.get("extra-towel")?.maxQty, 6);
+            assert.equal(byId.get("wake-up-call")?.requestKind, "time_slot");
+            assert.equal(byId.get("wake-up-call")?.requiresTime, true);
+            assert.equal(byId.get("wake-up-call")?.timeMode, "slots");
+            assert.equal(byId.get("taxi")?.requiresNote, true);
+            assert.equal(byId.get("taxi")?.requiresTime, true);
+            assert.equal(byId.get("taxi")?.timeMode, "free");
+            assert.equal(byId.get("air-conditioning")?.requiresNote, true);
+            assert.equal(byId.get("late-checkout")?.requiresBilling, false);
+            assert.ok(byId.get("special-occasion")?.description.bg.includes("Рожден ден"));
+            assert.equal(byId.get("extra-towel")?.success.pl, "Your “Extra towel” request has been sent.");'''
+          if needle not in s: raise SystemExit('contract runtime anchor missing')
+          p.write_text(s.replace(needle, extra, 1))
+          PY
+      - name: Validate full release surface
+        run: |
+          npm ci
+          node --test tests/contracts/factory-standard-core-catalog.contract.test.mjs
+          npm test
+          npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+      - name: Commit validated patch
+        run: |
+          git config user.name "StayHub Factory Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add lib/product-factory/factory-standard-catalog.mjs lib/product-factory/factory-guest-runtime-config-model.mjs tests/contracts/factory-standard-core-catalog.contract.test.mjs
+          git commit -m "Materialize rich non-paid Factory service metadata"
+          git push origin HEAD:feature/factory-standard-services-v2-20260826
