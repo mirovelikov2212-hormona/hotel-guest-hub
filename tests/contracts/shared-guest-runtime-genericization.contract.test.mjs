@@ -274,3 +274,15 @@ test("generic Guest stay server paths require the caller hotel slug and never in
     assertNotContains(source.toLowerCase(), "aquamarine");
   }
 });
+
+
+test("Guest room confirmation adapts the mobile keyboard to tenant room inventory", async () => {
+  const source = await readProjectFile("components/GuestHub.tsx");
+
+  assertNotContains(source, 'inputMode="numeric"');
+  assertContains(
+    source,
+    'inputMode={validRoomNumbers.some((roomNumber) => /[^0-9]/.test(roomNumber)) ? "text" : "numeric"}',
+  );
+  assertContains(source, 'placeholder={validRoomNumbers[0] || roomCopy.inputPlaceholder}');
+});
