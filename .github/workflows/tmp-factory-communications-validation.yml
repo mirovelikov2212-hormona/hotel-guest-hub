@@ -36,8 +36,22 @@ jobs:
         run: node --test tests/contracts/factory-native-content-venues.contract.test.mjs
       - name: Native persistence contract
         run: node --test tests/contracts/factory-native-content-venues-persistence.contract.test.mjs
-      - name: Guided native stage contract
-        run: node --test tests/contracts/factory-guided-native-content-stage.contract.test.mjs
+      - name: Guided native - requires P2.4 envelope
+        run: node --test --test-name-pattern="requires the P2.4 envelope" tests/contracts/factory-guided-native-content-stage.contract.test.mjs
+      - name: Guided native - exact placeholder takeover
+        run: node --test --test-name-pattern="takes over only the exact P2.4 placeholder" tests/contracts/factory-guided-native-content-stage.contract.test.mjs
+      - name: Guided native - immutable replay
+        run: node --test --test-name-pattern="is immutable per operational run" tests/contracts/factory-guided-native-content-stage.contract.test.mjs
+      - name: Guided native - service role authority
+        run: node --test --test-name-pattern="only service-role native write authority" tests/contracts/factory-guided-native-content-stage.contract.test.mjs
+      - name: Guided native - server boundary
+        run: node --test --test-name-pattern="server calls the guided RPC" tests/contracts/factory-guided-native-content-stage.contract.test.mjs
+      - name: Guided native - later fill semantics
+        run: node --test --test-name-pattern="documents later-fill" tests/contracts/factory-guided-native-content-stage.contract.test.mjs
+      - name: Guided native - helper ordering
+        run: node --test --test-name-pattern="guided foundation helper calls native content" tests/contracts/factory-guided-native-content-stage.contract.test.mjs
+      - name: Guided native - workspace UI
+        run: node --test --test-name-pattern="workspace UI surfaces guided native readiness" tests/contracts/factory-guided-native-content-stage.contract.test.mjs
       - name: Smart Setup native UI contract
         run: node --test tests/contracts/factory-smart-setup-native-content-ui.contract.test.mjs
       - name: Communications suite
