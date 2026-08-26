@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "checkpoint": "step2d-communications-persistence",
+  "baseCheckpoint": "step2d-communications",
+  "expectedNeedsReview": 133,
+  "removals": [
+    {
+      "filePath": "lib/server/factory-sandbox-certification.ts",
+      "line": 86,
+      "operation": "rpc"
+    }
+  ],
+  "relocations": [
+    {
+      "filePath": "lib/server/factory-onboarding-progress.ts",
+      "fromLine": 91,
+      "toLine": 104,
+      "operation": "rpc"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-communications.ts",
+      "line": 64,
+      "rpc": "project_factory_guided_communications_v1",
+      "tableExpression": "\"project_factory_guided_communications_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_platform_admin_communications_projection_uses_service_role_only_security_definer_guided_rpc_that_rechecks_active_platform_admin_exact_completed_p2_4_and_native_lineage_immutable_blueprint_operational_and_communications_hashes_fail_closed_production_and_sandbox_state_department_ownership_and_idempotency_updates_only_factory_owned_guest_facing_phone_whatsapp_email_fields_and_never_activates_hotels_or_departments"
+    },
+    {
+      "filePath": "lib/server/factory-onboarding-progress.ts",
+      "line": 140,
+      "table": "factory_communications_projection_runs",
+      "tableExpression": "\"factory_communications_projection_runs\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "authenticated_control_plane_factory_progress_read_uses_service_role_to_read_exact_communications_projection_run_by_already_verified_operational_projection_run_id_for_stage_status_and_channel_counts_only_without_credentials_contact_values_or_mutation"
+    },
+    {
+      "filePath": "lib/server/factory-sandbox-certification.ts",
+      "line": 86,
+      "rpc": "certify_factory_sandbox_after_communications_v1",
+      "tableExpression": "\"certify_factory_sandbox_after_communications_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_trusted_sandbox_certification_uses_service_role_only_security_definer_communications_guard_that_requires_exact_completed_communications_and_native_projection_lineage_factory_owned_contact_state_and_fail_closed_production_before_delegating_to_the_existing_native_guard_and_mature_p2_5_authority_that_rechecks_platform_admin_and_activates_only_sandbox"
+    }
+  ]
+}
