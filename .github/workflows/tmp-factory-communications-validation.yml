@@ -24,8 +24,19 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run test:factory-communications
-      - run: npm run test:p4-1
-      - run: npm run test:p4-12
-      - run: npm test
-      - run: npm run build
+      - name: Targeted STEP 2D communications
+        run: npm run test:factory-communications
+      - name: P4.1 wizard contract
+        run: npm run test:p4-1
+      - name: P4.12 runtime materialization contract
+        run: npm run test:p4-12
+      - name: Canonical contract suite
+        run: npm run test:contracts
+      - name: Native content suite
+        run: npm run test:factory-native-content
+      - name: Communications suite
+        run: npm run test:factory-communications
+      - name: Tenant isolation guard
+        run: npm run test:tenant-isolation
+      - name: Production build
+        run: npm run build
