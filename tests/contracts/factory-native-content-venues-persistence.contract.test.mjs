@@ -108,7 +108,7 @@ test("STEP 2C.2 disposable proof cleanup cascades only Factory-owned native line
   assertContains(disposable, "delete from public.factory_operational_resource_projection_runs op");
 });
 
-test("STEP 2C.2 server mutation uses the reviewed platform-admin RPC boundary", async () => {
+test("STEP 2C.2 server mutation uses the reviewed guided platform-admin RPC boundary", async () => {
   const service = await readProjectFile("lib/server/factory-native-content-venues.ts");
   const route = await readProjectFile(
     "app/api/control-plane/onboarding/native-content-venues/route.ts",
@@ -118,7 +118,8 @@ test("STEP 2C.2 server mutation uses the reviewed platform-admin RPC boundary", 
   assertContains(service, "canMutateControlPlane(input.authority.role)");
   assertContains(service, "prepareFactoryOperationalResources");
   assertContains(service, "prepareFactoryNativeContentVenues");
-  assertContains(service, '"project_factory_native_content_venues_v1"');
+  assertContains(service, '"project_factory_guided_native_content_venues_v1"');
+  assertNotContains(service, '"project_factory_native_content_venues_v1"');
   assertContains(service, "p_actor_admin_id: input.authority.adminId");
   assertContains(service, "p_operational_projection_run_id: operationalProjectionRunId");
   assertNotContains(service, "manager_pin");
