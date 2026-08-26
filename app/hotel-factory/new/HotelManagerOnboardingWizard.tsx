@@ -9,8 +9,15 @@ type PreflightResult = { ok?: boolean; error?: string; blueprintHash?: string; i
 type FoundationResult = { ok?: boolean; error?: string; replayed?: boolean; onboardingRunId?: string; propertyId?: string; productionHotelId?: string; sandboxHotelId?: string };
 
 const LANGUAGES = [
-  ["bg", "Български", "Bulgarian"], ["en", "Английски", "English"], ["de", "Немски", "German"],
-  ["ro", "Румънски", "Romanian"], ["cs", "Чешки", "Czech"], ["ru", "Руски", "Russian"],
+  ["bg", "Български", "Bulgarian"], ["en", "English", "English"], ["de", "Deutsch", "German"],
+  ["ro", "Română", "Romanian"], ["cs", "Čeština", "Czech"], ["ru", "Русский", "Russian"],
+  ["pl", "Polski", "Polish"], ["tr", "Türkçe", "Turkish"], ["el", "Ελληνικά", "Greek"],
+  ["es", "Español", "Spanish"], ["fr", "Français", "French"], ["it", "Italiano", "Italian"],
+  ["pt", "Português", "Portuguese"], ["nl", "Nederlands", "Dutch"], ["uk", "Українська", "Ukrainian"],
+  ["hu", "Magyar", "Hungarian"], ["sk", "Slovenčina", "Slovak"], ["sl", "Slovenščina", "Slovenian"],
+  ["hr", "Hrvatski", "Croatian"], ["sr", "Српски", "Serbian"], ["da", "Dansk", "Danish"],
+  ["sv", "Svenska", "Swedish"], ["no", "Norsk", "Norwegian"], ["fi", "Suomi", "Finnish"],
+  ["he", "עברית", "Hebrew"], ["ar", "العربية", "Arabic"],
 ] as const;
 
 const COUNTRIES = [
