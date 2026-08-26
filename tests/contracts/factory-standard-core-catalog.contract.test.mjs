@@ -35,15 +35,44 @@ const EXPECTED_CORE_SERVICES = [
   "technical-problem",
   "restaurant-assistance",
   "spa-assistance",
+  "toilet-paper",
+  "extra-blanket",
+  "bathrobe",
+  "slippers",
+  "baby-cot",
+  "iron",
+  "laundry",
+  "minibar-refill",
+  "other-housekeeping",
+  "air-conditioning",
+  "no-hot-water",
+  "tv-issue",
+  "lighting-issue",
+  "bathroom-issue",
+  "door-lock-issue",
+  "wifi-issue",
+  "power-outlet-issue",
+  "safe-issue",
+  "balcony-door-issue",
+  "minibar-not-cooling",
+  "other-technical-issue",
+  "coffee-machine-issue",
+  "wake-up-call",
+  "taxi",
+  "information-request",
+  "reservation-assistance",
+  "luggage-assistance",
+  "other-reception",
+  "special-occasion",
 ];
 const FORBIDDEN_AQUAMARINE_PAID_PRODUCTS = [
-  "minibar",
-  "coffee",
-  "cappuccino",
-  "spa-beer",
-  "spa-towel",
+  "coffee_capsules",
+  "coffee-capsules",
+  "pillow_menu",
+  "pillow-menu",
+  "massage_booking",
+  "massage-booking",
   "spa-massage",
-  "spa-extra-towel",
 ];
 
 function blueprint(locales = RUNTIME_LANGUAGES) {
@@ -110,7 +139,7 @@ test("Factory has a translated baseline but does not use it as a locale allow-li
   }
 });
 
-test("Factory Standard v1 seeds only generic non-paid operational services", () => {
+test("Factory Standard v2 exposes only generic non-paid operational services", () => {
   assert.deepEqual(
     FACTORY_STANDARD_CORE_SERVICES.map((service) => service.id),
     EXPECTED_CORE_SERVICES,
@@ -119,7 +148,12 @@ test("Factory Standard v1 seeds only generic non-paid operational services", () 
   for (const id of FORBIDDEN_AQUAMARINE_PAID_PRODUCTS) {
     assert.equal(ids.has(id), false, `${id} must not be a Factory core seed`);
   }
-  assert.equal(JSON.stringify(FACTORY_STANDARD_CORE_SERVICES).includes("Aquamarine"), false);
+  const serialized = JSON.stringify(FACTORY_STANDARD_CORE_SERVICES);
+  assert.equal(serialized.includes("Aquamarine"), false);
+  for (const price of ["2.05", "2,05", "11.00", "11,00", "25.00", "25,00"]) {
+  assert.equal(serialized.includes(price), false);
+}
+  assert.equal(FACTORY_STANDARD_CORE_SERVICES.every((service) => service.billable === false), true);
 });
 
 test("Factory Standard venue taxonomy supports multiple hotel outlets without hotel facts", () => {
@@ -161,6 +195,20 @@ test("Factory guest runtime materializes native text and safe fallback for addit
   assert.equal(byId.get("extra-towel")?.title.pl, "Extra towel");
   assert.equal(byId.get("extra-towel")?.title.tr, "Extra towel");
   assert.equal(byId.get("extra-towel")?.title.ar, "Extra towel");
+  assert.equal(byId.get("extra-towel")?.requestKind, "quantity");
+  assert.equal(byId.get("extra-towel")?.requiresQuantity, true);
+  assert.equal(byId.get("extra-towel")?.minQty, 1);
+  assert.equal(byId.get("extra-towel")?.maxQty, 6);
+  assert.equal(byId.get("wake-up-call")?.requestKind, "time_slot");
+  assert.equal(byId.get("wake-up-call")?.requiresTime, true);
+  assert.equal(byId.get("wake-up-call")?.timeMode, "slots");
+  assert.equal(byId.get("taxi")?.requiresNote, true);
+  assert.equal(byId.get("taxi")?.requiresTime, true);
+  assert.equal(byId.get("taxi")?.timeMode, "free");
+  assert.equal(byId.get("air-conditioning")?.requiresNote, true);
+  assert.equal(byId.get("late-checkout")?.requiresBilling, false);
+  assert.ok(byId.get("special-occasion")?.description.bg.includes("Рожден ден"));
+  assert.equal(byId.get("extra-towel")?.success.pl, "Your “Extra towel” request has been sent.");
 
   for (const requestDef of result.config.requestDefs) {
     assert.equal(requestDef.requiresBilling, false);
