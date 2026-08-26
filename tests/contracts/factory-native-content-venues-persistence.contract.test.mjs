@@ -89,6 +89,25 @@ test("STEP 2C.2 RPC is service-role only and records immutable audit lineage", a
   assertContains(migration, "factory_native_content_projection_run");
 });
 
+test("STEP 2C.2 disposable proof cleanup cascades only Factory-owned native lineage", async () => {
+  const cleanup = await readProjectFile(
+    "supabase/migrations/20260826115000_factory_native_content_disposable_cleanup.sql",
+  );
+  const disposable = await readProjectFile(
+    "supabase/migrations/20260819070500_factory_disposable_onboarding_proof.sql",
+  );
+
+  assertContains(cleanup, "factory_native_content_projection_operational_fk");
+  assertContains(cleanup, "hotel_knowledge_configs_factory_projection_fk");
+  assertContains(cleanup, "venues_factory_projection_fk");
+  assertContains(cleanup, "on delete cascade");
+  assertContains(cleanup, "P2C_NATIVE_OPERATIONAL_PROJECTION_FK_MISSING");
+  assertContains(cleanup, "P2C_NATIVE_KNOWLEDGE_PROJECTION_FK_MISSING");
+  assertContains(cleanup, "P2C_NATIVE_VENUE_PROJECTION_FK_MISSING");
+  assertContains(cleanup, "legacy/manual rows have no Factory projection FK");
+  assertContains(disposable, "delete from public.factory_operational_resource_projection_runs op");
+});
+
 test("STEP 2C.2 server mutation uses the reviewed platform-admin RPC boundary", async () => {
   const service = await readProjectFile("lib/server/factory-native-content-venues.ts");
   const route = await readProjectFile(
