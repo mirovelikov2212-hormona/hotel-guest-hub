@@ -116,6 +116,7 @@ export async function mirrorNativeMassageBookingToSheet(input: {
       date: booking.booking_date,
       time: clientTime(booking.start_time),
       room: booking.room_number,
+      deferAmbiguousRecovery: true,
     });
 
     const status = String(result.status || "");

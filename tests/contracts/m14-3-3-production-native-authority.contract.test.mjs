@@ -114,6 +114,7 @@ test("M14.3.3 Sheet write is an asynchronous native mirror, never guest booking 
   assert.match(mirror, /\.eq\("status", "confirmed"\)/);
   assert.match(mirror, /\.eq\("is_test", false\)/);
   assert.match(mirror, /createMassageBooking/);
+  assert.match(mirror, /deferAmbiguousRecovery:\s*true/);
   assert.match(mirror, /mirror_status: "mirrored"/);
   assert.doesNotMatch(guestRoute, /mirrorNativeMassageBookingToSheet/);
 });
