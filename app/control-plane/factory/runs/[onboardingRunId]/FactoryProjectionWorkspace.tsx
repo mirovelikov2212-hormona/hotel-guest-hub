@@ -6,7 +6,7 @@ import { useState } from "react";
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
 import type { FactoryRunProgress } from "@/lib/server/factory-onboarding-progress";
 
-type Stage = "core" | "operational" | "envelope";
+type Stage = "core" | "operational" | "envelope" | "native_content";
 
 const COPY = {
   bg: {
@@ -16,19 +16,22 @@ const COPY = {
     core: "2. Core resources",
     operational: "3. Operational resources",
     envelope: "4. Onboarding envelope",
+    native: "5. Native content & venues",
     complete: "ЗАВЪРШЕНО",
     ready: "ГОТОВО ЗА СТАРТ",
     waiting: "ИЗЧАКВА ПРЕДИШНАТА СТЪПКА",
     runCore: "Проектирай стаи и отдели",
     runOperational: "Проектирай услуги, workflows и routing",
     runEnvelope: "Създай fail-closed onboarding envelope",
+    runNative: "Проектирай native съдържание и обекти",
     running: "Изпълнение…",
     foundationText: "Draft Property и отделни Production/Sandbox identities са създадени. И двете среди трябва да останат неактивни.",
     coreText: "Създава normalized rooms и departments и нови draft revisions. Не активира runtime.",
     operationalText: "Създава services/workflows/integration placeholders и routing structures. Всички execution flags остават изключени.",
     envelopeText: "Създава disabled roles, reporting off, branding/knowledge placeholders, AI permissions off, reserved public identities и health pending.",
+    nativeText: "Записва многоезична хотелска информация, Wi-Fi и venues в native Supabase authority. Knowledge lifecycle остава placeholder, а всички venues остават неактивни.",
     next: "Следва: Sandbox certification",
-    nextText: "P4.4 спира тук. Sandbox certification ще бъде отделна explicit стъпка; Production остава неактивен.",
+    nextText: "Guided projection спира тук. Sandbox certification остава отделна explicit стъпка; Production остава неактивен.",
     failed: "Стъпката не можа да бъде завършена. Нищо след нея не е стартирано автоматично.",
     conflict: "Lineage вече е проектиран с различен hash или състоянието е променено. Презареди workspace-а и провери.",
     invalid: "Authoritative blueprint/lineage не премина Product Factory валидирането.",
@@ -47,6 +50,8 @@ const COPY = {
     integrations: "integrations",
     routing: "routing rules",
     roles: "role templates",
+    infoItems: "инфо елемента",
+    venues: "venues",
   },
   en: {
     title: "Product Factory progress",
@@ -55,19 +60,22 @@ const COPY = {
     core: "2. Core resources",
     operational: "3. Operational resources",
     envelope: "4. Onboarding envelope",
+    native: "5. Native content & venues",
     complete: "COMPLETED",
     ready: "READY TO RUN",
     waiting: "WAITING FOR PREVIOUS STEP",
     runCore: "Project rooms and departments",
     runOperational: "Project services, workflows and routing",
     runEnvelope: "Create fail-closed onboarding envelope",
+    runNative: "Project native content and venues",
     running: "Running…",
     foundationText: "A draft Property and separate Production/Sandbox identities exist. Both environments must remain inactive.",
     coreText: "Creates normalized rooms and departments plus new draft revisions. Runtime is not activated.",
     operationalText: "Creates services/workflows/integration placeholders and routing structures. All execution flags remain disabled.",
     envelopeText: "Creates disabled roles, reporting off, branding/knowledge placeholders, AI permissions off, reserved public identities and pending health.",
+    nativeText: "Persists multilingual hotel information, Wi-Fi and venues in native Supabase authority. Knowledge lifecycle stays placeholder and every venue remains inactive.",
     next: "Next: Sandbox certification",
-    nextText: "P4.4 stops here. Sandbox certification will be a separate explicit step; Production remains inactive.",
+    nextText: "Guided projection stops here. Sandbox certification remains a separate explicit step; Production stays inactive.",
     failed: "The stage could not be completed. No later stage was started automatically.",
     conflict: "The lineage was already projected with a different hash or state changed. Refresh the workspace and inspect it.",
     invalid: "The authoritative blueprint/lineage failed Product Factory validation.",
@@ -86,6 +94,8 @@ const COPY = {
     integrations: "integrations",
     routing: "routing rules",
     roles: "role templates",
+    infoItems: "info items",
+    venues: "venues",
   },
 } as const;
 
@@ -130,10 +140,15 @@ export default function FactoryProjectionWorkspace({
               url: "/api/control-plane/onboarding/operational-resources",
               body: { coreProjectionRunId: progress.core?.projectionRunId, blueprint: progress.blueprint },
             }
-          : {
-              url: "/api/control-plane/onboarding/envelope",
-              body: { operationalProjectionRunId: progress.operational?.projectionRunId, blueprint: progress.blueprint },
-            };
+          : stage === "envelope"
+            ? {
+                url: "/api/control-plane/onboarding/envelope",
+                body: { operationalProjectionRunId: progress.operational?.projectionRunId, blueprint: progress.blueprint },
+              }
+            : {
+                url: "/api/control-plane/onboarding/native-content-venues",
+                body: { operationalProjectionRunId: progress.operational?.projectionRunId, blueprint: progress.blueprint },
+              };
 
     try {
       const response = await fetch(target.url, {
@@ -194,6 +209,14 @@ export default function FactoryProjectionWorkspace({
       description: copy.envelopeText,
       detail: progress.envelope ? `${progress.envelope.roleTemplatesCount} ${copy.roles}` : null,
     },
+    {
+      key: "native_content",
+      label: copy.native,
+      done: Boolean(progress.native),
+      enabled: Boolean(progress.envelope) && !progress.native,
+      description: copy.nativeText,
+      detail: progress.native ? `${progress.native.hotelInfoItemsCount} ${copy.infoItems} · ${progress.native.venuesCount} ${copy.venues}` : null,
+    },
   ] as const;
 
   return (
@@ -238,7 +261,9 @@ export default function FactoryProjectionWorkspace({
                       ? copy.runCore
                       : stageKey === "operational"
                         ? copy.runOperational
-                        : copy.runEnvelope}
+                        : stageKey === "envelope"
+                          ? copy.runEnvelope
+                          : copy.runNative}
                 </button>
               )}
               {waiting && <div className="mt-3 h-px bg-neutral-800" />}
@@ -250,7 +275,7 @@ export default function FactoryProjectionWorkspace({
       {replayed && <p className="rounded-2xl border border-cyan-400/20 bg-cyan-400/5 px-4 py-3 text-sm text-cyan-100">{copy.replayed}</p>}
       {feedback && <p className="rounded-2xl border border-rose-400/20 bg-rose-400/5 px-4 py-3 text-sm text-rose-100">{feedback}</p>}
 
-      {progress.envelope && (
+      {progress.native && (
         <div className="rounded-3xl border border-violet-400/25 bg-violet-400/5 p-5">
           <h3 className="font-semibold text-violet-100">{copy.next}</h3>
           <p className="mt-2 text-sm leading-6 text-violet-100/75">{copy.nextText}</p>
