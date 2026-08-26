@@ -76,6 +76,27 @@ test("STEP 2C.4 venue authoring keeps common types as suggestions while allowing
   assertContains(nativeStep, "reservationEmail");
 });
 
+test("STEP 2C.4 preflight validates native-specific rules before foundation creation", async () => {
+  const route = await readProjectFile("app/api/control-plane/onboarding/preflight/route.ts");
+
+  assertContains(route, "prepareFactoryNativeContentVenues");
+  assertContains(route, "nativePrepared.blueprintHash !== prepared.blueprintHash");
+  assertContains(route, "P2_FACTORY_NATIVE_BLUEPRINT_HASH_DRIFT");
+  assertContains(route, 'message.includes("P2_FACTORY_NATIVE_")');
+  assertContains(route, "nativeHotelInfoItemsCount");
+  assertContains(route, "nativeVenuesCount");
+  assertContains(route, "nativeResourcesHash");
+});
+
+test("STEP 2C.4 authoritative P2.1 write revalidates native content server-side", async () => {
+  const service = await readProjectFile("lib/server/factory-onboarding.ts");
+
+  assertContains(service, "prepareFactoryNativeContentVenues");
+  assertContains(service, "nativePrepared.blueprintHash !== prepared.blueprintHash");
+  assertContains(service, 'supabaseAdmin.rpc("begin_factory_onboarding_v1"');
+  assertContains(service, "canMutateControlPlane(input.authority.role)");
+});
+
 test("STEP 2C.4 preserves explicit preflight and draft-foundation separation", async () => {
   const wizard = await readProjectFile(wizardPath);
 
