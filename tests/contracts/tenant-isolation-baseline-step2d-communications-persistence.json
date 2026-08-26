@@ -28,11 +28,11 @@
       "reasons": [
         "rpc_requires_review"
       ],
-      "provenance": "authenticated_control_plane_platform_admin_communications_projection_uses_service_role_only_security_definer_guided_rpc_that_rechecks_active_platform_admin_exact_completed_p2_4_and_native_lineage_immutable_blueprint_operational_and_communications_hashes_fail_closed_production_and_sandbox_state_department_ownership_and_idempotency_updates_only_factory_owned_guest_facing_phone_whatsapp_email_fields_and_never_activates_hotels_or_departments"
+      "provenance": "authenticated_control_plane_platform_admin_communications_projection_uses_service_role_only_security_definer_guided_rpc_that_rechecks_active_platform_admin_exact_completed_p2_4_and_native_lineage_immutable_blueprint_operational_and_communications_hashes_fail_closed_production_and_sandbox_state_department_authority_idempotency_and_contact_ownership_atomically_updates_only_factory_owned_guest_facing_phone_whatsapp_email_fields_and_never_activates_hotels_or_departments"
     },
     {
       "filePath": "lib/server/factory-onboarding-progress.ts",
-      "line": 140,
+      "line": 139,
       "table": "factory_communications_projection_runs",
       "tableExpression": "\"factory_communications_projection_runs\"",
       "operation": "select",
