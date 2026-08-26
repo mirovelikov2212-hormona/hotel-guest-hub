@@ -54,6 +54,18 @@ type NativeProjection = {
   createdAt: string;
 };
 
+type CommunicationsProjection = {
+  projectionRunId: string;
+  status: "completed";
+  communicationsHash: string;
+  departmentsCount: number;
+  configuredDepartmentsCount: number;
+  phoneChannelsCount: number;
+  whatsappChannelsCount: number;
+  emailChannelsCount: number;
+  createdAt: string;
+};
+
 export type FactoryRunProgress = Omit<
   FactoryRunSummary,
   "coreCompleted" | "operationalCompleted" | "envelopeCompleted" | "nativeContentCompleted" | "currentStage"
@@ -81,7 +93,8 @@ export type FactoryRunProgress = Omit<
     roleTemplatesCount: number;
   }) | null;
   native: NativeProjection | null;
-  nextStage: "core" | "operational" | "envelope" | "native_content" | "sandbox_certification";
+  communications: CommunicationsProjection | null;
+  nextStage: "core" | "operational" | "envelope" | "native_content" | "communications" | "sandbox_certification";
 };
 
 async function readFactoryProgress(
@@ -116,5 +129,47 @@ export async function getFactoryOnboardingProgress(
   if (!UUID_PATTERN.test(normalized)) return null;
   const data = await readFactoryProgress(normalized, 1);
   if (!data || typeof data !== "object" || Array.isArray(data)) return null;
-  return data as FactoryRunProgress;
+
+  const base = data as Omit<FactoryRunProgress, "communications" | "nextStage"> & {
+    nextStage: "core" | "operational" | "envelope" | "native_content" | "sandbox_certification";
+  };
+  let communications: CommunicationsProjection | null = null;
+
+  if (base.operational?.projectionRunId) {
+    const { data: row, error } = await supabaseAdmin
+      .from("factory_communications_projection_runs")
+      .select(
+        "id,communications_hash,departments_count,configured_departments_count,phone_channels_count,whatsapp_channels_count,email_channels_count,status,created_at",
+      )
+      .eq("operational_projection_run_id", base.operational.projectionRunId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`P2D_COMMUNICATION_PROGRESS_READ_FAILED:${error.message}`);
+    }
+
+    if (row) {
+      communications = {
+        projectionRunId: row.id,
+        status: "completed",
+        communicationsHash: row.communications_hash,
+        departmentsCount: row.departments_count,
+        configuredDepartmentsCount: row.configured_departments_count,
+        phoneChannelsCount: row.phone_channels_count,
+        whatsappChannelsCount: row.whatsapp_channels_count,
+        emailChannelsCount: row.email_channels_count,
+        createdAt: row.created_at,
+      };
+    }
+  }
+
+  return {
+    ...base,
+    communications,
+    nextStage: base.native
+      ? communications
+        ? "sandbox_certification"
+        : "communications"
+      : base.nextStage,
+  };
 }
