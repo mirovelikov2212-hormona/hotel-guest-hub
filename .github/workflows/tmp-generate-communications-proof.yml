@@ -1,0 +1,109 @@
+name: Temporary Communications Proof Payload
+
+on:
+  push:
+    branches:
+      - feature/factory-communications-persistence-20260826
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Generate exact proof payload
+        run: |
+          node --input-type=module <<'NODE'
+          import { prepareFactoryOnboarding } from './lib/product-factory/factory-onboarding-model.mjs';
+          import { prepareFactoryCoreResources } from './lib/product-factory/factory-core-resources-model.mjs';
+          import { prepareFactoryOperationalResources } from './lib/product-factory/factory-operational-resources-model.mjs';
+          import { prepareFactoryOnboardingEnvelope } from './lib/product-factory/factory-onboarding-envelope-model.mjs';
+          import { prepareFactoryNativeContentVenues } from './lib/product-factory/factory-native-content-venues-model.mjs';
+          import { prepareFactoryCommunications } from './lib/product-factory/factory-communications-model.mjs';
+
+          const blueprint = {
+            version: 1,
+            organization: { id: 'proof-communications-e2e', name: 'Proof Communications E2E' },
+            property: {
+              slug: 'proof-communications-e2e',
+              publicSlug: 'proof-communications-e2e',
+              name: 'Proof Communications E2E Hotel',
+              countryCode: 'DE',
+              timezone: 'Europe/Berlin',
+              locales: ['en', 'de', 'bg'],
+              roomCount: 3,
+              roomInventory: { explicit: [{ number: '101' }, { number: '102' }, { number: '201' }] },
+            },
+            environment: { production: true, sandbox: true },
+            departments: [
+              {
+                id: 'reception', name: 'Reception', hours: { is24h: true },
+                contact: { phone: '+49 30 5550101', whatsapp: '+49 151 5550101', email: 'reception@proof.example.com' },
+              },
+              {
+                id: 'housekeeping', name: 'Housekeeping', hours: { open: '07:00', close: '17:00' },
+                afterHoursDepartmentId: 'reception',
+                contact: { email: 'housekeeping@proof.example.com' },
+              },
+              {
+                id: 'concierge', name: 'Concierge', hours: { open: '08:00', close: '22:00' },
+                afterHoursDepartmentId: 'reception',
+                contact: { phone: '+49 30 5550202', whatsapp: '+49 151 5550202' },
+              },
+            ],
+            services: [], workflows: [], integrations: [],
+            nativeContent: {
+              wifi: { ssid: 'ProofGuest', guestAccessCode: 'proof-access-2026' },
+              items: [
+                {
+                  id: 'check-in', category: 'check_in', active: true, aiVisible: true, sortOrder: 10,
+                  titleByLocale: { en: 'Check-in', de: 'Check-in', bg: 'Настаняване' },
+                  textByLocale: { en: 'Check-in starts at 15:00.', de: 'Check-in ist ab 15:00 Uhr.', bg: 'Настаняването е от 15:00 ч.' },
+                },
+              ],
+            },
+            venues: [
+              {
+                id: 'lobby-bar', type: 'bar', active: true, sortOrder: 10,
+                nameByLocale: { en: 'Lobby Bar', de: 'Lobby Bar', bg: 'Лоби бар' },
+                descriptionByLocale: { en: 'Drinks and coffee.', de: 'Getränke und Kaffee.', bg: 'Напитки и кафе.' },
+                openingHoursTextByLocale: { en: '08:00–23:00', de: '08:00–23:00', bg: '08:00–23:00' },
+                reservationType: 'none', requiresReservation: false,
+              },
+            ],
+          };
+
+          const onboarding = prepareFactoryOnboarding({ blueprint, idempotencyKey: 'proof:communications-e2e' });
+          const core = prepareFactoryCoreResources({ blueprint: onboarding.blueprint });
+          const operational = prepareFactoryOperationalResources({ blueprint: onboarding.blueprint });
+          const envelope = prepareFactoryOnboardingEnvelope({ blueprint: onboarding.blueprint });
+          const native = prepareFactoryNativeContentVenues({ blueprint: onboarding.blueprint });
+          const communications = prepareFactoryCommunications({ blueprint: onboarding.blueprint });
+
+          console.log('PROOF_PAYLOAD_BEGIN');
+          console.log(JSON.stringify({
+            idempotencyKey: onboarding.idempotencyKey,
+            blueprint: onboarding.blueprint,
+            blueprintHash: onboarding.blueprintHash,
+            coreResources: core.coreResources,
+            coreResourcesHash: core.coreResourcesHash,
+            operationalResources: operational.operationalResources,
+            operationalResourcesHash: operational.operationalResourcesHash,
+            envelope: envelope.envelope,
+            envelopeHash: envelope.envelopeHash,
+            nativeResources: native.nativeResources,
+            nativeResourcesHash: native.nativeResourcesHash,
+            communications: communications.communications,
+            communicationsHash: communications.communicationsHash,
+          }));
+          console.log('PROOF_PAYLOAD_END');
+          NODE
