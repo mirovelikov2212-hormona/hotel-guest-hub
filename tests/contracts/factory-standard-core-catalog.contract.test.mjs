@@ -66,7 +66,13 @@ const EXPECTED_CORE_SERVICES = [
   "special-occasion",
 ];
 const FORBIDDEN_AQUAMARINE_PAID_PRODUCTS = [
-  "coffee_capsules", "coffee-capsules", "pillow_menu", "pillow-menu", "massage_booking", "massage-booking", "spa-massage",
+  "coffee_capsules",
+  "coffee-capsules",
+  "pillow_menu",
+  "pillow-menu",
+  "massage_booking",
+  "massage-booking",
+  "spa-massage",
 ];
 
 function blueprint(locales = RUNTIME_LANGUAGES) {
@@ -133,7 +139,7 @@ test("Factory has a translated baseline but does not use it as a locale allow-li
   }
 });
 
-test("Factory Standard v1 seeds only generic non-paid operational services", () => {
+test("Factory Standard v2 exposes only generic non-paid operational services", () => {
   assert.deepEqual(
     FACTORY_STANDARD_CORE_SERVICES.map((service) => service.id),
     EXPECTED_CORE_SERVICES,
@@ -144,7 +150,9 @@ test("Factory Standard v1 seeds only generic non-paid operational services", () 
   }
   const serialized = JSON.stringify(FACTORY_STANDARD_CORE_SERVICES);
   assert.equal(serialized.includes("Aquamarine"), false);
-  for (const price of ["2.05", "2,05", "11.00", "11,00", "25.00", "25,00"]) assert.equal(serialized.includes(price), false);
+  for (const price of ["2.05", "2,05", "11.00", "11,00", "25.00", "25,00"]) {
+  assert.equal(serialized.includes(price), false);
+}
   assert.equal(FACTORY_STANDARD_CORE_SERVICES.every((service) => service.billable === false), true);
 });
 
