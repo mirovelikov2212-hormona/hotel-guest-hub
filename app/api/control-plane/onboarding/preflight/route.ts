@@ -1,9 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  prepareFactoryOnboarding,
-} from "@/lib/product-factory/factory-onboarding-model.mjs";
+import { prepareFactoryOnboarding } from "@/lib/product-factory/factory-onboarding-model.mjs";
+import { prepareFactoryNativeContentVenues } from "@/lib/product-factory/factory-native-content-venues-model.mjs";
 import { validateFactoryBlueprint } from "@/lib/product-factory/factory-blueprint-model.mjs";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
@@ -25,7 +24,11 @@ function jsonResponse(body: Record<string, unknown>, status: number) {
 function mapPreflightError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
   if (message.includes("P2_FACTORY_SECRET_FORBIDDEN")) return "secret_forbidden";
-  if (message.includes("P0_FACTORY_") || message.includes("P2_FACTORY_INVALID_")) {
+  if (
+    message.includes("P0_FACTORY_") ||
+    message.includes("P2_FACTORY_INVALID_") ||
+    message.includes("P2_FACTORY_NATIVE_")
+  ) {
     return "invalid_blueprint";
   }
   return "unavailable";
@@ -59,6 +62,10 @@ export async function POST(req: NextRequest) {
       idempotencyKey: `preflight:${randomUUID()}`,
     });
     const summary = validateFactoryBlueprint(prepared.blueprint);
+    const nativePrepared = prepareFactoryNativeContentVenues({ blueprint: prepared.blueprint });
+    if (nativePrepared.blueprintHash !== prepared.blueprintHash) {
+      throw new Error("P2_FACTORY_NATIVE_BLUEPRINT_HASH_DRIFT");
+    }
 
     return jsonResponse(
       {
@@ -72,7 +79,10 @@ export async function POST(req: NextRequest) {
           serviceCount: summary.serviceCount,
           workflowCount: summary.workflowCount,
           integrationCount: summary.integrationCount,
+          nativeHotelInfoItemsCount: nativePrepared.counts.hotelInfoItems,
+          nativeVenuesCount: nativePrepared.counts.venues,
         },
+        nativeResourcesHash: nativePrepared.nativeResourcesHash,
       },
       200,
     );
