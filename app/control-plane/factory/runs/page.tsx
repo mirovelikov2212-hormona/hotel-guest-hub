@@ -27,6 +27,7 @@ const COPY = {
       core: "Core resources",
       operational: "Operational resources",
       envelope: "Onboarding envelope",
+      native_content: "Native content & venues",
     },
   },
   en: {
@@ -48,6 +49,7 @@ const COPY = {
       core: "Core resources",
       operational: "Operational resources",
       envelope: "Onboarding envelope",
+      native_content: "Native content & venues",
     },
   },
 } as const;

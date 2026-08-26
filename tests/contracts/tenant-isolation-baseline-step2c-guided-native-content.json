@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "checkpoint": "step2c-guided-native-content",
+  "baseCheckpoint": "step2c-native-content-venues",
+  "expectedNeedsReview": 131,
+  "removals": [
+    {
+      "filePath": "lib/server/factory-native-content-venues.ts",
+      "line": 55,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/factory-onboarding-progress.ts",
+      "line": 80,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/factory-sandbox-certification.ts",
+      "line": 85,
+      "operation": "rpc"
+    }
+  ],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-native-content-venues.ts",
+      "line": 56,
+      "rpc": "project_factory_guided_native_content_venues_v1",
+      "tableExpression": "\"project_factory_guided_native_content_venues_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_platform_admin_native_projection_uses_service_role_only_security_definer_guided_rpc_that_rechecks_active_platform_admin_exact_completed_p2_3_to_p2_4_lineage_immutable_blueprint_and_operational_hashes_claims_only_the_two_exact_factory_envelope_placeholder_knowledge_rows_delegates_to_native_projection_preserves_placeholder_lifecycle_keeps_all_venues_inactive_and_never_activates_production_or_sandbox"
+    },
+    {
+      "filePath": "lib/server/factory-onboarding-progress.ts",
+      "line": 91,
+      "rpc": "get_factory_onboarding_progress_v2",
+      "tableExpression": "\"get_factory_onboarding_progress_v2\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_platform_factory_progress_read_uses_service_role_only_stable_security_definer_rpc_for_bounded_exact_p2_1_to_p2_4_plus_native_projection_lineage_and_actual_property_production_sandbox_state_without_mutation_or_credential_material"
+    },
+    {
+      "filePath": "lib/server/factory-sandbox-certification.ts",
+      "line": 86,
+      "rpc": "certify_factory_sandbox_after_native_v1",
+      "tableExpression": "\"certify_factory_sandbox_after_native_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_trusted_sandbox_certification_uses_service_role_only_security_definer_native_guard_that_requires_exact_completed_native_projection_two_factory_managed_placeholder_knowledge_rows_and_zero_active_projected_venues_before_delegating_to_the_existing_p2_5_authority_that_rechecks_platform_admin_and_fail_closed_lineage_and_activates_only_sandbox_while_asserting_production_remains_inactive_reserved"
+    }
+  ]
+}

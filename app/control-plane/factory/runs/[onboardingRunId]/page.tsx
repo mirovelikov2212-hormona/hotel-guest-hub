@@ -38,7 +38,7 @@ export default async function FactoryRunWorkspacePage({
   const progress = await getFactoryOnboardingProgress(onboardingRunId);
   if (!progress) notFound();
 
-  const preflight = progress.envelope
+  const preflight = progress.envelope && progress.native
     ? await getFactorySandboxPreflight(progress.envelope.projectionRunId)
     : null;
 

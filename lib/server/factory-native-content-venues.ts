@@ -48,12 +48,13 @@ export async function projectFactoryNativeContentVenues(input: {
   const operational = prepareFactoryOperationalResources({ blueprint: input.blueprint });
   const native = prepareFactoryNativeContentVenues({ blueprint: operational.blueprint });
 
-  // Reviewed platform-authority write: the SECURITY DEFINER RPC rechecks the
-  // active Platform Admin, locks the exact P2.3 lineage, verifies both tenant
-  // environments remain fail-closed, and mutates only Factory-owned native
-  // knowledge/venue rows. Legacy/manual rows are never overwritten.
+  // Reviewed platform-authority write: the guided SECURITY DEFINER boundary
+  // rechecks the active Platform Admin, exact completed P2.4 Envelope ownership
+  // and P2.3 lineage, then delegates to the native authority only after proving
+  // both knowledge rows are the Factory placeholders created by that Envelope.
+  // It keeps knowledge lifecycle fail-closed and every venue inactive.
   const { data, error } = await supabaseAdmin.rpc(
-    "project_factory_native_content_venues_v1",
+    "project_factory_guided_native_content_venues_v1",
     {
       p_actor_admin_id: input.authority.adminId,
       p_operational_projection_run_id: operationalProjectionRunId,
