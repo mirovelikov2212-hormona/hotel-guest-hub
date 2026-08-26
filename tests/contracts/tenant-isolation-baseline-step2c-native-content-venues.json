@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "checkpoint": "step2c-native-content-venues",
+  "baseCheckpoint": "p2-5-sandbox-staff-credentials",
+  "expectedNeedsReview": 131,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-native-content-venues.ts",
+      "line": 55,
+      "rpc": "project_factory_native_content_venues_v1",
+      "tableExpression": "\"project_factory_native_content_venues_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "authenticated_control_plane_platform_mutation_calls_service_role_only_security_definer_rpc_that_rechecks_active_platform_admin_and_exact_p2_3_operational_lineage_then_projects_only_factory_owned_draft_knowledge_and_inactive_venue_rows_into_the_exact_fail_closed_production_and_sandbox_tenants_without_overwriting_legacy_rows_or_activating_runtime"
+    }
+  ]
+}
