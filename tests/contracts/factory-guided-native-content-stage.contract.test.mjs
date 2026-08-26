@@ -3,6 +3,7 @@ import test from "node:test";
 import { assertContains, assertNotContains, readProjectFile } from "../helpers/source-contract.mjs";
 
 const migrationPath = "supabase/migrations/20260826123000_factory_guided_native_content_stage.sql";
+const replayHardeningPath = "supabase/migrations/20260826123500_factory_guided_native_replay_hash_hardening.sql";
 
 test("STEP 2C.3 guided native projection is service-role-only and tied to completed Envelope lineage", async () => {
   const migration = await readProjectFile(migrationPath);
@@ -54,6 +55,20 @@ test("STEP 2C.3 removes direct service-role access to the raw native mutation pr
   assertContains(service, '"project_factory_guided_native_content_venues_v1"');
   assertNotContains(service, '"project_factory_native_content_venues_v1"');
   assertContains(service, "canMutateControlPlane");
+});
+
+test("STEP 2C.3 idempotent replay revalidates exact blueprint and operational hash lineage", async () => {
+  const migration = await readProjectFile(replayHardeningPath);
+
+  assertContains(migration, "P2C_GUIDED_NATIVE_HASH_INVALID");
+  assertContains(migration, "v_operational.operational_resources_hash <> p_operational_resources_hash");
+  assertContains(migration, "P2C_GUIDED_NATIVE_OPERATIONAL_HASH_MISMATCH");
+  assertContains(migration, "v_onboarding.blueprint_hash <> p_blueprint_hash");
+  assertContains(migration, "P2C_GUIDED_NATIVE_BLUEPRINT_HASH_MISMATCH");
+  assertContains(migration, "v_existing.native_resources_hash <> p_native_resources_hash");
+  assertContains(migration, "P2C_GUIDED_NATIVE_IDEMPOTENCY_CONFLICT");
+  assertContains(migration, "set search_path = pg_catalog, public");
+  assertContains(migration, "to service_role");
 });
 
 test("STEP 2C.3 Sandbox certification requires exact native projection before mature P2.5 authority", async () => {
