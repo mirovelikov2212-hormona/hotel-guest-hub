@@ -66,17 +66,17 @@ jobs:
               items: [
                 {
                   id: 'check-in', category: 'check_in', active: true, aiVisible: true, sortOrder: 10,
-                  titleByLocale: { en: 'Check-in', de: 'Check-in', bg: 'Настаняване' },
-                  textByLocale: { en: 'Check-in starts at 15:00.', de: 'Check-in ist ab 15:00 Uhr.', bg: 'Настаняването е от 15:00 ч.' },
+                  title: { en: 'Check-in', de: 'Check-in', bg: 'Настаняване' },
+                  text: { en: 'Check-in starts at 15:00.', de: 'Check-in ist ab 15:00 Uhr.', bg: 'Настаняването е от 15:00 ч.' },
                 },
               ],
             },
             venues: [
               {
                 id: 'lobby-bar', type: 'bar', active: true, sortOrder: 10,
-                nameByLocale: { en: 'Lobby Bar', de: 'Lobby Bar', bg: 'Лоби бар' },
-                descriptionByLocale: { en: 'Drinks and coffee.', de: 'Getränke und Kaffee.', bg: 'Напитки и кафе.' },
-                openingHoursTextByLocale: { en: '08:00–23:00', de: '08:00–23:00', bg: '08:00–23:00' },
+                name: { en: 'Lobby Bar', de: 'Lobby Bar', bg: 'Лоби бар' },
+                description: { en: 'Drinks and coffee.', de: 'Getränke und Kaffee.', bg: 'Напитки и кафе.' },
+                hours: { en: '08:00–23:00', de: '08:00–23:00', bg: '08:00–23:00' },
                 reservationType: 'none', requiresReservation: false,
               },
             ],
