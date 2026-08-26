@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "checkpoint": "step2c-smart-setup-native-content-ui",
+  "baseCheckpoint": "step2c-guided-native-content",
+  "expectedNeedsReview": 131,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "lib/server/factory-onboarding.ts",
+      "fromLine": 50,
+      "toLine": 55,
+      "operation": "rpc"
+    }
+  ],
+  "additions": []
+}

@@ -6,6 +6,7 @@ import {
   prepareFactoryOnboarding,
   type PreparedFactoryOnboarding,
 } from "@/lib/product-factory/factory-onboarding-model.mjs";
+import { prepareFactoryNativeContentVenues } from "@/lib/product-factory/factory-native-content-venues-model.mjs";
 
 type FactoryOnboardingRpcRow = {
   onboarding_run_id: string;
@@ -44,6 +45,10 @@ export async function beginFactoryOnboarding(input: {
     blueprint: input.blueprint,
     idempotencyKey: input.idempotencyKey,
   });
+  const nativePrepared = prepareFactoryNativeContentVenues({ blueprint: prepared.blueprint });
+  if (nativePrepared.blueprintHash !== prepared.blueprintHash) {
+    throw new Error("P2_FACTORY_NATIVE_BLUEPRINT_HASH_DRIFT");
+  }
 
   // Reviewed platform-authority write: the SECURITY DEFINER RPC rechecks the exact
   // active Platform Admin, owns the transaction, and enforces idempotency itself.
