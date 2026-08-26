@@ -49,7 +49,7 @@ test("P4.4 returns authoritative P2.1 blueprint and real fail-closed property/ho
 
 test("P4.4 server helper uses one reviewed progress RPC for both list and detail", () => {
   assert.match(helper, /supabaseAdmin\.rpc\(/);
-  assert.match(helper, /"get_factory_onboarding_progress_v1"/);
+  assert.match(helper, /"get_factory_onboarding_progress_v2"/);
   assert.equal((helper.match(/supabaseAdmin\.rpc\(/g) || []).length, 1);
   assert.match(helper, /listFactoryOnboardingRuns/);
   assert.match(helper, /getFactoryOnboardingProgress/);
@@ -73,10 +73,11 @@ test("P4.4 workspace uses immutable stored blueprint and exact predecessor IDs",
   assert.match(workspace, /operationalProjectionRunId: progress\.operational\?\.projectionRunId/);
 });
 
-test("P4.4 calls only the existing P2.2/P2.3/P2.4 projection endpoints", () => {
+test("P4.4 guided workspace calls only explicit resource projection endpoints through native content", () => {
   assert.match(workspace, /\/api\/control-plane\/onboarding\/core-resources/);
   assert.match(workspace, /\/api\/control-plane\/onboarding\/operational-resources/);
   assert.match(workspace, /\/api\/control-plane\/onboarding\/envelope/);
+  assert.match(workspace, /\/api\/control-plane\/onboarding\/native-content-venues/);
   assert.doesNotMatch(workspace, /sandbox-certification|production-publication|production-live-activation|commercial\/property-lifecycle/);
 });
 
@@ -84,7 +85,7 @@ test("P4.4 never auto-chains projection stages", () => {
   assert.doesNotMatch(workspace, /Promise\.all/);
   assert.doesNotMatch(workspace, /runStage\("core"\).*runStage\("operational"\)/s);
   assert.match(workspace, /router\.refresh\(\)/);
-  assert.match(workspace, /P4\.4 спира тук|P4\.4 stops here/);
+  assert.match(workspace, /Guided projection спира тук|Guided projection stops here/);
 });
 
 test("P4.4 blocks projection actions if actual foundation state is no longer fail-closed", () => {
@@ -97,7 +98,7 @@ test("P4.4 blocks projection actions if actual foundation state is no longer fai
 test("P4.4 keeps resource projections fail-closed in operator copy", () => {
   assert.match(workspace, /Runtime is not activated/);
   assert.match(workspace, /All execution flags remain disabled/);
-  assert.match(workspace, /Production remains inactive/);
+  assert.match(workspace, /Production (?:remains|stays) inactive/);
   assert.match(workspace, /Не активира runtime/);
 });
 
