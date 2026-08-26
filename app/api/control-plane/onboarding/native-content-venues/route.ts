@@ -21,13 +21,21 @@ function jsonResponse(body: Record<string, unknown>, status: number) {
 function mapFactoryError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
 
-  if (message.includes("P2C_NATIVE_FACTORY_ADMIN_FORBIDDEN")) {
+  if (
+    message.includes("P2C_NATIVE_FACTORY_ADMIN_FORBIDDEN") ||
+    message.includes("P2C_GUIDED_NATIVE_FACTORY_ADMIN_FORBIDDEN")
+  ) {
     return { status: 403, code: "forbidden" };
   }
 
   if (
     message.includes("P2C_NATIVE_IDEMPOTENCY_CONFLICT") ||
-    message.includes("P2C_NATIVE_KNOWLEDGE_CONFIG_LEGACY_CONFLICT")
+    message.includes("P2C_NATIVE_KNOWLEDGE_CONFIG_LEGACY_CONFLICT") ||
+    message.includes("P2C_GUIDED_NATIVE_IDEMPOTENCY_CONFLICT") ||
+    message.includes("P2C_GUIDED_NATIVE_ENVELOPE_") ||
+    message.includes("P2C_GUIDED_NATIVE_PLACEHOLDER_") ||
+    message.includes("P2C_GUIDED_NATIVE_STATE_") ||
+    message.includes("P2C_GUIDED_NATIVE_EXISTING_")
   ) {
     return { status: 409, code: "conflict" };
   }
@@ -47,7 +55,9 @@ function mapFactoryError(error: unknown) {
     message.includes("P2C_NATIVE_BLUEPRINT_") ||
     message.includes("P2C_NATIVE_OPERATIONAL_") ||
     message.includes("P2C_NATIVE_CORE_") ||
-    message.includes("P2C_NATIVE_ONBOARDING_")
+    message.includes("P2C_NATIVE_ONBOARDING_") ||
+    message.includes("P2C_GUIDED_NATIVE_REQUIRED_") ||
+    message.includes("P2C_GUIDED_NATIVE_HASH_")
   ) {
     return { status: 400, code: "invalid_blueprint" };
   }
