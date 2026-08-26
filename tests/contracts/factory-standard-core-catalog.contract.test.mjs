@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  FACTORY_STANDARD_CATALOG_VERSION,
   FACTORY_STANDARD_CORE_SERVICES,
   FACTORY_STANDARD_LANGUAGES,
   FACTORY_STANDARD_VENUE_CAPABILITIES,
@@ -118,6 +119,10 @@ function blueprint(locales = RUNTIME_LANGUAGES) {
     })),
   };
 }
+
+test("Factory Standard catalog is explicitly versioned", () => {
+  assert.equal(FACTORY_STANDARD_CATALOG_VERSION, "factory-standard-v2");
+});
 
 test("Factory has a translated baseline but does not use it as a locale allow-list", () => {
   assert.deepEqual(FACTORY_STANDARD_LANGUAGES, BASE_TRANSLATED_LANGUAGES);
