@@ -23,6 +23,7 @@ function mapFactoryError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
   if (message.includes("P2_5_FACTORY_ADMIN_FORBIDDEN")) return { status: 403, code: "forbidden" };
   if (message.includes("P2_5_IDEMPOTENCY_CONFLICT")) return { status: 409, code: "conflict" };
+  if (message.includes("P2D_SANDBOX_COMMUNICATION_")) return { status: 409, code: "communications_not_ready" };
   if (message.includes("P2C_SANDBOX_NATIVE_")) return { status: 409, code: "native_content_not_ready" };
   if (message.includes("P4_10_INVALID_")) return { status: 400, code: "invalid_request" };
   if (message.includes("P4_10_ENVELOPE_NOT_FOUND")) return { status: 404, code: "envelope_not_found" };
