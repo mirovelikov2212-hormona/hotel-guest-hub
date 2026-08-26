@@ -7,6 +7,7 @@ import {
 } from "../helpers/source-contract.mjs";
 
 const migrationPath = "supabase/migrations/20260826150000_factory_communications_projection.sql";
+const cleanupMigrationPath = "supabase/migrations/20260826151000_factory_communications_disposable_cleanup.sql";
 
 test("STEP 2D.2 adds relational communication authority without rewriting legacy rows", async () => {
   const sql = await readProjectFile(migrationPath);
@@ -72,6 +73,22 @@ test("STEP 2D.2 writes only communication fields symmetrically and owns replay s
   assertContains(sql, "P2D_COMMUNICATION_REPLAY_STATE_INVALID");
   assertContains(sql, "P2D_COMMUNICATION_ACTIVATION_FORBIDDEN");
   assertNotContains(sql, "set active = true");
+});
+
+test("STEP 2D.2 disposable cleanup removes only Communications ownership while preserving core departments", async () => {
+  const cleanup = await readProjectFile(cleanupMigrationPath);
+
+  assertContains(cleanup, "factory_communications_projection_operational_fk");
+  assertContains(cleanup, "references public.factory_operational_resource_projection_runs(id)\n    on delete cascade");
+  assertContains(cleanup, "clear_factory_communications_departments_before_run_delete_v1");
+  assertContains(cleanup, "before delete on public.factory_communications_projection_runs");
+  assertContains(cleanup, "factory_communications_managed = false");
+  assertContains(cleanup, "factory_communications_projection_run_id = null");
+  assertContains(cleanup, "phone_number = null");
+  assertContains(cleanup, "whatsapp_number = null");
+  assertContains(cleanup, "email = null");
+  assertNotContains(cleanup, "delete from public.departments");
+  assertNotContains(cleanup, "on delete cascade;\n\ncomment on constraint departments");
 });
 
 test("STEP 2D.2 server and route preserve Platform Admin and same-origin boundaries", async () => {
