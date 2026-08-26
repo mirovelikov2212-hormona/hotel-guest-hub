@@ -146,3 +146,31 @@ test("STEP 2C.2 route keeps payload and replay semantics explicit", async () => 
   assertContains(route, "result.replayed ? 200 : 201");
   assert.equal(route.includes("force-dynamic"), true);
 });
+
+test("STEP 2C live regression fix qualifies hotel production_hotel_id against RETURNS TABLE output variables", async () => {
+  const migration = await readProjectFile(
+    "supabase/migrations/20260826133500_factory_native_content_rpc_column_qualification_fix.sql",
+  );
+
+  assertContains(migration, "create or replace function public.project_factory_native_content_venues_v1");
+  assertContains(migration, "select h.active, h.production_hotel_id");
+  assertContains(migration, "from public.hotels h");
+  assertContains(migration, "where h.id = v_onboarding.sandbox_hotel_id");
+  assertNotContains(migration, "select active, production_hotel_id");
+});
+
+test("STEP 2C live regression fix preserves guided-only mutation authority", async () => {
+  const migration = await readProjectFile(
+    "supabase/migrations/20260826133500_factory_native_content_rpc_column_qualification_fix.sql",
+  );
+  const guided = await readProjectFile(
+    "supabase/migrations/20260826123000_factory_guided_native_content_stage.sql",
+  );
+
+  assertContains(migration, "security definer");
+  assertContains(migration, "set search_path = pg_catalog, public");
+  assertContains(migration, "from public, anon, authenticated, service_role");
+  assertNotContains(migration, "to service_role");
+  assertContains(guided, "project_factory_guided_native_content_venues_v1");
+  assertContains(guided, "to service_role");
+});
