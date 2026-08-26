@@ -1,0 +1,31 @@
+name: Temporary Factory Communications Validation
+
+on:
+  push:
+    branches:
+      - feature/factory-communications-20260826
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test:factory-communications
+      - run: npm run test:p4-1
+      - run: npm run test:p4-12
+      - run: npm test
+      - run: npm run build
