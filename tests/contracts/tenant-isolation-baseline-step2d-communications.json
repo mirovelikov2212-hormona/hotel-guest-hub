@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "checkpoint": "step2d-communications",
+  "baseCheckpoint": "step2c-smart-setup-native-content-ui",
+  "expectedNeedsReview": 131,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "lib/server/factory-onboarding.ts",
+      "fromLine": 55,
+      "toLine": 60,
+      "operation": "rpc"
+    }
+  ],
+  "additions": []
+}
