@@ -8572,8 +8572,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               <input
                 value={manualRoomInput}
                 onChange={(e) => setManualRoomInput(e.target.value)}
-                placeholder={roomCopy.inputPlaceholder}
-                inputMode="numeric"
+                placeholder={validRoomNumbers[0] || roomCopy.inputPlaceholder}
+                inputMode={validRoomNumbers.some((roomNumber) => /[^0-9]/.test(roomNumber)) ? "text" : "numeric"}
                 autoComplete="off"
                 className="w-full rounded-xl stayhub-card px-4 py-3 text-sm outline-none placeholder:text-[color:var(--stayhub-muted)]"
               />
@@ -8659,8 +8659,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
                   setIgnoredQrRoom(null);
                   setRoomModal(null);
                 }}
-                placeholder={roomCopy.inputPlaceholder}
-                inputMode="numeric"
+                placeholder={validRoomNumbers[0] || roomCopy.inputPlaceholder}
+                inputMode={validRoomNumbers.some((roomNumber) => /[^0-9]/.test(roomNumber)) ? "text" : "numeric"}
                 autoComplete="off"
                 className="w-full rounded-xl stayhub-card px-4 py-3 text-sm outline-none placeholder:text-[color:var(--stayhub-muted)]"
               />
