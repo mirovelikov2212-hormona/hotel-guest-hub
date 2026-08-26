@@ -79,11 +79,11 @@ export async function certifyFactorySandbox(input: {
     .update(canonicalize({ schemaVersion: "p2.5", envelopeProjectionRunId, checks }))
     .digest("hex");
 
-  // Reviewed platform-authority mutation: this STEP 2C guard first proves the
-  // exact P2.4 lineage has a completed fail-closed native content projection,
-  // then delegates to the mature P2.5 authority. Production must remain
-  // inactive/reserved or the underlying transaction fails.
-  const { data, error } = await supabaseAdmin.rpc("certify_factory_sandbox_after_native_v1", {
+  // Reviewed platform-authority mutation: STEP 2D proves the exact P2.4 lineage
+  // has completed both fail-closed native content and canonical communications
+  // projections before delegating to the mature P2.5 certification authority.
+  // Production must remain inactive/reserved or the transaction fails.
+  const { data, error } = await supabaseAdmin.rpc("certify_factory_sandbox_after_communications_v1", {
     p_actor_admin_id: input.authority.adminId,
     p_envelope_projection_run_id: envelopeProjectionRunId,
     p_evidence_hash: evidenceHash,
