@@ -56,11 +56,15 @@ test("P4.4 server helper uses one reviewed progress RPC for both list and detail
   assert.match(helper, /UUID_PATTERN/);
 });
 
-test("P4.4 list and detail pages require Platform Admin session and preserve BG/EN", () => {
+test("P4.4 list and detail pages require Platform Admin session, preserve destination and preserve BG/EN", () => {
   assert.match(listPage, /getCurrentPlatformAdminSession/);
   assert.match(detailPage, /getCurrentPlatformAdminSession/);
-  assert.match(listPage, /redirect\(`\/control-plane\/login\?lang=\$\{lang\}`\)/);
-  assert.match(detailPage, /redirect\(`\/control-plane\/login\?lang=\$\{lang\}`\)/);
+  assert.match(listPage, /normalizeAdminNextTarget/);
+  assert.match(detailPage, /normalizeAdminNextTarget/);
+  assert.match(listPage, /`\/hotel-factory\/runs\?lang=\$\{lang\}`/);
+  assert.match(detailPage, /`\/control-plane\/factory\/runs\/\$\{onboardingRunId\}\?lang=\$\{lang\}`/);
+  assert.match(listPage, /redirect\(`\/control-plane\/login\?lang=\$\{lang\}&next=\$\{encodeURIComponent\(next\)\}`\)/);
+  assert.match(detailPage, /redirect\(`\/control-plane\/login\?lang=\$\{lang\}&next=\$\{encodeURIComponent\(next\)\}`\)/);
   assert.match(listPage, /factory\/runs\?lang=bg/);
   assert.match(detailPage, /\?lang=bg/);
   assert.match(detailPage, /\?lang=en/);
@@ -73,19 +77,23 @@ test("P4.4 workspace uses immutable stored blueprint and exact predecessor IDs",
   assert.match(workspace, /operationalProjectionRunId: progress\.operational\?\.projectionRunId/);
 });
 
-test("P4.4 guided workspace calls only explicit resource projection endpoints through native content", () => {
+test("P4.4 guided workspace calls only explicit resource projection endpoints through Communications", () => {
   assert.match(workspace, /\/api\/control-plane\/onboarding\/core-resources/);
   assert.match(workspace, /\/api\/control-plane\/onboarding\/operational-resources/);
   assert.match(workspace, /\/api\/control-plane\/onboarding\/envelope/);
   assert.match(workspace, /\/api\/control-plane\/onboarding\/native-content-venues/);
+  assert.match(workspace, /\/api\/control-plane\/onboarding\/communications/);
   assert.doesNotMatch(workspace, /sandbox-certification|production-publication|production-live-activation|commercial\/property-lifecycle/);
 });
 
-test("P4.4 never auto-chains projection stages", () => {
+test("P4.4 never auto-chains projection stages and reloads authoritative progress after success", () => {
   assert.doesNotMatch(workspace, /Promise\.all/);
   assert.doesNotMatch(workspace, /runStage\("core"\).*runStage\("operational"\)/s);
-  assert.match(workspace, /router\.refresh\(\)/);
-  assert.match(workspace, /Guided projection спира тук|Guided projection stops here/);
+  assert.match(workspace, /window\.location\.reload\(\)/);
+  assert.doesNotMatch(workspace, /router\.refresh\(\)/);
+  assert.doesNotMatch(workspace, /useRouter/);
+  assert.match(workspace, /Guided projection е завършен|Guided projection is complete/);
+  assert.match(workspace, /Sandbox certification (?:остава отделна explicit стъпка|remains a separate explicit step)/);
 });
 
 test("P4.4 blocks projection actions if actual foundation state is no longer fail-closed", () => {
