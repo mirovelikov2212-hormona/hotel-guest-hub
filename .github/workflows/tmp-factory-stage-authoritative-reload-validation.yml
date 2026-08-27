@@ -1,0 +1,32 @@
+name: Temporary Factory Stage Authoritative Reload Validation
+
+on:
+  push:
+    branches:
+      - fix/factory-stage-authoritative-reload-20260827
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: P4.4 guided workspace contract
+        run: node --test tests/contracts/p4-4-guided-resource-projection-workspace.contract.test.mjs
+      - name: Full contract suite
+        run: npm test
+      - name: Production build
+        run: npm run build
