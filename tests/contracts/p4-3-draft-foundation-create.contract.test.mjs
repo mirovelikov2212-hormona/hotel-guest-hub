@@ -50,15 +50,15 @@ test("P4.3 recomputes the normalized blueprint hash before the P2.1 mutation", (
 
 test("P4.3 binds the create panel to the exact successful client preflight snapshot", () => {
   assert.match(wizard, /preflightBlueprintJson/);
-  assert.match(wizard, /const blueprintJson=JSON\.stringify\(blueprint\)/);
-  assert.match(wizard, /preflightBlueprintJson===blueprintJson/);
+  assert.match(wizard, /const\s+blueprintJson\s*=\s*JSON\.stringify\(blueprint\)/);
+  assert.match(wizard, /preflightBlueprintJson\s*===\s*blueprintJson/);
   assert.match(wizard, /setPreflightBlueprintJson\(blueprintJson\)/);
-  assert.match(wizard, /preflightCurrent&&preflight\?\.identities&&preflight\.blueprintHash/);
+  assert.match(wizard, /preflightCurrent\s*&&\s*preflight\?\.identities\s*&&\s*preflight\.blueprintHash/);
 });
 
 test("P4.3 invalidates preflight when room inventory fields are edited", () => {
   for (const setter of ["setRangeStart", "setRangeEnd", "setPadTo", "setPrefix", "setSuffix", "setExplicitRooms"]) {
-    assert.match(wizard, new RegExp(`${setter}\\(e\\.target\\.value\\);invalidate\\(\\)`));
+    assert.match(wizard, new RegExp(`${setter}\\(event\\.target\\.value\\);\\s*invalidate\\(\\);`));
   }
 });
 
