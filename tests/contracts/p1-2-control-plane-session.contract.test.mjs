@@ -59,6 +59,26 @@ test("P1.2 login is same-origin, issues the platform session only after credenti
   );
 });
 
+test("P1.2 Factory routes preserve their exact destination through Platform Admin login", async () => {
+  const runs = await readProjectFile("app/control-plane/factory/runs/page.tsx");
+  const workspace = await readProjectFile(
+    "app/control-plane/factory/runs/[onboardingRunId]/page.tsx",
+  );
+
+  assertContains(runs, "normalizeAdminNextTarget");
+  assertContains(runs, "`/hotel-factory/runs?lang=${lang}`");
+  assertContains(runs, "next=${encodeURIComponent(next)}");
+  assertNotContains(runs, 'redirect(`/control-plane/login?lang=${lang}`)');
+
+  assertContains(workspace, "normalizeAdminNextTarget");
+  assertContains(
+    workspace,
+    "`/control-plane/factory/runs/${onboardingRunId}?lang=${lang}`",
+  );
+  assertContains(workspace, "next=${encodeURIComponent(next)}");
+  assertNotContains(workspace, 'redirect(`/control-plane/login?lang=${lang}`)');
+});
+
 test("P1.2 logout revokes the current session before redirecting to login", async () => {
   const source = await readProjectFile("app/api/control-plane/logout/route.ts");
 
