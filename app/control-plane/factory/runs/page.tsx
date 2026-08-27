@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
+import { normalizeAdminNextTarget } from "@/lib/control-plane-next";
 import { listFactoryOnboardingRuns } from "@/lib/server/factory-onboarding-progress";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 
@@ -69,7 +70,10 @@ export default async function FactoryRunsPage({
   const copy = COPY[lang];
 
   const authority = await getCurrentPlatformAdminSession();
-  if (!authority) redirect(`/control-plane/login?lang=${lang}`);
+  if (!authority) {
+    const next = normalizeAdminNextTarget(`/hotel-factory/runs?lang=${lang}`, lang);
+    redirect(`/control-plane/login?lang=${lang}&next=${encodeURIComponent(next)}`);
+  }
 
   const runs = await listFactoryOnboardingRuns(50);
 
