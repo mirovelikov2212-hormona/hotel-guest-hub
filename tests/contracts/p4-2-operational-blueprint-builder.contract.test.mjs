@@ -8,12 +8,13 @@ const [wizard, route] = await Promise.all([
   readFile(wizardPath, "utf8"), readFile(routePath, "utf8"),
 ]);
 
-test("P4.2 keeps the bilingual wizard at five operational authoring steps", () => {
+test("P4.2 keeps operational authoring inside the six-step bilingual wizard", () => {
   assert.match(wizard, /Услуги · Workflows · Integrations/);
   assert.match(wizard, /Services · Workflows · Integrations/);
-  assert.match(wizard, /sm:grid-cols-5/);
-  assert.match(wizard, /step===3|step === 3/);
-  assert.match(wizard, /step===4|step === 4/);
+  assert.match(wizard, /const LAST_STEP = 5/);
+  assert.match(wizard, /step\s*===\s*3/);
+  assert.match(wizard, /step\s*===\s*4/);
+  assert.match(wizard, /step\s*===\s*5/);
 });
 
 test("P4.2 exposes exactly the Product Factory service modes and priorities", () => {
@@ -32,34 +33,34 @@ test("P4.2 workflow builder uses only approved primitive action families", () =>
 test("P4.2 builds credential-free integration placeholders", () => {
   assert.match(wizard, /adapterKey/);
   assert.match(wizard, /kind/);
-  assert.match(wizard, /integrations:integrations\.map|integrations: integrations\.map/);
+  assert.match(wizard, /integrations:\s*integrations\.map/);
   assert.doesNotMatch(wizard, /type="password"/i);
   assert.doesNotMatch(wizard, /\b(apiKey|accessToken|clientSecret|passwordValue|credentialValue)\b/);
 });
 
 test("P4.2 services reference tenant-defined departments, workflows and integrations", () => {
-  assert.match(wizard, /departmentId:optionalRef\(s\.departmentId\)|departmentId: optionalRef\(s\.departmentId\)/);
-  assert.match(wizard, /workflowId:optionalRef\(s\.workflowId\)|workflowId: optionalRef\(s\.workflowId\)/);
-  assert.match(wizard, /integrationId:optionalRef\(s\.integrationId\)|integrationId: optionalRef\(s\.integrationId\)/);
+  assert.match(wizard, /departmentId:\s*optionalRef\((?:s|service)\.departmentId\)/);
+  assert.match(wizard, /workflowId:\s*optionalRef\((?:s|service)\.workflowId\)/);
+  assert.match(wizard, /integrationId:\s*optionalRef\((?:s|service)\.integrationId\)/);
   assert.match(wizard, /departmentOptions/);
   assert.match(wizard, /workflowOptions/);
   assert.match(wizard, /integrationOptions/);
 });
 
 test("P4.2 workflow steps can reference declared departments and integrations", () => {
-  assert.match(wizard, /steps:w\.steps\.map|steps: w\.steps\.map/);
+  assert.match(wizard, /steps:\s*(?:w|workflow)\.steps\.map/);
   assert.match(wizard, /patchWorkflowStep/);
-  assert.match(wizard, /departmentId:optionalRef\(s\.departmentId\)|departmentId: optionalRef\(s\.departmentId\)/);
-  assert.match(wizard, /integrationId:optionalRef\(s\.integrationId\)|integrationId: optionalRef\(s\.integrationId\)/);
+  assert.match(wizard, /departmentId:\s*optionalRef\((?:s|workflowStep)\.departmentId\)/);
+  assert.match(wizard, /integrationId:\s*optionalRef\((?:s|workflowStep)\.integrationId\)/);
 });
 
 test("P4.2 removes dangling references when operational resources are deleted", () => {
   assert.match(wizard, /removeDepartment/);
   assert.match(wizard, /removeIntegration/);
   assert.match(wizard, /removeWorkflow/);
-  assert.match(wizard, /departmentId:""|departmentId: ""/);
-  assert.match(wizard, /integrationId:""|integrationId: ""/);
-  assert.match(wizard, /workflowId:""|workflowId: ""/);
+  assert.match(wizard, /departmentId:\s*""/);
+  assert.match(wizard, /integrationId:\s*""/);
+  assert.match(wizard, /workflowId:\s*""/);
 });
 
 test("P4.2 operational authoring itself still reaches only the preflight boundary", () => {

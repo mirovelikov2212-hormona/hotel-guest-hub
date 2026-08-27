@@ -60,13 +60,16 @@ test("STEP 2C.4 supports generic hotel information without hotel-specific assump
   assertNotContains(nativeStep, "capsule");
 });
 
-test("STEP 2C.4 venue authoring keeps common types as suggestions while allowing arbitrary custom types", async () => {
+test("STEP 2C.4 venue authoring uses a real selector and still allows arbitrary custom types", async () => {
   const nativeStep = await readProjectFile(nativeStepPath);
 
   for (const type of ["restaurant", "bar", "lounge", "water_park", "pool", "beach", "spa", "fitness", "kids_club", "entertainment", "event_space", "other"]) {
     assertContains(nativeStep, `"${type}"`);
   }
-  assertContains(nativeStep, '<input list="factory-venue-type-suggestions"');
+  assertContains(nativeStep, '<option value="__custom__">');
+  assertContains(nativeStep, 'placeholder="rooftop_observatory"');
+  assertContains(nativeStep, "isKnownVenueType");
+  assertNotContains(nativeStep, '<input list="factory-venue-type-suggestions"');
   assertContains(nativeStep, "type: normalizeKey(venue.type) || \"other\"");
   assertContains(nativeStep, "reservationType");
   assertContains(nativeStep, "requiresReservation");
@@ -74,6 +77,29 @@ test("STEP 2C.4 venue authoring keeps common types as suggestions while allowing
   assertContains(nativeStep, "reservationPhone");
   assertContains(nativeStep, "reservationWhatsapp");
   assertContains(nativeStep, "reservationEmail");
+});
+
+test("STEP 2C.4 venue cards are single-open accordions and newly added venue becomes active", async () => {
+  const nativeStep = await readProjectFile(nativeStepPath);
+
+  assertContains(nativeStep, "expandedVenueKey");
+  assertContains(nativeStep, "setExpandedVenueKey(key)");
+  assertContains(nativeStep, "expandedVenueKey === venue.key");
+  assertContains(nativeStep, "aria-expanded={expanded}");
+  assertContains(nativeStep, 'expanded ? "▾" : "▸"');
+});
+
+test("STEP 2C.4 clearly limits required venue data and hides cuisine from non-food venue types", async () => {
+  const nativeStep = await readProjectFile(nativeStepPath);
+
+  assertContains(nativeStep, "venuesRequiredHelp");
+  assertContains(nativeStep, "findNativeSetupValidationIssue");
+  assertContains(nativeStep, '!normalizeKey(venue.id)');
+  assertContains(nativeStep, '!normalizeKey(venue.type)');
+  assertContains(nativeStep, '!hasLocalizedValue(venue.nameByLocale, locales)');
+  assertContains(nativeStep, 'return ["restaurant", "bar", "lounge"].includes(normalizeKey(type));');
+  assertContains(nativeStep, "{foodVenue && (");
+  assertContains(nativeStep, "cuisineByLocale: {}");
 });
 
 test("STEP 2C.4 preflight validates native-specific rules before foundation creation", async () => {
