@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import HotelManagerOnboardingWizard from "./HotelManagerOnboardingWizard";
+import HotelManagerOnboardingWizardV2 from "./HotelManagerOnboardingWizardV2";
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
 import { normalizeAdminNextTarget } from "@/lib/control-plane-next";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
@@ -69,7 +69,7 @@ export default async function HotelFactoryNewPage({
           <Link href={`/control-panel?lang=${lang}`} className="mt-6 inline-flex text-sm font-semibold text-cyan-200 transition hover:text-cyan-100">{copy.back}</Link>
         </header>
 
-        <HotelManagerOnboardingWizard lang={lang} />
+        <HotelManagerOnboardingWizardV2 lang={lang} />
       </div>
     </main>
   );
