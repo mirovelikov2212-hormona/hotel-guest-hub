@@ -8,7 +8,7 @@ import type { FactoryReleaseEvidence } from "@/lib/server/factory-release-eviden
 import type { FactorySandboxPreflight } from "@/lib/server/factory-sandbox-preflight";
 import type { FactorySandboxRuntimeProbe } from "@/lib/server/factory-sandbox-runtime-probe";
 
-type Phase = "idle" | "starting" | "settling" | "checking" | "ready" | "certifying" | "complete" | "failed";
+type Phase = "idle" | "starting" | "settling" | "checking" | "waiting_evidence" | "ready" | "certifying" | "complete" | "failed";
 
 type SmokeStartResponse = {
   ok?: boolean;
@@ -43,11 +43,14 @@ const COPY = {
     subtitle: "Тук системата изпълнява tenant-specific Preview smoke и допуска P2.5 само след exact signed evidence. Няма ръчни TRUE отметки.",
     previewOnly: "Тази стъпка се изпълнява само от exact Vercel Preview. В Production mutation бутоните остават заключени.",
     readyToSmoke: "ГОТОВО ЗА PREVIEW SMOKE",
+    evidenceWaiting: "EVIDENCE ARRIVING",
     blocked: "БЛОКИРАНО",
     certified: "SANDBOX CERTIFIED",
     runSmoke: "Пусни trusted Preview smoke",
     resumeSmoke: "Продължи проверката на smoke",
     runningSmoke: "Проверка на runtime evidence…",
+    evidenceArriving: "Signed runtime evidence още пристига от Vercel Drain. Изчакваме същия smoke run — не се стартира нов smoke.",
+    evidencePending: "Vercel Drain evidence още пристига. Няма runtime failure. Продължи проверката върху същия Smoke run, вместо да стартираш нов smoke.",
     clean: "Runtime прозорецът е чист и exact lineage е потвърден.",
     certify: "Сертифицирай Sandbox",
     certifying: "Сертифициране…",
@@ -67,11 +70,14 @@ const COPY = {
     subtitle: "The system runs a tenant-specific Preview smoke and permits P2.5 only after exact signed evidence. There are no manual TRUE checkboxes.",
     previewOnly: "This step runs only from the exact Vercel Preview. Mutation controls stay locked in Production.",
     readyToSmoke: "READY FOR PREVIEW SMOKE",
+    evidenceWaiting: "EVIDENCE ARRIVING",
     blocked: "BLOCKED",
     certified: "SANDBOX CERTIFIED",
     runSmoke: "Run trusted Preview smoke",
     resumeSmoke: "Resume smoke verification",
     runningSmoke: "Verifying runtime evidence…",
+    evidenceArriving: "Signed runtime evidence is still arriving from Vercel Drain. We keep waiting on the same smoke run instead of starting a new one.",
+    evidencePending: "Vercel Drain evidence is still arriving. This is not a runtime failure. Resume verification on the same Smoke run instead of starting a new smoke.",
     clean: "The runtime window is clean and exact lineage is confirmed.",
     certify: "Certify Sandbox",
     certifying: "Certifying…",
@@ -90,6 +96,10 @@ const COPY = {
 
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function isStatusTimeout(error: unknown) {
+  return error instanceof Error && error.message === "status_timeout";
 }
 
 async function postJson<T>(url: string, body: Record<string, unknown>): Promise<{ response: Response; result: T }> {
@@ -165,7 +175,7 @@ export default function FactorySandboxCertificationPanel({
     if (Date.now() >= settleDeadline) throw new Error("settle_timeout");
 
     setPhase("checking");
-    const statusDeadline = Date.now() + 45_000;
+    const statusDeadline = Date.now() + 120_000;
     while (Date.now() < statusDeadline) {
       const { response, result } = await postJson<SmokeStatusResponse>(
         "/api/control-plane/onboarding/sandbox-runtime-smoke",
@@ -202,7 +212,12 @@ export default function FactorySandboxCertificationPanel({
       setSmokeRunId(result.smokeRunId);
       window.sessionStorage.setItem(storageKey, result.smokeRunId);
       await waitForCleanSmoke(result.smokeRunId);
-    } catch {
+    } catch (error) {
+      if (isStatusTimeout(error)) {
+        setPhase("waiting_evidence");
+        setFeedback(copy.evidencePending);
+        return;
+      }
       setPhase("failed");
       setFeedback(copy.failed);
     }
@@ -215,7 +230,12 @@ export default function FactorySandboxCertificationPanel({
     setConfirmed(false);
     try {
       await waitForCleanSmoke(smokeRunId);
-    } catch {
+    } catch (error) {
+      if (isStatusTimeout(error)) {
+        setPhase("waiting_evidence");
+        setFeedback(copy.evidencePending);
+        return;
+      }
       setPhase("failed");
       setFeedback(copy.failed);
     }
@@ -243,9 +263,11 @@ export default function FactorySandboxCertificationPanel({
   const busy = phase === "starting" || phase === "settling" || phase === "checking" || phase === "certifying";
   const statusLabel = phase === "complete"
     ? copy.certified
-    : canRun
-      ? copy.readyToSmoke
-      : copy.blocked;
+    : phase === "waiting_evidence"
+      ? copy.evidenceWaiting
+      : canRun
+        ? copy.readyToSmoke
+        : copy.blocked;
 
   return (
     <section className="rounded-3xl border border-emerald-400/25 bg-emerald-400/5 p-6">
@@ -277,14 +299,16 @@ export default function FactorySandboxCertificationPanel({
 
           {canRun && (
             <div className="mt-5 flex flex-wrap gap-3">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={runSmoke}
-                className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {busy && phase !== "certifying" ? copy.runningSmoke : copy.runSmoke}
-              </button>
+              {phase !== "waiting_evidence" && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={runSmoke}
+                  className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {busy && phase !== "certifying" ? copy.runningSmoke : copy.runSmoke}
+                </button>
+              )}
               {smokeRunId && phase !== "ready" && !busy && (
                 <button
                   type="button"
@@ -295,6 +319,12 @@ export default function FactorySandboxCertificationPanel({
                 </button>
               )}
             </div>
+          )}
+
+          {(phase === "settling" || phase === "checking") && (
+            <p className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/5 px-4 py-3 text-sm leading-6 text-cyan-100/85">
+              {copy.evidenceArriving}
+            </p>
           )}
 
           {smokeRunId && (
@@ -331,7 +361,7 @@ export default function FactorySandboxCertificationPanel({
           )}
 
           {feedback && (
-            <p className="mt-5 rounded-2xl border border-rose-400/20 bg-rose-400/5 px-4 py-3 text-sm text-rose-100">
+            <p className={`mt-5 rounded-2xl px-4 py-3 text-sm ${phase === "waiting_evidence" ? "border border-amber-400/20 bg-amber-400/5 text-amber-100" : "border border-rose-400/20 bg-rose-400/5 text-rose-100"}`}>
               {feedback}
             </p>
           )}
