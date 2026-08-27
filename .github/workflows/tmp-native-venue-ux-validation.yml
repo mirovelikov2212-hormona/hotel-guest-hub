@@ -1,0 +1,32 @@
+name: Temporary Native Venue UX Validation
+
+on:
+  push:
+    branches:
+      - fix/hotel-factory-native-venue-ux-20260827
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Factory Native Content suite
+        run: npm run test:factory-native-content
+      - name: Full contract and tenant suite
+        run: npm test
+      - name: Production build
+        run: npm run build
