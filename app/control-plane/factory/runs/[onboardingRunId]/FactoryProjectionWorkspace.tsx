@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
@@ -127,7 +126,6 @@ export default function FactoryProjectionWorkspace({
   progress: FactoryRunProgress;
 }) {
   const copy = COPY[lang];
-  const router = useRouter();
   const [running, setRunning] = useState<Stage | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [replayed, setReplayed] = useState(false);
@@ -187,7 +185,7 @@ export default function FactoryProjectionWorkspace({
         return;
       }
       setReplayed(Boolean(result.replayed));
-      router.refresh();
+      window.location.reload();
     } catch {
       setFeedback(copy.failed);
     } finally {
