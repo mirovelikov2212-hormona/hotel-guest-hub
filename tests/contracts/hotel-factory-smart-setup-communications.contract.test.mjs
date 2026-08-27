@@ -6,19 +6,19 @@ import {
   readProjectFile,
 } from "../helpers/source-contract.mjs";
 
-const wizardPath = "app/hotel-factory/new/HotelManagerOnboardingWizard.tsx";
+const wizardPath = "app/hotel-factory/new/HotelManagerOnboardingWizardV2.tsx";
 
-test("Hotel Factory Smart Setup exposes Communications before Review", async () => {
+test("Hotel Factory Smart Setup exposes Communications after Native Content and before Review", async () => {
   const wizard = await readProjectFile(wizardPath);
 
-  assertContains(wizard, '["Хотел", "Стаи и езици", "Екипи", "Услуги", "Контакти", "Преглед"]');
-  assertContains(wizard, '["Hotel", "Rooms & languages", "Teams", "Services", "Contacts", "Review"]');
-  assertContains(wizard, "step === 4");
-  assertContains(wizard, "copy.contactsTitle");
+  assertContains(wizard, '["Хотел", "Стаи и езици", "Екипи", "Услуги", "Native съдържание", "Контакти", "Преглед"]');
+  assertContains(wizard, '["Hotel", "Rooms & languages", "Teams", "Services", "Native content", "Contacts", "Review"]');
   assertContains(wizard, "step === 5");
+  assertContains(wizard, "copy.contactsTitle");
+  assertContains(wizard, "step === 6");
   assertContains(wizard, "copy.reviewTitle");
-  assertContains(wizard, "step < 5");
-  assertContains(wizard, "Math.min(5, v + 1)");
+  assertContains(wizard, "step < 6");
+  assertContains(wizard, "Math.min(6, value + 1)");
 });
 
 test("Hotel Factory Smart Setup writes canonical department.contact channels", async () => {
