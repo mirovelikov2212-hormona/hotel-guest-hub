@@ -7,6 +7,7 @@ import FactorySandboxCertificationPanel from "@/app/control-plane/factory/runs/[
 import FactorySandboxEvidencePanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxEvidencePanel";
 import FactorySandboxPreflightPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxPreflightPanel";
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
+import { normalizeAdminNextTarget } from "@/lib/control-plane-next";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 import { getFactoryOnboardingProgress } from "@/lib/server/factory-onboarding-progress";
 import { getFactoryProductionAcceptanceProgress } from "@/lib/server/factory-production-acceptance-progress";
@@ -33,7 +34,13 @@ export default async function FactoryRunWorkspacePage({
   const copy = COPY[lang];
 
   const authority = await getCurrentPlatformAdminSession();
-  if (!authority) redirect(`/control-plane/login?lang=${lang}`);
+  if (!authority) {
+    const next = normalizeAdminNextTarget(
+      `/control-plane/factory/runs/${onboardingRunId}?lang=${lang}`,
+      lang,
+    );
+    redirect(`/control-plane/login?lang=${lang}&next=${encodeURIComponent(next)}`);
+  }
 
   const progress = await getFactoryOnboardingProgress(onboardingRunId);
   if (!progress) notFound();
