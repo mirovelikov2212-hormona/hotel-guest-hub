@@ -39,6 +39,19 @@ function clean(value: unknown, max = 500) {
   return text.length <= max ? text : `${text.slice(0, Math.max(0, max - 1))}…`;
 }
 
+function isGenericHoursLabel(label: string) {
+  const normalized = label.toLocaleLowerCase("bg-BG").replace(/\s+/g, " ").trim();
+  if (["работно време", "часове", "hours", "opening hours"].includes(normalized)) return true;
+
+  const bulgarianHours = normalized.includes("работно време") || normalized.includes("часове");
+  const bulgarianGeneric = /(удобств|обект|услуг)/u.test(normalized);
+  if (bulgarianHours && bulgarianGeneric) return true;
+
+  const englishHours = normalized.includes("hours");
+  const englishGeneric = /(amenit|facilit|venue|service)/u.test(normalized);
+  return englishHours && englishGeneric;
+}
+
 function parseFacts(value: string, allowed: Set<string>): HotelScanFact[] {
   const parsed = JSON.parse(value) as { facts?: HotelScanFact[] };
   if (!parsed || !Array.isArray(parsed.facts)) return [];
@@ -52,7 +65,7 @@ function parseFacts(value: string, allowed: Set<string>): HotelScanFact[] {
     const sourceUrls = [...new Set((Array.isArray(raw?.sourceUrls) ? raw.sourceUrls : [])
       .map((url) => String(url))
       .filter((url) => allowed.has(url)))].slice(0, 4);
-    if (!label || !factValue || !sourceUrls.length) continue;
+    if (!label || !factValue || !sourceUrls.length || isGenericHoursLabel(label)) continue;
     const key = `${category.toLowerCase()}|${label.toLowerCase()}|${factValue.toLowerCase()}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -99,6 +112,10 @@ export async function extractRichHotelScanFactsWithOpenAi(
       "Prefer specific operational and guest-useful facts over generic marketing language.",
       `category MUST remain one canonical lowercase machine key from: ${FACT_CATEGORIES.join(", ")}. Do not translate category keys.`,
       "Split compound information into useful facts: e.g. restaurant hours and capacity should be separate facts when both are stated.",
+      "Opening-hours facts MUST name one specific facility, venue, service or guest area in the label. Never emit generic labels such as Facility hours, Amenities hours, Opening hours, Работно време, or Работно време на удобствата.",
+      "When the website gives different hours for different named facilities, emit one separate hours fact for each named facility whose schedule is explicit.",
+      "If an hours range cannot be tied unambiguously to one named facility or explicitly named group, omit that hours fact rather than guessing its scope.",
+      "If the same named facility has conflicting schedules and the evidence does not resolve season/date/scope, omit the hours fact rather than merging conflicting times.",
       "Do not duplicate the same claim under different labels.",
       "Every fact MUST cite one or more exact URLs from ALLOWED_SOURCE_URLS.",
       "Confidence should reflect evidence clarity; use high confidence only for explicit statements.",
