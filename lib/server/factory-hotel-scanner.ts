@@ -77,7 +77,7 @@ function firstMatch(html: string, patterns: RegExp[], max = 500) {
 function absoluteUrl(raw: string, base: URL) {
   try {
     const candidate = new URL(raw, base);
-    if (!['http:', 'https:'].includes(candidate.protocol)) return null;
+    if (!["http:", "https:"].includes(candidate.protocol)) return null;
     candidate.hash = "";
     return candidate;
   } catch {
@@ -125,7 +125,7 @@ function extractColors(html: string) {
 }
 
 function isPrivateIpv4(address: string) {
-  const parts = address.split('.').map(Number);
+  const parts = address.split(".").map(Number);
   if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
   const [a, b] = parts;
   return (
@@ -148,36 +148,36 @@ function isPrivateIp(address: string) {
   if (version !== 6) return true;
 
   const normalized = address.toLowerCase();
-  if (normalized === '::' || normalized === '::1') return true;
-  if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
+  if (normalized === "::" || normalized === "::1") return true;
+  if (normalized.startsWith("fc") || normalized.startsWith("fd")) return true;
   if (/^fe[89ab]/.test(normalized)) return true;
-  if (normalized.startsWith('ff')) return true;
+  if (normalized.startsWith("ff")) return true;
   const mapped = normalized.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/);
   return mapped ? isPrivateIpv4(mapped[1]) : false;
 }
 
 async function assertPublicHostname(url: URL) {
-  if (!['http:', 'https:'].includes(url.protocol)) {
-    throw new HotelScannerError('scanner_url_protocol_not_allowed');
+  if (!["http:", "https:"].includes(url.protocol)) {
+    throw new HotelScannerError("scanner_url_protocol_not_allowed");
   }
-  if (url.username || url.password) throw new HotelScannerError('scanner_url_credentials_not_allowed');
-  if (url.port && !['80', '443'].includes(url.port)) {
-    throw new HotelScannerError('scanner_url_port_not_allowed');
+  if (url.username || url.password) throw new HotelScannerError("scanner_url_credentials_not_allowed");
+  if (url.port && !["80", "443"].includes(url.port)) {
+    throw new HotelScannerError("scanner_url_port_not_allowed");
   }
 
-  const hostname = url.hostname.toLowerCase().replace(/\.$/, '');
+  const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
   if (
     !hostname ||
-    hostname === 'localhost' ||
-    hostname.endsWith('.localhost') ||
-    hostname.endsWith('.local') ||
-    hostname.endsWith('.internal')
+    hostname === "localhost" ||
+    hostname.endsWith(".localhost") ||
+    hostname.endsWith(".local") ||
+    hostname.endsWith(".internal")
   ) {
-    throw new HotelScannerError('scanner_private_host_not_allowed');
+    throw new HotelScannerError("scanner_private_host_not_allowed");
   }
 
   if (isIP(hostname)) {
-    if (isPrivateIp(hostname)) throw new HotelScannerError('scanner_private_ip_not_allowed');
+    if (isPrivateIp(hostname)) throw new HotelScannerError("scanner_private_ip_not_allowed");
     return;
   }
 
@@ -185,23 +185,23 @@ async function assertPublicHostname(url: URL) {
   try {
     addresses = await lookup(hostname, { all: true, verbatim: true });
   } catch {
-    throw new HotelScannerError('scanner_dns_failed', 422);
+    throw new HotelScannerError("scanner_dns_failed", 422);
   }
   if (!addresses.length || addresses.some((item) => isPrivateIp(item.address))) {
-    throw new HotelScannerError('scanner_private_ip_not_allowed');
+    throw new HotelScannerError("scanner_private_ip_not_allowed");
   }
 }
 
 export async function validatePublicHotelUrl(rawUrl: string) {
-  const value = String(rawUrl || '').trim();
-  if (!value || value.length > 2_048) throw new HotelScannerError('scanner_invalid_url');
+  const value = String(rawUrl || "").trim();
+  if (!value || value.length > 2_048) throw new HotelScannerError("scanner_invalid_url");
   let url: URL;
   try {
     url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
   } catch {
-    throw new HotelScannerError('scanner_invalid_url');
+    throw new HotelScannerError("scanner_invalid_url");
   }
-  url.hash = '';
+  url.hash = "";
   await assertPublicHostname(url);
   return url;
 }
@@ -211,41 +211,41 @@ async function fetchHtml(startUrl: URL) {
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
     await assertPublicHostname(current);
     const response = await fetch(current, {
-      method: 'GET',
-      redirect: 'manual',
-      cache: 'no-store',
+      method: "GET",
+      redirect: "manual",
+      cache: "no-store",
       headers: {
-        Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.1',
-        'User-Agent': USER_AGENT,
+        Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
+        "User-Agent": USER_AGENT,
       },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
     if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get('location');
-      if (!location) throw new HotelScannerError('scanner_redirect_without_location', 502);
+      const location = response.headers.get("location");
+      if (!location) throw new HotelScannerError("scanner_redirect_without_location", 502);
       current = new URL(location, current);
       continue;
     }
 
     if (!response.ok) throw new HotelScannerError(`scanner_http_${response.status}`, 422);
-    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
-    if (!contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) {
-      throw new HotelScannerError('scanner_non_html_response', 422);
+    const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+    if (!contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) {
+      throw new HotelScannerError("scanner_non_html_response", 422);
     }
-    const contentLength = Number(response.headers.get('content-length') || 0);
-    if (contentLength > MAX_PAGE_BYTES) throw new HotelScannerError('scanner_page_too_large', 422);
+    const contentLength = Number(response.headers.get("content-length") || 0);
+    if (contentLength > MAX_PAGE_BYTES) throw new HotelScannerError("scanner_page_too_large", 422);
     const html = (await response.text()).slice(0, MAX_PAGE_BYTES);
     return { url: current, html };
   }
-  throw new HotelScannerError('scanner_too_many_redirects', 422);
+  throw new HotelScannerError("scanner_too_many_redirects", 422);
 }
 
 function pagePriority(url: string) {
   const path = new URL(url).pathname.toLowerCase();
   const signals = [
-    'hotel', 'about', 'contact', 'room', 'accommodation', 'restaurant', 'bar',
-    'spa', 'wellness', 'service', 'facility', 'amenit', 'info', 'faq', 'policy',
+    "hotel", "about", "contact", "room", "accommodation", "restaurant", "bar",
+    "spa", "wellness", "service", "facility", "amenit", "info", "faq", "policy",
   ];
   return signals.reduce((score, signal) => score + (path.includes(signal) ? 1 : 0), 0);
 }
@@ -282,10 +282,13 @@ export async function crawlPublicHotelWebsite(rawUrl: string): Promise<HotelScan
   while (queue.length && pages.length < MAX_PAGES && totalText < MAX_TOTAL_TEXT) {
     const nextUrl = queue.shift();
     if (!nextUrl || visited.has(nextUrl)) continue;
-    visited.add(nextUrl);
     try {
       const next = await fetchHtml(new URL(nextUrl));
-      if (next.url.origin !== canonicalOrigin || visited.has(next.url.toString())) continue;
+      if (next.url.origin !== canonicalOrigin || visited.has(next.url.toString())) {
+        visited.add(nextUrl);
+        continue;
+      }
+      visited.add(nextUrl);
       visited.add(next.url.toString());
       const page = buildPageEvidence(next.url, next.html);
       if (!page.text) continue;
@@ -293,8 +296,8 @@ export async function crawlPublicHotelWebsite(rawUrl: string): Promise<HotelScan
       page.text = page.text.slice(0, remaining);
       totalText += page.text.length;
       pages.push(page);
-    } catch (error) {
-      if (error instanceof HotelScannerError) continue;
+    } catch {
+      visited.add(nextUrl);
       continue;
     }
   }
