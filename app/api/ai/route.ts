@@ -8,11 +8,28 @@ import { consumeAiRateLimit } from "@/lib/ai/rate-limit";
 import { routeWithOpenAi } from "@/lib/ai/router";
 import { normalizeAiLang, type AiDiagnostics, type AiHistoryTurn } from "@/lib/ai/types";
 import { getHotelConfig } from "@/lib/config";
+import { deriveGuestRuntimeCapabilities } from "@/lib/guest/guest-runtime-capabilities.mjs";
+import { isCommercialRuntimeAccessDeniedError } from "@/lib/server/commercial-runtime-entitlement";
+import { hotelMatchesRequestedSlug, resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
+import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import type { HotelConfig } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 const MAX_QUESTION_LENGTH = 500;
 const MAX_HISTORY_TURNS = 6;
+
+class AiAccessError extends Error {
+  statusCode: number;
+  code: string;
+
+  constructor(code: string, statusCode: number, message = code) {
+    super(message);
+    this.name = "AiAccessError";
+    this.statusCode = statusCode;
+    this.code = code;
+  }
+}
 
 function clean(value: unknown) {
   return String(value ?? "").replace(/\s+/g, " ").trim();
@@ -44,7 +61,7 @@ const GREETING: Record<string, string> = {
   de: "Hallo! Fragen Sie mich nach Services, Bereichen, Öffnungszeiten, Regeln und Informationen zum Hotel.",
   ro: "Bună! Întrebați-mă despre serviciile, locațiile, programul, regulile și informațiile hotelului.",
   cs: "Dobrý den! Zeptejte se mě na služby, provozovny, otevírací dobu, pravidla a informace o hotelu.",
-  ru: "Здравствуйте! Спросите меня об услугах, объектах, часах работы, правилах и информации об отеле.",
+  ru: "Здравствуйте! Спросите меня об услугах, объектах, часах работы, правилах и информацията за хотела.",
 };
 
 const THANKS: Record<string, string> = {
@@ -74,9 +91,81 @@ function weatherCode(code: number, lang: string) {
   return labels[group]?.[lang] || labels[group]?.en || "";
 }
 
-async function weatherAnswer(request: Request, hotelSlug: string, lang: string) {
-  const config = await getHotelConfig(hotelSlug);
-  if (!config) return AI_COPY[normalizeAiLang(lang)].noData;
+function getRefererHotelSlug(request: Request) {
+  const rawReferer = request.headers.get("referer");
+  if (!rawReferer) return "";
+
+  try {
+    const requestUrl = new URL(request.url);
+    const refererUrl = new URL(rawReferer);
+    if (refererUrl.origin !== requestUrl.origin) return "";
+    const match = refererUrl.pathname.match(/^\/h\/([^/]+)/);
+    return match?.[1] ? decodeURIComponent(match[1]) : "";
+  } catch {
+    return "";
+  }
+}
+
+async function resolveAiHotelContext(request: Request, requestedHotelSlug: string) {
+  let hotel;
+  try {
+    hotel = await resolveHotelByAnySlugAdmin(requestedHotelSlug);
+  } catch (error) {
+    if (isCommercialRuntimeAccessDeniedError(error)) {
+      throw new AiAccessError("commercial_access_blocked", 403);
+    }
+    throw new AiAccessError("hotel_not_found", 404);
+  }
+
+  if (!hotelMatchesRequestedSlug(hotel, requestedHotelSlug)) {
+    throw new AiAccessError("ai_tenant_scope_mismatch", 409);
+  }
+
+  const refererSlug = getRefererHotelSlug(request);
+  if (refererSlug && !hotelMatchesRequestedSlug(hotel, refererSlug)) {
+    throw new AiAccessError("ai_tenant_scope_mismatch", 409);
+  }
+
+  let config: HotelConfig | null = null;
+  try {
+    config = await getHotelConfig(hotel.slug);
+  } catch (error) {
+    console.error("StayHub AI tenant config load failed", {
+      hotelId: hotel.id,
+      hotelSlug: hotel.slug,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw new AiAccessError("ai_config_unavailable", 503);
+  }
+
+  if (!config || String(config.hotelId || "") !== String(hotel.id)) {
+    throw new AiAccessError("ai_tenant_scope_mismatch", 409);
+  }
+
+  const capabilities = deriveGuestRuntimeCapabilities(config);
+  if (!capabilities.aiEnabled) {
+    throw new AiAccessError("ai_not_enabled_for_hotel", 403);
+  }
+
+  const { data: publicationState, error: publicationStateError } = await supabaseAdmin
+    .from("hotel_config_publication_state")
+    .select("published_revision_id")
+    .eq("hotel_id", hotel.id)
+    .maybeSingle();
+  if (publicationStateError) {
+    throw new AiAccessError("ai_scope_unavailable", 503);
+  }
+
+  const revisionKey = clean(publicationState?.published_revision_id) || "legacy";
+
+  return {
+    hotel,
+    config,
+    catalogCacheKey: `${hotel.id}:${revisionKey}`,
+  };
+}
+
+async function weatherAnswer(request: Request, config: HotelConfig, lang: string) {
   const url = new URL("/api/weather", request.url);
   if (config.hotelLatitude != null) url.searchParams.set("lat", String(config.hotelLatitude));
   if (config.hotelLongitude != null) url.searchParams.set("lon", String(config.hotelLongitude));
@@ -110,27 +199,26 @@ export async function POST(request: Request) {
     if (!hotelSlug) {
       return NextResponse.json({ ok: false, answer: AI_COPY[lang].error, error: "missing_hotel_slug" }, { status: 400 });
     }
-    if (!question) {
-      return NextResponse.json({ ok: true, answer: GREETING[lang], hotelOnly: true, aiPowered: false });
-    }
     if (question.length > MAX_QUESTION_LENGTH) {
       return NextResponse.json({ ok: false, answer: AI_COPY[lang].error, error: "question_too_long" }, { status: 400 });
     }
 
+    const context = await resolveAiHotelContext(request, hotelSlug);
+
     const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anonymous";
-    const limit = consumeAiRateLimit(`${hotelSlug}:${forwardedFor}`);
+    const limit = consumeAiRateLimit(`${context.hotel.id}:${forwardedFor}`);
     if (!limit.allowed) {
       return NextResponse.json({ ok: false, answer: AI_COPY[lang].rateLimited, error: "rate_limited" }, { status: 429 });
     }
 
-    if (isGreeting(question)) {
+    if (!question || isGreeting(question)) {
       return NextResponse.json({ ok: true, answer: GREETING[lang], hotelOnly: true, aiPowered: false });
     }
     if (isThanks(question)) {
       return NextResponse.json({ ok: true, answer: THANKS[lang], hotelOnly: true, aiPowered: false });
     }
     if (isWeatherQuestion(question)) {
-      const answer = await weatherAnswer(request, hotelSlug, lang);
+      const answer = await weatherAnswer(request, context.config, lang);
       return NextResponse.json({
         ok: true,
         answer,
@@ -148,11 +236,9 @@ export async function POST(request: Request) {
       });
     }
 
-    const { catalog, cacheHit } = await getCachedCatalog(hotelSlug, async () => {
-      const config = await getHotelConfig(hotelSlug);
-      if (!config) throw new Error(`Hotel configuration not found: ${hotelSlug}`);
-      return buildAiCatalog(config);
-    });
+    const { catalog, cacheHit } = await getCachedCatalog(context.catalogCacheKey, async () =>
+      buildAiCatalog(context.config)
+    );
 
     let engine: AiDiagnostics["engine"] = "openai";
     let fallbackUsed = false;
@@ -174,7 +260,8 @@ export async function POST(request: Request) {
       const rawError = error instanceof Error ? error.message : String(error);
       routerError = rawError.startsWith("openai_") ? rawError : "openai_request_failed";
       console.error("OpenAI hotel router failed; using safe fallback", {
-        hotelSlug,
+        hotelId: context.hotel.id,
+        hotelSlug: context.hotel.slug,
         error: rawError,
       });
       engine = "fallback";
@@ -208,10 +295,17 @@ export async function POST(request: Request) {
       routerLatencyMs: routerLatency,
     });
   } catch (error) {
+    if (error instanceof AiAccessError) {
+      return NextResponse.json(
+        { ok: false, answer: AI_COPY.en.error, error: error.code },
+        { status: error.statusCode },
+      );
+    }
+
     console.error("StayHub AI request failed", error);
     return NextResponse.json(
       { ok: false, answer: AI_COPY.en.error, error: error instanceof Error ? error.message : "server_error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
