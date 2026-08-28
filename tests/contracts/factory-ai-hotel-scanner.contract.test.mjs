@@ -49,8 +49,11 @@ test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
   assertContains(crawler, "await Promise.all(");
   assertContains(crawler, "secondaryUrls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin))");
   assertContains(crawler, "STYLESHEET_TIMEOUT_MS = 4_000");
-  assertContains(route, "AI_DEADLINE_MS = 24_000");
+  assertContains(route, "AI_DEADLINE_MS = 48_000");
   assertContains(route, "withDeadline(");
+  assertContains(route, "normalizeWithTimeoutRecovery");
+  assertContains(route, 'SDK_TIMEOUT_MESSAGE = "Request timed out."');
+  assertContains(route, 'message === "hotel_scanner_ai_timeout" || message === SDK_TIMEOUT_MESSAGE');
   assertContains(route, '"scanner_ai_timeout"');
   assertContains(route, "crawlLatencyMs");
   assertContains(route, "totalLatencyMs");
