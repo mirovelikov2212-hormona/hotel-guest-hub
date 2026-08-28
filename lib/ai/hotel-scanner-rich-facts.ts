@@ -30,7 +30,7 @@ export type HotelScannerOutputLanguage = "bg" | "en";
 function getClient() {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
   if (!apiKey) throw new Error("openai_api_key_missing");
-  if (!client) client = new OpenAI({ apiKey, timeout: 18_000, maxRetries: 0 });
+  if (!client) client = new OpenAI({ apiKey, timeout: 28_000, maxRetries: 0 });
   return client;
 }
 
@@ -89,7 +89,7 @@ export async function extractRichHotelScanFactsWithOpenAi(
   const response = await openai.responses.create({
     model,
     store: false,
-    max_output_tokens: 2_200,
+    max_output_tokens: 2_800,
     reasoning: { effort: "none" },
     instructions: [
       "Extract a rich but precise set of evidence-backed hotel facts for a human review dashboard.",
