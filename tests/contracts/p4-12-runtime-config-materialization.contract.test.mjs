@@ -25,6 +25,31 @@ test("P4.12 materializes a deterministic top-level Guest runtime candidate from 
   assert.deepEqual(first.config.hotelInfoItems, []);
 });
 
+test("P4.12 carries exact hotel coordinates into Weather and keeps the capability hotel-scoped", async () => {
+  const blueprint = structuredClone(boutiqueHotelBlueprint);
+  blueprint.property.location = {
+    query: "Sydney Harbour Hotel, Sydney, Australia",
+    latitude: -33.8688,
+    longitude: 151.2093,
+  };
+  blueprint.property.timezone = "Australia/Sydney";
+
+  const result = prepareFactoryGuestRuntimeConfig({ blueprint });
+
+  assert.equal(result.config.weatherEnabled, true);
+  assert.equal(result.config.hotelLatitude, -33.8688);
+  assert.equal(result.config.hotelLongitude, 151.2093);
+  assert.equal(result.config.location.lat, -33.8688);
+  assert.equal(result.config.location.lng, 151.2093);
+  assert.equal(result.config.location.query, "Sydney Harbour Hotel, Sydney, Australia");
+  assert.equal(result.config.hotelTimezone, "Australia/Sydney");
+
+  const weatherRoute = await readProjectFile("app/api/weather/route.ts");
+  assertContains(weatherRoute, 'forecastUrl.searchParams.set("timezone", "auto")');
+  assertContains(weatherRoute, 'params.get("tz") || "auto"');
+  assertNotContains(weatherRoute, 'params.get("tz") || "UTC"');
+});
+
 test("P4.12 maps Product Factory services and custom departments into Guest request definitions", () => {
   const result = prepareFactoryGuestRuntimeConfig({ blueprint: structuredClone(allInclusiveResortBlueprint) });
   const byId = new Map(result.config.requestDefs.map((item) => [item.id, item]));
