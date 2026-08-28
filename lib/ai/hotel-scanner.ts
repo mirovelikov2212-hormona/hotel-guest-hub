@@ -77,13 +77,20 @@ export type HotelScanProfile = {
     logoUrls: string[];
     imageUrls: string[];
     colors: string[];
+    fonts: string[];
     styleKeywords: string[];
   };
   facts: HotelScanFact[];
   uncertainties: string[];
 };
 
-type AiHotelScanPayload = Omit<HotelScanProfile, "schemaVersion" | "source">;
+type AiHotelScanPayload = Omit<HotelScanProfile, "schemaVersion" | "source" | "brand"> & {
+  brand: {
+    logoUrls: string[];
+    imageUrls: string[];
+    styleKeywords: string[];
+  };
+};
 
 function parsePayload(value: string): AiHotelScanPayload {
   const parsed = JSON.parse(value) as AiHotelScanPayload;
@@ -95,7 +102,6 @@ function normalizeProfile(payload: AiHotelScanPayload, evidence: HotelScanEviden
   const sourceUrls = new Set(evidence.pages.map((page) => page.url));
   const imageUrls = new Set(evidence.pages.flatMap((page) => page.imageUrls));
   const allowedOrigins = new Set(evidence.pages.map((page) => new URL(page.url).origin));
-  const detectedColors = new Set(evidence.pages.flatMap((page) => page.colors).map((value) => value.toLowerCase()));
 
   const normalizeFact = (fact: HotelScanFact): HotelScanFact | null => {
     const value = clean(fact?.value, 500);
@@ -163,13 +169,8 @@ function normalizeProfile(payload: AiHotelScanPayload, evidence: HotelScanEviden
     brand: {
       logoUrls: unique(rawLogoUrls.filter((url) => imageUrls.has(String(url))), 6, 2_048),
       imageUrls: unique(rawBrandImages.filter((url) => imageUrls.has(String(url))), 16, 2_048),
-      colors: unique(
-        (Array.isArray(payload?.brand?.colors) ? payload.brand.colors : [])
-          .map((value) => String(value).toLowerCase())
-          .filter((value) => detectedColors.has(value)),
-        10,
-        16,
-      ),
+      colors: unique(evidence.brand.colors, 12, 16),
+      fonts: unique(evidence.brand.fonts, 8, 100),
       styleKeywords: unique(Array.isArray(payload?.brand?.styleKeywords) ? payload.brand.styleKeywords : [], 10, 80),
     },
     facts: (Array.isArray(payload?.facts) ? payload.facts : [])
@@ -185,7 +186,6 @@ export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBu
   const model = String(process.env.OPENAI_HOTEL_SCANNER_MODEL || "gpt-5.6-luna").trim();
   const allowedSourceUrls = evidence.pages.map((page) => page.url);
   const detectedImageUrls = [...new Set(evidence.pages.flatMap((page) => page.imageUrls))].slice(0, 50);
-  const detectedColors = [...new Set(evidence.pages.flatMap((page) => page.colors))].slice(0, 16);
 
   const inputPages = evidence.pages.map((page) => ({
     url: page.url,
@@ -193,7 +193,6 @@ export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBu
     description: page.description,
     text: page.text.slice(0, 4_500),
     image_urls: page.imageUrls.slice(0, 10),
-    colors: page.colors.slice(0, 8),
   }));
 
   const startedAt = Date.now();
@@ -204,21 +203,27 @@ export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBu
     reasoning: { effort: "none" },
     instructions: [
       "Normalize public hotel website evidence into a concise StayHub draft.",
-      "Use ONLY WEBSITE_EVIDENCE. Never browse or use outside knowledge.",
+      "Use ONLY WEBSITE_EVIDENCE and DETECTED_BRAND_SIGNALS. Never browse or use outside knowledge.",
       "Every item in facts must cite exact URLs from ALLOWED_SOURCE_URLS.",
       "If a field is not clearly supported, return empty data and add a short uncertainty. Never guess.",
       "Do not infer prices, hours, check-in/out, amenities, policies or services unless stated in evidence.",
       "Prefer short paraphrases; never reproduce long website copy.",
       "bookingUrl/contactUrl must be same-site evidence URLs or empty.",
-      "logoUrls/imageUrls must come only from DETECTED_IMAGE_URLS; colors only from DETECTED_COLORS.",
-      "styleKeywords describe only observable visual direction.",
+      "logoUrls/imageUrls must come only from DETECTED_IMAGE_URLS.",
+      "Brand colors and fonts are deterministic CSS evidence supplied in DETECTED_BRAND_SIGNALS; do not invent or replace them.",
+      "If detected colors or fonts are non-empty, do not report them as missing.",
+      "styleKeywords may summarize the observable design direction using the supplied colors, fonts, images and page evidence.",
       "Return only the most useful distinct facts for hotel onboarding and hub design, maximum 48.",
       "This is a human-review DRAFT and never means created, published or activated.",
     ].join("\n"),
     input: JSON.stringify({
       ALLOWED_SOURCE_URLS: allowedSourceUrls,
       DETECTED_IMAGE_URLS: detectedImageUrls,
-      DETECTED_COLORS: detectedColors,
+      DETECTED_BRAND_SIGNALS: {
+        colors: evidence.brand.colors,
+        fonts: evidence.brand.fonts,
+        stylesheet_urls: evidence.brand.stylesheetUrls,
+      },
       WEBSITE_EVIDENCE: inputPages,
     }),
     text: {
@@ -296,10 +301,9 @@ export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBu
               properties: {
                 logoUrls: { type: "array", items: { type: "string" }, maxItems: 6 },
                 imageUrls: { type: "array", items: { type: "string" }, maxItems: 16 },
-                colors: { type: "array", items: { type: "string" }, maxItems: 10 },
                 styleKeywords: { type: "array", items: { type: "string" }, maxItems: 10 },
               },
-              required: ["logoUrls", "imageUrls", "colors", "styleKeywords"],
+              required: ["logoUrls", "imageUrls", "styleKeywords"],
             },
             facts: {
               type: "array",
@@ -345,6 +349,9 @@ export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBu
       inputTokens: response.usage?.input_tokens,
       outputTokens: response.usage?.output_tokens,
       pageCount: evidence.pages.length,
+      stylesheetCount: evidence.brand.stylesheetUrls.length,
+      detectedColorCount: evidence.brand.colors.length,
+      detectedFontCount: evidence.brand.fonts.length,
     },
   };
 }
