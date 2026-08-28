@@ -9,7 +9,7 @@ export type HotelScannerOutputLanguage = "bg" | "en";
 function getClient() {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
   if (!apiKey) throw new Error("openai_api_key_missing");
-  if (!client) client = new OpenAI({ apiKey, timeout: 30_000, maxRetries: 0 });
+  if (!client) client = new OpenAI({ apiKey, timeout: 42_000, maxRetries: 0 });
   return client;
 }
 
