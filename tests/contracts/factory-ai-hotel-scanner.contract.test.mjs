@@ -73,12 +73,13 @@ test("Factory Hotel Scanner fails soft when core AI enrichment is slow", async (
   const route = await readProjectFile(routePath);
 
   assertContains(route, "buildDeterministicFallbackProfile");
-  assertContains(route, 'coreMode: "ai" | "deterministic_fallback"');
-  assertContains(route, 'coreMode = "deterministic_fallback"');
+  assertContains(route, 'coreMode: "ai" as const');
+  assertContains(route, 'coreMode: "deterministic_fallback" as const');
   assertContains(route, 'model: "deterministic-fallback"');
   assertContains(route, 'Factory Hotel Scanner core profile fallback');
-  assertContains(route, "coreError: coreMode === \"deterministic_fallback\" ? coreError : undefined");
-  assertContains(route, "facts: mergeFacts(richFacts, normalized.profile.facts)");
+  assertContains(route, "coreMode: coreState.coreMode");
+  assertContains(route, "coreError: coreState.coreError || undefined");
+  assertContains(route, "facts: mergeFacts(richFacts, coreState.normalized.profile.facts)");
 });
 
 test("Factory Hotel Scanner keeps core profile separate from rich fact extraction", async () => {
@@ -92,7 +93,7 @@ test("Factory Hotel Scanner keeps core profile separate from rich fact extractio
   assertContains(normalizer, 'name: "stayhub_hotel_scan_core_profile"');
   assertNotContains(normalizer, "Every item in facts must cite exact URLs");
   assertContains(route, "extractRichHotelScanFactsWithOpenAi");
-  assertContains(route, "mergeFacts(richFacts, normalized.profile.facts)");
+  assertContains(route, "mergeFacts(richFacts, coreState.normalized.profile.facts)");
   assertContains(richFacts, "Aim for 18-28 DISTINCT useful facts");
   assertContains(richFacts, "maxItems: 28");
 });
