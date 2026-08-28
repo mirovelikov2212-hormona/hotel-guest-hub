@@ -20,6 +20,7 @@ export const maxDuration = 60;
 
 const AI_DEADLINE_MS = 38_000;
 const SDK_TIMEOUT_MESSAGE = "Request timed out.";
+const LOGO_ASSET_POLICY = "hotel_authorization_required";
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
   Pragma: "no-cache",
@@ -108,6 +109,10 @@ export async function POST(request: NextRequest) {
       draft: true,
       lang: outputLanguage,
       profile,
+      assetPolicy: {
+        logo: LOGO_ASSET_POLICY,
+        scannedLogoUrls: "reference_only",
+      },
       diagnostics: {
         ...normalized.diagnostics,
         richFactCount: richFacts.length,
