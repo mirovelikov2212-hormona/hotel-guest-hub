@@ -40,6 +40,7 @@ test("Factory Hotel Scanner blocks private-network and unsafe URL targets", asyn
 test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
   const crawler = await readProjectFile(crawlerPath);
   const route = await readProjectFile(routePath);
+  const normalizer = await readProjectFile(normalizerPath);
 
   assertContains(crawler, "MAX_SECONDARY_PAGES = MAX_PAGES - 1");
   assertContains(crawler, "FETCH_TIMEOUT_MS = 6_000");
@@ -50,12 +51,19 @@ test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
   assertContains(route, '"scanner_ai_timeout"');
   assertContains(route, "crawlLatencyMs");
   assertContains(route, "totalLatencyMs");
+  assertContains(normalizer, 'timeout: 22_000');
+  assertContains(normalizer, 'maxRetries: 0');
+  assertContains(normalizer, 'process.env.OPENAI_HOTEL_SCANNER_MODEL || "gpt-5.6-luna"');
+  assertNotContains(normalizer, "process.env.OPENAI_HOTEL_MODEL");
+  assertContains(normalizer, 'reasoning: { effort: "none" }');
+  assertContains(normalizer, "max_output_tokens: 2_500");
+  assertContains(normalizer, "page.text.slice(0, 4_500)");
 });
 
 test("Factory Hotel Scanner AI normalization is evidence grounded", async () => {
   const normalizer = await readProjectFile(normalizerPath);
 
-  assertContains(normalizer, "Use ONLY the supplied WEBSITE_EVIDENCE");
+  assertContains(normalizer, "Use ONLY WEBSITE_EVIDENCE");
   assertContains(normalizer, "ALLOWED_SOURCE_URLS");
   assertContains(normalizer, "sourceUrls.has(String(url))");
   assertContains(normalizer, "imageUrls.has(String(url))");
