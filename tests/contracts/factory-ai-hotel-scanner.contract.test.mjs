@@ -43,27 +43,46 @@ test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
   const crawler = await readProjectFile(crawlerPath);
   const route = await readProjectFile(routePath);
   const normalizer = await readProjectFile(normalizerPath);
+  const richFacts = await readProjectFile(richFactsPath);
 
   assertContains(crawler, "MAX_SECONDARY_PAGES = MAX_PAGES - 1");
   assertContains(crawler, "FETCH_TIMEOUT_MS = 6_000");
   assertContains(crawler, "await Promise.all(");
   assertContains(crawler, "secondaryUrls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin))");
   assertContains(crawler, "STYLESHEET_TIMEOUT_MS = 4_000");
-  assertContains(route, "AI_DEADLINE_MS = 48_000");
+  assertContains(route, "AI_DEADLINE_MS = 38_000");
   assertContains(route, "withDeadline(");
-  assertContains(route, "normalizeWithTimeoutRecovery");
+  assertNotContains(route, "normalizeWithTimeoutRecovery");
   assertContains(route, 'SDK_TIMEOUT_MESSAGE = "Request timed out."');
   assertContains(route, 'message === "hotel_scanner_ai_timeout" || message === SDK_TIMEOUT_MESSAGE');
   assertContains(route, '"scanner_ai_timeout"');
   assertContains(route, "crawlLatencyMs");
   assertContains(route, "totalLatencyMs");
-  assertContains(normalizer, 'timeout: 22_000');
+  assertContains(normalizer, 'timeout: 30_000');
   assertContains(normalizer, 'maxRetries: 0');
   assertContains(normalizer, 'process.env.OPENAI_HOTEL_SCANNER_MODEL || "gpt-5.6-luna"');
   assertNotContains(normalizer, "process.env.OPENAI_HOTEL_MODEL");
   assertContains(normalizer, 'reasoning: { effort: "none" }');
-  assertContains(normalizer, "max_output_tokens: 2_500");
+  assertContains(normalizer, "max_output_tokens: 2_200");
   assertContains(normalizer, "page.text.slice(0, 4_500)");
+  assertContains(richFacts, 'timeout: 28_000');
+  assertContains(richFacts, "max_output_tokens: 2_800");
+});
+
+test("Factory Hotel Scanner keeps core profile separate from rich fact extraction", async () => {
+  const normalizer = await readProjectFile(normalizerPath);
+  const route = await readProjectFile(routePath);
+  const richFacts = await readProjectFile(richFactsPath);
+
+  assertContains(normalizer, 'Omit<HotelScanProfile, "schemaVersion" | "source" | "brand" | "facts">');
+  assertContains(normalizer, "facts: [],");
+  assertContains(normalizer, "Do not generate evidence fact cards here; a separate bounded extractor owns the rich fact review.");
+  assertContains(normalizer, 'name: "stayhub_hotel_scan_core_profile"');
+  assertNotContains(normalizer, "Every item in facts must cite exact URLs");
+  assertContains(route, "extractRichHotelScanFactsWithOpenAi");
+  assertContains(route, "mergeFacts(richFacts, normalized.profile.facts)");
+  assertContains(richFacts, "Aim for 18-28 DISTINCT useful facts");
+  assertContains(richFacts, "maxItems: 28");
 });
 
 test("Factory Hotel Scanner extracts CSS brand colors and fonts deterministically", async () => {
@@ -115,7 +134,6 @@ test("Factory Hotel Scanner keeps BG and EN review output language-consistent", 
   assertContains(normalizer, "Write ALL human-readable review content in English");
   assertContains(richFacts, "Write every human-readable fact label and value in Bulgarian");
   assertContains(richFacts, "Write every human-readable fact label and value in English");
-  assertContains(normalizer, "Do not translate category keys");
   assertContains(richFacts, "Do not translate category keys");
   assertContains(client, "FACT_CATEGORY_COPY");
   assertContains(client, "factCategoryLabel(fact.category, lang)");
@@ -127,13 +145,16 @@ test("Factory Hotel Scanner keeps BG and EN review output language-consistent", 
 
 test("Factory Hotel Scanner AI normalization is evidence grounded", async () => {
   const normalizer = await readProjectFile(normalizerPath);
+  const richFacts = await readProjectFile(richFactsPath);
 
   assertContains(normalizer, "Use ONLY WEBSITE_EVIDENCE and DETECTED_BRAND_SIGNALS");
   assertContains(normalizer, "ALLOWED_SOURCE_URLS");
-  assertContains(normalizer, "sourceUrls.has(String(url))");
+  assertContains(normalizer, "allowedOrigins.has(url.origin)");
   assertContains(normalizer, "imageUrls.has(String(url))");
   assertContains(normalizer, 'schemaVersion: "hotel-scan-v1"');
   assertContains(normalizer, "store: false");
+  assertContains(richFacts, "Every fact MUST cite one or more exact URLs from ALLOWED_SOURCE_URLS.");
+  assertContains(richFacts, ".filter((url) => allowed.has(url))");
 });
 
 test("Hotel Scanner is a standalone protected workspace", async () => {
