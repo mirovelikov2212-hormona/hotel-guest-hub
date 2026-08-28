@@ -7,7 +7,7 @@ let client: OpenAI | null = null;
 function getClient() {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
   if (!apiKey) throw new Error("openai_api_key_missing");
-  if (!client) client = new OpenAI({ apiKey, timeout: 30_000, maxRetries: 1 });
+  if (!client) client = new OpenAI({ apiKey, timeout: 22_000, maxRetries: 0 });
   return client;
 }
 
@@ -25,7 +25,7 @@ function safeUrl(value: unknown, allowedOrigins: Set<string>) {
   if (!raw) return "";
   try {
     const url = new URL(raw);
-    return allowedOrigins.has(url.origin) && ['http:', 'https:'].includes(url.protocol) ? url.toString() : "";
+    return allowedOrigins.has(url.origin) && ["http:", "https:"].includes(url.protocol) ? url.toString() : "";
   } catch {
     return "";
   }
@@ -102,7 +102,7 @@ function normalizeProfile(payload: AiHotelScanPayload, evidence: HotelScanEviden
     const label = clean(fact?.label, 120);
     if (!value || !label) return null;
     const urls = Array.isArray(fact?.sourceUrls)
-      ? unique(fact.sourceUrls.filter((url) => sourceUrls.has(String(url))), 6, 2_048)
+      ? unique(fact.sourceUrls.filter((url) => sourceUrls.has(String(url))), 4, 2_048)
       : [];
     if (!urls.length) return null;
     return {
@@ -115,11 +115,11 @@ function normalizeProfile(payload: AiHotelScanPayload, evidence: HotelScanEviden
   };
 
   const venues = Array.isArray(payload?.hospitality?.venues)
-    ? payload.hospitality.venues.slice(0, 30).map((venue) => ({
+    ? payload.hospitality.venues.slice(0, 20).map((venue) => ({
         name: clean(venue?.name, 160),
         type: clean(venue?.type, 80),
         hours: clean(venue?.hours, 160),
-        summary: clean(venue?.summary, 360),
+        summary: clean(venue?.summary, 320),
       })).filter((venue) => venue.name)
     : [];
 
@@ -136,7 +136,7 @@ function normalizeProfile(payload: AiHotelScanPayload, evidence: HotelScanEviden
     },
     identity: {
       hotelName: clean(payload?.identity?.hotelName, 160),
-      summary: clean(payload?.identity?.summary, 700),
+      summary: clean(payload?.identity?.summary, 600),
       address: clean(payload?.identity?.address, 300),
       city: clean(payload?.identity?.city, 120),
       country: clean(payload?.identity?.country, 120),
@@ -144,78 +144,76 @@ function normalizeProfile(payload: AiHotelScanPayload, evidence: HotelScanEviden
       contactUrl: safeUrl(payload?.identity?.contactUrl, allowedOrigins),
     },
     contacts: {
-      phones: unique(Array.isArray(payload?.contacts?.phones) ? payload.contacts.phones : [], 12, 80),
-      emails: unique(Array.isArray(payload?.contacts?.emails) ? payload.contacts.emails : [], 12, 200),
-      socialLinks: unique(Array.isArray(payload?.contacts?.socialLinks) ? payload.contacts.socialLinks : [], 20, 2_048),
+      phones: unique(Array.isArray(payload?.contacts?.phones) ? payload.contacts.phones : [], 10, 80),
+      emails: unique(Array.isArray(payload?.contacts?.emails) ? payload.contacts.emails : [], 10, 200),
+      socialLinks: unique(Array.isArray(payload?.contacts?.socialLinks) ? payload.contacts.socialLinks : [], 12, 2_048),
     },
     operations: {
       checkIn: clean(payload?.operations?.checkIn, 120),
       checkOut: clean(payload?.operations?.checkOut, 120),
-      languages: unique(Array.isArray(payload?.operations?.languages) ? payload.operations.languages : [], 20, 80),
+      languages: unique(Array.isArray(payload?.operations?.languages) ? payload.operations.languages : [], 12, 80),
     },
     hospitality: {
-      roomTypes: unique(Array.isArray(payload?.hospitality?.roomTypes) ? payload.hospitality.roomTypes : [], 50, 160),
-      amenities: unique(Array.isArray(payload?.hospitality?.amenities) ? payload.hospitality.amenities : [], 80, 160),
+      roomTypes: unique(Array.isArray(payload?.hospitality?.roomTypes) ? payload.hospitality.roomTypes : [], 30, 160),
+      amenities: unique(Array.isArray(payload?.hospitality?.amenities) ? payload.hospitality.amenities : [], 40, 160),
       venues,
-      spaServices: unique(Array.isArray(payload?.hospitality?.spaServices) ? payload.hospitality.spaServices : [], 50, 160),
-      policies: unique(Array.isArray(payload?.hospitality?.policies) ? payload.hospitality.policies : [], 40, 300),
+      spaServices: unique(Array.isArray(payload?.hospitality?.spaServices) ? payload.hospitality.spaServices : [], 30, 160),
+      policies: unique(Array.isArray(payload?.hospitality?.policies) ? payload.hospitality.policies : [], 24, 300),
     },
     brand: {
-      logoUrls: unique(rawLogoUrls.filter((url) => imageUrls.has(String(url))), 8, 2_048),
-      imageUrls: unique(rawBrandImages.filter((url) => imageUrls.has(String(url))), 20, 2_048),
+      logoUrls: unique(rawLogoUrls.filter((url) => imageUrls.has(String(url))), 6, 2_048),
+      imageUrls: unique(rawBrandImages.filter((url) => imageUrls.has(String(url))), 16, 2_048),
       colors: unique(
         (Array.isArray(payload?.brand?.colors) ? payload.brand.colors : [])
           .map((value) => String(value).toLowerCase())
           .filter((value) => detectedColors.has(value)),
-        12,
+        10,
         16,
       ),
-      styleKeywords: unique(Array.isArray(payload?.brand?.styleKeywords) ? payload.brand.styleKeywords : [], 12, 80),
+      styleKeywords: unique(Array.isArray(payload?.brand?.styleKeywords) ? payload.brand.styleKeywords : [], 10, 80),
     },
     facts: (Array.isArray(payload?.facts) ? payload.facts : [])
       .map(normalizeFact)
       .filter((fact): fact is HotelScanFact => Boolean(fact))
-      .slice(0, 80),
-    uncertainties: unique(Array.isArray(payload?.uncertainties) ? payload.uncertainties : [], 30, 300),
+      .slice(0, 48),
+    uncertainties: unique(Array.isArray(payload?.uncertainties) ? payload.uncertainties : [], 20, 300),
   };
 }
 
 export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBundle) {
   const openai = getClient();
-  const model = String(
-    process.env.OPENAI_HOTEL_SCANNER_MODEL || process.env.OPENAI_HOTEL_MODEL || "gpt-5-mini",
-  ).trim();
+  const model = String(process.env.OPENAI_HOTEL_SCANNER_MODEL || "gpt-5.6-luna").trim();
   const allowedSourceUrls = evidence.pages.map((page) => page.url);
-  const detectedImageUrls = [...new Set(evidence.pages.flatMap((page) => page.imageUrls))].slice(0, 80);
-  const detectedColors = [...new Set(evidence.pages.flatMap((page) => page.colors))].slice(0, 24);
+  const detectedImageUrls = [...new Set(evidence.pages.flatMap((page) => page.imageUrls))].slice(0, 50);
+  const detectedColors = [...new Set(evidence.pages.flatMap((page) => page.colors))].slice(0, 16);
 
   const inputPages = evidence.pages.map((page) => ({
     url: page.url,
     title: page.title,
     description: page.description,
-    text: page.text.slice(0, 10_000),
-    image_urls: page.imageUrls.slice(0, 20),
-    colors: page.colors,
+    text: page.text.slice(0, 4_500),
+    image_urls: page.imageUrls.slice(0, 10),
+    colors: page.colors.slice(0, 8),
   }));
 
   const startedAt = Date.now();
   const response = await openai.responses.create({
     model,
     store: false,
-    max_output_tokens: 5_000,
-    reasoning: { effort: "low" },
+    max_output_tokens: 2_500,
+    reasoning: { effort: "none" },
     instructions: [
-      "You normalize public hotel website evidence for StayHub Hotel Factory.",
-      "Use ONLY the supplied WEBSITE_EVIDENCE. Never browse and never use outside knowledge.",
-      "Every factual claim in facts must include one or more exact source URLs from ALLOWED_SOURCE_URLS.",
-      "If the evidence does not clearly support a field, return an empty string/array and add a short uncertainty instead of guessing.",
-      "Do not infer star rating, prices, opening hours, check-in/out, amenities, policies or services unless stated in the evidence.",
-      "Prefer concise paraphrases. Do not reproduce long website copy.",
-      "bookingUrl and contactUrl must be same-site URLs visible in the evidence; otherwise return an empty string.",
-      "logoUrls and imageUrls must be selected only from DETECTED_IMAGE_URLS.",
-      "colors must be selected only from DETECTED_COLORS.",
-      "styleKeywords should describe observable visual direction only, such as minimal, coastal, classic, family, wellness, luxury, playful, dark or bright.",
-      "This output is a DRAFT for human review. It must never imply that a hotel has been created, published or activated.",
+      "Normalize public hotel website evidence into a concise StayHub draft.",
+      "Use ONLY WEBSITE_EVIDENCE. Never browse or use outside knowledge.",
+      "Every item in facts must cite exact URLs from ALLOWED_SOURCE_URLS.",
+      "If a field is not clearly supported, return empty data and add a short uncertainty. Never guess.",
+      "Do not infer prices, hours, check-in/out, amenities, policies or services unless stated in evidence.",
+      "Prefer short paraphrases; never reproduce long website copy.",
+      "bookingUrl/contactUrl must be same-site evidence URLs or empty.",
+      "logoUrls/imageUrls must come only from DETECTED_IMAGE_URLS; colors only from DETECTED_COLORS.",
+      "styleKeywords describe only observable visual direction.",
+      "Return only the most useful distinct facts for hotel onboarding and hub design, maximum 48.",
+      "This is a human-review DRAFT and never means created, published or activated.",
     ].join("\n"),
     input: JSON.stringify({
       ALLOWED_SOURCE_URLS: allowedSourceUrls,
@@ -250,9 +248,9 @@ export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBu
               type: "object",
               additionalProperties: false,
               properties: {
-                phones: { type: "array", items: { type: "string" }, maxItems: 12 },
-                emails: { type: "array", items: { type: "string" }, maxItems: 12 },
-                socialLinks: { type: "array", items: { type: "string" }, maxItems: 20 },
+                phones: { type: "array", items: { type: "string" }, maxItems: 10 },
+                emails: { type: "array", items: { type: "string" }, maxItems: 10 },
+                socialLinks: { type: "array", items: { type: "string" }, maxItems: 12 },
               },
               required: ["phones", "emails", "socialLinks"],
             },
@@ -262,7 +260,7 @@ export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBu
               properties: {
                 checkIn: { type: "string" },
                 checkOut: { type: "string" },
-                languages: { type: "array", items: { type: "string" }, maxItems: 20 },
+                languages: { type: "array", items: { type: "string" }, maxItems: 12 },
               },
               required: ["checkIn", "checkOut", "languages"],
             },
@@ -270,11 +268,11 @@ export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBu
               type: "object",
               additionalProperties: false,
               properties: {
-                roomTypes: { type: "array", items: { type: "string" }, maxItems: 50 },
-                amenities: { type: "array", items: { type: "string" }, maxItems: 80 },
+                roomTypes: { type: "array", items: { type: "string" }, maxItems: 30 },
+                amenities: { type: "array", items: { type: "string" }, maxItems: 40 },
                 venues: {
                   type: "array",
-                  maxItems: 30,
+                  maxItems: 20,
                   items: {
                     type: "object",
                     additionalProperties: false,
@@ -287,8 +285,8 @@ export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBu
                     required: ["name", "type", "hours", "summary"],
                   },
                 },
-                spaServices: { type: "array", items: { type: "string" }, maxItems: 50 },
-                policies: { type: "array", items: { type: "string" }, maxItems: 40 },
+                spaServices: { type: "array", items: { type: "string" }, maxItems: 30 },
+                policies: { type: "array", items: { type: "string" }, maxItems: 24 },
               },
               required: ["roomTypes", "amenities", "venues", "spaServices", "policies"],
             },
@@ -296,16 +294,16 @@ export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBu
               type: "object",
               additionalProperties: false,
               properties: {
-                logoUrls: { type: "array", items: { type: "string" }, maxItems: 8 },
-                imageUrls: { type: "array", items: { type: "string" }, maxItems: 20 },
-                colors: { type: "array", items: { type: "string" }, maxItems: 12 },
-                styleKeywords: { type: "array", items: { type: "string" }, maxItems: 12 },
+                logoUrls: { type: "array", items: { type: "string" }, maxItems: 6 },
+                imageUrls: { type: "array", items: { type: "string" }, maxItems: 16 },
+                colors: { type: "array", items: { type: "string" }, maxItems: 10 },
+                styleKeywords: { type: "array", items: { type: "string" }, maxItems: 10 },
               },
               required: ["logoUrls", "imageUrls", "colors", "styleKeywords"],
             },
             facts: {
               type: "array",
-              maxItems: 80,
+              maxItems: 48,
               items: {
                 type: "object",
                 additionalProperties: false,
@@ -318,13 +316,13 @@ export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBu
                     type: "array",
                     items: { type: "string", enum: allowedSourceUrls },
                     minItems: 1,
-                    maxItems: 6,
+                    maxItems: 4,
                   },
                 },
                 required: ["category", "label", "value", "confidence", "sourceUrls"],
               },
             },
-            uncertainties: { type: "array", items: { type: "string" }, maxItems: 30 },
+            uncertainties: { type: "array", items: { type: "string" }, maxItems: 20 },
           },
           required: ["identity", "contacts", "operations", "hospitality", "brand", "facts", "uncertainties"],
         },
