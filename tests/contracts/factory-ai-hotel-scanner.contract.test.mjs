@@ -50,7 +50,7 @@ test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
   assertContains(crawler, "await Promise.all(");
   assertContains(crawler, "secondaryUrls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin))");
   assertContains(crawler, "STYLESHEET_TIMEOUT_MS = 4_000");
-  assertContains(route, "AI_DEADLINE_MS = 48_000");
+  assertContains(route, "AI_DEADLINE_MS = 32_000");
   assertContains(route, "withDeadline(");
   assertNotContains(route, "normalizeWithTimeoutRecovery");
   assertContains(route, 'SDK_TIMEOUT_MESSAGE = "Request timed out."');
@@ -58,15 +58,27 @@ test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
   assertContains(route, '"scanner_ai_timeout"');
   assertContains(route, "crawlLatencyMs");
   assertContains(route, "totalLatencyMs");
-  assertContains(normalizer, 'timeout: 42_000');
+  assertContains(normalizer, 'timeout: 20_000');
   assertContains(normalizer, 'maxRetries: 0');
   assertContains(normalizer, 'process.env.OPENAI_HOTEL_SCANNER_MODEL || "gpt-5.6-luna"');
   assertNotContains(normalizer, "process.env.OPENAI_HOTEL_MODEL");
   assertContains(normalizer, 'reasoning: { effort: "none" }');
-  assertContains(normalizer, "max_output_tokens: 2_200");
-  assertContains(normalizer, "page.text.slice(0, 4_500)");
+  assertContains(normalizer, "max_output_tokens: 1_800");
+  assertContains(normalizer, "page.text.slice(0, 3_000)");
   assertContains(richFacts, 'timeout: 28_000');
   assertContains(richFacts, "max_output_tokens: 2_800");
+});
+
+test("Factory Hotel Scanner fails soft when core AI enrichment is slow", async () => {
+  const route = await readProjectFile(routePath);
+
+  assertContains(route, "buildDeterministicFallbackProfile");
+  assertContains(route, 'coreMode: "ai" | "deterministic_fallback"');
+  assertContains(route, 'coreMode = "deterministic_fallback"');
+  assertContains(route, 'model: "deterministic-fallback"');
+  assertContains(route, 'Factory Hotel Scanner core profile fallback');
+  assertContains(route, "coreError: coreMode === \"deterministic_fallback\" ? coreError : undefined");
+  assertContains(route, "facts: mergeFacts(richFacts, normalized.profile.facts)");
 });
 
 test("Factory Hotel Scanner keeps core profile separate from rich fact extraction", async () => {
