@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { normalizeHotelScanWithOpenAi } from "@/lib/ai/hotel-scanner";
+import { normalizeHotelScanWithOpenAi, type HotelScanFact } from "@/lib/ai/hotel-scanner";
+import { extractRichHotelScanFactsWithOpenAi } from "@/lib/ai/hotel-scanner-rich-facts";
 import {
   crawlPublicHotelWebsite,
   HotelScannerError,
 } from "@/lib/server/factory-hotel-scanner";
+import { refineHotelScanBrandEvidence } from "@/lib/server/hotel-scanner-brand-refiner";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 
@@ -34,6 +36,19 @@ function withDeadline<T>(promise: Promise<T>, timeoutMs: number, code: string) {
   });
 }
 
+function mergeFacts(primary: HotelScanFact[], fallback: HotelScanFact[]) {
+  const seen = new Set<string>();
+  const result: HotelScanFact[] = [];
+  for (const fact of [...primary, ...fallback]) {
+    const key = `${fact.category}|${fact.label}|${fact.value}`.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(fact);
+    if (result.length >= 32) break;
+  }
+  return result;
+}
+
 export async function POST(request: NextRequest) {
   const originError = enforceControlPlaneSameOrigin(request);
   if (originError) return originError;
@@ -49,22 +64,44 @@ export async function POST(request: NextRequest) {
   let stage: "crawl" | "ai" = "crawl";
 
   try {
-    const evidence = await crawlPublicHotelWebsite(url);
+    const crawledEvidence = await crawlPublicHotelWebsite(url);
+    const evidence = await refineHotelScanBrandEvidence(crawledEvidence).catch((error) => {
+      console.warn("Factory Hotel Scanner brand refinement skipped", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return crawledEvidence;
+    });
     const crawlLatencyMs = Date.now() - startedAt;
 
     stage = "ai";
-    const normalized = await withDeadline(
-      normalizeHotelScanWithOpenAi(evidence),
+    const [normalized, richFacts] = await withDeadline(
+      Promise.all([
+        normalizeHotelScanWithOpenAi(evidence),
+        extractRichHotelScanFactsWithOpenAi(evidence).catch((error) => {
+          console.warn("Factory Hotel Scanner rich facts fallback", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return [] as HotelScanFact[];
+        }),
+      ]),
       AI_DEADLINE_MS,
       "hotel_scanner_ai_timeout",
     );
 
+    const profile = {
+      ...normalized.profile,
+      facts: mergeFacts(richFacts, normalized.profile.facts),
+    };
+
     return json({
       ok: true,
       draft: true,
-      profile: normalized.profile,
+      profile,
       diagnostics: {
         ...normalized.diagnostics,
+        richFactCount: richFacts.length,
+        brandColorCount: profile.brand.colors.length,
+        brandFontCount: profile.brand.fonts.length,
         crawlLatencyMs,
         totalLatencyMs: Date.now() - startedAt,
       },
