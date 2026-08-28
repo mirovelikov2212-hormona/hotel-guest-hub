@@ -4,32 +4,12 @@ import type { HotelScanEvidenceBundle } from "@/lib/server/factory-hotel-scanner
 
 let client: OpenAI | null = null;
 
-const FACT_CATEGORIES = [
-  "identity",
-  "location",
-  "contact",
-  "operations",
-  "accommodation",
-  "dining",
-  "amenities",
-  "wellness",
-  "events",
-  "policy",
-  "sustainability",
-  "family",
-  "beach",
-  "parking",
-  "services",
-  "brand",
-  "hotel",
-] as const;
-
 export type HotelScannerOutputLanguage = "bg" | "en";
 
 function getClient() {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
   if (!apiKey) throw new Error("openai_api_key_missing");
-  if (!client) client = new OpenAI({ apiKey, timeout: 22_000, maxRetries: 0 });
+  if (!client) client = new OpenAI({ apiKey, timeout: 30_000, maxRetries: 0 });
   return client;
 }
 
@@ -106,7 +86,7 @@ export type HotelScanProfile = {
   uncertainties: string[];
 };
 
-type AiHotelScanPayload = Omit<HotelScanProfile, "schemaVersion" | "source" | "brand"> & {
+type AiHotelScanPayload = Omit<HotelScanProfile, "schemaVersion" | "source" | "brand" | "facts"> & {
   brand: {
     logoUrls: string[];
     imageUrls: string[];
@@ -121,26 +101,8 @@ function parsePayload(value: string): AiHotelScanPayload {
 }
 
 function normalizeProfile(payload: AiHotelScanPayload, evidence: HotelScanEvidenceBundle): HotelScanProfile {
-  const sourceUrls = new Set(evidence.pages.map((page) => page.url));
   const imageUrls = new Set(evidence.pages.flatMap((page) => page.imageUrls));
   const allowedOrigins = new Set(evidence.pages.map((page) => new URL(page.url).origin));
-
-  const normalizeFact = (fact: HotelScanFact): HotelScanFact | null => {
-    const value = clean(fact?.value, 500);
-    const label = clean(fact?.label, 120);
-    if (!value || !label) return null;
-    const urls = Array.isArray(fact?.sourceUrls)
-      ? unique(fact.sourceUrls.filter((url) => sourceUrls.has(String(url))), 4, 2_048)
-      : [];
-    if (!urls.length) return null;
-    return {
-      category: clean(fact?.category, 80) || "hotel",
-      label,
-      value,
-      confidence: Math.max(0, Math.min(1, Number(fact?.confidence || 0))),
-      sourceUrls: urls,
-    };
-  };
 
   const venues = Array.isArray(payload?.hospitality?.venues)
     ? payload.hospitality.venues.slice(0, 20).map((venue) => ({
@@ -195,10 +157,7 @@ function normalizeProfile(payload: AiHotelScanPayload, evidence: HotelScanEviden
       fonts: unique(evidence.brand.fonts, 8, 100),
       styleKeywords: unique(Array.isArray(payload?.brand?.styleKeywords) ? payload.brand.styleKeywords : [], 10, 80),
     },
-    facts: (Array.isArray(payload?.facts) ? payload.facts : [])
-      .map(normalizeFact)
-      .filter((fact): fact is HotelScanFact => Boolean(fact))
-      .slice(0, 48),
+    facts: [],
     uncertainties: unique(Array.isArray(payload?.uncertainties) ? payload.uncertainties : [], 20, 300),
   };
 }
@@ -212,8 +171,8 @@ export async function normalizeHotelScanWithOpenAi(
   const allowedSourceUrls = evidence.pages.map((page) => page.url);
   const detectedImageUrls = [...new Set(evidence.pages.flatMap((page) => page.imageUrls))].slice(0, 50);
   const languageInstruction = outputLanguage === "bg"
-    ? "Write ALL human-readable review content in Bulgarian: summary, address/city/country wording, language names, room/service/venue/policy text, style keywords, uncertainty text, and fact labels/values. Preserve official hotel/venue names, brand names, phones, emails, URLs, CSS colors and font family names exactly."
-    : "Write ALL human-readable review content in English: summary, address/city/country wording, language names, room/service/venue/policy text, style keywords, uncertainty text, and fact labels/values. Preserve official hotel/venue names, brand names, phones, emails, URLs, CSS colors and font family names exactly.";
+    ? "Write ALL human-readable review content in Bulgarian: summary, address/city/country wording, language names, room/service/venue/policy text, style keywords and uncertainty text. Preserve official hotel/venue names, brand names, phones, emails, URLs, CSS colors and font family names exactly."
+    : "Write ALL human-readable review content in English: summary, address/city/country wording, language names, room/service/venue/policy text, style keywords and uncertainty text. Preserve official hotel/venue names, brand names, phones, emails, URLs, CSS colors and font family names exactly.";
 
   const inputPages = evidence.pages.map((page) => ({
     url: page.url,
@@ -227,14 +186,12 @@ export async function normalizeHotelScanWithOpenAi(
   const response = await openai.responses.create({
     model,
     store: false,
-    max_output_tokens: 2_500,
+    max_output_tokens: 2_200,
     reasoning: { effort: "none" },
     instructions: [
-      "Normalize public hotel website evidence into a concise StayHub draft.",
+      "Normalize public hotel website evidence into a concise StayHub core profile draft.",
       languageInstruction,
       "Use ONLY WEBSITE_EVIDENCE and DETECTED_BRAND_SIGNALS. Never browse or use outside knowledge.",
-      "Every item in facts must cite exact URLs from ALLOWED_SOURCE_URLS.",
-      `For every fact, category MUST remain one canonical lowercase machine key from: ${FACT_CATEGORIES.join(", ")}. Do not translate category keys.`,
       "If a field is not clearly supported, return empty data and add a short uncertainty. Never guess.",
       "Do not infer prices, hours, check-in/out, amenities, policies or services unless stated in evidence.",
       "Prefer short paraphrases; never reproduce long website copy.",
@@ -243,7 +200,8 @@ export async function normalizeHotelScanWithOpenAi(
       "Brand colors and fonts are deterministic CSS evidence supplied in DETECTED_BRAND_SIGNALS; do not invent or replace them.",
       "If detected colors or fonts are non-empty, do not report them as missing.",
       "styleKeywords may summarize the observable design direction using the supplied colors, fonts, images and page evidence.",
-      "Return only the most useful distinct facts for hotel onboarding and hub design, maximum 48.",
+      "Do not generate evidence fact cards here; a separate bounded extractor owns the rich fact review.",
+      "Keep arrays concise and prioritize the most useful onboarding and hub-design information.",
       "This is a human-review DRAFT and never means created, published or activated.",
     ].join("\n"),
     input: JSON.stringify({
@@ -260,7 +218,7 @@ export async function normalizeHotelScanWithOpenAi(
     text: {
       format: {
         type: "json_schema",
-        name: "stayhub_hotel_scan_profile",
+        name: "stayhub_hotel_scan_core_profile",
         strict: true,
         schema: {
           type: "object",
@@ -304,11 +262,11 @@ export async function normalizeHotelScanWithOpenAi(
               type: "object",
               additionalProperties: false,
               properties: {
-                roomTypes: { type: "array", items: { type: "string" }, maxItems: 30 },
-                amenities: { type: "array", items: { type: "string" }, maxItems: 40 },
+                roomTypes: { type: "array", items: { type: "string" }, maxItems: 24 },
+                amenities: { type: "array", items: { type: "string" }, maxItems: 32 },
                 venues: {
                   type: "array",
-                  maxItems: 20,
+                  maxItems: 16,
                   items: {
                     type: "object",
                     additionalProperties: false,
@@ -321,8 +279,8 @@ export async function normalizeHotelScanWithOpenAi(
                     required: ["name", "type", "hours", "summary"],
                   },
                 },
-                spaServices: { type: "array", items: { type: "string" }, maxItems: 30 },
-                policies: { type: "array", items: { type: "string" }, maxItems: 24 },
+                spaServices: { type: "array", items: { type: "string" }, maxItems: 24 },
+                policies: { type: "array", items: { type: "string" }, maxItems: 18 },
               },
               required: ["roomTypes", "amenities", "venues", "spaServices", "policies"],
             },
@@ -336,30 +294,9 @@ export async function normalizeHotelScanWithOpenAi(
               },
               required: ["logoUrls", "imageUrls", "styleKeywords"],
             },
-            facts: {
-              type: "array",
-              maxItems: 48,
-              items: {
-                type: "object",
-                additionalProperties: false,
-                properties: {
-                  category: { type: "string", enum: FACT_CATEGORIES },
-                  label: { type: "string" },
-                  value: { type: "string" },
-                  confidence: { type: "number", minimum: 0, maximum: 1 },
-                  sourceUrls: {
-                    type: "array",
-                    items: { type: "string", enum: allowedSourceUrls },
-                    minItems: 1,
-                    maxItems: 4,
-                  },
-                },
-                required: ["category", "label", "value", "confidence", "sourceUrls"],
-              },
-            },
-            uncertainties: { type: "array", items: { type: "string" }, maxItems: 20 },
+            uncertainties: { type: "array", items: { type: "string" }, maxItems: 16 },
           },
-          required: ["identity", "contacts", "operations", "hospitality", "brand", "facts", "uncertainties"],
+          required: ["identity", "contacts", "operations", "hospitality", "brand", "uncertainties"],
         },
       },
     },
