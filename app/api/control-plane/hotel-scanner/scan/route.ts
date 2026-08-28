@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { normalizeHotelScanWithOpenAi, type HotelScanFact } from "@/lib/ai/hotel-scanner";
+import {
+  normalizeHotelScanWithOpenAi,
+  type HotelScanFact,
+  type HotelScannerOutputLanguage,
+} from "@/lib/ai/hotel-scanner";
 import { extractRichHotelScanFactsWithOpenAi } from "@/lib/ai/hotel-scanner-rich-facts";
 import {
   crawlPublicHotelWebsite,
@@ -56,8 +60,9 @@ export async function POST(request: NextRequest) {
   const authority = await getCurrentPlatformAdminSession();
   if (!authority) return json({ ok: false, error: "unauthorized" }, 401);
 
-  const body = (await request.json().catch(() => ({}))) as { url?: unknown };
+  const body = (await request.json().catch(() => ({}))) as { url?: unknown; lang?: unknown };
   const url = String(body?.url || "").trim();
+  const outputLanguage: HotelScannerOutputLanguage = body?.lang === "en" ? "en" : "bg";
   if (!url) return json({ ok: false, error: "missing_url" }, 400);
 
   const startedAt = Date.now();
@@ -76,8 +81,8 @@ export async function POST(request: NextRequest) {
     stage = "ai";
     const [normalized, richFacts] = await withDeadline(
       Promise.all([
-        normalizeHotelScanWithOpenAi(evidence),
-        extractRichHotelScanFactsWithOpenAi(evidence).catch((error) => {
+        normalizeHotelScanWithOpenAi(evidence, outputLanguage),
+        extractRichHotelScanFactsWithOpenAi(evidence, outputLanguage).catch((error) => {
           console.warn("Factory Hotel Scanner rich facts fallback", {
             error: error instanceof Error ? error.message : String(error),
           });
@@ -96,6 +101,7 @@ export async function POST(request: NextRequest) {
     return json({
       ok: true,
       draft: true,
+      lang: outputLanguage,
       profile,
       diagnostics: {
         ...normalized.diagnostics,
