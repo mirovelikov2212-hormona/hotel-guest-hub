@@ -34,6 +34,7 @@ type ScanResult = {
   ok?: boolean;
   error?: string;
   draft?: boolean;
+  lang?: "bg" | "en";
   profile?: ScanProfile;
   diagnostics?: {
     model?: string;
@@ -50,12 +51,12 @@ type ScanResult = {
 const COPY = {
   bg: {
     title: "AI сканиране на хотелски сайт",
-    help: "Въведи публичния сайт на хотела. StayHub събира само публични страници, извлича доказуеми факти и създава review draft. Нищо не се прехвърля към Smart Setup или Design Studio без твое действие.",
+    help: "Въведи публичния сайт на хотела. StayHub събира само публични страници, извлича доказуеми факти и създава чернова за преглед. Нищо не се прехвърля към Smart Setup или Design Studio без твое действие.",
     url: "Хотелски уеб сайт",
     placeholder: "https://hotel-example.com",
     scan: "Сканирай сайта",
     scanning: "Сканиране и AI анализ…",
-    draft: "DRAFT · нищо не е публикувано",
+    draft: "ЧЕРНОВА · нищо не е публикувано",
     identity: "Хотел",
     operations: "Оперативни данни",
     hospitality: "Съдържание и услуги",
@@ -67,11 +68,26 @@ const COPY = {
     logos: "Лога",
     evidence: "Доказани факти",
     uncertainties: "За проверка",
-    sources: "източници",
-    pages: "страници",
+    sourcesOne: "източник",
+    sourcesMany: "източника",
+    pages: "Страници",
+    aiModel: "AI модел",
+    schema: "Схема",
+    summary: "Описание",
+    address: "Адрес",
+    phone: "Телефон",
+    email: "Имейл",
+    checkIn: "Настаняване",
+    checkOut: "Освобождаване",
+    languages: "Езици",
+    rooms: "Стаи",
+    amenities: "Удобства",
+    spa: "СПА",
+    venues: "Обекти",
+    policies: "Политики",
     failed: "Сканирането не завърши успешно.",
     noFacts: "Няма достатъчно доказуеми факти в сканираните страници.",
-    next: "След review този draft ще може изрично да се подаде към Smart Setup / Design Studio.",
+    next: "След преглед тази чернова ще може изрично да се подаде към Smart Setup / Design Studio.",
   },
   en: {
     title: "AI hotel website scan",
@@ -92,11 +108,67 @@ const COPY = {
     logos: "Logos",
     evidence: "Evidence-backed facts",
     uncertainties: "Needs review",
-    sources: "sources",
-    pages: "pages",
+    sourcesOne: "source",
+    sourcesMany: "sources",
+    pages: "Pages",
+    aiModel: "AI model",
+    schema: "Schema",
+    summary: "Summary",
+    address: "Address",
+    phone: "Phone",
+    email: "Email",
+    checkIn: "Check-in",
+    checkOut: "Check-out",
+    languages: "Languages",
+    rooms: "Rooms",
+    amenities: "Amenities",
+    spa: "SPA",
+    venues: "Venues",
+    policies: "Policies",
     failed: "The scan did not complete successfully.",
     noFacts: "No sufficiently supported facts were found in the scanned pages.",
     next: "After review, this draft can be explicitly sent to Smart Setup / Design Studio.",
+  },
+} as const;
+
+const FACT_CATEGORY_COPY = {
+  bg: {
+    identity: "Идентичност",
+    location: "Локация",
+    contact: "Контакти",
+    operations: "Операции",
+    accommodation: "Настаняване",
+    dining: "Хранене",
+    amenities: "Удобства",
+    wellness: "Уелнес",
+    events: "Събития",
+    policy: "Политики",
+    sustainability: "Устойчивост",
+    family: "За семейства",
+    beach: "Плаж",
+    parking: "Паркинг",
+    services: "Услуги",
+    brand: "Бранд",
+    hotel: "Хотел",
+  },
+  en: {
+    identity: "Identity",
+    location: "Location",
+    contact: "Contact",
+    operations: "Operations",
+    accommodation: "Accommodation",
+    dining: "Dining",
+    amenities: "Amenities",
+    wellness: "Wellness",
+    events: "Events",
+    policy: "Policy",
+    sustainability: "Sustainability",
+    family: "Family",
+    beach: "Beach",
+    parking: "Parking",
+    services: "Services",
+    brand: "Brand",
+    hotel: "Hotel",
   },
 } as const;
 
@@ -116,7 +188,7 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
       const response = await fetch("/api/control-plane/hotel-scanner/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
+        body: JSON.stringify({ url: url.trim(), lang }),
       });
       const payload = (await response.json().catch(() => ({}))) as ScanResult;
       setResult(payload);
@@ -174,28 +246,28 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Metric label={copy.identity} value={profile.identity.hotelName || "—"} />
             <Metric label={copy.pages} value={String(profile.source.pageCount)} />
-            <Metric label="AI model" value={result?.diagnostics?.model || "—"} />
-            <Metric label="Schema" value={profile.schemaVersion} />
+            <Metric label={copy.aiModel} value={result?.diagnostics?.model || "—"} />
+            <Metric label={copy.schema} value={profile.schemaVersion} />
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
             <Card title={copy.identity}>
-              <Field label="Summary" value={profile.identity.summary} />
-              <Field label="Address" value={[profile.identity.address, profile.identity.city, profile.identity.country].filter(Boolean).join(", ")} />
-              <Field label="Phone" value={profile.contacts.phones.join(" · ")} />
-              <Field label="Email" value={profile.contacts.emails.join(" · ")} />
+              <Field label={copy.summary} value={profile.identity.summary} />
+              <Field label={copy.address} value={[profile.identity.address, profile.identity.city, profile.identity.country].filter(Boolean).join(", ")} />
+              <Field label={copy.phone} value={profile.contacts.phones.join(" · ")} />
+              <Field label={copy.email} value={profile.contacts.emails.join(" · ")} />
             </Card>
             <Card title={copy.operations}>
-              <Field label="Check-in" value={profile.operations.checkIn} />
-              <Field label="Check-out" value={profile.operations.checkOut} />
-              <Field label="Languages" value={profile.operations.languages.join(", ")} />
-              <Field label="Rooms" value={profile.hospitality.roomTypes.join(", ")} />
+              <Field label={copy.checkIn} value={profile.operations.checkIn} />
+              <Field label={copy.checkOut} value={profile.operations.checkOut} />
+              <Field label={copy.languages} value={profile.operations.languages.join(", ")} />
+              <Field label={copy.rooms} value={profile.hospitality.roomTypes.join(", ")} />
             </Card>
             <Card title={copy.hospitality}>
-              <Field label="Amenities" value={profile.hospitality.amenities.join(", ")} />
-              <Field label="SPA" value={profile.hospitality.spaServices.join(", ")} />
-              <Field label="Venues" value={profile.hospitality.venues.map((venue) => venue.name).join(", ")} />
-              <Field label="Policies" value={profile.hospitality.policies.join(" · ")} />
+              <Field label={copy.amenities} value={profile.hospitality.amenities.join(", ")} />
+              <Field label={copy.spa} value={profile.hospitality.spaServices.join(", ")} />
+              <Field label={copy.venues} value={profile.hospitality.venues.map((venue) => venue.name).join(", ")} />
+              <Field label={copy.policies} value={profile.hospitality.policies.join(" · ")} />
             </Card>
             <Card title={copy.brand}>
               <BrandPalette label={copy.colors} colors={profile.brand.colors} />
@@ -213,13 +285,13 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
                   <div key={`${fact.category}:${fact.label}:${index}`} className="rounded-2xl border border-white/5 bg-black/20 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-200/60">{fact.category}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-200/60">{factCategoryLabel(fact.category, lang)}</p>
                         <p className="mt-1 text-sm font-semibold text-neutral-200">{fact.label}</p>
                       </div>
                       <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-neutral-500">{Math.round(fact.confidence * 100)}%</span>
                     </div>
                     <p className="mt-3 text-sm leading-6 text-neutral-400">{fact.value}</p>
-                    <p className="mt-3 text-[10px] text-neutral-600">{fact.sourceUrls.length} {copy.sources}</p>
+                    <p className="mt-3 text-[10px] text-neutral-600">{fact.sourceUrls.length} {fact.sourceUrls.length === 1 ? copy.sourcesOne : copy.sourcesMany}</p>
                   </div>
                 ))}
               </div>
@@ -241,6 +313,11 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
       )}
     </section>
   );
+}
+
+function factCategoryLabel(category: string, lang: ControlPlaneLang) {
+  const key = category.trim().toLowerCase() as keyof typeof FACT_CATEGORY_COPY.bg;
+  return FACT_CATEGORY_COPY[lang][key] || category;
 }
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
