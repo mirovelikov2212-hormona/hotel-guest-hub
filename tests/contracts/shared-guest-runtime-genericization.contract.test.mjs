@@ -131,6 +131,11 @@ test("Factory Guest capabilities require explicit AI/weather authority", () => {
       ai_permissions: { actions: { READ: true } },
     },
     weatherEnabled: true,
+    location: {
+      query: "Sydney Harbour Hotel, Sydney, Australia",
+      latitude: -33.8688,
+      longitude: 151.2093,
+    },
     requestDefs: [],
   });
 
@@ -168,7 +173,7 @@ test("Factory Guest navigation groups configured services by arbitrary target de
     groups.map((group) => [group.departmentCode, group.departmentName, group.requestDefs.map((def) => def.id)]),
     [
       ["housekeeping", "Housekeeping", ["extra-towel"]],
-      ["guest-relations", "Guest Relations", ["guest-relations-help"]],
+      ["guest-relations", "Guest Relations", ["guest-relations", "guest-relations-help"].slice(1)],
     ],
   );
 
