@@ -18,7 +18,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const AI_DEADLINE_MS = 48_000;
+const AI_DEADLINE_MS = 38_000;
 const SDK_TIMEOUT_MESSAGE = "Request timed out.";
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
@@ -58,21 +58,6 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function normalizeWithTimeoutRecovery(
-  evidence: Awaited<ReturnType<typeof crawlPublicHotelWebsite>>,
-  outputLanguage: HotelScannerOutputLanguage,
-) {
-  try {
-    return await normalizeHotelScanWithOpenAi(evidence, outputLanguage);
-  } catch (error) {
-    if (errorMessage(error) !== SDK_TIMEOUT_MESSAGE) throw error;
-    console.warn("Factory Hotel Scanner primary AI timed out; retrying once within bounded route budget", {
-      outputLanguage,
-    });
-    return normalizeHotelScanWithOpenAi(evidence, outputLanguage);
-  }
-}
-
 export async function POST(request: NextRequest) {
   const originError = enforceControlPlaneSameOrigin(request);
   if (originError) return originError;
@@ -101,7 +86,7 @@ export async function POST(request: NextRequest) {
     stage = "ai";
     const [normalized, richFacts] = await withDeadline(
       Promise.all([
-        normalizeWithTimeoutRecovery(evidence, outputLanguage),
+        normalizeHotelScanWithOpenAi(evidence, outputLanguage),
         extractRichHotelScanFactsWithOpenAi(evidence, outputLanguage).catch((error) => {
           console.warn("Factory Hotel Scanner rich facts fallback", {
             error: errorMessage(error),
@@ -149,6 +134,9 @@ export async function POST(request: NextRequest) {
     }
     if (message === "hotel_scanner_ai_timeout" || message === SDK_TIMEOUT_MESSAGE) {
       return json({ ok: false, error: "scanner_ai_timeout", stage: "ai" }, 504);
+    }
+    if (message.startsWith("hotel_scanner_ai_incomplete:")) {
+      return json({ ok: false, error: "scanner_ai_incomplete", stage: "ai" }, 502);
     }
     return json(
       {
