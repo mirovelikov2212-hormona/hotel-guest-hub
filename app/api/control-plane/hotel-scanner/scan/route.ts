@@ -165,26 +165,33 @@ export async function POST(request: NextRequest) {
     const crawlLatencyMs = Date.now() - startedAt;
 
     stage = "ai";
-    let coreMode: "ai" | "deterministic_fallback" = "ai";
-    let coreError = "";
-    const corePromise = normalizeHotelScanWithOpenAi(evidence, outputLanguage).catch((error) => {
-      coreMode = "deterministic_fallback";
-      coreError = errorMessage(error);
-      console.warn("Factory Hotel Scanner core profile fallback", {
-        error: coreError,
+    const corePromise = normalizeHotelScanWithOpenAi(evidence, outputLanguage)
+      .then((normalized) => ({
+        normalized,
+        coreMode: "ai" as const,
+        coreError: "",
+      }))
+      .catch((error) => {
+        const coreError = errorMessage(error);
+        console.warn("Factory Hotel Scanner core profile fallback", {
+          error: coreError,
+        });
+        return {
+          normalized: {
+            profile: buildDeterministicFallbackProfile(evidence, outputLanguage),
+            diagnostics: {
+              model: "deterministic-fallback",
+              latencyMs: 0,
+              pageCount: evidence.pages.length,
+              stylesheetCount: evidence.brand.stylesheetUrls.length,
+              detectedColorCount: evidence.brand.colors.length,
+              detectedFontCount: evidence.brand.fonts.length,
+            },
+          },
+          coreMode: "deterministic_fallback" as const,
+          coreError,
+        };
       });
-      return {
-        profile: buildDeterministicFallbackProfile(evidence, outputLanguage),
-        diagnostics: {
-          model: "deterministic-fallback",
-          latencyMs: 0,
-          pageCount: evidence.pages.length,
-          stylesheetCount: evidence.brand.stylesheetUrls.length,
-          detectedColorCount: evidence.brand.colors.length,
-          detectedFontCount: evidence.brand.fonts.length,
-        },
-      };
-    });
 
     const richFactsPromise = extractRichHotelScanFactsWithOpenAi(evidence, outputLanguage).catch((error) => {
       console.warn("Factory Hotel Scanner rich facts fallback", {
@@ -193,15 +200,15 @@ export async function POST(request: NextRequest) {
       return [] as HotelScanFact[];
     });
 
-    const [normalized, richFacts] = await withDeadline(
+    const [coreState, richFacts] = await withDeadline(
       Promise.all([corePromise, richFactsPromise]),
       AI_DEADLINE_MS,
       "hotel_scanner_ai_timeout",
     );
 
     const profile = {
-      ...normalized.profile,
-      facts: mergeFacts(richFacts, normalized.profile.facts),
+      ...coreState.normalized.profile,
+      facts: mergeFacts(richFacts, coreState.normalized.profile.facts),
     };
 
     return json({
@@ -214,9 +221,9 @@ export async function POST(request: NextRequest) {
         scannedLogoUrls: "reference_only",
       },
       diagnostics: {
-        ...normalized.diagnostics,
-        coreMode,
-        coreError: coreMode === "deterministic_fallback" ? coreError : undefined,
+        ...coreState.normalized.diagnostics,
+        coreMode: coreState.coreMode,
+        coreError: coreState.coreError || undefined,
         richFactCount: richFacts.length,
         brandColorCount: profile.brand.colors.length,
         brandFontCount: profile.brand.fonts.length,
