@@ -9,6 +9,9 @@ const MAX_PAGE_BYTES = 1_000_000;
 const MAX_TOTAL_TEXT = 45_000;
 const MAX_REDIRECTS = 5;
 const FETCH_TIMEOUT_MS = 6_000;
+const MAX_STYLESHEETS = 6;
+const MAX_STYLESHEET_BYTES = 400_000;
+const STYLESHEET_TIMEOUT_MS = 4_000;
 const USER_AGENT = "StayHub-Hotel-Scanner/1.0 (+https://stayhub.app)";
 
 export type HotelScanPageEvidence = {
@@ -21,11 +24,18 @@ export type HotelScanPageEvidence = {
   colors: string[];
 };
 
+export type HotelScanBrandEvidence = {
+  stylesheetUrls: string[];
+  colors: string[];
+  fonts: string[];
+};
+
 export type HotelScanEvidenceBundle = {
   requestedUrl: string;
   canonicalUrl: string;
   scannedAt: string;
   pages: HotelScanPageEvidence[];
+  brand: HotelScanBrandEvidence;
 };
 
 export class HotelScannerError extends Error {
@@ -120,9 +130,140 @@ function extractImages(html: string, base: URL) {
   return result;
 }
 
+function normalizeHexColor(raw: string) {
+  const value = raw.trim().toLowerCase();
+  const match = value.match(/^#([0-9a-f]{3,8})$/i);
+  if (!match) return null;
+  const hex = match[1];
+  if (hex.length === 3 || hex.length === 4) {
+    return `#${hex.slice(0, 3).split("").map((part) => part + part).join("")}`;
+  }
+  if (hex.length === 6 || hex.length === 8) return `#${hex.slice(0, 6)}`;
+  return null;
+}
+
+function normalizeRgbColor(raw: string) {
+  const match = raw.match(/rgba?\(\s*(\d{1,3})\s*[, ]\s*(\d{1,3})\s*[, ]\s*(\d{1,3})/i);
+  if (!match) return null;
+  const channels = match.slice(1, 4).map(Number);
+  if (channels.some((channel) => !Number.isInteger(channel) || channel < 0 || channel > 255)) return null;
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function findColors(value: string) {
+  const found: string[] = [];
+  const hexMatches = value.match(/#[0-9a-fA-F]{3,8}\b/g) || [];
+  for (const match of hexMatches) {
+    const normalized = normalizeHexColor(match);
+    if (normalized) found.push(normalized);
+  }
+  const rgbRegex = /rgba?\([^)]*\)/gi;
+  let rgbMatch: RegExpExecArray | null;
+  while ((rgbMatch = rgbRegex.exec(value))) {
+    const normalized = normalizeRgbColor(rgbMatch[0]);
+    if (normalized) found.push(normalized);
+  }
+  return found;
+}
+
+function rankedColors(css: string, max = 12) {
+  const scores = new Map<string, number>();
+  const add = (color: string, score: number) => scores.set(color, (scores.get(color) || 0) + score);
+
+  const variableRegex = /--([\w-]+)\s*:\s*([^;}{]+)/g;
+  let variableMatch: RegExpExecArray | null;
+  while ((variableMatch = variableRegex.exec(css))) {
+    const semantic = /brand|primary|secondary|accent|theme|main|highlight|link|button/i.test(variableMatch[1]);
+    for (const color of findColors(variableMatch[2])) add(color, semantic ? 12 : 4);
+  }
+
+  for (const color of findColors(css)) add(color, 1);
+
+  return [...scores.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .map(([color]) => color)
+    .slice(0, max);
+}
+
+const GENERIC_FONTS = new Set([
+  "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui", "ui-serif",
+  "ui-sans-serif", "ui-monospace", "inherit", "initial", "unset", "revert", "emoji",
+]);
+
+function cleanFontName(raw: string) {
+  return raw.trim().replace(/^['"]|['"]$/g, "").replace(/\s+/g, " ").slice(0, 100);
+}
+
+function rankedFonts(css: string, stylesheetUrls: string[], max = 8) {
+  const scores = new Map<string, number>();
+  const add = (font: string, score: number) => {
+    const cleaned = cleanFontName(font);
+    if (!cleaned || GENERIC_FONTS.has(cleaned.toLowerCase()) || /^var\(/i.test(cleaned)) return;
+    scores.set(cleaned, (scores.get(cleaned) || 0) + score);
+  };
+
+  const faceRegex = /@font-face\s*{[\s\S]*?font-family\s*:\s*([^;}{]+)[;}]?[\s\S]*?}/gi;
+  let faceMatch: RegExpExecArray | null;
+  while ((faceMatch = faceRegex.exec(css))) add(faceMatch[1], 12);
+
+  const familyRegex = /font-family\s*:\s*([^;}{]+)/gi;
+  let familyMatch: RegExpExecArray | null;
+  while ((familyMatch = familyRegex.exec(css))) {
+    for (const font of familyMatch[1].split(",")) add(font, 2);
+  }
+
+  for (const rawUrl of stylesheetUrls) {
+    try {
+      const url = new URL(rawUrl);
+      for (const family of url.searchParams.getAll("family")) {
+        const name = family.split(":")[0].replace(/\+/g, " ");
+        if (name) add(name, 10);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return [...scores.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .map(([font]) => font)
+    .slice(0, max);
+}
+
+function extractInlineCss(html: string) {
+  const chunks: string[] = [];
+  const styleBlockRegex = /<style\b[^>]*>([\s\S]*?)<\/style>/gi;
+  let styleBlock: RegExpExecArray | null;
+  while ((styleBlock = styleBlockRegex.exec(html)) && chunks.length < 20) chunks.push(styleBlock[1]);
+
+  const styleAttrRegex = /\bstyle\s*=\s*["']([^"']+)["']/gi;
+  let styleAttr: RegExpExecArray | null;
+  while ((styleAttr = styleAttrRegex.exec(html)) && chunks.length < 80) chunks.push(styleAttr[1]);
+  return chunks.join("\n").slice(0, 200_000);
+}
+
+function extractStylesheetUrls(html: string, base: URL) {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  const tagRegex = /<link\b[^>]*>/gi;
+  let tagMatch: RegExpExecArray | null;
+  while ((tagMatch = tagRegex.exec(html)) && result.length < MAX_STYLESHEETS) {
+    const tag = tagMatch[0];
+    const rel = tag.match(/\brel\s*=\s*["']([^"']+)["']/i)?.[1] || "";
+    if (!/\bstylesheet\b/i.test(rel)) continue;
+    const href = tag.match(/\bhref\s*=\s*["']([^"']+)["']/i)?.[1] || "";
+    const candidate = absoluteUrl(href, base);
+    if (!candidate) continue;
+    const value = candidate.toString();
+    if (seen.has(value)) continue;
+    seen.add(value);
+    result.push(value);
+  }
+  return result;
+}
+
 function extractColors(html: string) {
-  const colors = html.match(/#[0-9a-fA-F]{6}\b/g) || [];
-  return [...new Set(colors.map((value) => value.toLowerCase()))].slice(0, 12);
+  return rankedColors(extractInlineCss(html), 12);
 }
 
 function isPrivateIpv4(address: string) {
@@ -242,6 +383,37 @@ async function fetchHtml(startUrl: URL) {
   throw new HotelScannerError("scanner_too_many_redirects", 422);
 }
 
+async function fetchStylesheet(startUrl: URL) {
+  let current = new URL(startUrl);
+  for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
+    await assertPublicHostname(current);
+    const response = await fetch(current, {
+      method: "GET",
+      redirect: "manual",
+      cache: "no-store",
+      headers: {
+        Accept: "text/css,*/*;q=0.1",
+        "User-Agent": USER_AGENT,
+      },
+      signal: AbortSignal.timeout(STYLESHEET_TIMEOUT_MS),
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location) return null;
+      current = new URL(location, current);
+      continue;
+    }
+    if (!response.ok) return null;
+    const contentLength = Number(response.headers.get("content-length") || 0);
+    if (contentLength > MAX_STYLESHEET_BYTES) return null;
+    const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+    if (contentType.includes("text/html")) return null;
+    return { url: current.toString(), css: (await response.text()).slice(0, MAX_STYLESHEET_BYTES) };
+  }
+  return null;
+}
+
 function pagePriority(url: string) {
   const path = new URL(url).pathname.toLowerCase();
   const signals = [
@@ -301,6 +473,30 @@ async function fetchSecondaryEvidence(url: string, canonicalOrigin: string) {
   }
 }
 
+async function collectBrandEvidence(html: string, baseUrl: URL): Promise<HotelScanBrandEvidence> {
+  const stylesheetUrls = extractStylesheetUrls(html, baseUrl);
+  const stylesheetResults = await Promise.all(
+    stylesheetUrls.map(async (url) => {
+      try {
+        return await fetchStylesheet(new URL(url));
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const fetchedStylesheets = stylesheetResults.filter(
+    (item): item is { url: string; css: string } => Boolean(item),
+  );
+  const resolvedStylesheetUrls = [...new Set(fetchedStylesheets.map((item) => item.url))];
+  const combinedCss = [extractInlineCss(html), ...fetchedStylesheets.map((item) => item.css)].join("\n");
+
+  return {
+    stylesheetUrls: resolvedStylesheetUrls,
+    colors: rankedColors(combinedCss, 12),
+    fonts: rankedFonts(combinedCss, [...stylesheetUrls, ...resolvedStylesheetUrls], 8),
+  };
+}
+
 export async function crawlPublicHotelWebsite(rawUrl: string): Promise<HotelScanEvidenceBundle> {
   const requested = await validatePublicHotelUrl(rawUrl);
   const first = await fetchHtml(requested);
@@ -308,9 +504,10 @@ export async function crawlPublicHotelWebsite(rawUrl: string): Promise<HotelScan
   const canonicalOrigin = first.url.origin;
   const secondaryUrls = uniqueCandidateUrls(firstPage.links, canonicalOrigin, first.url.toString());
 
-  const secondaryResults = await Promise.all(
-    secondaryUrls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin)),
-  );
+  const [secondaryResults, brand] = await Promise.all([
+    Promise.all(secondaryUrls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin))),
+    collectBrandEvidence(first.html, first.url),
+  ]);
 
   const pages: HotelScanPageEvidence[] = [firstPage];
   const seenFinalUrls = new Set<string>([first.url.toString()]);
@@ -332,5 +529,6 @@ export async function crawlPublicHotelWebsite(rawUrl: string): Promise<HotelScan
     canonicalUrl: first.url.toString(),
     scannedAt: new Date().toISOString(),
     pages,
+    brand,
   };
 }
