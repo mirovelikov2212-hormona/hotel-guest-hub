@@ -246,13 +246,13 @@ async function loadGoogleWeather({
         ? Number(currentData.cloudCover)
         : null,
       windSpeed: Number.isFinite(Number(currentData?.wind?.speed?.value))
-        ? Number(currentData.wind.speed.value)
+        ? Number(currentData?.wind?.speed?.value)
         : null,
       windDirection: Number.isFinite(Number(currentData?.wind?.direction?.degrees))
-        ? Number(currentData.wind.direction.degrees)
+        ? Number(currentData?.wind?.direction?.degrees)
         : null,
       precipitation: Number.isFinite(Number(currentData?.precipitation?.qpf?.quantity))
-        ? Number(currentData.precipitation.qpf.quantity)
+        ? Number(currentData?.precipitation?.qpf?.quantity)
         : null,
     },
     daily: forecast,
