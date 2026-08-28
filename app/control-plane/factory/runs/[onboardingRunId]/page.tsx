@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import FactoryProductionAcceptancePanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryProductionAcceptancePanel";
 import FactoryProjectionWorkspace from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryProjectionWorkspace";
 import FactorySandboxCertificationPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxCertificationPanel";
+import FactorySandboxCredentialsPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxCredentialsPanel";
 import FactorySandboxEvidencePanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxEvidencePanel";
 import FactorySandboxPreflightPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxPreflightPanel";
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
@@ -84,7 +85,7 @@ export default async function FactoryRunWorkspacePage({
             </div>
             <div className="flex gap-2">
               <Link href={`/control-plane/factory/runs/${progress.onboardingRunId}?lang=bg`} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${lang === "bg" ? "border-neutral-100 bg-neutral-100 text-neutral-950" : "border-neutral-700 text-neutral-400"}`}>BG</Link>
-              <Link href={`/control-plane/factory/runs/${progress.onboardingRunId}?lang=en`} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${lang === "en" ? "border-neutral-100 bg-neutral-100 text-neutral-950" : "border-neutral-700 text-neutral-400"}`}>EN</Link>
+              <Link href={`/control-plane/factory/runs/${progress.onboardingRunId}?lang=en`} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${lang === "en" ? "bg-neutral-100 text-neutral-950" : "border-neutral-700 text-neutral-400"}`}>EN</Link>
             </div>
           </div>
           <Link href={`/control-plane/factory/runs?lang=${lang}`} className="mt-5 inline-flex text-sm font-semibold text-cyan-200">{copy.back}</Link>
@@ -106,6 +107,13 @@ export default async function FactoryRunWorkspacePage({
               releaseEvidence={trustedEvidence[1]}
             />
           </>
+        )}
+        {trustedEvidence?.[1].environment === "production" && preflight?.certification.status === "complete" && (
+          <FactorySandboxCredentialsPanel
+            lang={lang}
+            sandboxHotelId={preflight.lineage.sandboxHotelId}
+            certifiedRevisionId={preflight.lineage.sandboxRevisionId}
+          />
         )}
         {productionPanelReady && trustedEvidence && preflight?.certification.certificationRunId && progress.production.publicSlug && (
           <FactoryProductionAcceptancePanel
