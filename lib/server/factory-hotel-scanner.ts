@@ -4,10 +4,11 @@ import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
 const MAX_PAGES = 6;
+const MAX_SECONDARY_PAGES = MAX_PAGES - 1;
 const MAX_PAGE_BYTES = 1_000_000;
 const MAX_TOTAL_TEXT = 45_000;
 const MAX_REDIRECTS = 5;
-const FETCH_TIMEOUT_MS = 8_000;
+const FETCH_TIMEOUT_MS = 6_000;
 const USER_AGENT = "StayHub-Hotel-Scanner/1.0 (+https://stayhub.app)";
 
 export type HotelScanPageEvidence = {
@@ -266,40 +267,64 @@ function buildPageEvidence(url: URL, html: string): HotelScanPageEvidence {
   };
 }
 
+function uniqueCandidateUrls(links: string[], canonicalOrigin: string, firstUrl: string) {
+  const seen = new Set<string>([firstUrl]);
+  const candidates: string[] = [];
+
+  for (const href of links) {
+    if (candidates.length >= 30) break;
+    try {
+      const url = new URL(href);
+      if (url.origin !== canonicalOrigin) continue;
+      const normalized = url.toString();
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+      candidates.push(normalized);
+    } catch {
+      continue;
+    }
+  }
+
+  return candidates
+    .sort((left, right) => pagePriority(right) - pagePriority(left))
+    .slice(0, MAX_SECONDARY_PAGES);
+}
+
+async function fetchSecondaryEvidence(url: string, canonicalOrigin: string) {
+  try {
+    const fetched = await fetchHtml(new URL(url));
+    if (fetched.url.origin !== canonicalOrigin) return null;
+    const page = buildPageEvidence(fetched.url, fetched.html);
+    return page.text ? page : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function crawlPublicHotelWebsite(rawUrl: string): Promise<HotelScanEvidenceBundle> {
   const requested = await validatePublicHotelUrl(rawUrl);
   const first = await fetchHtml(requested);
   const firstPage = buildPageEvidence(first.url, first.html);
   const canonicalOrigin = first.url.origin;
-  const queue = firstPage.links
-    .filter((href) => new URL(href).origin === canonicalOrigin)
-    .sort((left, right) => pagePriority(right) - pagePriority(left));
+  const secondaryUrls = uniqueCandidateUrls(firstPage.links, canonicalOrigin, first.url.toString());
+
+  const secondaryResults = await Promise.all(
+    secondaryUrls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin)),
+  );
 
   const pages: HotelScanPageEvidence[] = [firstPage];
-  const visited = new Set([first.url.toString()]);
+  const seenFinalUrls = new Set<string>([first.url.toString()]);
   let totalText = firstPage.text.length;
 
-  while (queue.length && pages.length < MAX_PAGES && totalText < MAX_TOTAL_TEXT) {
-    const nextUrl = queue.shift();
-    if (!nextUrl || visited.has(nextUrl)) continue;
-    try {
-      const next = await fetchHtml(new URL(nextUrl));
-      if (next.url.origin !== canonicalOrigin || visited.has(next.url.toString())) {
-        visited.add(nextUrl);
-        continue;
-      }
-      visited.add(nextUrl);
-      visited.add(next.url.toString());
-      const page = buildPageEvidence(next.url, next.html);
-      if (!page.text) continue;
-      const remaining = Math.max(0, MAX_TOTAL_TEXT - totalText);
-      page.text = page.text.slice(0, remaining);
-      totalText += page.text.length;
-      pages.push(page);
-    } catch {
-      visited.add(nextUrl);
-      continue;
-    }
+  for (const page of secondaryResults) {
+    if (!page || pages.length >= MAX_PAGES || totalText >= MAX_TOTAL_TEXT) continue;
+    if (seenFinalUrls.has(page.url)) continue;
+    seenFinalUrls.add(page.url);
+    const remaining = Math.max(0, MAX_TOTAL_TEXT - totalText);
+    if (!remaining) break;
+    page.text = page.text.slice(0, remaining);
+    totalText += page.text.length;
+    pages.push(page);
   }
 
   return {
