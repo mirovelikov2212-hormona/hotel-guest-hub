@@ -9,7 +9,8 @@ import {
 const crawlerPath = "lib/server/factory-hotel-scanner.ts";
 const normalizerPath = "lib/ai/hotel-scanner.ts";
 const routePath = "app/api/control-plane/hotel-scanner/scan/route.ts";
-const pagePath = "app/hotel-factory/scan/page.tsx";
+const pagePath = "app/hotel-scanner/page.tsx";
+const controlPanelPath = "app/control-panel/page.tsx";
 
 test("Factory Hotel Scanner is admin protected and draft-only", async () => {
   const route = await readProjectFile(routePath);
@@ -48,10 +49,14 @@ test("Factory Hotel Scanner AI normalization is evidence grounded", async () => 
   assertContains(normalizer, "store: false");
 });
 
-test("Factory Hotel Scanner exposes a protected review UI", async () => {
+test("Hotel Scanner is a standalone protected workspace", async () => {
   const page = await readProjectFile(pagePath);
+  const controlPanel = await readProjectFile(controlPanelPath);
 
   assertContains(page, "getCurrentPlatformAdminSession()");
   assertContains(page, "HotelScannerClient");
-  assertContains(page, "/hotel-factory/scan");
+  assertContains(page, "/hotel-scanner?lang=");
+  assertContains(controlPanel, "AI Hotel Scanner");
+  assertContains(controlPanel, "/hotel-scanner?lang=");
+  assertNotContains(page, "/hotel-factory/scan");
 });
