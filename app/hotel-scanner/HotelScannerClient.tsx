@@ -25,7 +25,7 @@ type ScanProfile = {
     spaServices: string[];
     policies: string[];
   };
-  brand: { logoUrls: string[]; imageUrls: string[]; colors: string[]; styleKeywords: string[] };
+  brand: { logoUrls: string[]; imageUrls: string[]; colors: string[]; fonts: string[]; styleKeywords: string[] };
   facts: ScanFact[];
   uncertainties: string[];
 };
@@ -35,7 +35,16 @@ type ScanResult = {
   error?: string;
   draft?: boolean;
   profile?: ScanProfile;
-  diagnostics?: { model?: string; latencyMs?: number; inputTokens?: number; outputTokens?: number; pageCount?: number };
+  diagnostics?: {
+    model?: string;
+    latencyMs?: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    pageCount?: number;
+    stylesheetCount?: number;
+    detectedColorCount?: number;
+    detectedFontCount?: number;
+  };
 };
 
 const COPY = {
@@ -51,6 +60,11 @@ const COPY = {
     operations: "Оперативни данни",
     hospitality: "Съдържание и услуги",
     brand: "Дизайн сигнали",
+    colors: "Бранд цветове",
+    fonts: "Шрифтове",
+    style: "Стил",
+    images: "Изображения",
+    logos: "Лога",
     evidence: "Доказани факти",
     uncertainties: "За проверка",
     sources: "източници",
@@ -71,6 +85,11 @@ const COPY = {
     operations: "Operations",
     hospitality: "Content & services",
     brand: "Design signals",
+    colors: "Brand colors",
+    fonts: "Fonts",
+    style: "Style",
+    images: "Images",
+    logos: "Logos",
     evidence: "Evidence-backed facts",
     uncertainties: "Needs review",
     sources: "sources",
@@ -179,10 +198,11 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
               <Field label="Policies" value={profile.hospitality.policies.join(" · ")} />
             </Card>
             <Card title={copy.brand}>
-              <Field label="Colors" value={profile.brand.colors.join(", ")} />
-              <Field label="Style" value={profile.brand.styleKeywords.join(", ")} />
-              <Field label="Images" value={String(profile.brand.imageUrls.length)} />
-              <Field label="Logos" value={String(profile.brand.logoUrls.length)} />
+              <BrandPalette label={copy.colors} colors={profile.brand.colors} />
+              <Field label={copy.fonts} value={profile.brand.fonts.join(", ")} />
+              <Field label={copy.style} value={profile.brand.styleKeywords.join(", ")} />
+              <Field label={copy.images} value={String(profile.brand.imageUrls.length)} />
+              <Field label={copy.logos} value={String(profile.brand.logoUrls.length)} />
             </Card>
           </div>
 
@@ -235,6 +255,23 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function Field({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return <div><p className="text-[10px] uppercase tracking-[0.14em] text-neutral-600">{label}</p><p className="mt-1 text-sm leading-6 text-neutral-300">{value}</p></div>;
+}
+
+function BrandPalette({ label, colors }: { label: string; colors: string[] }) {
+  if (!colors.length) return null;
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-[0.14em] text-neutral-600">{label}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {colors.map((color) => (
+          <span key={color} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs text-neutral-300">
+            <span className="h-4 w-4 rounded-full border border-white/20 shadow-inner" style={{ backgroundColor: color }} aria-hidden="true" />
+            <span className="font-mono text-[11px] uppercase">{color}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
