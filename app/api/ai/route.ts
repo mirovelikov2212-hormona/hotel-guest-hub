@@ -61,7 +61,7 @@ const GREETING: Record<string, string> = {
   de: "Hallo! Fragen Sie mich nach Services, Bereichen, Öffnungszeiten, Regeln und Informationen zum Hotel.",
   ro: "Bună! Întrebați-mă despre serviciile, locațiile, programul, regulile și informațiile hotelului.",
   cs: "Dobrý den! Zeptejte se mě na služby, provozovny, otevírací dobu, pravidla a informace o hotelu.",
-  ru: "Здравствуйте! Спросите меня об услугах, объектах, часах работы, правилах и информацията за хотела.",
+  ru: "Здравствуйте! Спросите меня об услугах, объектах, часах работы, правилах и информации об отеле.",
 };
 
 const THANKS: Record<string, string> = {
@@ -126,9 +126,9 @@ async function resolveAiHotelContext(request: Request, requestedHotelSlug: strin
     throw new AiAccessError("ai_tenant_scope_mismatch", 409);
   }
 
-  let config: HotelConfig | null = null;
+  let loadedConfig: HotelConfig | null = null;
   try {
-    config = await getHotelConfig(hotel.slug);
+    loadedConfig = await getHotelConfig(hotel.slug);
   } catch (error) {
     console.error("StayHub AI tenant config load failed", {
       hotelId: hotel.id,
@@ -138,9 +138,19 @@ async function resolveAiHotelContext(request: Request, requestedHotelSlug: strin
     throw new AiAccessError("ai_config_unavailable", 503);
   }
 
-  if (!config || String(config.hotelId || "") !== String(hotel.id)) {
+  if (!loadedConfig) {
+    throw new AiAccessError("ai_config_unavailable", 503);
+  }
+  if (loadedConfig.hotelId && String(loadedConfig.hotelId) !== String(hotel.id)) {
     throw new AiAccessError("ai_tenant_scope_mismatch", 409);
   }
+
+  const config: HotelConfig = {
+    ...loadedConfig,
+    hotelId: hotel.id,
+    hotelSlug: hotel.slug,
+    publicSlug: hotel.public_slug || loadedConfig.publicSlug || hotel.slug,
+  };
 
   const capabilities = deriveGuestRuntimeCapabilities(config);
   if (!capabilities.aiEnabled) {
