@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import FactoryProductionAcceptancePanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryProductionAcceptancePanel";
 import FactoryProjectionWorkspace from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryProjectionWorkspace";
 import FactorySandboxCertificationPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxCertificationPanel";
+import FactorySandboxCredentialsPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxCredentialsPanel";
 import FactorySandboxEvidencePanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxEvidencePanel";
 import FactorySandboxPreflightPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxPreflightPanel";
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
@@ -106,6 +107,13 @@ export default async function FactoryRunWorkspacePage({
               releaseEvidence={trustedEvidence[1]}
             />
           </>
+        )}
+        {trustedEvidence?.[1].environment === "production" && preflight?.certification.status === "complete" && (
+          <FactorySandboxCredentialsPanel
+            lang={lang}
+            sandboxHotelId={preflight.lineage.sandboxHotelId}
+            certifiedRevisionId={preflight.lineage.sandboxRevisionId}
+          />
         )}
         {productionPanelReady && trustedEvidence && preflight?.certification.certificationRunId && progress.production.publicSlug && (
           <FactoryProductionAcceptancePanel
