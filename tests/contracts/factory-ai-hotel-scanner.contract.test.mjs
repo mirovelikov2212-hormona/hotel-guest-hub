@@ -119,6 +119,24 @@ test("Factory Hotel Scanner restores rich evidence while curating framework bran
   assertContains(richFacts, "maxItems: 28");
 });
 
+test("Factory Hotel Scanner scopes opening hours to named facilities", async () => {
+  const richFacts = await readProjectFile(richFactsPath);
+
+  assertContains(richFacts, "isGenericHoursLabel");
+  assertContains(richFacts, "Opening-hours facts MUST name one specific facility, venue, service or guest area in the label.");
+  assertContains(richFacts, "emit one separate hours fact for each named facility whose schedule is explicit");
+  assertContains(richFacts, "omit that hours fact rather than guessing its scope");
+  assertContains(richFacts, "omit the hours fact rather than merging conflicting times");
+});
+
+test("Factory Hotel Scanner keeps discovered logos reference-only until hotel authorization", async () => {
+  const route = await readProjectFile(routePath);
+
+  assertContains(route, 'LOGO_ASSET_POLICY = "hotel_authorization_required"');
+  assertContains(route, 'scannedLogoUrls: "reference_only"');
+  assertContains(route, "assetPolicy:");
+});
+
 test("Factory Hotel Scanner keeps BG and EN review output language-consistent", async () => {
   const route = await readProjectFile(routePath);
   const normalizer = await readProjectFile(normalizerPath);
