@@ -17,6 +17,20 @@ import FactoryNativeContentStep, {
 
 type DepartmentId = "reception" | "housekeeping" | "maintenance" | "restaurant" | "spa";
 type DepartmentContactDraft = { phone: string; whatsapp: string; email: string };
+type LocationAuthority = {
+  query: string;
+  displayName: string;
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  countryCode: string;
+  provider: "google_maps" | "open_meteo";
+};
+type LocationResolutionResult = {
+  ok?: boolean;
+  error?: string;
+  location?: LocationAuthority;
+};
 type ServiceTemplate = {
   id: string;
   departmentId: DepartmentId;
@@ -61,20 +75,20 @@ const LANGUAGES = FACTORY_COMMON_LANGUAGE_OPTIONS.map(
 );
 
 const COUNTRIES = [
-  ["BG", "България", "Bulgaria", "Europe/Sofia"],
-  ["DE", "Германия", "Germany", "Europe/Berlin"],
-  ["GR", "Гърция", "Greece", "Europe/Athens"],
-  ["TR", "Турция", "Türkiye", "Europe/Istanbul"],
-  ["ES", "Испания", "Spain", "Europe/Madrid"],
-  ["RO", "Румъния", "Romania", "Europe/Bucharest"],
-  ["CZ", "Чехия", "Czechia", "Europe/Prague"],
-  ["AT", "Австрия", "Austria", "Europe/Vienna"],
-  ["CH", "Швейцария", "Switzerland", "Europe/Zurich"],
-  ["FR", "Франция", "France", "Europe/Paris"],
-  ["IT", "Италия", "Italy", "Europe/Rome"],
-  ["NL", "Нидерландия", "Netherlands", "Europe/Amsterdam"],
-  ["PL", "Полша", "Poland", "Europe/Warsaw"],
-  ["GB", "Великобритания", "United Kingdom", "Europe/London"],
+  ["BG", "България", "Bulgaria"],
+  ["DE", "Германия", "Germany"],
+  ["GR", "Гърция", "Greece"],
+  ["TR", "Турция", "Türkiye"],
+  ["ES", "Испания", "Spain"],
+  ["RO", "Румъния", "Romania"],
+  ["CZ", "Чехия", "Czechia"],
+  ["AT", "Австрия", "Austria"],
+  ["CH", "Швейцария", "Switzerland"],
+  ["FR", "Франция", "France"],
+  ["IT", "Италия", "Italy"],
+  ["NL", "Нидерландия", "Netherlands"],
+  ["PL", "Полша", "Poland"],
+  ["GB", "Великобритания", "United Kingdom"],
 ] as const;
 
 const DEPARTMENTS: Array<{
@@ -122,6 +136,12 @@ const COPY = {
     hotelName: "Име на хотела",
     hotelPlaceholder: "Sunny Castle Hotel",
     country: "Държава",
+    location: "Локация на хотела",
+    locationHelp: "Въведи хотел, адрес, град, курорт или пощенски код. StayHub ще намери координатите и часовата зона автоматично.",
+    locationPlaceholder: "Hotel Aquamarine, Kranevo",
+    resolvedLocation: "Потвърдена локация",
+    resolvingLocation: "Проверка на локацията…",
+    locationFailed: "Локацията не беше намерена еднозначно. Провери текста и държавата.",
     timezone: "Часова зона",
     auto: "автоматично",
     roomsTitle: "Стаи и езици",
@@ -178,6 +198,12 @@ const COPY = {
     hotelName: "Hotel name",
     hotelPlaceholder: "Sunny Castle Hotel",
     country: "Country",
+    location: "Hotel location",
+    locationHelp: "Enter a hotel, address, city, resort or postal code. StayHub resolves coordinates and timezone automatically.",
+    locationPlaceholder: "Hotel Aquamarine, Kranevo",
+    resolvedLocation: "Resolved location",
+    resolvingLocation: "Resolving location…",
+    locationFailed: "The location could not be resolved unambiguously. Check the text and country.",
     timezone: "Timezone",
     auto: "automatic",
     roomsTitle: "Rooms and languages",
@@ -247,6 +273,9 @@ export default function HotelManagerOnboardingWizardV2({ lang }: { lang: Control
   const [step, setStep] = useState(0);
   const [hotelName, setHotelName] = useState("");
   const [countryCode, setCountryCode] = useState("BG");
+  const [locationQuery, setLocationQuery] = useState("");
+  const [resolvedLocation, setResolvedLocation] = useState<LocationAuthority | null>(null);
+  const [resolvingLocation, setResolvingLocation] = useState(false);
   const [roomMode, setRoomMode] = useState<"range" | "explicit">("explicit");
   const [rangeStart, setRangeStart] = useState("101");
   const [rangeEnd, setRangeEnd] = useState("105");
@@ -271,7 +300,6 @@ export default function HotelManagerOnboardingWizardV2({ lang }: { lang: Control
   const [feedback, setFeedback] = useState<string | null>(null);
   const [idempotencyKey] = useState(() => `hotel-factory-manager:${crypto.randomUUID()}`);
 
-  const country = COUNTRIES.find((item) => item[0] === countryCode) ?? COUNTRIES[0];
   const hotelSlug = slugify(hotelName);
   const roomList = useMemo(
     () => explicitRooms.split(/\r?\n/).map((value) => value.trim()).filter(Boolean),
@@ -293,7 +321,15 @@ export default function HotelManagerOnboardingWizardV2({ lang }: { lang: Control
       publicSlug: hotelSlug,
       name: hotelName.trim(),
       countryCode,
-      timezone: country[3],
+      timezone: resolvedLocation?.timezone || "",
+      location: resolvedLocation ? {
+        query: locationQuery.trim(),
+        displayName: resolvedLocation.displayName,
+        latitude: resolvedLocation.latitude,
+        longitude: resolvedLocation.longitude,
+        lat: resolvedLocation.latitude,
+        lng: resolvedLocation.longitude,
+      } : { query: locationQuery.trim() },
       locales: selectedLanguages,
       roomCount,
       roomInventory: roomMode === "range"
@@ -349,7 +385,8 @@ export default function HotelManagerOnboardingWizardV2({ lang }: { lang: Control
     hotelSlug,
     hotelName,
     countryCode,
-    country,
+    locationQuery,
+    resolvedLocation,
     selectedLanguages,
     roomCount,
     roomMode,
@@ -377,6 +414,11 @@ export default function HotelManagerOnboardingWizardV2({ lang }: { lang: Control
     setConfirmed(false);
     setResult(null);
     setFeedback(null);
+  }
+
+  function invalidateLocationAuthority() {
+    setResolvedLocation(null);
+    invalidate();
   }
 
   function toggleLanguage(id: string) {
@@ -415,7 +457,7 @@ export default function HotelManagerOnboardingWizardV2({ lang }: { lang: Control
 
   function canAdvance() {
     setFeedback(null);
-    if (step === 0 && (!hotelName.trim() || !hotelSlug || !countryCode)) return false;
+    if (step === 0 && (!hotelName.trim() || !hotelSlug || !countryCode || !locationQuery.trim() || !resolvedLocation)) return false;
     if (step === 1 && (!roomCount || !selectedLanguages.length)) return false;
     if (step === 4 && !validateNativeSetupDraft(nativeSetup, selectedLanguages)) return false;
     if (step === 5 && selectedDepartments.some((id) => {
@@ -426,6 +468,51 @@ export default function HotelManagerOnboardingWizardV2({ lang }: { lang: Control
         || !validEmail(contact.email);
     })) return false;
     return true;
+  }
+
+  async function resolveLocationAuthority() {
+    if (!locationQuery.trim() || !countryCode) return null;
+
+    setResolvingLocation(true);
+    setFeedback(null);
+    try {
+      const response = await fetch("/api/control-plane/onboarding/location", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: locationQuery.trim(), countryCode }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as LocationResolutionResult;
+      if (!response.ok || !payload.ok || !payload.location) {
+        setResolvedLocation(null);
+        setFeedback(copy.locationFailed);
+        return null;
+      }
+      setResolvedLocation(payload.location);
+      return payload.location;
+    } catch {
+      setResolvedLocation(null);
+      setFeedback(copy.locationFailed);
+      return null;
+    } finally {
+      setResolvingLocation(false);
+    }
+  }
+
+  async function advanceStep() {
+    setFeedback(null);
+    if (step === 0) {
+      if (!hotelName.trim() || !hotelSlug || !countryCode || !locationQuery.trim()) {
+        setFeedback(copy.invalid);
+        return;
+      }
+      const location = resolvedLocation || await resolveLocationAuthority();
+      if (!location) return;
+      setStep(1);
+      return;
+    }
+
+    if (canAdvance()) setStep((value) => Math.min(6, value + 1));
+    else setFeedback(copy.invalid);
   }
 
   async function runPreflight() {
@@ -577,13 +664,30 @@ export default function HotelManagerOnboardingWizardV2({ lang }: { lang: Control
               </label>
               <label className="text-sm text-neutral-300">
                 {copy.country}
-                <select value={countryCode} onChange={(event) => { setCountryCode(event.target.value); invalidate(); }} className={field}>
+                <select value={countryCode} onChange={(event) => { setCountryCode(event.target.value); invalidateLocationAuthority(); }} className={field}>
                   {COUNTRIES.map((item) => <option key={item[0]} value={item[0]}>{lang === "bg" ? item[1] : item[2]}</option>)}
                 </select>
               </label>
+              <label className="text-sm text-neutral-300 sm:col-span-2">
+                {copy.location}
+                <input
+                  value={locationQuery}
+                  onChange={(event) => { setLocationQuery(event.target.value); invalidateLocationAuthority(); }}
+                  placeholder={copy.locationPlaceholder}
+                  maxLength={240}
+                  className={field}
+                />
+                <span className="mt-2 block text-xs leading-5 text-neutral-500">{copy.locationHelp}</span>
+              </label>
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Metric label={copy.timezone} value={`${country[3]} · ${copy.auto}`} />
+            {resolvedLocation && (
+              <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 px-4 py-3 text-sm text-emerald-100">
+                ✓ {copy.resolvedLocation}: {resolvedLocation.displayName}
+              </div>
+            )}
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <Metric label={copy.resolvedLocation} value={resolvedLocation?.displayName || "—"} />
+              <Metric label={copy.timezone} value={resolvedLocation ? `${resolvedLocation.timezone} · ${copy.auto}` : "—"} />
               <Metric label="Hub URL" value={hotelSlug ? `/h/${hotelSlug}` : "—"} />
             </div>
           </Panel>
@@ -698,6 +802,8 @@ export default function HotelManagerOnboardingWizardV2({ lang }: { lang: Control
             <div className="grid gap-3 sm:grid-cols-2">
               <Metric label={copy.hotel} value={hotelName} />
               <Metric label={copy.rooms} value={String(roomCount)} />
+              <Metric label={copy.resolvedLocation} value={resolvedLocation?.displayName || "—"} />
+              <Metric label={copy.timezone} value={resolvedLocation?.timezone || "—"} />
               <Metric label={copy.languages} value={languageLabels.join(", ")} />
               <Metric label={copy.teams} value={teamLabels.join(", ")} />
               <div className="sm:col-span-2"><Metric label={copy.services} value={serviceLabels.length ? serviceLabels.join(", ") : "—"} /></div>
@@ -749,12 +855,12 @@ export default function HotelManagerOnboardingWizardV2({ lang }: { lang: Control
         {feedback && <p className="mt-5 rounded-2xl border border-rose-400/20 bg-rose-400/5 px-4 py-3 text-sm text-rose-100">{feedback}</p>}
         {!result?.ok && (
           <div className="mt-7 flex justify-between gap-3">
-            <button type="button" disabled={step === 0} onClick={() => { setStep((value) => Math.max(0, value - 1)); setFeedback(null); }} className="rounded-2xl border border-white/10 bg-black/20 px-5 py-3 text-sm text-neutral-300 transition hover:border-white/20 disabled:opacity-30">
+            <button type="button" disabled={step === 0 || resolvingLocation} onClick={() => { setStep((value) => Math.max(0, value - 1)); setFeedback(null); }} className="rounded-2xl border border-white/10 bg-black/20 px-5 py-3 text-sm text-neutral-300 transition hover:border-white/20 disabled:opacity-30">
               {copy.back}
             </button>
             {step < 6 && (
-              <button type="button" onClick={() => { if (canAdvance()) setStep((value) => Math.min(6, value + 1)); else setFeedback(copy.invalid); }} className="rounded-2xl border border-cyan-300/40 bg-cyan-300/10 px-6 py-3 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/60">
-                {copy.next} →
+              <button type="button" disabled={resolvingLocation} onClick={() => { void advanceStep(); }} className="rounded-2xl border border-cyan-300/40 bg-cyan-300/10 px-6 py-3 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/60 disabled:opacity-40">
+                {resolvingLocation ? copy.resolvingLocation : copy.next} →
               </button>
             )}
           </div>
