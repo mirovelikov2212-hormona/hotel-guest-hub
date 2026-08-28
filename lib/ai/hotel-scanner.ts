@@ -9,7 +9,7 @@ export type HotelScannerOutputLanguage = "bg" | "en";
 function getClient() {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
   if (!apiKey) throw new Error("openai_api_key_missing");
-  if (!client) client = new OpenAI({ apiKey, timeout: 42_000, maxRetries: 0 });
+  if (!client) client = new OpenAI({ apiKey, timeout: 20_000, maxRetries: 0 });
   return client;
 }
 
@@ -178,7 +178,7 @@ export async function normalizeHotelScanWithOpenAi(
     url: page.url,
     title: page.title,
     description: page.description,
-    text: page.text.slice(0, 4_500),
+    text: page.text.slice(0, 3_000),
     image_urls: page.imageUrls.slice(0, 10),
   }));
 
@@ -186,7 +186,7 @@ export async function normalizeHotelScanWithOpenAi(
   const response = await openai.responses.create({
     model,
     store: false,
-    max_output_tokens: 2_200,
+    max_output_tokens: 1_800,
     reasoning: { effort: "none" },
     instructions: [
       "Normalize public hotel website evidence into a concise StayHub core profile draft.",
