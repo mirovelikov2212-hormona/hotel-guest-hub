@@ -37,6 +37,21 @@ test("Factory Hotel Scanner blocks private-network and unsafe URL targets", asyn
   assertContains(crawler, "assertPublicHostname(current)");
 });
 
+test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
+  const crawler = await readProjectFile(crawlerPath);
+  const route = await readProjectFile(routePath);
+
+  assertContains(crawler, "MAX_SECONDARY_PAGES = MAX_PAGES - 1");
+  assertContains(crawler, "FETCH_TIMEOUT_MS = 6_000");
+  assertContains(crawler, "await Promise.all(");
+  assertContains(crawler, "secondaryUrls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin))");
+  assertContains(route, "AI_DEADLINE_MS = 24_000");
+  assertContains(route, "withDeadline(");
+  assertContains(route, '"scanner_ai_timeout"');
+  assertContains(route, "crawlLatencyMs");
+  assertContains(route, "totalLatencyMs");
+});
+
 test("Factory Hotel Scanner AI normalization is evidence grounded", async () => {
   const normalizer = await readProjectFile(normalizerPath);
 
