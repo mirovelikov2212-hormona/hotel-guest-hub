@@ -246,13 +246,13 @@ async function loadGoogleWeather({
         ? Number(currentData.cloudCover)
         : null,
       windSpeed: Number.isFinite(Number(currentData?.wind?.speed?.value))
-        ? Number(currentData.wind?.speed?.value)
+        ? Number(currentData?.wind?.speed?.value)
         : null,
       windDirection: Number.isFinite(Number(currentData?.wind?.direction?.degrees))
-        ? Number(currentData.wind?.direction?.degrees)
+        ? Number(currentData?.wind?.direction?.degrees)
         : null,
       precipitation: Number.isFinite(Number(currentData?.precipitation?.qpf?.quantity))
-        ? Number(currentData.precipitation?.qpf?.quantity)
+        ? Number(currentData?.precipitation?.qpf?.quantity)
         : null,
     },
     daily: forecast,
@@ -301,7 +301,10 @@ async function loadOpenMeteoWeather({
       "precipitation_probability_max",
     ].join(",")
   );
-  forecastUrl.searchParams.set("timezone", requestedTimezone);
+  // Coordinate authority wins here. Open-Meteo resolves the IANA timezone from
+  // the actual hotel coordinates, which keeps Australia/Africa/Americas correct
+  // even when an onboarding timezone hint is stale or incomplete.
+  forecastUrl.searchParams.set("timezone", "auto");
   forecastUrl.searchParams.set("forecast_days", "4");
   forecastUrl.searchParams.set("wind_speed_unit", "kmh");
   if (commercialApiKey) forecastUrl.searchParams.set("apikey", commercialApiKey);
@@ -326,7 +329,7 @@ async function loadOpenMeteoWeather({
     place: place || locationQuery || "Hotel",
     latitude,
     longitude,
-    timezone: data?.timezone || requestedTimezone,
+    timezone: data?.timezone || (requestedTimezone === "auto" ? "UTC" : requestedTimezone),
     sourceUrl: "https://open-meteo.com/",
     updatedAt: current.time || new Date().toISOString(),
     current: {
@@ -350,7 +353,7 @@ export async function GET(request: NextRequest) {
     let longitude = toFiniteNumber(params.get("lon"));
     const locationQuery = String(params.get("query") || "").trim();
     let place = String(params.get("place") || "").trim();
-    const requestedTimezone = String(params.get("tz") || "UTC").trim() || "UTC";
+    const requestedTimezone = String(params.get("tz") || "auto").trim() || "auto";
 
     if (!hasUsableCoordinates(latitude, longitude)) {
       if (!locationQuery) {
