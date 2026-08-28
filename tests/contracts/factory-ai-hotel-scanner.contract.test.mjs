@@ -10,6 +10,7 @@ const crawlerPath = "lib/server/factory-hotel-scanner.ts";
 const normalizerPath = "lib/ai/hotel-scanner.ts";
 const routePath = "app/api/control-plane/hotel-scanner/scan/route.ts";
 const pagePath = "app/hotel-scanner/page.tsx";
+const clientPath = "app/hotel-scanner/HotelScannerClient.tsx";
 const controlPanelPath = "app/control-panel/page.tsx";
 
 test("Factory Hotel Scanner is admin protected and draft-only", async () => {
@@ -35,6 +36,7 @@ test("Factory Hotel Scanner blocks private-network and unsafe URL targets", asyn
   assertContains(crawler, "MAX_PAGE_BYTES = 1_000_000");
   assertContains(crawler, "MAX_PAGES = 6");
   assertContains(crawler, "assertPublicHostname(current)");
+  assertContains(crawler, "assertPublicHostname(current)");
 });
 
 test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
@@ -46,6 +48,7 @@ test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
   assertContains(crawler, "FETCH_TIMEOUT_MS = 6_000");
   assertContains(crawler, "await Promise.all(");
   assertContains(crawler, "secondaryUrls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin))");
+  assertContains(crawler, "STYLESHEET_TIMEOUT_MS = 4_000");
   assertContains(route, "AI_DEADLINE_MS = 24_000");
   assertContains(route, "withDeadline(");
   assertContains(route, '"scanner_ai_timeout"');
@@ -60,14 +63,35 @@ test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
   assertContains(normalizer, "page.text.slice(0, 4_500)");
 });
 
+test("Factory Hotel Scanner extracts CSS brand colors and fonts deterministically", async () => {
+  const crawler = await readProjectFile(crawlerPath);
+  const normalizer = await readProjectFile(normalizerPath);
+  const client = await readProjectFile(clientPath);
+
+  assertContains(crawler, "MAX_STYLESHEETS = 6");
+  assertContains(crawler, "extractStylesheetUrls");
+  assertContains(crawler, "fetchStylesheet");
+  assertContains(crawler, "rankedColors");
+  assertContains(crawler, "rankedFonts");
+  assertContains(crawler, "collectBrandEvidence");
+  assertContains(crawler, "stylesheetUrls: resolvedStylesheetUrls");
+  assertContains(crawler, "colors: rankedColors(combinedCss, 12)");
+  assertContains(crawler, "fonts: rankedFonts(combinedCss");
+  assertContains(normalizer, "colors: unique(evidence.brand.colors, 12, 16)");
+  assertContains(normalizer, "fonts: unique(evidence.brand.fonts, 8, 100)");
+  assertContains(normalizer, "DETECTED_BRAND_SIGNALS");
+  assertContains(client, "BrandPalette");
+  assertContains(client, "profile.brand.fonts.join");
+  assertContains(client, "backgroundColor: color");
+});
+
 test("Factory Hotel Scanner AI normalization is evidence grounded", async () => {
   const normalizer = await readProjectFile(normalizerPath);
 
-  assertContains(normalizer, "Use ONLY WEBSITE_EVIDENCE");
+  assertContains(normalizer, "Use ONLY WEBSITE_EVIDENCE and DETECTED_BRAND_SIGNALS");
   assertContains(normalizer, "ALLOWED_SOURCE_URLS");
   assertContains(normalizer, "sourceUrls.has(String(url))");
   assertContains(normalizer, "imageUrls.has(String(url))");
-  assertContains(normalizer, "detectedColors.has(value)");
   assertContains(normalizer, 'schemaVersion: "hotel-scan-v1"');
   assertContains(normalizer, "store: false");
 });
