@@ -11,18 +11,37 @@ const hotelScopePath = new URL("../../lib/server/hotel-scope.ts", import.meta.ur
 const guestAccessPath = new URL("../../lib/server/guest-stay-access.ts", import.meta.url);
 const staffSessionPath = new URL("../../lib/staff-auth/session.ts", import.meta.url);
 const hotelPagePath = new URL("../../app/h/[hotelSlug]/page.tsx", import.meta.url);
+const aiRoutePath = new URL("../../app/api/ai/route.ts", import.meta.url);
+const aiRouterPath = new URL("../../lib/ai/router.ts", import.meta.url);
+const aiAnswerBuilderPath = new URL("../../lib/ai/answer-builder.ts", import.meta.url);
+const guestCapabilitiesPath = new URL("../../lib/guest/guest-runtime-capabilities.mjs", import.meta.url);
 const packagePath = new URL("../../package.json", import.meta.url);
 
-const [migration, helper, hotelScope, guestAccess, staffSession, hotelPage, packageRaw] =
-  await Promise.all([
-    readFile(migrationPath, "utf8"),
-    readFile(helperPath, "utf8"),
-    readFile(hotelScopePath, "utf8"),
-    readFile(guestAccessPath, "utf8"),
-    readFile(staffSessionPath, "utf8"),
-    readFile(hotelPagePath, "utf8"),
-    readFile(packagePath, "utf8"),
-  ]);
+const [
+  migration,
+  helper,
+  hotelScope,
+  guestAccess,
+  staffSession,
+  hotelPage,
+  aiRoute,
+  aiRouter,
+  aiAnswerBuilder,
+  guestCapabilities,
+  packageRaw,
+] = await Promise.all([
+  readFile(migrationPath, "utf8"),
+  readFile(helperPath, "utf8"),
+  readFile(hotelScopePath, "utf8"),
+  readFile(guestAccessPath, "utf8"),
+  readFile(staffSessionPath, "utf8"),
+  readFile(hotelPagePath, "utf8"),
+  readFile(aiRoutePath, "utf8"),
+  readFile(aiRouterPath, "utf8"),
+  readFile(aiAnswerBuilderPath, "utf8"),
+  readFile(guestCapabilitiesPath, "utf8"),
+  readFile(packagePath, "utf8"),
+]);
 const pkg = JSON.parse(packageRaw);
 
 test("P3.3 runtime entitlement RPC is read-only, stable and service-role only", () => {
@@ -99,6 +118,48 @@ test("P3.3 Guest Hub entry renders a safe unavailable state instead of loading t
   assert.match(hotelPage, /isCommercialRuntimeAccessDeniedError\(error\)/);
   assert.match(hotelPage, /Digital concierge unavailable/);
   assert.match(hotelPage, /Please contact Reception/);
+});
+
+test("P3.3 AI resolves authoritative hotel identity before loading or caching tenant knowledge", () => {
+  const hotelResolution = aiRoute.indexOf("await resolveHotelByAnySlugAdmin(requestedHotelSlug)");
+  const configLoad = aiRoute.indexOf("await getHotelConfig(hotel.slug)");
+  const capabilityGate = aiRoute.indexOf("deriveGuestRuntimeCapabilities(config)");
+  const cacheUse = aiRoute.indexOf("getCachedCatalog(context.catalogCacheKey");
+
+  assert.ok(hotelResolution >= 0);
+  assert.ok(configLoad > hotelResolution);
+  assert.ok(capabilityGate > configLoad);
+  assert.ok(cacheUse > capabilityGate);
+  assert.match(aiRoute, /hotelMatchesRequestedSlug\(hotel, requestedHotelSlug\)/);
+  assert.match(aiRoute, /loadedConfig\.hotelId && String\(loadedConfig\.hotelId\) !== String\(hotel\.id\)/);
+  assert.match(aiRoute, /hotelId: hotel\.id/);
+  assert.match(aiRoute, /hotelSlug: hotel\.slug/);
+  assert.match(aiRoute, /hotel_config_publication_state/);
+  assert.match(aiRoute, /catalogCacheKey: `\$\{hotel\.id\}:\$\{revisionKey\}`/);
+  assert.doesNotMatch(aiRoute, /getCachedCatalog\(hotelSlug/);
+});
+
+test("P3.3 AI paid capability is enforced server-side with the same Factory READ semantics as Guest Hub", () => {
+  assert.match(guestCapabilities, /return actions\?\.READ === true/);
+  assert.match(guestCapabilities, /const aiEnabled = factoryManaged \? isFactoryAiReadEnabled\(config\) : true/);
+  assert.match(aiRoute, /const capabilities = deriveGuestRuntimeCapabilities\(config\)/);
+  assert.match(aiRoute, /if \(!capabilities\.aiEnabled\)/);
+  assert.match(aiRoute, /ai_not_enabled_for_hotel/);
+});
+
+test("P3.3 AI rejects page/body tenant mismatches and reuses already-scoped config for weather", () => {
+  assert.match(aiRoute, /const refererSlug = getRefererHotelSlug\(request\)/);
+  assert.match(aiRoute, /refererSlug && !hotelMatchesRequestedSlug\(hotel, refererSlug\)/);
+  assert.match(aiRoute, /weatherAnswer\(request, context\.config, lang\)/);
+  assert.doesNotMatch(aiRoute, /async function weatherAnswer\(request: Request, hotelSlug/);
+});
+
+test("P3.3 AI model cannot inject facts outside the current hotel catalog", () => {
+  assert.match(aiRouter, /Use only the supplied HOTEL_CATALOG\. Never use external facts and never browse\./);
+  assert.match(aiRouter, /const validIds = new Set\(args\.catalog\.records\.map\(\(record\) => record\.id\)\)/);
+  assert.match(aiRouter, /parsed\.selected_ids = parsed\.selected_ids\.filter\(\(id\) => validIds\.has\(id\)\)/);
+  assert.match(aiAnswerBuilder, /const byId = new Map\(catalog\.records\.map\(\(record\) => \[record\.id, record\]\)\)/);
+  assert.match(aiAnswerBuilder, /\.map\(\(id\) => byId\.get\(id\)\)/);
 });
 
 test("P3.3 does not add cron-driven commercial expiry or mutate technical tenant lifecycle", () => {
