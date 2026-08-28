@@ -5,6 +5,28 @@ import type { HotelScanFact } from "@/lib/ai/hotel-scanner";
 
 let client: OpenAI | null = null;
 
+const FACT_CATEGORIES = [
+  "identity",
+  "location",
+  "contact",
+  "operations",
+  "accommodation",
+  "dining",
+  "amenities",
+  "wellness",
+  "events",
+  "policy",
+  "sustainability",
+  "family",
+  "beach",
+  "parking",
+  "services",
+  "brand",
+  "hotel",
+] as const;
+
+export type HotelScannerOutputLanguage = "bg" | "en";
+
 function getClient() {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
   if (!apiKey) throw new Error("openai_api_key_missing");
@@ -46,11 +68,17 @@ function parseFacts(value: string, allowed: Set<string>): HotelScanFact[] {
   return result;
 }
 
-export async function extractRichHotelScanFactsWithOpenAi(evidence: HotelScanEvidenceBundle) {
+export async function extractRichHotelScanFactsWithOpenAi(
+  evidence: HotelScanEvidenceBundle,
+  outputLanguage: HotelScannerOutputLanguage,
+) {
   const openai = getClient();
   const model = String(process.env.OPENAI_HOTEL_SCANNER_MODEL || "gpt-5.6-luna").trim();
   const allowedSourceUrls = evidence.pages.map((page) => page.url);
   const allowed = new Set(allowedSourceUrls);
+  const languageInstruction = outputLanguage === "bg"
+    ? "Write every human-readable fact label and value in Bulgarian. Preserve official hotel/venue names, brand names, phone numbers, emails, URLs and technical brand tokens exactly."
+    : "Write every human-readable fact label and value in English. Preserve official hotel/venue names, brand names, phone numbers, emails, URLs and technical brand tokens exactly.";
   const inputPages = evidence.pages.map((page) => ({
     url: page.url,
     title: page.title,
@@ -65,10 +93,11 @@ export async function extractRichHotelScanFactsWithOpenAi(evidence: HotelScanEvi
     reasoning: { effort: "none" },
     instructions: [
       "Extract a rich but precise set of evidence-backed hotel facts for a human review dashboard.",
+      languageInstruction,
       "Use ONLY WEBSITE_EVIDENCE. Never browse, infer from outside knowledge, or guess.",
       "Aim for 18-28 DISTINCT useful facts when the evidence supports them; return fewer only when evidence is genuinely sparse.",
       "Prefer specific operational and guest-useful facts over generic marketing language.",
-      "Cover distinct categories when supported: identity, location, contact, operations, accommodation, dining, amenities, wellness, events, policies, sustainability, family, beach, parking, services.",
+      `category MUST remain one canonical lowercase machine key from: ${FACT_CATEGORIES.join(", ")}. Do not translate category keys.`,
       "Split compound information into useful facts: e.g. restaurant hours and capacity should be separate facts when both are stated.",
       "Do not duplicate the same claim under different labels.",
       "Every fact MUST cite one or more exact URLs from ALLOWED_SOURCE_URLS.",
@@ -76,7 +105,11 @@ export async function extractRichHotelScanFactsWithOpenAi(evidence: HotelScanEvi
       "Keep labels and values concise; paraphrase instead of copying long website text.",
       "Return JSON only via the requested schema.",
     ].join("\n"),
-    input: JSON.stringify({ ALLOWED_SOURCE_URLS: allowedSourceUrls, WEBSITE_EVIDENCE: inputPages }),
+    input: JSON.stringify({
+      OUTPUT_LANGUAGE: outputLanguage,
+      ALLOWED_SOURCE_URLS: allowedSourceUrls,
+      WEBSITE_EVIDENCE: inputPages,
+    }),
     text: {
       format: {
         type: "json_schema",
@@ -94,7 +127,7 @@ export async function extractRichHotelScanFactsWithOpenAi(evidence: HotelScanEvi
                 type: "object",
                 additionalProperties: false,
                 properties: {
-                  category: { type: "string" },
+                  category: { type: "string", enum: FACT_CATEGORIES },
                   label: { type: "string" },
                   value: { type: "string" },
                   confidence: { type: "number", minimum: 0, maximum: 1 },
