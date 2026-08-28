@@ -4,6 +4,28 @@ import type { HotelScanEvidenceBundle } from "@/lib/server/factory-hotel-scanner
 
 let client: OpenAI | null = null;
 
+const FACT_CATEGORIES = [
+  "identity",
+  "location",
+  "contact",
+  "operations",
+  "accommodation",
+  "dining",
+  "amenities",
+  "wellness",
+  "events",
+  "policy",
+  "sustainability",
+  "family",
+  "beach",
+  "parking",
+  "services",
+  "brand",
+  "hotel",
+] as const;
+
+export type HotelScannerOutputLanguage = "bg" | "en";
+
 function getClient() {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
   if (!apiKey) throw new Error("openai_api_key_missing");
@@ -181,11 +203,17 @@ function normalizeProfile(payload: AiHotelScanPayload, evidence: HotelScanEviden
   };
 }
 
-export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBundle) {
+export async function normalizeHotelScanWithOpenAi(
+  evidence: HotelScanEvidenceBundle,
+  outputLanguage: HotelScannerOutputLanguage,
+) {
   const openai = getClient();
   const model = String(process.env.OPENAI_HOTEL_SCANNER_MODEL || "gpt-5.6-luna").trim();
   const allowedSourceUrls = evidence.pages.map((page) => page.url);
   const detectedImageUrls = [...new Set(evidence.pages.flatMap((page) => page.imageUrls))].slice(0, 50);
+  const languageInstruction = outputLanguage === "bg"
+    ? "Write ALL human-readable review content in Bulgarian: summary, address/city/country wording, language names, room/service/venue/policy text, style keywords, uncertainty text, and fact labels/values. Preserve official hotel/venue names, brand names, phones, emails, URLs, CSS colors and font family names exactly."
+    : "Write ALL human-readable review content in English: summary, address/city/country wording, language names, room/service/venue/policy text, style keywords, uncertainty text, and fact labels/values. Preserve official hotel/venue names, brand names, phones, emails, URLs, CSS colors and font family names exactly.";
 
   const inputPages = evidence.pages.map((page) => ({
     url: page.url,
@@ -203,8 +231,10 @@ export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBu
     reasoning: { effort: "none" },
     instructions: [
       "Normalize public hotel website evidence into a concise StayHub draft.",
+      languageInstruction,
       "Use ONLY WEBSITE_EVIDENCE and DETECTED_BRAND_SIGNALS. Never browse or use outside knowledge.",
       "Every item in facts must cite exact URLs from ALLOWED_SOURCE_URLS.",
+      `For every fact, category MUST remain one canonical lowercase machine key from: ${FACT_CATEGORIES.join(", ")}. Do not translate category keys.`,
       "If a field is not clearly supported, return empty data and add a short uncertainty. Never guess.",
       "Do not infer prices, hours, check-in/out, amenities, policies or services unless stated in evidence.",
       "Prefer short paraphrases; never reproduce long website copy.",
@@ -217,6 +247,7 @@ export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBu
       "This is a human-review DRAFT and never means created, published or activated.",
     ].join("\n"),
     input: JSON.stringify({
+      OUTPUT_LANGUAGE: outputLanguage,
       ALLOWED_SOURCE_URLS: allowedSourceUrls,
       DETECTED_IMAGE_URLS: detectedImageUrls,
       DETECTED_BRAND_SIGNALS: {
@@ -312,7 +343,7 @@ export async function normalizeHotelScanWithOpenAi(evidence: HotelScanEvidenceBu
                 type: "object",
                 additionalProperties: false,
                 properties: {
-                  category: { type: "string" },
+                  category: { type: "string", enum: FACT_CATEGORIES },
                   label: { type: "string" },
                   value: { type: "string" },
                   confidence: { type: "number", minimum: 0, maximum: 1 },
