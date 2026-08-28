@@ -18,7 +18,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const AI_DEADLINE_MS = 24_000;
+const AI_DEADLINE_MS = 48_000;
+const SDK_TIMEOUT_MESSAGE = "Request timed out.";
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
   Pragma: "no-cache",
@@ -53,6 +54,25 @@ function mergeFacts(primary: HotelScanFact[], fallback: HotelScanFact[]) {
   return result;
 }
 
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function normalizeWithTimeoutRecovery(
+  evidence: Awaited<ReturnType<typeof crawlPublicHotelWebsite>>,
+  outputLanguage: HotelScannerOutputLanguage,
+) {
+  try {
+    return await normalizeHotelScanWithOpenAi(evidence, outputLanguage);
+  } catch (error) {
+    if (errorMessage(error) !== SDK_TIMEOUT_MESSAGE) throw error;
+    console.warn("Factory Hotel Scanner primary AI timed out; retrying once within bounded route budget", {
+      outputLanguage,
+    });
+    return normalizeHotelScanWithOpenAi(evidence, outputLanguage);
+  }
+}
+
 export async function POST(request: NextRequest) {
   const originError = enforceControlPlaneSameOrigin(request);
   if (originError) return originError;
@@ -72,7 +92,7 @@ export async function POST(request: NextRequest) {
     const crawledEvidence = await crawlPublicHotelWebsite(url);
     const evidence = await refineHotelScanBrandEvidence(crawledEvidence).catch((error) => {
       console.warn("Factory Hotel Scanner brand refinement skipped", {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
       });
       return crawledEvidence;
     });
@@ -81,10 +101,10 @@ export async function POST(request: NextRequest) {
     stage = "ai";
     const [normalized, richFacts] = await withDeadline(
       Promise.all([
-        normalizeHotelScanWithOpenAi(evidence, outputLanguage),
+        normalizeWithTimeoutRecovery(evidence, outputLanguage),
         extractRichHotelScanFactsWithOpenAi(evidence, outputLanguage).catch((error) => {
           console.warn("Factory Hotel Scanner rich facts fallback", {
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessage(error),
           });
           return [] as HotelScanFact[];
         }),
@@ -117,7 +137,7 @@ export async function POST(request: NextRequest) {
       return json({ ok: false, error: error.code, stage: "crawl" }, error.statusCode);
     }
 
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     console.error("Factory AI Hotel Scanner failed", {
       stage,
       latencyMs: Date.now() - startedAt,
@@ -127,7 +147,7 @@ export async function POST(request: NextRequest) {
     if (message === "openai_api_key_missing") {
       return json({ ok: false, error: "scanner_ai_not_configured", stage: "ai" }, 503);
     }
-    if (message === "hotel_scanner_ai_timeout") {
+    if (message === "hotel_scanner_ai_timeout" || message === SDK_TIMEOUT_MESSAGE) {
       return json({ ok: false, error: "scanner_ai_timeout", stage: "ai" }, 504);
     }
     return json(
