@@ -1,4 +1,4 @@
--- Guest Communications foundation: hotel-scoped capabilities, messages and delivery evidence.
+-- Guest Communications foundation: hotel-scoped capabilities, multilingual messages and delivery evidence.
 -- No policy here activates a hotel or sends a notification. Direct client access is denied by RLS;
 -- trusted server routes use the service role and re-check staff session + hotel/department scope.
 
@@ -35,8 +35,13 @@ create table if not exists public.guest_communications (
   department_id uuid references public.departments(id) on delete set null,
   actor_role text not null,
   category text not null default 'information',
+  source_language text not null default 'en',
   title text not null,
   body text not null,
+  title_i18n jsonb not null default '{}'::jsonb,
+  body_i18n jsonb not null default '{}'::jsonb,
+  translation_status text not null default 'pending',
+  translated_at timestamptz,
   audience_type text not null default 'all_active_guests',
   status text not null default 'draft',
   scheduled_at timestamptz,
@@ -53,10 +58,14 @@ create table if not exists public.guest_communications (
   updated_at timestamptz not null default now(),
   constraint guest_communications_actor_role_chk check (actor_role ~ '^[a-z][a-z0-9_-]{0,62}$'),
   constraint guest_communications_category_chk check (category in ('information','event','change','offer','emergency','operational')),
+  constraint guest_communications_source_language_chk check (source_language in ('bg','en','de','ro','cs','ru')),
+  constraint guest_communications_translation_status_chk check (translation_status in ('pending','ready','partial','failed')),
   constraint guest_communications_audience_chk check (audience_type in ('all_active_guests')),
   constraint guest_communications_status_chk check (status in ('draft','scheduled','queued','sending','sent','partial_failed','failed','cancelled')),
   constraint guest_communications_title_len_chk check (char_length(title) between 1 and 120),
   constraint guest_communications_body_len_chk check (char_length(body) between 1 and 1000),
+  constraint guest_communications_title_i18n_object_chk check (jsonb_typeof(title_i18n) = 'object'),
+  constraint guest_communications_body_i18n_object_chk check (jsonb_typeof(body_i18n) = 'object'),
   constraint guest_communications_schedule_chk check (
     (status <> 'scheduled') or scheduled_at is not null
   )
@@ -76,6 +85,9 @@ create table if not exists public.guest_communication_deliveries (
   communication_id uuid not null references public.guest_communications(id) on delete cascade,
   hotel_id uuid not null references public.hotels(id) on delete cascade,
   subscription_id uuid references public.guest_push_subscriptions(id) on delete set null,
+  stay_id uuid,
+  room_number text,
+  language text,
   status text not null default 'queued',
   attempted_at timestamptz,
   sent_at timestamptz,
@@ -84,6 +96,7 @@ create table if not exists public.guest_communication_deliveries (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint guest_communication_deliveries_status_chk check (status in ('queued','sent','failed','expired','skipped')),
+  constraint guest_communication_deliveries_language_chk check (language is null or language in ('bg','en','de','ro','cs','ru')),
   unique (communication_id, subscription_id)
 );
 
