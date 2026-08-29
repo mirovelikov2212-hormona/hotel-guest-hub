@@ -10,9 +10,12 @@ import {
 } from "../helpers/source-contract.mjs";
 
 const migrationPath = "supabase/migrations/20260829104500_hub_design_draft_versioning.sql";
+const securityMigrationPath = "supabase/migrations/20260829105500_hub_design_draft_security_indexes.sql";
 const modelPath = "lib/product-factory/hub-design-draft.ts";
 const serverPath = "lib/server/hub-design-draft-revisions.ts";
 const routePath = "app/api/control-plane/design-studio/drafts/route.ts";
+const studioPath = "app/design-studio/VersionedDesignStudioClient.tsx";
+const pagePath = "app/design-studio/page.tsx";
 
 function loadDraftModel(source) {
   const compiled = ts.transpileModule(source, {
@@ -39,9 +42,23 @@ test("Design Draft persistence stays separate from operational hotel config", as
   assertContains(migration, "grant select on table public.hub_design_workspaces to service_role");
   assertContains(migration, "grant select on table public.hub_design_draft_revisions to service_role");
   assertNotContains(migration, "hotel_config_revisions");
+  assertNotContains(migration, "hotel_config_publication_state");
+  assertNotContains(migration, "update public.hotels");
   assertNotContains(migration, "publish_hotel_config_revision");
-  assertNotContains(migration, "active = true");
   assertNotContains(migration, "P2.6.4");
+});
+
+test("Design Draft tables have explicit deny policies and covering FK indexes", async () => {
+  const migration = await readProjectFile(securityMigrationPath);
+  assertContains(migration, "hub_design_workspaces_deny_direct_access");
+  assertContains(migration, "hub_design_draft_revisions_deny_direct_access");
+  assertContains(migration, "using (false)");
+  assertContains(migration, "with check (false)");
+  assertContains(migration, "hub_design_workspaces_created_by_idx");
+  assertContains(migration, "hub_design_workspaces_current_revision_idx");
+  assertContains(migration, "hub_design_draft_revisions_created_by_idx");
+  assertContains(migration, "hub_design_draft_revisions_workspace_parent_idx");
+  assertContains(migration, "hub_design_draft_revisions_workspace_restored_from_idx");
 });
 
 test("Revision writes are serialized, idempotent and optimistic-concurrency safe", async () => {
@@ -63,6 +80,7 @@ test("Revision writes are serialized, idempotent and optimistic-concurrency safe
 test("Only mutating platform-admin roles can create or restore revisions", async () => {
   const migration = await readProjectFile(migrationPath);
   const route = await readProjectFile(routePath);
+  assertContains(migration, "where id = p_actor_admin_id and active = true");
   assertContains(migration, "v_actor_role not in ('super_admin', 'operator')");
   assertContains(route, "getCurrentPlatformAdminSession()");
   assertContains(route, "canMutateControlPlane(authority.role)");
@@ -71,7 +89,7 @@ test("Only mutating platform-admin roles can create or restore revisions", async
   assertNotContains(route, "publishRevision");
   assertNotContains(route, "materialize");
   assertNotContains(route, "activate");
-  assertNotContains(route, "push");
+  assertNotContains(route, "sendPush");
 });
 
 test("Draft payload preserves exact authoring state and explicit safety policies", async () => {
@@ -98,6 +116,37 @@ test("Draft payload preserves exact authoring state and explicit safety policies
     'liveActivation: false',
     'materializationPolicy: "explicit_review_required"',
   ]) assertContains(model, fragment);
+});
+
+test("Active Design Studio wires all committed authoring state into save, history, compare and restore", async () => {
+  const studio = await readProjectFile(studioPath);
+  const page = await readProjectFile(pagePath);
+  assertContains(page, 'import VersionedDesignStudioClient from "./VersionedDesignStudioClient"');
+  assertContains(page, "<VersionedDesignStudioClient lang={lang} />");
+  for (const fragment of [
+    "HUB_DESIGN_DRAFT_SCHEMA_VERSION",
+    "parentRevisionId: snapshot?.workspace.currentRevisionId || null",
+    'action: "restore"',
+    "expectedCurrentRevisionId: snapshot.workspace.currentRevisionId",
+    "compareRevision",
+    "applyPayload",
+    "hiddenSectionIds",
+    "manualSections",
+    "extraItems",
+    "pages",
+    "navigation",
+    "offers",
+    "messages",
+    "promotions",
+    "promotionEnabled",
+    "searchEnabled",
+    "survey",
+    "ctaDestination",
+    'runtimeCampaignSend: false',
+    'liveActivation: false',
+  ]) assertContains(studio, fragment);
+  assertNotContains(studio, "/activate");
+  assertNotContains(studio, "publish_hotel_config_revision");
 });
 
 test("Canonical normalization is deterministic without reordering design arrays", async () => {
