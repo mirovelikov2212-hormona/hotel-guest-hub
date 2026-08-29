@@ -2,9 +2,13 @@ import "server-only";
 
 import { validatePublicHotelUrl } from "@/lib/server/factory-hotel-scanner";
 
-const MAX_HTML_BYTES = 1_000_000;
+const MAX_RESPONSE_BYTES = 8_000_000;
+const HTML_OVERLAP_CHARS = 16_384;
 const MAX_PAGES = 6;
 const MAX_REDIRECTS = 5;
+const MAX_SOCIAL_LINKS = 12;
+const MAX_PRIORITY_HOTEL_LINKS = 60;
+const MAX_OTHER_HOTEL_LINKS = 120;
 const FETCH_TIMEOUT_MS = 6_000;
 const USER_AGENT = "StayHub-Hotel-Scanner/1.0 (+https://stayhub.app)";
 
@@ -66,7 +70,7 @@ export function extractHotelSocialLinksFromHtml(html: string, canonicalUrl: stri
   const anchorRegex = /<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>/gi;
   let match: RegExpExecArray | null;
 
-  while ((match = anchorRegex.exec(html)) && found.length < 12) {
+  while ((match = anchorRegex.exec(html)) && found.length < MAX_SOCIAL_LINKS) {
     const normalized = normalizeSocialUrl(match[1], base);
     if (!normalized || seen.has(normalized)) continue;
     seen.add(normalized);
@@ -99,6 +103,64 @@ function extractSameOriginHotelLinks(html: string, base: URL) {
   }
 
   return found.sort((left, right) => Number(HOTEL_PAGE_PRIORITY.test(right)) - Number(HOTEL_PAGE_PRIORITY.test(left)));
+}
+
+type PageLinkEvidence = {
+  socialLinks: string[];
+  hotelLinks: string[];
+};
+
+async function readBoundedPageLinkEvidence(response: Response, base: URL): Promise<PageLinkEvidence> {
+  const socialLinks = new Set<string>();
+  const priorityHotelLinks = new Set<string>();
+  const otherHotelLinks = new Set<string>();
+  const reader = response.body?.getReader();
+  if (!reader) return { socialLinks: [], hotelLinks: [] };
+
+  const decoder = new TextDecoder();
+  let overlap = "";
+  let bytesRead = 0;
+
+  const collectFragment = (html: string) => {
+    for (const link of extractHotelSocialLinksFromHtml(html, base.toString())) {
+      if (socialLinks.size >= MAX_SOCIAL_LINKS) break;
+      socialLinks.add(link);
+    }
+
+    for (const link of extractSameOriginHotelLinks(html, base)) {
+      if (HOTEL_PAGE_PRIORITY.test(link)) {
+        if (priorityHotelLinks.size < MAX_PRIORITY_HOTEL_LINKS) priorityHotelLinks.add(link);
+      } else if (otherHotelLinks.size < MAX_OTHER_HOTEL_LINKS) {
+        otherHotelLinks.add(link);
+      }
+    }
+  };
+
+  while (bytesRead < MAX_RESPONSE_BYTES) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value?.byteLength) continue;
+
+    const remaining = MAX_RESPONSE_BYTES - bytesRead;
+    const chunk = value.byteLength > remaining ? value.subarray(0, remaining) : value;
+    bytesRead += chunk.byteLength;
+
+    const fragment = overlap + decoder.decode(chunk, { stream: true });
+    collectFragment(fragment);
+    overlap = fragment.slice(-HTML_OVERLAP_CHARS);
+
+    if (chunk.byteLength < value.byteLength || bytesRead >= MAX_RESPONSE_BYTES) {
+      await reader.cancel().catch(() => undefined);
+      break;
+    }
+  }
+
+  collectFragment(overlap + decoder.decode());
+
+  return {
+    socialLinks: [...socialLinks].slice(0, MAX_SOCIAL_LINKS),
+    hotelLinks: [...priorityHotelLinks, ...otherHotelLinks].slice(0, 40),
+  };
 }
 
 type SocialPageEvidence = {
@@ -139,14 +201,12 @@ async function fetchSocialPageEvidence(rawUrl: string, allowedOrigin?: string): 
     if (!response.ok) return null;
     const contentType = String(response.headers.get("content-type") || "").toLowerCase();
     if (contentType && !contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) return null;
-    const contentLength = Number(response.headers.get("content-length") || 0);
-    if (contentLength > MAX_HTML_BYTES) return null;
 
-    const html = (await response.text()).slice(0, MAX_HTML_BYTES);
+    const evidence = await readBoundedPageLinkEvidence(response, current);
     return {
       url: current.toString(),
-      socialLinks: extractHotelSocialLinksFromHtml(html, current.toString()),
-      hotelLinks: extractSameOriginHotelLinks(html, current),
+      socialLinks: evidence.socialLinks,
+      hotelLinks: evidence.hotelLinks,
     };
   }
 
@@ -181,5 +241,5 @@ export async function collectHotelSocialLinkEvidence(input: string | string[]) {
   const links = [first, ...additional.filter((page): page is SocialPageEvidence => Boolean(page))]
     .flatMap((page) => page.socialLinks);
 
-  return [...new Set(links)].slice(0, 12);
+  return [...new Set(links)].slice(0, MAX_SOCIAL_LINKS);
 }
