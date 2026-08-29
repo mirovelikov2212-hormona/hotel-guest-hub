@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 const COPY = {
   bg: {
-    eyebrow: "StayHub Platform",
+    eyebrow: "StayHub Control Panel",
     title: "Административен център",
     subtitle: "Една ясна входна точка за търговско управление, Hotel Intelligence, дизайн и Hotel Factory.",
     signedIn: "Влезли сте като",
@@ -31,7 +31,7 @@ const COPY = {
     logout: "Изход",
   },
   en: {
-    eyebrow: "StayHub Platform",
+    eyebrow: "StayHub Control Panel",
     title: "Administration center",
     subtitle: "One clear entry point for commercial operations, Hotel Intelligence, design and Hotel Factory.",
     signedIn: "Signed in as",
