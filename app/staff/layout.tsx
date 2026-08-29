@@ -6,6 +6,7 @@ import { StaffUiProvider } from "@/components/staff/StaffUiProvider";
 import { StaffStoreProvider } from "@/components/staff/store/StaffStoreProvider";
 
 import "./staff-theme.css";
+import "./staff-theme-semantic.css";
 
 export const metadata = {
   title: "GuestHub Staff",
