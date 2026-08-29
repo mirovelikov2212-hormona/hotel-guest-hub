@@ -5,6 +5,11 @@ import {
   hasGuestCommunicationCapability,
   resolveGuestCommunicationsAccess,
 } from "@/lib/server/guest-communications-access";
+import {
+  GUEST_COMMUNICATION_LANGUAGES,
+  translateGuestCommunication,
+  type GuestCommunicationLanguage,
+} from "@/lib/server/guest-communications-translation";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export const runtime = "nodejs";
@@ -13,7 +18,7 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" };
 const CATEGORIES = new Set(["information", "event", "change", "offer", "emergency", "operational"]);
 const ACTIONS = new Set(["draft", "send_now", "schedule", "cancel"]);
-const LANGUAGES = new Set(["bg", "en", "de", "ro", "cs", "ru"]);
+const LANGUAGES = new Set<string>(GUEST_COMMUNICATION_LANGUAGES);
 const ROLE_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -78,7 +83,7 @@ export async function GET(req: NextRequest) {
       } : null,
       capabilities: access.capabilities,
       pushReach: Number(pushReach || 0),
-      supportedLanguages: [...LANGUAGES],
+      supportedLanguages: [...GUEST_COMMUNICATION_LANGUAGES],
       messages: messages || [],
     });
   } catch (error) {
@@ -132,6 +137,9 @@ export async function POST(req: NextRequest) {
     if (!CATEGORIES.has(category) || !LANGUAGES.has(sourceLanguage) || !title || !messageBody) {
       return json({ ok: false, error: "invalid_content" }, 400);
     }
+    if (category === "emergency" && !hasGuestCommunicationCapability(access, "guest_communications.emergency_send")) {
+      return json({ ok: false, error: "emergency_forbidden" }, 403);
+    }
 
     const now = new Date();
     let scheduledAt: string | null = null;
@@ -142,6 +150,35 @@ export async function POST(req: NextRequest) {
         return json({ ok: false, error: "invalid_schedule" }, 400);
       }
       scheduledAt = parsed.toISOString();
+    }
+
+    let titleI18n: Record<string, string> = { [sourceLanguage]: title };
+    let bodyI18n: Record<string, string> = { [sourceLanguage]: messageBody };
+    let translationStatus = "pending";
+    let translatedAt: string | null = null;
+
+    // Drafts can be saved before translation. Anything prepared for delivery
+    // must have all six guest languages ready first, otherwise fail closed.
+    if (action !== "draft") {
+      try {
+        const translated = await translateGuestCommunication({
+          sourceLanguage: sourceLanguage as GuestCommunicationLanguage,
+          title,
+          body: messageBody,
+        });
+        titleI18n = translated.titleI18n;
+        bodyI18n = translated.bodyI18n;
+        translationStatus = "ready";
+        translatedAt = new Date().toISOString();
+      } catch (translationError) {
+        console.error("Guest Communications translation failed", {
+          hotelId: access.hotel.id,
+          role: access.role,
+          category,
+          error: translationError,
+        });
+        return json({ ok: false, error: "translation_unavailable" }, 503);
+      }
     }
 
     const status = action === "schedule" ? "scheduled" : action === "send_now" ? "queued" : "draft";
@@ -161,9 +198,10 @@ export async function POST(req: NextRequest) {
         source_language: sourceLanguage,
         title,
         body: messageBody,
-        title_i18n: { [sourceLanguage]: title },
-        body_i18n: { [sourceLanguage]: messageBody },
-        translation_status: "pending",
+        title_i18n: titleI18n,
+        body_i18n: bodyI18n,
+        translation_status: translationStatus,
+        translated_at: translatedAt,
         audience_type: "all_active_guests",
         status,
         scheduled_at: scheduledAt,
@@ -179,7 +217,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       message: data,
       delivery: status === "queued" ? "queued_not_sent_yet" : status,
-      translation: "pending",
+      translation: translationStatus,
     }, 201);
   } catch (error) {
     console.error("Guest Communications POST failed", error);
