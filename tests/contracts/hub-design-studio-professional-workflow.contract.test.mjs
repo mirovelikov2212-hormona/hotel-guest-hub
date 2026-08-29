@@ -7,7 +7,7 @@ import {
 } from "../helpers/source-contract.mjs";
 
 const clientPath = "app/design-studio/DesignStudioClient.tsx";
-const previewPath = "app/design-studio/HubLivePreview.tsx";
+const builderPath = "app/design-studio/HubExperienceBuilder.tsx";
 
 test("Design Studio makes Design versus Factory ownership explicit", async () => {
   const client = await readProjectFile(clientPath);
@@ -24,20 +24,20 @@ test("Design Studio makes Design versus Factory ownership explicit", async () =>
   assertNotContains(client, "activateLive");
 });
 
-test("Design Studio can compose local draft content without creating runtime objects", async () => {
-  const preview = await readProjectFile(previewPath);
+test("Experience Builder can compose local draft content without creating runtime objects", async () => {
+  const builder = await readProjectFile(builderPath);
 
-  assertContains(preview, 'composer: "Draft Content Composer"');
-  assertContains(preview, "manualSections");
-  assertContains(preview, "extraItems");
-  assertContains(preview, "addDraftContent");
-  assertContains(preview, "manual-section-");
-  assertContains(preview, "manual-item-");
-  assertContains(preview, "Това не създава оперативен обект");
-  assertContains(preview, "setManualSections([])");
-  assertContains(preview, "setExtraItems({})");
-  assertNotContains(preview, "fetch(");
-  assertNotContains(preview, ".from(");
-  assertNotContains(preview, "publishRevision");
-  assertNotContains(preview, "activateLive");
+  assertContains(builder, 'manualContent: "Draft Content Composer"');
+  assertContains(builder, "manualSections");
+  assertContains(builder, "extraItems");
+  assertContains(builder, "addDraftContent");
+  assertContains(builder, "manual-section-");
+  assertContains(builder, "manual-item-");
+  assertContains(builder, "Този builder не изпраща съобщения и не публикува оферти");
+  assertContains(builder, "setManualSections([])");
+  assertContains(builder, "setExtraItems({})");
+  assertNotContains(builder, "fetch(");
+  assertNotContains(builder, ".from(");
+  assertNotContains(builder, "publishRevision");
+  assertNotContains(builder, "activateLive");
 });
