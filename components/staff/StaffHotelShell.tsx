@@ -2,12 +2,15 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 
+import GuestCommunicationsWorkspace from "@/components/staff/GuestCommunicationsWorkspace";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import type { StaffHotelBrand } from "@/lib/server/staff-hotel-brand";
 import { staffText } from "@/lib/staff/ui-copy";
 
 type StaffThemeMode = "light" | "dark";
+const ROLE_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
 
 export default function StaffHotelShell({
   hotelSlug,
@@ -18,10 +21,17 @@ export default function StaffHotelShell({
   brand: StaffHotelBrand;
   children: ReactNode;
 }) {
+  const pathname = usePathname();
   const { lang, setLang } = useStaffUi();
   const t = staffText(lang);
   const storageKey = useMemo(() => `stayhub:staff-theme:v1:${hotelSlug}`, [hotelSlug]);
   const [theme, setTheme] = useState<StaffThemeMode>("light");
+  const role = useMemo(() => {
+    const parts = pathname.split("/").filter(Boolean);
+    const candidate = parts[0] === "staff" && parts[1] ? String(parts[2] || "").toLowerCase() : "";
+    if (!candidate || candidate === "pin" || !ROLE_PATTERN.test(candidate)) return null;
+    return candidate;
+  }, [pathname]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(storageKey);
@@ -101,7 +111,10 @@ export default function StaffHotelShell({
           </div>
         </header>
 
-        <div className="stayhub-staff-workspace">{children}</div>
+        <div className="stayhub-staff-workspace">
+          {role ? <GuestCommunicationsWorkspace hotelSlug={hotelSlug} role={role} /> : null}
+          {children}
+        </div>
       </div>
     </div>
   );
