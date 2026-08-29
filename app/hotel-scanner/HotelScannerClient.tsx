@@ -47,6 +47,7 @@ type ScanResult = {
     stylesheetCount?: number;
     detectedColorCount?: number;
     detectedFontCount?: number;
+    detectedSocialLinkCount?: number;
   };
 };
 
@@ -81,6 +82,7 @@ const COPY = {
     address: "Адрес",
     phone: "Телефон",
     email: "Имейл",
+    social: "Социални профили",
     checkIn: "Настаняване",
     checkOut: "Освобождаване",
     languages: "Езици",
@@ -131,6 +133,7 @@ const COPY = {
     address: "Address",
     phone: "Phone",
     email: "Email",
+    social: "Social profiles",
     checkIn: "Check-in",
     checkOut: "Check-out",
     languages: "Languages",
@@ -314,6 +317,7 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
               <Field label={copy.address} value={[profile.identity.address, profile.identity.city, profile.identity.country].filter(Boolean).join(", ")} />
               <Field label={copy.phone} value={profile.contacts.phones.join(" · ")} />
               <Field label={copy.email} value={profile.contacts.emails.join(" · ")} />
+              <SocialLinks label={copy.social} links={profile.contacts.socialLinks} />
             </Card>
             <Card title={copy.operations}>
               <Field label={copy.checkIn} value={profile.operations.checkIn} />
@@ -348,7 +352,7 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
                       </div>
                       <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-neutral-500">{Math.round(fact.confidence * 100)}%</span>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-neutral-400">{fact.value}</p>
+                    <p className="mt-3 break-words text-sm leading-6 text-neutral-400">{fact.value}</p>
                     <p className="mt-3 text-[10px] text-neutral-600">{fact.sourceUrls.length} {fact.sourceUrls.length === 1 ? copy.sourcesOne : copy.sourcesMany}</p>
                   </div>
                 ))}
@@ -390,6 +394,22 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function Field({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return <div><p className="text-[10px] uppercase tracking-[0.14em] text-neutral-600">{label}</p><p className="mt-1 text-sm leading-6 text-neutral-300">{value}</p></div>;
+}
+
+function SocialLinks({ label, links }: { label: string; links: string[] }) {
+  if (!links.length) return null;
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-[0.14em] text-neutral-600">{label}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {links.map((link) => {
+          let host = link;
+          try { host = new URL(link).hostname.replace(/^www\./, ""); } catch { /* keep URL as label */ }
+          return <a key={link} href={link} target="_blank" rel="noreferrer" className="rounded-full border border-cyan-300/20 bg-cyan-300/[0.05] px-2.5 py-1.5 text-xs font-semibold text-cyan-100/80 transition hover:border-cyan-300/40">{host}</a>;
+        })}
+      </div>
+    </div>
+  );
 }
 
 function BrandPalette({ label, colors }: { label: string; colors: string[] }) {

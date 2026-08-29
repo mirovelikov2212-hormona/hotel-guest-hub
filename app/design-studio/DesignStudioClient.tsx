@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import HubLivePreview from "./HubLivePreview";
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
 import type { HotelIntelligenceItem, HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
 
@@ -12,7 +13,7 @@ const COPY = {
   bg: {
     eyebrow: "StayHub Design Intelligence",
     title: "Hub Design Studio",
-    subtitle: "Работна зона за превръщане на Hotel Intelligence Package в дизайн и информационна архитектура на Hub-а.",
+    subtitle: "Професионална работна зона за превръщане на Hotel Intelligence Package в дизайн, съдържание и информационна архитектура на Hub-а.",
     draft: "DESIGN DRAFT · нищо не е публикувано",
     noPackage: "Няма подаден Hotel Intelligence Package.",
     noPackageHelp: "Сканирай хотелски сайт и използвай „Отвори в Design Studio“, за да подадеш review draft-а тук.",
@@ -35,16 +36,34 @@ const COPY = {
     venues: "Обекти",
     amenities: "Удобства",
     policies: "Политики",
+    contacts: "Контакти",
+    socialProfiles: "Социални профили",
     source: "Източник",
     clear: "Изчисти черновата",
-    next: "Следващата стъпка е автоматично генериране на Hub theme + layout proposal върху този package, без публикуване.",
+    next: "Live Hub preview-ът е design чернова. След review ще може изрично да се материализира към Hotel Factory, но не се публикува автоматично.",
     candidate: "кандидат",
     review: "review",
+    workflow: "Работен поток и ownership",
+    workflowHelp: "Design Studio оформя Hub-а. Hotel Factory държи оперативната истина, която реално захранва runtime-а.",
+    designOwner: "Design Studio",
+    designOwnerText: "Дизайн, цветове, типография, секции, подредба, Hub content selection и draft информация.",
+    factoryOwner: "Hotel Factory",
+    factoryOwnerText: "Реални venues, стаи, услуги, работни времена, контакти, departments, credentials и runtime настройки.",
+    factoryAction: "Отвори Hotel Factory",
+    factoryBoundary: "В този етап бутонът само отваря Factory. Автоматичният package materialization ще бъде отделно изрично действие.",
+    stepScan: "1 · Scan",
+    stepReview: "2 · Review",
+    stepDesign: "3 · Design",
+    stepFactory: "4 · Factory",
+    stepSandbox: "5 · Sandbox",
+    stepLive: "6 · Live",
+    current: "текущо",
+    locked: "изрично действие",
   },
   en: {
     eyebrow: "StayHub Design Intelligence",
     title: "Hub Design Studio",
-    subtitle: "Workspace for turning a Hotel Intelligence Package into a Hub design and information architecture.",
+    subtitle: "A professional workspace for turning a Hotel Intelligence Package into Hub design, content and information architecture.",
     draft: "DESIGN DRAFT · nothing is published",
     noPackage: "No Hotel Intelligence Package has been handed off.",
     noPackageHelp: "Scan a hotel website and use “Open in Design Studio” to hand the review draft to this workspace.",
@@ -67,11 +86,29 @@ const COPY = {
     venues: "Venues",
     amenities: "Amenities",
     policies: "Policies",
+    contacts: "Contacts",
+    socialProfiles: "Social profiles",
     source: "Source",
     clear: "Clear draft",
-    next: "The next step is automatic Hub theme + layout proposal generation from this package, without publishing anything.",
+    next: "The Live Hub preview is a design draft. After review it can be explicitly materialized into Hotel Factory later, but nothing is published automatically.",
     candidate: "candidate",
     review: "review",
+    workflow: "Workflow & ownership",
+    workflowHelp: "Design Studio shapes the Hub. Hotel Factory owns the operational truth that powers runtime behavior.",
+    designOwner: "Design Studio",
+    designOwnerText: "Design, colors, typography, sections, ordering, Hub content selection and draft information.",
+    factoryOwner: "Hotel Factory",
+    factoryOwnerText: "Real venues, rooms, services, opening hours, contacts, departments, credentials and runtime settings.",
+    factoryAction: "Open Hotel Factory",
+    factoryBoundary: "At this stage the button only opens Factory. Automatic package materialization will remain a separate explicit action.",
+    stepScan: "1 · Scan",
+    stepReview: "2 · Review",
+    stepDesign: "3 · Design",
+    stepFactory: "4 · Factory",
+    stepSandbox: "5 · Sandbox",
+    stepLive: "6 · Live",
+    current: "current",
+    locked: "explicit action",
   },
 } as const;
 
@@ -131,6 +168,38 @@ export default function DesignStudioClient({ lang }: { lang: ControlPlaneLang })
         <Metric label={copy.reviewQueue} value={String(pkg.readiness.reviewRequiredCount)} />
       </div>
 
+      <section className="mt-6 rounded-3xl border border-cyan-300/10 bg-cyan-300/[0.025] p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-cyan-100/80">{copy.workflow}</h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-400">{copy.workflowHelp}</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.12em]">
+            <StepBadge label={copy.stepScan} state="done" />
+            <StepBadge label={copy.stepReview} state="done" />
+            <StepBadge label={copy.stepDesign} state="current" note={copy.current} />
+            <StepBadge label={copy.stepFactory} state="locked" note={copy.locked} />
+            <StepBadge label={copy.stepSandbox} state="locked" />
+            <StepBadge label={copy.stepLive} state="locked" />
+          </div>
+        </div>
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <OwnershipCard title={copy.designOwner} text={copy.designOwnerText} accent="violet" />
+          <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.035] p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-100/80">{copy.factoryOwner}</p>
+            <p className="mt-2 text-sm leading-6 text-neutral-400">{copy.factoryOwnerText}</p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Link href={`/hotel-factory/new?lang=${lang}`} className="inline-flex w-fit rounded-xl border border-emerald-300/25 bg-emerald-300/[0.06] px-3 py-2 text-xs font-semibold text-emerald-100">{copy.factoryAction}</Link>
+              <p className="text-[11px] leading-5 text-neutral-600">{copy.factoryBoundary}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="mt-6">
+        <HubLivePreview pkg={pkg} lang={lang} />
+      </div>
+
       <div className="mt-5 grid gap-5 xl:grid-cols-3">
         <LayerCard title={copy.evidence} badge={`${pkg.evidenceLayer.sourceUrls.length} URLs`}>
           <p className="text-sm leading-6 text-neutral-400">{pkg.evidenceLayer.facts.length} evidence-backed facts</p>
@@ -145,6 +214,8 @@ export default function DesignStudioClient({ lang }: { lang: ControlPlaneLang })
           <Field label={copy.venues} value={profile.hospitality.venues.map((venue) => venue.name).join(", ")} />
           <Field label={copy.amenities} value={profile.hospitality.amenities.join(", ")} />
           <Field label={copy.policies} value={profile.hospitality.policies.join(" · ")} />
+          <Field label={copy.contacts} value={[...profile.contacts.phones, ...profile.contacts.emails].join(" · ")} />
+          <SocialLinks label={copy.socialProfiles} links={profile.contacts.socialLinks} />
         </LayerCard>
 
         <LayerCard title={copy.design} badge={design.visualAssetPolicy}>
@@ -171,6 +242,24 @@ export default function DesignStudioClient({ lang }: { lang: ControlPlaneLang })
         <button type="button" onClick={clearDraft} className="shrink-0 rounded-2xl border border-white/10 px-4 py-3 text-xs font-semibold text-neutral-400 transition hover:border-white/20 hover:text-neutral-200">{copy.clear}</button>
       </div>
     </section>
+  );
+}
+
+function StepBadge({ label, state, note }: { label: string; state: "done" | "current" | "locked"; note?: string }) {
+  const className = state === "done"
+    ? "border-emerald-300/15 bg-emerald-300/[0.05] text-emerald-100/70"
+    : state === "current"
+      ? "border-violet-300/25 bg-violet-300/[0.08] text-violet-100"
+      : "border-white/5 bg-black/20 text-neutral-600";
+  return <span className={`rounded-full border px-2.5 py-1.5 ${className}`}>{label}{note ? ` · ${note}` : ""}</span>;
+}
+
+function OwnershipCard({ title, text, accent }: { title: string; text: string; accent: "violet" }) {
+  return (
+    <div className={`rounded-2xl border p-4 ${accent === "violet" ? "border-violet-300/15 bg-violet-300/[0.035]" : "border-white/5 bg-black/20"}`}>
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-violet-100/80">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-neutral-400">{text}</p>
+    </div>
   );
 }
 
@@ -218,6 +307,22 @@ function QueueItem({ item, lang }: { item: HotelIntelligenceItem; lang: ControlP
 function Field({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return <div><p className="text-[10px] uppercase tracking-[0.14em] text-neutral-600">{label}</p><p className="mt-1 text-sm leading-6 text-neutral-300">{value}</p></div>;
+}
+
+function SocialLinks({ label, links }: { label: string; links: string[] }) {
+  if (!links.length) return null;
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-[0.14em] text-neutral-600">{label}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {links.map((link) => {
+          let host = link;
+          try { host = new URL(link).hostname.replace(/^www\./, ""); } catch { /* keep URL as label */ }
+          return <a key={link} href={link} target="_blank" rel="noreferrer" className="rounded-full border border-cyan-300/15 bg-cyan-300/[0.04] px-2.5 py-1.5 text-[11px] font-semibold text-cyan-100/75 transition hover:border-cyan-300/30">{host}</a>;
+        })}
+      </div>
+    </div>
+  );
 }
 
 function BrandPalette({ label, colors }: { label: string; colors: string[] }) {
