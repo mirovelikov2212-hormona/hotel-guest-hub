@@ -8,6 +8,7 @@ import {
 
 const proposalPath = "lib/product-factory/hub-design-proposal.ts";
 const livePreviewPath = "app/design-studio/HubLivePreview.tsx";
+const builderPath = "app/design-studio/HubExperienceBuilder.tsx";
 const designStudioClientPath = "app/design-studio/DesignStudioClient.tsx";
 
 test("Hub Design Proposal is deterministic and Intelligence Package based", async () => {
@@ -37,24 +38,27 @@ test("Hub Design Proposal filters icon fonts before typography selection", async
   assertContains(proposal, "FALLBACK_FONT");
 });
 
-test("Hub Design Studio live preview is editable and draft-only", async () => {
+test("Hub Design Studio live preview delegates to Experience Builder V2 and remains draft-only", async () => {
   const preview = await readProjectFile(livePreviewPath);
+  const builder = await readProjectFile(builderPath);
   const client = await readProjectFile(designStudioClientPath);
 
-  assertContains(preview, "buildHubDesignProposal(pkg, lang)");
-  assertContains(preview, "setPrimaryColor");
-  assertContains(preview, "setSecondaryColor");
-  assertContains(preview, "setBackgroundColor");
-  assertContains(preview, "setHeadingFont");
-  assertContains(preview, "setBodyFont");
-  assertContains(preview, "toggleSection");
-  assertContains(preview, "quickSections");
-  assertContains(preview, "Hero image after hotel approval");
+  assertContains(preview, "HubExperienceBuilder");
+  assertContains(preview, "<HubExperienceBuilder pkg={pkg} lang={lang} />");
+  assertContains(builder, "buildHubDesignProposal(pkg, lang)");
+  assertContains(builder, "buildHubExperienceBlueprint(pkg, lang)");
+  assertContains(builder, "setPrimaryColor");
+  assertContains(builder, "setSecondaryColor");
+  assertContains(builder, "setBackgroundColor");
+  assertContains(builder, "setHeadingFont");
+  assertContains(builder, "setBodyFont");
+  assertContains(builder, "toggleSection");
+  assertContains(builder, "Hero / welcome");
   assertContains(client, "<HubLivePreview pkg={pkg} lang={lang} />");
-  assertNotContains(preview, "fetch(");
-  assertNotContains(preview, ".from(");
-  assertNotContains(preview, "publishRevision");
-  assertNotContains(preview, "activateLive");
+  assertNotContains(builder, "fetch(");
+  assertNotContains(builder, ".from(");
+  assertNotContains(builder, "publishRevision");
+  assertNotContains(builder, "activateLive");
   assertNotContains(client, "publishRevision");
   assertNotContains(client, "activateLive");
 });
