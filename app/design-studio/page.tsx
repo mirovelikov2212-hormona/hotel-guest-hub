@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import DesignFactoryHandoffLauncher from "./DesignFactoryHandoffLauncher";
 import VersionedDesignStudioClient from "./VersionedDesignStudioClient";
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
 import { normalizeAdminNextTarget } from "@/lib/control-plane-next";
@@ -62,6 +63,7 @@ export default async function DesignStudioPage({
         </header>
 
         <VersionedDesignStudioClient lang={lang} />
+        <DesignFactoryHandoffLauncher lang={lang} />
       </div>
     </main>
   );
