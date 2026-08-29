@@ -31,6 +31,7 @@ const SOCIAL_HOSTS = new Set([
 ]);
 
 const SHARE_PATH_PATTERN = /\/(?:sharer|share|intent|dialog|plugins\/share|shareArticle)(?:\/|$)/i;
+const HOTEL_PAGE_PRIORITY = /(contact|contacts|kontakt|контакт|about|hotel-home|hotel|info|location)/i;
 
 function decodeHtmlUrl(value: string) {
   return value
@@ -75,14 +76,45 @@ export function extractHotelSocialLinksFromHtml(html: string, canonicalUrl: stri
   return found;
 }
 
-async function fetchSocialLinksFromHotelPage(rawUrl: string) {
-  const start = await validatePublicHotelUrl(rawUrl);
-  const allowedOrigin = start.origin;
-  let current = start;
+function extractSameOriginHotelLinks(html: string, base: URL) {
+  const found: string[] = [];
+  const seen = new Set<string>();
+  const anchorRegex = /<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = anchorRegex.exec(html)) && found.length < 40) {
+    try {
+      const candidate = new URL(decodeHtmlUrl(match[1]), base);
+      if (!["http:", "https:"].includes(candidate.protocol)) continue;
+      if (candidate.origin !== base.origin) continue;
+      candidate.hash = "";
+      if (/\.(?:pdf|jpe?g|png|gif|webp|svg|zip|docx?|xlsx?|pptx?)(?:$|\?)/i.test(candidate.pathname)) continue;
+      const value = candidate.toString();
+      if (seen.has(value)) continue;
+      seen.add(value);
+      found.push(value);
+    } catch {
+      continue;
+    }
+  }
+
+  return found.sort((left, right) => Number(HOTEL_PAGE_PRIORITY.test(right)) - Number(HOTEL_PAGE_PRIORITY.test(left)));
+}
+
+type SocialPageEvidence = {
+  url: string;
+  socialLinks: string[];
+  hotelLinks: string[];
+};
+
+async function fetchSocialPageEvidence(rawUrl: string, allowedOrigin?: string): Promise<SocialPageEvidence | null> {
+  let current = await validatePublicHotelUrl(rawUrl);
+  const origin = allowedOrigin || current.origin;
+  if (current.origin !== origin) return null;
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
     current = await validatePublicHotelUrl(current.toString());
-    if (current.origin !== allowedOrigin) return [];
+    if (current.origin !== origin) return null;
 
     const response = await fetch(current, {
       method: "GET",
@@ -97,27 +129,57 @@ async function fetchSocialLinksFromHotelPage(rawUrl: string) {
 
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get("location");
-      if (!location) return [];
+      if (!location) return null;
       const next = new URL(location, current);
-      if (next.origin !== allowedOrigin) return [];
+      if (next.origin !== origin) return null;
       current = next;
       continue;
     }
 
-    if (!response.ok) return [];
+    if (!response.ok) return null;
     const contentType = String(response.headers.get("content-type") || "").toLowerCase();
-    if (contentType && !contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) return [];
+    if (contentType && !contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) return null;
     const contentLength = Number(response.headers.get("content-length") || 0);
-    if (contentLength > MAX_HTML_BYTES) return [];
+    if (contentLength > MAX_HTML_BYTES) return null;
+
     const html = (await response.text()).slice(0, MAX_HTML_BYTES);
-    return extractHotelSocialLinksFromHtml(html, current.toString());
+    return {
+      url: current.toString(),
+      socialLinks: extractHotelSocialLinksFromHtml(html, current.toString()),
+      hotelLinks: extractSameOriginHotelLinks(html, current),
+    };
   }
 
-  return [];
+  return null;
 }
 
-export async function collectHotelSocialLinkEvidence(pageUrls: string[]) {
-  const urls = [...new Set(pageUrls.map((value) => String(value || "").trim()).filter(Boolean))].slice(0, MAX_PAGES);
-  const results = await Promise.all(urls.map((url) => fetchSocialLinksFromHotelPage(url).catch(() => [] as string[])));
-  return [...new Set(results.flat())].slice(0, 12);
+export async function collectHotelSocialLinkEvidence(input: string | string[]) {
+  const seeds = [...new Set((Array.isArray(input) ? input : [input]).map((value) => String(value || "").trim()).filter(Boolean))].slice(0, MAX_PAGES);
+  if (!seeds.length) return [];
+
+  const first = await fetchSocialPageEvidence(seeds[0]).catch(() => null);
+  if (!first) return [];
+
+  const allowedOrigin = new URL(first.url).origin;
+  const pageCandidates = [...new Set([
+    ...seeds.slice(1),
+    ...first.hotelLinks,
+  ])]
+    .filter((url) => {
+      try {
+        return new URL(url).origin === allowedOrigin;
+      } catch {
+        return false;
+      }
+    })
+    .slice(0, MAX_PAGES - 1);
+
+  const additional = await Promise.all(
+    pageCandidates.map((url) => fetchSocialPageEvidence(url, allowedOrigin).catch(() => null)),
+  );
+
+  const links = [first, ...additional.filter((page): page is SocialPageEvidence => Boolean(page))]
+    .flatMap((page) => page.socialLinks);
+
+  return [...new Set(links)].slice(0, 12);
 }
