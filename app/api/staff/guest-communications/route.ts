@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" };
 const CATEGORIES = new Set(["information", "event", "change", "offer", "emergency", "operational"]);
 const ACTIONS = new Set(["draft", "send_now", "schedule", "cancel"]);
+const LANGUAGES = new Set(["bg", "en", "de", "ro", "cs", "ru"]);
 const ROLE_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
 
     let messagesQuery = supabaseAdmin
       .from("guest_communications")
-      .select("id,department_id,actor_role,category,title,body,audience_type,status,scheduled_at,queued_at,sent_at,display_from,display_until,delivery_total,delivery_sent,delivery_failed,delivery_expired,last_error,created_at,updated_at,departments(name,code)")
+      .select("id,department_id,actor_role,category,source_language,title,body,title_i18n,body_i18n,translation_status,translated_at,audience_type,status,scheduled_at,queued_at,sent_at,display_from,display_until,delivery_total,delivery_sent,delivery_failed,delivery_expired,last_error,created_at,updated_at,departments(name,code)")
       .eq("hotel_id", access.hotel.id)
       .order("created_at", { ascending: false })
       .limit(100);
@@ -77,6 +78,7 @@ export async function GET(req: NextRequest) {
       } : null,
       capabilities: access.capabilities,
       pushReach: Number(pushReach || 0),
+      supportedLanguages: [...LANGUAGES],
       messages: messages || [],
     });
   } catch (error) {
@@ -124,9 +126,12 @@ export async function POST(req: NextRequest) {
     if (action === "schedule" && !hasGuestCommunicationCapability(access, "guest_communications.schedule")) return json({ ok: false, error: "schedule_forbidden" }, 403);
 
     const category = String(body?.category || "information").trim().toLowerCase();
+    const sourceLanguage = String(body?.sourceLanguage || "en").trim().toLowerCase();
     const title = cleanText(body?.title, 120);
     const messageBody = cleanText(body?.body, 1000);
-    if (!CATEGORIES.has(category) || !title || !messageBody) return json({ ok: false, error: "invalid_content" }, 400);
+    if (!CATEGORIES.has(category) || !LANGUAGES.has(sourceLanguage) || !title || !messageBody) {
+      return json({ ok: false, error: "invalid_content" }, 400);
+    }
 
     const now = new Date();
     let scheduledAt: string | null = null;
@@ -153,8 +158,12 @@ export async function POST(req: NextRequest) {
         department_id: access.runtimeRole.kind === "department" ? access.runtimeRole.departmentId : null,
         actor_role: access.role,
         category,
+        source_language: sourceLanguage,
         title,
         body: messageBody,
+        title_i18n: { [sourceLanguage]: title },
+        body_i18n: { [sourceLanguage]: messageBody },
+        translation_status: "pending",
         audience_type: "all_active_guests",
         status,
         scheduled_at: scheduledAt,
@@ -162,11 +171,16 @@ export async function POST(req: NextRequest) {
         display_from: displayFrom,
         display_until: displayUntil,
       })
-      .select("id,department_id,actor_role,category,title,body,status,scheduled_at,queued_at,display_from,display_until,created_at")
+      .select("id,department_id,actor_role,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at,queued_at,display_from,display_until,created_at")
       .single();
 
     if (error) throw error;
-    return json({ ok: true, message: data, delivery: status === "queued" ? "queued_not_sent_yet" : status }, 201);
+    return json({
+      ok: true,
+      message: data,
+      delivery: status === "queued" ? "queued_not_sent_yet" : status,
+      translation: "pending",
+    }, 201);
   } catch (error) {
     console.error("Guest Communications POST failed", error);
     return json({ ok: false, error: "unavailable" }, 503);
