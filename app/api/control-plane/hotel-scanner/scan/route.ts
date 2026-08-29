@@ -7,6 +7,7 @@ import {
   type HotelScannerOutputLanguage,
 } from "@/lib/ai/hotel-scanner";
 import { extractRichHotelScanFactsWithOpenAi } from "@/lib/ai/hotel-scanner-rich-facts";
+import { buildHotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
 import {
   crawlPublicHotelWebsite,
   HotelScannerError,
@@ -210,12 +211,14 @@ export async function POST(request: NextRequest) {
       ...coreState.normalized.profile,
       facts: mergeFacts(richFacts, coreState.normalized.profile.facts),
     };
+    const intelligencePackage = buildHotelIntelligencePackage(profile);
 
     return json({
       ok: true,
       draft: true,
       lang: outputLanguage,
       profile,
+      intelligencePackage,
       assetPolicy: {
         logo: LOGO_ASSET_POLICY,
         scannedLogoUrls: "reference_only",
