@@ -14,6 +14,7 @@ export type StaffHotelBrand = {
   background: string;
   soft: string;
   surface: string;
+  onBrand: "#FFFFFF" | "#102027";
   coverImage: string | null;
   logoUrl: string | null;
   source: "hotel_branding_configs" | "published_hotel_config" | "stayhub_default";
@@ -33,6 +34,19 @@ function asRecord(value: unknown): Record<string, unknown> {
 function color(value: unknown, fallback: string) {
   const normalized = String(value || "").trim();
   return HEX_COLOR.test(normalized) ? normalized.toUpperCase() : fallback;
+}
+
+function colorLuminance(hex: string) {
+  const value = hex.replace("#", "");
+  const channels = [0, 2, 4].map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16) / 255);
+  const linear = channels.map((channel) => channel <= 0.03928
+    ? channel / 12.92
+    : ((channel + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+function onBrandColor(primary: string): StaffHotelBrand["onBrand"] {
+  return colorLuminance(primary) >= 0.42 ? "#102027" : "#FFFFFF";
 }
 
 function optionalUrl(value: unknown) {
@@ -75,6 +89,7 @@ function brandingFromRow(row: BrandingRow | null, hotelName: string): StaffHotel
     background: color(themeValue(theme, "background", "backgroundColor"), "#F7F8FA"),
     soft: color(themeValue(theme, "soft", "softColor"), "#F3F4F6"),
     surface: color(themeValue(theme, "surface", "surfaceColor"), "#FFFFFF"),
+    onBrand: onBrandColor(primary),
     coverImage: optionalUrl(config.cover_image || config.coverImage),
     logoUrl: optionalUrl(config.logo_url || config.logoUrl),
     source: "hotel_branding_configs",
@@ -122,6 +137,7 @@ export async function resolveStaffHotelBrand(input: {
       background: color(config.theme?.background, "#F7F8FA"),
       soft: color(config.theme?.soft, "#F3F4F6"),
       surface: color(config.theme?.surface, "#FFFFFF"),
+      onBrand: onBrandColor(primary),
       coverImage: optionalUrl(config.coverImage),
       logoUrl: null,
       source: "published_hotel_config",
@@ -136,6 +152,7 @@ export async function resolveStaffHotelBrand(input: {
     background: "#F7F8FA",
     soft: "#F3F4F6",
     surface: "#FFFFFF",
+    onBrand: "#FFFFFF",
     coverImage: null,
     logoUrl: null,
     source: "stayhub_default",
