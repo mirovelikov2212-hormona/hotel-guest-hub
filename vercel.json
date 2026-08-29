@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/factory-production-runtime-smoke",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/guest-communications-dispatch",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
