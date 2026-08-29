@@ -1,0 +1,224 @@
+.stayhub-staff-shell {
+  --staff-brand-primary: #2563eb;
+  --staff-brand-secondary: #0ea5e9;
+  --staff-brand-accent: #14b8a6;
+  --staff-brand-background: #f7f8fa;
+  --staff-brand-soft: #f3f4f6;
+  --staff-brand-surface: #ffffff;
+  --staff-on-brand: #ffffff;
+  --staff-bg: #f7f8fa;
+  --staff-surface: #ffffff;
+  --staff-surface-muted: #f3f6f7;
+  --staff-surface-elevated: #ffffff;
+  --staff-text: #172126;
+  --staff-muted: #65747b;
+  --staff-faint: #87939a;
+  --staff-border: rgba(23, 33, 38, 0.12);
+  --staff-border-strong: rgba(23, 33, 38, 0.2);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--staff-brand-primary) 10%, transparent), transparent 28rem),
+    var(--staff-bg);
+  color: var(--staff-text);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] {
+  --staff-bg: color-mix(in srgb, var(--staff-brand-background) 20%, #f7f8fa 80%);
+  --staff-surface: #ffffff;
+  --staff-surface-muted: color-mix(in srgb, var(--staff-brand-soft) 18%, #f3f6f7 82%);
+  --staff-surface-elevated: #ffffff;
+  --staff-text: #172126;
+  --staff-muted: #65747b;
+  --staff-faint: #87939a;
+  --staff-border: rgba(23, 33, 38, 0.12);
+  --staff-border-strong: rgba(23, 33, 38, 0.2);
+}
+
+.stayhub-staff-shell[data-staff-theme="dark"] {
+  --staff-bg: #0b1013;
+  --staff-surface: #11191d;
+  --staff-surface-muted: #162126;
+  --staff-surface-elevated: #1a262c;
+  --staff-text: #f5f8f8;
+  --staff-muted: #b0bdc2;
+  --staff-faint: #7d8c92;
+  --staff-border: rgba(235, 245, 247, 0.12);
+  --staff-border-strong: rgba(235, 245, 247, 0.22);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--staff-brand-primary) 22%, transparent), transparent 32rem),
+    #0b1013;
+}
+
+.stayhub-staff-brand-rail {
+  height: 4px;
+  background: linear-gradient(90deg, var(--staff-brand-primary), var(--staff-brand-secondary), var(--staff-brand-accent));
+}
+
+.stayhub-staff-topbar {
+  border-color: var(--staff-border);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--staff-brand-primary) 8%, var(--staff-surface) 92%), var(--staff-surface));
+  color: var(--staff-text);
+  box-shadow: 0 14px 38px rgba(18, 34, 40, 0.08);
+}
+
+.stayhub-staff-shell[data-staff-theme="dark"] .stayhub-staff-topbar {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--staff-brand-primary) 16%, var(--staff-surface) 84%), var(--staff-surface));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
+}
+
+.stayhub-staff-brand-dot {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--staff-brand-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--staff-brand-primary) 14%, transparent);
+}
+
+.stayhub-staff-segmented,
+.stayhub-staff-select {
+  border-color: var(--staff-border);
+  background: var(--staff-surface-muted);
+  color: var(--staff-text);
+}
+
+.stayhub-staff-segmented button {
+  color: var(--staff-muted);
+}
+
+.stayhub-staff-segmented button.is-active {
+  background: var(--staff-brand-primary);
+  color: var(--staff-on-brand);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--staff-brand-primary) 22%, transparent);
+}
+
+.stayhub-staff-select option {
+  background: var(--staff-surface);
+  color: var(--staff-text);
+}
+
+/* The old Staff UI used dark Tailwind utility tokens directly. These scoped
+   mappings let every existing panel inherit the hotel-aware shell immediately,
+   while semantic alert colors (red/amber/emerald/sky) stay untouched. */
+.stayhub-staff-workspace .bg-neutral-950,
+.stayhub-staff-workspace .bg-neutral-900 {
+  background-color: transparent !important;
+}
+
+.stayhub-staff-workspace .bg-neutral-800,
+.stayhub-staff-workspace .bg-white\/5,
+.stayhub-staff-workspace .bg-black\/20 {
+  background-color: var(--staff-surface) !important;
+}
+
+.stayhub-staff-workspace .bg-white\/10,
+.stayhub-staff-workspace .bg-black\/30 {
+  background-color: var(--staff-surface-muted) !important;
+}
+
+.stayhub-staff-workspace .border-white\/10,
+.stayhub-staff-workspace .border-white\/15,
+.stayhub-staff-workspace .border-neutral-800,
+.stayhub-staff-workspace .border-neutral-700,
+.stayhub-staff-workspace .border-neutral-600 {
+  border-color: var(--staff-border) !important;
+}
+
+.stayhub-staff-workspace .text-white,
+.stayhub-staff-workspace .text-neutral-50,
+.stayhub-staff-workspace .text-neutral-100,
+.stayhub-staff-workspace .text-neutral-200 {
+  color: var(--staff-text) !important;
+}
+
+.stayhub-staff-workspace .text-white\/85,
+.stayhub-staff-workspace .text-white\/80,
+.stayhub-staff-workspace .text-white\/75,
+.stayhub-staff-workspace .text-white\/70,
+.stayhub-staff-workspace .text-white\/65,
+.stayhub-staff-workspace .text-white\/60,
+.stayhub-staff-workspace .text-neutral-300,
+.stayhub-staff-workspace .text-neutral-400 {
+  color: var(--staff-muted) !important;
+}
+
+.stayhub-staff-workspace .text-white\/55,
+.stayhub-staff-workspace .text-white\/50,
+.stayhub-staff-workspace .text-white\/45,
+.stayhub-staff-workspace .text-white\/40,
+.stayhub-staff-workspace .text-neutral-500,
+.stayhub-staff-workspace .text-neutral-600 {
+  color: var(--staff-faint) !important;
+}
+
+.stayhub-staff-workspace input,
+.stayhub-staff-workspace select,
+.stayhub-staff-workspace textarea {
+  color: var(--staff-text);
+}
+
+.stayhub-staff-workspace input::placeholder,
+.stayhub-staff-workspace textarea::placeholder {
+  color: var(--staff-faint);
+}
+
+.stayhub-staff-workspace article,
+.stayhub-staff-workspace section,
+.stayhub-staff-workspace button,
+.stayhub-staff-workspace input,
+.stayhub-staff-workspace select,
+.stayhub-staff-workspace textarea {
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.stayhub-staff-workspace button:focus-visible,
+.stayhub-staff-workspace input:focus-visible,
+.stayhub-staff-workspace select:focus-visible,
+.stayhub-staff-workspace textarea:focus-visible,
+.stayhub-staff-topbar button:focus-visible,
+.stayhub-staff-topbar select:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--staff-brand-accent) 48%, transparent);
+  outline-offset: 2px;
+}
+
+/* Shared interactive panel primitive. */
+.stayhub-staff-collapsible {
+  border: 1px solid var(--staff-border);
+  background: var(--staff-surface);
+  color: var(--staff-text);
+  box-shadow: 0 10px 30px rgba(18, 34, 40, 0.06);
+}
+
+.stayhub-staff-shell[data-staff-theme="dark"] .stayhub-staff-collapsible {
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+}
+
+.stayhub-staff-collapsible-trigger {
+  color: var(--staff-text);
+}
+
+.stayhub-staff-collapsible-trigger:hover {
+  background: color-mix(in srgb, var(--staff-brand-primary) 7%, var(--staff-surface) 93%);
+}
+
+.stayhub-staff-collapsible-summary {
+  color: var(--staff-muted);
+}
+
+.stayhub-staff-collapsible-icon {
+  border: 1px solid var(--staff-border);
+  background: var(--staff-surface-muted);
+  color: var(--staff-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stayhub-staff-shell *,
+  .stayhub-staff-shell *::before,
+  .stayhub-staff-shell *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
