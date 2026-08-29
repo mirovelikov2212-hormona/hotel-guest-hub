@@ -40,6 +40,7 @@ export default function StaffHotelShell({
     "--staff-brand-background": brand.background,
     "--staff-brand-soft": brand.soft,
     "--staff-brand-surface": brand.surface,
+    "--staff-on-brand": brand.onBrand,
   } as CSSProperties;
 
   return (
