@@ -9,9 +9,12 @@ import {
 const crawlerPath = "lib/server/factory-hotel-scanner.ts";
 const normalizerPath = "lib/ai/hotel-scanner.ts";
 const richFactsPath = "lib/ai/hotel-scanner-rich-facts.ts";
+const intelligencePackagePath = "lib/product-factory/hotel-intelligence-package.ts";
 const routePath = "app/api/control-plane/hotel-scanner/scan/route.ts";
 const pagePath = "app/hotel-scanner/page.tsx";
 const clientPath = "app/hotel-scanner/HotelScannerClient.tsx";
+const designStudioPagePath = "app/design-studio/page.tsx";
+const designStudioClientPath = "app/design-studio/DesignStudioClient.tsx";
 const controlPanelPath = "app/control-panel/page.tsx";
 
 test("Factory Hotel Scanner is admin protected and draft-only", async () => {
@@ -186,6 +189,56 @@ test("Factory Hotel Scanner AI normalization is evidence grounded", async () => 
   assertContains(normalizer, "store: false");
   assertContains(richFacts, "Every fact MUST cite one or more exact URLs from ALLOWED_SOURCE_URLS.");
   assertContains(richFacts, ".filter((url) => allowed.has(url))");
+});
+
+test("Hotel Intelligence Package formalizes evidence profile design and routing layers", async () => {
+  const model = await readProjectFile(intelligencePackagePath);
+  const route = await readProjectFile(routePath);
+
+  assertContains(model, 'schemaVersion: "hotel-intelligence-v1"');
+  assertContains(model, "evidenceLayer:");
+  assertContains(model, "hotelProfileLayer:");
+  assertContains(model, "designIntelligenceLayer:");
+  assertContains(model, '"hub" | "smart_setup" | "design_studio" | "review"');
+  assertContains(model, 'visualAssetPolicy: "hotel_authorization_required"');
+  assertContains(model, "hubCandidateCount");
+  assertContains(model, "smartSetupCandidateCount");
+  assertContains(model, "reviewRequiredCount");
+  assertContains(route, "buildHotelIntelligencePackage(profile)");
+  assertContains(route, "intelligencePackage,");
+});
+
+test("Scanner hands the Intelligence Package to Design Studio only by explicit local action", async () => {
+  const client = await readProjectFile(clientPath);
+
+  assertContains(client, 'PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1"');
+  assertContains(client, "window.sessionStorage.setItem(PACKAGE_STORAGE_KEY");
+  assertContains(client, 'window.location.assign(`/design-studio?lang=${lang}`)');
+  assertContains(client, "result?.intelligencePackage");
+  assertContains(client, "openDesignStudio");
+  assertNotContains(client, "publishRevision");
+  assertNotContains(client, "activateLive");
+});
+
+test("Hub Design Studio is protected and draft-only", async () => {
+  const page = await readProjectFile(designStudioPagePath);
+  const client = await readProjectFile(designStudioClientPath);
+  const controlPanel = await readProjectFile(controlPanelPath);
+
+  assertContains(page, "getCurrentPlatformAdminSession()");
+  assertContains(page, "DesignStudioClient");
+  assertContains(page, "/design-studio?lang=");
+  assertContains(client, 'PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1"');
+  assertContains(client, "pkg.routing.hub");
+  assertContains(client, "pkg.routing.smartSetup");
+  assertContains(client, "pkg.routing.review");
+  assertContains(client, "design.visualAssetPolicy");
+  assertNotContains(client, "fetch(");
+  assertNotContains(client, ".from(");
+  assertNotContains(client, "publishRevision");
+  assertNotContains(client, "activateLive");
+  assertContains(controlPanel, "Hub Design Studio");
+  assertContains(controlPanel, "/design-studio?lang=");
 });
 
 test("Hotel Scanner is a standalone protected workspace", async () => {

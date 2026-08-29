@@ -18,6 +18,9 @@ const COPY = {
     scannerTitle: "AI Hotel Scanner",
     scannerText: "Сканирай публичния сайт на хотел и получи структуриран, доказуем review draft без автоматично създаване или публикуване.",
     scannerAction: "Отвори скенера",
+    designTitle: "Hub Design Studio",
+    designText: "Прегледай Hotel Intelligence Package, сортирай Hub content и design signals и подготви визуален Hub draft.",
+    designAction: "Отвори Design Studio",
     factoryTitle: "Hotel Factory",
     factoryText: "Създай и тествай нов хотелски Hub през guided onboarding workspace.",
     factoryAction: "Създай нов хотел",
@@ -33,6 +36,9 @@ const COPY = {
     scannerTitle: "AI Hotel Scanner",
     scannerText: "Scan a hotel's public website and get a structured, evidence-backed review draft without automatically creating or publishing anything.",
     scannerAction: "Open scanner",
+    designTitle: "Hub Design Studio",
+    designText: "Review the Hotel Intelligence Package, sort Hub content and design signals, and prepare a visual Hub draft.",
+    designAction: "Open Design Studio",
     factoryTitle: "Hotel Factory",
     factoryText: "Create and test a new hotel Hub through the guided onboarding workspace.",
     factoryAction: "Create new hotel",
@@ -57,7 +63,7 @@ export default async function ControlPanelHome({
 
   return (
     <main className="min-h-screen bg-neutral-950 px-4 py-8 text-neutral-50 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6">
         <header className="rounded-3xl border border-neutral-800 bg-neutral-900 p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -76,11 +82,11 @@ export default async function ControlPanelHome({
           </div>
         </header>
 
-        <section className="grid gap-5 lg:grid-cols-3">
+        <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           <article className="rounded-3xl border border-amber-300/20 bg-neutral-900 p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/70">Control Panel</p>
             <h2 className="mt-3 text-xl font-semibold">{copy.commercialTitle}</h2>
-            <p className="mt-2 min-h-20 text-sm leading-6 text-neutral-400">{copy.commercialText}</p>
+            <p className="mt-2 min-h-24 text-sm leading-6 text-neutral-400">{copy.commercialText}</p>
             <Link href={`/control-plane?lang=${lang}`} className="mt-6 inline-flex rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">
               {copy.commercialAction}
             </Link>
@@ -89,16 +95,25 @@ export default async function ControlPanelHome({
           <article className="rounded-3xl border border-indigo-300/25 bg-neutral-900 p-6 shadow-[0_24px_80px_rgba(99,102,241,0.05)]">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-200/70">StayHub Intelligence</p>
             <h2 className="mt-3 text-xl font-semibold">{copy.scannerTitle}</h2>
-            <p className="mt-2 min-h-20 text-sm leading-6 text-neutral-400">{copy.scannerText}</p>
+            <p className="mt-2 min-h-24 text-sm leading-6 text-neutral-400">{copy.scannerText}</p>
             <Link href={`/hotel-scanner?lang=${lang}`} className="mt-6 inline-flex rounded-2xl border border-indigo-300/30 bg-indigo-300/10 px-4 py-3 text-sm font-semibold text-indigo-100">
               {copy.scannerAction}
+            </Link>
+          </article>
+
+          <article className="rounded-3xl border border-violet-300/25 bg-neutral-900 p-6 shadow-[0_24px_80px_rgba(139,92,246,0.05)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-200/70">Design Intelligence</p>
+            <h2 className="mt-3 text-xl font-semibold">{copy.designTitle}</h2>
+            <p className="mt-2 min-h-24 text-sm leading-6 text-neutral-400">{copy.designText}</p>
+            <Link href={`/design-studio?lang=${lang}`} className="mt-6 inline-flex rounded-2xl border border-violet-300/30 bg-violet-300/10 px-4 py-3 text-sm font-semibold text-violet-100">
+              {copy.designAction}
             </Link>
           </article>
 
           <article className="rounded-3xl border border-cyan-300/25 bg-neutral-900 p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200/70">Hotel Factory</p>
             <h2 className="mt-3 text-xl font-semibold">{copy.factoryTitle}</h2>
-            <p className="mt-2 min-h-20 text-sm leading-6 text-neutral-400">{copy.factoryText}</p>
+            <p className="mt-2 min-h-24 text-sm leading-6 text-neutral-400">{copy.factoryText}</p>
             <Link href={`/hotel-factory/new?lang=${lang}`} className="mt-6 inline-flex rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-100">
               {copy.factoryAction}
             </Link>
