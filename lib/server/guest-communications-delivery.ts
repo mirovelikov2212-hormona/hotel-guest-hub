@@ -141,7 +141,7 @@ async function finalizeCommunication(input: {
   skipped: number;
 }) {
   const now = new Date().toISOString();
-  const failureCount = input.failed + input.expired;
+  const failureCount = input.failed + input.expired + input.skipped;
   const status = failureCount === 0
     ? "sent"
     : input.sent > 0
@@ -151,7 +151,9 @@ async function finalizeCommunication(input: {
     ? `${input.failed} push deliveries failed`
     : input.expired > 0
       ? `${input.expired} push subscriptions expired`
-      : null;
+      : input.skipped > 0
+        ? `${input.skipped} push deliveries skipped`
+        : null;
 
   const { error } = await supabaseAdmin
     .from("guest_communications")
@@ -160,7 +162,7 @@ async function finalizeCommunication(input: {
       sent_at: now,
       delivery_total: input.total,
       delivery_sent: input.sent,
-      delivery_failed: input.failed,
+      delivery_failed: input.failed + input.skipped,
       delivery_expired: input.expired,
       last_error: lastError,
       updated_at: now,
