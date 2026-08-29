@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
 import type { HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
-import { buildHubDesignProposal } from "@/lib/product-factory/hub-design-proposal";
+import { buildHubDesignProposal, type HubDesignSection } from "@/lib/product-factory/hub-design-proposal";
 
 const COPY = {
   bg: {
@@ -28,6 +28,16 @@ const COPY = {
     sectionCount: "секции",
     contentCount: "елемента",
     draft: "DESIGN PREVIEW",
+    composer: "Draft Content Composer",
+    composerHelp: "Добави нова информационна карта или нова Hub секция само към тази design чернова.",
+    targetSection: "Към секция",
+    newSection: "+ Нова секция",
+    newSectionTitle: "Име на новата секция",
+    itemTitle: "Заглавие на картата",
+    itemValue: "Информация",
+    addDraft: "Добави в preview",
+    manualDraft: "manual draft",
+    composerBoundary: "Това не създава оперативен обект. Реален ресторант, бар, SPA, услуга, работно време или контакт трябва да бъде потвърден във Hotel Factory преди runtime materialization.",
   },
   en: {
     title: "Live Hub Preview",
@@ -50,8 +60,20 @@ const COPY = {
     sectionCount: "sections",
     contentCount: "items",
     draft: "DESIGN PREVIEW",
+    composer: "Draft Content Composer",
+    composerHelp: "Add a new information card or Hub section to this design draft only.",
+    targetSection: "Target section",
+    newSection: "+ New section",
+    newSectionTitle: "New section name",
+    itemTitle: "Card title",
+    itemValue: "Information",
+    addDraft: "Add to preview",
+    manualDraft: "manual draft",
+    composerBoundary: "This does not create an operational object. A real restaurant, bar, SPA, service, opening time or contact must be confirmed in Hotel Factory before runtime materialization.",
   },
 } as const;
+
+const NEW_SECTION_TARGET = "__new__";
 
 export default function HubLivePreview({ pkg, lang }: { pkg: HotelIntelligencePackage; lang: ControlPlaneLang }) {
   const copy = COPY[lang];
@@ -62,11 +84,23 @@ export default function HubLivePreview({ pkg, lang }: { pkg: HotelIntelligencePa
   const [headingFont, setHeadingFont] = useState(proposal.theme.headingFont);
   const [bodyFont, setBodyFont] = useState(proposal.theme.bodyFont);
   const [hiddenSections, setHiddenSections] = useState<string[]>([]);
+  const [manualSections, setManualSections] = useState<HubDesignSection[]>([]);
+  const [extraItems, setExtraItems] = useState<Record<string, HubDesignSection["items"]>>({});
+  const [targetSectionId, setTargetSectionId] = useState(NEW_SECTION_TARGET);
+  const [newSectionTitle, setNewSectionTitle] = useState("");
+  const [draftLabel, setDraftLabel] = useState("");
+  const [draftValue, setDraftValue] = useState("");
 
-  const visibleSections = proposal.sections.filter((section) => !hiddenSections.includes(section.id));
-  const quickSections = proposal.quickActions
-    .map((id) => visibleSections.find((section) => section.id === id))
-    .filter((section): section is NonNullable<typeof section> => Boolean(section));
+  const allSections = useMemo(() => {
+    const generated = proposal.sections.map((section) => ({
+      ...section,
+      items: [...section.items, ...(extraItems[section.id] || [])],
+    }));
+    return [...generated, ...manualSections];
+  }, [proposal.sections, extraItems, manualSections]);
+
+  const visibleSections = allSections.filter((section) => !hiddenSections.includes(section.id));
+  const quickSections = visibleSections.slice(0, 6);
 
   function reset() {
     setPrimaryColor(proposal.theme.primaryColor);
@@ -75,12 +109,57 @@ export default function HubLivePreview({ pkg, lang }: { pkg: HotelIntelligencePa
     setHeadingFont(proposal.theme.headingFont);
     setBodyFont(proposal.theme.bodyFont);
     setHiddenSections([]);
+    setManualSections([]);
+    setExtraItems({});
+    setTargetSectionId(NEW_SECTION_TARGET);
+    setNewSectionTitle("");
+    setDraftLabel("");
+    setDraftValue("");
   }
 
   function toggleSection(id: string) {
     setHiddenSections((current) => current.includes(id)
       ? current.filter((item) => item !== id)
       : [...current, id]);
+  }
+
+  function addDraftContent() {
+    const label = draftLabel.trim();
+    const value = draftValue.trim();
+    if (!label || !value) return;
+
+    const item = {
+      id: `manual-item-${Date.now()}`,
+      label,
+      value,
+      confidence: 0,
+    };
+
+    if (targetSectionId === NEW_SECTION_TARGET) {
+      const title = newSectionTitle.trim();
+      if (!title) return;
+      const sectionId = `manual-section-${Date.now()}`;
+      setManualSections((current) => [
+        ...current,
+        {
+          id: sectionId,
+          category: "manual",
+          title,
+          items: [item],
+          priority: 900 + current.length,
+        },
+      ]);
+      setTargetSectionId(sectionId);
+      setNewSectionTitle("");
+    } else {
+      setExtraItems((current) => ({
+        ...current,
+        [targetSectionId]: [...(current[targetSectionId] || []), item],
+      }));
+    }
+
+    setDraftLabel("");
+    setDraftValue("");
   }
 
   return (
@@ -116,8 +195,9 @@ export default function HubLivePreview({ pkg, lang }: { pkg: HotelIntelligencePa
               <span className="text-xs text-neutral-600">{visibleSections.length} {copy.sectionCount}</span>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              {proposal.sections.map((section) => {
+              {allSections.map((section) => {
                 const enabled = !hiddenSections.includes(section.id);
+                const manual = section.id.startsWith("manual-section-");
                 return (
                   <button
                     key={section.id}
@@ -126,13 +206,49 @@ export default function HubLivePreview({ pkg, lang }: { pkg: HotelIntelligencePa
                     className={`flex items-center justify-between gap-3 rounded-2xl border p-3 text-left transition ${enabled ? "border-violet-300/15 bg-violet-300/[0.04]" : "border-white/5 bg-black/20 opacity-45"}`}
                   >
                     <span>
-                      <span className="block text-xs font-semibold text-neutral-300">{section.title}</span>
+                      <span className="flex items-center gap-2 text-xs font-semibold text-neutral-300">
+                        {section.title}
+                        {manual && <span className="rounded-full border border-amber-300/15 px-1.5 py-0.5 text-[8px] uppercase tracking-[0.1em] text-amber-100/60">{copy.manualDraft}</span>}
+                      </span>
                       <span className="mt-1 block text-[10px] text-neutral-600">{section.items.length} {copy.contentCount}</span>
                     </span>
                     <span className={`h-2.5 w-2.5 rounded-full ${enabled ? "bg-emerald-300" : "bg-neutral-700"}`} />
                   </button>
                 );
               })}
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-cyan-300/10 bg-cyan-300/[0.025] p-5">
+            <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-cyan-100/80">{copy.composer}</h4>
+            <p className="mt-2 text-sm leading-6 text-neutral-400">{copy.composerHelp}</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="text-[10px] uppercase tracking-[0.14em] text-neutral-600">
+                {copy.targetSection}
+                <select value={targetSectionId} onChange={(event) => setTargetSectionId(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2.5 text-xs normal-case tracking-normal text-neutral-300 outline-none">
+                  <option value={NEW_SECTION_TARGET}>{copy.newSection}</option>
+                  {allSections.map((section) => <option key={`target:${section.id}`} value={section.id}>{section.title}</option>)}
+                </select>
+              </label>
+              {targetSectionId === NEW_SECTION_TARGET && (
+                <DraftInput label={copy.newSectionTitle} value={newSectionTitle} onChange={setNewSectionTitle} />
+              )}
+              <DraftInput label={copy.itemTitle} value={draftLabel} onChange={setDraftLabel} />
+              <label className="sm:col-span-2 text-[10px] uppercase tracking-[0.14em] text-neutral-600">
+                {copy.itemValue}
+                <textarea value={draftValue} onChange={(event) => setDraftValue(event.target.value)} rows={3} className="mt-2 w-full resize-y rounded-xl border border-white/10 bg-neutral-900 px-3 py-2.5 text-xs normal-case leading-5 tracking-normal text-neutral-300 outline-none" />
+              </label>
+            </div>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="max-w-3xl text-[11px] leading-5 text-amber-100/55">{copy.composerBoundary}</p>
+              <button
+                type="button"
+                onClick={addDraftContent}
+                disabled={!draftLabel.trim() || !draftValue.trim() || (targetSectionId === NEW_SECTION_TARGET && !newSectionTitle.trim())}
+                className="shrink-0 rounded-xl border border-cyan-300/25 bg-cyan-300/[0.06] px-4 py-2.5 text-xs font-semibold text-cyan-100 transition disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                {copy.addDraft}
+              </button>
             </div>
           </section>
 
@@ -227,6 +343,15 @@ export default function HubLivePreview({ pkg, lang }: { pkg: HotelIntelligencePa
         </div>
       </div>
     </section>
+  );
+}
+
+function DraftInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="text-[10px] uppercase tracking-[0.14em] text-neutral-600">
+      {label}
+      <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2.5 text-xs normal-case tracking-normal text-neutral-300 outline-none" />
+    </label>
   );
 }
 
