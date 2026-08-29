@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "checkpoint": "hub-design-draft-versioning",
+  "baseCheckpoint": "step2d-communications-persistence",
+  "expectedNeedsReview": 140,
+  "additions": [
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "line": 112,
+      "table": "hub_design_workspaces",
+      "tableExpression": "\"hub_design_workspaces\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_control_plane_design_studio_read_uses_service_role_only_to_resolve_pre_factory_workspace_by_sha256_source_key; workspace_is_global_design_authoring_metadata_not_hotel_runtime_state_direct_client_access_is_denied_by_rls_and_no_operational_hotel_or_activation_state_is_read_or_mutated"
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "line": 120,
+      "table": "hub_design_draft_revisions",
+      "tableExpression": "\"hub_design_draft_revisions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_control_plane_design_studio_history_read_uses_service_role_only_to_list_immutable_pre_factory_revisions_scoped_by_already_resolved_workspace_id_with_direct_client_access_denied_by_rls_and_no_runtime_hotel_state"
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "line": 130,
+      "table": "hub_design_draft_revisions",
+      "tableExpression": "\"hub_design_draft_revisions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_control_plane_design_studio_current_revision_read_uses_service_role_only_and_exact_workspace_plus_current_revision_identity_to_load_an_immutable_design_payload; no_operational_projection_publication_or_activation_authority"
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "line": 163,
+      "rpc": "save_hub_design_draft_revision_v1",
+      "tableExpression": "\"save_hub_design_draft_revision_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "same_origin_authenticated_control_plane_mutation_uses_service_role_only_security_definer_rpc_that_rechecks_active_super_admin_or_operator_serializes_by_source_key_enforces_parent_revision_optimistic_concurrency_idempotency_checksums_immutable_draft_status_and_audit_log_without_factory_materialization_publication_campaign_send_or_live_activation"
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "line": 198,
+      "rpc": "restore_hub_design_draft_revision_v1",
+      "tableExpression": "\"restore_hub_design_draft_revision_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "same_origin_authenticated_control_plane_restore_uses_service_role_only_security_definer_rpc_that_rechecks_active_super_admin_or_operator_expected_current_revision_id_workspace_lineage_and_idempotency_then_appends_a_new_immutable_draft_revision_never_updates_old_payloads_and_never_materializes_or_activates_runtime_state"
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "line": 209,
+      "table": "hub_design_draft_revisions",
+      "tableExpression": "\"hub_design_draft_revisions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_control_plane_post_restore_read_uses_service_role_only_and_exact_workspace_plus_new_revision_id_to_return_the_immutable_restored_payload_after_the_guarded_rpc; no_operational_hotel_state"
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "line": 235,
+      "table": "hub_design_draft_revisions",
+      "tableExpression": "\"hub_design_draft_revisions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_control_plane_compare_read_uses_service_role_only_with_workspace_id_and_two_explicit_revision_ids_to_compute_structural_design_diff_read_only; revisions_are_pre_factory_authoring_state_and_direct_client_access_is_denied_by_rls"
+    }
+  ]
+}
