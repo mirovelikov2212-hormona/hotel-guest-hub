@@ -28,6 +28,7 @@ jobs:
       - run: node --test tests/contracts/hotel-scanner-social-evidence.contract.test.mjs
       - run: node --test tests/contracts/hub-design-studio-live-preview.contract.test.mjs
       - run: node --test tests/contracts/hub-design-studio-professional-workflow.contract.test.mjs
+      - run: node --test tests/contracts/hub-experience-builder-v2.contract.test.mjs
       - run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
