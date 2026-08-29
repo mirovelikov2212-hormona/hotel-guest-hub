@@ -6,7 +6,7 @@
   "additions": [
     {
       "filePath": "lib/server/hub-design-draft-revisions.ts",
-      "line": 113,
+      "line": 112,
       "table": "hub_design_workspaces",
       "tableExpression": "\"hub_design_workspaces\"",
       "operation": "select",
@@ -15,7 +15,7 @@
     },
     {
       "filePath": "lib/server/hub-design-draft-revisions.ts",
-      "line": 121,
+      "line": 120,
       "table": "hub_design_draft_revisions",
       "tableExpression": "\"hub_design_draft_revisions\"",
       "operation": "select",
@@ -24,7 +24,7 @@
     },
     {
       "filePath": "lib/server/hub-design-draft-revisions.ts",
-      "line": 131,
+      "line": 130,
       "table": "hub_design_draft_revisions",
       "tableExpression": "\"hub_design_draft_revisions\"",
       "operation": "select",
@@ -51,7 +51,7 @@
     },
     {
       "filePath": "lib/server/hub-design-draft-revisions.ts",
-      "line": 210,
+      "line": 209,
       "table": "hub_design_draft_revisions",
       "tableExpression": "\"hub_design_draft_revisions\"",
       "operation": "select",
@@ -60,7 +60,7 @@
     },
     {
       "filePath": "lib/server/hub-design-draft-revisions.ts",
-      "line": 236,
+      "line": 235,
       "table": "hub_design_draft_revisions",
       "tableExpression": "\"hub_design_draft_revisions\"",
       "operation": "select",
