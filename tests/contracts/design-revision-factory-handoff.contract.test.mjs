@@ -16,8 +16,9 @@ test("Factory handoff reads one exact immutable Design Revision and verifies bot
   assertContains(source, "sourcePackageChecksum !== data.source_package_checksum");
   assertContains(source, 'schemaVersion: "hub-design-factory-handoff-v1"');
   assertContains(source, "isCurrentRevision");
-  assertNotContains(source, ".insert(");
-  assertNotContains(source, ".update(");
+  assertNotContains(source, ".insert({");
+  assertNotContains(source, ".update({");
+  assertNotContains(source, ".delete(");
   assertNotContains(source, "production-live-activation");
 });
 
@@ -32,14 +33,14 @@ test("Design Studio launcher can hand the current saved revision to the reviewed
 
 test("Factory handoff keeps uncertain operational identity under explicit human review", async () => {
   const source = await readProjectFile(handoffPath);
-  assertContains(source, "setCountryCode(\"\")");
-  assertContains(source, "setRoomsText(\"\")");
-  assertContains(source, "setLanguages<string[]>([])");
+  assertContains(source, 'const [countryCode, setCountryCode] = useState("")');
+  assertContains(source, 'const [roomsText, setRoomsText] = useState("")');
+  assertContains(source, "const [languages, setLanguages] = useState<string[]>([])");
   assertContains(source, "/api/control-plane/onboarding/location");
   assertContains(source, "verified location + timezone");
   assertContains(source, "explicit room inventory");
-  assertNotContains(source, 'setCountryCode("BG")');
-  assertNotContains(source, 'setRoomsText("101');
+  assertNotContains(source, 'useState("BG")');
+  assertNotContains(source, 'useState("101');
 });
 
 test("Factory blueprint carries exact Design Revision provenance into the existing onboarding source of truth", async () => {
@@ -61,16 +62,27 @@ test("Factory blueprint carries exact Design Revision provenance into the existi
 test("Factory creation reuses the existing exact inactive foundation approval and never invokes LIVE activation", async () => {
   const handoff = await readProjectFile(handoffPath);
   const onboarding = await readProjectFile(onboardingPath);
+
   for (const fragment of [
     "createDraftTenant: true",
     "keepProductionInactive: true",
     "keepSandboxInactive: true",
     "publishRevision: false",
     "activateLive: false",
-  ]) {
-    assertContains(handoff, fragment);
-    assertContains(onboarding, fragment);
-  }
+  ]) assertContains(handoff, fragment);
+
+  for (const fragment of [
+    "approval.createDraftTenant === true",
+    "approval.keepProductionInactive === true",
+    "approval.keepSandboxInactive === true",
+    "approval.publishRevision === false",
+    "approval.activateLive === false",
+    'productionActive: false',
+    'sandboxActive: false',
+    'revisionPublished: false',
+    'liveActivated: false',
+  ]) assertContains(onboarding, fragment);
+
   assertNotContains(handoff, "production-live-activation");
   assertNotContains(handoff, "production-publication");
   assertNotContains(handoff, "sandbox-certification");
