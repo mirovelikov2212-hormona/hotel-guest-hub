@@ -25,6 +25,7 @@ jobs:
       - run: node --test tests/contracts/p2-6-4-relational-authority-jsonb.contract.test.mjs
       - run: node --test tests/contracts/p2-6-5-rollback-qualification.contract.test.mjs
       - run: node --test tests/contracts/factory-ai-hotel-scanner.contract.test.mjs
+      - run: node --test tests/contracts/hub-design-studio-live-preview.contract.test.mjs
       - run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
