@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import HubLivePreview from "./HubLivePreview";
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
 import type { HotelIntelligenceItem, HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
 
@@ -37,7 +38,7 @@ const COPY = {
     policies: "Политики",
     source: "Източник",
     clear: "Изчисти черновата",
-    next: "Следващата стъпка е автоматично генериране на Hub theme + layout proposal върху този package, без публикуване.",
+    next: "Live Hub preview-ът е design чернова. След review ще може да се материализира към Hotel Factory, но не се публикува автоматично.",
     candidate: "кандидат",
     review: "review",
   },
@@ -69,7 +70,7 @@ const COPY = {
     policies: "Policies",
     source: "Source",
     clear: "Clear draft",
-    next: "The next step is automatic Hub theme + layout proposal generation from this package, without publishing anything.",
+    next: "The Live Hub preview is a design draft. After review it can later be materialized into Hotel Factory, but nothing is published automatically.",
     candidate: "candidate",
     review: "review",
   },
@@ -129,6 +130,10 @@ export default function DesignStudioClient({ lang }: { lang: ControlPlaneLang })
         <Metric label={copy.hubQueue} value={String(pkg.readiness.hubCandidateCount)} />
         <Metric label={copy.design} value={String(pkg.readiness.designSignalCount)} />
         <Metric label={copy.reviewQueue} value={String(pkg.readiness.reviewRequiredCount)} />
+      </div>
+
+      <div className="mt-6">
+        <HubLivePreview pkg={pkg} lang={lang} />
       </div>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-3">
