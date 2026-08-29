@@ -11,7 +11,6 @@ const builderPath = "app/design-studio/HubExperienceBuilder.tsx";
 
 test("Experience Blueprint V2 models pages navigation campaigns and runtime boundaries", async () => {
   const model = await readProjectFile(modelPath);
-
   assertContains(model, 'schemaVersion: "hub-experience-blueprint-v2"');
   assertContains(model, "HubInternalPage");
   assertContains(model, "HubNavigationItem");
@@ -29,7 +28,6 @@ test("Experience Blueprint V2 models pages navigation campaigns and runtime boun
 
 test("Experience Blueprint defaults to stable five-destination mobile navigation", async () => {
   const model = await readProjectFile(modelPath);
-
   assertContains(model, 'id: "nav-home"');
   assertContains(model, 'id: "nav-services"');
   assertContains(model, 'id: "nav-offers"');
@@ -43,7 +41,6 @@ test("Experience Blueprint defaults to stable five-destination mobile navigation
 
 test("Promotions and marketing messaging have interruption and consent guardrails", async () => {
   const model = await readProjectFile(modelPath);
-
   assertContains(model, 'placement: "floating_bottom"');
   assertContains(model, "dismissible: true");
   assertContains(model, 'frequencyCap: "once_per_session"');
@@ -56,7 +53,6 @@ test("Promotions and marketing messaging have interruption and consent guardrail
 
 test("Design QA enforces navigation contrast progressive disclosure and touch targets", async () => {
   const model = await readProjectFile(modelPath);
-
   assertContains(model, "evaluateHubExperienceDesign");
   assertContains(model, "contrastRatio");
   assertContains(model, 'id: "top-level-navigation"');
@@ -72,29 +68,27 @@ test("Design QA enforces navigation contrast progressive disclosure and touch ta
 
 test("Experience Builder previews inner pages offers messages surveys and persistent navigation", async () => {
   const builder = await readProjectFile(builderPath);
-
   assertContains(builder, 'type BuilderPanel = "structure" | "pages" | "campaigns" | "navigation" | "style" | "qa"');
-  assertContains(builder, "PagesPanel");
-  assertContains(builder, "CampaignsPanel");
-  assertContains(builder, "NavigationPanel");
-  assertContains(builder, "QaPanel");
-  assertContains(builder, "OffersScreen");
-  assertContains(builder, "MessagesScreen");
-  assertContains(builder, "ContentPage");
-  assertContains(builder, "survey_card");
-  assertContains(builder, "ai_concierge");
-  assertContains(builder, "floating_bottom");
+  assertContains(builder, 'panel === "pages"');
+  assertContains(builder, 'panel === "campaigns"');
+  assertContains(builder, 'panel === "navigation"');
+  assertContains(builder, 'panel === "qa"');
+  assertContains(builder, 'activePage?.kind === "offers"');
+  assertContains(builder, 'activePage?.kind === "messages"');
+  assertContains(builder, 'activePage.kind !== "offers" && activePage.kind !== "messages"');
+  assertContains(builder, 'modules.includes("survey_card")');
+  assertContains(builder, 'modules.includes("ai_concierge")');
+  assertContains(builder, 'promo?.placement === "floating_bottom"');
   assertContains(builder, "bottom-[76px]");
   assertContains(builder, "<nav");
   assertContains(builder, "min-h-11");
-  assertContains(builder, "moveNav");
+  assertContains(builder, "moveNavigation");
   assertContains(builder, "↑");
   assertContains(builder, "↓");
 });
 
 test("Experience Builder remains local design-only and cannot publish or materialize", async () => {
   const builder = await readProjectFile(builderPath);
-
   assertContains(builder, "EXPERIENCE DRAFT");
   assertContains(builder, "Hotel Factory");
   assertNotContains(builder, "fetch(");
