@@ -243,18 +243,21 @@ export async function POST(request: NextRequest) {
       "hotel_scanner_ai_timeout",
     );
 
-    const baseProfile = coreState.normalized.profile;
+    const profileWithRichFacts = {
+      ...coreState.normalized.profile,
+      facts: mergeFacts(richFacts, coreState.normalized.profile.facts),
+    };
     const socialFacts = buildSocialFacts(detectedSocialLinks, evidence.canonicalUrl);
     const profile = {
-      ...baseProfile,
+      ...profileWithRichFacts,
       contacts: {
-        ...baseProfile.contacts,
+        ...profileWithRichFacts.contacts,
         socialLinks: detectedSocialLinks,
       },
-      facts: mergeFacts([...socialFacts, ...richFacts], baseProfile.facts),
+      facts: mergeFacts(socialFacts, profileWithRichFacts.facts),
       uncertainties: detectedSocialLinks.length
-        ? baseProfile.uncertainties.filter((item) => !SOCIAL_UNCERTAINTY_PATTERN.test(item))
-        : baseProfile.uncertainties,
+        ? profileWithRichFacts.uncertainties.filter((item) => !SOCIAL_UNCERTAINTY_PATTERN.test(item))
+        : profileWithRichFacts.uncertainties,
     };
     const intelligencePackage = buildHotelIntelligencePackage(profile);
 
