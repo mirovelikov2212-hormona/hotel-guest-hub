@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import DesignStudioClient from "./DesignStudioClient";
+import VersionedDesignStudioClient from "./VersionedDesignStudioClient";
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
 import { normalizeAdminNextTarget } from "@/lib/control-plane-next";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
@@ -12,14 +12,14 @@ const COPY = {
   bg: {
     eyebrow: "StayHub Product Factory",
     title: "Hub Design Studio",
-    subtitle: "Самостоятелна работна зона за дизайн, структура и бъдещо генериране на Hub draft от Hotel Intelligence Package.",
+    subtitle: "Версионирана работна зона за дизайн, структура, кампании и review-ready Hub revisions от Hotel Intelligence Package.",
     back: "← Control Panel",
     scanner: "AI Hotel Scanner",
   },
   en: {
     eyebrow: "StayHub Product Factory",
     title: "Hub Design Studio",
-    subtitle: "A standalone workspace for Hub design, structure and future draft generation from a Hotel Intelligence Package.",
+    subtitle: "A versioned workspace for Hub design, structure, campaigns and review-ready revisions from a Hotel Intelligence Package.",
     back: "← Control Panel",
     scanner: "AI Hotel Scanner",
   },
@@ -61,7 +61,7 @@ export default async function DesignStudioPage({
           <Link href={`/control-panel?lang=${lang}`} className="mt-6 inline-flex text-sm font-semibold text-violet-200 transition hover:text-violet-100">{copy.back}</Link>
         </header>
 
-        <DesignStudioClient lang={lang} />
+        <VersionedDesignStudioClient lang={lang} />
       </div>
     </main>
   );
