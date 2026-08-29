@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "checkpoint": "hub-design-draft-versioning",
+  "checkpoint": "design-revision-factory-handoff",
   "baseCheckpoint": "step2d-communications-persistence",
-  "expectedNeedsReview": 140,
+  "expectedNeedsReview": 141,
   "additions": [
     {
       "filePath": "lib/server/hub-design-draft-revisions.ts",
@@ -66,6 +66,15 @@
       "operation": "select",
       "reasons": ["unclassified_table"],
       "provenance": "authenticated_control_plane_compare_read_uses_service_role_only_with_workspace_id_and_two_explicit_revision_ids_to_compute_structural_design_diff_read_only; revisions_are_pre_factory_authoring_state_and_direct_client_access_is_denied_by_rls"
+    },
+    {
+      "filePath": "app/api/control-plane/design-studio/factory-handoff/route.ts",
+      "line": 40,
+      "table": "hub_design_draft_revisions",
+      "tableExpression": "\"hub_design_draft_revisions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_control_plane_read_only_factory_handoff_resolves_one_exact_workspace_plus_revision_pair_from_the_pre_factory_immutable_design_revision_store_recomputes_payload_and_source_package_sha256_before_returning_review_data_and_has_no_insert_update_factory_materialization_publication_campaign_send_or_live_activation_authority"
     }
   ]
 }
