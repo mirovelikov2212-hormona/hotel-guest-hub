@@ -45,8 +45,9 @@ test("Hub Design Studio live preview delegates to Experience Builder V2 and rema
 
   assertContains(preview, "HubExperienceBuilder");
   assertContains(preview, "<HubExperienceBuilder pkg={pkg} lang={lang} />");
-  assertContains(builder, "buildHubDesignProposal(pkg, lang)");
-  assertContains(builder, "buildHubExperienceBlueprint(pkg, lang)");
+  assertContains(builder, 'const language: "bg" | "en" = lang === "en" ? "en" : "bg"');
+  assertContains(builder, "buildHubDesignProposal(pkg, language)");
+  assertContains(builder, "buildHubExperienceBlueprint(pkg, language)");
   assertContains(builder, "setPrimaryColor");
   assertContains(builder, "setSecondaryColor");
   assertContains(builder, "setBackgroundColor");
