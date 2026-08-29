@@ -20,12 +20,29 @@ test("Hotel Scanner records social profiles without crawling external social net
   assertContains(social, '"instagram.com"');
   assertContains(social, "SHARE_PATH_PATTERN");
   assertContains(social, "extractHotelSocialLinksFromHtml");
-  assertContains(social, "validatePublicHotelUrl(canonicalUrl)");
-  assertContains(social, 'redirect: "error"');
-  assertContains(social, "FETCH_TIMEOUT_MS = 6_000");
-  assertContains(social, "MAX_HTML_BYTES = 1_000_000");
+  assertContains(social, "candidate.origin !== base.origin");
+  assertContains(social, "next.origin !== origin");
+  assertNotContains(social, "fetch(candidate");
   assertNotContains(social, ".from(");
   assertNotContains(social, "publishRevision");
+});
+
+test("Social evidence discovery follows bounded same-origin hotel pages", async () => {
+  const social = await readProjectFile(socialEvidencePath);
+
+  assertContains(social, "MAX_PAGES = 6");
+  assertContains(social, "MAX_REDIRECTS = 5");
+  assertContains(social, "FETCH_TIMEOUT_MS = 6_000");
+  assertContains(social, "MAX_HTML_BYTES = 1_000_000");
+  assertContains(social, "HOTEL_PAGE_PRIORITY");
+  assertContains(social, "extractSameOriginHotelLinks");
+  assertContains(social, "fetchSocialPageEvidence");
+  assertContains(social, "collectHotelSocialLinkEvidence(input: string | string[])");
+  assertContains(social, "...first.hotelLinks");
+  assertContains(social, "Promise.all(");
+  assertContains(social, "allowedOrigin");
+  assertContains(social, 'redirect: "manual"');
+  assertNotContains(social, 'redirect: "error"');
 });
 
 test("Detected social profiles become authoritative contact evidence", async () => {
