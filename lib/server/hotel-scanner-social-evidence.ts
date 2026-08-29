@@ -1,11 +1,5 @@
 import "server-only";
 
-import { validatePublicHotelUrl } from "@/lib/server/factory-hotel-scanner";
-
-const MAX_HTML_BYTES = 1_000_000;
-const FETCH_TIMEOUT_MS = 6_000;
-const USER_AGENT = "StayHub-Hotel-Scanner/1.0 (+https://stayhub.app)";
-
 const SOCIAL_HOSTS = new Set([
   "facebook.com",
   "www.facebook.com",
@@ -71,27 +65,4 @@ export function extractHotelSocialLinksFromHtml(html: string, canonicalUrl: stri
   }
 
   return found;
-}
-
-export async function collectHotelSocialLinkEvidence(canonicalUrl: string) {
-  const url = await validatePublicHotelUrl(canonicalUrl);
-  const response = await fetch(url, {
-    method: "GET",
-    redirect: "error",
-    cache: "no-store",
-    headers: {
-      Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
-      "User-Agent": USER_AGENT,
-    },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
-
-  if (!response.ok) return [];
-  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
-  if (contentType && !contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) return [];
-  const contentLength = Number(response.headers.get("content-length") || 0);
-  if (contentLength > MAX_HTML_BYTES) return [];
-
-  const html = (await response.text()).slice(0, MAX_HTML_BYTES);
-  return extractHotelSocialLinksFromHtml(html, url.toString());
 }
