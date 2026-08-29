@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
+import type { HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
 
 type ScanFact = {
   category: string;
@@ -36,6 +37,7 @@ type ScanResult = {
   draft?: boolean;
   lang?: "bg" | "en";
   profile?: ScanProfile;
+  intelligencePackage?: HotelIntelligencePackage;
   diagnostics?: {
     model?: string;
     latencyMs?: number;
@@ -47,6 +49,8 @@ type ScanResult = {
     detectedFontCount?: number;
   };
 };
+
+const PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1";
 
 const COPY = {
   bg: {
@@ -87,7 +91,17 @@ const COPY = {
     policies: "Политики",
     failed: "Сканирането не завърши успешно.",
     noFacts: "Няма достатъчно доказуеми факти в сканираните страници.",
-    next: "След преглед тази чернова ще може изрично да се подаде към Smart Setup / Design Studio.",
+    next: "След преглед тази чернова може изрично да се подаде към Smart Setup / Design Studio.",
+    intelligence: "Hotel Intelligence Package",
+    evidenceLayer: "Evidence Layer",
+    profileLayer: "Hotel Profile Layer",
+    designLayer: "Design Intelligence Layer",
+    hubCandidates: "Hub кандидати",
+    smartSetupCandidates: "Smart Setup кандидати",
+    designSignals: "Design сигнали",
+    reviewRequired: "За review",
+    openDesignStudio: "Отвори в Design Studio",
+    handoffHelp: "Package-ът се прехвърля само локално като чернова. Не се създава хотел и нищо не се публикува.",
   },
   en: {
     title: "AI hotel website scan",
@@ -128,6 +142,16 @@ const COPY = {
     failed: "The scan did not complete successfully.",
     noFacts: "No sufficiently supported facts were found in the scanned pages.",
     next: "After review, this draft can be explicitly sent to Smart Setup / Design Studio.",
+    intelligence: "Hotel Intelligence Package",
+    evidenceLayer: "Evidence Layer",
+    profileLayer: "Hotel Profile Layer",
+    designLayer: "Design Intelligence Layer",
+    hubCandidates: "Hub candidates",
+    smartSetupCandidates: "Smart Setup candidates",
+    designSignals: "Design signals",
+    reviewRequired: "Needs review",
+    openDesignStudio: "Open in Design Studio",
+    handoffHelp: "The package is handed off locally as a draft only. No hotel is created and nothing is published.",
   },
 } as const;
 
@@ -199,7 +223,14 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
     }
   }
 
+  function openDesignStudio() {
+    if (!result?.intelligencePackage) return;
+    window.sessionStorage.setItem(PACKAGE_STORAGE_KEY, JSON.stringify(result.intelligencePackage));
+    window.location.assign(`/design-studio?lang=${lang}`);
+  }
+
   const profile = result?.ok ? result.profile : undefined;
+  const intelligencePackage = result?.ok ? result.intelligencePackage : undefined;
 
   return (
     <section className="rounded-[2rem] border border-cyan-300/15 bg-neutral-900/85 p-5 shadow-[0_30px_100px_rgba(6,182,212,0.06)] backdrop-blur-xl sm:p-7">
@@ -249,6 +280,33 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
             <Metric label={copy.aiModel} value={result?.diagnostics?.model || "—"} />
             <Metric label={copy.schema} value={profile.schemaVersion} />
           </div>
+
+          {intelligencePackage && (
+            <Card title={copy.intelligence}>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                <LayerMetric label={copy.evidenceLayer} value={intelligencePackage.readiness.evidenceFactCount} />
+                <LayerMetric label={copy.hubCandidates} value={intelligencePackage.readiness.hubCandidateCount} />
+                <LayerMetric label={copy.smartSetupCandidates} value={intelligencePackage.readiness.smartSetupCandidateCount} />
+                <LayerMetric label={copy.designSignals} value={intelligencePackage.readiness.designSignalCount} />
+                <LayerMetric label={copy.reviewRequired} value={intelligencePackage.readiness.reviewRequiredCount} />
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <LayerDescription title={copy.evidenceLayer} text={`${intelligencePackage.evidenceLayer.sourceUrls.length} URLs · ${intelligencePackage.evidenceLayer.facts.length} facts`} />
+                <LayerDescription title={copy.profileLayer} text={profile.identity.hotelName || "—"} />
+                <LayerDescription title={copy.designLayer} text={`${profile.brand.colors.length} colors · ${profile.brand.fonts.length} fonts`} />
+              </div>
+              <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-violet-300/15 bg-violet-300/[0.04] p-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="max-w-2xl text-xs leading-5 text-neutral-400">{copy.handoffHelp}</p>
+                <button
+                  type="button"
+                  onClick={openDesignStudio}
+                  className="shrink-0 rounded-2xl border border-violet-300/35 bg-violet-300/10 px-4 py-3 text-sm font-semibold text-violet-100 transition hover:border-violet-200/60"
+                >
+                  {copy.openDesignStudio}
+                </button>
+              </div>
+            </Card>
+          )}
 
           <div className="grid gap-5 lg:grid-cols-2">
             <Card title={copy.identity}>
@@ -353,4 +411,12 @@ function BrandPalette({ label, colors }: { label: string; colors: string[] }) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return <div className="rounded-2xl border border-white/5 bg-black/20 p-4"><p className="text-[10px] uppercase tracking-[0.16em] text-neutral-600">{label}</p><p className="mt-2 break-words text-sm font-semibold text-neutral-200">{value}</p></div>;
+}
+
+function LayerMetric({ label, value }: { label: string; value: number }) {
+  return <div className="rounded-2xl border border-cyan-300/10 bg-cyan-300/[0.03] p-4"><p className="text-[10px] uppercase tracking-[0.14em] text-cyan-100/50">{label}</p><p className="mt-2 text-2xl font-semibold text-neutral-100">{value}</p></div>;
+}
+
+function LayerDescription({ title, text }: { title: string; text: string }) {
+  return <div className="rounded-2xl border border-white/5 bg-black/20 p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">{title}</p><p className="mt-2 text-sm text-neutral-300">{text}</p></div>;
 }
