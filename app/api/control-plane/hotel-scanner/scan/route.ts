@@ -14,6 +14,7 @@ import {
   type HotelScanEvidenceBundle,
 } from "@/lib/server/factory-hotel-scanner";
 import { refineHotelScanBrandEvidence } from "@/lib/server/hotel-scanner-brand-refiner";
+import { collectHotelSocialLinkEvidence } from "@/lib/server/hotel-scanner-social-evidence";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 
@@ -24,6 +25,7 @@ export const maxDuration = 60;
 const AI_DEADLINE_MS = 32_000;
 const SDK_TIMEOUT_MESSAGE = "Request timed out.";
 const LOGO_ASSET_POLICY = "hotel_authorization_required";
+const SOCIAL_UNCERTAINTY_PATTERN = /(social|facebook|instagram|linkedin|youtube|tiktok|twitter|социал|фейсбук|инстаграм|линкедин|ютуб|тикток)/i;
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
   Pragma: "no-cache",
@@ -136,6 +138,32 @@ function mergeFacts(primary: HotelScanFact[], fallback: HotelScanFact[]) {
   return result;
 }
 
+function socialNetworkLabel(rawUrl: string) {
+  try {
+    const host = new URL(rawUrl).hostname.toLowerCase();
+    if (host.includes("facebook")) return "Facebook";
+    if (host.includes("instagram")) return "Instagram";
+    if (host.includes("linkedin")) return "LinkedIn";
+    if (host.includes("youtube") || host === "youtu.be") return "YouTube";
+    if (host.includes("tiktok")) return "TikTok";
+    if (host === "x.com" || host.endsWith(".x.com") || host.includes("twitter")) return "X / Twitter";
+    if (host.includes("pinterest")) return "Pinterest";
+  } catch {
+    // The deterministic extractor validates URLs before they reach this helper.
+  }
+  return "Social profile";
+}
+
+function buildSocialFacts(socialLinks: string[], sourceUrl: string): HotelScanFact[] {
+  return socialLinks.slice(0, 12).map((link) => ({
+    category: "contact",
+    label: socialNetworkLabel(link),
+    value: link,
+    confidence: 1,
+    sourceUrls: [sourceUrl],
+  }));
+}
+
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
@@ -157,12 +185,20 @@ export async function POST(request: NextRequest) {
 
   try {
     const crawledEvidence = await crawlPublicHotelWebsite(url);
-    const evidence = await refineHotelScanBrandEvidence(crawledEvidence).catch((error) => {
-      console.warn("Factory Hotel Scanner brand refinement skipped", {
-        error: errorMessage(error),
-      });
-      return crawledEvidence;
-    });
+    const [evidence, detectedSocialLinks] = await Promise.all([
+      refineHotelScanBrandEvidence(crawledEvidence).catch((error) => {
+        console.warn("Factory Hotel Scanner brand refinement skipped", {
+          error: errorMessage(error),
+        });
+        return crawledEvidence;
+      }),
+      collectHotelSocialLinkEvidence(crawledEvidence.canonicalUrl).catch((error) => {
+        console.warn("Factory Hotel Scanner social evidence skipped", {
+          error: errorMessage(error),
+        });
+        return [] as string[];
+      }),
+    ]);
     const crawlLatencyMs = Date.now() - startedAt;
 
     stage = "ai";
@@ -207,9 +243,18 @@ export async function POST(request: NextRequest) {
       "hotel_scanner_ai_timeout",
     );
 
+    const baseProfile = coreState.normalized.profile;
+    const socialFacts = buildSocialFacts(detectedSocialLinks, evidence.canonicalUrl);
     const profile = {
-      ...coreState.normalized.profile,
-      facts: mergeFacts(richFacts, coreState.normalized.profile.facts),
+      ...baseProfile,
+      contacts: {
+        ...baseProfile.contacts,
+        socialLinks: detectedSocialLinks,
+      },
+      facts: mergeFacts([...socialFacts, ...richFacts], baseProfile.facts),
+      uncertainties: detectedSocialLinks.length
+        ? baseProfile.uncertainties.filter((item) => !SOCIAL_UNCERTAINTY_PATTERN.test(item))
+        : baseProfile.uncertainties,
     };
     const intelligencePackage = buildHotelIntelligencePackage(profile);
 
@@ -228,6 +273,7 @@ export async function POST(request: NextRequest) {
         coreMode: coreState.coreMode,
         coreError: coreState.coreError || undefined,
         richFactCount: richFacts.length,
+        detectedSocialLinkCount: detectedSocialLinks.length,
         brandColorCount: profile.brand.colors.length,
         brandFontCount: profile.brand.fonts.length,
         crawlLatencyMs,
