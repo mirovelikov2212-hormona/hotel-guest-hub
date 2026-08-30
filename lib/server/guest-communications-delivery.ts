@@ -100,10 +100,11 @@ async function ensureDeliveryEvidence(input: {
   if (error) throw error;
 }
 
-async function deliveryStatus(communicationId: string, subscriptionId: string) {
+async function deliveryStatus(hotelId: string, communicationId: string, subscriptionId: string) {
   const { data, error } = await supabaseAdmin
     .from("guest_communication_deliveries")
     .select("id,status")
+    .eq("hotel_id", hotelId)
     .eq("communication_id", communicationId)
     .eq("subscription_id", subscriptionId)
     .maybeSingle();
@@ -112,6 +113,7 @@ async function deliveryStatus(communicationId: string, subscriptionId: string) {
 }
 
 async function writeDeliveryResult(input: {
+  hotelId: string;
   id: string;
   status: "sent" | "failed" | "expired" | "skipped";
   statusCode: number;
@@ -128,6 +130,7 @@ async function writeDeliveryResult(input: {
       error_message: input.error,
       updated_at: now,
     })
+    .eq("hotel_id", input.hotelId)
     .eq("id", input.id);
   if (error) throw error;
 }
@@ -187,6 +190,9 @@ export async function deliverGuestCommunication(input: {
   if (input.communication.translation_status !== "ready") {
     return { delivered: false, skipped: true, reason: "translation_not_ready" };
   }
+  if (input.communication.hotel_id !== input.hotel.id) {
+    return { delivered: false, skipped: true, reason: "hotel_scope_mismatch" };
+  }
 
   const claimed = await claimCommunication(input.communication);
   if (!claimed) return { delivered: false, skipped: true, reason: "not_claimed" };
@@ -203,7 +209,16 @@ export async function deliverGuestCommunication(input: {
   const expiredSubscriptionIds: string[] = [];
 
   for (const subscription of subscriptions) {
-    const evidence = await deliveryStatus(input.communication.id, subscription.id);
+    if (String(subscription.hotel_id) !== input.communication.hotel_id) {
+      skipped += 1;
+      continue;
+    }
+
+    const evidence = await deliveryStatus(
+      input.communication.hotel_id,
+      input.communication.id,
+      subscription.id,
+    );
     if (!evidence || evidence.status === "sent") {
       if (evidence?.status === "sent") sent += 1;
       continue;
@@ -228,6 +243,7 @@ export async function deliverGuestCommunication(input: {
           ? "skipped"
           : "failed";
     await writeDeliveryResult({
+      hotelId: input.communication.hotel_id,
       id: evidence.id,
       status,
       statusCode: result.statusCode,
