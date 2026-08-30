@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "checkpoint": "guest-communications-branded-staff",
+  "baseCheckpoint": "design-revision-factory-handoff",
+  "expectedNeedsReview": 154,
+  "additions": [
+    {
+      "filePath": "app/api/guest/communications/route.ts",
+      "line": 48,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "validated_guest_inbox_read_requires_exact_hotel_slug_stay_id_stay_device_id_and_device_token_then_rechecks_active_write_capable_stay_authority_before_a_bounded_read_scoped_by_the_server_resolved_hotel_id; direct_client_table_access_remains_denied_by_rls_and_no_cross_hotel_or_mutation_authority_is_exposed"
+    },
+    {
+      "filePath": "app/api/staff/guest-communications/route.ts",
+      "line": 50,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_staff_read_first_resolves_the_exact_staff_session_hotel_and_role_then_filters_guest_communications_by_server_resolved_hotel_id_and_for_non_manager_scope_also_exact_department_id; result_is_bounded_and_direct_client_table_access_is_denied_by_rls"
+    },
+    {
+      "filePath": "app/api/staff/guest-communications/route.ts",
+      "line": 113,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "update",
+      "reasons": ["unclassified_table"],
+      "provenance": "same_origin_authenticated_staff_cancel_mutation_requires_guest_communications_create_capability_and_updates_one_explicit_communication_id_inside_the_server_resolved_hotel_id_with_department_scope_added_for_non_manager_roles_and_only_cancellable_states_allowed"
+    },
+    {
+      "filePath": "app/api/staff/guest-communications/route.ts",
+      "line": 191,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "insert",
+      "reasons": ["unclassified_table"],
+      "provenance": "same_origin_authenticated_staff_create_send_or_schedule_requires_server_resolved_hotel_role_and_capabilities; insert_payload_carries_only_the_authoritative_hotel_id_and_runtime_department_id_translation_must_be_ready_before_delivery_states_and_emergency_requires_separate_server_capability; no_hotel_live_activation_or_direct_client_table_access"
+    },
+    {
+      "filePath": "lib/server/guest-communications-access.ts",
+      "line": 60,
+      "table": "hotel_staff_role_capabilities",
+      "tableExpression": "\"hotel_staff_role_capabilities\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_staff_authorization_read_occurs_after_exact_staff_session_hotel_and_role_resolution_and_filters_capabilities_by_both_server_resolved_hotel_id_and_role_code; table_has_rls_enabled_and_no_client_side_authority"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "line": 39,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "update",
+      "reasons": ["unclassified_table"],
+      "provenance": "internal_delivery_claim_is_reachable_only_after_the_explicit_delivery_kill_switch_active_non_sandbox_hotel_translation_ready_and_hotel_scope_match_checks_then_atomically_updates_the_exact_communication_id_plus_hotel_id_and_expected_status_to_sending"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "line": 97,
+      "table": "guest_communication_deliveries",
+      "tableExpression": "\"guest_communication_deliveries\"",
+      "operation": "upsert",
+      "reasons": ["unclassified_table"],
+      "provenance": "internal_idempotent_delivery_evidence_rows_are_derived_only_from_subscriptions_already_filtered_by_the_exact_hotel_id_and_active_non_test_stays_and_every_upsert_payload_explicitly_carries_the_same_communication_hotel_id; unique_communication_subscription_identity_prevents_duplicate_delivery_evidence"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "line": 104,
+      "table": "guest_communication_deliveries",
+      "tableExpression": "\"guest_communication_deliveries\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "internal_delivery_evidence_lookup_is_explicitly_scoped_by_hotel_id_communication_id_and_subscription_id_after_the_subscription_has_been_verified_to_match_the_same_hotel; read_is_service_side_only_and_idempotency_support_only"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "line": 123,
+      "table": "guest_communication_deliveries",
+      "tableExpression": "\"guest_communication_deliveries\"",
+      "operation": "update",
+      "reasons": ["unclassified_table"],
+      "provenance": "internal_delivery_result_write_requires_the_authoritative_hotel_id_and_exact_delivery_evidence_id_and_updates_only_attempt_status_metadata_after_a_single_scoped_transport_attempt; direct_client_table_access_is_denied_by_rls"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "line": 161,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "update",
+      "reasons": ["unclassified_table"],
+      "provenance": "internal_finalize_write_updates_only_the_exact_communication_id_and_hotel_id_current_sending_state_after_scoped_delivery_evidence_is_counted; skipped_transport_is_fail_closed_as_failed_or_partial_failed_and_cannot_be_reported_as_sent"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "line": 288,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "internal_service_role_scheduler_discovery_read_runs_only_when_the_explicit_delivery_kill_switch_is_true_and_reads_a_bounded_batch_of_translation_ready_queued_rows_across_tenants; every_discovered_row_is_then_resolved_to_its_hotel_and_delivery_rejects_inactive_sandbox_missing_or_scope_mismatched_hotels_before_any_tenant_mutation_or_transport"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "line": 299,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "internal_service_role_scheduler_due_read_runs_only_when_the_explicit_delivery_kill_switch_is_true_and_reads_only_a_bounded_remaining_batch_of_translation_ready_scheduled_rows_due_at_or_before_now; each_row_is_subsequently_bound_to_its_exact_active_non_sandbox_hotel_before_claim_and_delivery"
+    },
+    {
+      "filePath": "lib/server/staff-hotel-brand.ts",
+      "line": 104,
+      "table": "hotel_branding_configs",
+      "tableExpression": "\"hotel_branding_configs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_staff_brand_resolution_is_a_read_only_exact_hotel_id_lookup_used_to_render_the_authenticated_staff_shell; if_no_runtime_brand_exists_it_falls_back_to_the_same_tenant_published_config_then_stayhub_defaults_and_has_no_cross_tenant_write_publication_or_activation_authority"
+    }
+  ]
+}
