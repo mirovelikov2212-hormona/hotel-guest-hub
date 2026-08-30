@@ -1,0 +1,28 @@
+.stayhub-staff-shell[data-staff-theme="dark"] .text-sky-700,
+.stayhub-staff-shell[data-staff-theme="dark"] .text-sky-600 {
+  color: #bae6fd !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="dark"] .text-violet-700,
+.stayhub-staff-shell[data-staff-theme="dark"] .text-violet-600 {
+  color: #ddd6fe !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="dark"] .text-emerald-700,
+.stayhub-staff-shell[data-staff-theme="dark"] .text-emerald-600 {
+  color: #a7f3d0 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="dark"] .text-amber-700,
+.stayhub-staff-shell[data-staff-theme="dark"] .text-amber-600 {
+  color: #fde68a !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="dark"] .text-rose-700,
+.stayhub-staff-shell[data-staff-theme="dark"] .text-rose-600 {
+  color: #fecdd3 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="dark"] .text-neutral-600 {
+  color: var(--staff-muted) !important;
+}

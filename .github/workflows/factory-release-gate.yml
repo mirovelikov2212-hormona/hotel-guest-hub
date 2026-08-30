@@ -31,6 +31,7 @@ jobs:
       - run: node --test tests/contracts/hub-experience-builder-v2.contract.test.mjs
       - run: node --test tests/contracts/hub-design-draft-versioning.contract.test.mjs
       - run: node --test tests/contracts/design-revision-factory-handoff.contract.test.mjs
+      - run: node --test tests/contracts/guest-communications-branded-staff.contract.test.mjs
       - run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co

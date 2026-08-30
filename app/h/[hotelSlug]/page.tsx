@@ -4,6 +4,7 @@ export const revalidate = 0;
 
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
+import GuestCommunicationsInbox from "@/components/GuestCommunicationsInbox";
 import GuestHub from "@/components/GuestHub";
 import { getHotelConfig } from "@/lib/config";
 import {
@@ -13,6 +14,7 @@ import {
 } from "@/lib/demo-access";
 import { isCommercialRuntimeAccessDeniedError } from "@/lib/server/commercial-runtime-entitlement";
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
+import type { LangKey } from "@/lib/types";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -138,6 +140,11 @@ export default async function HotelHubPage({ params, searchParams }: PageProps) 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-50">
       <GuestHub config={cfg} />
+      <GuestCommunicationsInbox
+        hotelSlug={hotelSlug}
+        defaultLanguage={(cfg.languageDefault || "en") as LangKey}
+        brandColor={String(cfg.theme?.primary || cfg.theme?.accent || "#43B5A1")}
+      />
     </main>
   );
 }
