@@ -104,11 +104,16 @@
   color: #86198f !important;
 }
 
-/* Keep secondary card copy readable instead of washed out on white surfaces. */
+/* Keep secondary and low-opacity legacy labels readable instead of disappearing
+ * on white surfaces. /35 is used by survey detail field headings. */
 .stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-white\/50,
 .stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-white\/45,
-.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-white\/40 {
-  color: #667a7d !important;
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-white\/40,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-white\/35,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-white\/30,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-white\/25,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-white\/20 {
+  color: #5f7477 !important;
 }
 
 /* Semantic active actions keep their meaning, but use hotel-brand teal for the
