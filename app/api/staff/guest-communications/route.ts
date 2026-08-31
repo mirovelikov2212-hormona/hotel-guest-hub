@@ -11,6 +11,7 @@ import {
   translateGuestCommunication,
   type GuestCommunicationLanguage,
 } from "@/lib/server/guest-communications-translation";
+import { guestCommunicationsDeliveryEnabled } from "@/lib/server/guest-communications-delivery";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export const runtime = "nodejs";
@@ -111,6 +112,7 @@ export async function GET(req: NextRequest) {
       pushReach: Number(pushReach || 0),
       hotelSourceLanguage,
       supportedLanguages: [...GUEST_COMMUNICATION_LANGUAGES],
+      deliveryEnabled: guestCommunicationsDeliveryEnabled(),
       messages: messages || [],
     });
   } catch (error) {
@@ -156,6 +158,9 @@ export async function POST(req: NextRequest) {
     if (!hasGuestCommunicationCapability(access, "guest_communications.create")) return json({ ok: false, error: "forbidden" }, 403);
     if (action === "send_now" && !hasGuestCommunicationCapability(access, "guest_communications.send")) return json({ ok: false, error: "send_forbidden" }, 403);
     if (action === "schedule" && !hasGuestCommunicationCapability(access, "guest_communications.schedule")) return json({ ok: false, error: "schedule_forbidden" }, 403);
+    if ((action === "send_now" || action === "schedule") && !guestCommunicationsDeliveryEnabled()) {
+      return json({ ok: false, error: "delivery_disabled" }, 409);
+    }
 
     const category = String(body?.category || "information").trim().toLowerCase();
     const sourceLanguage = await resolveHotelSourceLanguage(hotelSlug);
