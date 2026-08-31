@@ -1,3 +1,142 @@
+.stayhub-staff-shell[data-staff-theme="light"] {
+  --staff-muted: #50686b;
+  --staff-faint: #667a7d;
+}
+
+/*
+ * Legacy Staff panels were authored for a dark canvas and frequently use
+ * Tailwind's very-light semantic text utilities (100/200 and opacity variants).
+ * In Light mode those values are too pale. Keep the pastel surfaces/borders,
+ * but map semantic copy to strong accessible tones so operational information
+ * is readable at a glance.
+ */
+.stayhub-staff-shell[data-staff-theme="light"] .text-emerald-50,
+.stayhub-staff-shell[data-staff-theme="light"] .text-emerald-100,
+.stayhub-staff-shell[data-staff-theme="light"] .text-emerald-200,
+.stayhub-staff-shell[data-staff-theme="light"] .text-emerald-100\/50,
+.stayhub-staff-shell[data-staff-theme="light"] .text-emerald-100\/60,
+.stayhub-staff-shell[data-staff-theme="light"] .text-emerald-100\/70,
+.stayhub-staff-shell[data-staff-theme="light"] .text-emerald-100\/75,
+.stayhub-staff-shell[data-staff-theme="light"] .text-emerald-100\/80,
+.stayhub-staff-shell[data-staff-theme="light"] .text-emerald-200\/60,
+.stayhub-staff-shell[data-staff-theme="light"] .text-emerald-200\/70,
+.stayhub-staff-shell[data-staff-theme="light"] .text-emerald-200\/80 {
+  color: #166534 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .text-amber-50,
+.stayhub-staff-shell[data-staff-theme="light"] .text-amber-100,
+.stayhub-staff-shell[data-staff-theme="light"] .text-amber-200,
+.stayhub-staff-shell[data-staff-theme="light"] .text-amber-100\/50,
+.stayhub-staff-shell[data-staff-theme="light"] .text-amber-100\/60,
+.stayhub-staff-shell[data-staff-theme="light"] .text-amber-100\/70,
+.stayhub-staff-shell[data-staff-theme="light"] .text-amber-100\/75,
+.stayhub-staff-shell[data-staff-theme="light"] .text-amber-100\/80,
+.stayhub-staff-shell[data-staff-theme="light"] .text-amber-200\/60,
+.stayhub-staff-shell[data-staff-theme="light"] .text-amber-200\/70,
+.stayhub-staff-shell[data-staff-theme="light"] .text-amber-200\/80 {
+  color: #854d0e !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .text-rose-50,
+.stayhub-staff-shell[data-staff-theme="light"] .text-rose-100,
+.stayhub-staff-shell[data-staff-theme="light"] .text-rose-200,
+.stayhub-staff-shell[data-staff-theme="light"] .text-rose-100\/50,
+.stayhub-staff-shell[data-staff-theme="light"] .text-rose-100\/60,
+.stayhub-staff-shell[data-staff-theme="light"] .text-rose-100\/70,
+.stayhub-staff-shell[data-staff-theme="light"] .text-rose-100\/75,
+.stayhub-staff-shell[data-staff-theme="light"] .text-rose-100\/80,
+.stayhub-staff-shell[data-staff-theme="light"] .text-rose-200\/60,
+.stayhub-staff-shell[data-staff-theme="light"] .text-rose-200\/70,
+.stayhub-staff-shell[data-staff-theme="light"] .text-rose-200\/80 {
+  color: #9f1239 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .text-cyan-50,
+.stayhub-staff-shell[data-staff-theme="light"] .text-cyan-100,
+.stayhub-staff-shell[data-staff-theme="light"] .text-cyan-200,
+.stayhub-staff-shell[data-staff-theme="light"] .text-cyan-100\/50,
+.stayhub-staff-shell[data-staff-theme="light"] .text-cyan-100\/60,
+.stayhub-staff-shell[data-staff-theme="light"] .text-cyan-100\/70,
+.stayhub-staff-shell[data-staff-theme="light"] .text-cyan-100\/75,
+.stayhub-staff-shell[data-staff-theme="light"] .text-cyan-100\/80,
+.stayhub-staff-shell[data-staff-theme="light"] .text-cyan-200\/60,
+.stayhub-staff-shell[data-staff-theme="light"] .text-cyan-200\/70,
+.stayhub-staff-shell[data-staff-theme="light"] .text-cyan-200\/80 {
+  color: #155e75 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .text-sky-50,
+.stayhub-staff-shell[data-staff-theme="light"] .text-sky-100,
+.stayhub-staff-shell[data-staff-theme="light"] .text-sky-200,
+.stayhub-staff-shell[data-staff-theme="light"] .text-sky-100\/50,
+.stayhub-staff-shell[data-staff-theme="light"] .text-sky-100\/60,
+.stayhub-staff-shell[data-staff-theme="light"] .text-sky-100\/70,
+.stayhub-staff-shell[data-staff-theme="light"] .text-sky-100\/75,
+.stayhub-staff-shell[data-staff-theme="light"] .text-sky-100\/80,
+.stayhub-staff-shell[data-staff-theme="light"] .text-sky-200\/60,
+.stayhub-staff-shell[data-staff-theme="light"] .text-sky-200\/70,
+.stayhub-staff-shell[data-staff-theme="light"] .text-sky-200\/80 {
+  color: #075985 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .text-violet-50,
+.stayhub-staff-shell[data-staff-theme="light"] .text-violet-100,
+.stayhub-staff-shell[data-staff-theme="light"] .text-violet-200,
+.stayhub-staff-shell[data-staff-theme="light"] .text-violet-100\/50,
+.stayhub-staff-shell[data-staff-theme="light"] .text-violet-100\/60,
+.stayhub-staff-shell[data-staff-theme="light"] .text-violet-100\/70,
+.stayhub-staff-shell[data-staff-theme="light"] .text-violet-100\/75,
+.stayhub-staff-shell[data-staff-theme="light"] .text-violet-100\/80,
+.stayhub-staff-shell[data-staff-theme="light"] .text-violet-200\/60,
+.stayhub-staff-shell[data-staff-theme="light"] .text-violet-200\/70,
+.stayhub-staff-shell[data-staff-theme="light"] .text-violet-200\/80 {
+  color: #6d28d9 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .text-fuchsia-50,
+.stayhub-staff-shell[data-staff-theme="light"] .text-fuchsia-100,
+.stayhub-staff-shell[data-staff-theme="light"] .text-fuchsia-200,
+.stayhub-staff-shell[data-staff-theme="light"] .text-fuchsia-100\/60,
+.stayhub-staff-shell[data-staff-theme="light"] .text-fuchsia-100\/70,
+.stayhub-staff-shell[data-staff-theme="light"] .text-fuchsia-100\/75,
+.stayhub-staff-shell[data-staff-theme="light"] .text-fuchsia-100\/80 {
+  color: #86198f !important;
+}
+
+/* Keep secondary card copy readable instead of washed out on white surfaces. */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-white\/50,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-white\/45,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-white\/40 {
+  color: #667a7d !important;
+}
+
+/* Semantic active actions keep their meaning, but use hotel-brand teal for the
+ * primary operational action in Light mode. */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button.bg-sky-500 {
+  background: var(--staff-brand-primary) !important;
+  color: #0f2628 !important;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--staff-brand-primary) 22%, transparent);
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button.bg-sky-500:hover {
+  background: color-mix(in srgb, var(--staff-brand-primary) 84%, #ffffff 16%) !important;
+}
+
+/* Disabled controls must still be legible; opacity communicates inactivity
+ * without making the label disappear. */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button:disabled {
+  opacity: 0.58 !important;
+  color: #52686b !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button:disabled.bg-emerald-500,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button:disabled.bg-sky-500,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button:disabled.bg-amber-500 {
+  color: #173638 !important;
+}
+
+/* Dark-mode compatibility for the newer semantic dark text utilities. */
 .stayhub-staff-shell[data-staff-theme="dark"] .text-sky-700,
 .stayhub-staff-shell[data-staff-theme="dark"] .text-sky-600 {
   color: #bae6fd !important;
