@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { normalizeGuestPushLanguage } from "@/lib/guest-push/web-push";
 import { getGuestStayAccessState } from "@/lib/server/guest-stay-access";
 import { getGuestStayStatus } from "@/lib/server/guest-stays";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
@@ -9,12 +8,25 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const NO_STORE = { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" };
+const SUPPORTED_LANGUAGES = ["bg", "en", "de", "ro", "cs", "ru"] as const;
+type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 
-function localized(map: unknown, language: string, fallback: string) {
+function supportedLanguage(value: unknown): SupportedLanguage | null {
+  const candidate = String(value || "").trim().toLowerCase() as SupportedLanguage;
+  return SUPPORTED_LANGUAGES.includes(candidate) ? candidate : null;
+}
+
+function localized(
+  map: unknown,
+  language: SupportedLanguage,
+  sourceLanguage: SupportedLanguage,
+  fallback: string,
+) {
   const values = map && typeof map === "object" && !Array.isArray(map)
     ? map as Record<string, unknown>
     : {};
-  for (const key of [language, "en", "bg", "de", "ro", "cs", "ru"]) {
+  const candidates = Array.from(new Set([language, sourceLanguage, "en", "bg", "de", "ro", "cs", "ru"]));
+  for (const key of candidates) {
     const value = String(values[key] || "").trim();
     if (value) return value;
   }
@@ -43,7 +55,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, messages: [] }, { headers: NO_STORE });
     }
 
-    const language = normalizeGuestPushLanguage(body?.language || "en");
+    const requestedLanguage = supportedLanguage(body?.language);
     const now = new Date().toISOString();
     const { data, error } = await supabaseAdmin
       .from("guest_communications")
@@ -57,25 +69,30 @@ export async function POST(req: NextRequest) {
       .limit(20);
     if (error) throw error;
 
-    const messages = (data || []).map((message) => ({
-      id: message.id,
-      category: message.category,
-      title: localized(message.title_i18n, language, String(message.title || "")),
-      body: localized(message.body_i18n, language, String(message.body || "")),
-      displayFrom: message.display_from,
-      displayUntil: message.display_until,
-      sentAt: message.sent_at,
-      department: Array.isArray(message.departments)
-        ? message.departments[0] || null
-        : message.departments || null,
-    }));
+    const messages = (data || []).map((message) => {
+      const sourceLanguage = supportedLanguage(message.source_language) || "en";
+      const language = requestedLanguage || sourceLanguage;
+      return {
+        id: message.id,
+        category: message.category,
+        title: localized(message.title_i18n, language, sourceLanguage, String(message.title || "")),
+        body: localized(message.body_i18n, language, sourceLanguage, String(message.body || "")),
+        displayFrom: message.display_from,
+        displayUntil: message.display_until,
+        sentAt: message.sent_at,
+        language,
+        department: Array.isArray(message.departments)
+          ? message.departments[0] || null
+          : message.departments || null,
+      };
+    });
 
     return NextResponse.json({
       ok: true,
       authority: "guest_communications",
       hotelId: stayResult.hotel.id,
       stayId: stayResult.stay.id,
-      language,
+      language: requestedLanguage,
       messages,
     }, { headers: NO_STORE });
   } catch (error) {
