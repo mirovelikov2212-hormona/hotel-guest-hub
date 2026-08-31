@@ -174,8 +174,7 @@
 }
 
 /* The old Staff UI used dark Tailwind utility tokens directly. These scoped
-   mappings let every existing panel inherit the hotel-aware shell immediately,
-   while semantic alert colors (red/amber/emerald/sky) stay untouched. */
+   mappings let every existing panel inherit the hotel-aware shell immediately. */
 .stayhub-staff-workspace .bg-neutral-950,
 .stayhub-staff-workspace .bg-neutral-900 {
   background-color: transparent !important;
@@ -335,6 +334,115 @@
 
 .stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-collapsible > div {
   background: linear-gradient(180deg, color-mix(in srgb, var(--staff-brand-primary) 2%, #ffffff 98%), #ffffff 100%);
+}
+
+/* Light-mode semantic contrast normalization.
+   Old Staff cards were designed for dark backgrounds and used -100/-200 text.
+   Keep the semantic tint, but use WCAG-friendly dark foregrounds on light cards. */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-emerald-50,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-emerald-100,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-emerald-200,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-emerald-300,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-emerald-600,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-emerald-700 {
+  color: #046c4e !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-sky-50,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-sky-100,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-sky-200,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-sky-300,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-sky-600,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-sky-700,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-cyan-100,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-cyan-200,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-cyan-300,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-cyan-600,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-cyan-700 {
+  color: #075985 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-violet-100,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-violet-200,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-violet-300,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-violet-600,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-violet-700,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-fuchsia-100,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-fuchsia-200,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-fuchsia-300 {
+  color: #6d28d9 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-amber-50,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-amber-100,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-amber-200,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-amber-300,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-amber-600,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-amber-700 {
+  color: #92400e !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-rose-50,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-rose-100,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-rose-200,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-rose-300,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-rose-600,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-rose-700 {
+  color: #a3123f !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-teal-100,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-teal-200,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-teal-300,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-teal-600,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .text-teal-700 {
+  color: #0f6b63 !important;
+}
+
+/* Primary operational actions use the hotel's brand in Light mode. */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button.bg-sky-500 {
+  background: var(--staff-brand-primary) !important;
+  color: #075255 !important;
+  border: 1px solid color-mix(in srgb, var(--staff-brand-primary) 62%, #075255 38%) !important;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--staff-brand-primary) 18%, transparent);
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button.bg-sky-500:hover {
+  background: color-mix(in srgb, var(--staff-brand-primary) 88%, #ffffff 12%) !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button.bg-emerald-500 {
+  background: #43ba8a !important;
+  color: #073d30 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button.bg-amber-500 {
+  color: #4b2b00 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button:not(:disabled) {
+  opacity: 1 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button:disabled {
+  opacity: 0.52 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-communication-send {
+  background: var(--staff-brand-primary);
+  border-color: color-mix(in srgb, var(--staff-brand-primary) 62%, #075255 38%);
+  color: #075255;
+  box-shadow: 0 9px 20px color-mix(in srgb, var(--staff-brand-primary) 16%, transparent);
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-communication-send:not(:disabled):hover {
+  background: color-mix(in srgb, var(--staff-brand-primary) 88%, #ffffff 12%);
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-communication-schedule {
+  background: #f5f0ff;
+  border-color: #d8c7ff;
+  color: #6d28d9;
 }
 
 @media (max-width: 640px) {
