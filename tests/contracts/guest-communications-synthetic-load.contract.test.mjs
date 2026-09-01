@@ -22,7 +22,8 @@ test("fanout remains bounded, idempotent and records per-device evidence", () =>
   assert.match(delivery, /Promise\.all\(subscriptions\.slice/);
   assert.match(delivery, /onConflict: "communication_id,subscription_id"/);
   assert.match(delivery, /if \(!evidence \|\| evidence\.status === "sent"\)/);
-  assert.match(delivery, /writeDeliveryResult/);
+  assert.match(delivery, /writeDeliveryResults/);
+  assert.match(delivery, /evidenceBySubscription/);
   assert.match(delivery, /finalizeCommunication/);
 });
 
