@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash, timingSafeEqual } from "node:crypto";
 
 import { deliverSyntheticSandboxGuestCommunication } from "@/lib/server/guest-communications-delivery";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
@@ -14,9 +15,7 @@ function json(body: Record<string, unknown>, status = 200) {
 }
 
 export async function POST(req: NextRequest) {
-  const secret = String(process.env.FACTORY_LOAD_TEST_SECRET || "").trim();
-  const supplied = String(req.headers.get("x-stayhub-factory-load-secret") || "").trim();
-  if (process.env.VERCEL_ENV !== "preview" || !secret || supplied !== secret) {
+  if (process.env.VERCEL_ENV !== "preview") {
     return json({ ok: false, error: "not_found" }, 404);
   }
 
@@ -36,6 +35,17 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   if (communicationError) throw communicationError;
   if (!communication) return json({ ok: false, error: "communication_not_ready" }, 409);
+
+  const supplied = String(req.headers.get("x-stayhub-factory-load-secret") || "").trim();
+  const configuredSecret = String(process.env.FACTORY_LOAD_TEST_SECRET || "").trim();
+  const challenge = String(communication.body || "");
+  const suppliedHash = createHash("sha256").update(supplied).digest("hex");
+  const expectedHash = challenge.startsWith("synthetic-sha256:") ? challenge.slice(17) : "";
+  const challengeValid = supplied.length >= 24
+    && expectedHash.length === suppliedHash.length
+    && timingSafeEqual(Buffer.from(expectedHash), Buffer.from(suppliedHash));
+  const configuredSecretValid = Boolean(configuredSecret) && supplied === configuredSecret;
+  if (!configuredSecretValid && !challengeValid) return json({ ok: false, error: "not_found" }, 404);
 
   const { data: hotel, error: hotelError } = await supabaseAdmin
     .from("hotels")
