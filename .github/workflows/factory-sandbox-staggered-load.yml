@@ -22,7 +22,7 @@ jobs:
 
       - name: Smoke — 2 concurrent requests
         env:
-          STAYHUB_LOAD_RUN_ID: factory-load-smoke-v2-20260901
+          STAYHUB_LOAD_RUN_ID: factory-load-smoke-v3-20260901
           STAYHUB_LOAD_HOTEL_COUNT: "1"
           STAYHUB_LOAD_REQUESTS_PER_HOTEL: "2"
           STAYHUB_LOAD_WAVE_DELAY_MS: "0"
@@ -32,7 +32,7 @@ jobs:
 
       - name: Intermediate — 3 hotels, 5 concurrent each, one-minute waves
         env:
-          STAYHUB_LOAD_RUN_ID: factory-load-intermediate-v2-20260901
+          STAYHUB_LOAD_RUN_ID: factory-load-intermediate-v3-20260901
           STAYHUB_LOAD_HOTEL_COUNT: "3"
           STAYHUB_LOAD_REQUESTS_PER_HOTEL: "5"
           STAYHUB_LOAD_WAVE_DELAY_MS: "60000"
@@ -42,7 +42,7 @@ jobs:
 
       - name: Full — 15 hotels, 20 concurrent each, one-minute waves
         env:
-          STAYHUB_LOAD_RUN_ID: factory-load-full-v2-20260901
+          STAYHUB_LOAD_RUN_ID: factory-load-full-v3-20260901
           STAYHUB_LOAD_HOTEL_COUNT: "15"
           STAYHUB_LOAD_REQUESTS_PER_HOTEL: "20"
           STAYHUB_LOAD_WAVE_DELAY_MS: "60000"
