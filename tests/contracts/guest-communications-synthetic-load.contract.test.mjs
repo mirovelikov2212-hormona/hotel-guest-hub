@@ -10,6 +10,8 @@ test("synthetic communications transport is Preview, secret, Sandbox and test-da
   assert.match(route, /FACTORY_LOAD_TEST_SECRET/);
   assert.match(route, /x-stayhub-factory-load-secret/);
   assert.match(route, /\.eq\("is_sandbox", true\)/);
+  assert.match(route, /timingSafeEqual/);
+  assert.match(route, /synthetic-sha256:/);
   assert.match(delivery, /if \(!subscription\.is_test\)/);
   assert.match(delivery, /non_test_subscription_blocked/);
   assert.match(delivery, /synthetic_no_provider|syntheticTransport/);
