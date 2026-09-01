@@ -877,16 +877,31 @@ export async function POST(req: NextRequest) {
       return json({ ok: false, code: "MISSING_HOTEL_SLUG", error: "Hotel slug is required." }, 400);
     }
 
+    // Resolve the tenant and its runtime authority before applying the legacy
+    // external-adapter write allowlist. Factory-created Sandbox hotels use the
+    // native Supabase booking authority and must not require an Aquamarine-style
+    // Google Apps Script/Sheet flag. Production and legacy adapters remain
+    // fail-closed behind their existing hotel-specific environment switch.
+    const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
+    requestHotelId = hotel.id;
+    const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id);
+    const sandboxNativeBookingEnabled =
+      isSandboxHotel(hotel) && isNativeMassageAuthority(runtimeAuthority);
     const controlledE2EEnabled = isMassageControlledE2EEnabled(hotelSlug);
     const productionBookingEnabled = isMassageBookingPostEnabled(hotelSlug);
 
-    if (!controlledE2EEnabled && !productionBookingEnabled) {
+    if (!sandboxNativeBookingEnabled && !controlledE2EEnabled && !productionBookingEnabled) {
       await logSystemEvent({
         severity: "warning",
         source: "massage",
         eventType: "massage_booking_post_disabled",
         message: "Massage booking POST was attempted while booking submission is disabled for the hotel.",
-        metadata: { hotelSlug },
+        hotelId: hotel.id,
+        metadata: {
+          hotelSlug,
+          isSandbox: Boolean(hotel.is_sandbox),
+          runtimeAuthority: runtimeAuthority.authorityMode,
+        },
       });
       return json(
         {
@@ -907,8 +922,6 @@ export async function POST(req: NextRequest) {
 
     await requireExistingHotelRoom(hotelSlug, room);
 
-    const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
-    requestHotelId = hotel.id;
     requestHotelMetadata = {
       hotelSlug,
       resolvedHotelSlug: hotel.slug,
@@ -928,8 +941,6 @@ export async function POST(req: NextRequest) {
     });
     const stayId = String(stayIdentity.stay.id);
     const stayDeviceId = String(stayIdentity.device.id);
-    const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id);
-
     if (isNativeMassageAuthority(runtimeAuthority)) {
       const guestLanguage = String(body.guestLanguage || "bg");
       const service = await getNativeMassageService({ hotelId: hotel.id, serviceId });
