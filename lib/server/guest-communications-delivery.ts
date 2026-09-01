@@ -8,6 +8,7 @@ type CommunicationRow = {
   id: string;
   hotel_id: string;
   category: string;
+  source_language: string;
   title: string;
   body: string;
   title_i18n: Record<string, unknown>;
@@ -91,7 +92,7 @@ async function ensureDeliveryEvidence(input: {
     subscription_id: subscription.id,
     stay_id: subscription.stay_id || null,
     room_number: subscription.room_number,
-    language: subscription.language || "en",
+    language: subscription.language || input.communication.source_language || "en",
     status: "queued",
   }));
   const { error } = await supabaseAdmin
@@ -228,6 +229,7 @@ export async function deliverGuestCommunication(input: {
       subscription,
       hotelSlug: input.hotel.public_slug || input.hotel.slug,
       communicationId: input.communication.id,
+      sourceLanguage: input.communication.source_language,
       sourceTitle: input.communication.title,
       sourceBody: input.communication.body,
       titleI18n: input.communication.title_i18n || {},
@@ -287,7 +289,7 @@ export async function dispatchDueGuestCommunications(limit = 20) {
   const now = new Date().toISOString();
   const { data: queued, error: queuedError } = await supabaseAdmin
     .from("guest_communications")
-    .select("id,hotel_id,category,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at")
+    .select("id,hotel_id,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at")
     .eq("status", "queued")
     .eq("translation_status", "ready")
     .order("queued_at", { ascending: true })
@@ -298,7 +300,7 @@ export async function dispatchDueGuestCommunications(limit = 20) {
   const { data: scheduled, error: scheduledError } = remaining > 0
     ? await supabaseAdmin
         .from("guest_communications")
-        .select("id,hotel_id,category,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at")
+        .select("id,hotel_id,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at")
         .eq("status", "scheduled")
         .eq("translation_status", "ready")
         .lte("scheduled_at", now)

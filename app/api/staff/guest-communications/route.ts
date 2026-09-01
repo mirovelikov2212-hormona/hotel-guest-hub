@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getHotelConfig } from "@/lib/config";
 import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";
 import {
   hasGuestCommunicationCapability,
@@ -10,6 +11,7 @@ import {
   translateGuestCommunication,
   type GuestCommunicationLanguage,
 } from "@/lib/server/guest-communications-translation";
+import { guestCommunicationsDeliveryEnabled } from "@/lib/server/guest-communications-delivery";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export const runtime = "nodejs";
@@ -18,7 +20,6 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" };
 const CATEGORIES = new Set(["information", "event", "change", "offer", "emergency", "operational"]);
 const ACTIONS = new Set(["draft", "send_now", "schedule", "cancel"]);
-const LANGUAGES = new Set<string>(GUEST_COMMUNICATION_LANGUAGES);
 const ROLE_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -29,6 +30,31 @@ function json(body: Record<string, unknown>, status = 200) {
 function cleanText(value: unknown, max: number) {
   const text = String(value || "").trim().replace(/\r\n/g, "\n");
   return text.length <= max ? text : "";
+}
+
+function asCommunicationLanguage(value: unknown): GuestCommunicationLanguage | null {
+  const candidate = String(value || "").trim().toLowerCase() as GuestCommunicationLanguage;
+  return GUEST_COMMUNICATION_LANGUAGES.includes(candidate) ? candidate : null;
+}
+
+async function resolveHotelSourceLanguage(hotelSlug: string): Promise<GuestCommunicationLanguage> {
+  const config = await getHotelConfig(hotelSlug).catch((error) => {
+    console.warn("Guest Communications hotel language lookup failed", { hotelSlug, error });
+    return null;
+  });
+
+  const candidates = [
+    config?.languageDefault,
+    config?.opsLanguage,
+    ...(config?.languages || []),
+  ];
+
+  for (const candidate of candidates) {
+    const language = asCommunicationLanguage(candidate);
+    if (language) return language;
+  }
+
+  return "en";
 }
 
 async function loadAccess(hotelSlug: string, role: string) {
@@ -59,7 +85,7 @@ export async function GET(req: NextRequest) {
       messagesQuery = messagesQuery.eq("department_id", access.runtimeRole.departmentId);
     }
 
-    const [{ data: messages, error: messagesError }, { count: pushReach, error: pushError }] = await Promise.all([
+    const [{ data: messages, error: messagesError }, { count: pushReach, error: pushError }, hotelSourceLanguage] = await Promise.all([
       messagesQuery,
       supabaseAdmin
         .from("guest_push_subscriptions")
@@ -67,6 +93,7 @@ export async function GET(req: NextRequest) {
         .eq("hotel_id", access.hotel.id)
         .eq("enabled", true)
         .or("is_test.is.null,is_test.eq.false"),
+      resolveHotelSourceLanguage(hotelSlug),
     ]);
 
     if (messagesError) throw messagesError;
@@ -83,7 +110,9 @@ export async function GET(req: NextRequest) {
       } : null,
       capabilities: access.capabilities,
       pushReach: Number(pushReach || 0),
+      hotelSourceLanguage,
       supportedLanguages: [...GUEST_COMMUNICATION_LANGUAGES],
+      deliveryEnabled: guestCommunicationsDeliveryEnabled(),
       messages: messages || [],
     });
   } catch (error) {
@@ -129,12 +158,15 @@ export async function POST(req: NextRequest) {
     if (!hasGuestCommunicationCapability(access, "guest_communications.create")) return json({ ok: false, error: "forbidden" }, 403);
     if (action === "send_now" && !hasGuestCommunicationCapability(access, "guest_communications.send")) return json({ ok: false, error: "send_forbidden" }, 403);
     if (action === "schedule" && !hasGuestCommunicationCapability(access, "guest_communications.schedule")) return json({ ok: false, error: "schedule_forbidden" }, 403);
+    if ((action === "send_now" || action === "schedule") && !guestCommunicationsDeliveryEnabled()) {
+      return json({ ok: false, error: "delivery_disabled" }, 409);
+    }
 
     const category = String(body?.category || "information").trim().toLowerCase();
-    const sourceLanguage = String(body?.sourceLanguage || "en").trim().toLowerCase();
+    const sourceLanguage = await resolveHotelSourceLanguage(hotelSlug);
     const title = cleanText(body?.title, 120);
     const messageBody = cleanText(body?.body, 1000);
-    if (!CATEGORIES.has(category) || !LANGUAGES.has(sourceLanguage) || !title || !messageBody) {
+    if (!CATEGORIES.has(category) || !title || !messageBody) {
       return json({ ok: false, error: "invalid_content" }, 400);
     }
     if (category === "emergency" && !hasGuestCommunicationCapability(access, "guest_communications.emergency_send")) {
@@ -162,7 +194,7 @@ export async function POST(req: NextRequest) {
     if (action !== "draft") {
       try {
         const translated = await translateGuestCommunication({
-          sourceLanguage: sourceLanguage as GuestCommunicationLanguage,
+          sourceLanguage,
           title,
           body: messageBody,
         });
@@ -175,6 +207,7 @@ export async function POST(req: NextRequest) {
           hotelId: access.hotel.id,
           role: access.role,
           category,
+          sourceLanguage,
           error: translationError,
         });
         return json({ ok: false, error: "translation_unavailable" }, 503);
@@ -218,6 +251,7 @@ export async function POST(req: NextRequest) {
       message: data,
       delivery: status === "queued" ? "queued_not_sent_yet" : status,
       translation: translationStatus,
+      sourceLanguage,
     }, 201);
   } catch (error) {
     console.error("Guest Communications POST failed", error);

@@ -3,7 +3,9 @@ import "server-only";
 import webPush from "web-push";
 
 import type { GuestPushSubscriptionRow } from "@/lib/guest-push/web-push";
-import { normalizeGuestPushLanguage } from "@/lib/guest-push/web-push";
+
+const SUPPORTED_LANGUAGES = ["bg", "en", "de", "ro", "cs", "ru"] as const;
+type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 
 let configured = false;
 
@@ -18,8 +20,18 @@ function configure() {
   return true;
 }
 
-function localized(map: Record<string, unknown> | null | undefined, language: string, fallback: string) {
-  const candidates = [language, "en", "bg", "de", "ro", "cs", "ru"];
+function supportedLanguage(value: unknown): SupportedLanguage | null {
+  const candidate = String(value || "").trim().toLowerCase() as SupportedLanguage;
+  return SUPPORTED_LANGUAGES.includes(candidate) ? candidate : null;
+}
+
+function localized(
+  map: Record<string, unknown> | null | undefined,
+  language: SupportedLanguage,
+  sourceLanguage: SupportedLanguage,
+  fallback: string,
+) {
+  const candidates = Array.from(new Set([language, sourceLanguage, "en", "bg", "de", "ro", "cs", "ru"]));
   for (const key of candidates) {
     const value = String(map?.[key] || "").trim();
     if (value) return value;
@@ -31,6 +43,7 @@ export async function sendGuestCommunicationPush(input: {
   subscription: GuestPushSubscriptionRow;
   hotelSlug: string;
   communicationId: string;
+  sourceLanguage: string;
   sourceTitle: string;
   sourceBody: string;
   titleI18n: Record<string, unknown>;
@@ -39,9 +52,10 @@ export async function sendGuestCommunicationPush(input: {
 }) {
   if (!configure()) return { sent: false, expired: false, skipped: true, statusCode: 0, error: "vapid_not_configured" };
 
-  const language = normalizeGuestPushLanguage(input.subscription.language || "en");
-  const title = localized(input.titleI18n, language, input.sourceTitle);
-  const body = localized(input.bodyI18n, language, input.sourceBody);
+  const sourceLanguage = supportedLanguage(input.sourceLanguage) || "en";
+  const language = supportedLanguage(input.subscription.language) || sourceLanguage;
+  const title = localized(input.titleI18n, language, sourceLanguage, input.sourceTitle);
+  const body = localized(input.bodyI18n, language, sourceLanguage, input.sourceBody);
   const targetUrl = `/h/${input.hotelSlug}?source=guest_communication&message=${encodeURIComponent(input.communicationId)}`;
   const payload = JSON.stringify({
     title,
@@ -59,6 +73,7 @@ export async function sendGuestCommunicationPush(input: {
       communicationId: input.communicationId,
       category: input.category,
       source: "guest_communication_push",
+      language,
     },
   });
 
