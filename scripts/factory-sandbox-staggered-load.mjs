@@ -24,7 +24,7 @@ function fixture(index) {
   return {
     index,
     slug: `${prefix}-${suffix}-sandbox`,
-    room: "901",
+    room: "201",
     stayId: `f10b0000-0000-4000-8000-${uuidSuffix}`,
     stayDeviceId: `f10c0000-0000-4000-8000-${uuidSuffix}`,
   };
