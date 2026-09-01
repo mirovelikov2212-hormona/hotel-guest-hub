@@ -47,6 +47,7 @@ import {
   resolveHotelByAnySlugAdmin,
   type HotelScope,
 } from "@/lib/server/hotel-scope";
+import { createApiStageTiming } from "@/lib/server/api-stage-timing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -866,6 +867,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const timing = createApiStageTiming("/api/guest/massages", req.headers.get("x-vercel-id"));
   let requestHotelId: string | null = null;
   let requestHotelMetadata: Record<string, unknown> = {};
 
@@ -885,6 +887,7 @@ export async function POST(req: NextRequest) {
     const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
     requestHotelId = hotel.id;
     const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id);
+    timing.mark("hotel_and_authority");
     const sandboxNativeBookingEnabled =
       isSandboxHotel(hotel) && isNativeMassageAuthority(runtimeAuthority);
     const controlledE2EEnabled = isMassageControlledE2EEnabled(hotelSlug);
@@ -939,6 +942,7 @@ export async function POST(req: NextRequest) {
       stayId: body.stayId,
       stayDeviceId: body.stayDeviceId,
     });
+    timing.mark("room_and_stay");
     const stayId = String(stayIdentity.stay.id);
     const stayDeviceId = String(stayIdentity.device.id);
     if (isNativeMassageAuthority(runtimeAuthority)) {
@@ -964,6 +968,7 @@ export async function POST(req: NextRequest) {
         }),
         guestLanguage,
       });
+      timing.mark("authoritative_booking");
       const result = {
         status: nativeBooking.idempotentReplay
           ? "BOOKING_ALREADY_CONFIRMED" as const
@@ -988,7 +993,10 @@ export async function POST(req: NextRequest) {
         bookingId: nativeBooking.bookingId,
         reason: "synchronous",
       });
+      timing.mark("staff_projection");
       const statusCode = nativeBooking.idempotentReplay ? 200 : 201;
+
+      timing.finish("success", { hotelId: hotel.id, authority: "native_supabase", sandbox: Boolean(hotel.is_sandbox) });
 
       return json(
         {
@@ -1033,8 +1041,11 @@ export async function POST(req: NextRequest) {
         time,
         room,
       });
+      timing.mark("controlled_booking");
 
       const statusCode = result.status === "BOOKING_WRITTEN" ? 201 : 200;
+
+      timing.finish("success", { hotelId: hotel.id, authority: "controlled_e2e" });
 
       return json(
         {
@@ -1055,6 +1066,7 @@ export async function POST(req: NextRequest) {
       room,
       guestLanguage: String(body.guestLanguage || "bg"),
     });
+    timing.mark("external_booking");
     const result = trackedBooking.result;
 
     const staffAttachment = await attachTrackedMassageStaffRequest({
@@ -1069,8 +1081,11 @@ export async function POST(req: NextRequest) {
       guestLanguage: String(body.guestLanguage || "bg"),
       result,
     });
+    timing.mark("staff_projection");
 
     const statusCode = result.status === "BOOKING_WRITTEN" ? 201 : 200;
+
+    timing.finish("success", { hotelId: hotel.id, authority: runtimeAuthority.authorityMode });
 
     return json(
       {
@@ -1084,6 +1099,7 @@ export async function POST(req: NextRequest) {
       statusCode
     );
   } catch (error) {
+    timing.finish("failed", { hotelId: requestHotelId });
     const routeError = error instanceof MassageApiError ? error : mapNativeMassageError(error);
     if (routeError) {
       const severity = getMassageRouteErrorSeverity(routeError);
