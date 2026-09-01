@@ -549,7 +549,14 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
     throw new Error(`Hotel configuration identity not found: ${safeHotelSlug}`);
   }
 
-  const published = await getPublishedHotelConfigSnapshot(hotel.hotelId);
+  // These authorities are independent and can be resolved concurrently.
+  const [published, testRoomNumbers] = await Promise.all([
+    getPublishedHotelConfigSnapshot(hotel.hotelId),
+    getActiveTestRoomNumbers([
+      hotel.hotelId,
+      hotel.isSandbox ? hotel.productionHotelId : null,
+    ]),
+  ]);
 
   if (!published) {
     throw new Error(`Missing published hotel configuration revision: ${hotel.hotelSlug}`);
@@ -646,11 +653,6 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
       );
     }
   }
-
-  const testRoomNumbers = await getActiveTestRoomNumbers([
-    hotel.hotelId,
-    hotel.isSandbox ? hotel.productionHotelId : null,
-  ]);
 
   const resolvedConfig: HotelConfig = {
     ...runtimeConfig,

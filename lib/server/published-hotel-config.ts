@@ -1,7 +1,11 @@
 import "server-only";
 
+import { getCache } from "@vercel/functions";
 import type { HotelConfig } from "@/lib/types";
-import { attachGuestRequestRelationalAuthority } from "@/lib/server/guest-request-relational-ids.mjs";
+import {
+  attachGuestRequestRelationalAuthority,
+  getGuestRequestRelationalAuthority,
+} from "@/lib/server/guest-request-relational-ids.mjs";
 import { getFactoryProductionRelationalAuthority } from "@/lib/server/factory-production-relational-authority";
 import { getFactorySandboxRelationalAuthority } from "@/lib/server/factory-sandbox-relational-authority";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
@@ -18,6 +22,20 @@ type PublishedRevisionRow = {
   config_json: unknown;
   validation_json: unknown;
 };
+
+type PublishedSnapshot = {
+  revisionId: string;
+  sourceChecksum: string;
+  config: HotelConfig;
+};
+
+type CachedPublishedSnapshot = PublishedSnapshot & {
+  relationalAuthority: ReturnType<typeof getGuestRequestRelationalAuthority>;
+};
+
+const publishedConfigCache = getCache({ namespace: "published-hotel-config-v1" });
+const publishedConfigLoads = new Map<string, Promise<PublishedSnapshot | null>>();
+const PUBLISHED_CONFIG_CACHE_TTL_SECONDS = 10;
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
   return Boolean(
@@ -107,13 +125,9 @@ function getConfiguredGuestRequestTypes(config: HotelConfig) {
   );
 }
 
-export async function getPublishedHotelConfigSnapshot(
+async function loadPublishedHotelConfigSnapshot(
   hotelId: string,
-): Promise<{
-  revisionId: string;
-  sourceChecksum: string;
-  config: HotelConfig;
-} | null> {
+): Promise<PublishedSnapshot | null> {
   const normalizedHotelId = String(hotelId || "").trim();
 
   if (!normalizedHotelId) {
@@ -208,4 +222,61 @@ export async function getPublishedHotelConfigSnapshot(
     sourceChecksum,
     config,
   };
+}
+
+function restoreCachedSnapshot(cached: CachedPublishedSnapshot): PublishedSnapshot {
+  const config = structuredClone(cached.config);
+  if (cached.relationalAuthority) {
+    attachGuestRequestRelationalAuthority(config, cached.relationalAuthority);
+  }
+  return { revisionId: cached.revisionId, sourceChecksum: cached.sourceChecksum, config };
+}
+
+export async function expirePublishedHotelConfigCache(hotelId: string) {
+  const normalizedHotelId = String(hotelId || "").trim();
+  if (!normalizedHotelId) return;
+  await publishedConfigCache.expireTag(`hotel-config:${normalizedHotelId}`);
+}
+
+export async function getPublishedHotelConfigSnapshot(hotelId: string): Promise<PublishedSnapshot | null> {
+  const normalizedHotelId = String(hotelId || "").trim();
+  if (!normalizedHotelId) throw new Error("Missing hotel id for published configuration lookup");
+
+  const cacheKey = `hotel:${normalizedHotelId}`;
+  try {
+    const cached = await publishedConfigCache.get(cacheKey) as CachedPublishedSnapshot | null;
+    if (cached && typeof cached.revisionId === "string" && /^[a-f0-9]{64}$/.test(String(cached.sourceChecksum || "")) && isJsonObject(cached.config)) {
+      return restoreCachedSnapshot(cached);
+    }
+  } catch (error) {
+    console.warn("Published hotel configuration cache read failed; using authoritative database path", { hotelId: normalizedHotelId, error });
+  }
+
+  const existingLoad = publishedConfigLoads.get(normalizedHotelId);
+  if (existingLoad) return existingLoad;
+
+  const load = loadPublishedHotelConfigSnapshot(normalizedHotelId)
+    .then(async (snapshot) => {
+      if (!snapshot) return null;
+      const cached: CachedPublishedSnapshot = {
+        revisionId: snapshot.revisionId,
+        sourceChecksum: snapshot.sourceChecksum,
+        config: structuredClone(snapshot.config),
+        relationalAuthority: getGuestRequestRelationalAuthority(snapshot.config),
+      };
+      try {
+        await publishedConfigCache.set(cacheKey, cached, {
+          ttl: PUBLISHED_CONFIG_CACHE_TTL_SECONDS,
+          tags: ["published-hotel-config", `hotel-config:${normalizedHotelId}`],
+          name: "published-hotel-config",
+        });
+      } catch (error) {
+        console.warn("Published hotel configuration cache write failed; continuing with authoritative result", { hotelId: normalizedHotelId, error });
+      }
+      return snapshot;
+    })
+    .finally(() => publishedConfigLoads.delete(normalizedHotelId));
+
+  publishedConfigLoads.set(normalizedHotelId, load);
+  return load;
 }
