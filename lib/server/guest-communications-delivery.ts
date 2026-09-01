@@ -16,6 +16,9 @@ type CommunicationRow = {
   translation_status: string;
   status: string;
   scheduled_at: string | null;
+  delivery_attempts?: number | null;
+  sending_started_at?: string | null;
+  next_delivery_attempt_at?: string | null;
 };
 
 type HotelRow = {
@@ -56,7 +59,13 @@ async function claimCommunication(row: CommunicationRow) {
   const now = new Date().toISOString();
   let query = supabaseAdmin
     .from("guest_communications")
-    .update({ status: "sending", updated_at: now })
+    .update({
+      status: "sending",
+      delivery_attempts: Math.min(10, Number(row.delivery_attempts || 0) + 1),
+      sending_started_at: now,
+      next_delivery_attempt_at: null,
+      updated_at: now,
+    })
     .eq("id", row.id)
     .eq("hotel_id", row.hotel_id)
     .eq("translation_status", "ready")
@@ -199,6 +208,8 @@ async function finalizeCommunication(input: {
       delivery_failed: input.failed + input.skipped,
       delivery_expired: input.expired,
       last_error: lastError,
+      sending_started_at: null,
+      next_delivery_attempt_at: null,
       updated_at: now,
     })
     .eq("id", input.communication.id)
@@ -349,9 +360,10 @@ export async function dispatchDueGuestCommunications(limit = 20) {
   const now = new Date().toISOString();
   const { data: queued, error: queuedError } = await supabaseAdmin
     .from("guest_communications")
-    .select("id,hotel_id,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at")
+    .select("id,hotel_id,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at,delivery_attempts,sending_started_at,next_delivery_attempt_at")
     .eq("status", "queued")
     .eq("translation_status", "ready")
+    .or(`next_delivery_attempt_at.is.null,next_delivery_attempt_at.lte.${now}`)
     .order("queued_at", { ascending: true })
     .limit(limit);
   if (queuedError) throw queuedError;
@@ -360,7 +372,7 @@ export async function dispatchDueGuestCommunications(limit = 20) {
   const { data: scheduled, error: scheduledError } = remaining > 0
     ? await supabaseAdmin
         .from("guest_communications")
-        .select("id,hotel_id,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at")
+        .select("id,hotel_id,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at,delivery_attempts,sending_started_at,next_delivery_attempt_at")
         .eq("status", "scheduled")
         .eq("translation_status", "ready")
         .lte("scheduled_at", now)
@@ -396,4 +408,61 @@ export async function dispatchDueGuestCommunications(limit = 20) {
     delivered: results.filter((result) => Boolean((result as { delivered?: boolean }).delivered)).length,
     results,
   };
+}
+
+export async function recoverStuckGuestCommunications(input: {
+  staleMinutes?: number;
+  maxAttempts?: number;
+  limit?: number;
+} = {}) {
+  const staleMinutes = Math.max(2, Math.min(30, Math.trunc(input.staleMinutes || 5)));
+  const maxAttempts = Math.max(1, Math.min(10, Math.trunc(input.maxAttempts || 3)));
+  const limit = Math.max(1, Math.min(100, Math.trunc(input.limit || 20)));
+  const cutoff = new Date(Date.now() - staleMinutes * 60_000).toISOString();
+  const now = new Date();
+  const { data, error } = await supabaseAdmin
+    .from("guest_communications")
+    .select("id,hotel_id,delivery_attempts,sending_started_at")
+    .eq("status", "sending")
+    .lt("sending_started_at", cutoff)
+    .order("sending_started_at", { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+
+  let requeued = 0;
+  let deadLettered = 0;
+  for (const row of data || []) {
+    const attempts = Number(row.delivery_attempts || 0);
+    const exhausted = attempts >= maxAttempts;
+    const backoffMinutes = Math.min(30, 2 ** Math.max(0, attempts - 1));
+    const update = exhausted ? {
+      status: "failed",
+      dead_lettered_at: now.toISOString(),
+      sending_started_at: null,
+      next_delivery_attempt_at: null,
+      last_error: `Automatic delivery recovery exhausted after ${attempts} attempts`,
+      updated_at: now.toISOString(),
+    } : {
+      status: "queued",
+      sending_started_at: null,
+      next_delivery_attempt_at: new Date(now.getTime() + backoffMinutes * 60_000).toISOString(),
+      last_error: `Recovered stale delivery claim after attempt ${attempts}`,
+      queued_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    };
+    const { data: changed, error: updateError } = await supabaseAdmin
+      .from("guest_communications")
+      .update(update)
+      .eq("id", row.id)
+      .eq("hotel_id", row.hotel_id)
+      .eq("status", "sending")
+      .eq("delivery_attempts", attempts)
+      .select("id")
+      .maybeSingle();
+    if (updateError) throw updateError;
+    if (!changed) continue;
+    if (exhausted) deadLettered += 1;
+    else requeued += 1;
+  }
+  return { checked: (data || []).length, requeued, deadLettered, staleMinutes, maxAttempts };
 }
