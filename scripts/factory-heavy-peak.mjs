@@ -5,7 +5,7 @@ import { writeFile } from "node:fs/promises";
 const baseUrl = String(process.env.STAYHUB_HEAVY_BASE_URL || "https://www.stayhub.app").replace(/\/$/, "");
 const timeoutMs = Number(process.env.STAYHUB_HEAVY_TIMEOUT_MS || 45_000);
 const prefix = String(process.env.STAYHUB_HEAVY_PREFIX || "factory-heavy-20260901");
-const runId = String(process.env.STAYHUB_HEAVY_RUN_ID || `${prefix}-peak-${Date.now()}`);
+// Cache-capacity rerun: keep the runner path explicit so a push schedules GitHub Actions.\nconst runId = String(process.env.STAYHUB_HEAVY_RUN_ID || `${prefix}-peak-${Date.now()}`);
 const hotelCount = Number(process.env.STAYHUB_HEAVY_HOTELS || 100);
 const requestsPerHotel = Number(process.env.STAYHUB_HEAVY_REQUESTS_PER_HOTEL || 3);
 const surveysPerHotel = Number(process.env.STAYHUB_HEAVY_SURVEYS_PER_HOTEL || 2);
