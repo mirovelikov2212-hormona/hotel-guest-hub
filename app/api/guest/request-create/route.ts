@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { validateGuestRequestCreatePayload } from "@/lib/server/guest-request-input-validation.mjs";
 import { resolveGuestRequestAuthority } from "@/lib/server/guest-request-authority.mjs";
@@ -23,6 +23,7 @@ import {
   resolveHotelByAnySlugAdmin,
   shouldSuppressLivePush,
 } from "@/lib/server/hotel-scope";
+import { createApiStageTiming } from "@/lib/server/api-stage-timing";
 
 const STAFF_ROLE_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
 
@@ -94,6 +95,7 @@ function getStaffPushRolesForRequest(input: {
 }
 
 export async function POST(req: NextRequest) {
+  const timing = createApiStageTiming("/api/guest/request-create", req.headers.get("x-vercel-id"));
   try {
     const contentLengthHeader = req.headers.get("content-length");
     const contentLength = contentLengthHeader ? Number(contentLengthHeader) : 0;
@@ -152,6 +154,7 @@ export async function POST(req: NextRequest) {
       });
       return null;
     });
+    timing.mark("hotel_and_config");
 
     if (!hotelConfig) {
       return NextResponse.json(
@@ -215,6 +218,7 @@ export async function POST(req: NextRequest) {
       stayId,
       stayDeviceId,
     });
+    timing.mark("room_and_stay");
     if (!stayIdentity) {
       return NextResponse.json(
         { ok: false, error: "A confirmed stay is required", code: "STAY_REQUIRED" },
@@ -279,6 +283,7 @@ export async function POST(req: NextRequest) {
       departmentCode: department,
       requestType: authoritativeRequestType,
     });
+    timing.mark("authority_and_routing");
 
     if (!relationalIds.ok) {
       await logSystemError({
@@ -308,13 +313,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const translatedGuestNoteBg = note && !hasBulgarianLetters(note)
-      ? await translateGuestTextToBulgarian(note, {
-          sourceLanguage: guestLanguage,
-          context: `StayHub guest request note. Request type: ${authoritativeRequestType}. Staff department: ${department}.`,
-          maxLength: 1000,
-        })
-      : note;
+    const translatedGuestNoteBg = note && hasBulgarianLetters(note) ? note : null;
     const noteForStaffCopy = translatedGuestNoteBg || note;
     const operationalMetadata = {
       department,
@@ -360,37 +359,6 @@ export async function POST(req: NextRequest) {
       },
     });
     const messageBg = staffNoteBg || translatedGuestNoteBg || note || null;
-    const [staffTitleEn, staffTitleDe, staffNoteEn, staffNoteDe] = await Promise.all([
-      translateGuestText(staffTitleBg, {
-        sourceLanguage: "bg",
-        targetLanguage: "en",
-        context: "StayHub operational request title for hotel staff reports.",
-        maxLength: 500,
-      }),
-      translateGuestText(staffTitleBg, {
-        sourceLanguage: "bg",
-        targetLanguage: "de",
-        context: "StayHub operational request title for hotel staff reports.",
-        maxLength: 500,
-      }),
-      messageBg
-        ? translateGuestText(messageBg, {
-            sourceLanguage: "bg",
-            targetLanguage: "en",
-            context: "StayHub operational request note for hotel staff reports.",
-            maxLength: 1200,
-          })
-        : Promise.resolve(""),
-      messageBg
-        ? translateGuestText(messageBg, {
-            sourceLanguage: "bg",
-            targetLanguage: "de",
-            context: "StayHub operational request note for hotel staff reports.",
-            maxLength: 1200,
-          })
-        : Promise.resolve(""),
-    ]);
-
     const { data, error } = await supabaseAdmin
       .from("guest_requests")
       .insert({
@@ -411,26 +379,28 @@ export async function POST(req: NextRequest) {
         title_original: typeLabel || null,
         message_original: note,
         title_bg: staffTitleBg || null,
-        title_en: staffTitleEn || staffTitleBg || null,
-        title_de: staffTitleDe || staffTitleBg || null,
+        title_en: staffTitleBg || null,
+        title_de: staffTitleBg || null,
         message_bg: messageBg,
-        message_en: staffNoteEn || messageBg,
-        message_de: staffNoteDe || messageBg,
+        message_en: messageBg,
+        message_de: messageBg,
         status: "new",
         ...isolationFields,
         metadata_json: {
           ...operationalMetadata,
           guestLanguage,
           staffTitleBg,
-          staffTitleEn: staffTitleEn || null,
-          staffTitleDe: staffTitleDe || null,
+          staffTitleEn: null,
+          staffTitleDe: null,
           staffNoteBg,
-          staffNoteEn: staffNoteEn || null,
-          staffNoteDe: staffNoteDe || null,
+          staffNoteEn: null,
+          staffNoteDe: null,
+          translationStatus: "pending",
         },
       })
       .select("id, room_number_snapshot, request_type, title, message, status, created_at, metadata_json")
       .single();
+    timing.mark("authoritative_write");
 
     if (error || !data) {
       await logSystemError({
@@ -466,8 +436,40 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (!suppressLivePush) {
-      await sendManagerPushNotification({
+    after(async () => {
+      try {
+        const translatedNoteBg = note && !hasBulgarianLetters(note)
+          ? await translateGuestTextToBulgarian(note, {
+              sourceLanguage: guestLanguage,
+              context: `StayHub guest request note. Request type: ${authoritativeRequestType}. Staff department: ${department}.`,
+              maxLength: 1000,
+            })
+          : note;
+        const finalMessageBg = translatedNoteBg || messageBg;
+        const [staffTitleEn, staffTitleDe, staffNoteEn, staffNoteDe] = await Promise.all([
+          translateGuestText(staffTitleBg, { sourceLanguage: "bg", targetLanguage: "en", context: "StayHub operational request title for hotel staff reports.", maxLength: 500 }),
+          translateGuestText(staffTitleBg, { sourceLanguage: "bg", targetLanguage: "de", context: "StayHub operational request title for hotel staff reports.", maxLength: 500 }),
+          finalMessageBg ? translateGuestText(finalMessageBg, { sourceLanguage: "bg", targetLanguage: "en", context: "StayHub operational request note for hotel staff reports.", maxLength: 1200 }) : Promise.resolve(""),
+          finalMessageBg ? translateGuestText(finalMessageBg, { sourceLanguage: "bg", targetLanguage: "de", context: "StayHub operational request note for hotel staff reports.", maxLength: 1200 }) : Promise.resolve(""),
+        ]);
+        const { error: translationUpdateError } = await supabaseAdmin.from("guest_requests").update({
+          title_en: staffTitleEn || staffTitleBg || null,
+          title_de: staffTitleDe || staffTitleBg || null,
+          message_bg: finalMessageBg || null,
+          message_en: staffNoteEn || finalMessageBg || null,
+          message_de: staffNoteDe || finalMessageBg || null,
+          metadata_json: { ...operationalMetadata, guestLanguage, staffTitleBg, staffTitleEn: staffTitleEn || null,
+            staffTitleDe: staffTitleDe || null, staffNoteBg: finalMessageBg || null, staffNoteEn: staffNoteEn || null,
+            staffNoteDe: staffNoteDe || null, translationStatus: "ready" },
+        }).eq("id", data.id).eq("hotel_id", hotel.id);
+        if (translationUpdateError) throw translationUpdateError;
+      } catch (translationError) {
+        await logSystemError({ hotelId: hotel.id, source: "guest_hub", eventType: "guest_request_translation_failed",
+          message: "Guest request was saved, but asynchronous staff translation failed.", roomNumber: room,
+          requestId: String(data.id), error: translationError, metadata: { hotelSlug, guestLanguage, authoritativeRequestType } });
+      }
+
+      if (!suppressLivePush) await sendManagerPushNotification({
         hotelId: hotel.id,
         hotelSlug: hotel.slug,
         requestId: String(data.id),
@@ -518,11 +520,13 @@ export async function POST(req: NextRequest) {
           });
         });
       }
-    }
+    });
 
     const created = new Date(data.created_at);
     const hotelTimeZone = String(hotelConfig.hotelTimezone || "UTC").trim() || "UTC";
 
+    timing.mark("response_ready");
+    timing.finish("success", { hotelId: hotel.id, sandbox: Boolean(hotel.is_sandbox) });
     return NextResponse.json({
       ok: true,
       request: {
@@ -557,6 +561,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
+    timing.finish("failed");
     const reason = error instanceof Error ? error.message : "";
     if (reason === "STAY_ENDED") {
       return NextResponse.json(
