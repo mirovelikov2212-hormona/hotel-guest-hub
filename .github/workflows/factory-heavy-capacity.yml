@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Smoke — request and survey on one Sandbox tenant
         env:
-          STAYHUB_HEAVY_RUN_ID: factory-heavy-ci-smoke-20260901
+          STAYHUB_HEAVY_RUN_ID: factory-heavy-cache-smoke-v1-20260901
           STAYHUB_HEAVY_HOTELS: "1"
           STAYHUB_HEAVY_REQUESTS_PER_HOTEL: "1"
           STAYHUB_HEAVY_SURVEYS_PER_HOTEL: "1"
@@ -28,7 +28,7 @@ jobs:
           mv factory-heavy-peak-results.json factory-heavy-smoke-results.json
       - name: Combined peak — 100 hotels, 300 requests and 200 surveys
         env:
-          STAYHUB_HEAVY_RUN_ID: factory-heavy-ci-peak-20260901
+          STAYHUB_HEAVY_RUN_ID: factory-heavy-cache-peak-v1-20260901
           STAYHUB_HEAVY_HOTELS: "100"
           STAYHUB_HEAVY_REQUESTS_PER_HOTEL: "3"
           STAYHUB_HEAVY_SURVEYS_PER_HOTEL: "2"
