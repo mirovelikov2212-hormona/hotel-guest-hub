@@ -1,0 +1,189 @@
+name: Temporary Clean Massage Security Ordering Patch
+
+on:
+  push:
+    branches:
+      - feat/factory-prepare-sandbox-load-acceptance
+    paths:
+      - ".github/workflows/temporary-clean-massage-security-ordering.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/factory-prepare-sandbox-load-acceptance
+          fetch-depth: 0
+      - name: Reorder massage POST security boundary
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("app/api/guest/massages/route.ts")
+          source = path.read_text()
+
+          old = '''    // Resolve the tenant and its runtime authority before applying the legacy
+    // external-adapter write allowlist. Factory-created Sandbox hotels use the
+    // native Supabase booking authority and must not require an Aquamarine-style
+    // Google Apps Script/Sheet flag. Production and legacy adapters remain
+    // fail-closed behind their existing hotel-specific environment switch.
+    const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
+    requestHotelId = hotel.id;
+    const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id);
+    timing.mark("hotel_and_authority");
+    const sandboxNativeBookingEnabled =
+      isSandboxHotel(hotel) && isNativeMassageAuthority(runtimeAuthority);
+    const controlledE2EEnabled = isMassageControlledE2EEnabled(hotelSlug);
+    const productionBookingEnabled = isMassageBookingPostEnabled(hotelSlug);
+
+    if (!sandboxNativeBookingEnabled && !controlledE2EEnabled && !productionBookingEnabled) {
+      await logSystemEvent({
+        severity: "warning",
+        source: "massage",
+        eventType: "massage_booking_post_disabled",
+        message: "Massage booking POST was attempted while booking submission is disabled for the hotel.",
+        hotelId: hotel.id,
+        metadata: {
+          hotelSlug,
+          isSandbox: Boolean(hotel.is_sandbox),
+          runtimeAuthority: runtimeAuthority.authorityMode,
+        },
+      });
+      return json(
+        {
+          ok: false,
+          code: "MASSAGE_BOOKING_POST_DISABLED",
+          error: "Massage booking submission is not enabled yet.",
+        },
+        503
+      );
+    }
+
+    requireConfirmedRoom(body.roomConfirmed);
+
+    const serviceId = requireServiceId(body.serviceId ?? body.service_id);
+    const date = requireDate(body.date ?? body.dateIso, "date");
+    const time = requireTime(body.time ?? body.startTime);
+    const room = requireRoom(body.room ?? body.roomNumber);
+
+    await requireExistingHotelRoom(hotelSlug, room);
+
+    requestHotelMetadata = {
+      hotelSlug,
+      resolvedHotelSlug: hotel.slug,
+      publicSlug: hotel.public_slug || null,
+      isSandbox: Boolean(hotel.is_sandbox),
+      productionHotelId: hotel.production_hotel_id || null,
+      room,
+      serviceId,
+      date,
+      time,
+    };
+    const stayIdentity = await requireMassageGuestStayIdentity({
+      hotelId: hotel.id,
+      room,
+      stayId: body.stayId,
+      stayDeviceId: body.stayDeviceId,
+    });
+    timing.mark("room_and_stay");
+    const stayId = String(stayIdentity.stay.id);
+    const stayDeviceId = String(stayIdentity.device.id);
+'''
+
+          new = '''    // Resolve tenant identity first, but do not inspect operational booking
+    // authority until the public payload and confirmed stay/device identity have
+    // both been validated. Unauthenticated callers must not reach authority
+    // selection, adapter feature flags, or booking write paths.
+    const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
+    requestHotelId = hotel.id;
+    timing.mark("hotel");
+
+    requireConfirmedRoom(body.roomConfirmed);
+
+    const serviceId = requireServiceId(body.serviceId ?? body.service_id);
+    const date = requireDate(body.date ?? body.dateIso, "date");
+    const time = requireTime(body.time ?? body.startTime);
+    const room = requireRoom(body.room ?? body.roomNumber);
+
+    requestHotelMetadata = {
+      hotelSlug,
+      resolvedHotelSlug: hotel.slug,
+      publicSlug: hotel.public_slug || null,
+      isSandbox: Boolean(hotel.is_sandbox),
+      productionHotelId: hotel.production_hotel_id || null,
+      room,
+      serviceId,
+      date,
+      time,
+    };
+
+    const stayIdentity = await requireMassageGuestStayIdentity({
+      hotelId: hotel.id,
+      room,
+      stayId: body.stayId,
+      stayDeviceId: body.stayDeviceId,
+    });
+    const stayId = String(stayIdentity.stay.id);
+    const stayDeviceId = String(stayIdentity.device.id);
+    timing.mark("stay_identity");
+
+    await requireExistingHotelRoom(hotelSlug, room);
+    timing.mark("room");
+
+    const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id);
+    const sandboxNativeBookingEnabled =
+      isSandboxHotel(hotel) && isNativeMassageAuthority(runtimeAuthority);
+    const controlledE2EEnabled = isMassageControlledE2EEnabled(hotelSlug);
+    const productionBookingEnabled = isMassageBookingPostEnabled(hotelSlug);
+    timing.mark("authority");
+
+    if (!sandboxNativeBookingEnabled && !controlledE2EEnabled && !productionBookingEnabled) {
+      await logSystemEvent({
+        severity: "warning",
+        source: "massage",
+        eventType: "massage_booking_post_disabled",
+        message: "Massage booking POST was attempted while booking submission is disabled for the hotel.",
+        hotelId: hotel.id,
+        metadata: {
+          hotelSlug,
+          isSandbox: Boolean(hotel.is_sandbox),
+          runtimeAuthority: runtimeAuthority.authorityMode,
+        },
+      });
+      return json(
+        {
+          ok: false,
+          code: "MASSAGE_BOOKING_POST_DISABLED",
+          error: "Massage booking submission is not enabled yet.",
+        },
+        503
+      );
+    }
+'''
+
+          if new in source:
+              print("Patch already present; no change needed.")
+          elif old not in source:
+              raise SystemExit("Expected massage POST block not found; refusing a fuzzy patch.")
+          else:
+              source = source.replace(old, new, 1)
+              path.write_text(source)
+              print("Applied exact massage security-ordering patch.")
+      - name: Verify source security ordering
+        run: |
+          node --test tests/contracts/api-security.contract.test.mjs
+      - name: Commit exact patch
+        run: |
+          if git diff --quiet -- app/api/guest/massages/route.ts; then
+            echo "No route change to commit."
+            exit 0
+          fi
+          git config user.name "stayhub-ci"
+          git config user.email "stayhub-ci@users.noreply.github.com"
+          git add app/api/guest/massages/route.ts
+          git commit -m "security: validate massage stay before authority selection"
+          git push origin HEAD:feat/factory-prepare-sandbox-load-acceptance
