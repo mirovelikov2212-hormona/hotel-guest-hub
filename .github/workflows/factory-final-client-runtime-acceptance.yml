@@ -3,12 +3,12 @@ name: Factory Final Client Runtime Acceptance
 on:
   push:
     branches:
-      - main
       - feat/factory-prepare-sandbox-load-acceptance
     paths:
       - ".github/workflows/factory-final-client-runtime-acceptance.yml"
       - "scripts/factory-browser-device-matrix.py"
       - "scripts/factory-final-620-peak.mjs"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
           python -m py_compile scripts/factory-browser-device-matrix.py
 
   client-runtime:
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     needs: harness-contract
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -33,6 +33,8 @@ jobs:
       STAYHUB_620_BASE_URL: https://www.stayhub.app
     steps:
       - uses: actions/checkout@v4
+      - name: Record exact acceptance source SHA
+        run: echo "Factory client runtime acceptance source SHA=${GITHUB_SHA}"
       - name: Install current Playwright browser engines
         run: |
           python -m pip install --disable-pip-version-check playwright
@@ -41,6 +43,12 @@ jobs:
         run: python scripts/factory-browser-device-matrix.py
       - name: Run external 620-operation peak with live availability preflight
         run: node scripts/factory-final-620-peak.mjs
+      - name: Print concise peak evidence
+        if: always()
+        run: |
+          if [ -f factory-final-620-results.json ]; then
+            jq '{schemaVersion,runId,baseUrl,totalOperations,wallMs,request,survey,massageUnique,massageContention,thresholdsMs,correctnessAccepted,performanceAccepted,accepted,contentionSlot,failures,contentionUnexpected}' factory-final-620-results.json
+          fi
       - name: Upload final client-runtime evidence
         if: always()
         uses: actions/upload-artifact@v4
