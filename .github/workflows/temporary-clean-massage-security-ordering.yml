@@ -19,8 +19,9 @@ jobs:
           ref: feat/factory-prepare-sandbox-load-acceptance
           fetch-depth: 0
       - name: Reorder massage POST security boundary
-        shell: python
+        shell: bash
         run: |
+          python3 <<'PY'
           from pathlib import Path
 
           path = Path("app/api/guest/massages/route.ts")
@@ -173,10 +174,11 @@ jobs:
               source = source.replace(old, new, 1)
               path.write_text(source)
               print("Applied exact massage security-ordering patch.")
+          PY
       - name: Verify source security ordering
-        run: |
-          node --test tests/contracts/api-security.contract.test.mjs
+        run: node --test tests/contracts/api-security.contract.test.mjs
       - name: Commit exact patch
+        shell: bash
         run: |
           if git diff --quiet -- app/api/guest/massages/route.ts; then
             echo "No route change to commit."
