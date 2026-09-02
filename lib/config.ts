@@ -536,7 +536,13 @@ function buildVenueHours(row: Record<string, string>, languages: LangKey[]) {
   };
 }
 
-export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | null> {
+const HOTEL_CONFIG_RESOLUTION_TTL_MS = 60_000;
+const hotelConfigResolutionCache = new Map<
+  string,
+  { expiresAt: number; promise: Promise<HotelConfig | null> }
+>();
+
+async function resolveHotelConfig(hotelSlug: string): Promise<HotelConfig | null> {
   const safeHotelSlug = String(hotelSlug || "").trim().toLowerCase() || "demo";
 
   if (safeHotelSlug === "demo") {
@@ -683,6 +689,36 @@ export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | n
   }
 
   return resolvedConfig;
+}
+
+/**
+ * Resolve one authoritative hotel configuration per runtime instance and slug.
+ *
+ * Guest requests, surveys and bookings commonly arrive together. Sharing the
+ * in-flight promise prevents those operations from independently rebuilding
+ * the same published + normalized configuration during a cold-start burst.
+ * The short TTL keeps Factory projection changes visible without weakening any
+ * of the revision, checksum or parity checks inside resolveHotelConfig().
+ */
+export async function getHotelConfig(hotelSlug: string): Promise<HotelConfig | null> {
+  const cacheKey = String(hotelSlug || "").trim().toLowerCase() || "demo";
+  const now = Date.now();
+  const cached = hotelConfigResolutionCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.promise;
+  if (cached) hotelConfigResolutionCache.delete(cacheKey);
+
+  const promise = resolveHotelConfig(cacheKey);
+  const entry = { expiresAt: now + HOTEL_CONFIG_RESOLUTION_TTL_MS, promise };
+  hotelConfigResolutionCache.set(cacheKey, entry);
+
+  try {
+    return await promise;
+  } catch (error) {
+    if (hotelConfigResolutionCache.get(cacheKey) === entry) {
+      hotelConfigResolutionCache.delete(cacheKey);
+    }
+    throw error;
+  }
 }
 
 export async function getHotelConfigFromSheets(hotelSlug: string): Promise<HotelConfig | null> {
