@@ -1,4 +1,4 @@
-name: Temporary Dispatch Final Acceptance A17842AD
+name: Temporary Exact A17842AD Client Acceptance
 
 on:
   push:
@@ -9,24 +9,52 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 jobs:
-  dispatch:
+  client-runtime:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      STAYHUB_BROWSER_BASE_URL: https://www.stayhub.app
+      STAYHUB_620_BASE_URL: https://www.stayhub.app
+      EXPECTED_SHA: a17842ad5e7d5eece7bdce7ed9ea76fb4398dfaf
     steps:
-      - name: Verify exact production main SHA
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA: a17842ad5e7d5eece7bdce7ed9ea76fb4398dfaf
+      - name: Checkout exact production source SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+      - name: Prove checked-out source SHA
         run: |
           set -euo pipefail
-          ACTUAL_SHA="$(gh api repos/${GITHUB_REPOSITORY}/git/ref/heads/main --jq '.object.sha')"
-          test "$ACTUAL_SHA" = "$EXPECTED_SHA" || {
-            echo "main SHA mismatch: expected=$EXPECTED_SHA actual=$ACTUAL_SHA"
-            exit 2
-          }
-      - name: Dispatch final main acceptance
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run factory-final-client-runtime-acceptance.yml --ref main
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          echo "Factory client acceptance source SHA=$EXPECTED_SHA"
+      - name: Validate external acceptance harness syntax
+        run: |
+          node --check scripts/factory-final-620-peak.mjs
+          python -m py_compile scripts/factory-browser-device-matrix.py
+      - name: Install current Playwright browser engines
+        run: |
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium firefox webkit
+      - name: Run real browser-engine and mobile-profile request matrix
+        run: python scripts/factory-browser-device-matrix.py
+      - name: Run external 620-operation peak with live availability preflight
+        run: node scripts/factory-final-620-peak.mjs
+      - name: Print concise peak evidence
+        if: always()
+        run: |
+          if [ -f factory-browser-device-matrix-results.json ]; then
+            cat factory-browser-device-matrix-results.json
+          fi
+          if [ -f factory-final-620-results.json ]; then
+            jq '{schemaVersion,runId,baseUrl,totalOperations,wallMs,request,survey,massageUnique,massageContention,thresholdsMs,correctnessAccepted,performanceAccepted,accepted,contentionSlot,failures,contentionUnexpected}' factory-final-620-results.json
+          fi
+      - name: Upload final client-runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-a17842ad-client-runtime-evidence
+          path: |
+            factory-browser-device-matrix-results.json
+            factory-final-620-results.json
+          if-no-files-found: warn
