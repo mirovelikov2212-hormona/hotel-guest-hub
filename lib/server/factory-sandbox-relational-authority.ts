@@ -46,7 +46,7 @@ export async function getFactorySandboxRelationalAuthority(input: {
   const requestTypes = Array.from(
     new Set(
       (Array.isArray(input.requestTypes) ? input.requestTypes : [])
-        .map((value) => String(value || "").trim())
+        .map(normalizeKey)
         .filter(Boolean),
     ),
   );
@@ -117,6 +117,8 @@ export async function getFactorySandboxRelationalAuthority(input: {
       .from("routing_rules")
       .select("request_type, department_id")
       .eq("hotel_id", hotelId)
+      .eq("active", true)
+      .is("venue_type", null)
       .in("request_type", requestTypes),
   ]);
 
@@ -152,6 +154,7 @@ export async function getFactorySandboxRelationalAuthority(input: {
     const departmentId = String(row.department_id || "").trim();
     if (
       !requestType
+      || !requestTypes.includes(requestType)
       || !departmentIds.has(departmentId)
       || routingDepartmentIdByRequestType[requestType]
     ) {
@@ -160,11 +163,10 @@ export async function getFactorySandboxRelationalAuthority(input: {
     routingDepartmentIdByRequestType[requestType] = departmentId;
   }
 
-  const expectedRequestTypes = requestTypes.map(normalizeKey);
   if (
     Object.keys(roomIdByNumber).length === 0
     || Object.keys(departmentIdByCode).length === 0
-    || expectedRequestTypes.some((requestType) => !routingDepartmentIdByRequestType[requestType])
+    || requestTypes.some((requestType) => !routingDepartmentIdByRequestType[requestType])
   ) {
     throw new Error("FACTORY_SANDBOX_RELATIONAL_AUTHORITY_INCOMPLETE");
   }

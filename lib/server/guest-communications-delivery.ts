@@ -16,6 +16,9 @@ type CommunicationRow = {
   translation_status: string;
   status: string;
   scheduled_at: string | null;
+  delivery_attempts?: number | null;
+  sending_started_at?: string | null;
+  next_delivery_attempt_at?: string | null;
 };
 
 type HotelRow = {
@@ -39,7 +42,13 @@ async function claimCommunication(row: CommunicationRow) {
   const now = new Date().toISOString();
   let query = supabaseAdmin
     .from("guest_communications")
-    .update({ status: "sending", updated_at: now })
+    .update({
+      status: "sending",
+      delivery_attempts: Math.min(10, Number(row.delivery_attempts || 0) + 1),
+      sending_started_at: now,
+      next_delivery_attempt_at: null,
+      updated_at: now,
+    })
     .eq("id", row.id)
     .eq("hotel_id", row.hotel_id)
     .eq("translation_status", "ready")
@@ -101,39 +110,48 @@ async function ensureDeliveryEvidence(input: {
   if (error) throw error;
 }
 
-async function deliveryStatus(hotelId: string, communicationId: string, subscriptionId: string) {
+async function deliveryStatuses(hotelId: string, communicationId: string, subscriptionIds: string[]) {
+  if (!subscriptionIds.length) return new Map<string, { id: string; status: string }>();
   const { data, error } = await supabaseAdmin
     .from("guest_communication_deliveries")
-    .select("id,status")
+    .select("id,status,subscription_id")
     .eq("hotel_id", hotelId)
     .eq("communication_id", communicationId)
-    .eq("subscription_id", subscriptionId)
-    .maybeSingle();
+    .in("subscription_id", subscriptionIds);
   if (error) throw error;
-  return data as { id: string; status: string } | null;
+  return new Map((data || []).map((row) => [String(row.subscription_id), { id: String(row.id), status: String(row.status) }]));
 }
 
-async function writeDeliveryResult(input: {
+async function writeDeliveryResults(inputs: Array<{
   hotelId: string;
   id: string;
   status: "sent" | "failed" | "expired" | "skipped";
   statusCode: number;
   error: string | null;
-}) {
+}>) {
+  if (!inputs.length) return;
   const now = new Date().toISOString();
-  const { error } = await supabaseAdmin
-    .from("guest_communication_deliveries")
-    .update({
-      status: input.status,
-      attempted_at: now,
-      sent_at: input.status === "sent" ? now : null,
-      status_code: input.statusCode || null,
-      error_message: input.error,
-      updated_at: now,
-    })
-    .eq("hotel_id", input.hotelId)
-    .eq("id", input.id);
-  if (error) throw error;
+  const groups = new Map<string, typeof inputs>();
+  for (const input of inputs) {
+    const key = JSON.stringify([input.hotelId, input.status, input.statusCode || null, input.error]);
+    groups.set(key, [...(groups.get(key) || []), input]);
+  }
+  for (const group of groups.values()) {
+    const sample = group[0];
+    const { error } = await supabaseAdmin
+      .from("guest_communication_deliveries")
+      .update({
+        status: sample.status,
+        attempted_at: now,
+        sent_at: sample.status === "sent" ? now : null,
+        status_code: sample.statusCode || null,
+        error_message: sample.error,
+        updated_at: now,
+      })
+      .eq("hotel_id", sample.hotelId)
+      .in("id", group.map((item) => item.id));
+    if (error) throw error;
+  }
 }
 
 async function finalizeCommunication(input: {
@@ -169,6 +187,8 @@ async function finalizeCommunication(input: {
       delivery_failed: input.failed + input.skipped,
       delivery_expired: input.expired,
       last_error: lastError,
+      sending_started_at: null,
+      next_delivery_attempt_at: null,
       updated_at: now,
     })
     .eq("id", input.communication.id)
@@ -202,6 +222,11 @@ export async function deliverGuestCommunication(input: {
   const stayIds = stays.map((stay) => stay.id);
   const subscriptions = await subscriptionsForActiveStays(input.communication.hotel_id, stayIds);
   await ensureDeliveryEvidence({ communication: input.communication, subscriptions });
+  const evidenceBySubscription = await deliveryStatuses(
+    input.communication.hotel_id,
+    input.communication.id,
+    subscriptions.map((subscription) => subscription.id),
+  );
 
   let sent = 0;
   let failed = 0;
@@ -209,20 +234,14 @@ export async function deliverGuestCommunication(input: {
   let skipped = 0;
   const expiredSubscriptionIds: string[] = [];
 
-  for (const subscription of subscriptions) {
+  const deliverOne = async (subscription: GuestPushSubscriptionRow) => {
     if (String(subscription.hotel_id) !== input.communication.hotel_id) {
-      skipped += 1;
-      continue;
+      return { status: "skipped" as const, subscriptionId: null };
     }
 
-    const evidence = await deliveryStatus(
-      input.communication.hotel_id,
-      input.communication.id,
-      subscription.id,
-    );
+    const evidence = evidenceBySubscription.get(subscription.id);
     if (!evidence || evidence.status === "sent") {
-      if (evidence?.status === "sent") sent += 1;
-      continue;
+      return { status: evidence?.status === "sent" ? "sent" as const : "skipped" as const, subscriptionId: null };
     }
 
     const result = await sendGuestCommunicationPush({
@@ -237,27 +256,40 @@ export async function deliverGuestCommunication(input: {
       category: input.communication.category,
     });
 
-    const status = result.sent
+    const status: "sent" | "failed" | "expired" | "skipped" = result.sent
       ? "sent"
       : result.expired
         ? "expired"
         : result.skipped
           ? "skipped"
           : "failed";
-    await writeDeliveryResult({
-      hotelId: input.communication.hotel_id,
-      id: evidence.id,
+    return {
       status,
+      subscriptionId: status === "expired" ? subscription.id : null,
+      evidenceId: evidence.id,
       statusCode: result.statusCode,
       error: result.error,
-    });
+    };
+  };
 
-    if (status === "sent") sent += 1;
-    else if (status === "expired") {
-      expired += 1;
-      expiredSubscriptionIds.push(subscription.id);
-    } else if (status === "skipped") skipped += 1;
-    else failed += 1;
+  const concurrency = 20;
+  for (let offset = 0; offset < subscriptions.length; offset += concurrency) {
+    const batch = await Promise.all(subscriptions.slice(offset, offset + concurrency).map(deliverOne));
+    await writeDeliveryResults(batch.flatMap((result) => result.evidenceId ? [{
+      hotelId: input.communication.hotel_id,
+      id: result.evidenceId,
+      status: result.status,
+      statusCode: result.statusCode || 0,
+      error: result.error || null,
+    }] : []));
+    for (const result of batch) {
+      if (result.status === "sent") sent += 1;
+      else if (result.status === "expired") {
+        expired += 1;
+        if (result.subscriptionId) expiredSubscriptionIds.push(result.subscriptionId);
+      } else if (result.status === "skipped") skipped += 1;
+      else failed += 1;
+    }
   }
 
   await disableGuestPushSubscriptions(expiredSubscriptionIds);
@@ -289,9 +321,10 @@ export async function dispatchDueGuestCommunications(limit = 20) {
   const now = new Date().toISOString();
   const { data: queued, error: queuedError } = await supabaseAdmin
     .from("guest_communications")
-    .select("id,hotel_id,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at")
+    .select("id,hotel_id,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at,delivery_attempts,sending_started_at,next_delivery_attempt_at")
     .eq("status", "queued")
     .eq("translation_status", "ready")
+    .or(`next_delivery_attempt_at.is.null,next_delivery_attempt_at.lte.${now}`)
     .order("queued_at", { ascending: true })
     .limit(limit);
   if (queuedError) throw queuedError;
@@ -300,7 +333,7 @@ export async function dispatchDueGuestCommunications(limit = 20) {
   const { data: scheduled, error: scheduledError } = remaining > 0
     ? await supabaseAdmin
         .from("guest_communications")
-        .select("id,hotel_id,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at")
+        .select("id,hotel_id,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at,delivery_attempts,sending_started_at,next_delivery_attempt_at")
         .eq("status", "scheduled")
         .eq("translation_status", "ready")
         .lte("scheduled_at", now)
@@ -336,4 +369,61 @@ export async function dispatchDueGuestCommunications(limit = 20) {
     delivered: results.filter((result) => Boolean((result as { delivered?: boolean }).delivered)).length,
     results,
   };
+}
+
+export async function recoverStuckGuestCommunications(input: {
+  staleMinutes?: number;
+  maxAttempts?: number;
+  limit?: number;
+} = {}) {
+  const staleMinutes = Math.max(2, Math.min(30, Math.trunc(input.staleMinutes || 5)));
+  const maxAttempts = Math.max(1, Math.min(10, Math.trunc(input.maxAttempts || 3)));
+  const limit = Math.max(1, Math.min(100, Math.trunc(input.limit || 20)));
+  const cutoff = new Date(Date.now() - staleMinutes * 60_000).toISOString();
+  const now = new Date();
+  const { data, error } = await supabaseAdmin
+    .from("guest_communications")
+    .select("id,hotel_id,delivery_attempts,sending_started_at")
+    .eq("status", "sending")
+    .lt("sending_started_at", cutoff)
+    .order("sending_started_at", { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+
+  let requeued = 0;
+  let deadLettered = 0;
+  for (const row of data || []) {
+    const attempts = Number(row.delivery_attempts || 0);
+    const exhausted = attempts >= maxAttempts;
+    const backoffMinutes = Math.min(30, 2 ** Math.max(0, attempts - 1));
+    const update = exhausted ? {
+      status: "failed",
+      dead_lettered_at: now.toISOString(),
+      sending_started_at: null,
+      next_delivery_attempt_at: null,
+      last_error: `Automatic delivery recovery exhausted after ${attempts} attempts`,
+      updated_at: now.toISOString(),
+    } : {
+      status: "queued",
+      sending_started_at: null,
+      next_delivery_attempt_at: new Date(now.getTime() + backoffMinutes * 60_000).toISOString(),
+      last_error: `Recovered stale delivery claim after attempt ${attempts}`,
+      queued_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    };
+    const { data: changed, error: updateError } = await supabaseAdmin
+      .from("guest_communications")
+      .update(update)
+      .eq("id", row.id)
+      .eq("hotel_id", row.hotel_id)
+      .eq("status", "sending")
+      .eq("delivery_attempts", attempts)
+      .select("id")
+      .maybeSingle();
+    if (updateError) throw updateError;
+    if (!changed) continue;
+    if (exhausted) deadLettered += 1;
+    else requeued += 1;
+  }
+  return { checked: (data || []).length, requeued, deadLettered, staleMinutes, maxAttempts };
 }

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getCache } from "@vercel/functions";
+
 import {
   buildHotelSlugOrFilter,
   getHotelSlugCandidates as getHotelSlugCandidatesCore,
@@ -20,6 +22,15 @@ export type HotelScope = {
   production_hotel_id?: string | null;
 };
 
+const hotelScopeCache = getCache({ namespace: "hotel-scope-v1" });
+const HOTEL_SCOPE_TTL_SECONDS = 300;
+
+export async function expireHotelScopeCache(hotelId: string) {
+  const normalizedHotelId = String(hotelId || "").trim();
+  if (!normalizedHotelId) return;
+  await hotelScopeCache.expireTag(`hotel-directory:${normalizedHotelId}`);
+}
+
 function sanitizeSlug(value: unknown) {
   return sanitizeHotelSlug(value);
 }
@@ -39,6 +50,18 @@ export async function resolveHotelByAnySlugAdmin(inputSlug: string): Promise<Hot
     throw new Error("Missing hotel slug");
   }
 
+  const cacheKey = `slug:${candidates.join("|")}`;
+  try {
+    const cached = await hotelScopeCache.get(cacheKey) as HotelScope | null;
+    if (cached?.id && cached.slug) {
+      // Entitlement remains authoritative and fail-closed on every request.
+      await requireHotelCommercialRuntimeAccess(cached.id);
+      return cached;
+    }
+  } catch (error) {
+    console.warn("Hotel scope cache read failed; using authoritative database path", { candidates, error });
+  }
+
   const { data, error } = await supabaseAdmin
     .from("hotels")
     .select("id, slug, public_slug, name, timezone, active, is_sandbox, production_hotel_id")
@@ -52,7 +75,17 @@ export async function resolveHotelByAnySlugAdmin(inputSlug: string): Promise<Hot
   }
 
   await requireHotelCommercialRuntimeAccess(data.id);
-  return data as HotelScope;
+  const hotel = data as HotelScope;
+  try {
+    await hotelScopeCache.set(cacheKey, hotel, {
+      ttl: HOTEL_SCOPE_TTL_SECONDS,
+      tags: ["hotel-directory", `hotel-directory:${hotel.id}`],
+      name: "hotel-scope",
+    });
+  } catch (cacheError) {
+    console.warn("Hotel scope cache write failed; continuing with authoritative result", { hotelId: hotel.id, cacheError });
+  }
+  return hotel;
 }
 
 export function hotelMatchesRequestedSlug(hotel: Pick<HotelScope, "slug" | "public_slug">, inputSlug: string) {

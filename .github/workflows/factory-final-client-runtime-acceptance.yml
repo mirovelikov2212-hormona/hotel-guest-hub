@@ -1,0 +1,60 @@
+name: Factory Final Client Runtime Acceptance
+
+on:
+  push:
+    branches:
+      - feat/factory-prepare-sandbox-load-acceptance
+    paths:
+      - ".github/workflows/factory-final-client-runtime-acceptance.yml"
+      - "scripts/factory-browser-device-matrix.py"
+      - "scripts/factory-final-620-peak.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  harness-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate external acceptance harness syntax
+        run: |
+          node --check scripts/factory-final-620-peak.mjs
+          python -m py_compile scripts/factory-browser-device-matrix.py
+
+  client-runtime:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: harness-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      STAYHUB_BROWSER_BASE_URL: https://www.stayhub.app
+      STAYHUB_620_BASE_URL: https://www.stayhub.app
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record exact acceptance source SHA
+        run: echo "Factory client runtime acceptance source SHA=${GITHUB_SHA}"
+      - name: Install current Playwright browser engines
+        run: |
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium firefox webkit
+      - name: Run real browser-engine and mobile-profile request matrix
+        run: python scripts/factory-browser-device-matrix.py
+      - name: Run external 620-operation peak with live availability preflight
+        run: node scripts/factory-final-620-peak.mjs
+      - name: Print concise peak evidence
+        if: always()
+        run: |
+          if [ -f factory-final-620-results.json ]; then
+            jq '{schemaVersion,runId,baseUrl,totalOperations,wallMs,request,survey,massageUnique,massageContention,thresholdsMs,correctnessAccepted,performanceAccepted,accepted,contentionSlot,failures,contentionUnexpected}' factory-final-620-results.json
+          fi
+      - name: Upload final client-runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-final-client-runtime-evidence
+          path: |
+            factory-browser-device-matrix-results.json
+            factory-final-620-results.json
+          if-no-files-found: warn

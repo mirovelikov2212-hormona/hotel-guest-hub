@@ -19,6 +19,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Dependency security audit
+        run: npm audit --audit-level=low
       - run: npm test
       - run: node --test tests/contracts/control-panel-factory-routing.contract.test.mjs
       - run: node --test tests/contracts/p2-6-4-published-derivative-lineage.contract.test.mjs

@@ -1,7 +1,11 @@
 import "server-only";
 
+import { getCache } from "@vercel/functions";
 import type { HotelConfig } from "@/lib/types";
-import { attachGuestRequestRelationalAuthority } from "@/lib/server/guest-request-relational-ids.mjs";
+import {
+  attachGuestRequestRelationalAuthority,
+  getGuestRequestRelationalAuthority,
+} from "@/lib/server/guest-request-relational-ids.mjs";
 import { getFactoryProductionRelationalAuthority } from "@/lib/server/factory-production-relational-authority";
 import { getFactorySandboxRelationalAuthority } from "@/lib/server/factory-sandbox-relational-authority";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
@@ -18,6 +22,28 @@ type PublishedRevisionRow = {
   config_json: unknown;
   validation_json: unknown;
 };
+
+type PublishedSnapshot = {
+  revisionId: string;
+  sourceChecksum: string;
+  config: HotelConfig;
+};
+
+type PublishedBaseSnapshot = PublishedSnapshot & {
+  validationJson: Record<string, unknown>;
+  lastKnownGoodRevisionId: string | null;
+};
+
+type CachedPublishedSnapshot = PublishedSnapshot & {
+  relationalAuthority: ReturnType<typeof getGuestRequestRelationalAuthority>;
+};
+
+const publishedConfigCache = getCache({ namespace: "published-hotel-config-v1" });
+const publishedConfigLoads = new Map<string, Promise<PublishedSnapshot | null>>();
+// Publication writes explicitly expire the per-hotel tag. A five-minute TTL
+// therefore protects the database from cold-start fan-out without allowing a
+// stale revision to survive a normal publication.
+const PUBLISHED_CONFIG_CACHE_TTL_SECONDS = 300;
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
   return Boolean(
@@ -107,13 +133,17 @@ function getConfiguredGuestRequestTypes(config: HotelConfig) {
   );
 }
 
-export async function getPublishedHotelConfigSnapshot(
+/**
+ * Read only the immutable published revision and publication pointer.
+ *
+ * This function deliberately does not read rooms, departments, routing rules,
+ * runtime activation flags, or materialized tenant state. Projection and
+ * reconciliation must be able to rebuild every derived runtime resource from
+ * the published revision even when those derived resources are already stale.
+ */
+async function loadPublishedHotelConfigBaseSnapshot(
   hotelId: string,
-): Promise<{
-  revisionId: string;
-  sourceChecksum: string;
-  config: HotelConfig;
-} | null> {
+): Promise<PublishedBaseSnapshot | null> {
   const normalizedHotelId = String(hotelId || "").trim();
 
   if (!normalizedHotelId) {
@@ -180,32 +210,124 @@ export async function getPublishedHotelConfigSnapshot(
     throw new Error("Published configuration revision checksum is malformed");
   }
 
-  const config = { ...(row.config_json as HotelConfig) } as HotelConfig;
+  const config = structuredClone(row.config_json as HotelConfig);
   markFactoryManagedGuestRuntime(config);
 
-  // P2.6.4 keeps the published revision immutable. LIVE reachability is therefore
-  // represented by the publication rollback anchor (LKG) plus the fail-closed
-  // relational-authority RPC, not by rewriting validation_json on the revision.
-  if (state?.last_known_good_revision_id === row.id) {
+  return {
+    revisionId: row.id,
+    sourceChecksum,
+    config,
+    validationJson: row.validation_json,
+    lastKnownGoodRevisionId: state?.last_known_good_revision_id || null,
+  };
+}
+
+async function loadPublishedHotelConfigSnapshot(
+  hotelId: string,
+): Promise<PublishedSnapshot | null> {
+  const normalizedHotelId = String(hotelId || "").trim();
+  const base = await loadPublishedHotelConfigBaseSnapshot(normalizedHotelId);
+  if (!base) return null;
+
+  const config = structuredClone(base.config);
+
+  // Runtime relational IDs are attached only to the guest/staff runtime view.
+  // They are derived state and therefore must never be a prerequisite for the
+  // projector that repairs that same derived state.
+  if (base.lastKnownGoodRevisionId === base.revisionId) {
     const relationalAuthority = await getFactoryProductionRelationalAuthority({
       hotelId: normalizedHotelId,
-      revisionId: row.id,
-      sourceChecksum,
+      revisionId: base.revisionId,
+      sourceChecksum: base.sourceChecksum,
     });
     attachGuestRequestRelationalAuthority(config, relationalAuthority);
-  } else if (isFactorySandboxAcceptance(row.validation_json)) {
+  } else if (isFactorySandboxAcceptance(base.validationJson)) {
     const relationalAuthority = await getFactorySandboxRelationalAuthority({
       hotelId: normalizedHotelId,
-      revisionId: row.id,
-      sourceChecksum,
+      revisionId: base.revisionId,
+      sourceChecksum: base.sourceChecksum,
       requestTypes: getConfiguredGuestRequestTypes(config),
     });
     attachGuestRequestRelationalAuthority(config, relationalAuthority);
   }
 
   return {
-    revisionId: row.id,
-    sourceChecksum,
+    revisionId: base.revisionId,
+    sourceChecksum: base.sourceChecksum,
     config,
   };
+}
+
+/**
+ * Projection/reconciliation source of truth. This intentionally bypasses the
+ * runtime relational-authority cache so corrupted derived state can always be
+ * rebuilt from the exact immutable published revision.
+ */
+export async function getPublishedHotelConfigProjectionSource(
+  hotelId: string,
+): Promise<PublishedSnapshot | null> {
+  const base = await loadPublishedHotelConfigBaseSnapshot(hotelId);
+  if (!base) return null;
+  return {
+    revisionId: base.revisionId,
+    sourceChecksum: base.sourceChecksum,
+    config: base.config,
+  };
+}
+
+function restoreCachedSnapshot(cached: CachedPublishedSnapshot): PublishedSnapshot {
+  const config = structuredClone(cached.config);
+  if (cached.relationalAuthority) {
+    attachGuestRequestRelationalAuthority(config, cached.relationalAuthority);
+  }
+  return { revisionId: cached.revisionId, sourceChecksum: cached.sourceChecksum, config };
+}
+
+export async function expirePublishedHotelConfigCache(hotelId: string) {
+  const normalizedHotelId = String(hotelId || "").trim();
+  if (!normalizedHotelId) return;
+  await publishedConfigCache.expireTag(`hotel-config:${normalizedHotelId}`);
+}
+
+export async function getPublishedHotelConfigSnapshot(hotelId: string): Promise<PublishedSnapshot | null> {
+  const normalizedHotelId = String(hotelId || "").trim();
+  if (!normalizedHotelId) throw new Error("Missing hotel id for published configuration lookup");
+
+  const cacheKey = `hotel:${normalizedHotelId}`;
+  try {
+    const cached = await publishedConfigCache.get(cacheKey) as CachedPublishedSnapshot | null;
+    if (cached && typeof cached.revisionId === "string" && /^[a-f0-9]{64}$/.test(String(cached.sourceChecksum || "")) && isJsonObject(cached.config)) {
+      return restoreCachedSnapshot(cached);
+    }
+  } catch (error) {
+    console.warn("Published hotel configuration cache read failed; using authoritative database path", { hotelId: normalizedHotelId, error });
+  }
+
+  const existingLoad = publishedConfigLoads.get(normalizedHotelId);
+  if (existingLoad) return existingLoad;
+
+  const load = loadPublishedHotelConfigSnapshot(normalizedHotelId)
+    .then(async (snapshot) => {
+      if (!snapshot) return null;
+      const cached: CachedPublishedSnapshot = {
+        revisionId: snapshot.revisionId,
+        sourceChecksum: snapshot.sourceChecksum,
+        config: structuredClone(snapshot.config),
+        relationalAuthority: getGuestRequestRelationalAuthority(snapshot.config),
+      };
+      try {
+        await publishedConfigCache.set(cacheKey, cached, {
+          ttl: PUBLISHED_CONFIG_CACHE_TTL_SECONDS,
+          tags: ["published-hotel-config", `hotel-config:${normalizedHotelId}`],
+          name: "published-hotel-config",
+        });
+      } catch (error) {
+        console.warn("Published hotel configuration cache write failed; continuing with authoritative result", { hotelId: normalizedHotelId, error });
+      }
+      return snapshot;
+    })
+    .finally(() => publishedConfigLoads.delete(normalizedHotelId));
+
+  publishedConfigLoads.set(normalizedHotelId, load);
+  return load;
 }

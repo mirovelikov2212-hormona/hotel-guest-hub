@@ -99,6 +99,58 @@ test("M10.2 projection model matches current room and request authority semantic
   assert.equal(disabledFallback.active, false);
 });
 
+test("Factory-managed projection preserves exact service type and explicit department", () => {
+  const result = buildHotelConfigProjection({
+    hotelRooms: [{ roomNumber: "201" }],
+    contacts: { reception: {}, housekeeping: {} },
+    requestDefs: [
+      {
+        id: "extra-towel",
+        type: "request",
+        requestType: "extra-towel",
+        targetDepartment: "housekeeping",
+        enabled: true,
+        guestVisible: true,
+        factoryManagedGuestRuntime: true,
+      },
+    ],
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.projection.routing_rules, [
+    {
+      request_type: "extra_towel",
+      department_code: "housekeeping",
+      after_hours_department_code: "reception",
+      priority_default: "normal",
+      auto_assign_mode: "none",
+      active: true,
+    },
+  ]);
+});
+
+test("Factory-managed projection fails closed on unsupported operational department", () => {
+  const result = buildHotelConfigProjection({
+    hotelRooms: [{ roomNumber: "201" }],
+    contacts: { reception: {}, spa: {} },
+    requestDefs: [
+      {
+        id: "spa-help",
+        type: "request",
+        requestType: "spa-help",
+        targetDepartment: "spa",
+        enabled: true,
+        guestVisible: true,
+        factoryManagedGuestRuntime: true,
+      },
+    ],
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.includes("FACTORY_ROUTING_DEPARTMENT_UNSUPPORTED:0"));
+});
+
 test("M10.2 projection model rejects normalized room collisions", () => {
   const result = buildHotelConfigProjection({
     hotelRooms: [{ roomNumber: "1 01" }, { roomNumber: "101" }],

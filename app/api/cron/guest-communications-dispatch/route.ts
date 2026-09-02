@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   dispatchDueGuestCommunications,
   guestCommunicationsDeliveryEnabled,
+  recoverStuckGuestCommunications,
 } from "@/lib/server/guest-communications-delivery";
 
 export const runtime = "nodejs";
@@ -36,8 +37,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const recovery = await recoverStuckGuestCommunications();
     const result = await dispatchDueGuestCommunications(20);
-    return NextResponse.json({ ok: true, authority: "guest_communications", ...result }, { headers: NO_STORE });
+    return NextResponse.json({ ok: true, authority: "guest_communications", recovery, ...result }, { headers: NO_STORE });
   } catch (error) {
     console.error("Guest Communications dispatch failed", error);
     return NextResponse.json({ ok: false, error: "Guest Communications dispatch failed" }, { status: 500, headers: NO_STORE });

@@ -47,6 +47,7 @@ import {
   resolveHotelByAnySlugAdmin,
   type HotelScope,
 } from "@/lib/server/hotel-scope";
+import { createApiStageTiming } from "@/lib/server/api-stage-timing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -866,6 +867,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const timing = createApiStageTiming("/api/guest/massages", req.headers.get("x-vercel-id"));
   let requestHotelId: string | null = null;
   let requestHotelMetadata: Record<string, unknown> = {};
 
@@ -877,26 +879,13 @@ export async function POST(req: NextRequest) {
       return json({ ok: false, code: "MISSING_HOTEL_SLUG", error: "Hotel slug is required." }, 400);
     }
 
-    const controlledE2EEnabled = isMassageControlledE2EEnabled(hotelSlug);
-    const productionBookingEnabled = isMassageBookingPostEnabled(hotelSlug);
-
-    if (!controlledE2EEnabled && !productionBookingEnabled) {
-      await logSystemEvent({
-        severity: "warning",
-        source: "massage",
-        eventType: "massage_booking_post_disabled",
-        message: "Massage booking POST was attempted while booking submission is disabled for the hotel.",
-        metadata: { hotelSlug },
-      });
-      return json(
-        {
-          ok: false,
-          code: "MASSAGE_BOOKING_POST_DISABLED",
-          error: "Massage booking submission is not enabled yet.",
-        },
-        503
-      );
-    }
+    // Resolve tenant identity first, but do not inspect operational booking
+    // authority until the public payload and confirmed stay/device identity have
+    // both been validated. Unauthenticated callers must not reach authority
+    // selection, adapter feature flags, or booking write paths.
+    const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
+    requestHotelId = hotel.id;
+    timing.mark("hotel");
 
     requireConfirmedRoom(body.roomConfirmed);
 
@@ -905,10 +894,6 @@ export async function POST(req: NextRequest) {
     const time = requireTime(body.time ?? body.startTime);
     const room = requireRoom(body.room ?? body.roomNumber);
 
-    await requireExistingHotelRoom(hotelSlug, room);
-
-    const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
-    requestHotelId = hotel.id;
     requestHotelMetadata = {
       hotelSlug,
       resolvedHotelSlug: hotel.slug,
@@ -920,6 +905,7 @@ export async function POST(req: NextRequest) {
       date,
       time,
     };
+
     const stayIdentity = await requireMassageGuestStayIdentity({
       hotelId: hotel.id,
       room,
@@ -928,7 +914,40 @@ export async function POST(req: NextRequest) {
     });
     const stayId = String(stayIdentity.stay.id);
     const stayDeviceId = String(stayIdentity.device.id);
+    timing.mark("stay_identity");
+
+    await requireExistingHotelRoom(hotelSlug, room);
+    timing.mark("room");
+
     const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id);
+    const sandboxNativeBookingEnabled =
+      isSandboxHotel(hotel) && isNativeMassageAuthority(runtimeAuthority);
+    const controlledE2EEnabled = isMassageControlledE2EEnabled(hotelSlug);
+    const productionBookingEnabled = isMassageBookingPostEnabled(hotelSlug);
+    timing.mark("authority");
+
+    if (!sandboxNativeBookingEnabled && !controlledE2EEnabled && !productionBookingEnabled) {
+      await logSystemEvent({
+        severity: "warning",
+        source: "massage",
+        eventType: "massage_booking_post_disabled",
+        message: "Massage booking POST was attempted while booking submission is disabled for the hotel.",
+        hotelId: hotel.id,
+        metadata: {
+          hotelSlug,
+          isSandbox: Boolean(hotel.is_sandbox),
+          runtimeAuthority: runtimeAuthority.authorityMode,
+        },
+      });
+      return json(
+        {
+          ok: false,
+          code: "MASSAGE_BOOKING_POST_DISABLED",
+          error: "Massage booking submission is not enabled yet.",
+        },
+        503
+      );
+    }
 
     if (isNativeMassageAuthority(runtimeAuthority)) {
       const guestLanguage = String(body.guestLanguage || "bg");
@@ -953,6 +972,7 @@ export async function POST(req: NextRequest) {
         }),
         guestLanguage,
       });
+      timing.mark("authoritative_booking");
       const result = {
         status: nativeBooking.idempotentReplay
           ? "BOOKING_ALREADY_CONFIRMED" as const
@@ -977,7 +997,10 @@ export async function POST(req: NextRequest) {
         bookingId: nativeBooking.bookingId,
         reason: "synchronous",
       });
+      timing.mark("staff_projection");
       const statusCode = nativeBooking.idempotentReplay ? 200 : 201;
+
+      timing.finish("success", { hotelId: hotel.id, authority: "native_supabase", sandbox: Boolean(hotel.is_sandbox) });
 
       return json(
         {
@@ -1022,8 +1045,11 @@ export async function POST(req: NextRequest) {
         time,
         room,
       });
+      timing.mark("controlled_booking");
 
       const statusCode = result.status === "BOOKING_WRITTEN" ? 201 : 200;
+
+      timing.finish("success", { hotelId: hotel.id, authority: "controlled_e2e" });
 
       return json(
         {
@@ -1044,6 +1070,7 @@ export async function POST(req: NextRequest) {
       room,
       guestLanguage: String(body.guestLanguage || "bg"),
     });
+    timing.mark("external_booking");
     const result = trackedBooking.result;
 
     const staffAttachment = await attachTrackedMassageStaffRequest({
@@ -1058,8 +1085,11 @@ export async function POST(req: NextRequest) {
       guestLanguage: String(body.guestLanguage || "bg"),
       result,
     });
+    timing.mark("staff_projection");
 
     const statusCode = result.status === "BOOKING_WRITTEN" ? 201 : 200;
+
+    timing.finish("success", { hotelId: hotel.id, authority: runtimeAuthority.authorityMode });
 
     return json(
       {
@@ -1073,6 +1103,7 @@ export async function POST(req: NextRequest) {
       statusCode
     );
   } catch (error) {
+    timing.finish("failed", { hotelId: requestHotelId });
     const routeError = error instanceof MassageApiError ? error : mapNativeMassageError(error);
     if (routeError) {
       const severity = getMassageRouteErrorSeverity(routeError);

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import FactoryPrepareSandboxPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryPrepareSandboxPanel";
 import FactoryProductionAcceptancePanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryProductionAcceptancePanel";
 import FactoryProjectionWorkspace from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryProjectionWorkspace";
 import FactorySandboxCertificationPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxCertificationPanel";
@@ -91,6 +92,11 @@ export default async function FactoryRunWorkspacePage({
           <Link href={`/control-plane/factory/runs?lang=${lang}`} className="mt-5 inline-flex text-sm font-semibold text-cyan-200">{copy.back}</Link>
         </header>
 
+        <FactoryPrepareSandboxPanel
+          lang={lang}
+          onboardingRunId={progress.onboardingRunId}
+          productionActive={progress.production.active}
+        />
         <FactoryProjectionWorkspace lang={lang} progress={progress} />
         {preflight && <FactorySandboxPreflightPanel lang={lang} preflight={preflight} />}
         {trustedEvidence && preflight && (

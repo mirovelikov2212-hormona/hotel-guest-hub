@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
 import { translateGuestTextToStaffLanguages } from "@/lib/server/staff-translation";
@@ -27,6 +27,7 @@ import {
   addDaysToStayDateKey,
   isDateInsideGuestSurveyWindow,
 } from "@/lib/guest-stays/shared";
+import { createApiStageTiming } from "@/lib/server/api-stage-timing";
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
@@ -66,6 +67,7 @@ async function findExistingStayDeviceSurvey(input: {
 }
 
 export async function POST(req: NextRequest) {
+  const timing = createApiStageTiming("/api/guest/day3-survey", req.headers.get("x-vercel-id"));
   try {
     const body = await req.json().catch(() => null);
     const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();
@@ -107,6 +109,7 @@ export async function POST(req: NextRequest) {
 
     const hotel = await getHotelByAnySlugAdmin(hotelSlug);
     const roomValidation = await validateHotelRoom(hotelSlug, room);
+    timing.mark("hotel_and_room");
     if (!roomValidation.ok) {
       await logSystemEvent({
         hotelId: hotel.id,
@@ -131,6 +134,7 @@ export async function POST(req: NextRequest) {
       stayId,
       stayDeviceId,
     });
+    timing.mark("stay_identity");
     if (!stayIdentity) {
       return validationError("A confirmed stay is required.", "STAY_REQUIRED", 401);
     }
@@ -159,6 +163,7 @@ export async function POST(req: NextRequest) {
     }
 
     const existing = await findExistingStayDeviceSurvey({ stayId, stayDeviceId });
+    timing.mark("duplicate_check");
     if (existing.error) {
       await logSystemError({
         hotelId: hotel.id,
@@ -177,24 +182,6 @@ export async function POST(req: NextRequest) {
     }
 
     const { hotelDateKey, activeUntil } = calculateSurveyActiveUntil(submittedAt, timezone);
-    const [improvementTranslations, problemTranslations, resolutionNoteTranslations] = await Promise.all([
-      translateGuestTextToStaffLanguages(improvementText, {
-        sourceLanguage: language,
-        context: "Day 3 hotel guest survey improvement answer for Manager/Reception staff and reports.",
-        maxLength: 1000,
-      }),
-      translateGuestTextToStaffLanguages(problemText, {
-        sourceLanguage: language,
-        context: "Day 3 hotel guest survey problem description for Manager/Reception staff and reports.",
-        maxLength: 1000,
-      }),
-      translateGuestTextToStaffLanguages(resolutionNote, {
-        sourceLanguage: language,
-        context: "Day 3 hotel guest survey resolution note for Manager/Reception staff and reports.",
-        maxLength: 1000,
-      }),
-    ]);
-
     const insertPayload = {
       hotel_id: hotel.id,
       room_number: room,
@@ -207,20 +194,20 @@ export async function POST(req: NextRequest) {
       selected_categories: selectedCategories,
       improvement_text: improvementText,
       improvement_text_original: improvementText || null,
-      improvement_text_bg: improvementTranslations.bg || null,
-      improvement_text_en: improvementTranslations.en || null,
-      improvement_text_de: improvementTranslations.de || null,
+      improvement_text_bg: null,
+      improvement_text_en: null,
+      improvement_text_de: null,
       problem_text: problemText,
       problem_text_original: problemText || null,
-      problem_text_bg: problemTranslations.bg || null,
-      problem_text_en: problemTranslations.en || null,
-      problem_text_de: problemTranslations.de || null,
+      problem_text_bg: null,
+      problem_text_en: null,
+      problem_text_de: null,
       resolution_status: resolutionStatus,
       resolution_note: resolutionNote,
       resolution_note_original: resolutionNote || null,
-      resolution_note_bg: resolutionNoteTranslations.bg || null,
-      resolution_note_en: resolutionNoteTranslations.en || null,
-      resolution_note_de: resolutionNoteTranslations.de || null,
+      resolution_note_bg: null,
+      resolution_note_en: null,
+      resolution_note_de: null,
       language,
       survey_version: surveyVersion,
       hotel_date_key: hotelDateKey,
@@ -239,28 +226,21 @@ export async function POST(req: NextRequest) {
         stayDeviceId,
         checkInDate,
         checkOutDate,
-        improvement_text_bg: improvementTranslations.bg || null,
-        improvement_text_en: improvementTranslations.en || null,
-        improvement_text_de: improvementTranslations.de || null,
-        problem_text_bg: problemTranslations.bg || null,
-        problem_text_en: problemTranslations.en || null,
-        problem_text_de: problemTranslations.de || null,
-        resolution_note_bg: resolutionNoteTranslations.bg || null,
-        resolution_note_en: resolutionNoteTranslations.en || null,
-        resolution_note_de: resolutionNoteTranslations.de || null,
+        translation_status: "pending",
         original_language: language,
         reception_read_at: null,
         reception_read_by: null,
       },
     };
 
-    let { data, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("guest_surveys")
       .insert(insertPayload)
       .select(
         "id, hotel_id, room_number, survey_type, rating, selected_categories, improvement_text, improvement_text_original, improvement_text_bg, improvement_text_en, improvement_text_de, problem_text, problem_text_original, problem_text_bg, problem_text_en, problem_text_de, resolution_status, resolution_note, resolution_note_original, resolution_note_bg, resolution_note_en, resolution_note_de, language, survey_version, hotel_date_key, target_date_key, first_confirmed_date_key, guest_submitted_at, active_until, manager_read_at, is_test, test_expires_at, metadata_json, created_at",
       )
       .single();
+    timing.mark("authoritative_write");
 
     if (error?.code === "23505") {
       const duplicate = await findExistingStayDeviceSurvey({ stayId, stayDeviceId });
@@ -292,8 +272,33 @@ export async function POST(req: NextRequest) {
 
     const survey = mapSurveyRow(data as GuestSurveyRow);
 
-    if (!suppressLivePush) {
-      await sendManagerPushNotification({
+    after(async () => {
+      try {
+        const [improvementTranslations, problemTranslations, resolutionNoteTranslations] = await Promise.all([
+          translateGuestTextToStaffLanguages(improvementText, { sourceLanguage: language, context: "Day 3 hotel guest survey improvement answer for Manager/Reception staff and reports.", maxLength: 1000 }),
+          translateGuestTextToStaffLanguages(problemText, { sourceLanguage: language, context: "Day 3 hotel guest survey problem description for Manager/Reception staff and reports.", maxLength: 1000 }),
+          translateGuestTextToStaffLanguages(resolutionNote, { sourceLanguage: language, context: "Day 3 hotel guest survey resolution note for Manager/Reception staff and reports.", maxLength: 1000 }),
+        ]);
+        const { error: translationUpdateError } = await supabaseAdmin.from("guest_surveys").update({
+          improvement_text_bg: improvementTranslations.bg || null,
+          improvement_text_en: improvementTranslations.en || null,
+          improvement_text_de: improvementTranslations.de || null,
+          problem_text_bg: problemTranslations.bg || null,
+          problem_text_en: problemTranslations.en || null,
+          problem_text_de: problemTranslations.de || null,
+          resolution_note_bg: resolutionNoteTranslations.bg || null,
+          resolution_note_en: resolutionNoteTranslations.en || null,
+          resolution_note_de: resolutionNoteTranslations.de || null,
+          metadata_json: { ...insertPayload.metadata_json, translation_status: "ready" },
+        }).eq("id", survey.id).eq("hotel_id", hotel.id);
+        if (translationUpdateError) throw translationUpdateError;
+      } catch (translationError) {
+        await logSystemError({ hotelId: hotel.id, source: "survey", eventType: "day3_survey_translation_failed",
+          message: "Day 3 survey was saved, but asynchronous staff translation failed.", roomNumber: room,
+          surveyId: survey.id, error: translationError, metadata: { hotelSlug, language, stayId, stayDeviceId } });
+      }
+
+      if (!suppressLivePush) await sendManagerPushNotification({
         hotelId: hotel.id,
         hotelSlug: hotel.slug,
         requestId: `survey-${survey.id}`,
@@ -315,10 +320,13 @@ export async function POST(req: NextRequest) {
           metadata: { hotelSlug, rating, surveyVersion, stayId, stayDeviceId },
         });
       });
-    }
+    });
 
+    timing.mark("response_ready");
+    timing.finish("success", { hotelId: hotel.id, sandbox: Boolean(hotel.is_sandbox) });
     return NextResponse.json({ ok: true, survey }, { headers: NO_STORE_HEADERS });
   } catch (error) {
+    timing.finish("failed");
     console.error("guest day3 survey POST error", error);
     await logSystemError({
       severity: "critical",

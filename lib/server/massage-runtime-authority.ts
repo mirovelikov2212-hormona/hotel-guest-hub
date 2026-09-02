@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getCache } from "@vercel/functions";
+
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export type MassageRuntimeAuthorityMode = "legacy_adapter" | "native_supabase";
@@ -21,6 +23,9 @@ type AuthorityRow = {
   updated_by?: unknown;
   reason?: unknown;
 };
+
+const massageAuthorityCache = getCache({ namespace: "massage-runtime-authority-v1" });
+const MASSAGE_AUTHORITY_TTL_SECONDS = 300;
 
 function requireUuid(value: unknown, code: string) {
   const normalized = String(value || "").trim();
@@ -60,6 +65,20 @@ function parseAuthorityRow(value: unknown, expectedHotelId: string): MassageRunt
 
 export async function getMassageRuntimeAuthority(hotelIdInput: string) {
   const hotelId = requireUuid(hotelIdInput, "MASSAGE_AUTHORITY_HOTEL_INVALID");
+  const cacheKey = `hotel:${hotelId}`;
+  try {
+    const cached = await massageAuthorityCache.get(cacheKey) as MassageRuntimeAuthorityState | null;
+    if (cached) return parseAuthorityRow({
+      hotel_id: cached.hotelId,
+      authority_mode: cached.authorityMode,
+      revision: cached.revision,
+      updated_at: cached.updatedAt,
+      updated_by: cached.updatedBy,
+      reason: cached.reason,
+    }, hotelId);
+  } catch (error) {
+    console.warn("Massage authority cache read failed; using authoritative database path", { hotelId, error });
+  }
   const { data, error } = await supabaseAdmin
     .from("massage_runtime_authority_state")
     .select("hotel_id, authority_mode, revision, updated_at, updated_by, reason")
@@ -69,7 +88,17 @@ export async function getMassageRuntimeAuthority(hotelIdInput: string) {
   if (error || !data) {
     throw error || new Error("MASSAGE_AUTHORITY_STATE_MISSING");
   }
-  return parseAuthorityRow(data, hotelId);
+  const authority = parseAuthorityRow(data, hotelId);
+  try {
+    await massageAuthorityCache.set(cacheKey, authority, {
+      ttl: MASSAGE_AUTHORITY_TTL_SECONDS,
+      tags: ["massage-runtime-authority", `massage-runtime-authority:${hotelId}`],
+      name: "massage-runtime-authority",
+    });
+  } catch (cacheError) {
+    console.warn("Massage authority cache write failed; continuing with authoritative result", { hotelId, cacheError });
+  }
+  return authority;
 }
 
 export async function setMassageRuntimeAuthority(input: {
@@ -106,6 +135,7 @@ export async function setMassageRuntimeAuthority(input: {
   const revision = Number(result.revision);
   if (!Number.isInteger(revision) || revision < 1) throw new Error("MASSAGE_AUTHORITY_REVISION_INVALID");
 
+  await massageAuthorityCache.expireTag(`massage-runtime-authority:${hotelId}`);
   return {
     ok: result.ok === true,
     hotelId,
