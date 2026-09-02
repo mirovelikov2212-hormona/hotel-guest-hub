@@ -15,8 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      ORIGIN: https://hotel-guest-5lxqnz7se-miroslav-velikovs-projects.vercel.app
-      SHARE_URL: https://hotel-guest-5lxqnz7se-miroslav-velikovs-projects.vercel.app/?_vercel_share=U7sYYholpuh09FT9Jii4Q6dAXBErhJ9n
+      ORIGIN: https://hotel-guest-hgj48gqaa-miroslav-velikovs-projects.vercel.app
+      SHARE_URL: https://hotel-guest-hgj48gqaa-miroslav-velikovs-projects.vercel.app/?_vercel_share=bjncHkhKqXYQulu1lZYEuv3fP062jhTb
       HOTEL: factory-heavy-20260901-002-sandbox
       REQUEST_ID: 99978181-7230-4488-b251-bf61c59ba948
       STAY_ID: 24c28116-717f-4e40-89a3-86d70fc1a660
