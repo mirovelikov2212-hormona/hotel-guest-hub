@@ -138,8 +138,26 @@ test("P2.6.4 keeps published config semantic authority and derives LIVE authorit
   assert.match(hardening, /FACTORY_PRODUCTION_LIVE_PILOT[\s\S]*v_relational/i);
   assert.match(
     published,
-    /last_known_good_revision_id === row\.id[\s\S]*getFactoryProductionRelationalAuthority/i,
+    /if \(base\.lastKnownGoodRevisionId === base\.revisionId\) \{[\s\S]*getFactoryProductionRelationalAuthority\(\{[\s\S]*revisionId: base\.revisionId,[\s\S]*sourceChecksum: base\.sourceChecksum,/i,
   );
+
+  const projectionStart = published.indexOf(
+    "export async function getPublishedHotelConfigProjectionSource",
+  );
+  const projectionEnd = published.indexOf(
+    "\n}\n\nfunction restoreCachedSnapshot",
+    projectionStart,
+  );
+  assert.ok(
+    projectionStart >= 0 && projectionEnd > projectionStart,
+    "Expected an isolated immutable projection-source function.",
+  );
+  const projectionSource = published.slice(projectionStart, projectionEnd + 2);
+  assert.match(projectionSource, /loadPublishedHotelConfigBaseSnapshot\(hotelId\)/i);
+  assert.doesNotMatch(projectionSource, /getFactoryProductionRelationalAuthority/i);
+  assert.doesNotMatch(projectionSource, /getFactorySandboxRelationalAuthority/i);
+  assert.doesNotMatch(projectionSource, /attachGuestRequestRelationalAuthority/i);
+
   assert.doesNotMatch(published, /isFactoryLivePilot/i);
   assert.match(relationalService, /get_factory_production_relational_authority_v1/i);
 
