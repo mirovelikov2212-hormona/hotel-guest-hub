@@ -13,13 +13,13 @@ const requestP95Limit = Number(process.env.STAYHUB_620_REQUEST_P95_MS || 3_000);
 const surveyP95Limit = Number(process.env.STAYHUB_620_SURVEY_P95_MS || 3_000);
 const massageP95Limit = Number(process.env.STAYHUB_620_MASSAGE_P95_MS || 4_500);
 
-function deterministicUuid(label, hotel, room) {
-  const hash = createHash("md5").update(`${label}-${hotel}-${room}`).digest("hex");
+function deterministicUuid(label, hotel, roomIndex) {
+  const hash = createHash("md5").update(`${label}-${hotel}-${roomIndex}`).digest("hex");
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20)}`;
 }
 
 const slug = (hotel) => `${prefix}-${String(hotel).padStart(3, "0")}-sandbox`;
-const roomNumber = (room) => String(200 + room);
+const roomNumber = (roomIndex) => String(200 + roomIndex);
 
 function percentile(values, p) {
   if (!values.length) return null;
@@ -87,12 +87,12 @@ async function discoverAllMassageSlots() {
   return results;
 }
 
-async function postOperation(kind, hotel, room, slot = null) {
+async function postOperation(kind, hotel, roomIndex, slot = null) {
   const started = performance.now();
   const hotelSlug = slug(hotel);
-  const room = roomNumber(room);
-  const stayId = deterministicUuid("factory-heavy-stay", hotel, Number(room) - 200);
-  const stayDeviceId = deterministicUuid("factory-heavy-device", hotel, Number(room) - 200);
+  const room = roomNumber(roomIndex);
+  const stayId = deterministicUuid("factory-heavy-stay", hotel, roomIndex);
+  const stayDeviceId = deterministicUuid("factory-heavy-device", hotel, roomIndex);
   const marker = `${runId}:${kind}:h${hotel}:r${room}`;
   let status = 0;
   let body = null;
@@ -173,12 +173,12 @@ if (!contentionSlot) throw new Error("Could not select a second unused contentio
 
 const operations = [];
 for (let hotel = 1; hotel <= hotelCount; hotel += 1) {
-  for (let room = 1; room <= 3; room += 1) operations.push(postOperation("request", hotel, room));
-  for (let room = 1; room <= 2; room += 1) operations.push(postOperation("survey", hotel, room));
+  for (let roomIndex = 1; roomIndex <= 3; roomIndex += 1) operations.push(postOperation("request", hotel, roomIndex));
+  for (let roomIndex = 1; roomIndex <= 2; roomIndex += 1) operations.push(postOperation("survey", hotel, roomIndex));
   operations.push(postOperation("massage_unique", hotel, 1, slotByHotel.get(hotel)));
 }
-for (let room = 1; room <= 20; room += 1) {
-  operations.push(postOperation("massage_contention", 1, room, contentionSlot));
+for (let roomIndex = 1; roomIndex <= 20; roomIndex += 1) {
+  operations.push(postOperation("massage_contention", 1, roomIndex, contentionSlot));
 }
 
 if (operations.length !== 620) throw new Error(`Expected exactly 620 operations, got ${operations.length}`);
