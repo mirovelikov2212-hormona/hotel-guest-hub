@@ -91,7 +91,7 @@ jobs:
             --data "{\"hotelSlug\":\"$HOTEL\",\"role\":\"reception\",\"requestId\":\"$REQUEST_ID\",\"message\":\"Please confirm the preferred time for your request.\"}")
           cat /tmp/staff-send.json | jq '{ok,conversationState,push}'
           test "$code" = "201"
-          jq -e '.ok == true and .conversationState == "waiting_for_guest" and .push.attempted == false and (["delivery_disabled","sandbox_delivery_disabled"] | index(.push.reason)) != null' /tmp/staff-send.json >/dev/null
+          jq -e '.push.reason as $reason | .ok == true and .conversationState == "waiting_for_guest" and .push.attempted == false and (["delivery_disabled","sandbox_delivery_disabled"] | index($reason)) != null' /tmp/staff-send.json >/dev/null
 
       - name: Exact guest identity sees thread and wrong device cannot read it
         run: |
