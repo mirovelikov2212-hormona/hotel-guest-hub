@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "checkpoint": "factory-runtime-reconciliation-reliability",
+  "baseCheckpoint": "guest-communications-branded-staff",
+  "expectedNeedsReview": 160,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "app/api/guest/day3-survey/route.ts",
+      "fromLine": 55,
+      "toLine": 56,
+      "table": "guest_surveys",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/config-projection.ts",
+      "fromLine": 90,
+      "toLine": 138,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/massage-runtime-authority.ts",
+      "fromLine": 63,
+      "toLine": 82,
+      "table": "massage_runtime_authority_state",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/massage-runtime-authority.ts",
+      "fromLine": 91,
+      "toLine": 120,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 40,
+      "toLine": 43,
+      "table": "guest_communications",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 98,
+      "toLine": 107,
+      "table": "guest_communication_deliveries",
+      "operation": "upsert"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 105,
+      "toLine": 115,
+      "table": "guest_communication_deliveries",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 124,
+      "toLine": 141,
+      "table": "guest_communication_deliveries",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 162,
+      "toLine": 180,
+      "table": "guest_communications",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 290,
+      "toLine": 322,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 301,
+      "toLine": 334,
+      "table": "guest_communications",
+      "operation": "select"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/hotels/getHotelSheetSources.ts",
+      "line": 183,
+      "rpc": "get_factory_tenant_runtime_v1",
+      "tableExpression": "\"get_factory_tenant_runtime_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "server_only_materialized_runtime_read_resolves_only_an_active_sandbox_hotel_by_requested_slug_or_public_slug_inside_a_service_role_only_security_definer_rpc_with_fixed_search_path_then_scopes_publication_revision_projection_materialized_runtime_and_refresh_to_that_resolved_hotel_id; delegated_refresh_is_also_service_role_only_security_definer_fixed_search_path_and_first_requires_the_exact_active_sandbox_hotel_before_any_materialization"
+    },
+    {
+      "filePath": "lib/server/config-projection.ts",
+      "line": 79,
+      "rpc": "get_factory_tenant_runtime_reconciliation_context_v1",
+      "tableExpression": "\"get_factory_tenant_runtime_reconciliation_context_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "automatic_reconciliation_context_is_called_server_side_with_exact_hotel_id_published_revision_id_and_source_checksum; the_service_role_only_security_invoker_rpc_requires_that_exact_hotel_to_be_active_sandbox_then_revalidates_publication_revision_checksum_validation_and_projection_state_by_the_same_hotel_before_returning_only_reactivation_eligibility"
+    },
+    {
+      "filePath": "lib/server/config-projection.ts",
+      "line": 175,
+      "rpc": "reactivate_factory_tenant_runtime_v1",
+      "tableExpression": "\"reactivate_factory_tenant_runtime_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "automatic_reactivation_is_service_role_only_security_invoker_and_receives_exact_hotel_revision_checksum_after_successful_projection; database_requires_active_sandbox_hotel_same_current_publication_valid_revision_ready_parity_projection_and_automatic_reconciliation_actor_then_updates_only_that_hotel_projection_and_refreshes_only_that_hotel_materialized_runtime"
+    },
+    {
+      "filePath": "lib/server/factory-prepare-sandbox.ts",
+      "line": 165,
+      "table": "hub_design_draft_revisions",
+      "tableExpression": "\"hub_design_draft_revisions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_control_plane_prepare_sandbox_reads_one_globally_unique_reviewed_design_revision_uuid_from_the_immutable_handoff_before_sandbox_exists_then_revalidates_revision_number_draft_status_payload_checksum_source_package_checksum_workspace_identity_and_current_revision_id; this_pre_tenant_design_lineage_read_has_no_runtime_cross_hotel_mutation_authority"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "line": 384,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "internal_service_role_recovery_daemon_performs_a_bounded_platform_wide_discovery_read_only_for_rows_stuck_in_sending_before_a_stale_cutoff; it_does_not_mutate_from_the_discovery_query_and_each_candidate_carries_its_authoritative_hotel_id_into_a_separate_compare_and_set_recovery_update"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "line": 414,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "update",
+      "reasons": ["unclassified_table"],
+      "provenance": "stale_delivery_recovery_mutates_only_the_exact_discovered_communication_id_plus_its_authoritative_hotel_id_expected_sending_status_and_expected_delivery_attempt_count_using_compare_and_set_semantics; it_can_only_requeue_or_dead_letter_that_single_tenant_row_and_cannot_claim_or_move_another_hotel_row"
+    }
+  ]
+}
