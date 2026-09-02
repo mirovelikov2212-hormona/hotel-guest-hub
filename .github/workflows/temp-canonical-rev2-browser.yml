@@ -1,0 +1,36 @@
+name: Temporary Canonical Rev2 Browser Matrix
+
+on:
+  push:
+    branches:
+      - diag/pr160-contract-isolation
+    paths:
+      - ".github/workflows/temp-canonical-rev2-browser.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  browser-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record exact source SHA
+        run: echo "Canonical rev2 browser source SHA=${GITHUB_SHA}"
+      - name: Install Playwright
+        run: |
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium firefox webkit
+      - name: Run browser matrix
+        env:
+          STAYHUB_BROWSER_BASE_URL: https://www.stayhub.app
+          STAYHUB_BROWSER_RUN_ID: canonical-rev2-browser-${{ github.run_id }}
+        run: python scripts/factory-browser-device-matrix.py
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canonical-rev2-browser-evidence
+          path: factory-browser-device-matrix-results.json
+          if-no-files-found: error
