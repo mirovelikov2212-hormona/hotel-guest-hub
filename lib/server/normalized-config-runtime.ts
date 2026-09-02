@@ -2,6 +2,7 @@ import "server-only";
 
 import { getCache } from "@vercel/functions";
 
+import { normalizePublishedHotelConfigRuntime } from "@/lib/hotels/config-revision-contract.mjs";
 import type { HotelConfig } from "@/lib/types";
 import {
   buildSandboxNormalizedDepartmentRoutingRuntimeConfig,
@@ -28,6 +29,14 @@ type RoutingRuleRow = Record<string, unknown> & {
   after_hours_department_id?: string | null;
 };
 
+type PrimeNormalizedRuntimeInput = {
+  hotelId: string;
+  revisionId: string;
+  sourceChecksum: string;
+  config: Record<string, unknown>;
+  relationalAuthority?: Record<string, unknown> | null;
+};
+
 // Cache payloads contain the fully composed HotelConfig, not only relational
 // IDs. They are therefore part of the runtime data contract and must be
 // invalidated whenever the composed config shape changes, even if the immutable
@@ -38,7 +47,7 @@ export const NORMALIZED_RUNTIME_CACHE_SCHEMA_VERSION = "v2-request-def-contract"
 const normalizedRuntimeCache = getCache({ namespace: "normalized-config-runtime-v2" });
 const NORMALIZED_RUNTIME_TTL_SECONDS = 300;
 
-function normalizedRuntimeCacheKey(
+export function normalizedRuntimeCacheKey(
   scope: "rooms" | "departments",
   hotelId: string,
   revisionId: string,
@@ -70,6 +79,119 @@ async function writeNormalizedRuntimeCache(hotelId: string, key: string, value: 
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function authorityMap(value: unknown, key: string) {
+  if (!isObject(value)) return null;
+  const candidate = value[key];
+  if (!isObject(candidate)) return null;
+  return candidate as Record<string, string>;
+}
+
+/**
+ * Prime the current normalized-runtime cache contract from a materialized tenant
+ * snapshot. This module owns both namespace and key schema, so callers cannot
+ * accidentally write old v1 payloads after a deploy. Runtime compatibility
+ * normalization is repeated deliberately: a materialized row stores immutable
+ * published JSON and must never be cached as a composed HotelConfig verbatim.
+ */
+export async function primeNormalizedRuntimeCachesFromMaterialized(
+  input: PrimeNormalizedRuntimeInput,
+) {
+  const hotelId = String(input.hotelId || "").trim();
+  const revisionId = String(input.revisionId || "").trim();
+  const sourceChecksum = String(input.sourceChecksum || "").trim().toLowerCase();
+  if (
+    !hotelId ||
+    !revisionId ||
+    !/^[a-f0-9]{64}$/.test(sourceChecksum) ||
+    !isObject(input.config) ||
+    !isObject(input.relationalAuthority)
+  ) {
+    return false;
+  }
+
+  let config: HotelConfig;
+  try {
+    config = normalizePublishedHotelConfigRuntime(
+      structuredClone(input.config),
+    ).config;
+  } catch (error) {
+    console.warn("Materialized normalized-runtime cache prime rejected malformed config", {
+      hotelId,
+      revisionId,
+      error,
+    });
+    return false;
+  }
+
+  const roomIdByNumber = authorityMap(
+    input.relationalAuthority,
+    "roomIdByNumber",
+  );
+  const departmentIdByCode = authorityMap(
+    input.relationalAuthority,
+    "departmentIdByCode",
+  );
+  const routingDepartmentIdByRequestType = authorityMap(
+    input.relationalAuthority,
+    "routingDepartmentIdByRequestType",
+  );
+
+  const writes: Promise<unknown>[] = [];
+  if (roomIdByNumber) {
+    writes.push(
+      writeNormalizedRuntimeCache(
+        hotelId,
+        normalizedRuntimeCacheKey(
+          "rooms",
+          hotelId,
+          revisionId,
+          sourceChecksum,
+        ),
+        {
+          ok: true,
+          source: "normalized",
+          reason: null,
+          config,
+          relationalAuthority: {
+            revisionId,
+            sourceChecksum,
+            roomIdByNumber,
+          },
+        },
+      ),
+    );
+  }
+
+  if (departmentIdByCode && routingDepartmentIdByRequestType) {
+    writes.push(
+      writeNormalizedRuntimeCache(
+        hotelId,
+        normalizedRuntimeCacheKey(
+          "departments",
+          hotelId,
+          revisionId,
+          sourceChecksum,
+        ),
+        {
+          ok: true,
+          source: "normalized",
+          reason: null,
+          config,
+          relationalAuthority: {
+            revisionId,
+            sourceChecksum,
+            departmentIdByCode,
+            routingDepartmentIdByRequestType,
+          },
+        },
+      ),
+    );
+  }
+
+  await Promise.all(writes);
+  return writes.length > 0;
 }
 
 function metadataActivatesRoomReads(state: NormalizedProjectionState | null) {
