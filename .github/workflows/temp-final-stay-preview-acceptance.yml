@@ -1,0 +1,44 @@
+name: Temp Final Stay Preview Acceptance
+
+on:
+  push:
+    branches:
+      - diag/pr160-contract-isolation
+    paths:
+      - .github/workflows/temp-final-stay-preview-acceptance.yml
+
+permissions:
+  contents: read
+
+jobs:
+  stay-preview-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: True simultaneous stay race on exact Preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f /tmp/stayhub-preview-cookies.txt
+          curl --silent --show-error --location --fail-with-body \
+            --max-time 180 \
+            --cookie-jar /tmp/stayhub-preview-cookies.txt \
+            --cookie /tmp/stayhub-preview-cookies.txt \
+            'https://zbpwxifcsyknorpsrzbo.supabase.co/functions/v1/stayhub-preview-peak-bridge?mode=race&ticket=ffsa-20260902-ci-73e91f' \
+            --output /tmp/race.json
+          cat /tmp/race.json
+          jq -e '.ok == true and .previewOnly == true and .productionLiveActivation == false and .status == "TRUE_SIMULTANEOUS_STAY_RACE_OK" and .evidenceBeforeCleanup.activeStayCount == 1 and .evidenceBeforeCleanup.deviceCount == 1 and .evidenceBeforeCleanup.conflictCount == 1 and .cleanup.deviceResidue == 0 and .cleanup.activeAfter == 0' /tmp/race.json
+
+      - name: Stale Guest A to Guest B takeover on exact Preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f /tmp/stayhub-preview-cookies.txt
+          curl --silent --show-error --location --fail-with-body \
+            --max-time 180 \
+            --cookie-jar /tmp/stayhub-preview-cookies.txt \
+            --cookie /tmp/stayhub-preview-cookies.txt \
+            'https://zbpwxifcsyknorpsrzbo.supabase.co/functions/v1/stayhub-preview-peak-bridge?mode=takeover&ticket=ffsa-20260902-ci-73e91f' \
+            --output /tmp/takeover.json
+          cat /tmp/takeover.json
+          jq -e '.ok == true and .previewOnly == true and .productionLiveActivation == false and .status == "STALE_GUEST_A_TO_GUEST_B_TAKEOVER_OK" and .oldARequest.status == 409 and .oldARequest.body.code == "STAY_ENDED" and .liveBRequest.status == 200 and .evidenceBeforeCleanup.oldGuestRequestCount == 0 and .evidenceBeforeCleanup.liveGuestRequestCount == 1 and .cleanup.deviceResidue == 0 and .cleanup.activeAfter == 0' /tmp/takeover.json
