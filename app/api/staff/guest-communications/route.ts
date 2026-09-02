@@ -77,6 +77,7 @@ export async function GET(req: NextRequest) {
       .from("guest_communications")
       .select("id,department_id,actor_role,category,source_language,title,body,title_i18n,body_i18n,translation_status,translated_at,audience_type,status,scheduled_at,queued_at,sent_at,display_from,display_until,delivery_total,delivery_sent,delivery_failed,delivery_expired,last_error,created_at,updated_at,departments(name,code)")
       .eq("hotel_id", access.hotel.id)
+      .eq("audience_type", "all_active_guests")
       .order("created_at", { ascending: false })
       .limit(100);
 
@@ -143,6 +144,7 @@ export async function POST(req: NextRequest) {
         .from("guest_communications")
         .update({ status: "cancelled", updated_at: new Date().toISOString() })
         .eq("hotel_id", access.hotel.id)
+        .eq("audience_type", "all_active_guests")
         .eq("id", communicationId)
         .in("status", ["draft", "scheduled", "queued"]);
       if (!hasGuestCommunicationCapability(access, "guest_communications.view_all")) {
