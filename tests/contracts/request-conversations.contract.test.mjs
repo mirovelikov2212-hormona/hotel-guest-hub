@@ -24,6 +24,7 @@ test("request conversations extend guest communications without creating a secon
   assertContains(migration, "to service_role");
   assertContains(service, 'const THREAD_AUDIENCE = "request_thread"');
   assertContains(service, '.rpc("append_guest_request_communication_v1"');
+  assertContains(service, "departments!guest_requests_hotel_department_id_fkey(code,name)");
   assertNotContains(service, "aquamarin");
   assertNotContains(service, "aquamarine");
 });
