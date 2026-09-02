@@ -69,7 +69,9 @@ export async function GET(req: NextRequest) {
   }
 
   const smoke = req.nextUrl.searchParams.get("mode") === "smoke";
-  const bookingDate = smoke ? "2026-09-03" : "2026-09-04";
+  const bookingDate = "2026-09-02";
+  const uniqueMassageTime = smoke ? "12:00" : "16:00";
+  const contentionMassageTime = smoke ? "14:00" : "21:00";
   const runId = `factory-mixed-${smoke ? "smoke" : "peak"}-${Date.now()}`;
   const origin = req.nextUrl.origin;
   const forwardedHeaders: Record<string, string> = { "content-type": "application/json", "x-stayhub-load-run": runId };
@@ -126,12 +128,12 @@ export async function GET(req: NextRequest) {
     const surveyCount = smoke ? 1 : 2;
     for (let room = 1; room <= requestCount; room += 1) operations.push(post("request", hotel, room));
     for (let room = 1; room <= surveyCount; room += 1) operations.push(post("survey", hotel, room));
-    operations.push(post("massage_unique", hotel, 1, "10:00"));
+    operations.push(post("massage_unique", hotel, 1, uniqueMassageTime));
   }
   const contentionCount = smoke ? 2 : 20;
   for (let attempt = 1; attempt <= contentionCount; attempt += 1) {
     const room = ((attempt - 1) % 3) + 1;
-    operations.push(post("massage_contention", 1, room, "20:00"));
+    operations.push(post("massage_contention", 1, room, contentionMassageTime));
   }
 
   const wallStarted = performance.now();
