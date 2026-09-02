@@ -95,8 +95,8 @@ export async function resolveGuestCommunicationsAccess(hotelSlugInput: string, r
 }
 
 export function hasGuestCommunicationCapability(
-  access: Awaited<ReturnType<typeof resolveGuestCommunicationsAccess>>,
+  access: { capabilities?: Partial<Record<GuestCommunicationCapability, boolean>> } | null | undefined,
   capability: GuestCommunicationCapability,
 ) {
-  return Boolean(access?.capabilities[capability]);
+  return Boolean(access?.capabilities?.[capability]);
 }
