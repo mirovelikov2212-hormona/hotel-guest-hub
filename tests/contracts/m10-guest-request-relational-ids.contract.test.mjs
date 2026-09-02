@@ -88,20 +88,34 @@ test("M10.5 carries database IDs only after both normalized authorities agree", 
   );
 });
 
-test("Factory Sandbox authority reads only normalized active generic routes", async () => {
+test("Factory Sandbox authority canonicalizes active generic routes only after an exact tenant-scoped read", async () => {
   const source = await readProjectFile(
     "lib/server/factory-sandbox-relational-authority.ts",
   );
+  const helperSource = await readProjectFile(
+    "lib/server/factory-sandbox-routing-normalization.mjs",
+  );
 
-  assertContains(source, ".map(normalizeKey)");
+  assertContains(source, '.eq("hotel_id", hotelId)');
   assertContains(source, '.eq("active", true)');
   assertContains(source, '.is("venue_type", null)');
-  assertContains(source, '.in("request_type", requestTypes)');
+  assertContains(source, "buildRequestedFactoryRoutingAuthority({");
+  assertNotContains(
+    source,
+    '.in("request_type", requestTypes)',
+    "Legacy certified routing separators must not be filtered out before canonicalization.",
+  );
   assertBefore(
     source,
-    ".map(normalizeKey)",
-    '.in("request_type", requestTypes)',
-    "Factory request types must be normalized before querying relational routing authority.",
+    '.eq("hotel_id", hotelId)',
+    "buildRequestedFactoryRoutingAuthority({",
+    "Routing rows must be tenant scoped before canonicalization is applied.",
+  );
+  assertContains(helperSource, ".map(normalizeFactoryRoutingKey)");
+  assertContains(helperSource, "requestedTypeSet.has(requestType)");
+  assertContains(
+    helperSource,
+    'throw new Error("FACTORY_SANDBOX_RELATIONAL_AUTHORITY_ROUTING_INVALID")',
   );
 });
 
