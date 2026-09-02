@@ -29,6 +29,11 @@ type PublishedSnapshot = {
   config: HotelConfig;
 };
 
+type PublishedBaseSnapshot = PublishedSnapshot & {
+  validationJson: Record<string, unknown>;
+  lastKnownGoodRevisionId: string | null;
+};
+
 type CachedPublishedSnapshot = PublishedSnapshot & {
   relationalAuthority: ReturnType<typeof getGuestRequestRelationalAuthority>;
 };
@@ -128,9 +133,17 @@ function getConfiguredGuestRequestTypes(config: HotelConfig) {
   );
 }
 
-async function loadPublishedHotelConfigSnapshot(
+/**
+ * Read only the immutable published revision and publication pointer.
+ *
+ * This function deliberately does not read rooms, departments, routing rules,
+ * runtime activation flags, or materialized tenant state. Projection and
+ * reconciliation must be able to rebuild every derived runtime resource from
+ * the published revision even when those derived resources are already stale.
+ */
+async function loadPublishedHotelConfigBaseSnapshot(
   hotelId: string,
-): Promise<PublishedSnapshot | null> {
+): Promise<PublishedBaseSnapshot | null> {
   const normalizedHotelId = String(hotelId || "").trim();
 
   if (!normalizedHotelId) {
@@ -197,33 +210,68 @@ async function loadPublishedHotelConfigSnapshot(
     throw new Error("Published configuration revision checksum is malformed");
   }
 
-  const config = { ...(row.config_json as HotelConfig) } as HotelConfig;
+  const config = structuredClone(row.config_json as HotelConfig);
   markFactoryManagedGuestRuntime(config);
 
-  // P2.6.4 keeps the published revision immutable. LIVE reachability is therefore
-  // represented by the publication rollback anchor (LKG) plus the fail-closed
-  // relational-authority RPC, not by rewriting validation_json on the revision.
-  if (state?.last_known_good_revision_id === row.id) {
+  return {
+    revisionId: row.id,
+    sourceChecksum,
+    config,
+    validationJson: row.validation_json,
+    lastKnownGoodRevisionId: state?.last_known_good_revision_id || null,
+  };
+}
+
+async function loadPublishedHotelConfigSnapshot(
+  hotelId: string,
+): Promise<PublishedSnapshot | null> {
+  const normalizedHotelId = String(hotelId || "").trim();
+  const base = await loadPublishedHotelConfigBaseSnapshot(normalizedHotelId);
+  if (!base) return null;
+
+  const config = structuredClone(base.config);
+
+  // Runtime relational IDs are attached only to the guest/staff runtime view.
+  // They are derived state and therefore must never be a prerequisite for the
+  // projector that repairs that same derived state.
+  if (base.lastKnownGoodRevisionId === base.revisionId) {
     const relationalAuthority = await getFactoryProductionRelationalAuthority({
       hotelId: normalizedHotelId,
-      revisionId: row.id,
-      sourceChecksum,
+      revisionId: base.revisionId,
+      sourceChecksum: base.sourceChecksum,
     });
     attachGuestRequestRelationalAuthority(config, relationalAuthority);
-  } else if (isFactorySandboxAcceptance(row.validation_json)) {
+  } else if (isFactorySandboxAcceptance(base.validationJson)) {
     const relationalAuthority = await getFactorySandboxRelationalAuthority({
       hotelId: normalizedHotelId,
-      revisionId: row.id,
-      sourceChecksum,
+      revisionId: base.revisionId,
+      sourceChecksum: base.sourceChecksum,
       requestTypes: getConfiguredGuestRequestTypes(config),
     });
     attachGuestRequestRelationalAuthority(config, relationalAuthority);
   }
 
   return {
-    revisionId: row.id,
-    sourceChecksum,
+    revisionId: base.revisionId,
+    sourceChecksum: base.sourceChecksum,
     config,
+  };
+}
+
+/**
+ * Projection/reconciliation source of truth. This intentionally bypasses the
+ * runtime relational-authority cache so corrupted derived state can always be
+ * rebuilt from the exact immutable published revision.
+ */
+export async function getPublishedHotelConfigProjectionSource(
+  hotelId: string,
+): Promise<PublishedSnapshot | null> {
+  const base = await loadPublishedHotelConfigBaseSnapshot(hotelId);
+  if (!base) return null;
+  return {
+    revisionId: base.revisionId,
+    sourceChecksum: base.sourceChecksum,
+    config: base.config,
   };
 }
 
