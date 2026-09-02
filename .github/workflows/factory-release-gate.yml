@@ -22,6 +22,7 @@ jobs:
       - name: Dependency security audit
         run: npm audit --audit-level=low
       - run: npm test
+      - run: node --test tests/contracts/request-conversations.contract.test.mjs
       - run: node --test tests/contracts/control-panel-factory-routing.contract.test.mjs
       - run: node --test tests/contracts/p2-6-4-published-derivative-lineage.contract.test.mjs
       - run: node --test tests/contracts/p2-6-4-relational-authority-jsonb.contract.test.mjs

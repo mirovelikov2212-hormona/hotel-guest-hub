@@ -14,6 +14,9 @@ export const GUEST_COMMUNICATION_CAPABILITIES = [
   "guest_communications.schedule",
   "guest_communications.approve",
   "guest_communications.emergency_send",
+  "guest_request_conversations.view_own",
+  "guest_request_conversations.view_all",
+  "guest_request_conversations.reply",
 ] as const;
 
 export type GuestCommunicationCapability = typeof GUEST_COMMUNICATION_CAPABILITIES[number];
@@ -25,6 +28,8 @@ type CapabilityRow = {
 
 function defaultCapabilities(role: string) {
   const manager = role === STAFF_MANAGER_ROLE;
+  const reception = role === "reception";
+  const conversationViewAll = manager || reception;
   return new Map<GuestCommunicationCapability, boolean>([
     ["guest_communications.view_own", !manager],
     ["guest_communications.view_all", manager],
@@ -33,6 +38,9 @@ function defaultCapabilities(role: string) {
     ["guest_communications.schedule", true],
     ["guest_communications.approve", manager],
     ["guest_communications.emergency_send", manager],
+    ["guest_request_conversations.view_own", !conversationViewAll],
+    ["guest_request_conversations.view_all", conversationViewAll],
+    ["guest_request_conversations.reply", !manager],
   ]);
 }
 
@@ -80,14 +88,15 @@ export async function resolveGuestCommunicationsAccess(hotelSlugInput: string, r
       isSandbox: Boolean(hotel.is_sandbox),
     },
     role,
+    sessionId: String(session.id),
     runtimeRole,
     capabilities: Object.fromEntries(capabilities) as Record<GuestCommunicationCapability, boolean>,
   };
 }
 
 export function hasGuestCommunicationCapability(
-  access: Awaited<ReturnType<typeof resolveGuestCommunicationsAccess>>,
+  access: { capabilities?: Partial<Record<GuestCommunicationCapability, boolean>> } | null | undefined,
   capability: GuestCommunicationCapability,
 ) {
-  return Boolean(access?.capabilities[capability]);
+  return Boolean(access?.capabilities?.[capability]);
 }

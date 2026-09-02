@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       stayDeviceId: stayResult.stay.stayDeviceId,
     });
 
-    // Guest Communications targets current active guests only. A stay in
+    // Guest Communications broadcasts target current active guests only. A stay in
     // checkout/read-only mode keeps historical access but receives no new broadcasts.
     if (!access.canWrite) {
       return NextResponse.json({ ok: true, messages: [] }, { headers: NO_STORE });
@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
       .from("guest_communications")
       .select("id,category,source_language,title,body,title_i18n,body_i18n,display_from,display_until,sent_at,created_at,departments(name,code)")
       .eq("hotel_id", stayResult.hotel.id)
+      .eq("audience_type", "all_active_guests")
       .eq("translation_status", "ready")
       .in("status", ["sent", "partial_failed", "failed"])
       .lte("display_from", now)
