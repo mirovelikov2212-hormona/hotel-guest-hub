@@ -40,7 +40,7 @@ function defaultCapabilities(role: string) {
     ["guest_communications.emergency_send", manager],
     ["guest_request_conversations.view_own", !conversationViewAll],
     ["guest_request_conversations.view_all", conversationViewAll],
-    ["guest_request_conversations.reply", true],
+    ["guest_request_conversations.reply", !manager],
   ]);
 }
 
