@@ -1,0 +1,32 @@
+name: Temporary Dispatch Final Acceptance A17842AD
+
+on:
+  push:
+    branches:
+      - feat/factory-prepare-sandbox-load-acceptance
+    paths:
+      - ".github/workflows/temp-dispatch-final-acceptance-a17842ad.yml"
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify exact production main SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: a17842ad5e7d5eece7bdce7ed9ea76fb4398dfaf
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(gh api repos/${GITHUB_REPOSITORY}/git/ref/heads/main --jq '.object.sha')"
+          test "$ACTUAL_SHA" = "$EXPECTED_SHA" || {
+            echo "main SHA mismatch: expected=$EXPECTED_SHA actual=$ACTUAL_SHA"
+            exit 2
+          }
+      - name: Dispatch final main acceptance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run factory-final-client-runtime-acceptance.yml --ref main
