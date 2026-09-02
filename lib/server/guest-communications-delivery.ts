@@ -34,23 +34,6 @@ type ActiveStayRow = {
   room_number: string;
 };
 
-type DeliveryResult = {
-  sent: boolean;
-  expired: boolean;
-  skipped: boolean;
-  statusCode: number;
-  error: string | null;
-};
-
-type DeliveryTransport = (input: Parameters<typeof sendGuestCommunicationPush>[0]) => Promise<DeliveryResult>;
-
-type DeliveryMode = {
-  includeTest?: boolean;
-  allowSandbox?: boolean;
-  transport?: DeliveryTransport;
-  concurrency?: number;
-};
-
 export function guestCommunicationsDeliveryEnabled() {
   return String(process.env.GUEST_COMMUNICATIONS_DELIVERY_ENABLED || "").trim().toLowerCase() === "true";
 }
@@ -80,33 +63,29 @@ async function claimCommunication(row: CommunicationRow) {
   return Boolean(data?.id);
 }
 
-async function activeStaysForHotel(hotelId: string, includeTest = false) {
-  let query = supabaseAdmin
+async function activeStaysForHotel(hotelId: string) {
+  const { data, error } = await supabaseAdmin
     .from("guest_stays")
     .select("id, room_number")
     .eq("hotel_id", hotelId)
     .eq("status", "active")
     .eq("lifecycle_state", "active")
+    .or("is_test.is.null,is_test.eq.false")
     .limit(1000);
-  if (!includeTest) query = query.or("is_test.is.null,is_test.eq.false");
-  else query = query.eq("is_test", true);
-  const { data, error } = await query;
   if (error) throw error;
   return (data || []) as ActiveStayRow[];
 }
 
-async function subscriptionsForActiveStays(hotelId: string, stayIds: string[], includeTest = false) {
+async function subscriptionsForActiveStays(hotelId: string, stayIds: string[]) {
   if (!stayIds.length) return [] as GuestPushSubscriptionRow[];
-  let query = supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("guest_push_subscriptions")
     .select("id, hotel_id, room_number, stay_id, stay_device_id, check_in_date, check_out_date, language, hotel_timezone, survey_version, first_confirmed_date_key, target_date_key, endpoint, p256dh, auth, enabled, survey_push_sent_at, last_push_attempt_at, last_push_status, push_attempts, is_test")
     .eq("hotel_id", hotelId)
     .eq("enabled", true)
+    .or("is_test.is.null,is_test.eq.false")
     .in("stay_id", stayIds)
     .limit(2000);
-  if (!includeTest) query = query.or("is_test.is.null,is_test.eq.false");
-  else query = query.eq("is_test", true);
-  const { data, error } = await query;
   if (error) throw error;
   return (data || []) as GuestPushSubscriptionRow[];
 }
@@ -223,15 +202,12 @@ async function finalizeCommunication(input: {
 export async function deliverGuestCommunication(input: {
   communication: CommunicationRow;
   hotel: HotelRow;
-}, mode: DeliveryMode = {}) {
-  if (!guestCommunicationsDeliveryEnabled() && !mode.allowSandbox) {
+}) {
+  if (!guestCommunicationsDeliveryEnabled()) {
     return { delivered: false, skipped: true, reason: "delivery_disabled" };
   }
   if (!input.hotel.active) return { delivered: false, skipped: true, reason: "hotel_inactive" };
-  if (input.hotel.is_sandbox && !mode.allowSandbox) return { delivered: false, skipped: true, reason: "sandbox_delivery_disabled" };
-  if (mode.allowSandbox && (!input.hotel.is_sandbox || !mode.includeTest || !mode.transport)) {
-    return { delivered: false, skipped: true, reason: "synthetic_scope_invalid" };
-  }
+  if (input.hotel.is_sandbox) return { delivered: false, skipped: true, reason: "sandbox_delivery_disabled" };
   if (input.communication.translation_status !== "ready") {
     return { delivered: false, skipped: true, reason: "translation_not_ready" };
   }
@@ -242,9 +218,9 @@ export async function deliverGuestCommunication(input: {
   const claimed = await claimCommunication(input.communication);
   if (!claimed) return { delivered: false, skipped: true, reason: "not_claimed" };
 
-  const stays = await activeStaysForHotel(input.communication.hotel_id, mode.includeTest);
+  const stays = await activeStaysForHotel(input.communication.hotel_id);
   const stayIds = stays.map((stay) => stay.id);
-  const subscriptions = await subscriptionsForActiveStays(input.communication.hotel_id, stayIds, mode.includeTest);
+  const subscriptions = await subscriptionsForActiveStays(input.communication.hotel_id, stayIds);
   await ensureDeliveryEvidence({ communication: input.communication, subscriptions });
   const evidenceBySubscription = await deliveryStatuses(
     input.communication.hotel_id,
@@ -258,7 +234,6 @@ export async function deliverGuestCommunication(input: {
   let skipped = 0;
   const expiredSubscriptionIds: string[] = [];
 
-  const transport = mode.transport || sendGuestCommunicationPush;
   const deliverOne = async (subscription: GuestPushSubscriptionRow) => {
     if (String(subscription.hotel_id) !== input.communication.hotel_id) {
       return { status: "skipped" as const, subscriptionId: null };
@@ -269,7 +244,7 @@ export async function deliverGuestCommunication(input: {
       return { status: evidence?.status === "sent" ? "sent" as const : "skipped" as const, subscriptionId: null };
     }
 
-    const result = await transport({
+    const result = await sendGuestCommunicationPush({
       subscription,
       hotelSlug: input.hotel.public_slug || input.hotel.slug,
       communicationId: input.communication.id,
@@ -288,11 +263,16 @@ export async function deliverGuestCommunication(input: {
         : result.skipped
           ? "skipped"
           : "failed";
-    return { status, subscriptionId: status === "expired" ? subscription.id : null, evidenceId: evidence.id,
-      statusCode: result.statusCode, error: result.error };
+    return {
+      status,
+      subscriptionId: status === "expired" ? subscription.id : null,
+      evidenceId: evidence.id,
+      statusCode: result.statusCode,
+      error: result.error,
+    };
   };
 
-  const concurrency = Math.max(1, Math.min(50, Math.trunc(mode.concurrency || 20)));
+  const concurrency = 20;
   for (let offset = 0; offset < subscriptions.length; offset += concurrency) {
     const batch = await Promise.all(subscriptions.slice(offset, offset + concurrency).map(deliverOne));
     await writeDeliveryResults(batch.flatMap((result) => result.evidenceId ? [{
@@ -331,25 +311,6 @@ export async function deliverGuestCommunication(input: {
     expired,
     transportSkipped: skipped,
   };
-}
-
-export async function deliverSyntheticSandboxGuestCommunication(input: {
-  communication: CommunicationRow;
-  hotel: HotelRow;
-  concurrency?: number;
-}) {
-  const syntheticTransport: DeliveryTransport = async ({ subscription }) => {
-    if (!subscription.is_test) {
-      return { sent: false, expired: false, skipped: true, statusCode: 0, error: "non_test_subscription_blocked" };
-    }
-    return { sent: true, expired: false, skipped: false, statusCode: 299, error: null };
-  };
-  return deliverGuestCommunication(input, {
-    allowSandbox: true,
-    includeTest: true,
-    transport: syntheticTransport,
-    concurrency: input.concurrency || 25,
-  });
 }
 
 export async function dispatchDueGuestCommunications(limit = 20) {
