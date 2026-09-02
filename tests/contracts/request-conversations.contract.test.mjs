@@ -60,6 +60,7 @@ test("staff request conversations use same-origin auth, capability scope and tar
   assertContains(staffRoute, "enforceStaffSameOrigin(req)");
   assertContains(staffRoute, "staffCanViewRequestConversation");
   assertContains(staffRoute, "staffCanReplyToRequestConversation");
+  assertContains(staffRoute, "requestAcceptsConversationReplies");
   assertContains(access, '"guest_request_conversations.view_all"');
   assertContains(access, '"guest_request_conversations.view_own"');
   assertContains(access, '"guest_request_conversations.reply"');
@@ -95,5 +96,24 @@ test("staff-to-guest replies are six-language fail-closed while guest replies ar
   assertContains(service, 'translationStatus: "ready"');
   assertContains(service, "Never lose a guest reply solely because the translation provider is down");
   assertContains(service, 'translationStatus: "partial"');
-}
-);
+});
+
+test("request conversations are embedded in existing staff cards and the single guest Messages inbox", async () => {
+  const card = await readProjectFile("components/staff/StaffRequestCard.tsx");
+  const panel = await readProjectFile("components/staff/StaffRequestConversationPanel.tsx");
+  const guestInbox = await readProjectFile("components/GuestCommunicationsInbox.tsx");
+  const staffFeed = await readProjectFile("app/api/staff/requests/route.ts");
+
+  assertContains(card, "StaffRequestConversationPanel");
+  assertContains(card, "<StaffRequestConversationPanel request={request} />");
+  assertContains(panel, '"Чака отговор от госта"');
+  assertContains(panel, '"Нов отговор от госта"');
+  assertContains(staffFeed, "conversation_state");
+  assertContains(staffFeed, "conversation_updated_at");
+  assertContains(guestInbox, 'fetch("/api/guest/request-conversations"');
+  assertContains(guestInbox, 'fetch("/api/guest/communications"');
+  assertContains(guestInbox, "Promise.allSettled");
+  assertContains(guestInbox, 'action: "reply"');
+  assertContains(guestInbox, 'requestConversations: "По Вашите заявки"');
+  assertNotContains(guestInbox, "GuestRequestConversationInbox");
+});
