@@ -1,3 +1,4 @@
+import { getCache } from "@vercel/functions";
 import {
   buildHotelSlugOrFilter,
   getHotelSlugCandidates,
@@ -19,6 +20,15 @@ type HotelSheetSources = {
   requestDefsUrl?: string | null;
 };
 
+const hotelSheetSourcesCache = getCache({ namespace: "hotel-sheet-sources-v1" });
+const HOTEL_SHEET_SOURCES_TTL_SECONDS = 300;
+
+export async function expireHotelSheetSourcesCache(hotelId: string) {
+  const normalizedHotelId = String(hotelId || "").trim();
+  if (!normalizedHotelId) return;
+  await hotelSheetSourcesCache.expireTag(`hotel-directory:${normalizedHotelId}`);
+}
+
 export async function getHotelSheetSources(inputSlug?: string): Promise<HotelSheetSources> {
   const candidates = getHotelSlugCandidates(inputSlug ?? "");
 
@@ -27,6 +37,14 @@ export async function getHotelSheetSources(inputSlug?: string): Promise<HotelShe
   }
 
   const slugFilter = buildHotelSlugOrFilter(candidates);
+
+  const cacheKey = `slug:${candidates.join("|")}`;
+  try {
+    const cached = await hotelSheetSourcesCache.get(cacheKey) as HotelSheetSources | null;
+    if (cached?.hotelId && cached.hotelSlug) return cached;
+  } catch (error) {
+    console.warn("Hotel directory cache read failed; using authoritative database path", { candidates, error });
+  }
 
   const supabase = getSupabaseAdmin();
 
@@ -43,7 +61,7 @@ export async function getHotelSheetSources(inputSlug?: string): Promise<HotelShe
     throw new Error(`Hotel not found for slug: ${candidates.join("|")}`);
   }
 
-  return {
+  const result: HotelSheetSources = {
     hotelId: data.id,
     hotelSlug: data.slug,
     publicSlug: data.public_slug,
@@ -57,4 +75,14 @@ export async function getHotelSheetSources(inputSlug?: string): Promise<HotelShe
     hotelSetupUrl: data.hotel_setup_csv_url ?? null,
     requestDefsUrl: data.request_defs_csv_url ?? null,
   };
+  try {
+    await hotelSheetSourcesCache.set(cacheKey, result, {
+      ttl: HOTEL_SHEET_SOURCES_TTL_SECONDS,
+      tags: ["hotel-directory", `hotel-directory:${result.hotelId}`],
+      name: "hotel-sheet-sources",
+    });
+  } catch (cacheError) {
+    console.warn("Hotel directory cache write failed; continuing with authoritative result", { hotelId: result.hotelId, cacheError });
+  }
+  return result;
 }

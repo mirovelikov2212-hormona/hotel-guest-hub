@@ -35,7 +35,10 @@ type CachedPublishedSnapshot = PublishedSnapshot & {
 
 const publishedConfigCache = getCache({ namespace: "published-hotel-config-v1" });
 const publishedConfigLoads = new Map<string, Promise<PublishedSnapshot | null>>();
-const PUBLISHED_CONFIG_CACHE_TTL_SECONDS = 10;
+// Publication writes explicitly expire the per-hotel tag. A five-minute TTL
+// therefore protects the database from cold-start fan-out without allowing a
+// stale revision to survive a normal publication.
+const PUBLISHED_CONFIG_CACHE_TTL_SECONDS = 300;
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
   return Boolean(

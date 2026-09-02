@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getCache } from "@vercel/functions";
+
 import type { HotelConfig } from "@/lib/types";
 import {
   buildSandboxNormalizedDepartmentRoutingRuntimeConfig,
@@ -25,6 +27,30 @@ type RoutingRuleRow = Record<string, unknown> & {
   department_id?: string | null;
   after_hours_department_id?: string | null;
 };
+
+const normalizedRuntimeCache = getCache({ namespace: "normalized-config-runtime-v1" });
+const NORMALIZED_RUNTIME_TTL_SECONDS = 300;
+
+async function readNormalizedRuntimeCache(key: string) {
+  try {
+    return await normalizedRuntimeCache.get(key) as NormalizedRuntimeResult | null;
+  } catch (error) {
+    console.warn("Normalized runtime cache read failed; using authoritative database path", { key, error });
+    return null;
+  }
+}
+
+async function writeNormalizedRuntimeCache(hotelId: string, key: string, value: NormalizedRuntimeResult) {
+  try {
+    await normalizedRuntimeCache.set(key, value, {
+      ttl: NORMALIZED_RUNTIME_TTL_SECONDS,
+      tags: ["normalized-config-runtime", `hotel-config:${hotelId}`],
+      name: "normalized-config-runtime",
+    });
+  } catch (error) {
+    console.warn("Normalized runtime cache write failed; continuing with authoritative result", { hotelId, key, error });
+  }
+}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -150,21 +176,27 @@ export async function resolveNormalizedRoomConfigForRuntime(input: {
     });
   }
 
+  const cacheKey = `rooms:${input.hotelId}:${input.published.revisionId}:${input.published.sourceChecksum}`;
+  const cached = await readNormalizedRuntimeCache(cacheKey);
+  if (cached) return cached;
+
   const projectionState = await getNormalizedProjectionState(input.hotelId);
 
   if (!metadataActivatesRoomReads(projectionState)) {
-    return buildSandboxNormalizedRoomRuntimeConfig({
+    const result = buildSandboxNormalizedRoomRuntimeConfig({
       isSandbox: true,
       publishedRevisionId: input.published.revisionId,
       publishedChecksum: input.published.sourceChecksum,
       publishedConfig: input.published.config,
       projectionState,
     });
+    await writeNormalizedRuntimeCache(input.hotelId, cacheKey, result);
+    return result;
   }
 
   const rows = await getActiveNormalizedRoomRows(input.hotelId);
 
-  return buildSandboxNormalizedRoomRuntimeConfig({
+  const result = buildSandboxNormalizedRoomRuntimeConfig({
     isSandbox: true,
     publishedRevisionId: input.published.revisionId,
     publishedChecksum: input.published.sourceChecksum,
@@ -172,6 +204,8 @@ export async function resolveNormalizedRoomConfigForRuntime(input: {
     projectionState,
     rows,
   });
+  await writeNormalizedRuntimeCache(input.hotelId, cacheKey, result);
+  return result;
 }
 
 export async function resolveNormalizedDepartmentRoutingConfigForRuntime(input: {
@@ -191,10 +225,14 @@ export async function resolveNormalizedDepartmentRoutingConfigForRuntime(input: 
     });
   }
 
+  const cacheKey = `departments:${input.hotelId}:${input.published.revisionId}:${input.published.sourceChecksum}`;
+  const cached = await readNormalizedRuntimeCache(cacheKey);
+  if (cached) return cached;
+
   const projectionState = await getNormalizedProjectionState(input.hotelId);
 
   if (!metadataActivatesDepartmentRoutingReads(projectionState)) {
-    return buildSandboxNormalizedDepartmentRoutingRuntimeConfig({
+    const result = buildSandboxNormalizedDepartmentRoutingRuntimeConfig({
       isSandbox: true,
       hotelTimeZone: input.hotelTimeZone,
       publishedRevisionId: input.published.revisionId,
@@ -202,11 +240,13 @@ export async function resolveNormalizedDepartmentRoutingConfigForRuntime(input: 
       publishedConfig: input.published.config,
       projectionState,
     });
+    await writeNormalizedRuntimeCache(input.hotelId, cacheKey, result);
+    return result;
   }
 
   const rows = await getActiveNormalizedDepartmentRoutingRows(input.hotelId);
 
-  return buildSandboxNormalizedDepartmentRoutingRuntimeConfig({
+  const result = buildSandboxNormalizedDepartmentRoutingRuntimeConfig({
     isSandbox: true,
     hotelTimeZone: input.hotelTimeZone,
     publishedRevisionId: input.published.revisionId,
@@ -215,4 +255,6 @@ export async function resolveNormalizedDepartmentRoutingConfigForRuntime(input: 
     projectionState,
     rows,
   });
+  await writeNormalizedRuntimeCache(input.hotelId, cacheKey, result);
+  return result;
 }
