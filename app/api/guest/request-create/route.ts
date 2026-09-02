@@ -278,6 +278,7 @@ export async function POST(req: NextRequest) {
     const price = requestAuthority.price;
     const currency = requestAuthority.currency;
     const sourceRequestDef = requestAuthority.sourceRequestDef;
+    const authoritativeStaffLabels = requestAuthority.staffLabels;
     const relationalIds = resolveGuestRequestRelationalIds(hotelConfig, {
       roomNumber: room,
       departmentCode: department,
@@ -340,7 +341,7 @@ export async function POST(req: NextRequest) {
       normalizedRelationalSourceChecksum: relationalIds.sourceChecksum,
       ...isolationMetadata,
     };
-    const staffTitleBg = getOperationalRequestTitleBg({
+    const staffTitleBg = authoritativeStaffLabels?.bg || getOperationalRequestTitleBg({
       requestType: legacyNormalizedType,
       title: typeLabel,
       message: noteForStaffCopy,
@@ -349,6 +350,12 @@ export async function POST(req: NextRequest) {
         note: noteForStaffCopy,
       },
     });
+    // Request-definition copy is already reviewed tenant content. Reuse it
+    // across staff languages before considering free-text AI translation; an
+    // untranslated reviewed label is safer than hundreds of synchronous model
+    // calls in the guest write path.
+    const configuredStaffTitleEn = authoritativeStaffLabels?.en || authoritativeStaffLabels?.bg || staffTitleBg || null;
+    const configuredStaffTitleDe = authoritativeStaffLabels?.de || authoritativeStaffLabels?.en || authoritativeStaffLabels?.bg || staffTitleBg || null;
     const staffNoteBg = getOperationalRequestNoteBg({
       requestType: legacyNormalizedType,
       title: typeLabel,
@@ -379,8 +386,8 @@ export async function POST(req: NextRequest) {
         title_original: typeLabel || null,
         message_original: note,
         title_bg: staffTitleBg || null,
-        title_en: staffTitleBg || null,
-        title_de: staffTitleBg || null,
+        title_en: configuredStaffTitleEn || staffTitleBg || null,
+        title_de: configuredStaffTitleDe || staffTitleBg || null,
         message_bg: messageBg,
         message_en: messageBg,
         message_de: messageBg,
@@ -390,8 +397,8 @@ export async function POST(req: NextRequest) {
           ...operationalMetadata,
           guestLanguage,
           staffTitleBg,
-          staffTitleEn: null,
-          staffTitleDe: null,
+          staffTitleEn: configuredStaffTitleEn,
+          staffTitleDe: configuredStaffTitleDe,
           staffNoteBg,
           staffNoteEn: null,
           staffNoteDe: null,
@@ -447,8 +454,8 @@ export async function POST(req: NextRequest) {
           : note;
         const finalMessageBg = translatedNoteBg || messageBg;
         const [staffTitleEn, staffTitleDe, staffNoteEn, staffNoteDe] = await Promise.all([
-          translateGuestText(staffTitleBg, { sourceLanguage: "bg", targetLanguage: "en", context: "StayHub operational request title for hotel staff reports.", maxLength: 500 }),
-          translateGuestText(staffTitleBg, { sourceLanguage: "bg", targetLanguage: "de", context: "StayHub operational request title for hotel staff reports.", maxLength: 500 }),
+          configuredStaffTitleEn ? Promise.resolve(configuredStaffTitleEn) : translateGuestText(staffTitleBg, { sourceLanguage: "bg", targetLanguage: "en", context: "StayHub operational request title for hotel staff reports.", maxLength: 500 }),
+          configuredStaffTitleDe ? Promise.resolve(configuredStaffTitleDe) : translateGuestText(staffTitleBg, { sourceLanguage: "bg", targetLanguage: "de", context: "StayHub operational request title for hotel staff reports.", maxLength: 500 }),
           finalMessageBg ? translateGuestText(finalMessageBg, { sourceLanguage: "bg", targetLanguage: "en", context: "StayHub operational request note for hotel staff reports.", maxLength: 1200 }) : Promise.resolve(""),
           finalMessageBg ? translateGuestText(finalMessageBg, { sourceLanguage: "bg", targetLanguage: "de", context: "StayHub operational request note for hotel staff reports.", maxLength: 1200 }) : Promise.resolve(""),
         ]);
