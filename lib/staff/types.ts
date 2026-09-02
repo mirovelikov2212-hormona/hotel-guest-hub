@@ -13,6 +13,8 @@ export type StaffServiceTime = "now" | "today" | "tomorrow";
 export type StaffRequestType = CanonicalStaffRequestType;
 
 export type StaffBillingStatus = "pending" | "charged" | "waived" | "cancelled";
+export type StaffRequestConversationState = "none" | "waiting_for_guest" | "waiting_for_staff";
+export type StaffRequestConversationSender = "staff" | "guest" | "system" | "ai";
 
 export type StaffRequest = {
   id: string;
@@ -51,6 +53,9 @@ export type StaffRequest = {
   guestLanguage?: string | null;
   isTest?: boolean;
   testExpiresAt?: string | null;
+  conversationState?: StaffRequestConversationState;
+  conversationUpdatedAt?: string | null;
+  conversationLastSenderType?: StaffRequestConversationSender | null;
 };
 
 export const staffDepartmentLabels: Record<string, string> = {
