@@ -88,6 +88,23 @@ test("M10.5 carries database IDs only after both normalized authorities agree", 
   );
 });
 
+test("Factory Sandbox authority reads only normalized active generic routes", async () => {
+  const source = await readProjectFile(
+    "lib/server/factory-sandbox-relational-authority.ts",
+  );
+
+  assertContains(source, ".map(normalizeKey)");
+  assertContains(source, '.eq("active", true)');
+  assertContains(source, '.is("venue_type", null)');
+  assertContains(source, '.in("request_type", requestTypes)');
+  assertBefore(
+    source,
+    ".map(normalizeKey)",
+    '.in("request_type", requestTypes)',
+    "Factory request types must be normalized before querying relational routing authority.",
+  );
+});
+
 test("M10.5 guest insert writes relational IDs and blocks activated authority drift", async () => {
   const source = await readProjectFile("app/api/guest/request-create/route.ts");
 
