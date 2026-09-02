@@ -44,6 +44,21 @@ test("safe room turnover releases only a stale previous stay after hotel check-i
   assert.equal(shouldAutoReleaseRoomTurnover({ ...base, overlappingLastSeenLocalDate: "2026-08-15" }), false);
 });
 
+test("guest stay date normalization rejects impossible calendar dates", async () => {
+  const moduleUrl = pathToFileURL(resolve("lib/guest-stays/date-key.mjs"));
+  moduleUrl.searchParams.set("testRun", String(Date.now()));
+  const { normalizeStayDateKey } = await import(moduleUrl.href);
+
+  assert.equal(normalizeStayDateKey("2026-09-02"), "2026-09-02");
+  assert.equal(normalizeStayDateKey("2028-02-29"), "2028-02-29");
+  assert.equal(normalizeStayDateKey("2026-02-29"), "");
+  assert.equal(normalizeStayDateKey("2026-02-31"), "");
+  assert.equal(normalizeStayDateKey("2026-04-31"), "");
+  assert.equal(normalizeStayDateKey("2026-13-01"), "");
+  assert.equal(normalizeStayDateKey("02.09.2026"), "");
+  assert.equal(normalizeStayDateKey("2026-9-2"), "");
+});
+
 test("database integrity permits only one active stay per room and preserves pending late checkout", async () => {
   const migration = await readProjectFile(
     "supabase/migrations/20260818150000_guest_stay_single_active_integrity.sql",
@@ -59,6 +74,28 @@ test("database integrity permits only one active stay per room and preserves pen
   assertContains(migration, "where status = 'active';");
   assertContains(migration, "guest_stays_one_active_per_room_idx");
   assertContains(migration, "on public.guest_stays (hotel_id, room_number)");
+});
+
+test("database integrity rejects inactive rooms and revokes stays when a room is deactivated", async () => {
+  const migration = await readProjectFile(
+    "supabase/migrations/20260902123500_harden_guest_stay_room_integrity.sql",
+  );
+  const privilegeMigration = await readProjectFile(
+    "supabase/migrations/20260902124000_harden_guest_stay_room_integrity_privileges.sql",
+  );
+
+  assertContains(migration, "GUEST_STAY_ROOM_NOT_ACTIVE");
+  assertContains(migration, "errcode = '23514'");
+  assertContains(migration, "r.hotel_id = new.hotel_id");
+  assertContains(migration, "r.room_number = new.room_number");
+  assertContains(migration, "r.active = true");
+  assertContains(migration, "rooms_end_active_guest_stays_on_deactivation_v1");
+  assertContains(migration, "old.active = true and new.active = false");
+  assertContains(migration, "lifecycle_state = 'read_only'");
+  assertContains(privilegeMigration, "security invoker");
+  assertContains(privilegeMigration, "revoke all on function public.end_guest_stays_for_deactivated_room_v1() from public");
+  assertContains(privilegeMigration, "from anon");
+  assertContains(privilegeMigration, "from authenticated");
 });
 
 test("guest request cards use the hotel timezone for both new and restored request timestamps", async () => {
