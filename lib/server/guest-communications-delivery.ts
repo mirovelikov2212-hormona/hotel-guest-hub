@@ -7,6 +7,7 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 type CommunicationRow = {
   id: string;
   hotel_id: string;
+  audience_type: string;
   category: string;
   source_language: string;
   title: string;
@@ -51,6 +52,7 @@ async function claimCommunication(row: CommunicationRow) {
     })
     .eq("id", row.id)
     .eq("hotel_id", row.hotel_id)
+    .eq("audience_type", "all_active_guests")
     .eq("translation_status", "ready")
     .eq("status", row.status);
 
@@ -193,6 +195,7 @@ async function finalizeCommunication(input: {
     })
     .eq("id", input.communication.id)
     .eq("hotel_id", input.communication.hotel_id)
+    .eq("audience_type", "all_active_guests")
     .eq("status", "sending");
   if (error) throw error;
 
@@ -205,6 +208,9 @@ export async function deliverGuestCommunication(input: {
 }) {
   if (!guestCommunicationsDeliveryEnabled()) {
     return { delivered: false, skipped: true, reason: "delivery_disabled" };
+  }
+  if (input.communication.audience_type !== "all_active_guests") {
+    return { delivered: false, skipped: true, reason: "audience_not_broadcast" };
   }
   if (!input.hotel.active) return { delivered: false, skipped: true, reason: "hotel_inactive" };
   if (input.hotel.is_sandbox) return { delivered: false, skipped: true, reason: "sandbox_delivery_disabled" };
@@ -321,7 +327,8 @@ export async function dispatchDueGuestCommunications(limit = 20) {
   const now = new Date().toISOString();
   const { data: queued, error: queuedError } = await supabaseAdmin
     .from("guest_communications")
-    .select("id,hotel_id,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at,delivery_attempts,sending_started_at,next_delivery_attempt_at")
+    .select("id,hotel_id,audience_type,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at,delivery_attempts,sending_started_at,next_delivery_attempt_at")
+    .eq("audience_type", "all_active_guests")
     .eq("status", "queued")
     .eq("translation_status", "ready")
     .or(`next_delivery_attempt_at.is.null,next_delivery_attempt_at.lte.${now}`)
@@ -333,7 +340,8 @@ export async function dispatchDueGuestCommunications(limit = 20) {
   const { data: scheduled, error: scheduledError } = remaining > 0
     ? await supabaseAdmin
         .from("guest_communications")
-        .select("id,hotel_id,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at,delivery_attempts,sending_started_at,next_delivery_attempt_at")
+        .select("id,hotel_id,audience_type,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at,delivery_attempts,sending_started_at,next_delivery_attempt_at")
+        .eq("audience_type", "all_active_guests")
         .eq("status", "scheduled")
         .eq("translation_status", "ready")
         .lte("scheduled_at", now)
@@ -384,6 +392,7 @@ export async function recoverStuckGuestCommunications(input: {
   const { data, error } = await supabaseAdmin
     .from("guest_communications")
     .select("id,hotel_id,delivery_attempts,sending_started_at")
+    .eq("audience_type", "all_active_guests")
     .eq("status", "sending")
     .lt("sending_started_at", cutoff)
     .order("sending_started_at", { ascending: true })
@@ -416,6 +425,7 @@ export async function recoverStuckGuestCommunications(input: {
       .update(update)
       .eq("id", row.id)
       .eq("hotel_id", row.hotel_id)
+      .eq("audience_type", "all_active_guests")
       .eq("status", "sending")
       .eq("delivery_attempts", attempts)
       .select("id")
