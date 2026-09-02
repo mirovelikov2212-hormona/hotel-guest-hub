@@ -79,6 +79,9 @@ test("M10.2 admin endpoint defaults to dry-run and requires internal auth", asyn
   const projectorSource = await readProjectFile(
     "lib/server/config-projection.ts",
   );
+  const publishedSource = await readProjectFile(
+    "lib/server/published-hotel-config.ts",
+  );
 
   assertContains(routeSource, "process.env.CONFIG_ADMIN_SECRET");
   assertContains(routeSource, "authorization === `Bearer ${configuredSecret}`");
@@ -89,7 +92,10 @@ test("M10.2 admin endpoint defaults to dry-run and requires internal auth", asyn
     "projectPublishedHotelConfig({",
   );
 
-  assertContains(projectorSource, "getPublishedHotelConfigSnapshot(hotel.id)");
+  assertContains(projectorSource, "getPublishedHotelConfigProjectionSource(hotel.id)");
+  assertNotContains(projectorSource, "getPublishedHotelConfigSnapshot(hotel.id)");
+  assertContains(publishedSource, "loadPublishedHotelConfigBaseSnapshot");
+  assertContains(publishedSource, "Projection/reconciliation source of truth");
   assertContains(projectorSource, '"project_published_hotel_config"');
   assertContains(projectorSource, "p_hotel_id: hotel.id");
   assertContains(
