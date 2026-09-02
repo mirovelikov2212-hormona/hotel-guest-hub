@@ -1,0 +1,43 @@
+name: Temporary Factory Reconciliation Proof
+
+on:
+  push:
+    branches:
+      - feat/factory-prepare-sandbox-load-acceptance
+    paths:
+      - ".github/workflows/temporary-factory-reconciliation-proof.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PREVIEW_URL: https://hotel-guest-bellcbu0v-miroslav-velikovs-projects.vercel.app
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - name: Require Preview automation bypass
+        run: test -n "$VERCEL_AUTOMATION_BYPASS_SECRET"
+      - name: Trigger guest runtime reconciliation through real request path
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            --max-time 120 \
+            -X POST \
+            -H "x-vercel-protection-bypass: ${VERCEL_AUTOMATION_BYPASS_SECRET}" \
+            -H "content-type: application/json" \
+            "${PREVIEW_URL}/api/guest/request-create" \
+            --data '{"hotelSlug":"factory-heavy-20260901-100-sandbox","room":"201","type":"extra-towel","typeLabel":"Controlled reconciliation proof","sourceRequestDef":"extra-towel","serviceTime":"now","guestLanguage":"en","stayId":"fc6ceaec-1658-48fe-8df9-93c21abf5166","stayDeviceId":"8c39fb82-66d1-4ed0-86ef-459b383fbf87"}' \
+            -o reconciliation-proof.json
+          cat reconciliation-proof.json | jq '{ok,code,request}'
+          jq -e '.ok == true and (.request.id | type == "string")' reconciliation-proof.json >/dev/null
+      - name: Upload proof response
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: controlled-factory-reconciliation-proof
+          path: reconciliation-proof.json
+          if-no-files-found: warn
