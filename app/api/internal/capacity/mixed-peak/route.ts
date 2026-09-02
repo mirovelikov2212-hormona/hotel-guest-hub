@@ -73,9 +73,9 @@ export async function GET(req: NextRequest) {
   const phase = smoke ? "smoke" : requestedMode === "warm" ? "warm" : "cold";
   // A distinct fixture date per phase keeps booking idempotency deterministic
   // while ensuring repeated acceptance phases do not reuse a prior winner.
-  const bookingDate = phase === "smoke" ? "2026-09-03" : phase === "cold" ? "2026-09-04" : "2026-09-05";
-  const uniqueMassageTime = smoke ? "12:00" : "16:00";
-  const contentionMassageTime = smoke ? "14:00" : "21:00";
+  const bookingDate = "2026-09-09";
+  const uniqueMassageTime = phase === "smoke" ? "12:00" : phase === "cold" ? "16:00" : "18:00";
+  const contentionMassageTime = phase === "smoke" ? "14:00" : phase === "cold" ? "21:00" : "20:00";
   const runId = `factory-mixed-${phase}-${Date.now()}`;
   const origin = req.nextUrl.origin;
   const forwardedHeaders: Record<string, string> = { "content-type": "application/json", "x-stayhub-load-run": runId };
