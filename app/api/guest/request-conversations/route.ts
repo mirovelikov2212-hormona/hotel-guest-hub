@@ -39,11 +39,19 @@ async function resolveGuestIdentity(body: any) {
   return { stayResult, access };
 }
 
+function conversationErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message?: unknown }).message || "");
+  }
+  return "";
+}
+
 function mapError(error: unknown) {
   if (error instanceof GuestStayAccessError) {
     return json({ ok: false, error: error.message, code: error.code }, error.statusCode);
   }
-  const message = error instanceof Error ? error.message : "request_conversation_unavailable";
+  const message = conversationErrorMessage(error);
   if (message.includes("REQUEST_CLOSED")) return json({ ok: false, error: "request_closed" }, 409);
   if (message.includes("CONTENT_INVALID")) return json({ ok: false, error: "invalid_content" }, 400);
   return json({ ok: false, error: "request_conversation_unavailable" }, 503);
