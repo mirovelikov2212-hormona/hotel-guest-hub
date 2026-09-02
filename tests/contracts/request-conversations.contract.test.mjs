@@ -95,7 +95,8 @@ test("staff-to-guest replies are six-language fail-closed while guest replies ar
   assertContains(service, 'translationStatus = "ready"');
   assertContains(service, 'translationStatus: "ready"');
   assertContains(service, "Never lose a guest reply solely because the translation provider is down");
-  assertContains(service, 'translationStatus: "partial"');
+  assertContains(service, 'let translationStatus: "ready" | "partial" = "partial"');
+  assertContains(service, "translationStatus,");
 });
 
 test("request conversations are embedded in existing staff cards and the single guest Messages inbox", async () => {
