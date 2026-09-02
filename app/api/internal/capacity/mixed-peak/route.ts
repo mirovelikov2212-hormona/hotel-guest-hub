@@ -8,7 +8,6 @@ export const dynamic = "force-dynamic";
 
 const CHALLENGE_HASH = "05f27edb48d56afd02419ef6ae1b2aa2355c8bb4c76257c94fcb09fd89c125d3";
 const PREFIX = "factory-heavy-20260901";
-const BOOKING_DATE = "2026-09-03";
 
 type Result = {
   kind: "request" | "survey" | "massage_unique" | "massage_contention";
@@ -70,6 +69,7 @@ export async function GET(req: NextRequest) {
   }
 
   const smoke = req.nextUrl.searchParams.get("mode") === "smoke";
+  const bookingDate = smoke ? "2026-09-03" : "2026-09-04";
   const runId = `factory-mixed-${smoke ? "smoke" : "peak"}-${Date.now()}`;
   const origin = req.nextUrl.origin;
   const forwardedHeaders: Record<string, string> = { "content-type": "application/json", "x-stayhub-load-run": runId };
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
       const massage = kind.startsWith("massage");
       const route = massage ? "/api/guest/massages" : kind === "request" ? "/api/guest/request-create" : "/api/guest/day3-survey";
       const payload = massage
-        ? { hotelSlug, room: roomNumber, roomConfirmed: true, serviceId: "load_massage", date: BOOKING_DATE,
+        ? { hotelSlug, room: roomNumber, roomConfirmed: true, serviceId: "load_massage", date: bookingDate,
             time, stayId, stayDeviceId, guestLanguage: "en" }
         : kind === "request"
           ? { hotelSlug, room: roomNumber, type: "extra-towel", typeLabel: `${runId}:h${hotel}:r${room}`,
