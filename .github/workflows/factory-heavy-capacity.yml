@@ -14,29 +14,34 @@ permissions:
 jobs:
   combined-peak:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+    env:
+      PREVIEW_URL: https://hotel-guest-hub-git-feat-fact-347853-miroslav-velikovs-projects.vercel.app
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
       - uses: actions/checkout@v4
-      - name: Smoke — request and survey on one Sandbox tenant
-        env:
-          STAYHUB_HEAVY_RUN_ID: factory-heavy-cache-smoke-v1-20260901
-          STAYHUB_HEAVY_HOTELS: "1"
-          STAYHUB_HEAVY_REQUESTS_PER_HOTEL: "1"
-          STAYHUB_HEAVY_SURVEYS_PER_HOTEL: "1"
+      - name: Require Preview automation bypass
         run: |
-          node scripts/factory-heavy-peak.mjs
-          mv factory-heavy-peak-results.json factory-heavy-smoke-results.json
-      - name: Combined peak — 100 hotels, 300 requests and 200 surveys
-        env:
-          STAYHUB_HEAVY_RUN_ID: factory-heavy-cache-peak-v1-20260901
-          STAYHUB_HEAVY_HOTELS: "100"
-          STAYHUB_HEAVY_REQUESTS_PER_HOTEL: "3"
-          STAYHUB_HEAVY_SURVEYS_PER_HOTEL: "2"
-        run: node scripts/factory-heavy-peak.mjs
+          test -n "$VERCEL_AUTOMATION_BYPASS_SECRET" || {
+            echo "VERCEL_AUTOMATION_BYPASS_SECRET is not configured"
+            exit 2
+          }
+      - name: Combined Preview peak — 620 simultaneous Sandbox operations
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            --max-time 240 \
+            -H "x-vercel-protection-bypass: ${VERCEL_AUTOMATION_BYPASS_SECRET}" \
+            "${PREVIEW_URL}/api/internal/capacity/mixed-peak?challenge=stayhub-materialized-peak-20260902&mode=cold" \
+            -o factory-materialized-runtime-peak.json
+          jq '{ok, runId, mode, bookingDate, hotels, totalOperations, wallMs, request, survey, massageUnique, massageContention, failures, contentionUnexpected}' \
+            factory-materialized-runtime-peak.json
+          jq -e '.ok == true and .totalOperations == 620' factory-materialized-runtime-peak.json >/dev/null
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: factory-heavy-capacity-evidence
-          path: factory-heavy-*-results.json
+          name: factory-materialized-runtime-peak-evidence
+          path: factory-materialized-runtime-peak.json
           if-no-files-found: warn
