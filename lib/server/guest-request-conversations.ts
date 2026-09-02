@@ -124,7 +124,7 @@ export function resolveRequestDepartmentCode(request: RequestRow) {
 export async function getRequestForConversation(hotelId: string, requestId: string) {
   const { data, error } = await supabaseAdmin
     .from("guest_requests")
-    .select("id,hotel_id,department_id,stay_id,stay_device_id,room_number_snapshot,request_type,title,status,guest_language,metadata_json,conversation_state,conversation_updated_at,conversation_last_sender_type,departments(code,name)")
+    .select("id,hotel_id,department_id,stay_id,stay_device_id,room_number_snapshot,request_type,title,status,guest_language,metadata_json,conversation_state,conversation_updated_at,conversation_last_sender_type,departments!guest_requests_hotel_department_id_fkey(code,name)")
     .eq("hotel_id", hotelId)
     .eq("id", requestId)
     .maybeSingle();
@@ -418,7 +418,7 @@ export async function deliverRequestConversationPush(input: {
 
   return {
     attempted: true,
-    reason: null,
+    reason: sent === scopedSubscriptions.length ? "sent" : failed || expired ? "partial_failed" : "sent",
     total: scopedSubscriptions.length,
     sent,
     failed,
