@@ -4,15 +4,15 @@ import { useState } from "react";
 
 export function CapacityRunner() {
   const [challenge, setChallenge] = useState("");
-  const [running, setRunning] = useState<"smoke" | "peak" | null>(null);
+  const [running, setRunning] = useState<"smoke" | "cold" | "warm" | null>(null);
   const [result, setResult] = useState<unknown>(null);
 
-  async function run(mode: "smoke" | "peak") {
+  async function run(mode: "smoke" | "cold" | "warm") {
     setRunning(mode);
     setResult(null);
     try {
       const query = new URLSearchParams({ challenge });
-      if (mode === "smoke") query.set("mode", "smoke");
+      query.set("mode", mode);
       const response = await fetch(`/api/internal/capacity/mixed-peak?${query}`, {
         cache: "no-store",
       });
@@ -47,8 +47,11 @@ export function CapacityRunner() {
         <button disabled={!challenge || running !== null} onClick={() => run("smoke")}>
           {running === "smoke" ? "Running smoke…" : "Run smoke"}
         </button>
-        <button disabled={!challenge || running !== null} onClick={() => run("peak")}>
-          {running === "peak" ? "Running peak…" : "Run peak"}
+        <button disabled={!challenge || running !== null} onClick={() => run("cold")}>
+          {running === "cold" ? "Running cold peak…" : "Run cold peak"}
+        </button>
+        <button disabled={!challenge || running !== null} onClick={() => run("warm")}>
+          {running === "warm" ? "Running warm peak…" : "Run warm peak"}
         </button>
       </div>
       <pre aria-label="Capacity result" style={{ marginTop: 24, overflow: "auto", whiteSpace: "pre-wrap" }}>

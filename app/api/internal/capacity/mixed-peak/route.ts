@@ -68,11 +68,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, code: "INVALID_CHALLENGE" }, { status: 401 });
   }
 
-  const smoke = req.nextUrl.searchParams.get("mode") === "smoke";
-  const bookingDate = "2026-09-02";
+  const requestedMode = req.nextUrl.searchParams.get("mode");
+  const smoke = requestedMode === "smoke";
+  const phase = smoke ? "smoke" : requestedMode === "warm" ? "warm" : "cold";
+  // A distinct fixture date per phase keeps booking idempotency deterministic
+  // while ensuring repeated acceptance phases do not reuse a prior winner.
+  const bookingDate = phase === "smoke" ? "2026-09-03" : phase === "cold" ? "2026-09-04" : "2026-09-05";
   const uniqueMassageTime = smoke ? "12:00" : "16:00";
   const contentionMassageTime = smoke ? "14:00" : "21:00";
-  const runId = `factory-mixed-${smoke ? "smoke" : "peak"}-${Date.now()}`;
+  const runId = `factory-mixed-${phase}-${Date.now()}`;
   const origin = req.nextUrl.origin;
   const forwardedHeaders: Record<string, string> = { "content-type": "application/json", "x-stayhub-load-run": runId };
   const cookie = req.headers.get("cookie");
@@ -155,7 +159,8 @@ export async function GET(req: NextRequest) {
     ok: accepted,
     schemaVersion: "stayhub-mixed-capacity-v1",
     runId,
-    mode: smoke ? "smoke" : "peak",
+    mode: phase,
+    bookingDate,
     hotels,
     totalOperations: results.length,
     wallMs,
