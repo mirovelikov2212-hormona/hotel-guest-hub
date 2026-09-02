@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "checkpoint": "request-conversations-core",
+  "baseCheckpoint": "factory-runtime-reconciliation-reliability",
+  "expectedNeedsReview": 168,
+  "removals": [],
+  "relocations": [
+    { "filePath": "app/api/staff/guest-communications/route.ts", "fromLine": 142, "toLine": 143, "table": "guest_communications", "operation": "update" },
+    { "filePath": "app/api/staff/guest-communications/route.ts", "fromLine": 224, "toLine": 226, "table": "guest_communications", "operation": "insert" },
+    { "filePath": "app/api/staff/requests/route.ts", "fromLine": 170, "toLine": 173, "table": "guest_requests", "operation": "update" },
+    { "filePath": "lib/server/guest-communications-access.ts", "fromLine": 60, "toLine": 68, "table": "hotel_staff_role_capabilities", "operation": "select" },
+    { "filePath": "lib/server/guest-communications-delivery.ts", "fromLine": 43, "toLine": 44, "table": "guest_communications", "operation": "update" },
+    { "filePath": "lib/server/guest-communications-delivery.ts", "fromLine": 107, "toLine": 109, "table": "guest_communication_deliveries", "operation": "upsert" },
+    { "filePath": "lib/server/guest-communications-delivery.ts", "fromLine": 115, "toLine": 117, "table": "guest_communication_deliveries", "operation": "select" },
+    { "filePath": "lib/server/guest-communications-delivery.ts", "fromLine": 141, "toLine": 143, "table": "guest_communication_deliveries", "operation": "update" },
+    { "filePath": "lib/server/guest-communications-delivery.ts", "fromLine": 180, "toLine": 182, "table": "guest_communications", "operation": "update" },
+    { "filePath": "lib/server/guest-communications-delivery.ts", "fromLine": 322, "toLine": 328, "table": "guest_communications", "operation": "select" },
+    { "filePath": "lib/server/guest-communications-delivery.ts", "fromLine": 334, "toLine": 341, "table": "guest_communications", "operation": "select" },
+    { "filePath": "lib/server/guest-communications-delivery.ts", "fromLine": 384, "toLine": 392, "table": "guest_communications", "operation": "select" },
+    { "filePath": "lib/server/guest-communications-delivery.ts", "fromLine": 414, "toLine": 423, "table": "guest_communications", "operation": "update" }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/guest-request-conversations.ts",
+      "line": 215,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "request_thread_history_is_server_only_and_always_scoped_by_exact_hotel_id_plus_request_thread_audience; staff_callers_add_exact_request_id_after_capability_authorization_and_guest_callers_add_exact_stay_id_and_stay_device_id_after_guest_stay_identity_validation, so_the_read_cannot_cross_hotel_or_guest_identity_boundaries"
+    },
+    {
+      "filePath": "lib/server/guest-request-conversations.ts",
+      "line": 250,
+      "rpc": "append_guest_request_communication_v1",
+      "tableExpression": "\"append_guest_request_communication_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "service_role_only_append_receives_exact_hotel_request_stay_and_stay_device_ids; the_security_invoker_rpc_locks_and_revalidates_guest_requests_by_all_four_ids, trigger_revalidates_guest_stay_device_and_current_staff_session_when_sender_is_staff, then_atomically_inserts_only_that_request_thread_updates_only_that_request_and_writes_only_that_request_event"
+    },
+    {
+      "filePath": "lib/server/guest-request-conversations.ts",
+      "line": 277,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "targeted_push_preflight_reads_one_globally_unique_communication_id_only_with_the_authoritative_hotel_id_and_request_thread_audience_then_code_revalidates_request_id_stay_id_and_stay_device_id_against_the_exact_request_before_any_delivery"
+    },
+    {
+      "filePath": "lib/server/guest-request-conversations.ts",
+      "line": 324,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "update",
+      "reasons": ["unclassified_table"],
+      "provenance": "no_subscription_delivery_summary_updates_only_the_exact_communication_id_under_the_authoritative_hotel_id_and_request_thread_audience_after_exact_request_stay_device_scope_has_already_been_revalidated"
+    },
+    {
+      "filePath": "lib/server/guest-request-conversations.ts",
+      "line": 342,
+      "table": "guest_communication_deliveries",
+      "tableExpression": "\"guest_communication_deliveries\"",
+      "operation": "upsert",
+      "reasons": ["unclassified_table"],
+      "provenance": "targeted_delivery_evidence_rows_are_constructed_only_from_push_subscriptions_selected_by_the_same_hotel_id_stay_id_and_stay_device_id; every_upsert_row_carries_that_authoritative_hotel_id_and_exact_communication_id_and_unique_communication_subscription_constraint_prevents_duplicate_delivery_evidence"
+    },
+    {
+      "filePath": "lib/server/guest-request-conversations.ts",
+      "line": 347,
+      "table": "guest_communication_deliveries",
+      "tableExpression": "\"guest_communication_deliveries\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "targeted_delivery_evidence_read_is_scoped_by_authoritative_hotel_id_exact_communication_id_and_only_the_exact_subscription_ids_previously_selected_by_same_hotel_stay_and_stay_device"
+    },
+    {
+      "filePath": "lib/server/guest-request-conversations.ts",
+      "line": 388,
+      "table": "guest_communication_deliveries",
+      "tableExpression": "\"guest_communication_deliveries\"",
+      "operation": "update",
+      "reasons": ["unclassified_table"],
+      "provenance": "each_targeted_push_result_updates_only_one_delivery_evidence_uuid_and_requires_the_same_authoritative_hotel_id; delivery_uuid_originated_from_the_prior_hotel_communication_subscription_scoped_read"
+    },
+    {
+      "filePath": "lib/server/guest-request-conversations.ts",
+      "line": 404,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "update",
+      "reasons": ["unclassified_table"],
+      "provenance": "targeted_push_summary_updates_only_the_exact_request_thread_communication_id_with_the_same_authoritative_hotel_id_and_request_thread_audience_after_delivery_was_limited_to_the_exact_stay_and_stay_device_subscriptions"
+    }
+  ]
+}
