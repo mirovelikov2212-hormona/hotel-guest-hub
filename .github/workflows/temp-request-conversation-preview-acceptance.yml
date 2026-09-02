@@ -1,0 +1,154 @@
+name: TEMP Request Conversation Preview Acceptance
+
+on:
+  push:
+    branches:
+      - feat/factory-final-adversarial-acceptance
+    paths:
+      - ".github/workflows/temp-request-conversation-preview-acceptance.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ORIGIN: https://hotel-guest-5lxqnz7se-miroslav-velikovs-projects.vercel.app
+      SHARE_URL: https://hotel-guest-5lxqnz7se-miroslav-velikovs-projects.vercel.app/?_vercel_share=U7sYYholpuh09FT9Jii4Q6dAXBErhJ9n
+      HOTEL: factory-heavy-20260901-002-sandbox
+      REQUEST_ID: 99978181-7230-4488-b251-bf61c59ba948
+      STAY_ID: 24c28116-717f-4e40-89a3-86d70fc1a660
+      DEVICE_ID: 5e3ee35d-fd1a-420f-81ee-8ebb73404888
+      DEVICE_TOKEN: zz-http-conversation-device-20260902
+      RECEPTION_PIN: "739184"
+      MANAGER_PIN: "839184"
+      HOUSEKEEPING_PIN: "939184"
+    steps:
+      - name: Bootstrap exact Preview access
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -L -c base.cookies -b base.cookies -o /tmp/bootstrap.html -w '%{http_code}' "$SHARE_URL")
+          test "$code" = "200"
+          cp base.cookies reception.cookies
+          cp base.cookies manager.cookies
+          cp base.cookies housekeeping.cookies
+          cp base.cookies guest.cookies
+          echo "preview_bootstrap=200"
+
+      - name: Authenticate disposable staff roles
+        run: |
+          set -euo pipefail
+          login() {
+            role="$1"; pin="$2"; jar="$3"
+            code=$(curl -sS -c "$jar" -b "$jar" -o "/tmp/login-$role.json" -w '%{http_code}' \
+              -X POST "$ORIGIN/api/staff/auth/login" \
+              -H "Origin: $ORIGIN" -H 'Content-Type: application/json' \
+              --data "{\"hotelSlug\":\"$HOTEL\",\"role\":\"$role\",\"pin\":\"$pin\"}")
+            test "$code" = "200"
+            jq -e '.ok == true' "/tmp/login-$role.json" >/dev/null
+            echo "$role-login=200"
+          }
+          login reception "$RECEPTION_PIN" reception.cookies
+          login manager "$MANAGER_PIN" manager.cookies
+          login housekeeping "$HOUSEKEEPING_PIN" housekeeping.cookies
+
+      - name: Prove staff RBAC before conversation
+        run: |
+          set -euo pipefail
+          staff_get() {
+            role="$1"; jar="$2"; out="$3"
+            curl -sS -c "$jar" -b "$jar" -o "$out" -w '%{http_code}' \
+              "$ORIGIN/api/staff/request-conversations?hotelSlug=$HOTEL&role=$role&requestId=$REQUEST_ID&language=en"
+          }
+          code=$(staff_get reception reception.cookies /tmp/reception-before.json)
+          test "$code" = "200"
+          jq -e '.ok == true and .canReply == true and (.messages|length) == 0' /tmp/reception-before.json >/dev/null
+
+          code=$(staff_get manager manager.cookies /tmp/manager-before.json)
+          test "$code" = "200"
+          jq -e '.ok == true and .canReply == false' /tmp/manager-before.json >/dev/null
+
+          code=$(staff_get housekeeping housekeeping.cookies /tmp/housekeeping-before.json)
+          test "$code" = "403"
+          jq -e '.error == "forbidden"' /tmp/housekeeping-before.json >/dev/null
+
+          code=$(curl -sS -c manager.cookies -b manager.cookies -o /tmp/manager-post.json -w '%{http_code}' \
+            -X POST "$ORIGIN/api/staff/request-conversations" \
+            -H "Origin: $ORIGIN" -H 'Content-Type: application/json' \
+            --data "{\"hotelSlug\":\"$HOTEL\",\"role\":\"manager\",\"requestId\":\"$REQUEST_ID\",\"message\":\"Manager must not write\"}")
+          test "$code" = "403"
+          jq -e '.error == "forbidden"' /tmp/manager-post.json >/dev/null
+          echo "staff_rbac=PASS"
+
+      - name: Reception sends targeted six-language clarification
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -c reception.cookies -b reception.cookies -o /tmp/staff-send.json -w '%{http_code}' \
+            -X POST "$ORIGIN/api/staff/request-conversations" \
+            -H "Origin: $ORIGIN" -H 'Content-Type: application/json' \
+            --data "{\"hotelSlug\":\"$HOTEL\",\"role\":\"reception\",\"requestId\":\"$REQUEST_ID\",\"message\":\"Please confirm the preferred time for your request.\"}")
+          cat /tmp/staff-send.json | jq '{ok,conversationState,push}'
+          test "$code" = "201"
+          jq -e '.ok == true and .conversationState == "waiting_for_guest" and .push.reason == "sandbox_delivery_disabled"' /tmp/staff-send.json >/dev/null
+
+      - name: Exact guest identity sees thread and wrong device cannot read it
+        run: |
+          set -euo pipefail
+          list_body="{\"action\":\"list\",\"hotelSlug\":\"$HOTEL\",\"stayId\":\"$STAY_ID\",\"stayDeviceId\":\"$DEVICE_ID\",\"deviceToken\":\"$DEVICE_TOKEN\",\"language\":\"de\"}"
+          code=$(curl -sS -c guest.cookies -b guest.cookies -o /tmp/guest-list.json -w '%{http_code}' \
+            -X POST "$ORIGIN/api/guest/request-conversations" -H 'Content-Type: application/json' --data "$list_body")
+          test "$code" = "200"
+          jq -e --arg rid "$REQUEST_ID" '.ok == true and .language == "de" and ([.requests[].id] | index($rid)) != null and (.messages|length) == 1 and .messages[0].senderType == "staff"' /tmp/guest-list.json >/dev/null
+
+          wrong_body="{\"action\":\"list\",\"hotelSlug\":\"$HOTEL\",\"stayId\":\"$STAY_ID\",\"stayDeviceId\":\"11111111-1111-4111-8111-111111111111\",\"deviceToken\":\"$DEVICE_TOKEN\",\"language\":\"de\"}"
+          code=$(curl -sS -c guest.cookies -b guest.cookies -o /tmp/guest-wrong.json -w '%{http_code}' \
+            -X POST "$ORIGIN/api/guest/request-conversations" -H 'Content-Type: application/json' --data "$wrong_body")
+          case "$code" in 200|201|204) echo "wrong device unexpectedly authorized"; cat /tmp/guest-wrong.json; exit 1;; esac
+          echo "guest_exact_identity=PASS"
+
+      - name: Guest replies and Reception observes waiting_for_staff
+        run: |
+          set -euo pipefail
+          reply_body="{\"action\":\"reply\",\"hotelSlug\":\"$HOTEL\",\"stayId\":\"$STAY_ID\",\"stayDeviceId\":\"$DEVICE_ID\",\"deviceToken\":\"$DEVICE_TOKEN\",\"requestId\":\"$REQUEST_ID\",\"language\":\"de\",\"message\":\"Bitte um 15 Uhr.\"}"
+          code=$(curl -sS -c guest.cookies -b guest.cookies -o /tmp/guest-reply.json -w '%{http_code}' \
+            -X POST "$ORIGIN/api/guest/request-conversations" -H 'Content-Type: application/json' --data "$reply_body")
+          cat /tmp/guest-reply.json | jq '{ok,conversationState}'
+          test "$code" = "201"
+          jq -e '.ok == true and .conversationState == "waiting_for_staff"' /tmp/guest-reply.json >/dev/null
+
+          code=$(curl -sS -c reception.cookies -b reception.cookies -o /tmp/reception-after.json -w '%{http_code}' \
+            "$ORIGIN/api/staff/request-conversations?hotelSlug=$HOTEL&role=reception&requestId=$REQUEST_ID&language=en")
+          test "$code" = "200"
+          jq -e '.ok == true and (.messages|length) == 2 and .messages[1].senderType == "guest" and .request.conversationState == "waiting_for_staff"' /tmp/reception-after.json >/dev/null
+
+          code=$(curl -sS -c reception.cookies -b reception.cookies -o /tmp/staff-feed.json -w '%{http_code}' \
+            "$ORIGIN/api/staff/requests?hotelSlug=$HOTEL&role=reception")
+          test "$code" = "200"
+          jq -e --arg rid "$REQUEST_ID" '.ok == true and (.requests[] | select(.id == $rid) | .conversationState) == "waiting_for_staff"' /tmp/staff-feed.json >/dev/null
+          echo "bidirectional_thread=PASS"
+
+      - name: Close operational request and prove conversation rejects further replies
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -c reception.cookies -b reception.cookies -o /tmp/close.json -w '%{http_code}' \
+            -X POST "$ORIGIN/api/staff/request-status" \
+            -H "Origin: $ORIGIN" -H 'Content-Type: application/json' \
+            --data "{\"id\":\"$REQUEST_ID\",\"requestId\":\"$REQUEST_ID\",\"status\":\"completed\",\"hotelSlug\":\"$HOTEL\",\"role\":\"reception\"}")
+          test "$code" = "200"
+
+          reply_body="{\"action\":\"reply\",\"hotelSlug\":\"$HOTEL\",\"stayId\":\"$STAY_ID\",\"stayDeviceId\":\"$DEVICE_ID\",\"deviceToken\":\"$DEVICE_TOKEN\",\"requestId\":\"$REQUEST_ID\",\"language\":\"de\",\"message\":\"This must be rejected after close.\"}"
+          code=$(curl -sS -c guest.cookies -b guest.cookies -o /tmp/closed-reply.json -w '%{http_code}' \
+            -X POST "$ORIGIN/api/guest/request-conversations" -H 'Content-Type: application/json' --data "$reply_body")
+          test "$code" = "409"
+          jq -e '.error == "request_closed"' /tmp/closed-reply.json >/dev/null
+          echo "closed_request_reply=409"
+
+      - name: Print acceptance summary
+        if: always()
+        run: |
+          echo "REQUEST_CONVERSATION_PREVIEW_ACCEPTANCE_COMPLETE"
+          for f in /tmp/reception-before.json /tmp/manager-before.json /tmp/housekeeping-before.json /tmp/staff-send.json /tmp/guest-list.json /tmp/guest-reply.json /tmp/reception-after.json /tmp/staff-feed.json /tmp/closed-reply.json; do
+            if [ -f "$f" ]; then echo "--- $f"; jq -c 'if type=="object" then {ok,error,canReply,conversationState,request,messages:(.messages|if type=="array" then map({senderType,language,translationStatus}) else null end),push,requests:(.requests|if type=="array" then map({id,status,conversationState,lastConversationSenderType}) else null end)} else . end' "$f"; fi
+          done
