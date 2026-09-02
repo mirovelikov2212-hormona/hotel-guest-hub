@@ -39,141 +39,69 @@ type MaterializedTenantRuntime = {
   config?: Record<string, unknown> | null;
   relationalAuthority?: Record<string, unknown> | null;
   testRoomNumbers?: unknown[] | null;
+  factorySandboxAcceptanceCertified?: boolean | null;
 };
 
 const hotelSheetSourcesCache = getCache({ namespace: "hotel-sheet-sources-v1" });
-const publishedConfigCache = getCache({ namespace: "published-hotel-config-v1" });
-const normalizedRuntimeCache = getCache({ namespace: "normalized-config-runtime-v1" });
 const HOTEL_SHEET_SOURCES_TTL_SECONDS = 300;
-const SHARED_RUNTIME_TTL_SECONDS = 300;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
-
-function markFactoryManagedGuestRuntime(config: Record<string, unknown>) {
-  if (!isObject(config.factoryBlueprint) || !isObject(config.factoryOnboardingEnvelope)) return;
-
-  const coreResources = isObject(config.factoryCoreResources) ? config.factoryCoreResources : null;
-  const departments = coreResources && Array.isArray(coreResources.departments)
-    ? coreResources.departments
-    : [];
-  const departmentNameByCode = new Map<string, string>();
-
-  for (const candidate of departments) {
-    if (!isObject(candidate)) continue;
-    const code = String(candidate.code || "").trim().toLowerCase();
-    const name = String(candidate.name || "").trim();
-    if (code && name) departmentNameByCode.set(code, name);
-  }
-
-  if (!Array.isArray(config.requestDefs)) return;
-  config.requestDefs = config.requestDefs.map((candidate) => {
-    if (!isObject(candidate)) return candidate;
-    const departmentCode = String(candidate.targetDepartment || "").trim().toLowerCase();
-    return {
-      ...candidate,
-      factoryManagedGuestRuntime: true,
-      factoryDepartmentName: departmentNameByCode.get(departmentCode) || undefined,
-    };
-  });
-}
-
-function getAuthorityMap(authority: Record<string, unknown>, key: string) {
-  const value = authority[key];
-  return isObject(value) ? value as Record<string, string> : null;
 }
 
 async function primeSharedRuntimeCaches(runtime: MaterializedTenantRuntime) {
   const hotelId = String(runtime.hotelId || "").trim();
   const revisionId = String(runtime.publishedRevisionId || "").trim();
   const sourceChecksum = String(runtime.sourceChecksum || "").trim().toLowerCase();
-  if (!hotelId || !revisionId || !/^[a-f0-9]{64}$/.test(sourceChecksum) || !isObject(runtime.config)) return;
+  if (
+    !hotelId ||
+    !revisionId ||
+    !/^[a-f0-9]{64}$/.test(sourceChecksum) ||
+    !isObject(runtime.config)
+  ) {
+    return;
+  }
 
-  const config = structuredClone(runtime.config);
-  markFactoryManagedGuestRuntime(config);
-  const authority = isObject(runtime.relationalAuthority) ? runtime.relationalAuthority : {};
-  const roomIdByNumber = getAuthorityMap(authority, "roomIdByNumber");
-  const departmentIdByCode = getAuthorityMap(authority, "departmentIdByCode");
-  const routingDepartmentIdByRequestType = getAuthorityMap(authority, "routingDepartmentIdByRequestType");
-  const tag = `hotel-config:${hotelId}`;
+  try {
+    const [publishedRuntime, normalizedRuntime] = await Promise.all([
+      import("@/lib/server/published-hotel-config"),
+      import("@/lib/server/normalized-config-runtime"),
+    ]);
 
-  const writes: Promise<unknown>[] = [
-    publishedConfigCache.set(
-      `hotel:${hotelId}`,
-      {
+    const results = await Promise.allSettled([
+      publishedRuntime.primePublishedHotelConfigRuntimeCache({
+        hotelId,
         revisionId,
         sourceChecksum,
-        config,
-        relationalAuthority:
-          roomIdByNumber && departmentIdByCode && routingDepartmentIdByRequestType
-            ? {
-                revisionId,
-                sourceChecksum,
-                roomIdByNumber,
-                departmentIdByCode,
-                routingDepartmentIdByRequestType,
-              }
-            : null,
-      },
-      {
-        ttl: SHARED_RUNTIME_TTL_SECONDS,
-        tags: ["published-hotel-config", tag],
-        name: "published-hotel-config",
-      },
-    ),
-  ];
+        config: runtime.config,
+        relationalAuthority: isObject(runtime.relationalAuthority)
+          ? runtime.relationalAuthority
+          : null,
+        factorySandboxAcceptanceCertified:
+          runtime.factorySandboxAcceptanceCertified === true,
+      }),
+      normalizedRuntime.primeNormalizedRuntimeCachesFromMaterialized({
+        hotelId,
+        revisionId,
+        sourceChecksum,
+        config: runtime.config,
+        relationalAuthority: isObject(runtime.relationalAuthority)
+          ? runtime.relationalAuthority
+          : null,
+      }),
+    ]);
 
-  if (roomIdByNumber) {
-    writes.push(
-      normalizedRuntimeCache.set(
-        `rooms:${hotelId}:${revisionId}:${sourceChecksum}`,
-        {
-          ok: true,
-          source: "normalized",
-          reason: null,
-          config,
-          relationalAuthority: { revisionId, sourceChecksum, roomIdByNumber },
-        },
-        {
-          ttl: SHARED_RUNTIME_TTL_SECONDS,
-          tags: ["normalized-config-runtime", tag],
-          name: "normalized-config-runtime",
-        },
-      ),
-    );
-  }
-
-  if (departmentIdByCode && routingDepartmentIdByRequestType) {
-    writes.push(
-      normalizedRuntimeCache.set(
-        `departments:${hotelId}:${revisionId}:${sourceChecksum}`,
-        {
-          ok: true,
-          source: "normalized",
-          reason: null,
-          config,
-          relationalAuthority: {
-            revisionId,
-            sourceChecksum,
-            departmentIdByCode,
-            routingDepartmentIdByRequestType,
-          },
-        },
-        {
-          ttl: SHARED_RUNTIME_TTL_SECONDS,
-          tags: ["normalized-config-runtime", tag],
-          name: "normalized-config-runtime",
-        },
-      ),
-    );
-  }
-
-  const settled = await Promise.allSettled(writes);
-  if (settled.some((result) => result.status === "rejected")) {
-    console.warn("Shared materialized tenant runtime cache priming was partially unavailable", {
+    if (results.some((result) => result.status === "rejected")) {
+      console.warn("Shared materialized tenant runtime cache priming was partially unavailable", {
+        hotelId,
+        revisionId,
+      });
+    }
+  } catch (error) {
+    console.warn("Shared materialized tenant runtime cache priming was unavailable", {
       hotelId,
       revisionId,
+      error,
     });
   }
 }
@@ -188,7 +116,9 @@ async function readMaterializedSandboxRuntime(candidate: string) {
     const message = String(error.message || "").toLowerCase();
     const missingMaterializer =
       message.includes("get_factory_tenant_runtime_v1") &&
-      (message.includes("does not exist") || message.includes("schema cache") || message.includes("could not find"));
+      (message.includes("does not exist") ||
+        message.includes("schema cache") ||
+        message.includes("could not find"));
     if (!missingMaterializer) {
       console.warn("Shared materialized tenant runtime lookup failed; using legacy directory path", {
         candidate,
@@ -209,6 +139,13 @@ async function resolveMaterializedSandboxRuntime(candidates: string[]) {
   if (!runtime) return null;
 
   if (runtime.status === "projection_stale") {
+    // Only the certification marker may opt a Sandbox revision into Factory
+    // automatic reconciliation. Slug patterns and generic Sandbox status are not
+    // authority and must never force a legacy/manual Sandbox into Factory flow.
+    if (runtime.factorySandboxAcceptanceCertified !== true) {
+      return null;
+    }
+
     const hotelSlug = String(runtime.hotelSlug || candidate).trim().toLowerCase();
     const { projectPublishedHotelConfig } = await import("@/lib/server/config-projection");
     const reconciled = await projectPublishedHotelConfig({
@@ -243,6 +180,28 @@ async function resolveMaterializedSandboxRuntime(candidates: string[]) {
   return runtime;
 }
 
+function directoryFromMaterialized(
+  materialized: MaterializedTenantRuntime,
+): HotelSheetSources {
+  return {
+    hotelId: String(materialized.hotelId),
+    hotelSlug: String(materialized.hotelSlug),
+    publicSlug: materialized.publicSlug ?? null,
+    isSandbox: true,
+    productionHotelId: materialized.productionHotelId ?? null,
+    hotelName:
+      materialized.hotelName ?? String(materialized.config?.hotelName || ""),
+    hotelTimezone:
+      materialized.hotelTimezone ??
+      String(materialized.config?.hotelTimezone || ""),
+    configUrl: materialized.configUrl ?? null,
+    venuesUrl: materialized.venuesUrl ?? null,
+    i18nUrl: materialized.i18nUrl ?? null,
+    hotelSetupUrl: materialized.hotelSetupUrl ?? null,
+    requestDefsUrl: materialized.requestDefsUrl ?? null,
+  };
+}
+
 async function cacheHotelSheetSources(cacheKey: string, result: HotelSheetSources) {
   try {
     await hotelSheetSourcesCache.set(cacheKey, result, {
@@ -273,31 +232,25 @@ export async function getHotelSheetSources(inputSlug?: string): Promise<HotelShe
 
   const slugFilter = buildHotelSlugOrFilter(candidates);
   const cacheKey = `slug:${candidates.join("|")}`;
+  let cachedDirectory: HotelSheetSources | null = null;
   try {
     const cached = await hotelSheetSourcesCache.get(cacheKey) as HotelSheetSources | null;
-    if (cached?.hotelId && cached.hotelSlug) return cached;
+    if (cached?.hotelId && cached.hotelSlug) {
+      if (cached.isSandbox !== true) return cached;
+      cachedDirectory = cached;
+    }
   } catch (error) {
     console.warn("Hotel directory cache read failed; using authoritative database path", { candidates, error });
   }
 
+  // Sandbox directory identity is cacheable, but runtime health is not implied by
+  // that cache entry. Always ask the authoritative materialized-runtime contract
+  // before returning a cached Sandbox directory so a stale derived projection can
+  // reconcile before strict relational authority is attached.
   try {
     const materialized = await resolveMaterializedSandboxRuntime(candidates);
     if (materialized) {
-      const result: HotelSheetSources = {
-        hotelId: String(materialized.hotelId),
-        hotelSlug: String(materialized.hotelSlug),
-        publicSlug: materialized.publicSlug ?? null,
-        isSandbox: true,
-        productionHotelId: materialized.productionHotelId ?? null,
-        hotelName: materialized.hotelName ?? String(materialized.config?.hotelName || ""),
-        hotelTimezone: materialized.hotelTimezone ?? String(materialized.config?.hotelTimezone || ""),
-        configUrl: materialized.configUrl ?? null,
-        venuesUrl: materialized.venuesUrl ?? null,
-        i18nUrl: materialized.i18nUrl ?? null,
-        hotelSetupUrl: materialized.hotelSetupUrl ?? null,
-        requestDefsUrl: materialized.requestDefsUrl ?? null,
-      };
-
+      const result = directoryFromMaterialized(materialized);
       await Promise.all([
         cacheHotelSheetSources(cacheKey, result),
         primeSharedRuntimeCaches(materialized),
@@ -310,6 +263,8 @@ export async function getHotelSheetSources(inputSlug?: string): Promise<HotelShe
       error,
     });
   }
+
+  if (cachedDirectory) return cachedDirectory;
 
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
