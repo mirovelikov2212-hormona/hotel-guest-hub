@@ -21,6 +21,7 @@ export type GuestRequestAuthorityRequestDef = {
   price?: string;
   currency?: string;
   canonicalRef?: string;
+  staffLabel?: Partial<Record<"bg" | "en" | "de", string>>;
 };
 
 export type GuestRequestAuthorityResult =
@@ -34,6 +35,11 @@ export type GuestRequestAuthorityResult =
       price: string | null;
       currency: string | null;
       sourceRequestDef: string | null;
+      staffLabels?: {
+        bg: string | null;
+        en: string | null;
+        de: string | null;
+      };
       quantity: number | null;
     }
   | {
