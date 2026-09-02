@@ -1,7 +1,7 @@
 import "server-only";
 
 import { buildHotelConfigProjection } from "@/lib/server/config-projection-model.mjs";
-import { getPublishedHotelConfigSnapshot } from "@/lib/server/published-hotel-config";
+import { getPublishedHotelConfigProjectionSource } from "@/lib/server/published-hotel-config";
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
@@ -58,7 +58,7 @@ export async function projectPublishedHotelConfig(
     };
   }
 
-  const published = await getPublishedHotelConfigSnapshot(hotel.id);
+  const published = await getPublishedHotelConfigProjectionSource(hotel.id);
   if (!published) {
     return {
       ok: false,
