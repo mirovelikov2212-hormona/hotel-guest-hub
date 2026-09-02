@@ -58,9 +58,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { stayResult, access } = await resolveGuestIdentity(body);
-    const language = asGuestCommunicationLanguage(body?.language)
-      || asGuestCommunicationLanguage(stayResult.stay.language)
-      || "en";
+    const language = asGuestCommunicationLanguage(body?.language) || "en";
 
     if (action === "reply") {
       if (!access.canWrite) {
