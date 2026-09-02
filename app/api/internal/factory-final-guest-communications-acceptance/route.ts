@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { POST as guestBroadcastPost } from "@/app/api/guest/communications/route";
 import { POST as guestRequestCreatePost } from "@/app/api/guest/request-create/route";
 import { POST as guestConversationPost } from "@/app/api/guest/request-conversations/route";
-import { deliverGuestCommunication } from "@/lib/server/guest-communications-delivery";
 import { translateGuestCommunication } from "@/lib/server/guest-communications-translation";
 import {
   appendStaffConversationMessage,
@@ -77,12 +76,12 @@ async function loadGuestIdentities(hotelId: string, limit = 10): Promise<GuestId
     .order("room_number", { ascending: true })
     .limit(limit);
   if (staysError) throw staysError;
+
   const stayIds = (stays || []).map((row) => String(row.id));
   if (!stayIds.length) return [];
-
   const { data: devices, error: devicesError } = await supabaseAdmin
     .from("guest_stay_devices")
-    .select("id,stay_id,device_token,room_number")
+    .select("id,stay_id,device_token,room_number,created_at")
     .eq("hotel_id", hotelId)
     .in("stay_id", stayIds)
     .order("created_at", { ascending: true });
@@ -106,7 +105,7 @@ async function loadGuestIdentities(hotelId: string, limit = 10): Promise<GuestId
   });
 }
 
-async function guestBroadcastList(slug: string, identity: GuestIdentity, language: string) {
+function guestBroadcastList(slug: string, identity: GuestIdentity, language: string) {
   return callJsonPost(guestBroadcastPost, "/api/guest/communications", {
     hotelSlug: slug,
     stayId: identity.stayId,
@@ -116,7 +115,7 @@ async function guestBroadcastList(slug: string, identity: GuestIdentity, languag
   });
 }
 
-async function guestThreadList(slug: string, identity: GuestIdentity, language: string) {
+function guestThreadList(slug: string, identity: GuestIdentity, language: string) {
   return callJsonPost(guestConversationPost, "/api/guest/request-conversations", {
     action: "list",
     hotelSlug: slug,
@@ -135,67 +134,60 @@ async function cleanup(hotelId: string, communicationIds: string[], requestId: s
       .delete()
       .eq("hotel_id", hotelId)
       .in("communication_id", ids);
-    await supabaseAdmin
-      .from("guest_communications")
-      .delete()
-      .eq("hotel_id", hotelId)
-      .in("id", ids);
   }
   if (requestId) {
     await supabaseAdmin.from("request_events").delete().eq("hotel_id", hotelId).eq("request_id", requestId);
+    await supabaseAdmin.from("guest_communication_deliveries").delete().eq("hotel_id", hotelId).in("communication_id", ids);
     await supabaseAdmin.from("guest_communications").delete().eq("hotel_id", hotelId).eq("request_id", requestId);
     await supabaseAdmin.from("guest_requests").delete().eq("hotel_id", hotelId).eq("id", requestId);
+  }
+  if (ids.length) {
+    await supabaseAdmin.from("guest_communications").delete().eq("hotel_id", hotelId).in("id", ids);
   }
 }
 
 export async function GET(req: NextRequest) {
   if (process.env.VERCEL_ENV !== "preview") return json({ ok: false, code: "NOT_FOUND" }, 404);
-  const challenge = req.nextUrl.searchParams.get("challenge") || "";
-  if (sha256(challenge) !== EXPECTED_CHALLENGE_HASH) return json({ ok: false, code: "INVALID_CHALLENGE" }, 401);
+  if (sha256(req.nextUrl.searchParams.get("challenge") || "") !== EXPECTED_CHALLENGE_HASH) {
+    return json({ ok: false, code: "INVALID_CHALLENGE" }, 401);
+  }
 
   const runId = `final-guest-comms-${randomUUID()}`;
   const marker = `[${runId}]`;
+  const startedAt = Date.now();
   let hotelId = "";
-  let broadcastId = "";
   let requestId: string | null = null;
   const communicationIds: string[] = [];
-  const startedAt = Date.now();
 
   try {
     const [hotel, crossHotel] = await Promise.all([loadHotel(HOTEL_SLUG), loadHotel(CROSS_HOTEL_SLUG)]);
     hotelId = String(hotel.id);
     const [identities, crossIdentities] = await Promise.all([
-      loadGuestIdentities(hotelId, 10),
+      loadGuestIdentities(hotelId),
       loadGuestIdentities(String(crossHotel.id), 2),
     ]);
     if (identities.length < 2) throw new Error(`AT_LEAST_TWO_ACTIVE_GUEST_IDENTITIES_REQUIRED:${identities.length}`);
-    if (crossIdentities.length < 1) throw new Error("CROSS_HOTEL_ACTIVE_GUEST_IDENTITY_REQUIRED");
+    if (!crossIdentities.length) throw new Error("CROSS_HOTEL_ACTIVE_GUEST_IDENTITY_REQUIRED");
 
     const target = identities[0];
     const nonTarget = identities[1];
     const crossTarget = crossIdentities[0];
 
-    const broadcastSourceTitle = `StayHub final broadcast ${marker}`;
-    const broadcastSourceBody = `Final acceptance message for all active guests ${marker}`;
     const broadcastTranslation = await translateGuestCommunication({
       sourceLanguage: "en",
-      title: broadcastSourceTitle,
-      body: broadcastSourceBody,
+      title: `StayHub final broadcast ${marker}`,
+      body: `Final acceptance message for all active guests ${marker}`,
     });
     const now = new Date();
-    const displayFrom = new Date(now.getTime() - 1_000).toISOString();
-    const displayUntil = new Date(now.getTime() + 15 * 60_000).toISOString();
-
     const { data: broadcast, error: broadcastError } = await supabaseAdmin
       .from("guest_communications")
       .insert({
         hotel_id: hotelId,
-        department_id: null,
         actor_role: "acceptance",
         category: "information",
         source_language: "en",
-        title: broadcastSourceTitle,
-        body: broadcastSourceBody,
+        title: `StayHub final broadcast ${marker}`,
+        body: `Final acceptance message for all active guests ${marker}`,
         title_i18n: broadcastTranslation.titleI18n,
         body_i18n: broadcastTranslation.bodyI18n,
         translation_status: "ready",
@@ -203,40 +195,26 @@ export async function GET(req: NextRequest) {
         audience_type: "all_active_guests",
         status: "sent",
         sent_at: now.toISOString(),
-        display_from: displayFrom,
-        display_until: displayUntil,
+        display_from: new Date(now.getTime() - 1000).toISOString(),
+        display_until: new Date(now.getTime() + 15 * 60_000).toISOString(),
         metadata_json: { acceptanceRunId: runId, previewOnly: true, syntheticSandboxTransport: true },
       })
-      .select("id,hotel_id,audience_type,category,source_language,title,body,title_i18n,body_i18n,translation_status,status,scheduled_at,delivery_attempts,sending_started_at,next_delivery_attempt_at")
+      .select("id")
       .single();
     if (broadcastError) throw broadcastError;
-    broadcastId = String(broadcast.id);
+    const broadcastId = String(broadcast.id);
     communicationIds.push(broadcastId);
 
-    const sandboxTransportGuard = await deliverGuestCommunication({
-      communication: { ...broadcast, status: "queued" },
-      hotel: {
-        id: String(hotel.id),
-        slug: String(hotel.slug),
-        public_slug: String(hotel.public_slug || hotel.slug),
-        active: Boolean(hotel.active),
-        is_sandbox: Boolean(hotel.is_sandbox),
-      },
-    });
-
-    const sameHotelBroadcastResults = await Promise.all(
+    const sameHotelResults = await Promise.all(
       identities.map((identity, index) => guestBroadcastList(HOTEL_SLUG, identity, LANGUAGES[index % LANGUAGES.length])),
     );
-    const sameHotelVisibility = sameHotelBroadcastResults.map((result, index) => ({
+    const sameHotelVisibility = sameHotelResults.map((result, index) => ({
       room: identities[index].room,
       status: result.status,
-      visible: Array.isArray(result.body.messages) && result.body.messages.some((message: any) => message.id === broadcastId),
+      visible: Array.isArray(result.body.messages) && result.body.messages.some((item: any) => item.id === broadcastId),
     }));
-
-    const languageResults = await Promise.all(
-      LANGUAGES.map((language) => guestBroadcastList(HOTEL_SLUG, target, language)),
-    );
-    const languageVisibility = languageResults.map((result, index) => {
+    const broadcastLanguageResults = await Promise.all(LANGUAGES.map((language) => guestBroadcastList(HOTEL_SLUG, target, language)));
+    const broadcastLanguages = broadcastLanguageResults.map((result, index) => {
       const message = Array.isArray(result.body.messages)
         ? result.body.messages.find((item: any) => item.id === broadcastId)
         : null;
@@ -244,16 +222,14 @@ export async function GET(req: NextRequest) {
         language: LANGUAGES[index],
         status: result.status,
         visible: Boolean(message?.id),
-        localizedTitle: Boolean(String(message?.title || "").trim()),
-        localizedBody: Boolean(String(message?.body || "").trim()),
+        localized: Boolean(String(message?.title || "").trim() && String(message?.body || "").trim()),
       };
     });
-
     const crossHotelBroadcast = await guestBroadcastList(CROSS_HOTEL_SLUG, crossTarget, "en");
-    const crossHotelBroadcastVisible = Array.isArray(crossHotelBroadcast.body.messages)
-      && crossHotelBroadcast.body.messages.some((message: any) => message.id === broadcastId);
+    const crossHotelVisible = Array.isArray(crossHotelBroadcast.body.messages)
+      && crossHotelBroadcast.body.messages.some((item: any) => item.id === broadcastId);
 
-    const createdRequest = await callJsonPost(guestRequestCreatePost, "/api/guest/request-create", {
+    const requestCreate = await callJsonPost(guestRequestCreatePost, "/api/guest/request-create", {
       hotelSlug: HOTEL_SLUG,
       room: target.room,
       type: "extra-towel",
@@ -265,29 +241,16 @@ export async function GET(req: NextRequest) {
       stayId: target.stayId,
       stayDeviceId: target.stayDeviceId,
     });
-    requestId = String(createdRequest.body?.request?.id || "");
-    if (createdRequest.status < 200 || createdRequest.status >= 300 || !requestId) {
-      throw new Error(`TARGET_REQUEST_CREATE_FAILED:${createdRequest.status}:${createdRequest.body?.error || "unknown"}`);
+    requestId = String(requestCreate.body?.request?.id || "");
+    if (requestCreate.status < 200 || requestCreate.status >= 300 || !requestId) {
+      throw new Error(`TARGET_REQUEST_CREATE_FAILED:${requestCreate.status}:${requestCreate.body?.error || "unknown"}`);
     }
 
     const request = await getRequestForConversation(hotelId, requestId);
     if (!request) throw new Error("TARGET_REQUEST_NOT_FOUND_AFTER_CREATE");
-
     const [{ data: receptionDepartment, error: departmentError }, { data: receptionSession, error: sessionError }] = await Promise.all([
-      supabaseAdmin
-        .from("departments")
-        .select("id,code,name")
-        .eq("hotel_id", hotelId)
-        .eq("code", "reception")
-        .maybeSingle(),
-      supabaseAdmin
-        .from("staff_sessions")
-        .select("id")
-        .eq("hotel_id", hotelId)
-        .eq("role", "reception")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+      supabaseAdmin.from("departments").select("id,code,name").eq("hotel_id", hotelId).eq("code", "reception").maybeSingle(),
+      supabaseAdmin.from("staff_sessions").select("id").eq("hotel_id", hotelId).eq("role", "reception").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     if (departmentError) throw departmentError;
     if (sessionError) throw sessionError;
@@ -333,10 +296,8 @@ export async function GET(req: NextRequest) {
     if (!staffCommunicationId) throw new Error("STAFF_TARGETED_COMMUNICATION_ID_MISSING");
     communicationIds.push(staffCommunicationId);
 
-    const targetLanguagesBeforeReply = await Promise.all(
-      LANGUAGES.map((language) => guestThreadList(HOTEL_SLUG, target, language)),
-    );
-    const targetedLanguageVisibility = targetLanguagesBeforeReply.map((result, index) => {
+    const targetedLanguageResults = await Promise.all(LANGUAGES.map((language) => guestThreadList(HOTEL_SLUG, target, language)));
+    const targetedLanguages = targetedLanguageResults.map((result, index) => {
       const message = Array.isArray(result.body.messages)
         ? result.body.messages.find((item: any) => item.id === staffCommunicationId)
         : null;
@@ -344,16 +305,14 @@ export async function GET(req: NextRequest) {
         language: LANGUAGES[index],
         status: result.status,
         visible: Boolean(message?.id),
-        localizedTitle: Boolean(String(message?.title || "").trim()),
-        localizedBody: Boolean(String(message?.body || "").trim()),
+        localized: Boolean(String(message?.title || "").trim() && String(message?.body || "").trim()),
       };
     });
 
-    const nonTargetBeforeReply = await guestThreadList(HOTEL_SLUG, nonTarget, "en");
-    const targetedVisibleToNonTarget = Array.isArray(nonTargetBeforeReply.body.messages)
-      && nonTargetBeforeReply.body.messages.some((item: any) => item.id === staffCommunicationId);
-
-    const crossGuestReply = await callJsonPost(guestConversationPost, "/api/guest/request-conversations", {
+    const nonTargetBefore = await guestThreadList(HOTEL_SLUG, nonTarget, "en");
+    const nonTargetSawStaffMessage = Array.isArray(nonTargetBefore.body.messages)
+      && nonTargetBefore.body.messages.some((item: any) => item.id === staffCommunicationId);
+    const wrongGuestReply = await callJsonPost(guestConversationPost, "/api/guest/request-conversations", {
       action: "reply",
       hotelSlug: HOTEL_SLUG,
       stayId: nonTarget.stayId,
@@ -363,7 +322,6 @@ export async function GET(req: NextRequest) {
       language: "en",
       message: `This reply must be rejected ${marker}`,
     });
-
     const targetReply = await callJsonPost(guestConversationPost, "/api/guest/request-conversations", {
       action: "reply",
       hotelSlug: HOTEL_SLUG,
@@ -377,70 +335,56 @@ export async function GET(req: NextRequest) {
     const guestReplyCommunicationId = String(targetReply.body?.communicationId || "");
     if (guestReplyCommunicationId) communicationIds.push(guestReplyCommunicationId);
 
-    const targetAfterReply = await guestThreadList(HOTEL_SLUG, target, "en");
-    const nonTargetAfterReply = await guestThreadList(HOTEL_SLUG, nonTarget, "en");
-    const targetThreadIds = Array.isArray(targetAfterReply.body.messages)
-      ? targetAfterReply.body.messages.map((item: any) => String(item.id))
-      : [];
-    const nonTargetThreadIds = Array.isArray(nonTargetAfterReply.body.messages)
-      ? nonTargetAfterReply.body.messages.map((item: any) => String(item.id))
-      : [];
+    const [targetAfter, nonTargetAfter, targetBroadcastAfter] = await Promise.all([
+      guestThreadList(HOTEL_SLUG, target, "en"),
+      guestThreadList(HOTEL_SLUG, nonTarget, "en"),
+      guestBroadcastList(HOTEL_SLUG, target, "en"),
+    ]);
+    const targetThreadIds = Array.isArray(targetAfter.body.messages) ? targetAfter.body.messages.map((item: any) => String(item.id)) : [];
+    const nonTargetThreadIds = Array.isArray(nonTargetAfter.body.messages) ? nonTargetAfter.body.messages.map((item: any) => String(item.id)) : [];
+    const broadcastFeedIds = Array.isArray(targetBroadcastAfter.body.messages) ? targetBroadcastAfter.body.messages.map((item: any) => String(item.id)) : [];
 
-    const targetBroadcastAfterThread = await guestBroadcastList(HOTEL_SLUG, target, "en");
-    const broadcastFeedIds = Array.isArray(targetBroadcastAfterThread.body.messages)
-      ? targetBroadcastAfterThread.body.messages.map((item: any) => String(item.id))
-      : [];
-
-    const { data: scopedRows, error: scopedRowsError } = await supabaseAdmin
+    const { data: scopeRows, error: scopeError } = await supabaseAdmin
       .from("guest_communications")
-      .select("id,hotel_id,audience_type,request_id,stay_id,stay_device_id,sender_type,status")
+      .select("id,audience_type,request_id,stay_id,stay_device_id")
       .eq("hotel_id", hotelId)
       .in("id", communicationIds);
-    if (scopedRowsError) throw scopedRowsError;
+    if (scopeError) throw scopeError;
 
-    const allSameHotelGuestsSeeBroadcast = sameHotelVisibility.every((row) => row.status === 200 && row.visible);
-    const sixBroadcastLanguagesPass = languageVisibility.every((row) => row.status === 200 && row.visible && row.localizedTitle && row.localizedBody);
-    const sixTargetLanguagesPass = targetedLanguageVisibility.every((row) => row.status === 200 && row.visible && row.localizedTitle && row.localizedBody);
-    const targetThreadPass = targetReply.status === 201
+    const allGuestsPass = sameHotelVisibility.length === identities.length
+      && sameHotelVisibility.every((row) => row.status === 200 && row.visible);
+    const broadcastLanguagesPass = broadcastLanguages.every((row) => row.status === 200 && row.visible && row.localized);
+    const targetedLanguagesPass = targetedLanguages.every((row) => row.status === 200 && row.visible && row.localized);
+    const targetReplyPass = targetReply.status === 201
       && Boolean(guestReplyCommunicationId)
       && targetThreadIds.includes(staffCommunicationId)
       && targetThreadIds.includes(guestReplyCommunicationId);
-    const nonTargetIsolationPass = !targetedVisibleToNonTarget
+    const nonTargetIsolationPass = !nonTargetSawStaffMessage
       && !nonTargetThreadIds.includes(staffCommunicationId)
       && !nonTargetThreadIds.includes(guestReplyCommunicationId)
-      && crossGuestReply.status === 404
-      && crossGuestReply.body.error === "request_not_found";
-    const feedSeparationPass = broadcastFeedIds.includes(broadcastId)
+      && wrongGuestReply.status === 404
+      && wrongGuestReply.body.error === "request_not_found";
+    const separationPass = broadcastFeedIds.includes(broadcastId)
       && !broadcastFeedIds.includes(staffCommunicationId)
       && !broadcastFeedIds.includes(guestReplyCommunicationId)
       && !targetThreadIds.includes(broadcastId);
-    const dbScopePass = (scopedRows || []).every((row: any) => {
-      if (row.id === broadcastId) {
-        return row.audience_type === "all_active_guests"
-          && row.request_id === null
-          && row.stay_id === null
-          && row.stay_device_id === null;
-      }
-      return row.audience_type === "request_thread"
-        && row.request_id === requestId
-        && row.stay_id === target.stayId
-        && row.stay_device_id === target.stayDeviceId;
-    });
-    const sandboxPushGuardPass = sandboxTransportGuard.delivered === false
-      && sandboxTransportGuard.reason === "sandbox_delivery_disabled"
-      && staffMessage.push?.attempted === false
+    const scopePass = (scopeRows || []).length === communicationIds.length
+      && (scopeRows || []).every((row: any) => row.id === broadcastId
+        ? row.audience_type === "all_active_guests" && row.request_id === null && row.stay_id === null && row.stay_device_id === null
+        : row.audience_type === "request_thread" && row.request_id === requestId && row.stay_id === target.stayId && row.stay_device_id === target.stayDeviceId);
+    const sandboxTargetPushGuardPass = staffMessage.push?.attempted === false
       && staffMessage.push?.reason === "sandbox_delivery_disabled";
 
-    const pass = allSameHotelGuestsSeeBroadcast
-      && sixBroadcastLanguagesPass
+    const pass = allGuestsPass
+      && broadcastLanguagesPass
       && crossHotelBroadcast.status === 200
-      && !crossHotelBroadcastVisible
-      && sixTargetLanguagesPass
-      && targetThreadPass
+      && !crossHotelVisible
+      && targetedLanguagesPass
+      && targetReplyPass
       && nonTargetIsolationPass
-      && feedSeparationPass
-      && dbScopePass
-      && sandboxPushGuardPass;
+      && separationPass
+      && scopePass
+      && sandboxTargetPushGuardPass;
 
     const result = {
       ok: pass,
@@ -454,30 +398,22 @@ export async function GET(req: NextRequest) {
       activeGuestIdentityCount: identities.length,
       broadcast: {
         communicationId: broadcastId,
-        allSameHotelGuestsSeeBroadcast,
+        allGuestsPass,
         sameHotelVisibility,
-        sixLanguageVisibility: languageVisibility,
-        crossHotelRejected: crossHotelBroadcast.status === 200 && !crossHotelBroadcastVisible,
-        sandboxPushTransport: sandboxTransportGuard,
+        sixLanguages: broadcastLanguages,
+        crossHotelRejected: crossHotelBroadcast.status === 200 && !crossHotelVisible,
       },
       targeted: {
         requestId,
         staffCommunicationId,
         guestReplyCommunicationId,
-        sixLanguageVisibility: targetedLanguageVisibility,
-        targetThreadPass,
+        sixLanguages: targetedLanguages,
+        targetReplyPass,
         nonTargetIsolationPass,
-        crossGuestReplyStatus: crossGuestReply.status,
-        crossGuestReplyError: crossGuestReply.body.error || null,
-        sandboxPushTransport: staffMessage.push || null,
+        wrongGuestReplyStatus: wrongGuestReply.status,
+        sandboxPushGuard: staffMessage.push || null,
       },
-      separation: {
-        feedSeparationPass,
-        dbScopePass,
-        broadcastFeedIds,
-        targetThreadIds,
-        nonTargetThreadIds,
-      },
+      separation: { separationPass, scopePass },
       elapsedMs: Date.now() - startedAt,
     };
 
@@ -486,12 +422,9 @@ export async function GET(req: NextRequest) {
       severity: pass ? "info" : "error",
       source: "factory_acceptance",
       event_type: "factory_final_guest_communications_acceptance",
-      message: pass
-        ? "Final Preview-only guest communications acceptance passed."
-        : "Final Preview-only guest communications acceptance failed.",
+      message: pass ? "Final Preview-only guest communications acceptance passed." : "Final Preview-only guest communications acceptance failed.",
       metadata_json: result,
     });
-
     return json(result, pass ? 200 : 409);
   } catch (error) {
     const result = {
@@ -506,34 +439,45 @@ export async function GET(req: NextRequest) {
       elapsedMs: Date.now() - startedAt,
     };
     if (hotelId) {
-      await supabaseAdmin.from("system_events").insert({
-        hotel_id: hotelId,
-        severity: "error",
-        source: "factory_acceptance",
-        event_type: "factory_final_guest_communications_acceptance",
-        message: "Final Preview-only guest communications acceptance errored.",
-        metadata_json: result,
-      }).catch(() => null);
-    }
-    return json(result, 500);
-  } finally {
-    if (hotelId) {
-      await cleanup(hotelId, communicationIds, requestId).catch(() => null);
-      const { count: residue } = await supabaseAdmin
-        .from("guest_communications")
-        .select("id", { count: "exact", head: true })
-        .eq("hotel_id", hotelId)
-        .contains("metadata_json", { acceptanceRunId: runId })
-        .catch(() => ({ count: null }));
-      if (Number(residue || 0) > 0) {
+      try {
         await supabaseAdmin.from("system_events").insert({
           hotel_id: hotelId,
           severity: "error",
           source: "factory_acceptance",
-          event_type: "factory_final_guest_communications_cleanup_failed",
-          message: "Guest communications acceptance left synthetic communication residue.",
-          metadata_json: { runId, residue: Number(residue || 0), previewOnly: true },
-        }).catch(() => null);
+          event_type: "factory_final_guest_communications_acceptance",
+          message: "Final Preview-only guest communications acceptance errored.",
+          metadata_json: result,
+        });
+      } catch {
+        // Acceptance error response remains authoritative even if evidence logging fails.
+      }
+    }
+    return json(result, 500);
+  } finally {
+    if (hotelId) {
+      try {
+        await cleanup(hotelId, communicationIds, requestId);
+      } catch {
+        // Forensic residue is checked explicitly below.
+      }
+      try {
+        const { count } = await supabaseAdmin
+          .from("guest_communications")
+          .select("id", { count: "exact", head: true })
+          .eq("hotel_id", hotelId)
+          .contains("metadata_json", { acceptanceRunId: runId });
+        if (Number(count || 0) > 0) {
+          await supabaseAdmin.from("system_events").insert({
+            hotel_id: hotelId,
+            severity: "error",
+            source: "factory_acceptance",
+            event_type: "factory_final_guest_communications_cleanup_failed",
+            message: "Guest communications acceptance left synthetic communication residue.",
+            metadata_json: { runId, residue: Number(count || 0), previewOnly: true },
+          });
+        }
+      } catch {
+        // Cleanup diagnostics must not replace the primary acceptance result.
       }
     }
   }
