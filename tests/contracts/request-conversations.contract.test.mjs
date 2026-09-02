@@ -85,6 +85,22 @@ test("guest request conversations require the exact stay and device identity", a
   assertContains(guestRoute, "if (!access.canWrite)");
 });
 
+test("PostgREST RPC errors keep request-closed semantics instead of degrading to generic 503", async () => {
+  const guestRoute = await readProjectFile(
+    "app/api/guest/request-conversations/route.ts",
+  );
+  const staffRoute = await readProjectFile(
+    "app/api/staff/request-conversations/route.ts",
+  );
+
+  for (const route of [guestRoute, staffRoute]) {
+    assertContains(route, 'typeof error === "object" && "message" in error');
+    assertContains(route, 'String((error as { message?: unknown }).message || "")');
+    assertContains(route, 'message.includes("REQUEST_CLOSED")');
+    assertContains(route, 'error: "request_closed" }, 409');
+  }
+});
+
 test("staff-to-guest replies are six-language fail-closed while guest replies are never lost on translation outage", async () => {
   const service = await readProjectFile(
     "lib/server/guest-request-conversations.ts",
