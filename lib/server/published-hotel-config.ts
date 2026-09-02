@@ -33,10 +33,20 @@ type PublishedSnapshot = {
 type PublishedBaseSnapshot = PublishedSnapshot & {
   validationJson: Record<string, unknown>;
   lastKnownGoodRevisionId: string | null;
+  factorySandboxAcceptanceCertified: boolean;
 };
 
 type CachedPublishedSnapshot = PublishedSnapshot & {
   relationalAuthority: ReturnType<typeof getGuestRequestRelationalAuthority>;
+};
+
+type PrimePublishedRuntimeInput = {
+  hotelId: string;
+  revisionId: string;
+  sourceChecksum: string;
+  config: Record<string, unknown>;
+  relationalAuthority?: Record<string, unknown> | null;
+  factorySandboxAcceptanceCertified?: boolean;
 };
 
 // v2 intentionally separates canonicalized runtime entries from the historical
@@ -103,8 +113,16 @@ function getFactoryDepartmentNameByCode(config: HotelConfig) {
   return names;
 }
 
-function markFactoryManagedGuestRuntime(config: HotelConfig) {
-  if (!isFactoryManagedConfigPayload(config)) return;
+function markFactoryManagedGuestRuntime(
+  config: HotelConfig,
+  options: { certifiedFactorySandbox?: boolean } = {},
+) {
+  if (
+    options.certifiedFactorySandbox !== true &&
+    !isFactoryManagedConfigPayload(config)
+  ) {
+    return;
+  }
 
   const departmentNameByCode = getFactoryDepartmentNameByCode(config);
   const definitions = Array.isArray(config.requestDefs) ? config.requestDefs : [];
@@ -150,6 +168,104 @@ function normalizeRuntimeConfig(
     });
   }
   return normalized.config;
+}
+
+function asRelationalAuthority(value: unknown) {
+  if (!isJsonObject(value)) return null;
+  const revisionId = String(value.revisionId || "").trim();
+  const sourceChecksum = String(value.sourceChecksum || "").trim().toLowerCase();
+  const roomIdByNumber = isJsonObject(value.roomIdByNumber)
+    ? value.roomIdByNumber as Record<string, string>
+    : null;
+  const departmentIdByCode = isJsonObject(value.departmentIdByCode)
+    ? value.departmentIdByCode as Record<string, string>
+    : null;
+  const routingDepartmentIdByRequestType = isJsonObject(
+    value.routingDepartmentIdByRequestType,
+  )
+    ? value.routingDepartmentIdByRequestType as Record<string, string>
+    : null;
+
+  if (
+    !revisionId ||
+    !/^[a-f0-9]{64}$/.test(sourceChecksum) ||
+    !roomIdByNumber ||
+    !departmentIdByCode ||
+    !routingDepartmentIdByRequestType
+  ) {
+    return null;
+  }
+
+  return {
+    revisionId,
+    sourceChecksum,
+    roomIdByNumber,
+    departmentIdByCode,
+    routingDepartmentIdByRequestType,
+  };
+}
+
+async function writePublishedRuntimeCache(
+  hotelId: string,
+  snapshot: CachedPublishedSnapshot,
+) {
+  await publishedConfigCache.set(`hotel:${hotelId}`, snapshot, {
+    ttl: PUBLISHED_CONFIG_CACHE_TTL_SECONDS,
+    tags: ["published-hotel-config", `hotel-config:${hotelId}`],
+    name: "published-hotel-config",
+  });
+}
+
+/**
+ * Prime the authoritative published-runtime cache from a DB-materialized tenant
+ * snapshot. The cache owner performs compatibility normalization itself so no
+ * caller can accidentally persist a raw or stale config shape under the v2
+ * namespace.
+ */
+export async function primePublishedHotelConfigRuntimeCache(
+  input: PrimePublishedRuntimeInput,
+) {
+  const hotelId = String(input.hotelId || "").trim();
+  const revisionId = String(input.revisionId || "").trim();
+  const sourceChecksum = String(input.sourceChecksum || "").trim().toLowerCase();
+  if (
+    !hotelId ||
+    !revisionId ||
+    !/^[a-f0-9]{64}$/.test(sourceChecksum) ||
+    !isJsonObject(input.config)
+  ) {
+    return false;
+  }
+
+  const config = structuredClone(input.config) as HotelConfig;
+  markFactoryManagedGuestRuntime(config, {
+    certifiedFactorySandbox: input.factorySandboxAcceptanceCertified === true,
+  });
+  const normalizedConfig = normalizeRuntimeConfig(config, {
+    hotelId,
+    revisionId,
+  });
+  const relationalAuthority = asRelationalAuthority(input.relationalAuthority);
+  if (relationalAuthority) {
+    attachGuestRequestRelationalAuthority(normalizedConfig, relationalAuthority);
+  }
+
+  try {
+    await writePublishedRuntimeCache(hotelId, {
+      revisionId,
+      sourceChecksum,
+      config: normalizedConfig,
+      relationalAuthority,
+    });
+    return true;
+  } catch (error) {
+    console.warn("Materialized published runtime cache prime failed", {
+      hotelId,
+      revisionId,
+      error,
+    });
+    return false;
+  }
 }
 
 /**
@@ -229,10 +345,19 @@ async function loadPublishedHotelConfigBaseSnapshot(
     throw new Error("Published configuration revision checksum is malformed");
   }
 
+  const factorySandboxAcceptanceCertified =
+    isFactorySandboxAcceptance(row.validation_json);
+
   // Keep the immutable database payload as the projection/reconciliation source.
   // Runtime compatibility defaults are applied only in loadPublishedHotelConfigSnapshot.
+  // Certification is metadata, not mutation of the immutable revision; the
+  // in-memory marker tells the canonical projector to preserve exact Factory
+  // service semantics even for older certified revisions that predate embedded
+  // factoryBlueprint/factoryOnboardingEnvelope fields.
   const config = structuredClone(row.config_json as HotelConfig);
-  markFactoryManagedGuestRuntime(config);
+  markFactoryManagedGuestRuntime(config, {
+    certifiedFactorySandbox: factorySandboxAcceptanceCertified,
+  });
 
   return {
     revisionId: row.id,
@@ -240,6 +365,7 @@ async function loadPublishedHotelConfigBaseSnapshot(
     config,
     validationJson: row.validation_json,
     lastKnownGoodRevisionId: state?.last_known_good_revision_id || null,
+    factorySandboxAcceptanceCertified,
   };
 }
 
@@ -265,7 +391,7 @@ async function loadPublishedHotelConfigSnapshot(
       sourceChecksum: base.sourceChecksum,
     });
     attachGuestRequestRelationalAuthority(config, relationalAuthority);
-  } else if (isFactorySandboxAcceptance(base.validationJson)) {
+  } else if (base.factorySandboxAcceptanceCertified) {
     const relationalAuthority = await getFactorySandboxRelationalAuthority({
       hotelId: normalizedHotelId,
       revisionId: base.revisionId,
@@ -343,11 +469,7 @@ export async function getPublishedHotelConfigSnapshot(hotelId: string): Promise<
         relationalAuthority: getGuestRequestRelationalAuthority(snapshot.config),
       };
       try {
-        await publishedConfigCache.set(cacheKey, cached, {
-          ttl: PUBLISHED_CONFIG_CACHE_TTL_SECONDS,
-          tags: ["published-hotel-config", `hotel-config:${normalizedHotelId}`],
-          name: "published-hotel-config",
-        });
+        await writePublishedRuntimeCache(normalizedHotelId, cached);
       } catch (error) {
         console.warn("Published hotel configuration cache write failed; continuing with authoritative result", { hotelId: normalizedHotelId, error });
       }

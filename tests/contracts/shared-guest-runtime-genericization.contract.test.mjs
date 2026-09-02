@@ -235,7 +235,16 @@ test("Factory-managed GuestHub gates legacy request menus and premium fallbacks"
   assertContains(publishedConfig, "getFactorySandboxRelationalAuthority");
   assertContains(publishedConfig, "FACTORY_SANDBOX_ACCEPTANCE_CERTIFIED");
   assertContains(publishedConfig, "factoryManagedGuestRuntime: true");
-  assertContains(publishedConfig, "markFactoryManagedGuestRuntime(config);");
+  assertContains(publishedConfig, "markFactoryManagedGuestRuntime(config, {");
+  assertContains(
+    publishedConfig,
+    "certifiedFactorySandbox: factorySandboxAcceptanceCertified",
+  );
+  assertNotContains(
+    publishedConfig,
+    "factory-heavy-20260901",
+    "Factory-managed Guest authority must come from certification/config, not a test tenant slug.",
+  );
 });
 
 test("GuestHub no longer patches tenant prices or games-room business copy in shared code", async () => {
