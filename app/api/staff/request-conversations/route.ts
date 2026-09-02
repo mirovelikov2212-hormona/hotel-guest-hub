@@ -28,6 +28,10 @@ async function resolveAccess(hotelSlug: string, role: string) {
   return access as GuestRequestConversationAccess | null;
 }
 
+function requestAcceptsConversationReplies(status: string) {
+  return status !== "completed" && status !== "cancelled";
+}
+
 function mapConversationError(error: unknown) {
   const message = error instanceof Error ? error.message : "request_conversation_unavailable";
   if (message.includes("REQUEST_CLOSED")) return json({ ok: false, error: "request_closed" }, 409);
@@ -73,7 +77,8 @@ export async function GET(req: NextRequest) {
         conversationUpdatedAt: request.conversation_updated_at,
         lastSenderType: request.conversation_last_sender_type,
       },
-      canReply: staffCanReplyToRequestConversation(access, request),
+      canReply: requestAcceptsConversationReplies(request.status)
+        && staffCanReplyToRequestConversation(access, request),
       messages,
     });
   } catch (error) {
@@ -99,6 +104,12 @@ export async function POST(req: NextRequest) {
     if (!access) return json({ ok: false, error: "unauthorized" }, 401);
     const request = await getRequestForConversation(access.hotel.id, requestId);
     if (!request) return json({ ok: false, error: "request_not_found" }, 404);
+    if (!staffCanViewRequestConversation(access, request)) {
+      return json({ ok: false, error: "forbidden" }, 403);
+    }
+    if (!requestAcceptsConversationReplies(request.status)) {
+      return json({ ok: false, error: "request_closed" }, 409);
+    }
     if (!staffCanReplyToRequestConversation(access, request)) {
       return json({ ok: false, error: "forbidden" }, 403);
     }
