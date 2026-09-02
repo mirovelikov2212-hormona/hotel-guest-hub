@@ -1,5 +1,9 @@
 import "server-only";
 
+import {
+  buildRequestedFactoryRoutingAuthority,
+  normalizeFactoryRoutingKey,
+} from "@/lib/server/factory-sandbox-routing-normalization.mjs";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 type RelationalAuthority = {
@@ -14,14 +18,6 @@ function isUuid(value: unknown) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     String(value || "").trim(),
   );
-}
-
-function normalizeKey(value: unknown) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "_")
-    .replace(/-+/g, "_");
 }
 
 function hasSandboxAcceptanceMarker(value: unknown) {
@@ -46,7 +42,7 @@ export async function getFactorySandboxRelationalAuthority(input: {
   const requestTypes = Array.from(
     new Set(
       (Array.isArray(input.requestTypes) ? input.requestTypes : [])
-        .map(normalizeKey)
+        .map(normalizeFactoryRoutingKey)
         .filter(Boolean),
     ),
   );
@@ -113,13 +109,17 @@ export async function getFactorySandboxRelationalAuthority(input: {
       .select("id, code")
       .eq("hotel_id", hotelId)
       .eq("active", true),
+    // Read the complete active generic routing authority for this tenant, then
+    // canonicalize request_type in memory. Older certified Sandbox fixtures may
+    // legitimately contain separators such as `extra-towel`, while current
+    // runtime request types are canonicalized as `extra_towel`. Filtering in SQL
+    // before canonicalization would incorrectly hide that authoritative row.
     supabaseAdmin
       .from("routing_rules")
       .select("request_type, department_id")
       .eq("hotel_id", hotelId)
       .eq("active", true)
-      .is("venue_type", null)
-      .in("request_type", requestTypes),
+      .is("venue_type", null),
   ]);
 
   if (roomsError || departmentsError || routingError) {
@@ -139,7 +139,7 @@ export async function getFactorySandboxRelationalAuthority(input: {
   const departmentIdByCode: Record<string, string> = Object.create(null);
   const departmentIds = new Set<string>();
   for (const row of departments || []) {
-    const code = normalizeKey(row.code);
+    const code = normalizeFactoryRoutingKey(row.code);
     const id = String(row.id || "").trim();
     if (!code || !isUuid(id) || departmentIdByCode[code]) {
       throw new Error("FACTORY_SANDBOX_RELATIONAL_AUTHORITY_DEPARTMENTS_INVALID");
@@ -148,20 +148,11 @@ export async function getFactorySandboxRelationalAuthority(input: {
     departmentIds.add(id);
   }
 
-  const routingDepartmentIdByRequestType: Record<string, string> = Object.create(null);
-  for (const row of routing || []) {
-    const requestType = normalizeKey(row.request_type);
-    const departmentId = String(row.department_id || "").trim();
-    if (
-      !requestType
-      || !requestTypes.includes(requestType)
-      || !departmentIds.has(departmentId)
-      || routingDepartmentIdByRequestType[requestType]
-    ) {
-      throw new Error("FACTORY_SANDBOX_RELATIONAL_AUTHORITY_ROUTING_INVALID");
-    }
-    routingDepartmentIdByRequestType[requestType] = departmentId;
-  }
+  const { routingDepartmentIdByRequestType } = buildRequestedFactoryRoutingAuthority({
+    routingRows: routing || [],
+    requestedTypes: requestTypes,
+    departmentIds: Array.from(departmentIds),
+  });
 
   if (
     Object.keys(roomIdByNumber).length === 0
