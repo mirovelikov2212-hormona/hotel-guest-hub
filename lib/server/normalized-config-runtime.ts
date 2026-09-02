@@ -28,8 +28,24 @@ type RoutingRuleRow = Record<string, unknown> & {
   after_hours_department_id?: string | null;
 };
 
-const normalizedRuntimeCache = getCache({ namespace: "normalized-config-runtime-v1" });
+// Cache payloads contain the fully composed HotelConfig, not only relational
+// IDs. They are therefore part of the runtime data contract and must be
+// invalidated whenever the composed config shape changes, even if the immutable
+// publication revision/checksum stay identical. The previous v1 namespace could
+// return a pre-RequestDef-contract payload after a deploy because its key only
+// contained hotel/revision/checksum.
+export const NORMALIZED_RUNTIME_CACHE_SCHEMA_VERSION = "v2-request-def-contract";
+const normalizedRuntimeCache = getCache({ namespace: "normalized-config-runtime-v2" });
 const NORMALIZED_RUNTIME_TTL_SECONDS = 300;
+
+function normalizedRuntimeCacheKey(
+  scope: "rooms" | "departments",
+  hotelId: string,
+  revisionId: string,
+  sourceChecksum: string,
+) {
+  return `${NORMALIZED_RUNTIME_CACHE_SCHEMA_VERSION}:${scope}:${hotelId}:${revisionId}:${sourceChecksum}`;
+}
 
 async function readNormalizedRuntimeCache(key: string) {
   try {
@@ -176,7 +192,12 @@ export async function resolveNormalizedRoomConfigForRuntime(input: {
     });
   }
 
-  const cacheKey = `rooms:${input.hotelId}:${input.published.revisionId}:${input.published.sourceChecksum}`;
+  const cacheKey = normalizedRuntimeCacheKey(
+    "rooms",
+    input.hotelId,
+    input.published.revisionId,
+    input.published.sourceChecksum,
+  );
   const cached = await readNormalizedRuntimeCache(cacheKey);
   if (cached) return cached;
 
@@ -225,7 +246,12 @@ export async function resolveNormalizedDepartmentRoutingConfigForRuntime(input: 
     });
   }
 
-  const cacheKey = `departments:${input.hotelId}:${input.published.revisionId}:${input.published.sourceChecksum}`;
+  const cacheKey = normalizedRuntimeCacheKey(
+    "departments",
+    input.hotelId,
+    input.published.revisionId,
+    input.published.sourceChecksum,
+  );
   const cached = await readNormalizedRuntimeCache(cacheKey);
   if (cached) return cached;
 
