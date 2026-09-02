@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 const CHALLENGE_HASH = "05f27edb48d56afd02419ef6ae1b2aa2355c8bb4c76257c94fcb09fd89c125d3";
 const PREFIX = "factory-heavy-20260901";
-const BOOKING_DATE = "2026-09-02";
+const BOOKING_DATE = "2026-09-03";
 
 type Result = {
   kind: "request" | "survey" | "massage_unique" | "massage_contention";
@@ -129,8 +129,9 @@ export async function GET(req: NextRequest) {
     operations.push(post("massage_unique", hotel, 1, "10:00"));
   }
   const contentionCount = smoke ? 2 : 20;
-  for (let room = 1; room <= contentionCount; room += 1) {
-    operations.push(post("massage_contention", 1, room, "19:00"));
+  for (let attempt = 1; attempt <= contentionCount; attempt += 1) {
+    const room = ((attempt - 1) % 3) + 1;
+    operations.push(post("massage_contention", 1, room, "20:00"));
   }
 
   const wallStarted = performance.now();
@@ -140,7 +141,8 @@ export async function GET(req: NextRequest) {
   const surveyRows = results.filter((row) => row.kind === "survey");
   const uniqueRows = results.filter((row) => row.kind === "massage_unique");
   const contentionRows = results.filter((row) => row.kind === "massage_contention");
-  const contentionWinners = contentionRows.filter((row) => row.ok);
+  const contentionWinners = contentionRows.filter((row) => row.ok && !row.replay);
+  const contentionReplays = contentionRows.filter((row) => row.ok && row.replay);
   const accepted = requestRows.every((row) => row.ok) &&
     surveyRows.every((row) => row.ok) &&
     uniqueRows.every((row) => row.ok) &&
@@ -161,6 +163,7 @@ export async function GET(req: NextRequest) {
     massageContention: {
       ...summarize(contentionRows),
       winners: contentionWinners.length,
+      idempotentReplays: contentionReplays.length,
       expectedRejected: contentionRows.filter((row) => !row.ok && row.status === 409).length,
     },
     failures: results.filter((row) => !row.ok && row.kind !== "massage_contention"),
