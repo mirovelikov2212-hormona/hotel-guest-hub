@@ -84,12 +84,12 @@
   "additions": [
     {
       "filePath": "lib/hotels/getHotelSheetSources.ts",
-      "line": 183,
+      "line": 111,
       "rpc": "get_factory_tenant_runtime_v1",
       "tableExpression": "\"get_factory_tenant_runtime_v1\"",
       "operation": "rpc",
       "reasons": ["rpc_requires_review"],
-      "provenance": "server_only_materialized_runtime_read_resolves_only_an_active_sandbox_hotel_by_requested_slug_or_public_slug_inside_a_service_role_only_security_definer_rpc_with_fixed_search_path_then_scopes_publication_revision_projection_materialized_runtime_and_refresh_to_that_resolved_hotel_id; delegated_refresh_is_also_service_role_only_security_definer_fixed_search_path_and_first_requires_the_exact_active_sandbox_hotel_before_any_materialization"
+      "provenance": "server_only_materialized_runtime_health_read_resolves_only_an_active_sandbox_hotel_by_requested_slug_or_public_slug_inside_a_service_role_only_security_invoker_rpc_with_fixed_search_path; the_rpc_scopes_publication_revision_projection_materialized_runtime_semantic_route_validation_and_any_refresh_to_that_resolved_hotel_id, and certified_factory_reconciliation_is_allowed_only_after_the_rpc_returns_the_existing_FACTORY_SANDBOX_ACCEPTANCE_CERTIFIED_marker"
     },
     {
       "filePath": "lib/server/config-projection.ts",
