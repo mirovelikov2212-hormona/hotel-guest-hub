@@ -39,6 +39,9 @@ type GuestRequestRow = {
   created_at: string;
   is_test?: boolean | null;
   test_expires_at?: string | null;
+  conversation_state?: "none" | "waiting_for_guest" | "waiting_for_staff" | null;
+  conversation_updated_at?: string | null;
+  conversation_last_sender_type?: "staff" | "guest" | "system" | "ai" | null;
   metadata_json: {
     department?: StaffDepartment;
     serviceTime?: StaffServiceTime;
@@ -181,7 +184,7 @@ async function backfillMissingRequestReportTranslations(rows: GuestRequestRow[])
         metadata_json: nextMetadata,
       })
       .eq("id", row.id)
-      .select("id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, title_en, title_de, message_bg, message_en, message_de, status, created_at, is_test, test_expires_at, metadata_json")
+      .select("id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, title_en, title_de, message_bg, message_en, message_de, status, created_at, is_test, test_expires_at, conversation_state, conversation_updated_at, conversation_last_sender_type, metadata_json")
       .single();
 
     if (error || !data) {
@@ -270,6 +273,9 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
     guestLanguage: metadata.guestLanguage ?? null,
     isTest: Boolean(row.is_test || metadata.isTest),
     testExpiresAt: row.test_expires_at ?? (typeof metadata.testExpiresAt === "string" ? metadata.testExpiresAt : null),
+    conversationState: row.conversation_state || "none",
+    conversationUpdatedAt: row.conversation_updated_at ?? null,
+    conversationLastSenderType: row.conversation_last_sender_type ?? null,
   };
 }
 
@@ -345,7 +351,7 @@ export async function GET(req: NextRequest) {
     let query = supabaseAdmin
       .from("guest_requests")
       .select(
-        "id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, title_en, title_de, message_bg, message_en, message_de, status, created_at, is_test, test_expires_at, metadata_json"
+        "id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, title_en, title_de, message_bg, message_en, message_de, status, created_at, is_test, test_expires_at, conversation_state, conversation_updated_at, conversation_last_sender_type, metadata_json"
       )
       .eq("hotel_id", scope.hotelId)
       .order("created_at", { ascending: false });
