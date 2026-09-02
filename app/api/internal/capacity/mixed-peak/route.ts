@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-const CHALLENGE_HASH = "05f27edb48d56afd02419ef6ae1b2aa2355c8bb4c76257c94fcb09fd89c125d3";
+const CHALLENGE_HASH = "7187620727b4b3e4839f6b479f173db89e99347a122c22c02be7e659594947e8";
 const PREFIX = "factory-heavy-20260901";
 
 type Result = {
@@ -71,9 +71,9 @@ export async function GET(req: NextRequest) {
   const requestedMode = req.nextUrl.searchParams.get("mode");
   const smoke = requestedMode === "smoke";
   const phase = smoke ? "smoke" : requestedMode === "warm" ? "warm" : "cold";
-  // A distinct fixture date per phase keeps booking idempotency deterministic
-  // while ensuring repeated acceptance phases do not reuse a prior winner.
-  const bookingDate = "2026-09-09";
+  // 2026-09-16 is a clean Wednesday fixture. Smoke, cold and warm keep distinct
+  // native slots so repeated acceptance phases cannot reuse a prior winner.
+  const bookingDate = "2026-09-16";
   const uniqueMassageTime = phase === "smoke" ? "12:00" : phase === "cold" ? "16:00" : "18:00";
   const contentionMassageTime = phase === "smoke" ? "14:00" : phase === "cold" ? "21:00" : "20:00";
   const runId = `factory-mixed-${phase}-${Date.now()}`;
