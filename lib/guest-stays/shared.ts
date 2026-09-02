@@ -1,3 +1,5 @@
+import { normalizeStayDateKey as normalizeStayDateKeyStrict } from "@/lib/guest-stays/date-key.mjs";
+
 export const GUEST_STAY_DEVICE_STORAGE_KEY = "stayhub_guest_device_id_v1";
 export const GUEST_STAY_CHECK_IN_TIME = "15:00";
 export const GUEST_STAY_CHECK_OUT_TIME = "12:00";
@@ -21,8 +23,7 @@ export type GuestStaySummary = {
 };
 
 export function normalizeStayDateKey(value: unknown) {
-  const key = String(value || "").trim();
-  return /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : "";
+  return normalizeStayDateKeyStrict(value);
 }
 
 export function addDaysToStayDateKey(dateKey: string, days: number) {
