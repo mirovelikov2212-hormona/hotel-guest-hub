@@ -2,6 +2,7 @@ import "server-only";
 
 import { getCache } from "@vercel/functions";
 import type { HotelConfig } from "@/lib/types";
+import { normalizePublishedHotelConfigRuntime } from "@/lib/hotels/config-revision-contract.mjs";
 import {
   attachGuestRequestRelationalAuthority,
   getGuestRequestRelationalAuthority,
@@ -38,7 +39,10 @@ type CachedPublishedSnapshot = PublishedSnapshot & {
   relationalAuthority: ReturnType<typeof getGuestRequestRelationalAuthority>;
 };
 
-const publishedConfigCache = getCache({ namespace: "published-hotel-config-v1" });
+// v2 intentionally separates canonicalized runtime entries from the historical
+// v1 cache, which may contain persisted JSON that predates the RequestDef shape
+// contract introduced by the Product Factory runtime.
+const publishedConfigCache = getCache({ namespace: "published-hotel-config-v2" });
 const publishedConfigLoads = new Map<string, Promise<PublishedSnapshot | null>>();
 // Publication writes explicitly expire the per-hotel tag. A five-minute TTL
 // therefore protects the database from cold-start fan-out without allowing a
@@ -133,6 +137,21 @@ function getConfiguredGuestRequestTypes(config: HotelConfig) {
   );
 }
 
+function normalizeRuntimeConfig(
+  config: HotelConfig,
+  context: { hotelId: string; revisionId: string },
+) {
+  const normalized = normalizePublishedHotelConfigRuntime(config);
+  if (normalized.compatibilityDefaultsApplied.length > 0) {
+    console.warn("Published hotel configuration compatibility defaults applied", {
+      hotelId: context.hotelId,
+      revisionId: context.revisionId,
+      fields: normalized.compatibilityDefaultsApplied,
+    });
+  }
+  return normalized.config;
+}
+
 /**
  * Read only the immutable published revision and publication pointer.
  *
@@ -210,6 +229,8 @@ async function loadPublishedHotelConfigBaseSnapshot(
     throw new Error("Published configuration revision checksum is malformed");
   }
 
+  // Keep the immutable database payload as the projection/reconciliation source.
+  // Runtime compatibility defaults are applied only in loadPublishedHotelConfigSnapshot.
   const config = structuredClone(row.config_json as HotelConfig);
   markFactoryManagedGuestRuntime(config);
 
@@ -229,7 +250,10 @@ async function loadPublishedHotelConfigSnapshot(
   const base = await loadPublishedHotelConfigBaseSnapshot(normalizedHotelId);
   if (!base) return null;
 
-  const config = structuredClone(base.config);
+  const config = normalizeRuntimeConfig(structuredClone(base.config), {
+    hotelId: normalizedHotelId,
+    revisionId: base.revisionId,
+  });
 
   // Runtime relational IDs are attached only to the guest/staff runtime view.
   // They are derived state and therefore must never be a prerequisite for the
@@ -276,7 +300,10 @@ export async function getPublishedHotelConfigProjectionSource(
 }
 
 function restoreCachedSnapshot(cached: CachedPublishedSnapshot): PublishedSnapshot {
-  const config = structuredClone(cached.config);
+  const config = normalizeRuntimeConfig(structuredClone(cached.config), {
+    hotelId: String(cached.config.hotelId || cached.config.hotelSlug || "cached"),
+    revisionId: cached.revisionId,
+  });
   if (cached.relationalAuthority) {
     attachGuestRequestRelationalAuthority(config, cached.relationalAuthority);
   }
