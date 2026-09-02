@@ -32,8 +32,16 @@ function requestAcceptsConversationReplies(status: string) {
   return status !== "completed" && status !== "cancelled";
 }
 
+function conversationErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message?: unknown }).message || "");
+  }
+  return "";
+}
+
 function mapConversationError(error: unknown) {
-  const message = error instanceof Error ? error.message : "request_conversation_unavailable";
+  const message = conversationErrorMessage(error);
   if (message.includes("REQUEST_CLOSED")) return json({ ok: false, error: "request_closed" }, 409);
   if (message.includes("STAY_IDENTITY_REQUIRED")) return json({ ok: false, error: "stay_identity_required" }, 409);
   if (message.includes("CONTENT_INVALID")) return json({ ok: false, error: "invalid_content" }, 400);
