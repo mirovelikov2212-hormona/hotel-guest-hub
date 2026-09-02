@@ -50,6 +50,7 @@ const milestoneDeltaPaths = [
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-hub-design-draft-versioning.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-guest-communications-branded-staff.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-factory-runtime-reconciliation-reliability.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-request-conversations.json"),
 ];
 
 const baseBaseline = JSON.parse(await readFile(baselinePath, "utf8"));
