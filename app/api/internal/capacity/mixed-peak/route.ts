@@ -71,11 +71,11 @@ export async function GET(req: NextRequest) {
   const requestedMode = req.nextUrl.searchParams.get("mode");
   const smoke = requestedMode === "smoke";
   const phase = smoke ? "smoke" : requestedMode === "warm" ? "warm" : "cold";
-  // 2026-09-16 is a clean Wednesday fixture. Smoke, cold and warm keep distinct
-  // native slots so repeated acceptance phases cannot reuse a prior winner.
-  const bookingDate = "2026-09-16";
-  const uniqueMassageTime = phase === "smoke" ? "12:00" : phase === "cold" ? "16:00" : "18:00";
-  const contentionMassageTime = phase === "smoke" ? "14:00" : phase === "cold" ? "21:00" : "20:00";
+  // 2026-09-09 is inside the native booking horizon. These exact slots are
+  // verified through get_massage_runtime_available_times for all 100 load hotels.
+  const bookingDate = "2026-09-09";
+  const uniqueMassageTime = phase === "smoke" ? "11:00" : phase === "cold" ? "08:00" : "14:30";
+  const contentionMassageTime = phase === "smoke" ? "13:00" : phase === "cold" ? "10:00" : "17:00";
   const runId = `factory-mixed-${phase}-${Date.now()}`;
   const origin = req.nextUrl.origin;
   const forwardedHeaders: Record<string, string> = { "content-type": "application/json", "x-stayhub-load-run": runId };
