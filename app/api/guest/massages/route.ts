@@ -879,19 +879,52 @@ export async function POST(req: NextRequest) {
       return json({ ok: false, code: "MISSING_HOTEL_SLUG", error: "Hotel slug is required." }, 400);
     }
 
-    // Resolve the tenant and its runtime authority before applying the legacy
-    // external-adapter write allowlist. Factory-created Sandbox hotels use the
-    // native Supabase booking authority and must not require an Aquamarine-style
-    // Google Apps Script/Sheet flag. Production and legacy adapters remain
-    // fail-closed behind their existing hotel-specific environment switch.
+    // Resolve tenant identity first, but do not inspect operational booking
+    // authority until the public payload and confirmed stay/device identity have
+    // both been validated. Unauthenticated callers must not reach authority
+    // selection, adapter feature flags, or booking write paths.
     const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
     requestHotelId = hotel.id;
+    timing.mark("hotel");
+
+    requireConfirmedRoom(body.roomConfirmed);
+
+    const serviceId = requireServiceId(body.serviceId ?? body.service_id);
+    const date = requireDate(body.date ?? body.dateIso, "date");
+    const time = requireTime(body.time ?? body.startTime);
+    const room = requireRoom(body.room ?? body.roomNumber);
+
+    requestHotelMetadata = {
+      hotelSlug,
+      resolvedHotelSlug: hotel.slug,
+      publicSlug: hotel.public_slug || null,
+      isSandbox: Boolean(hotel.is_sandbox),
+      productionHotelId: hotel.production_hotel_id || null,
+      room,
+      serviceId,
+      date,
+      time,
+    };
+
+    const stayIdentity = await requireMassageGuestStayIdentity({
+      hotelId: hotel.id,
+      room,
+      stayId: body.stayId,
+      stayDeviceId: body.stayDeviceId,
+    });
+    const stayId = String(stayIdentity.stay.id);
+    const stayDeviceId = String(stayIdentity.device.id);
+    timing.mark("stay_identity");
+
+    await requireExistingHotelRoom(hotelSlug, room);
+    timing.mark("room");
+
     const runtimeAuthority = await getMassageRuntimeAuthority(hotel.id);
-    timing.mark("hotel_and_authority");
     const sandboxNativeBookingEnabled =
       isSandboxHotel(hotel) && isNativeMassageAuthority(runtimeAuthority);
     const controlledE2EEnabled = isMassageControlledE2EEnabled(hotelSlug);
     const productionBookingEnabled = isMassageBookingPostEnabled(hotelSlug);
+    timing.mark("authority");
 
     if (!sandboxNativeBookingEnabled && !controlledE2EEnabled && !productionBookingEnabled) {
       await logSystemEvent({
@@ -916,35 +949,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    requireConfirmedRoom(body.roomConfirmed);
-
-    const serviceId = requireServiceId(body.serviceId ?? body.service_id);
-    const date = requireDate(body.date ?? body.dateIso, "date");
-    const time = requireTime(body.time ?? body.startTime);
-    const room = requireRoom(body.room ?? body.roomNumber);
-
-    await requireExistingHotelRoom(hotelSlug, room);
-
-    requestHotelMetadata = {
-      hotelSlug,
-      resolvedHotelSlug: hotel.slug,
-      publicSlug: hotel.public_slug || null,
-      isSandbox: Boolean(hotel.is_sandbox),
-      productionHotelId: hotel.production_hotel_id || null,
-      room,
-      serviceId,
-      date,
-      time,
-    };
-    const stayIdentity = await requireMassageGuestStayIdentity({
-      hotelId: hotel.id,
-      room,
-      stayId: body.stayId,
-      stayDeviceId: body.stayDeviceId,
-    });
-    timing.mark("room_and_stay");
-    const stayId = String(stayIdentity.stay.id);
-    const stayDeviceId = String(stayIdentity.device.id);
     if (isNativeMassageAuthority(runtimeAuthority)) {
       const guestLanguage = String(body.guestLanguage || "bg");
       const service = await getNativeMassageService({ hotelId: hotel.id, serviceId });
