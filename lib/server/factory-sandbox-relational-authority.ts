@@ -50,6 +50,7 @@ export async function getFactorySandboxRelationalAuthority(input: {
         .filter(Boolean),
     ),
   );
+  const requestedTypeSet = new Set(requestTypes);
 
   if (
     !isUuid(hotelId)
@@ -113,13 +114,17 @@ export async function getFactorySandboxRelationalAuthority(input: {
       .select("id, code")
       .eq("hotel_id", hotelId)
       .eq("active", true),
+    // Read the complete active generic routing authority for this tenant, then
+    // canonicalize request_type in memory. Older certified Sandbox fixtures may
+    // legitimately contain separators such as `extra-towel`, while current
+    // runtime request types are canonicalized as `extra_towel`. Filtering in SQL
+    // before canonicalization would incorrectly hide that authoritative row.
     supabaseAdmin
       .from("routing_rules")
       .select("request_type, department_id")
       .eq("hotel_id", hotelId)
       .eq("active", true)
-      .is("venue_type", null)
-      .in("request_type", requestTypes),
+      .is("venue_type", null),
   ]);
 
   if (roomsError || departmentsError || routingError) {
@@ -151,13 +156,15 @@ export async function getFactorySandboxRelationalAuthority(input: {
   const routingDepartmentIdByRequestType: Record<string, string> = Object.create(null);
   for (const row of routing || []) {
     const requestType = normalizeKey(row.request_type);
+    if (!requestType || !requestedTypeSet.has(requestType)) continue;
+
     const departmentId = String(row.department_id || "").trim();
     if (
-      !requestType
-      || !requestTypes.includes(requestType)
-      || !departmentIds.has(departmentId)
+      !departmentIds.has(departmentId)
       || routingDepartmentIdByRequestType[requestType]
     ) {
+      // Duplicate raw rows that collapse to the same canonical request type are
+      // ambiguous authority and therefore remain fail-closed.
       throw new Error("FACTORY_SANDBOX_RELATIONAL_AUTHORITY_ROUTING_INVALID");
     }
     routingDepartmentIdByRequestType[requestType] = departmentId;
