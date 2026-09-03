@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 const COPY = {
   bg: {
     title: "Runtime клетки",
-    subtitle: "Логическо разпределение и health на всички hotel tenants",
+    subtitle: "Логическо разпределение, health и demand на всички hotel tenants",
     back: "Назад към Control Plane",
     hotels: "Хотели",
     assigned: "Разпределени",
@@ -26,6 +26,11 @@ const COPY = {
     target: "Runtime target",
     capacity: "Капацитет",
     p95: "Цел p95",
+    activeStays: "Активни stays",
+    operations15m: "Операции · 15 мин",
+    requests15m: "Заявки · 15 мин",
+    surveys15m: "Анкети · 15 мин",
+    communications15m: "Комуникации · 15 мин",
     generation: "generation",
     source: "източник",
     projection: "projection",
@@ -34,10 +39,11 @@ const COPY = {
     generated: "Обновено",
     invariant: "Публичните hotel slugs и URL адреси не се променят при преместване между клетки.",
     healthInvariant: "Cell Health е read-only агрегация от съществуващите Factory/runtime/system evidence. Не се поддържа второ health състояние.",
+    demandInvariant: "Demand Telemetry показва сурови active stays и операции за последните 15 минути. Няма измислен load score и няма автоматично преместване между клетки.",
   },
   en: {
     title: "Runtime cells",
-    subtitle: "Logical partitioning and health of every hotel tenant",
+    subtitle: "Logical partitioning, health and demand of every hotel tenant",
     back: "Back to Control Plane",
     hotels: "Hotels",
     assigned: "Assigned",
@@ -50,6 +56,11 @@ const COPY = {
     target: "Runtime target",
     capacity: "Capacity",
     p95: "p95 target",
+    activeStays: "Active stays",
+    operations15m: "Operations · 15 min",
+    requests15m: "Requests · 15 min",
+    surveys15m: "Surveys · 15 min",
+    communications15m: "Communications · 15 min",
     generation: "generation",
     source: "source",
     projection: "projection",
@@ -58,6 +69,7 @@ const COPY = {
     generated: "Generated",
     invariant: "Public hotel slugs and URLs stay unchanged when a tenant moves between cells.",
     healthInvariant: "Cell Health is a read-only aggregation of existing Factory/runtime/system evidence. No second health state is persisted.",
+    demandInvariant: "Demand Telemetry shows raw active stays and operations from the last 15 minutes. There is no invented load score and no automatic cell movement.",
   },
 } as const;
 
@@ -114,9 +126,10 @@ export default async function RuntimeCellsPage({
               </Link>
             </div>
           </div>
-          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+          <div className="mt-5 grid gap-3 lg:grid-cols-3">
             <p className="rounded-2xl border border-cyan-300/20 bg-cyan-300/5 px-4 py-3 text-sm text-cyan-100">{copy.invariant}</p>
             <p className="rounded-2xl border border-violet-300/20 bg-violet-300/5 px-4 py-3 text-sm text-violet-100">{copy.healthInvariant}</p>
+            <p className="rounded-2xl border border-amber-300/20 bg-amber-300/5 px-4 py-3 text-sm text-amber-100">{copy.demandInvariant}</p>
           </div>
         </header>
 
@@ -130,6 +143,21 @@ export default async function RuntimeCellsPage({
             [copy.unverified, fleet.unverifiedHotelCount],
             [copy.attention, fleet.attentionHotelCount],
             [copy.critical, fleet.criticalHotelCount],
+          ].map(([label, value]) => (
+            <article key={String(label)} className="rounded-3xl border border-neutral-800 bg-neutral-900 p-5">
+              <p className="text-sm text-neutral-400">{label}</p>
+              <p className="mt-2 text-3xl font-semibold">{value}</p>
+            </article>
+          ))}
+        </section>
+
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {[
+            [copy.activeStays, fleet.activeStays],
+            [copy.operations15m, fleet.operations15m],
+            [copy.requests15m, fleet.requests15m],
+            [copy.surveys15m, fleet.surveys15m],
+            [copy.communications15m, fleet.communications15m],
           ].map(([label, value]) => (
             <article key={String(label)} className="rounded-3xl border border-neutral-800 bg-neutral-900 p-5">
               <p className="text-sm text-neutral-400">{label}</p>
@@ -169,6 +197,14 @@ export default async function RuntimeCellsPage({
                 <div className="rounded-xl border border-neutral-700 bg-neutral-950 p-2 text-neutral-400">inactive: {cell.inactiveHotelCount}</div>
               </div>
 
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-2 text-neutral-300">{copy.activeStays}: {cell.activeStays}</div>
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-2 text-neutral-300">{copy.operations15m}: {cell.operations15m}</div>
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-2 text-neutral-400">R: {cell.requests15m}</div>
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-2 text-neutral-400">S: {cell.surveys15m}</div>
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-2 text-neutral-400">C: {cell.communications15m}</div>
+              </div>
+
               <div className="mt-4 h-2 overflow-hidden rounded-full bg-neutral-800" aria-label={`${cell.utilizationPercent}%`}>
                 <div className="h-full rounded-full bg-neutral-200" style={{ width: `${Math.min(100, cell.utilizationPercent)}%` }} />
               </div>
@@ -187,6 +223,9 @@ export default async function RuntimeCellsPage({
                         <p className="mt-1 text-xs text-neutral-500">{hotel.slug}{hotel.publicSlug && hotel.publicSlug !== hotel.slug ? ` · ${hotel.publicSlug}` : ""}</p>
                         <p className="mt-1 text-[11px] text-neutral-600">
                           {copy.projection}: {hotel.projectionStatus || "—"} · {copy.materialized}: {hotel.materializedRuntimeReady ? "ready" : "missing"} · 1h events C/E/W: {hotel.recentCriticalCount}/{hotel.recentErrorCount}/{hotel.recentWarningCount}
+                        </p>
+                        <p className="mt-1 text-[11px] text-neutral-500">
+                          {copy.activeStays}: {hotel.activeStays} · 15m R/S/C: {hotel.requests15m}/{hotel.surveys15m}/{hotel.communications15m} · {copy.operations15m}: {hotel.operations15m}
                         </p>
                       </div>
                       <p className="text-xs text-neutral-500">{copy.generation} {hotel.generation} · {copy.source}: {hotel.assignmentSource}</p>
