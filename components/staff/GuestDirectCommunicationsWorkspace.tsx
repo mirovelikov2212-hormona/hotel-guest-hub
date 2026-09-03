@@ -25,6 +25,9 @@ const COPY = {
     guest: "Гост",
     disabled: "Директното изпращане още не е активирано за този хотел.",
     error: "Директната комуникация временно не е достъпна.",
+    new: "НОВО",
+    newReplies: "Нови",
+    read: "Прочетено",
   },
   en: {
     title: "Direct room communication",
@@ -41,6 +44,9 @@ const COPY = {
     guest: "Guest",
     disabled: "Direct delivery is not enabled for this hotel yet.",
     error: "Direct communication is temporarily unavailable.",
+    new: "NEW",
+    newReplies: "New",
+    read: "Mark read",
   },
   de: {
     title: "Direkte Zimmerkommunikation",
@@ -57,6 +63,9 @@ const COPY = {
     guest: "Gast",
     disabled: "Die direkte Zustellung ist für dieses Hotel noch nicht aktiviert.",
     error: "Die direkte Kommunikation ist vorübergehend nicht verfügbar.",
+    new: "NEU",
+    newReplies: "Neu",
+    read: "Gelesen",
   },
 } as const;
 
@@ -65,6 +74,30 @@ function formatTime(value: string | null | undefined, lang: "bg" | "en" | "de") 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat(lang === "bg" ? "bg-BG" : lang === "de" ? "de-DE" : "en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
+function unreadStorageKey(hotelSlug: string, role: string) {
+  return `stayhub:staff-direct-seen:v1:${String(hotelSlug || "default").trim().toLowerCase()}:${String(role || "reception").trim().toLowerCase()}`;
+}
+
+function readSeenGuestMessages(hotelSlug: string, role: string) {
+  if (typeof window === "undefined") return new Set<string>();
+  try {
+    const raw = window.localStorage.getItem(unreadStorageKey(hotelSlug, role));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed.map(String).filter(Boolean).slice(-500) : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function writeSeenGuestMessages(hotelSlug: string, role: string, ids: Set<string>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(unreadStorageKey(hotelSlug, role), JSON.stringify(Array.from(ids).slice(-500)));
+  } catch {
+    // Unread indicators are best-effort local UI state and must never block staff operations.
+  }
 }
 
 export default function GuestDirectCommunicationsWorkspace({ hotelSlug, role }: { hotelSlug: string; role: string }) {
@@ -76,6 +109,11 @@ export default function GuestDirectCommunicationsWorkspace({ hotelSlug, role }: 
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [seenGuestMessageIds, setSeenGuestMessageIds] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    setSeenGuestMessageIds(readSeenGuestMessages(hotelSlug, role));
+  }, [hotelSlug, role]);
 
   const load = useCallback(async () => {
     try {
@@ -101,8 +139,28 @@ export default function GuestDirectCommunicationsWorkspace({ hotelSlug, role }: 
   }, [load]);
 
   const stays = payload?.stays || [];
+  const messages = payload?.messages || [];
   const selectedStay = stays.find((stay) => stay.id === stayId) || null;
-  const conversation = useMemo(() => (payload?.messages || []).filter((message) => message.stayId === stayId).slice().reverse(), [payload?.messages, stayId]);
+  const conversation = useMemo(() => messages.filter((message) => message.stayId === stayId).slice().reverse(), [messages, stayId]);
+  const unreadGuestMessages = useMemo(
+    () => messages.filter((message) => message.senderType === "guest" && !seenGuestMessageIds.has(message.id)),
+    [messages, seenGuestMessageIds],
+  );
+  const unreadByStay = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const message of unreadGuestMessages) counts.set(message.stayId, (counts.get(message.stayId) || 0) + 1);
+    return counts;
+  }, [unreadGuestMessages]);
+
+  const markGuestMessageRead = useCallback((messageId: string) => {
+    setSeenGuestMessageIds((current) => {
+      if (current.has(messageId)) return current;
+      const next = new Set(current);
+      next.add(messageId);
+      writeSeenGuestMessages(hotelSlug, role, next);
+      return next;
+    });
+  }, [hotelSlug, role]);
 
   async function send() {
     if (!stayId || !body.trim() || busy || !payload?.deliveryEnabled) return;
@@ -121,9 +179,16 @@ export default function GuestDirectCommunicationsWorkspace({ hotelSlug, role }: 
     } finally { setBusy(false); }
   }
 
+  const headerBadge = (
+    <span className="flex flex-wrap items-center gap-2">
+      {selectedStay ? <span className="rounded-full border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-2.5 py-1 text-xs font-semibold">{copy.room} {selectedStay.room_number}</span> : null}
+      {unreadGuestMessages.length ? <span className="rounded-full border border-rose-400/40 bg-rose-500/15 px-2.5 py-1 text-xs font-bold text-rose-700">{copy.newReplies}: {unreadGuestMessages.length}</span> : null}
+    </span>
+  );
+
   return (
     <div className="mb-5">
-      <StaffCollapsiblePanel title={copy.title} summary={copy.summary} badge={selectedStay ? <span className="rounded-full border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-2.5 py-1 text-xs font-semibold">{copy.room} {selectedStay.room_number}</span> : null}>
+      <StaffCollapsiblePanel title={copy.title} summary={copy.summary} badge={headerBadge}>
         {error ? <div className="mb-4 rounded-xl border border-rose-400/25 bg-rose-400/10 p-3 text-sm text-rose-700">{error}</div> : null}
         {payload && !payload.deliveryEnabled ? <div className="mb-4 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3 text-sm text-amber-800">{copy.disabled}</div> : null}
         <div className="grid gap-5 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
@@ -131,7 +196,10 @@ export default function GuestDirectCommunicationsWorkspace({ hotelSlug, role }: 
             <label className="text-sm"><span className="mb-1 block text-[var(--staff-muted)]">{copy.room}</span>
               <select value={stayId} onChange={(event) => setStayId(event.target.value)} className="w-full rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5">
                 <option value="">{copy.choose}</option>
-                {stays.map((stay) => <option key={stay.id} value={stay.id}>{copy.room} {stay.room_number}</option>)}
+                {stays.map((stay) => {
+                  const unread = unreadByStay.get(stay.id) || 0;
+                  return <option key={stay.id} value={stay.id}>{copy.room} {stay.room_number}{unread ? ` • ${copy.newReplies}: ${unread}` : ""}</option>;
+                })}
               </select>
             </label>
             <label className="text-sm"><span className="mb-1 block text-[var(--staff-muted)]">{copy.message}</span>
@@ -142,12 +210,20 @@ export default function GuestDirectCommunicationsWorkspace({ hotelSlug, role }: 
           <div className="rounded-2xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] p-4">
             <h3 className="font-semibold">{copy.history}</h3>
             <div className="mt-3 max-h-[28rem] space-y-3 overflow-y-auto pr-1">
-              {conversation.length ? conversation.map((message) => (
-                <article key={message.id} className={`rounded-2xl border border-[var(--staff-border)] p-3 ${message.senderType === "guest" ? "ml-5 bg-[var(--staff-surface)]" : "mr-5 bg-[var(--staff-surface)]"}`}>
-                  <div className="flex items-center gap-2 text-xs text-[var(--staff-muted)]"><span className="font-semibold">{message.senderType === "guest" ? copy.guest : copy.hotel}</span><span className="ml-auto">{formatTime(message.sentAt || message.createdAt, uiLang)}</span></div>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6">{message.body}</p>
-                </article>
-              )) : <p className="text-sm text-[var(--staff-muted)]">{copy.noHistory}</p>}
+              {conversation.length ? conversation.map((message) => {
+                const unreadGuestReply = message.senderType === "guest" && !seenGuestMessageIds.has(message.id);
+                return (
+                  <article key={message.id} className={`rounded-2xl border p-3 ${unreadGuestReply ? "ml-5 border-rose-400/50 bg-rose-50" : message.senderType === "guest" ? "ml-5 border-[var(--staff-border)] bg-[var(--staff-surface)]" : "mr-5 border-[var(--staff-border)] bg-[var(--staff-surface)]"}`}>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--staff-muted)]">
+                      <span className="font-semibold">{message.senderType === "guest" ? copy.guest : copy.hotel}</span>
+                      {unreadGuestReply ? <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold tracking-wide text-white">{copy.new}</span> : null}
+                      <span className="ml-auto">{formatTime(message.sentAt || message.createdAt, uiLang)}</span>
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6">{message.body}</p>
+                    {unreadGuestReply ? <button type="button" onClick={() => markGuestMessageRead(message.id)} className="mt-3 rounded-lg border border-rose-400/30 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700">{copy.read}</button> : null}
+                  </article>
+                );
+              }) : <p className="text-sm text-[var(--staff-muted)]">{copy.noHistory}</p>}
             </div>
           </div>
         </div>
