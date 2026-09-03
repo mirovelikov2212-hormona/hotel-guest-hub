@@ -7,6 +7,7 @@ import {
 } from "../helpers/source-contract.mjs";
 
 const MIGRATION = "supabase/migrations/20260903194500_runtime_target_shadow_readiness.sql";
+const HARDENING = "supabase/migrations/20260903200000_harden_runtime_target_bound_invariants.sql";
 
 test("P5.5 adds exact-generation verification evidence without a second readiness truth", async () => {
   const migration = await readProjectFile(MIGRATION);
@@ -96,6 +97,22 @@ test("P5.5 keeps target fleet physical-routing evidence aware while preserving t
   assertContains(migration, "and e.status = 'passed'");
   assertContains(migration, "and e.valid_until > clock_timestamp()");
   assertContains(migration, "and e1.target_generation = t.generation");
+});
+
+test("P5.5 bound target edits preserve environment and capacity invariants", async () => {
+  const hardening = await readProjectFile(HARDENING);
+
+  assertContains(hardening, "create or replace function public.guard_runtime_target_readiness_v1()");
+  assertContains(hardening, "from public.runtime_cells c");
+  assertContains(hardening, "c.routing_target_key = old.target_key");
+  assertContains(hardening, "c.environment_scope <> new.environment_scope");
+  assertContains(hardening, "RUNTIME_TARGET_ENVIRONMENT_BINDING_CONFLICT");
+  assertContains(hardening, "new.max_cells < v_bound_cell_count");
+  assertContains(hardening, "RUNTIME_TARGET_CELL_CAPACITY_BELOW_OCCUPANCY");
+  assertContains(hardening, "join public.runtime_cells c on c.id = a.cell_id");
+  assertContains(hardening, "new.max_hotels < v_bound_hotel_count");
+  assertContains(hardening, "RUNTIME_TARGET_HOTEL_CAPACITY_BELOW_OCCUPANCY");
+  assertContains(hardening, "new.generation := old.generation + 1");
 });
 
 test("P5.5 evidence and routing controls remain service-role only and do not wire Guest traffic", async () => {
