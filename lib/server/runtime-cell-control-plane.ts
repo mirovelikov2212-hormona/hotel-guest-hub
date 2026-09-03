@@ -26,6 +26,11 @@ export type RuntimeCellHotel = {
   recentErrorCount: number;
   recentWarningCount: number;
   lastEventAt: string | null;
+  activeStays: number;
+  requests15m: number;
+  surveys15m: number;
+  communications15m: number;
+  operations15m: number;
 };
 
 export type RuntimeCellFleetCell = {
@@ -48,6 +53,11 @@ export type RuntimeCellFleetCell = {
   attentionCount: number;
   criticalCount: number;
   inactiveHotelCount: number;
+  activeStays: number;
+  requests15m: number;
+  surveys15m: number;
+  communications15m: number;
+  operations15m: number;
   hotels: RuntimeCellHotel[];
 };
 
@@ -61,6 +71,11 @@ export type RuntimeCellFleetSnapshot = {
   unverifiedHotelCount: number;
   attentionHotelCount: number;
   criticalHotelCount: number;
+  activeStays: number;
+  requests15m: number;
+  surveys15m: number;
+  communications15m: number;
+  operations15m: number;
   generatedAt: string;
 };
 
@@ -107,6 +122,17 @@ type HealthRow = {
   recent_error_count: number | string;
   recent_warning_count: number | string;
   last_event_at: string | null;
+};
+
+type DemandRow = {
+  hotel_id: string;
+  cell_id: string;
+  cell_key: string;
+  active_stays: number | string;
+  requests_15m: number | string;
+  surveys_15m: number | string;
+  communications_15m: number | string;
+  operations_15m: number | string;
 };
 
 type MoveRpcRow = {
@@ -163,12 +189,13 @@ function cellHealthState(hotels: RuntimeCellHotel[]): RuntimeCellHealthState {
 /**
  * Platform-wide fleet read. Runtime cells partition hotel tenants, but they do
  * not replace hotel identity, Factory publication, commercial entitlement, or
- * the materialized tenant runtime authority. Cell Health is a read-only
- * aggregation over existing Factory/runtime/system evidence; it persists no
- * competing health truth.
+ * the materialized tenant runtime authority. Cell Health and Demand Telemetry
+ * are read-only aggregations over existing authority/evidence; they persist no
+ * competing health or load truth. Demand is intentionally raw telemetry rather
+ * than an invented score while all logical cells still share the primary target.
  */
 export async function getRuntimeCellFleetSnapshot(): Promise<RuntimeCellFleetSnapshot> {
-  const [cellsResult, assignmentsResult, hotelsResult, healthResult] = await Promise.all([
+  const [cellsResult, assignmentsResult, hotelsResult, healthResult, demandResult] = await Promise.all([
     supabaseAdmin
       .from("runtime_cells")
       .select("id,cell_key,display_name,environment_scope,cell_class,lifecycle_state,routing_target_key,max_hotels,desired_max_p95_ms,version")
@@ -183,17 +210,20 @@ export async function getRuntimeCellFleetSnapshot(): Promise<RuntimeCellFleetSna
       .select("id,slug,public_slug,name,active")
       .order("slug", { ascending: true }),
     supabaseAdmin.rpc("get_runtime_cell_fleet_health_v1"),
+    supabaseAdmin.rpc("get_runtime_cell_fleet_demand_v1"),
   ]);
 
-  const failure = [cellsResult, assignmentsResult, hotelsResult, healthResult].find((result) => result.error)?.error;
+  const failure = [cellsResult, assignmentsResult, hotelsResult, healthResult, demandResult].find((result) => result.error)?.error;
   if (failure) throw new Error(`RUNTIME_CELL_FLEET_UNAVAILABLE:${failure.message}`);
 
   const cellRows = (cellsResult.data || []) as CellRow[];
   const assignmentRows = (assignmentsResult.data || []) as AssignmentRow[];
   const hotelRows = (hotelsResult.data || []) as HotelRow[];
   const healthRows = (healthResult.data || []) as HealthRow[];
+  const demandRows = (demandResult.data || []) as DemandRow[];
   const hotelsById = new Map(hotelRows.map((hotel) => [hotel.id, hotel]));
   const healthByHotelId = new Map(healthRows.map((health) => [health.hotel_id, health]));
+  const demandByHotelId = new Map(demandRows.map((demand) => [demand.hotel_id, demand]));
   const assignmentsByCell = new Map<string, RuntimeCellHotel[]>();
   const assignedHotelIds = new Set<string>();
 
@@ -203,6 +233,10 @@ export async function getRuntimeCellFleetSnapshot(): Promise<RuntimeCellFleetSna
     const health = healthByHotelId.get(hotel.id);
     if (!health || health.cell_id !== assignment.cell_id) {
       throw new Error(`RUNTIME_CELL_HEALTH_MISSING:${hotel.id}`);
+    }
+    const demand = demandByHotelId.get(hotel.id);
+    if (!demand || demand.cell_id !== assignment.cell_id) {
+      throw new Error(`RUNTIME_CELL_DEMAND_MISSING:${hotel.id}`);
     }
     assignedHotelIds.add(hotel.id);
     const entry: RuntimeCellHotel = {
@@ -223,6 +257,11 @@ export async function getRuntimeCellFleetSnapshot(): Promise<RuntimeCellFleetSna
       recentErrorCount: Number(health.recent_error_count),
       recentWarningCount: Number(health.recent_warning_count),
       lastEventAt: health.last_event_at,
+      activeStays: Number(demand.active_stays),
+      requests15m: Number(demand.requests_15m),
+      surveys15m: Number(demand.surveys_15m),
+      communications15m: Number(demand.communications_15m),
+      operations15m: Number(demand.operations_15m),
     };
     assignmentsByCell.set(assignment.cell_id, [
       ...(assignmentsByCell.get(assignment.cell_id) || []),
@@ -254,6 +293,11 @@ export async function getRuntimeCellFleetSnapshot(): Promise<RuntimeCellFleetSna
       attentionCount: hotels.filter((hotel) => hotel.healthState === "attention").length,
       criticalCount: hotels.filter((hotel) => hotel.healthState === "critical").length,
       inactiveHotelCount: hotels.filter((hotel) => hotel.healthState === "inactive").length,
+      activeStays: hotels.reduce((sum, hotel) => sum + hotel.activeStays, 0),
+      requests15m: hotels.reduce((sum, hotel) => sum + hotel.requests15m, 0),
+      surveys15m: hotels.reduce((sum, hotel) => sum + hotel.surveys15m, 0),
+      communications15m: hotels.reduce((sum, hotel) => sum + hotel.communications15m, 0),
+      operations15m: hotels.reduce((sum, hotel) => sum + hotel.operations15m, 0),
       hotels,
     };
   });
@@ -269,6 +313,11 @@ export async function getRuntimeCellFleetSnapshot(): Promise<RuntimeCellFleetSna
     unverifiedHotelCount: allHotels.filter((hotel) => hotel.healthState === "unverified").length,
     attentionHotelCount: allHotels.filter((hotel) => hotel.healthState === "attention").length,
     criticalHotelCount: allHotels.filter((hotel) => hotel.healthState === "critical").length,
+    activeStays: allHotels.reduce((sum, hotel) => sum + hotel.activeStays, 0),
+    requests15m: allHotels.reduce((sum, hotel) => sum + hotel.requests15m, 0),
+    surveys15m: allHotels.reduce((sum, hotel) => sum + hotel.surveys15m, 0),
+    communications15m: allHotels.reduce((sum, hotel) => sum + hotel.communications15m, 0),
+    operations15m: allHotels.reduce((sum, hotel) => sum + hotel.operations15m, 0),
     generatedAt: new Date().toISOString(),
   };
 }
