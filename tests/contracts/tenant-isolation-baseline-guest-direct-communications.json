@@ -2,13 +2,20 @@
   "version": 1,
   "checkpoint": "guest-direct-communications-production-release",
   "baseCheckpoint": "factory-runtime-reconciliation-reliability",
-  "expectedNeedsReview": 172,
-  "removals": [],
+  "expectedNeedsReview": 171,
+  "removals": [
+    {
+      "filePath": "app/api/guest/communications/route.ts",
+      "line": 60,
+      "table": "guest_communications",
+      "operation": "select"
+    }
+  ],
   "relocations": [],
   "additions": [
     {
       "filePath": "app/api/staff/guest-direct-communications/route.ts",
-      "line": 101,
+      "line": 99,
       "table": "guest_communications",
       "tableExpression": "\"guest_communications\"",
       "operation": "select",
@@ -26,7 +33,7 @@
     },
     {
       "filePath": "app/api/staff/guest-direct-communications/route.ts",
-      "line": 180,
+      "line": 179,
       "table": "guest_communications",
       "tableExpression": "\"guest_communications\"",
       "operation": "select",
@@ -35,7 +42,7 @@
     },
     {
       "filePath": "app/api/guest/communications/route.ts",
-      "line": 77,
+      "line": 76,
       "table": "guest_communications",
       "tableExpression": "\"guest_communications\"",
       "operation": "select",
@@ -53,7 +60,7 @@
     },
     {
       "filePath": "app/api/guest/communications/route.ts",
-      "line": 124,
+      "line": 123,
       "table": "guest_communications",
       "tableExpression": "\"guest_communications\"",
       "operation": "select",
@@ -62,7 +69,7 @@
     },
     {
       "filePath": "app/api/guest/communications/route.ts",
-      "line": 135,
+      "line": 134,
       "table": "guest_communications",
       "tableExpression": "\"guest_communications\"",
       "operation": "select",
@@ -80,7 +87,7 @@
     },
     {
       "filePath": "lib/server/guest-direct-communications-delivery.ts",
-      "line": 65,
+      "line": 64,
       "table": "guest_communication_deliveries",
       "tableExpression": "\"guest_communication_deliveries\"",
       "operation": "upsert",
@@ -89,7 +96,7 @@
     },
     {
       "filePath": "lib/server/guest-direct-communications-delivery.ts",
-      "line": 70,
+      "line": 69,
       "table": "guest_communication_deliveries",
       "tableExpression": "\"guest_communication_deliveries\"",
       "operation": "select",
