@@ -363,7 +363,11 @@ export async function maybeForwardSandboxGuestRequest(input: {
     return null;
   }
 
-  const oidcToken = input.req.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
+  // Vercel exposes a short-lived project-scoped OIDC token to the Function
+  // runtime. We forward it both to our application verifier (Authorization)
+  // and to Vercel Deployment Protection's trusted-source header so Preview
+  // targets can be reached without a persistent bypass secret.
+  const oidcToken = process.env.VERCEL_OIDC_TOKEN || "";
   if (!oidcToken) throw new Error("RUNTIME_CANARY_FORWARD_OIDC_UNAVAILABLE");
 
   const url = new URL(input.routePath, `${targetOrigin}/`);
@@ -373,6 +377,7 @@ export async function maybeForwardSandboxGuestRequest(input: {
       accept: input.req.headers.get("accept") || "application/json",
       "content-type": "application/json",
       authorization: `Bearer ${oidcToken}`,
+      "x-vercel-trusted-oidc-idp-token": oidcToken,
       "x-stayhub-runtime-forwarded": "v1",
       "x-stayhub-runtime-hotel-id": input.hotel.id,
       "x-stayhub-runtime-target-key": route.targetKey,
