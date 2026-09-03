@@ -45,7 +45,12 @@ type PrimeNormalizedRuntimeInput = {
 // contained hotel/revision/checksum.
 export const NORMALIZED_RUNTIME_CACHE_SCHEMA_VERSION = "v2-request-def-contract";
 const normalizedRuntimeCache = getCache({ namespace: "normalized-config-runtime-v2" });
+const normalizedRuntimeMemoryCache = new Map<
+  string,
+  { expiresAt: number; value: NormalizedRuntimeResult }
+>();
 const NORMALIZED_RUNTIME_TTL_SECONDS = 300;
+const NORMALIZED_RUNTIME_MEMORY_TTL_MS = 60_000;
 
 export function normalizedRuntimeCacheKey(
   scope: "rooms" | "departments",
@@ -56,9 +61,34 @@ export function normalizedRuntimeCacheKey(
   return `${NORMALIZED_RUNTIME_CACHE_SCHEMA_VERSION}:${scope}:${hotelId}:${revisionId}:${sourceChecksum}`;
 }
 
+function readNormalizedRuntimeMemoryCache(key: string) {
+  const cached = normalizedRuntimeMemoryCache.get(key);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    normalizedRuntimeMemoryCache.delete(key);
+    return null;
+  }
+  return cached.value;
+}
+
+function writeNormalizedRuntimeMemoryCache(
+  key: string,
+  value: NormalizedRuntimeResult,
+) {
+  normalizedRuntimeMemoryCache.set(key, {
+    expiresAt: Date.now() + NORMALIZED_RUNTIME_MEMORY_TTL_MS,
+    value,
+  });
+}
+
 async function readNormalizedRuntimeCache(key: string) {
+  const memoryCached = readNormalizedRuntimeMemoryCache(key);
+  if (memoryCached) return memoryCached;
+
   try {
-    return await normalizedRuntimeCache.get(key) as NormalizedRuntimeResult | null;
+    const cached = await normalizedRuntimeCache.get(key) as NormalizedRuntimeResult | null;
+    if (cached) writeNormalizedRuntimeMemoryCache(key, cached);
+    return cached;
   } catch (error) {
     console.warn("Normalized runtime cache read failed; using authoritative database path", { key, error });
     return null;
@@ -66,6 +96,7 @@ async function readNormalizedRuntimeCache(key: string) {
 }
 
 async function writeNormalizedRuntimeCache(hotelId: string, key: string, value: NormalizedRuntimeResult) {
+  writeNormalizedRuntimeMemoryCache(key, value);
   try {
     await normalizedRuntimeCache.set(key, value, {
       ttl: NORMALIZED_RUNTIME_TTL_SECONDS,
@@ -89,11 +120,11 @@ function authorityMap(value: unknown, key: string) {
 }
 
 /**
- * Prime the current normalized-runtime cache contract from a materialized tenant
- * snapshot. This module owns both namespace and key schema, so callers cannot
- * accidentally write old v1 payloads after a deploy. Runtime compatibility
- * normalization is repeated deliberately: a materialized row stores immutable
- * published JSON and must never be cached as a composed HotelConfig verbatim.
+ * Prime only the current process from a materialized tenant snapshot. The
+ * materialized RPC already proved revision/checksum/projection authority, so a
+ * second persisted Vercel-cache write is not a correctness prerequisite and is
+ * intentionally skipped on this hot path. Legacy DB resolution continues to
+ * use writeNormalizedRuntimeCache() and therefore keeps persisted resilience.
  */
 export async function primeNormalizedRuntimeCachesFromMaterialized(
   input: PrimeNormalizedRuntimeInput,
@@ -138,60 +169,55 @@ export async function primeNormalizedRuntimeCachesFromMaterialized(
     "routingDepartmentIdByRequestType",
   );
 
-  const writes: Promise<unknown>[] = [];
+  let primed = 0;
   if (roomIdByNumber) {
-    writes.push(
-      writeNormalizedRuntimeCache(
+    writeNormalizedRuntimeMemoryCache(
+      normalizedRuntimeCacheKey(
+        "rooms",
         hotelId,
-        normalizedRuntimeCacheKey(
-          "rooms",
-          hotelId,
+        revisionId,
+        sourceChecksum,
+      ),
+      {
+        ok: true,
+        source: "normalized",
+        reason: null,
+        config,
+        relationalAuthority: {
           revisionId,
           sourceChecksum,
-        ),
-        {
-          ok: true,
-          source: "normalized",
-          reason: null,
-          config,
-          relationalAuthority: {
-            revisionId,
-            sourceChecksum,
-            roomIdByNumber,
-          },
+          roomIdByNumber,
         },
-      ),
+      },
     );
+    primed += 1;
   }
 
   if (departmentIdByCode && routingDepartmentIdByRequestType) {
-    writes.push(
-      writeNormalizedRuntimeCache(
+    writeNormalizedRuntimeMemoryCache(
+      normalizedRuntimeCacheKey(
+        "departments",
         hotelId,
-        normalizedRuntimeCacheKey(
-          "departments",
-          hotelId,
+        revisionId,
+        sourceChecksum,
+      ),
+      {
+        ok: true,
+        source: "normalized",
+        reason: null,
+        config,
+        relationalAuthority: {
           revisionId,
           sourceChecksum,
-        ),
-        {
-          ok: true,
-          source: "normalized",
-          reason: null,
-          config,
-          relationalAuthority: {
-            revisionId,
-            sourceChecksum,
-            departmentIdByCode,
-            routingDepartmentIdByRequestType,
-          },
+          departmentIdByCode,
+          routingDepartmentIdByRequestType,
         },
-      ),
+      },
     );
+    primed += 1;
   }
 
-  await Promise.all(writes);
-  return writes.length > 0;
+  return primed > 0;
 }
 
 function metadataActivatesRoomReads(state: NormalizedProjectionState | null) {

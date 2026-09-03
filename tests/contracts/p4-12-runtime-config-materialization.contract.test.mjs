@@ -167,3 +167,33 @@ test("P4.12 remains hotel-generic and does not materialize Aquamarine identity/c
     assertNotContains(model.toLowerCase(), forbidden.toLowerCase());
   }
 });
+
+test("P4.12 materialized Sandbox hot path primes process memory without blocking on persisted cache fan-out", async () => {
+  const directory = await readProjectFile("lib/hotels/getHotelSheetSources.ts");
+  const published = await readProjectFile("lib/server/published-hotel-config.ts");
+  const normalized = await readProjectFile("lib/server/normalized-config-runtime.ts");
+
+  assertContains(directory, "await primeSharedRuntimeCaches(materialized);");
+  assertNotContains(
+    directory,
+    "await Promise.all([\n        cacheHotelSheetSources(cacheKey, result),\n        primeSharedRuntimeCaches(materialized),\n      ]);",
+  );
+
+  assertContains(published, "publishedConfigMemoryCache");
+  assertContains(published, "const memoryCached = readPublishedRuntimeMemoryCache(normalizedHotelId);");
+  const publishedPrimeStart = published.indexOf("export async function primePublishedHotelConfigRuntimeCache");
+  const publishedPrimeEnd = published.indexOf("/**\n * Read only the immutable published revision", publishedPrimeStart);
+  assert.ok(publishedPrimeStart >= 0 && publishedPrimeEnd > publishedPrimeStart);
+  const publishedPrime = published.slice(publishedPrimeStart, publishedPrimeEnd);
+  assertContains(publishedPrime, "writePublishedRuntimeMemoryCache");
+  assertNotContains(publishedPrime, "writePublishedRuntimeCache(");
+
+  assertContains(normalized, "normalizedRuntimeMemoryCache");
+  assertContains(normalized, "const memoryCached = readNormalizedRuntimeMemoryCache(key);");
+  const normalizedPrimeStart = normalized.indexOf("export async function primeNormalizedRuntimeCachesFromMaterialized");
+  const normalizedPrimeEnd = normalized.indexOf("function metadataActivatesRoomReads", normalizedPrimeStart);
+  assert.ok(normalizedPrimeStart >= 0 && normalizedPrimeEnd > normalizedPrimeStart);
+  const normalizedPrime = normalized.slice(normalizedPrimeStart, normalizedPrimeEnd);
+  assertContains(normalizedPrime, "writeNormalizedRuntimeMemoryCache");
+  assertNotContains(normalizedPrime, "writeNormalizedRuntimeCache(");
+});
