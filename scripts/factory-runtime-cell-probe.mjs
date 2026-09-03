@@ -15,6 +15,7 @@ const prefix = String(process.env.STAYHUB_CELL_PROBE_PREFIX || "factory-heavy-20
 const timeoutMs = Number(process.env.STAYHUB_CELL_PROBE_TIMEOUT_MS || 70_000);
 const p95LimitMs = Number(process.env.STAYHUB_CELL_PROBE_P95_MS || 3_000);
 const runId = String(process.env.STAYHUB_CELL_PROBE_RUN_ID || `${prefix}-cell-probe-${Date.now()}`);
+const protectionBypassSecret = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "").trim();
 const defaultTargets = [
   { cellKey: "sandbox-standard-01", hotel: 6 },
   { cellKey: "sandbox-standard-02", hotel: 5 },
@@ -61,25 +62,37 @@ function percentile(values, p) {
 }
 
 function summarize(rows) {
-  const latencies = rows.map((row) => row.latencyMs);
+  const successfulRows = rows.filter((row) => row.ok);
+  const successfulLatencies = successfulRows.map((row) => row.latencyMs);
   return {
     total: rows.length,
-    successful: rows.filter((row) => row.ok).length,
-    failed: rows.filter((row) => !row.ok).length,
-    p50: percentile(latencies, 50),
-    p95: percentile(latencies, 95),
-    max: latencies.length ? Number(Math.max(...latencies).toFixed(1)) : null,
+    successful: successfulRows.length,
+    failed: rows.length - successfulRows.length,
+    p50: percentile(successfulLatencies, 50),
+    p95: percentile(successfulLatencies, 95),
+    max: successfulLatencies.length ? Number(Math.max(...successfulLatencies).toFixed(1)) : null,
   };
 }
 
 async function fetchJson(url, init = {}) {
+  const headers = new Headers(init.headers || {});
+  if (protectionBypassSecret) headers.set("x-vercel-protection-bypass", protectionBypassSecret);
   const response = await fetch(url, {
     ...init,
+    headers,
     signal: AbortSignal.timeout(timeoutMs),
     cache: "no-store",
   });
   const body = await response.json().catch(() => null);
   return { response, body };
+}
+
+function isProtectedDeploymentFailure(row) {
+  if (row.status !== 401 && row.status !== 403) return false;
+  const text = typeof row.error === "string"
+    ? row.error
+    : `${row.error?.message || ""} ${row.error?.code || ""}`;
+  return /protected deployment|deployment protection|vercel authentication/i.test(text);
 }
 
 async function postOperation(kind, target, roomIndex) {
@@ -188,16 +201,21 @@ const byCell = Object.fromEntries(targets.map((target) => [target.cellKey, {
 }]));
 const duplicateSurveys = results.filter((row) => row.kind === "survey" && row.duplicate).length;
 const correctnessAccepted = results.every((row) => row.ok) && duplicateSurveys === 0;
+const protectedDeploymentFailures = results.filter(isProtectedDeploymentFailure).length;
+const measurementAvailable = correctnessAccepted && protectedDeploymentFailures === 0;
 const performanceSignal = {
+  status: measurementAvailable ? "measured" : "unavailable",
   targetP95Ms: p95LimitMs,
-  requestUnderTarget: byKind.request.p95 !== null && byKind.request.p95 <= p95LimitMs,
-  surveyUnderTarget: byKind.survey.p95 !== null && byKind.survey.p95 <= p95LimitMs,
-  communicationsUnderTarget: byKind.communications.p95 !== null && byKind.communications.p95 <= p95LimitMs,
+  requestUnderTarget: measurementAvailable ? byKind.request.p95 <= p95LimitMs : null,
+  surveyUnderTarget: measurementAvailable ? byKind.survey.p95 <= p95LimitMs : null,
+  communicationsUnderTarget: measurementAvailable ? byKind.communications.p95 <= p95LimitMs : null,
+  allUnderTarget: measurementAvailable
+    ? byKind.request.p95 <= p95LimitMs && byKind.survey.p95 <= p95LimitMs && byKind.communications.p95 <= p95LimitMs
+    : null,
 };
-performanceSignal.allUnderTarget = performanceSignal.requestUnderTarget && performanceSignal.surveyUnderTarget && performanceSignal.communicationsUnderTarget;
 
 const output = {
-  schemaVersion: "stayhub-runtime-cell-probe-v1",
+  schemaVersion: "stayhub-runtime-cell-probe-v2",
   runId,
   baseUrl,
   startedAt,
@@ -210,6 +228,7 @@ const output = {
   byCell,
   duplicateSurveys,
   correctnessAccepted,
+  protectedDeploymentFailures,
   performanceSignal,
   failures: results.filter((row) => !row.ok),
   results,
@@ -217,4 +236,9 @@ const output = {
 
 await writeFile("factory-runtime-cell-probe-results.json", `${JSON.stringify(output, null, 2)}\n`);
 console.log(JSON.stringify({ ...output, results: undefined }, null, 2));
-if (!correctnessAccepted) process.exitCode = 1;
+if (protectedDeploymentFailures > 0) {
+  console.error("Runtime cell probe unavailable: Vercel Deployment Protection rejected the automation request.");
+  process.exitCode = 2;
+} else if (!correctnessAccepted) {
+  process.exitCode = 1;
+}
