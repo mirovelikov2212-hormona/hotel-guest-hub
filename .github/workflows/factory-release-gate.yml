@@ -32,6 +32,8 @@ jobs:
         run: node --test tests/contracts/p5-6-runtime-cell-cutover-plan.contract.test.mjs
       - name: Runtime cell controlled cutover contracts
         run: node --test tests/contracts/p5-7-runtime-cell-controlled-cutover.contract.test.mjs
+      - name: Runtime Sandbox canary routing contracts
+        run: node --test tests/contracts/p5-8-runtime-sandbox-canary-routing.contract.test.mjs
       - run: node --test tests/contracts/control-panel-factory-routing.contract.test.mjs
       - run: node --test tests/contracts/p2-6-4-published-derivative-lineage.contract.test.mjs
       - run: node --test tests/contracts/p2-6-4-relational-authority-jsonb.contract.test.mjs
