@@ -32,6 +32,7 @@ jobs:
         env:
           PUSH_PREVIEW_URL: https://hotel-guest-3yvtttzt3-miroslav-velikovs-projects.vercel.app
           DISPATCH_PREVIEW_URL: ${{ inputs.base_url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             export STAYHUB_CELL_PROBE_BASE_URL="$DISPATCH_PREVIEW_URL"
@@ -43,7 +44,7 @@ jobs:
         if: always()
         run: |
           if [ -f factory-runtime-cell-probe-results.json ]; then
-            jq '{schemaVersion,runId,baseUrl,startedAt,completedAt,targetCount,totalOperations,wallMs,byKind,byCell,duplicateSurveys,correctnessAccepted,performanceSignal,failures}' factory-runtime-cell-probe-results.json
+            jq '{schemaVersion,runId,baseUrl,startedAt,completedAt,targetCount,totalOperations,wallMs,byKind,byCell,duplicateSurveys,correctnessAccepted,protectedDeploymentFailures,performanceSignal,failures}' factory-runtime-cell-probe-results.json
           fi
       - name: Upload runtime cell probe evidence
         if: always()
