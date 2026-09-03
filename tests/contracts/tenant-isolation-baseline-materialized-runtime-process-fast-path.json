@@ -9,7 +9,6 @@
       "filePath": "lib/hotels/getHotelSheetSources.ts",
       "fromLine": 111,
       "toLine": 119,
-      "table": "get_factory_tenant_runtime_v1",
       "operation": "rpc"
     }
   ],
