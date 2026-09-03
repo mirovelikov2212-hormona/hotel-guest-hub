@@ -7,6 +7,7 @@ import {
 } from "../helpers/source-contract.mjs";
 
 const MIGRATION = "supabase/migrations/20260903205000_runtime_cell_controlled_cutover.sql";
+const HARDENING = "supabase/migrations/20260903205500_harden_runtime_cells_service_role_grants.sql";
 
 test("P5.7 executes only an immutable P5.6 plan through the existing binding primitive", async () => {
   const migration = await readProjectFile(MIGRATION);
@@ -29,6 +30,21 @@ test("P5.7 closes direct service-role target-binding bypasses", async () => {
   assertContains(migration, "revoke execute on function public.move_runtime_cell_target_v1(uuid, text, text, bigint, text)");
   assertContains(migration, "from public, anon, authenticated, service_role");
   assertContains(migration, "grant execute on function public.execute_runtime_cell_cutover_plan_v1(uuid, uuid, text)");
+});
+
+test("P5.7 hardening makes runtime_cells genuinely SELECT-only for service role", async () => {
+  const hardening = await readProjectFile(HARDENING);
+
+  assertContains(hardening, "revoke all on table public.runtime_cells from service_role");
+  assertContains(hardening, "grant select on table public.runtime_cells to service_role");
+  assertContains(hardening, "revoke execute on function public.move_runtime_cell_target_v1(uuid, text, text, bigint, text)");
+  assertContains(hardening, "from public, anon, authenticated, service_role");
+  assertNotContains(hardening, "grant insert");
+  assertNotContains(hardening, "grant update");
+  assertNotContains(hardening, "grant delete");
+  assertNotContains(hardening, "grant truncate");
+  assertNotContains(hardening, "grant references");
+  assertNotContains(hardening, "grant trigger");
 });
 
 test("P5.7 serializes cell membership and target evidence before final readiness", async () => {
