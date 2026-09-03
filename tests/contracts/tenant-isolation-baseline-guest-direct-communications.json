@@ -8,25 +8,16 @@
   "additions": [
     {
       "filePath": "app/api/staff/guest-direct-communications/route.ts",
-      "line": 43,
-      "table": "guest_stays",
-      "tableExpression": "\"guest_stays\"",
-      "operation": "select",
-      "reasons": ["unclassified_table"],
-      "provenance": "reception_active_stay_inventory_is_server_only_after_exact_staff_session_and_hotel_slug_authorization; the_query_is_scoped_by_authoritative_hotel_id_plus_active_lifecycle_non_test_and_future_effective_checkout_before_any_room_can_be_selected"
-    },
-    {
-      "filePath": "app/api/staff/guest-direct-communications/route.ts",
-      "line": 53,
+      "line": 101,
       "table": "guest_communications",
       "tableExpression": "\"guest_communications\"",
       "operation": "select",
       "reasons": ["unclassified_table"],
-      "provenance": "reception_direct_history_read_runs_only_after_same_hotel_reception_authorization_and_is_scoped_by_authoritative_hotel_id_plus_direct_guest_audience; it_never_reads_another_hotel_and_the_ui_partitions_rows_by_exact_stay_id"
+      "provenance": "reception_direct_history_read_runs_only_after_same_hotel_reception_authorization_and_is_scoped_by_authoritative_hotel_id_plus_direct_guest_audience; the_ui_partitions_rows_by_exact_stay_id_and_no_cross_hotel_rows_can_enter_the_result"
     },
     {
       "filePath": "app/api/staff/guest-direct-communications/route.ts",
-      "line": 119,
+      "line": 160,
       "rpc": "append_guest_direct_communication_v1",
       "tableExpression": "\"append_guest_direct_communication_v1\"",
       "operation": "rpc",
@@ -35,7 +26,7 @@
     },
     {
       "filePath": "app/api/staff/guest-direct-communications/route.ts",
-      "line": 140,
+      "line": 180,
       "table": "guest_communications",
       "tableExpression": "\"guest_communications\"",
       "operation": "select",
@@ -44,7 +35,7 @@
     },
     {
       "filePath": "app/api/guest/communications/route.ts",
-      "line": 75,
+      "line": 77,
       "table": "guest_communications",
       "tableExpression": "\"guest_communications\"",
       "operation": "select",
@@ -53,7 +44,7 @@
     },
     {
       "filePath": "app/api/guest/communications/route.ts",
-      "line": 99,
+      "line": 96,
       "rpc": "append_guest_direct_communication_v1",
       "tableExpression": "\"append_guest_direct_communication_v1\"",
       "operation": "rpc",
@@ -62,7 +53,7 @@
     },
     {
       "filePath": "app/api/guest/communications/route.ts",
-      "line": 122,
+      "line": 124,
       "table": "guest_communications",
       "tableExpression": "\"guest_communications\"",
       "operation": "select",
@@ -71,7 +62,7 @@
     },
     {
       "filePath": "app/api/guest/communications/route.ts",
-      "line": 134,
+      "line": 135,
       "table": "guest_communications",
       "tableExpression": "\"guest_communications\"",
       "operation": "select",
@@ -79,40 +70,49 @@
       "provenance": "guest_direct_history_read_occurs_only_after_exact_guest_stay_device_identity_validation_and_is_scoped_by_authoritative_hotel_id_exact_stay_id_and_direct_guest_audience"
     },
     {
-      "filePath": "lib/server/guest-communications-delivery-policy.ts",
-      "line": 19,
-      "table": "hotel_settings",
-      "tableExpression": "\"hotel_settings\"",
-      "operation": "select",
+      "filePath": "lib/server/guest-direct-communications-delivery.ts",
+      "line": 48,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "update",
       "reasons": ["unclassified_table"],
-      "provenance": "delivery_feature_gate_reads_only_one_setting_key_under_the_authoritative_hotel_id; missing_or_non_true_value_fails_closed_and_cannot_enable_another_hotel"
+      "provenance": "no_subscription_delivery_summary_updates_only_the_exact_direct_communication_under_authoritative_hotel_id_exact_communication_id_and_direct_guest_audience"
     },
     {
       "filePath": "lib/server/guest-direct-communications-delivery.ts",
-      "line": 54,
-      "table": "guest_push_subscriptions",
-      "tableExpression": "\"guest_push_subscriptions\"",
-      "operation": "select",
-      "reasons": ["unclassified_table"],
-      "provenance": "targeted_direct_push_selects_enabled_non_test_subscriptions_only_by_the_same_authoritative_hotel_id_and_exact_communication_stay_id_after_communication_hotel_scope_and_per_hotel_delivery_policy_checks"
-    },
-    {
-      "filePath": "lib/server/guest-direct-communications-delivery.ts",
-      "line": 84,
+      "line": 65,
       "table": "guest_communication_deliveries",
       "tableExpression": "\"guest_communication_deliveries\"",
       "operation": "upsert",
       "reasons": ["unclassified_table"],
-      "provenance": "direct_delivery_evidence_rows_are_derived_only_from_subscriptions_selected_by_same_hotel_and_exact_stay; each_row_carries_authoritative_hotel_id_exact_communication_id_and_subscription_id_and_unique_communication_subscription_key_prevents_duplicate_evidence"
+      "provenance": "delivery_evidence_rows_are_constructed_only_from_push_subscriptions_preselected_by_authoritative_hotel_id_and_exact_stay_id; every_row_carries_the_same_hotel_id_exact_communication_id_and_subscription_id_and_the_unique_communication_subscription_key_prevents_duplicate_evidence"
     },
     {
       "filePath": "lib/server/guest-direct-communications-delivery.ts",
-      "line": 93,
+      "line": 70,
       "table": "guest_communication_deliveries",
       "tableExpression": "\"guest_communication_deliveries\"",
       "operation": "select",
       "reasons": ["unclassified_table"],
-      "provenance": "direct_delivery_evidence_read_is_scoped_by_authoritative_hotel_id_exact_communication_id_and_only_subscription_ids_already_selected_by_the_same_hotel_and_exact_stay"
+      "provenance": "delivery_evidence_read_is_scoped_by_authoritative_hotel_id_exact_communication_id_and_only_subscription_ids_already_selected_by_the_same_hotel_and_exact_stay"
+    },
+    {
+      "filePath": "lib/server/guest-direct-communications-delivery.ts",
+      "line": 106,
+      "table": "guest_communication_deliveries",
+      "tableExpression": "\"guest_communication_deliveries\"",
+      "operation": "update",
+      "reasons": ["unclassified_table"],
+      "provenance": "per_subscription_delivery_status_update_targets_only_the_evidence_row_resolved_from_same_hotel_exact_communication_and_preselected_subscription_then_restricts_the_write_again_by_authoritative_hotel_id_and_evidence_id"
+    },
+    {
+      "filePath": "lib/server/guest-direct-communications-delivery.ts",
+      "line": 119,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "update",
+      "reasons": ["unclassified_table"],
+      "provenance": "final_delivery_summary_updates_only_the_exact_direct_communication_under_authoritative_hotel_id_exact_communication_id_and_direct_guest_audience_after_same_hotel_exact_stay_delivery_processing"
     }
   ]
 }
