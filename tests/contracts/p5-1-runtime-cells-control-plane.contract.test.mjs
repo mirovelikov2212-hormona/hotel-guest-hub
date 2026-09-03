@@ -8,6 +8,7 @@ import {
 
 const MIGRATION = "supabase/migrations/20260903160000_control_plane_runtime_cells.sql";
 const HEALTH_MIGRATION = "supabase/migrations/20260903175000_runtime_cell_fleet_health_read.sql";
+const HEALTH_REFINEMENT = "supabase/migrations/20260903180500_refine_runtime_cell_fleet_health_semantics.sql";
 
 test("P5.1 adds runtime cells as a partition layer over hotel tenants without replacing hotel identity", async () => {
   const migration = await readProjectFile(MIGRATION);
@@ -93,6 +94,20 @@ test("P5.2 derives Cell Health from existing evidence without persisting a secon
   assertNotContains(migration, "create table");
   assertNotContains(migration, "insert into public.hotel_health_certification_state");
   assertNotContains(migration, "update public.hotel_health_certification_state");
+});
+
+test("P5.2 current-state health does not treat legacy tenants or recovered one-hour noise as broken", async () => {
+  const migration = await readProjectFile(HEALTH_REFINEMENT);
+
+  assertContains(migration, "latest_sandbox_certification");
+  assertContains(migration, "from public.factory_sandbox_certification_runs scr");
+  assertContains(migration, "coalesce(h.is_sandbox, false)");
+  assertContains(migration, "and lsc.status = 'passed'");
+  assertContains(migration, "se.created_at >= now() - interval '10 minutes'");
+  assertContains(migration, "current_critical_count");
+  assertContains(migration, "current_error_count");
+  assertContains(migration, "else 'unverified'");
+  assertNotContains(migration, "create table");
 });
 
 test("P5.1 server seam keeps Cells inside the existing Control Plane and does not replace Factory/runtime authority", async () => {
