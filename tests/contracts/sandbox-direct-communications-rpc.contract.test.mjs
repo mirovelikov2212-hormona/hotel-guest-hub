@@ -36,14 +36,20 @@ test("missing stay identities are controlled misses while DB faults and ended st
   assert.match(massageRoute, /if \(!identity\)[\s\S]{0,180}code: "STAY_REQUIRED"/);
 });
 
-test("core 620 is Preview-only, excludes massage adapters and requires real non-duplicate writes", async () => {
+test("core 620 is non-Production, excludes massage adapters and covers requests, surveys and communications", async () => {
   const core620 = await readProjectFile("scripts/factory-final-620-core.mjs");
 
   assertContains(core620, "STAYHUB_620_BASE_URL is required");
   assertContains(core620, "Production StayHub domains are forbidden");
-  assertContains(core620, "request.total === 420");
+  assertContains(core620, "request.total === 300");
   assertContains(core620, "survey.total === 200");
+  assertContains(core620, "communications.total === 120");
   assertContains(core620, "surveyDuplicates === 0");
+  assertContains(core620, "duplicateResponseIds === 0");
+  assertContains(core620, "validVisible");
+  assertContains(core620, "expiredHidden");
+  assertContains(core620, "crossHotelHidden");
+  assertContains(core620, "exactStayAuthority");
   assertContains(core620, "Expected exactly 620 core operations");
   assert.doesNotMatch(core620, /\/api\/guest\/massages/);
 });
