@@ -1,0 +1,54 @@
+name: Factory Runtime Cell Probe
+
+on:
+  push:
+    branches:
+      - fix/current-stay-push-reach
+    paths:
+      - ".github/workflows/factory-runtime-cell-probe.yml"
+      - "scripts/factory-runtime-cell-probe.mjs"
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Non-Production Vercel Preview URL"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate probe harness syntax
+        run: node --check scripts/factory-runtime-cell-probe.mjs
+      - name: Run 36-operation Sandbox cell probe
+        env:
+          PUSH_PREVIEW_URL: https://hotel-guest-3yvtttzt3-miroslav-velikovs-projects.vercel.app
+          DISPATCH_PREVIEW_URL: ${{ inputs.base_url }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            export STAYHUB_CELL_PROBE_BASE_URL="$DISPATCH_PREVIEW_URL"
+          else
+            export STAYHUB_CELL_PROBE_BASE_URL="$PUSH_PREVIEW_URL"
+          fi
+          node scripts/factory-runtime-cell-probe.mjs
+      - name: Print concise cell evidence
+        if: always()
+        run: |
+          if [ -f factory-runtime-cell-probe-results.json ]; then
+            jq '{schemaVersion,runId,baseUrl,startedAt,completedAt,targetCount,totalOperations,wallMs,byKind,byCell,duplicateSurveys,correctnessAccepted,performanceSignal,failures}' factory-runtime-cell-probe-results.json
+          fi
+      - name: Upload runtime cell probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-runtime-cell-probe-evidence
+          path: factory-runtime-cell-probe-results.json
+          if-no-files-found: warn
