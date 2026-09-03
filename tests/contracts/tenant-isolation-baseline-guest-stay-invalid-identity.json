@@ -25,13 +25,6 @@
       "toLine": 645,
       "table": "guest_stays",
       "operation": "update"
-    },
-    {
-      "filePath": "lib/hotels/getHotelSheetSources.ts",
-      "fromLine": 111,
-      "toLine": 119,
-      "table": "get_factory_tenant_runtime_v1",
-      "operation": "rpc"
     }
   ],
   "additions": []
