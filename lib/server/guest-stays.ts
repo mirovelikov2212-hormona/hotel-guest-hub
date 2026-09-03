@@ -552,7 +552,8 @@ export async function validateGuestStayIdentity(input: {
     .eq("hotel_id", input.hotelId)
     .eq("room_number", normalizeRoomNumber(input.room))
     .maybeSingle();
-  if (stayError || !stay) throw stayError || new Error("INVALID_STAY");
+  if (stayError) throw stayError;
+  if (!stay) return null;
 
   let currentStay = stay as GuestStayRow;
   if (currentStay.status !== "cancelled" && isRollingTestStay(currentStay)) {
@@ -565,7 +566,8 @@ export async function validateGuestStayIdentity(input: {
     .eq("id", stayDeviceId)
     .eq("stay_id", stayId)
     .maybeSingle();
-  if (deviceError || !device) throw deviceError || new Error("INVALID_STAY_DEVICE");
+  if (deviceError) throw deviceError;
+  if (!device) return null;
 
   const lifecycleState = deriveGuestStayLifecycle({
     status: currentStay.status,
