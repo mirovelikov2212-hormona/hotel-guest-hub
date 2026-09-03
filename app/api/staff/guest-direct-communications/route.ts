@@ -88,11 +88,11 @@ export async function GET(req: NextRequest) {
     const [{ data: stays, error: staysError }, { data: rows, error: rowsError }, deliveryEnabled] = await Promise.all([
       supabaseAdmin
         .from("guest_stays")
-        .select("id,room_number,effective_check_out_at,last_seen_at")
+        .select("id,room_number,effective_check_out_at,last_seen_at,is_test")
         .eq("hotel_id", access.hotel.id)
         .eq("status", "active")
         .eq("lifecycle_state", "active")
-        .eq("is_test", false)
+        .or(access.hotel.isSandbox ? "is_test.is.null,is_test.eq.false,is_test.eq.true" : "is_test.is.null,is_test.eq.false")
         .gt("effective_check_out_at", now)
         .order("room_number", { ascending: true })
         .limit(1000),
