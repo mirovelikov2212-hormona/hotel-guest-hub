@@ -1,5 +1,6 @@
 {
   "fluid": true,
+  "buildCommand": "node scripts/vercel-preview-core620-build.mjs",
   "crons": [
     {
       "path": "/api/cron/day3-survey-push",
