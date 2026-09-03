@@ -7,6 +7,7 @@ import {
 } from "../helpers/source-contract.mjs";
 
 const MIGRATION = "supabase/migrations/20260903160000_control_plane_runtime_cells.sql";
+const HEALTH_MIGRATION = "supabase/migrations/20260903175000_runtime_cell_fleet_health_read.sql";
 
 test("P5.1 adds runtime cells as a partition layer over hotel tenants without replacing hotel identity", async () => {
   const migration = await readProjectFile(MIGRATION);
@@ -74,6 +75,26 @@ test("P5.1 cell tables are service-role only and tenant routing fails closed on 
   assertContains(migration, "grant execute on function public.get_hotel_runtime_cell_v1(text) to service_role");
 });
 
+test("P5.2 derives Cell Health from existing evidence without persisting a second health truth", async () => {
+  const migration = await readProjectFile(HEALTH_MIGRATION);
+
+  assertContains(migration, "create or replace function public.get_runtime_cell_fleet_health_v1()");
+  assertContains(migration, "from public.system_events se");
+  assertContains(migration, "left join public.hotel_config_projection_state ps");
+  assertContains(migration, "left join public.hotel_health_certification_state hcs");
+  assertContains(migration, "left join public.hotel_tenant_runtime_materialized m");
+  assertContains(migration, "se.created_at >= now() - interval '1 hour'");
+  assertContains(migration, "when not h.active then 'inactive'");
+  assertContains(migration, "then 'critical'");
+  assertContains(migration, "then 'attention'");
+  assertContains(migration, "then 'healthy'");
+  assertContains(migration, "else 'unverified'");
+  assertContains(migration, "grant execute on function public.get_runtime_cell_fleet_health_v1() to service_role");
+  assertNotContains(migration, "create table");
+  assertNotContains(migration, "insert into public.hotel_health_certification_state");
+  assertNotContains(migration, "update public.hotel_health_certification_state");
+});
+
 test("P5.1 server seam keeps Cells inside the existing Control Plane and does not replace Factory/runtime authority", async () => {
   const service = await readProjectFile("lib/server/runtime-cell-control-plane.ts");
   const route = await readProjectFile("app/api/control-plane/runtime-cells/move/route.ts");
@@ -83,8 +104,10 @@ test("P5.1 server seam keeps Cells inside the existing Control Plane and does no
   assertContains(service, '.from("runtime_cells")');
   assertContains(service, '.from("hotel_runtime_cell_assignments")');
   assertContains(service, '.from("hotels")');
+  assertContains(service, 'supabaseAdmin.rpc("get_runtime_cell_fleet_health_v1"');
   assertContains(service, 'supabaseAdmin.rpc("move_hotel_runtime_cell_v1"');
   assertContains(service, 'supabaseAdmin.rpc("get_hotel_runtime_cell_v1"');
+  assertContains(service, "persists no");
   assertContains(service, "Guest hot paths are not");
   assertContains(service, "RUNTIME_CELL_ROUTE_UNAVAILABLE");
 
@@ -93,4 +116,5 @@ test("P5.1 server seam keeps Cells inside the existing Control Plane and does no
   assertContains(route, "moveHotelRuntimeCell");
   assertContains(page, "getRuntimeCellFleetSnapshot");
   assertContains(page, "getCurrentPlatformAdminSession");
+  assertContains(page, "healthInvariant");
 });
