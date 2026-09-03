@@ -16,6 +16,7 @@ const delivery = read("lib/server/guest-communications-delivery.ts");
 const cron = read("app/api/cron/guest-communications-dispatch/route.ts");
 const guestApi = read("app/api/guest/communications/route.ts");
 const inbox = read("components/GuestCommunicationsInbox.tsx");
+const directWorkspace = read("components/staff/GuestDirectCommunicationsWorkspace.tsx");
 const guestPage = read("app/h/[hotelSlug]/page.tsx");
 const migration = read("supabase/migrations/20260829233000_guest_communications_rbac_foundation.sql");
 
@@ -92,8 +93,18 @@ test("Guest Message Center uses exact stay identity and hotel-scoped localized f
   contains(guestPage, '<GuestCommunicationsInbox');
 });
 
+test("Reception direct conversations expose persistent unread guest-reply indicators", () => {
+  contains(directWorkspace, 'stayhub:staff-direct-seen:v1:');
+  contains(directWorkspace, 'message.senderType === "guest" && !seenGuestMessageIds.has(message.id)');
+  contains(directWorkspace, 'unreadByStay');
+  contains(directWorkspace, 'copy.newReplies');
+  contains(directWorkspace, 'copy.new');
+  contains(directWorkspace, 'markGuestMessageRead(message.id)');
+  contains(directWorkspace, 'writeSeenGuestMessages(hotelSlug, role, next)');
+});
+
 test("communications runtime never invokes Factory publication or LIVE activation", () => {
-  const combined = [shell, access, api, translation, delivery, cron, guestApi, inbox].join("\n");
+  const combined = [shell, access, api, translation, delivery, cron, guestApi, inbox, directWorkspace].join("\n");
   excludes(combined, "/api/control-plane/onboarding/live");
   excludes(combined, "/api/control-plane/onboarding/publication");
   excludes(combined, "activate_factory_production_live");
