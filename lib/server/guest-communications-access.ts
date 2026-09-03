@@ -80,6 +80,7 @@ export async function resolveGuestCommunicationsAccess(hotelSlugInput: string, r
       isSandbox: Boolean(hotel.is_sandbox),
     },
     role,
+    staffSessionId: String(session.id),
     runtimeRole,
     capabilities: Object.fromEntries(capabilities) as Record<GuestCommunicationCapability, boolean>,
   };
