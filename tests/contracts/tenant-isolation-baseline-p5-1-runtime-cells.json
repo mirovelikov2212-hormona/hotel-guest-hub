@@ -1,53 +1,54 @@
 {
   "version": 1,
-  "checkpoint": "p5-1-runtime-cells",
+  "checkpoint": "p5-2-runtime-cell-health",
   "baseCheckpoint": "materialized-runtime-process-fast-path",
-  "expectedNeedsReview": 175,
+  "expectedNeedsReview": 176,
   "removals": [],
   "relocations": [],
   "additions": [
     {
       "filePath": "lib/server/runtime-cell-control-plane.ts",
-      "line": 125,
+      "line": 173,
       "table": "runtime_cells",
       "tableExpression": "\"runtime_cells\"",
       "operation": "select",
-      "reasons": [
-        "unclassified_table"
-      ],
+      "reasons": ["unclassified_table"],
       "provenance": "authenticated_control_plane_platform_fleet_snapshot_reads_service_role_only_runtime_cell_capacity_lifecycle_and_routing_metadata_without_guest_runtime_mutation_or_cross_tenant_business_data_access"
     },
     {
       "filePath": "lib/server/runtime-cell-control-plane.ts",
-      "line": 130,
+      "line": 178,
       "table": "hotel_runtime_cell_assignments",
       "tableExpression": "\"hotel_runtime_cell_assignments\"",
       "operation": "select",
-      "reasons": [
-        "unclassified_table"
-      ],
+      "reasons": ["unclassified_table"],
       "provenance": "authenticated_control_plane_platform_fleet_snapshot_reads_service_role_only_hotel_to_cell_assignment_metadata_for_capacity_and_isolation_visibility_without_guest_runtime_mutation"
     },
     {
       "filePath": "lib/server/runtime-cell-control-plane.ts",
-      "line": 221,
+      "line": 185,
+      "rpc": "get_runtime_cell_fleet_health_v1",
+      "tableExpression": "\"get_runtime_cell_fleet_health_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_read_only_service_role_fleet_health_aggregation_over_existing_projection_certification_materialized_runtime_and_one_hour_system_event_evidence_without_persisting_competing_health_state"
+    },
+    {
+      "filePath": "lib/server/runtime-cell-control-plane.ts",
+      "line": 295,
       "rpc": "move_hotel_runtime_cell_v1",
       "tableExpression": "\"move_hotel_runtime_cell_v1\"",
       "operation": "rpc",
-      "reasons": [
-        "rpc_requires_review"
-      ],
+      "reasons": ["rpc_requires_review"],
       "provenance": "authenticated_same_origin_platform_admin_control_plane_move_uses_service_role_only_rpc_with_active_admin_role_validation_exact_hotel_lock_environment_match_capacity_guard_expected_generation_cas_and_append_only_audit_evidence"
     },
     {
       "filePath": "lib/server/runtime-cell-control-plane.ts",
-      "line": 250,
+      "line": 324,
       "rpc": "get_hotel_runtime_cell_v1",
       "tableExpression": "\"get_hotel_runtime_cell_v1\"",
       "operation": "rpc",
-      "reasons": [
-        "rpc_requires_review"
-      ],
+      "reasons": ["rpc_requires_review"],
       "provenance": "server_only_tenant_router_seam_resolves_exact_normalized_hotel_slug_or_public_slug_to_one_active_service_role_only_cell_assignment_with_limit_one_and_no_cross_tenant_business_data_returned"
     }
   ]
