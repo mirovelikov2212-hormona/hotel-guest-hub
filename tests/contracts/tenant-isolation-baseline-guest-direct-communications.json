@@ -11,7 +11,29 @@
       "operation": "select"
     }
   ],
-  "relocations": [],
+  "relocations": [
+    {
+      "filePath": "app/api/staff/guest-communications/route.ts",
+      "fromLine": 76,
+      "toLine": 77,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "app/api/staff/guest-communications/route.ts",
+      "fromLine": 142,
+      "toLine": 189,
+      "table": "guest_communications",
+      "operation": "update"
+    },
+    {
+      "filePath": "app/api/staff/guest-communications/route.ts",
+      "fromLine": 224,
+      "toLine": 279,
+      "table": "guest_communications",
+      "operation": "insert"
+    }
+  ],
   "additions": [
     {
       "filePath": "app/api/staff/guest-direct-communications/route.ts",
