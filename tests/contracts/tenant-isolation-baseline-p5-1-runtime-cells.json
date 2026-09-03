@@ -8,7 +8,7 @@
   "additions": [
     {
       "filePath": "lib/server/runtime-cell-control-plane.ts",
-      "line": 200,
+      "line": 199,
       "table": "runtime_cells",
       "tableExpression": "\"runtime_cells\"",
       "operation": "select",
@@ -17,7 +17,7 @@
     },
     {
       "filePath": "lib/server/runtime-cell-control-plane.ts",
-      "line": 205,
+      "line": 204,
       "table": "hotel_runtime_cell_assignments",
       "tableExpression": "\"hotel_runtime_cell_assignments\"",
       "operation": "select",
