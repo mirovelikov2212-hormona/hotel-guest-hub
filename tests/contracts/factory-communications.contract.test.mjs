@@ -142,3 +142,32 @@ test("STEP 2D does not introduce a parallel venue or messaging authority", async
   assertNotContains(model, "guest_requests");
   assertNotContains(model, "notifications");
 });
+
+test("Production direct guest communications reuse Guest Communications with exact hotel/stay/device guards", async () => {
+  const staffRoute = await readProjectFile("app/api/staff/guest-direct-communications/route.ts");
+  const guestRoute = await readProjectFile("app/api/guest/communications/route.ts");
+  const staffShell = await readProjectFile("components/staff/StaffHotelShell.tsx");
+  const guestInbox = await readProjectFile("components/GuestCommunicationsInbox.tsx");
+  const policy = await readProjectFile("lib/server/guest-communications-delivery-policy.ts");
+  const delivery = await readProjectFile("lib/server/guest-direct-communications-delivery.ts");
+  const migration = await readProjectFile("supabase/migrations/20260903061000_guest_direct_communications.sql");
+
+  assertContains(staffRoute, 'access.role !== "reception"');
+  assertContains(staffRoute, 'guestCommunicationsDeliveryEnabledForHotel(access.hotel.id)');
+  assertContains(staffRoute, 'append_guest_direct_communication_v1');
+  assertContains(staffRoute, '.eq("hotel_id", access.hotel.id)');
+  assertContains(staffRoute, '.eq("audience_type", "direct_guest")');
+  assertContains(guestRoute, '.eq("stay_id", stayResult.stay.id)');
+  assertContains(guestRoute, 'p_stay_device_id: stayResult.stay.stayDeviceId');
+  assertContains(guestRoute, 'direct_thread_not_open');
+  assertContains(staffShell, 'role === "reception"');
+  assertContains(guestInbox, 'action: "reply"');
+  assertContains(policy, 'guest_communications_delivery_enabled');
+  assertContains(delivery, '.eq("stay_id", input.communication.stay_id)');
+  assertContains(delivery, 'sandbox_delivery_disabled');
+  assertContains(migration, "'direct_guest'");
+  assertContains(migration, 'GUEST_DIRECT_COMMUNICATION_STAY_INVALID');
+  assertContains(migration, 'GUEST_COMMUNICATION_DEVICE_MISMATCH');
+  assertContains(migration, 'to service_role');
+  assertNotContains(staffRoute, 'all_active_guests');
+});
