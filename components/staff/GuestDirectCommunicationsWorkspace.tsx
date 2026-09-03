@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import StaffCollapsiblePanel from "@/components/staff/StaffCollapsiblePanel";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
+import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
+import { useStaffTabTitleAlert } from "@/components/staff/useStaffTabTitleAlert";
 
 type StayRow = { id: string; room_number: string; effective_check_out_at: string; last_seen_at: string };
 type MessageRow = { id: string; stayId: string; stayDeviceId: string | null; senderType: string; title: string; body: string; createdAt: string; sentAt: string | null };
@@ -28,6 +30,7 @@ const COPY = {
     new: "НОВО",
     newReplies: "Нови",
     read: "Прочетено",
+    tabAlert: "🔴 НОВО СЪОБЩЕНИЕ",
   },
   en: {
     title: "Direct room communication",
@@ -47,6 +50,7 @@ const COPY = {
     new: "NEW",
     newReplies: "New",
     read: "Mark read",
+    tabAlert: "🔴 NEW MESSAGE",
   },
   de: {
     title: "Direkte Zimmerkommunikation",
@@ -66,6 +70,7 @@ const COPY = {
     new: "NEU",
     newReplies: "Neu",
     read: "Gelesen",
+    tabAlert: "🔴 NEUE NACHRICHT",
   },
 } as const;
 
@@ -151,6 +156,17 @@ export default function GuestDirectCommunicationsWorkspace({ hotelSlug, role }: 
     for (const message of unreadGuestMessages) counts.set(message.stayId, (counts.get(message.stayId) || 0) + 1);
     return counts;
   }, [unreadGuestMessages]);
+  const directAlertRequests = useMemo(
+    () => unreadGuestMessages.map((message) => ({ id: `direct-message:${message.id}`, status: "new" })),
+    [unreadGuestMessages],
+  );
+
+  useStaffAlertSound({
+    hotelSlug,
+    department: "reception",
+    requests: directAlertRequests,
+  });
+  useStaffTabTitleAlert(directAlertRequests, copy.tabAlert);
 
   const markGuestMessageRead = useCallback((messageId: string) => {
     setSeenGuestMessageIds((current) => {

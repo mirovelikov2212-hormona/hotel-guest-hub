@@ -17,6 +17,9 @@ const cron = read("app/api/cron/guest-communications-dispatch/route.ts");
 const guestApi = read("app/api/guest/communications/route.ts");
 const inbox = read("components/GuestCommunicationsInbox.tsx");
 const directWorkspace = read("components/staff/GuestDirectCommunicationsWorkspace.tsx");
+const tabAlert = read("components/staff/useStaffTabTitleAlert.ts");
+const roomActivityMap = read("components/staff/StaffRoomActivityMap.tsx");
+const roomActivityApi = read("app/api/staff/room-activity/route.ts");
 const guestPage = read("app/h/[hotelSlug]/page.tsx");
 const migration = read("supabase/migrations/20260829233000_guest_communications_rbac_foundation.sql");
 
@@ -93,7 +96,7 @@ test("Guest Message Center uses exact stay identity and hotel-scoped localized f
   contains(guestPage, '<GuestCommunicationsInbox');
 });
 
-test("Reception direct conversations expose persistent unread guest-reply indicators", () => {
+test("Reception direct conversations expose persistent unread guest-reply indicators and operational alerts", () => {
   contains(directWorkspace, 'stayhub:staff-direct-seen:v1:');
   contains(directWorkspace, 'message.senderType === "guest" && !seenGuestMessageIds.has(message.id)');
   contains(directWorkspace, 'unreadByStay');
@@ -101,10 +104,35 @@ test("Reception direct conversations expose persistent unread guest-reply indica
   contains(directWorkspace, 'copy.new');
   contains(directWorkspace, 'markGuestMessageRead(message.id)');
   contains(directWorkspace, 'writeSeenGuestMessages(hotelSlug, role, next)');
+  contains(directWorkspace, 'useStaffAlertSound({');
+  contains(directWorkspace, 'department: "reception"');
+  contains(directWorkspace, 'useStaffTabTitleAlert(directAlertRequests, copy.tabAlert)');
+  contains(directWorkspace, '🔴 НОВО СЪОБЩЕНИЕ');
+  contains(tabAlert, 'alertTitle = STAFF_ALERT_TITLE');
+  contains(tabAlert, 'startAlert(alertTitle)');
 });
 
-test("communications runtime never invokes Factory publication or LIVE activation", () => {
-  const combined = [shell, access, api, translation, delivery, cron, guestApi, inbox, directWorkspace].join("\n");
+test("Reception and Manager share a hotel-scoped StayHub room activity map", () => {
+  contains(shell, 'role === "reception" || role === "manager"');
+  contains(shell, '<StaffRoomActivityMap hotelSlug={hotelSlug} role={role} />');
+  contains(roomActivityApi, 'new Set(["reception", "manager"])');
+  contains(roomActivityApi, '.from("rooms")');
+  contains(roomActivityApi, '.from("guest_stays")');
+  contains(roomActivityApi, '.from("guest_push_subscriptions")');
+  contains(roomActivityApi, '.eq("hotel_id", access.hotel.id)');
+  contains(roomActivityApi, '.eq("status", "active")');
+  contains(roomActivityApi, '.eq("lifecycle_state", "active")');
+  contains(roomActivityApi, '.gt("effective_check_out_at", now)');
+  contains(roomActivityApi, 'activeStayIds.has(stayId)');
+  contains(roomActivityApi, 'access.hotel.isSandbox');
+  contains(roomActivityMap, 'Това не е PMS заетост');
+  contains(roomActivityMap, 'summary.pushCoveragePercent');
+  contains(roomActivityMap, 'room.activeStay');
+  contains(roomActivityMap, 'room.isTestStay');
+});
+
+test("communications and room activity runtime never invoke Factory publication or LIVE activation", () => {
+  const combined = [shell, access, api, translation, delivery, cron, guestApi, inbox, directWorkspace, roomActivityApi, roomActivityMap].join("\n");
   excludes(combined, "/api/control-plane/onboarding/live");
   excludes(combined, "/api/control-plane/onboarding/publication");
   excludes(combined, "activate_factory_production_live");

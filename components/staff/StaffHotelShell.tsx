@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 import GuestCommunicationsWorkspace from "@/components/staff/GuestCommunicationsWorkspace";
 import GuestDirectCommunicationsWorkspace from "@/components/staff/GuestDirectCommunicationsWorkspace";
+import StaffRoomActivityMap from "@/components/staff/StaffRoomActivityMap";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import type { StaffHotelBrand } from "@/lib/server/staff-hotel-brand";
 import { staffText } from "@/lib/staff/ui-copy";
@@ -71,6 +72,7 @@ export default function StaffHotelShell({ hotelSlug, brand, children }: { hotelS
         <div className="stayhub-staff-workspace">
           {role ? <GuestCommunicationsWorkspace hotelSlug={hotelSlug} role={role} /> : null}
           {role === "reception" ? <GuestDirectCommunicationsWorkspace hotelSlug={hotelSlug} role={role} /> : null}
+          {role === "reception" || role === "manager" ? <StaffRoomActivityMap hotelSlug={hotelSlug} role={role} /> : null}
           {children}
         </div>
       </div>
