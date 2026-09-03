@@ -19,11 +19,15 @@ function getCurrentNewRequestIds(requests: AlertableStaffRequest[]) {
     .map((request) => request.id);
 }
 
-export function useStaffTabTitleAlert(requests: AlertableStaffRequest[]) {
+export function useStaffTabTitleAlert(
+  requests: AlertableStaffRequest[],
+  alertTitle = STAFF_ALERT_TITLE,
+) {
   const initializedRef = useRef(false);
   const seenNewIdsRef = useRef<Set<string>>(new Set());
   const latestRequestsRef = useRef(requests);
   const originalTitleRef = useRef(DEFAULT_STAFF_TITLE);
+  const activeAlertTitleRef = useRef(alertTitle);
   const blinkIntervalRef = useRef<number | null>(null);
   const alertActiveRef = useRef(false);
   const showAlertTitleRef = useRef(false);
@@ -31,6 +35,10 @@ export function useStaffTabTitleAlert(requests: AlertableStaffRequest[]) {
   useEffect(() => {
     latestRequestsRef.current = requests;
   }, [requests]);
+
+  useEffect(() => {
+    activeAlertTitleRef.current = alertTitle;
+  }, [alertTitle]);
 
   const clearBlinkInterval = useCallback(() => {
     if (blinkIntervalRef.current !== null) {
@@ -46,17 +54,23 @@ export function useStaffTabTitleAlert(requests: AlertableStaffRequest[]) {
     document.title = originalTitleRef.current;
   }, [clearBlinkInterval]);
 
-  const startAlert = useCallback(() => {
-    if (alertActiveRef.current) return;
+  const startAlert = useCallback((title: string) => {
+    activeAlertTitleRef.current = title;
+
+    if (alertActiveRef.current) {
+      showAlertTitleRef.current = true;
+      document.title = activeAlertTitleRef.current;
+      return;
+    }
 
     alertActiveRef.current = true;
     showAlertTitleRef.current = true;
-    document.title = STAFF_ALERT_TITLE;
+    document.title = activeAlertTitleRef.current;
 
     blinkIntervalRef.current = window.setInterval(() => {
       showAlertTitleRef.current = !showAlertTitleRef.current;
       document.title = showAlertTitleRef.current
-        ? STAFF_ALERT_TITLE
+        ? activeAlertTitleRef.current
         : originalTitleRef.current;
     }, STAFF_TITLE_BLINK_MS);
   }, []);
@@ -112,7 +126,7 @@ export function useStaffTabTitleAlert(requests: AlertableStaffRequest[]) {
       document.visibilityState !== "visible" || !document.hasFocus();
 
     if (tabIsInactive) {
-      startAlert();
+      startAlert(alertTitle);
     }
-  }, [requests, startAlert]);
+  }, [alertTitle, requests, startAlert]);
 }
