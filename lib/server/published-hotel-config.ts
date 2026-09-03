@@ -54,10 +54,18 @@ type PrimePublishedRuntimeInput = {
 // contract introduced by the Product Factory runtime.
 const publishedConfigCache = getCache({ namespace: "published-hotel-config-v2" });
 const publishedConfigLoads = new Map<string, Promise<PublishedSnapshot | null>>();
+const publishedConfigMemoryCache = new Map<
+  string,
+  { expiresAt: number; snapshot: CachedPublishedSnapshot }
+>();
 // Publication writes explicitly expire the per-hotel tag. A five-minute TTL
 // therefore protects the database from cold-start fan-out without allowing a
 // stale revision to survive a normal publication.
 const PUBLISHED_CONFIG_CACHE_TTL_SECONDS = 300;
+// The process-local entry only exists to let the current request consume the
+// already-authoritative materialized runtime without a second remote cache hop.
+// 60 seconds matches lib/config.ts' runtime-instance resolution TTL.
+const PUBLISHED_CONFIG_MEMORY_TTL_MS = 60_000;
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
   return Boolean(
@@ -205,6 +213,26 @@ function asRelationalAuthority(value: unknown) {
   };
 }
 
+function writePublishedRuntimeMemoryCache(
+  hotelId: string,
+  snapshot: CachedPublishedSnapshot,
+) {
+  publishedConfigMemoryCache.set(hotelId, {
+    expiresAt: Date.now() + PUBLISHED_CONFIG_MEMORY_TTL_MS,
+    snapshot,
+  });
+}
+
+function readPublishedRuntimeMemoryCache(hotelId: string) {
+  const cached = publishedConfigMemoryCache.get(hotelId);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    publishedConfigMemoryCache.delete(hotelId);
+    return null;
+  }
+  return cached.snapshot;
+}
+
 async function writePublishedRuntimeCache(
   hotelId: string,
   snapshot: CachedPublishedSnapshot,
@@ -217,10 +245,10 @@ async function writePublishedRuntimeCache(
 }
 
 /**
- * Prime the authoritative published-runtime cache from a DB-materialized tenant
- * snapshot. The cache owner performs compatibility normalization itself so no
- * caller can accidentally persist a raw or stale config shape under the v2
- * namespace.
+ * Prime the current process from a DB-materialized tenant snapshot. Persisted
+ * cache writes are deliberately skipped here: the materialized RPC is already
+ * authoritative, and blocking on another remote write caused cold multi-hotel
+ * fan-out. Legacy DB loaders still populate the persisted cache normally.
  */
 export async function primePublishedHotelConfigRuntimeCache(
   input: PrimePublishedRuntimeInput,
@@ -250,22 +278,13 @@ export async function primePublishedHotelConfigRuntimeCache(
     attachGuestRequestRelationalAuthority(normalizedConfig, relationalAuthority);
   }
 
-  try {
-    await writePublishedRuntimeCache(hotelId, {
-      revisionId,
-      sourceChecksum,
-      config: normalizedConfig,
-      relationalAuthority,
-    });
-    return true;
-  } catch (error) {
-    console.warn("Materialized published runtime cache prime failed", {
-      hotelId,
-      revisionId,
-      error,
-    });
-    return false;
-  }
+  writePublishedRuntimeMemoryCache(hotelId, {
+    revisionId,
+    sourceChecksum,
+    config: normalizedConfig,
+    relationalAuthority,
+  });
+  return true;
 }
 
 /**
@@ -439,6 +458,7 @@ function restoreCachedSnapshot(cached: CachedPublishedSnapshot): PublishedSnapsh
 export async function expirePublishedHotelConfigCache(hotelId: string) {
   const normalizedHotelId = String(hotelId || "").trim();
   if (!normalizedHotelId) return;
+  publishedConfigMemoryCache.delete(normalizedHotelId);
   await publishedConfigCache.expireTag(`hotel-config:${normalizedHotelId}`);
 }
 
@@ -446,10 +466,14 @@ export async function getPublishedHotelConfigSnapshot(hotelId: string): Promise<
   const normalizedHotelId = String(hotelId || "").trim();
   if (!normalizedHotelId) throw new Error("Missing hotel id for published configuration lookup");
 
+  const memoryCached = readPublishedRuntimeMemoryCache(normalizedHotelId);
+  if (memoryCached) return restoreCachedSnapshot(memoryCached);
+
   const cacheKey = `hotel:${normalizedHotelId}`;
   try {
     const cached = await publishedConfigCache.get(cacheKey) as CachedPublishedSnapshot | null;
     if (cached && typeof cached.revisionId === "string" && /^[a-f0-9]{64}$/.test(String(cached.sourceChecksum || "")) && isJsonObject(cached.config)) {
+      writePublishedRuntimeMemoryCache(normalizedHotelId, cached);
       return restoreCachedSnapshot(cached);
     }
   } catch (error) {
@@ -468,6 +492,7 @@ export async function getPublishedHotelConfigSnapshot(hotelId: string): Promise<
         config: structuredClone(snapshot.config),
         relationalAuthority: getGuestRequestRelationalAuthority(snapshot.config),
       };
+      writePublishedRuntimeMemoryCache(normalizedHotelId, cached);
       try {
         await writePublishedRuntimeCache(normalizedHotelId, cached);
       } catch (error) {

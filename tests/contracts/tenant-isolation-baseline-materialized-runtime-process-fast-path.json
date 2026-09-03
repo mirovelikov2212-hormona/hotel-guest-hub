@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "checkpoint": "materialized-runtime-process-fast-path",
+  "baseCheckpoint": "guest-stay-invalid-identity-handling",
+  "expectedNeedsReview": 171,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "lib/hotels/getHotelSheetSources.ts",
+      "fromLine": 111,
+      "toLine": 119,
+      "operation": "rpc"
+    }
+  ],
+  "additions": []
+}

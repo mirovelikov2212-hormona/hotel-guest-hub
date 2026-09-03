@@ -9,6 +9,8 @@ import {
 
 const migrationPath =
   "supabase/migrations/20260902101449_harden_factory_materialized_runtime_semantics.sql";
+const hotPathMigrationPath =
+  "supabase/migrations/20260903190000_factory_runtime_hot_path_invalidation.sql";
 
 test("certified Factory Sandbox metadata drives exact projector semantics without slug exceptions", async () => {
   const published = await readProjectFile("lib/server/published-hotel-config.ts");
@@ -86,4 +88,40 @@ test("materialized semantic check compares configured request type and target de
     requiredTypeOccurrences.length >= 2,
     "Expected configured request types to be normalized in both count and parity checks.",
   );
+});
+
+test("Factory normalized authority drift invalidates trusted materialized runtime before a hot read", async () => {
+  const migration = await readProjectFile(hotPathMigrationPath);
+
+  assertContains(migration, "invalidate_factory_tenant_runtime_authority_v1");
+  assertContains(migration, "FACTORY_RUNTIME_AUTHORITY_DRIFT");
+  assertContains(migration, "projection_status = 'failed'");
+  assertContains(migration, "'runtimeReadsActivated', false");
+  assertContains(migration, "'runtimeRoomReadsActivated', false");
+  assertContains(migration, "'runtimeDepartmentRoutingReadsActivated', false");
+  assertContains(migration, "delete from public.hotel_tenant_runtime_materialized");
+  assertContains(migration, "trg_invalidate_factory_runtime_rooms_v1");
+  assertContains(migration, "trg_invalidate_factory_runtime_departments_v1");
+  assertContains(migration, "trg_invalidate_factory_runtime_routing_v1");
+  assertContains(migration, "trg_invalidate_factory_runtime_test_rooms_v1");
+  assertContains(migration, "h.production_hotel_id = v_source_hotel_id");
+});
+
+test("Factory Guest hot getter reuses existing materialization without per-read routing semantic scans", async () => {
+  const migration = await readProjectFile(hotPathMigrationPath);
+  const getterMatch = migration.match(
+    /create or replace function public\.get_factory_tenant_runtime_v1\(p_hotel_slug text\)([\s\S]*?)revoke all on function public\.get_factory_tenant_runtime_v1/,
+  );
+  assert.ok(getterMatch, "Expected the hot-path migration to replace the existing Factory runtime getter.");
+  const getter = getterMatch[1];
+
+  assertContains(getter, "hotel_tenant_runtime_materialized");
+  assertContains(getter, "hotel_config_projection_state");
+  assertContains(getter, "runtimeRoomReadsActivated");
+  assertContains(getter, "runtimeDepartmentRoutingReadsActivated");
+  assertContains(getter, "refresh_factory_tenant_runtime_v1");
+  assertContains(getter, "FACTORY_SANDBOX_ACCEPTANCE_CERTIFIED");
+  assertNotContains(getter, "check_factory_tenant_runtime_semantics_v1");
+  assertNotContains(getter, "public.routing_rules");
+  assertNotContains(getter, "public.departments");
 });

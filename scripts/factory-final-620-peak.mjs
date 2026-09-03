@@ -46,6 +46,53 @@ async function fetchJson(url, init = {}) {
   return { response, body };
 }
 
+function parseClockMinutes(value) {
+  const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+
+function slotsDoNotOverlap(uniqueSlot, candidateSlot, occupancyMinutes) {
+  if (!uniqueSlot || !candidateSlot) return false;
+  if (candidateSlot.date !== uniqueSlot.date) return true;
+  const uniqueStart = parseClockMinutes(uniqueSlot.time);
+  const candidateStart = parseClockMinutes(candidateSlot.time);
+  if (uniqueStart == null || candidateStart == null) return false;
+  return candidateStart >= uniqueStart + occupancyMinutes;
+}
+
+async function discoverMassageServiceOccupancy(hotel) {
+  const hotelSlug = slug(hotel);
+  const params = new URLSearchParams({
+    hotelSlug,
+    action: "services",
+  });
+  const { response, body } = await fetchJson(`${baseUrl}/api/guest/massages?${params}`);
+  const services = Array.isArray(body?.result?.services) ? body.result.services : [];
+  const service = services.find((candidate) => String(candidate?.serviceId || "") === serviceId);
+  const durationMinutes = Number(service?.durationMinutes);
+  const bufferMinutes = Number(service?.bufferMinutes || 0);
+  if (
+    !response.ok ||
+    body?.ok !== true ||
+    !service ||
+    !Number.isInteger(durationMinutes) ||
+    durationMinutes <= 0 ||
+    !Number.isInteger(bufferMinutes) ||
+    bufferMinutes < 0
+  ) {
+    throw new Error(`Service preflight failed for ${hotelSlug}: HTTP ${response.status} ${body?.code || "invalid_service_runtime"}`);
+  }
+  return {
+    durationMinutes,
+    bufferMinutes,
+    occupancyMinutes: durationMinutes + bufferMinutes,
+  };
+}
+
 async function discoverMassageSlots(hotel) {
   const hotelSlug = slug(hotel);
   const params = new URLSearchParams({
@@ -164,12 +211,20 @@ async function postOperation(kind, hotel, roomIndex, slot = null) {
 }
 
 const preflightStartedAt = new Date().toISOString();
-const slotPlans = await discoverAllMassageSlots();
+const [slotPlans, massageServiceRuntime] = await Promise.all([
+  discoverAllMassageSlots(),
+  discoverMassageServiceOccupancy(1),
+]);
 const slotByHotel = new Map(slotPlans.map((row) => [row.hotel, row.slots[0]]));
+const uniqueSlot = slotPlans[0].slots[0];
 const contentionSlot = slotPlans[0].slots.find((slot) =>
-  slot.date !== slotPlans[0].slots[0].date || slot.time !== slotPlans[0].slots[0].time,
+  slotsDoNotOverlap(uniqueSlot, slot, massageServiceRuntime.occupancyMinutes),
 );
-if (!contentionSlot) throw new Error("Could not select a second unused contention slot for hotel 1");
+if (!contentionSlot) {
+  throw new Error(
+    `Could not select a non-overlapping contention slot for hotel 1 (${massageServiceRuntime.occupancyMinutes} minute occupancy)`,
+  );
+}
 
 const operations = [];
 for (let hotel = 1; hotel <= hotelCount; hotel += 1) {
@@ -213,7 +268,7 @@ const performanceAccepted =
   massageUnique.p95 <= massageP95Limit;
 
 const output = {
-  schemaVersion: "stayhub-factory-final-620-v2",
+  schemaVersion: "stayhub-factory-final-620-v3",
   runId,
   baseUrl,
   preflightStartedAt,
@@ -230,6 +285,7 @@ const output = {
     expectedRejected: contentionRejected.length,
     unexpected: contentionUnexpected.length,
   },
+  massageServiceRuntime,
   thresholdsMs: { requestP95Limit, surveyP95Limit, massageP95Limit },
   correctnessAccepted,
   performanceAccepted,

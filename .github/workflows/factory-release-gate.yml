@@ -22,6 +22,8 @@ jobs:
       - name: Dependency security audit
         run: npm audit --audit-level=low
       - run: npm test
+      - name: Runtime cell architecture contracts
+        run: node --test tests/contracts/p5-1-runtime-cells-control-plane.contract.test.mjs tests/contracts/p5-2-runtime-cell-health-recovery.contract.test.mjs
       - run: node --test tests/contracts/control-panel-factory-routing.contract.test.mjs
       - run: node --test tests/contracts/p2-6-4-published-derivative-lineage.contract.test.mjs
       - run: node --test tests/contracts/p2-6-4-relational-authority-jsonb.contract.test.mjs

@@ -1,5 +1,6 @@
 import test from "node:test";
 
+import "./p5-1-runtime-cells-control-plane.contract.test.mjs";
 import {
   assertContains,
   assertNotContains,

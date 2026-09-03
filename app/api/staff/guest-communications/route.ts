@@ -22,6 +22,7 @@ const CATEGORIES = new Set(["information", "event", "change", "offer", "emergenc
 const ACTIONS = new Set(["draft", "send_now", "schedule", "cancel"]);
 const ROLE_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const MAX_MESSAGE_VALIDITY_MS = 90 * 24 * 60 * 60 * 1000;
 
 function json(body: Record<string, unknown>, status = 200) {
   return NextResponse.json(body, { status, headers: NO_STORE });
@@ -85,19 +86,62 @@ export async function GET(req: NextRequest) {
       messagesQuery = messagesQuery.eq("department_id", access.runtimeRole.departmentId);
     }
 
-    const [{ data: messages, error: messagesError }, { count: pushReach, error: pushError }, hotelSourceLanguage] = await Promise.all([
+    const now = new Date().toISOString();
+    const testFilter = access.hotel.isSandbox
+      ? "is_test.is.null,is_test.eq.false,is_test.eq.true"
+      : "is_test.is.null,is_test.eq.false";
+
+    const [
+      { data: messages, error: messagesError },
+      { data: activeStayRows, error: activeStaysError },
+      { data: pushRows, error: pushError },
+      hotelSourceLanguage,
+    ] = await Promise.all([
       messagesQuery,
       supabaseAdmin
+        .from("guest_stays")
+        .select("id,room_number")
+        .eq("hotel_id", access.hotel.id)
+        .eq("status", "active")
+        .eq("lifecycle_state", "active")
+        .or(testFilter)
+        .gt("effective_check_out_at", now)
+        .limit(2500),
+      supabaseAdmin
         .from("guest_push_subscriptions")
-        .select("id", { count: "exact", head: true })
+        .select("id,stay_id")
         .eq("hotel_id", access.hotel.id)
         .eq("enabled", true)
-        .or("is_test.is.null,is_test.eq.false"),
+        .or(testFilter)
+        .limit(5000),
       resolveHotelSourceLanguage(hotelSlug),
     ]);
 
     if (messagesError) throw messagesError;
+    if (activeStaysError) throw activeStaysError;
     if (pushError) throw pushError;
+
+    const activeStayIds = new Set<string>();
+    const activeRooms = new Set<string>();
+    const roomByStayId = new Map<string, string>();
+    for (const stay of activeStayRows || []) {
+      const stayId = String(stay.id || "").trim();
+      const roomNumber = String(stay.room_number || "").trim();
+      if (!stayId || !roomNumber) continue;
+      activeStayIds.add(stayId);
+      activeRooms.add(roomNumber);
+      roomByStayId.set(stayId, roomNumber);
+    }
+
+    let pushReachDevices = 0;
+    const pushReachRooms = new Set<string>();
+    for (const subscription of pushRows || []) {
+      const stayId = String(subscription.stay_id || "").trim();
+      if (!stayId || !activeStayIds.has(stayId)) continue;
+      pushReachDevices += 1;
+      const roomNumber = roomByStayId.get(stayId);
+      if (roomNumber) pushReachRooms.add(roomNumber);
+    }
 
     return json({
       ok: true,
@@ -109,7 +153,10 @@ export async function GET(req: NextRequest) {
         name: access.runtimeRole.departmentName,
       } : null,
       capabilities: access.capabilities,
-      pushReach: Number(pushReach || 0),
+      messageReachRooms: activeRooms.size,
+      pushReachRooms: pushReachRooms.size,
+      pushReachDevices,
+      pushReach: pushReachDevices,
       hotelSourceLanguage,
       supportedLanguages: [...GUEST_COMMUNICATION_LANGUAGES],
       deliveryEnabled: guestCommunicationsDeliveryEnabled(),
@@ -177,12 +224,24 @@ export async function POST(req: NextRequest) {
     let scheduledAt: string | null = null;
     if (action === "schedule") {
       const parsed = new Date(String(body?.scheduledAt || ""));
-      const maxFuture = now.getTime() + 90 * 24 * 60 * 60 * 1000;
+      const maxFuture = now.getTime() + MAX_MESSAGE_VALIDITY_MS;
       if (Number.isNaN(parsed.getTime()) || parsed.getTime() <= now.getTime() || parsed.getTime() > maxFuture) {
         return json({ ok: false, error: "invalid_schedule" }, 400);
       }
       scheduledAt = parsed.toISOString();
     }
+
+    const displayUntilInput = new Date(String(body?.displayUntil || ""));
+    const displayFromDate = scheduledAt ? new Date(scheduledAt) : now;
+    const maxDisplayUntil = now.getTime() + MAX_MESSAGE_VALIDITY_MS;
+    if (
+      Number.isNaN(displayUntilInput.getTime()) ||
+      displayUntilInput.getTime() <= displayFromDate.getTime() ||
+      displayUntilInput.getTime() > maxDisplayUntil
+    ) {
+      return json({ ok: false, error: "invalid_display_until" }, 400);
+    }
+    const displayUntil = displayUntilInput.toISOString();
 
     let titleI18n: Record<string, string> = { [sourceLanguage]: title };
     let bodyI18n: Record<string, string> = { [sourceLanguage]: messageBody };
@@ -216,10 +275,6 @@ export async function POST(req: NextRequest) {
 
     const status = action === "schedule" ? "scheduled" : action === "send_now" ? "queued" : "draft";
     const displayFrom = status === "scheduled" ? scheduledAt : status === "queued" ? now.toISOString() : null;
-    const displayUntilInput = body?.displayUntil ? new Date(String(body.displayUntil)) : null;
-    const displayUntil = displayUntilInput && !Number.isNaN(displayUntilInput.getTime())
-      ? displayUntilInput.toISOString()
-      : displayFrom ? new Date(new Date(displayFrom).getTime() + 24 * 60 * 60 * 1000).toISOString() : null;
 
     const { data, error } = await supabaseAdmin
       .from("guest_communications")
@@ -252,6 +307,7 @@ export async function POST(req: NextRequest) {
       delivery: status === "queued" ? "queued_not_sent_yet" : status,
       translation: translationStatus,
       sourceLanguage,
+      displayUntil,
     }, 201);
   } catch (error) {
     console.error("Guest Communications POST failed", error);

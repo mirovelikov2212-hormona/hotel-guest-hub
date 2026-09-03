@@ -16,6 +16,7 @@ const delivery = read("lib/server/guest-communications-delivery.ts");
 const cron = read("app/api/cron/guest-communications-dispatch/route.ts");
 const guestApi = read("app/api/guest/communications/route.ts");
 const inbox = read("components/GuestCommunicationsInbox.tsx");
+const communicationsWorkspace = read("components/staff/GuestCommunicationsWorkspace.tsx");
 const directWorkspace = read("components/staff/GuestDirectCommunicationsWorkspace.tsx");
 const tabAlert = read("components/staff/useStaffTabTitleAlert.ts");
 const roomActivityMap = read("components/staff/StaffRoomActivityMap.tsx");
@@ -67,6 +68,31 @@ test("Send and Schedule fail closed until all six guest languages are ready", ()
   contains(api, 'return json({ ok: false, error: "translation_unavailable" }, 503)');
   contains(api, 'translationStatus = "ready"');
   contains(migration, 'translation_status text not null default \'pending\'');
+});
+
+test("broadcast reach is active-stay scoped while push coverage is reported separately", () => {
+  contains(api, '.from("guest_stays")');
+  contains(api, '.eq("hotel_id", access.hotel.id)');
+  contains(api, '.eq("status", "active")');
+  contains(api, '.eq("lifecycle_state", "active")');
+  contains(api, '.gt("effective_check_out_at", now)');
+  contains(api, 'messageReachRooms: activeRooms.size');
+  contains(api, 'pushReachRooms: pushReachRooms.size');
+  contains(api, 'pushReachDevices');
+  contains(api, 'activeStayIds.has(stayId)');
+  contains(communicationsWorkspace, 'copy.reach}: {messageReachRooms}');
+  contains(communicationsWorkspace, '{pushReachRooms} / {pushReachDevices}');
+  contains(communicationsWorkspace, 'active StayHub rooms');
+});
+
+test("every new broadcast requires an explicit future expiry and expired broadcasts disappear from Guest Hub", () => {
+  contains(api, 'new Date(String(body?.displayUntil || ""))');
+  contains(api, 'return json({ ok: false, error: "invalid_display_until" }, 400)');
+  contains(api, 'display_until: displayUntil');
+  contains(communicationsWorkspace, 'displayUntil: new Date(validUntil).toISOString()');
+  contains(communicationsWorkspace, 'required value={validUntil}');
+  contains(communicationsWorkspace, 'copy.validUntilHelp');
+  contains(guestApi, '.or(`display_until.is.null,display_until.gt.${now}`)');
 });
 
 test("delivery is kill-switched, active-stay scoped and idempotent", () => {
@@ -132,7 +158,7 @@ test("Reception and Manager share a hotel-scoped StayHub room activity map", () 
 });
 
 test("communications and room activity runtime never invoke Factory publication or LIVE activation", () => {
-  const combined = [shell, access, api, translation, delivery, cron, guestApi, inbox, directWorkspace, roomActivityApi, roomActivityMap].join("\n");
+  const combined = [shell, access, api, translation, delivery, cron, guestApi, inbox, communicationsWorkspace, directWorkspace, roomActivityApi, roomActivityMap].join("\n");
   excludes(combined, "/api/control-plane/onboarding/live");
   excludes(combined, "/api/control-plane/onboarding/publication");
   excludes(combined, "activate_factory_production_live");

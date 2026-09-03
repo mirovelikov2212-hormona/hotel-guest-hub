@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "checkpoint": "guest-stay-invalid-identity-handling",
+  "baseCheckpoint": "guest-direct-communications-production-release",
+  "expectedNeedsReview": 171,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "fromLine": 562,
+      "toLine": 563,
+      "table": "guest_stay_devices",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "fromLine": 594,
+      "toLine": 596,
+      "table": "guest_stays",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "fromLine": 643,
+      "toLine": 645,
+      "table": "guest_stays",
+      "operation": "update"
+    }
+  ],
+  "additions": []
+}

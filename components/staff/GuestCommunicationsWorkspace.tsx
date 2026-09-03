@@ -17,6 +17,7 @@ type MessageRow = {
   status: string;
   scheduled_at: string | null;
   sent_at: string | null;
+  display_until: string | null;
   delivery_total: number;
   delivery_sent: number;
   delivery_failed: number;
@@ -28,6 +29,9 @@ type MessageRow = {
 type WorkspacePayload = {
   ok?: boolean;
   pushReach?: number;
+  messageReachRooms?: number;
+  pushReachRooms?: number;
+  pushReachDevices?: number;
   capabilities?: CapabilityMap;
   messages?: MessageRow[];
   department?: { name?: string | null; code?: string | null } | null;
@@ -39,8 +43,11 @@ const COPY = {
   bg: {
     title: "Съобщения към гостите",
     intro: "Информация, промени, събития и оферти от вашия отдел към активните гости.",
-    reach: "Push обхват",
-    devices: "активни устройства",
+    reach: "Обхват",
+    activeStayhubRooms: "активни StayHub стаи",
+    push: "Push известяване",
+    pushRooms: "стаи",
+    pushDevices: "устройства",
     newMessage: "Ново съобщение",
     sourceLanguage: "Език на хотела",
     sourceLanguageHelp: "Пишете на основния език на хотела. StayHub превежда автоматично съобщението и всеки активен гост го получава на езика на своя Hub.",
@@ -49,6 +56,8 @@ const COPY = {
     messageBody: "Съобщение",
     titlePlaceholder: "Напр. Промяна в работното време",
     bodyPlaceholder: "Напишете ясното съобщение към гостите…",
+    validUntil: "Валидно до",
+    validUntilHelp: "Задължително. След този момент съобщението автоматично изчезва от Guest Hub, но остава в Staff историята.",
     saveDraft: "Запази чернова",
     send: "Изпрати",
     schedule: "Насрочи",
@@ -59,15 +68,18 @@ const COPY = {
     cancel: "Отмени",
     translating: "При изпращане StayHub подготвя BG, EN, DE, RO, CS и RU и избира правилния вариант за всеки гост.",
     deliveryOff: "Реалното изпращане е временно изключено в текущия тестов етап. Бутонът „Изпрати“ ще се активира при финалното включване на delivery.",
-    deliveryOn: "Изпращането е активно. Съобщението ще бъде доставено само до валидните активни гост устройства.",
+    deliveryOn: "Всички активни StayHub гости могат да видят съобщението в Hub до зададената валидност. Гостите с разрешен push получават и системно известие.",
     loadError: "Съобщенията временно не са достъпни.",
-    actionError: "Действието не беше записано. Опитайте отново.",
+    actionError: "Действието не беше записано. Проверете датата и часа за валидност и опитайте отново.",
   },
   en: {
     title: "Guest communications",
     intro: "Information, changes, events and offers from your department to active guests.",
-    reach: "Push reach",
-    devices: "active devices",
+    reach: "Reach",
+    activeStayhubRooms: "active StayHub rooms",
+    push: "Push notification",
+    pushRooms: "rooms",
+    pushDevices: "devices",
     newMessage: "New message",
     sourceLanguage: "Hotel language",
     sourceLanguageHelp: "Write in the hotel's primary language. StayHub translates automatically and each active guest receives the message in their Hub language.",
@@ -76,6 +88,8 @@ const COPY = {
     messageBody: "Message",
     titlePlaceholder: "Example: Opening hours change",
     bodyPlaceholder: "Write a clear message for guests…",
+    validUntil: "Valid until",
+    validUntilHelp: "Required. After this time the message automatically disappears from the Guest Hub but remains in Staff history.",
     saveDraft: "Save draft",
     send: "Send",
     schedule: "Schedule",
@@ -86,15 +100,18 @@ const COPY = {
     cancel: "Cancel",
     translating: "When sending, StayHub prepares BG, EN, DE, RO, CS and RU and selects the correct version for each guest.",
     deliveryOff: "Real delivery is temporarily disabled during this test stage. The Send button will activate when delivery is enabled for release.",
-    deliveryOn: "Delivery is active. The message will be sent only to valid active guest devices.",
+    deliveryOn: "All active StayHub guests can see the message in the Hub until its validity ends. Guests with push permission also receive a system notification.",
     loadError: "Guest communications are temporarily unavailable.",
-    actionError: "The action could not be saved. Please try again.",
+    actionError: "The action could not be saved. Check the validity date and time and try again.",
   },
   de: {
     title: "Gästekommunikation",
     intro: "Informationen, Änderungen, Veranstaltungen und Angebote Ihrer Abteilung für aktive Gäste.",
-    reach: "Push-Reichweite",
-    devices: "aktive Geräte",
+    reach: "Reichweite",
+    activeStayhubRooms: "aktive StayHub-Zimmer",
+    push: "Push-Benachrichtigung",
+    pushRooms: "Zimmer",
+    pushDevices: "Geräte",
     newMessage: "Neue Nachricht",
     sourceLanguage: "Hotelsprache",
     sourceLanguageHelp: "Schreiben Sie in der Hauptsprache des Hotels. StayHub übersetzt automatisch und jeder aktive Gast erhält die Nachricht in seiner Hub-Sprache.",
@@ -103,6 +120,8 @@ const COPY = {
     messageBody: "Nachricht",
     titlePlaceholder: "Beispiel: Änderung der Öffnungszeiten",
     bodyPlaceholder: "Schreiben Sie eine klare Nachricht für die Gäste…",
+    validUntil: "Gültig bis",
+    validUntilHelp: "Pflichtfeld. Danach verschwindet die Nachricht automatisch aus dem Guest Hub, bleibt aber im Staff-Verlauf erhalten.",
     saveDraft: "Entwurf speichern",
     send: "Senden",
     schedule: "Planen",
@@ -113,9 +132,9 @@ const COPY = {
     cancel: "Stornieren",
     translating: "Beim Senden erstellt StayHub BG, EN, DE, RO, CS und RU und wählt für jeden Gast die richtige Version.",
     deliveryOff: "Die reale Zustellung ist in dieser Testphase vorübergehend deaktiviert. Der Senden-Button wird beim finalen Delivery-Start aktiviert.",
-    deliveryOn: "Die Zustellung ist aktiv. Die Nachricht wird nur an gültige aktive Gastgeräte gesendet.",
+    deliveryOn: "Alle aktiven StayHub-Gäste können die Nachricht bis zum Ablauf im Hub sehen. Gäste mit Push-Berechtigung erhalten zusätzlich eine Systembenachrichtigung.",
     loadError: "Die Gästekommunikation ist vorübergehend nicht verfügbar.",
-    actionError: "Die Aktion konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    actionError: "Die Aktion konnte nicht gespeichert werden. Prüfen Sie Gültigkeitsdatum und -zeit und versuchen Sie es erneut.",
   },
 } as const;
 
@@ -164,6 +183,7 @@ export default function GuestCommunicationsWorkspace({
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
+  const [validUntil, setValidUntil] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -207,7 +227,7 @@ export default function GuestCommunicationsWorkspace({
   );
 
   async function submit(action: "draft" | "send_now" | "schedule") {
-    if (!canCreate || !title.trim() || !body.trim()) return;
+    if (!canCreate || !title.trim() || !body.trim() || !validUntil) return;
     if (action === "send_now" && (!canSend || !deliveryEnabled)) return;
     if (action === "schedule" && (!canSchedule || !deliveryEnabled || !scheduledAt)) return;
     setBusy(true);
@@ -225,12 +245,14 @@ export default function GuestCommunicationsWorkspace({
           title: title.trim(),
           body: body.trim(),
           scheduledAt: action === "schedule" ? new Date(scheduledAt).toISOString() : null,
+          displayUntil: new Date(validUntil).toISOString(),
         }),
       });
       if (!response.ok) throw new Error(`communications action ${response.status}`);
       setTitle("");
       setBody("");
       setScheduledAt("");
+      setValidUntil("");
       await load();
     } catch (submitError) {
       console.error("Guest Communications action failed", submitError);
@@ -262,6 +284,10 @@ export default function GuestCommunicationsWorkspace({
 
   if (!payload && !loading && !error) return null;
 
+  const messageReachRooms = Number(payload?.messageReachRooms || 0);
+  const pushReachRooms = Number(payload?.pushReachRooms || 0);
+  const pushReachDevices = Number(payload?.pushReachDevices ?? payload?.pushReach ?? 0);
+
   return (
     <div className="mb-5">
       <StaffCollapsiblePanel
@@ -269,7 +295,7 @@ export default function GuestCommunicationsWorkspace({
         summary={copy.intro}
         badge={payload ? (
           <span className="rounded-full border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-2.5 py-1 text-xs font-semibold">
-            {copy.reach}: {payload.pushReach || 0}
+            {copy.reach}: {messageReachRooms}
           </span>
         ) : null}
       >
@@ -279,10 +305,17 @@ export default function GuestCommunicationsWorkspace({
         {payload ? (
           <div className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
             <div className="space-y-4">
-              <div className="rounded-2xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] p-4">
-                <p className="text-xs uppercase tracking-[0.16em] text-[var(--staff-faint)]">{copy.reach}</p>
-                <p className="mt-1 text-2xl font-semibold">{payload.pushReach || 0}</p>
-                <p className="mt-1 text-xs text-[var(--staff-muted)]">{copy.devices}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-[var(--staff-faint)]">{copy.reach}</p>
+                  <p className="mt-1 text-2xl font-semibold">{messageReachRooms}</p>
+                  <p className="mt-1 text-xs text-[var(--staff-muted)]">{copy.activeStayhubRooms}</p>
+                </div>
+                <div className="rounded-2xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-[var(--staff-faint)]">{copy.push}</p>
+                  <p className="mt-1 text-2xl font-semibold">{pushReachRooms} / {pushReachDevices}</p>
+                  <p className="mt-1 text-xs text-[var(--staff-muted)]">{pushReachRooms} {copy.pushRooms} · {pushReachDevices} {copy.pushDevices}</p>
+                </div>
               </div>
 
               {canCreate ? (
@@ -309,17 +342,24 @@ export default function GuestCommunicationsWorkspace({
                     <span className="mb-1 block text-[var(--staff-muted)]">{copy.messageBody}</span>
                     <textarea value={body} onChange={(event) => setBody(event.target.value)} maxLength={1000} rows={5} placeholder={copy.bodyPlaceholder} className="w-full resize-y rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5" />
                   </label>
-                  {canSchedule ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {canSchedule ? (
+                      <label className="block text-sm">
+                        <span className="mb-1 block text-[var(--staff-muted)]">{copy.scheduledFor}</span>
+                        <input type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} className="w-full rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5" />
+                      </label>
+                    ) : <div />}
                     <label className="block text-sm">
-                      <span className="mb-1 block text-[var(--staff-muted)]">{copy.scheduledFor}</span>
-                      <input type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} className="w-full rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5" />
+                      <span className="mb-1 block text-[var(--staff-muted)]">{copy.validUntil} *</span>
+                      <input type="datetime-local" required value={validUntil} onChange={(event) => setValidUntil(event.target.value)} className="w-full rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5" />
                     </label>
-                  ) : null}
+                  </div>
+                  <p className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-xs leading-5 text-amber-800">{copy.validUntilHelp}</p>
                   <p className="text-xs leading-5 text-[var(--staff-muted)]">{copy.translating}</p>
                   <div className="flex flex-wrap gap-2">
-                    <button disabled={busy || !title.trim() || !body.trim()} onClick={() => void submit("draft")} className="rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-4 py-2.5 text-sm font-semibold disabled:opacity-40">{copy.saveDraft}</button>
-                    {canSend ? <button disabled={busy || !deliveryEnabled || !title.trim() || !body.trim()} onClick={() => void submit("send_now")} className="stayhub-communication-send rounded-xl border px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45">{copy.send}</button> : null}
-                    {canSchedule ? <button disabled={busy || !deliveryEnabled || !title.trim() || !body.trim() || !scheduledAt} onClick={() => void submit("schedule")} className="stayhub-communication-schedule rounded-xl border px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45">{copy.schedule}</button> : null}
+                    <button disabled={busy || !title.trim() || !body.trim() || !validUntil} onClick={() => void submit("draft")} className="rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-4 py-2.5 text-sm font-semibold disabled:opacity-40">{copy.saveDraft}</button>
+                    {canSend ? <button disabled={busy || !deliveryEnabled || !title.trim() || !body.trim() || !validUntil} onClick={() => void submit("send_now")} className="stayhub-communication-send rounded-xl border px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45">{copy.send}</button> : null}
+                    {canSchedule ? <button disabled={busy || !deliveryEnabled || !title.trim() || !body.trim() || !scheduledAt || !validUntil} onClick={() => void submit("schedule")} className="stayhub-communication-schedule rounded-xl border px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45">{copy.schedule}</button> : null}
                   </div>
                   <p className={`rounded-xl border p-3 text-xs leading-5 ${deliveryEnabled ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-700" : "border-amber-400/25 bg-amber-400/10 text-amber-700"}`}>
                     {deliveryEnabled ? copy.deliveryOn : copy.deliveryOff}
@@ -351,6 +391,7 @@ export default function GuestCommunicationsWorkspace({
                       <span>{new Date(message.created_at).toLocaleString()}</span>
                       <span>{message.departments?.name || message.actor_role}</span>
                       <span>translation: {message.translation_status}</span>
+                      {message.display_until ? <span>{copy.validUntil}: {new Date(message.display_until).toLocaleString()}</span> : null}
                       {message.delivery_total > 0 ? <span>{message.delivery_sent}/{message.delivery_total} delivered</span> : null}
                     </div>
                     {["draft", "scheduled", "queued"].includes(message.status) && canCreate ? (

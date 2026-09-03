@@ -49,6 +49,14 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
+/**
+ * Prime only process-local runtime caches from the already-authoritative
+ * materialized tenant snapshot. Persisted Vercel cache writes here used to
+ * multiply one Sandbox lookup into several remote writes before the request
+ * could continue, defeating the purpose of the materialized runtime under a
+ * cold 100-hotel burst. Legacy/fallback loaders still own their persisted cache
+ * writes when the materializer is unavailable.
+ */
 async function primeSharedRuntimeCaches(runtime: MaterializedTenantRuntime) {
   const hotelId = String(runtime.hotelId || "").trim();
   const revisionId = String(runtime.publishedRevisionId || "").trim();
@@ -92,13 +100,13 @@ async function primeSharedRuntimeCaches(runtime: MaterializedTenantRuntime) {
     ]);
 
     if (results.some((result) => result.status === "rejected")) {
-      console.warn("Shared materialized tenant runtime cache priming was partially unavailable", {
+      console.warn("Shared materialized tenant runtime process-cache priming was partially unavailable", {
         hotelId,
         revisionId,
       });
     }
   } catch (error) {
-    console.warn("Shared materialized tenant runtime cache priming was unavailable", {
+    console.warn("Shared materialized tenant runtime process-cache priming was unavailable", {
       hotelId,
       revisionId,
       error,
@@ -251,10 +259,11 @@ export async function getHotelSheetSources(inputSlug?: string): Promise<HotelShe
     const materialized = await resolveMaterializedSandboxRuntime(candidates);
     if (materialized) {
       const result = directoryFromMaterialized(materialized);
-      await Promise.all([
-        cacheHotelSheetSources(cacheKey, result),
-        primeSharedRuntimeCaches(materialized),
-      ]);
+      // The materialized RPC already returned the canonical directory + runtime.
+      // Prime only process-local consumers and return immediately; persisted
+      // directory/runtime caches are legacy resilience, not a prerequisite for
+      // serving a certified Sandbox request.
+      await primeSharedRuntimeCaches(materialized);
       return result;
     }
   } catch (error) {
