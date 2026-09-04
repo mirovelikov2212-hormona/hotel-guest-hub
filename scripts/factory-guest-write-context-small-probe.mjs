@@ -1,16 +1,40 @@
 import { performance } from "node:perf_hooks";
 import { writeFile } from "node:fs/promises";
 
-const baseUrl = String(
-  process.env.STAYHUB_PROBE_BASE_URL ||
-    "https://hotel-guest-n09d3q80i-miroslav-velikovs-projects.vercel.app",
-).replace(/\/$/, "");
+const baseUrl = String(process.env.STAYHUB_PROBE_BASE_URL || "").replace(/\/$/, "");
+const expectedAppSha = String(process.env.STAYHUB_PROBE_EXPECTED_APP_SHA || "").trim();
+const trustedOidcToken = String(process.env.STAYHUB_VERCEL_TRUSTED_OIDC_TOKEN || "").trim();
+const automationBypassSecret = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "").trim();
 const prefix = "factory-heavy-20260901";
 const hotels = [6, 16, 20, 21, 23, 28, 31, 44, 64, 72];
 const room = "203";
 const serviceId = "load_massage";
 const timeoutMs = 30_000;
 const runId = `${prefix}-guest-write-context-small-${Date.now()}`;
+
+if (!baseUrl) throw new Error("STAYHUB_PROBE_BASE_URL is required");
+if (!expectedAppSha) throw new Error("STAYHUB_PROBE_EXPECTED_APP_SHA is required");
+
+const baseHost = new URL(baseUrl).hostname.toLowerCase();
+if (["stayhub.app", "www.stayhub.app", "hotel-guest-hub.vercel.app"].includes(baseHost)) {
+  throw new Error(`Production StayHub domains are forbidden for the small probe: ${baseHost}`);
+}
+
+const authMode = trustedOidcToken
+  ? "vercel_trusted_oidc"
+  : automationBypassSecret
+    ? "vercel_automation_bypass"
+    : "none";
+
+if (authMode === "none") {
+  throw new Error(
+    "Protected Preview authentication is required: provide STAYHUB_VERCEL_TRUSTED_OIDC_TOKEN or VERCEL_AUTOMATION_BYPASS_SECRET",
+  );
+}
+
+const protectionHeaders = trustedOidcToken
+  ? { "x-vercel-trusted-oidc-idp-token": trustedOidcToken }
+  : { "x-vercel-protection-bypass": automationBypassSecret };
 
 function dateKeyOffset(days) {
   return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
@@ -39,9 +63,24 @@ function summarize(rows) {
   };
 }
 
+function formatBodyError(body) {
+  const value = body?.error ?? body?.code ?? null;
+  if (value == null) return "invalid response";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 async function fetchJson(url, init = {}) {
   const response = await fetch(url, {
     ...init,
+    headers: {
+      ...protectionHeaders,
+      ...(init.headers || {}),
+    },
     cache: "no-store",
     signal: AbortSignal.timeout(timeoutMs),
   });
@@ -74,7 +113,7 @@ async function confirmIdentity(hotel) {
   });
   if (!response.ok || body?.ok !== true || !body?.stay?.id || !body?.stay?.stayDeviceId) {
     throw new Error(
-      `Stay bootstrap failed for ${hotelSlug}: HTTP ${response.status} ${body?.error || "invalid identity"}`,
+      `Stay bootstrap failed for ${hotelSlug}: HTTP ${response.status} ${formatBodyError(body)}`,
     );
   }
   return {
@@ -102,7 +141,7 @@ async function discoverMassageSlot(identity) {
   )[0];
   if (!response.ok || body?.ok !== true || !candidate) {
     throw new Error(
-      `Massage slot preflight failed for ${identity.hotelSlug}: HTTP ${response.status} ${body?.code || "no_slot"}`,
+      `Massage slot preflight failed for ${identity.hotelSlug}: HTTP ${response.status} ${formatBodyError(body)}`,
     );
   }
   return candidate;
@@ -178,7 +217,7 @@ async function postOperation(kind, identity, slot = null) {
     status,
     ok: body?.ok === true,
     code: body?.code || null,
-    error: transportError || body?.error || null,
+    error: transportError || (body?.error ? formatBodyError(body) : null),
     latencyMs: Number((performance.now() - started).toFixed(1)),
   };
 }
@@ -207,9 +246,10 @@ const accepted =
   massage.p95 <= 4500;
 
 const output = {
-  schemaVersion: "stayhub-factory-guest-write-context-small-probe-v1",
+  schemaVersion: "stayhub-factory-guest-write-context-small-probe-v2",
   runId,
-  sourceAppSha: "b14106ccfc6f0e6dca129addbd6576d3a1c6f2ac",
+  sourceAppSha: expectedAppSha,
+  authMode,
   baseUrl,
   startedAt,
   completedAt: new Date().toISOString(),
