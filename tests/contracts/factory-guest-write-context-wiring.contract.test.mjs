@@ -85,3 +85,24 @@ test("Vercel Functions stay colocated with the Frankfurt Supabase authority", as
   assert.deepEqual(config.regions, ["fra1"]);
   assert.equal(config.fluid, true);
 });
+
+
+test("Factory positive guest writes eliminate redundant Data API roundtrips", async () => {
+  const context = await readProjectFile("lib/server/factory-guest-context.ts");
+  const requestRoute = await readProjectFile("app/api/guest/request-create/route.ts");
+  const surveyRoute = await readProjectFile("app/api/guest/day3-survey/route.ts");
+
+  assertContains(context, "type GuestRequestRelationalAuthority");
+  assertContains(context, "parseRelationalAuthority(value.relationalAuthority)");
+  assertContains(context, "export function buildFactoryGuestHotelConfig");
+  assertContains(context, "attachGuestRequestRelationalAuthority(config, runtime.relationalAuthority)");
+  assertContains(requestRoute, "const hotelConfig = factoryWriteContext");
+  assertContains(requestRoute, "? buildFactoryGuestHotelConfig(factoryWriteContext.runtime)");
+  assertContains(requestRoute, ": await getHotelConfig(hotelSlug).catch");
+  assert.ok(
+    !surveyRoute.includes('timing.mark("duplicate_check")'),
+    "Positive survey writes must not perform a duplicate read before the authoritative insert.",
+  );
+  assertContains(surveyRoute, 'if (error?.code === "23505")');
+  assertContains(surveyRoute, "guest_surveys_one_device_per_stay_uidx");
+});

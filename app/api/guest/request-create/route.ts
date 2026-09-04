@@ -21,7 +21,10 @@ import {
   validateGuestStayIdentity,
   validatePreparedFactoryGuestWriteIdentity,
 } from "@/lib/server/guest-stays";
-import { resolveFactoryGuestWriteContextFastPath } from "@/lib/server/factory-guest-context";
+import {
+  buildFactoryGuestHotelConfig,
+  resolveFactoryGuestWriteContextFastPath,
+} from "@/lib/server/factory-guest-context";
 import {
   getOperationalIsolationFields,
   getOperationalIsolationMetadata,
@@ -167,18 +170,20 @@ export async function POST(req: NextRequest) {
       return runtimeCanaryRoutingErrorResponse(routingError);
     }
 
-    const hotelConfig = await getHotelConfig(hotelSlug).catch(async (error) => {
-      console.error("Failed to load hotel config for room validation", { hotelSlug, error });
-      await logSystemError({
-        hotelId: hotel.id,
-        source: "guest_hub",
-        eventType: "guest_request_room_validation_config_failed",
-        message: "Guest request room validation config could not be loaded.",
-        error,
-        metadata: { hotelSlug },
-      });
-      return null;
-    });
+    const hotelConfig = factoryWriteContext
+      ? buildFactoryGuestHotelConfig(factoryWriteContext.runtime)
+      : await getHotelConfig(hotelSlug).catch(async (error) => {
+          console.error("Failed to load hotel config for room validation", { hotelSlug, error });
+          await logSystemError({
+            hotelId: hotel.id,
+            source: "guest_hub",
+            eventType: "guest_request_room_validation_config_failed",
+            message: "Guest request room validation config could not be loaded.",
+            error,
+            metadata: { hotelSlug },
+          });
+          return null;
+        });
     timing.mark("hotel_and_config");
 
     if (!hotelConfig) {

@@ -204,25 +204,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existing = await findExistingStayDeviceSurvey({ stayId, stayDeviceId });
-    timing.mark("duplicate_check");
-    if (existing.error) {
-      await logSystemError({
-        hotelId: hotel.id,
-        source: "survey",
-        eventType: "day3_survey_duplicate_check_failed",
-        message: "Day 3 survey duplicate protection could not verify an existing response.",
-        roomNumber: room,
-        error: existing.error,
-        metadata: { hotelSlug, surveyVersion, targetDateKey, stayId, stayDeviceId },
-      });
-    } else if (existing.data?.id) {
-      return NextResponse.json(
-        { ok: true, survey: { id: existing.data.id }, duplicate: true },
-        { headers: NO_STORE_HEADERS },
-      );
-    }
-
+    // guest_surveys_one_device_per_stay_uidx is the authoritative duplicate
+    // guard. Avoid a separate read-before-write roundtrip; a concurrent retry
+    // is recovered from PostgreSQL 23505 immediately after the insert attempt.
     const { hotelDateKey, activeUntil } = calculateSurveyActiveUntil(submittedAt, timezone);
     const insertPayload = {
       hotel_id: hotel.id,

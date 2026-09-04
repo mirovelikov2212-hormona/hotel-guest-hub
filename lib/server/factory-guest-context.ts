@@ -5,6 +5,11 @@ import {
   type CommercialRuntimeEffectiveStatus,
 } from "@/lib/server/commercial-runtime-entitlement";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import type { HotelConfig } from "@/lib/types";
+import {
+  attachGuestRequestRelationalAuthority,
+  type GuestRequestRelationalAuthority,
+} from "@/lib/server/guest-request-relational-ids.mjs";
 
 type JsonObject = Record<string, unknown>;
 
@@ -18,7 +23,7 @@ export type FactoryGuestRuntime = {
   publishedRevisionId: string;
   sourceChecksum: string;
   config: JsonObject;
-  relationalAuthority: JsonObject;
+  relationalAuthority: GuestRequestRelationalAuthority;
   testRoomNumbers: string[];
   hotelName: string | null;
   hotelTimezone: string | null;
@@ -83,6 +88,63 @@ function normalizeRoom(value: unknown) {
   return normalizeString(value).replace(/\s+/g, "");
 }
 
+function normalizeAuthorityKey(value: unknown) {
+  return normalizeString(value)
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/-+/g, "_");
+}
+
+function normalizeAuthorityIdMap(
+  value: unknown,
+  normalizeMapKey: (value: unknown) => string,
+): Record<string, string> | null {
+  if (!isObject(value)) return null;
+
+  const result: Record<string, string> = {};
+  for (const [rawKey, rawId] of Object.entries(value)) {
+    const key = normalizeMapKey(rawKey);
+    const id = normalizeString(rawId);
+    if (!key || !isUuid(id) || result[key]) return null;
+    result[key] = id;
+  }
+  return result;
+}
+
+function parseRelationalAuthority(value: unknown): GuestRequestRelationalAuthority | null {
+  if (!isObject(value)) return null;
+
+  const revisionId = normalizeString(value.revisionId);
+  const sourceChecksum = normalizeString(value.sourceChecksum).toLowerCase();
+  const roomIdByNumber = normalizeAuthorityIdMap(value.roomIdByNumber, normalizeRoom);
+  const departmentIdByCode = normalizeAuthorityIdMap(
+    value.departmentIdByCode,
+    normalizeAuthorityKey,
+  );
+  const routingDepartmentIdByRequestType = normalizeAuthorityIdMap(
+    value.routingDepartmentIdByRequestType,
+    normalizeAuthorityKey,
+  );
+
+  if (
+    !isUuid(revisionId) ||
+    !/^[a-f0-9]{64}$/.test(sourceChecksum) ||
+    !roomIdByNumber ||
+    !departmentIdByCode ||
+    !routingDepartmentIdByRequestType
+  ) {
+    return null;
+  }
+
+  return {
+    revisionId,
+    sourceChecksum,
+    roomIdByNumber,
+    departmentIdByCode,
+    routingDepartmentIdByRequestType,
+  };
+}
+
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
@@ -99,11 +161,9 @@ function parseRuntime(value: unknown): FactoryGuestRuntime {
   const publishedRevisionId = normalizeString(value.publishedRevisionId);
   const sourceChecksum = normalizeString(value.sourceChecksum).toLowerCase();
   const config = isObject(value.config) ? value.config : null;
-  const relationalAuthority = isObject(value.relationalAuthority)
-    ? value.relationalAuthority
-    : null;
-  const relationalRevisionId = normalizeString(relationalAuthority?.revisionId);
-  const relationalChecksum = normalizeString(relationalAuthority?.sourceChecksum).toLowerCase();
+  const relationalAuthority = parseRelationalAuthority(value.relationalAuthority);
+  const relationalRevisionId = relationalAuthority?.revisionId || "";
+  const relationalChecksum = relationalAuthority?.sourceChecksum || "";
 
   if (
     !isUuid(hotelId) ||
@@ -282,6 +342,27 @@ function hotelScopeFromRuntime(runtime: FactoryGuestRuntime): FactoryGuestHotelS
     is_sandbox: true,
     production_hotel_id: runtime.productionHotelId,
   };
+}
+
+/**
+ * Reuse the exact materialized Factory config that was already validated by
+ * parseRuntime(). This removes a second published/normalized config resolution
+ * roundtrip from positive guest writes while preserving the same server-only
+ * relational UUID authority used by getHotelConfig().
+ */
+export function buildFactoryGuestHotelConfig(runtime: FactoryGuestRuntime): HotelConfig {
+  const config = {
+    ...(runtime.config as unknown as HotelConfig),
+    hotelId: runtime.hotelId,
+    hotelSlug: runtime.hotelSlug,
+    publicSlug: runtime.publicSlug || runtime.hotelSlug,
+    isSandbox: true,
+    productionHotelId: runtime.productionHotelId,
+    testRoomNumbers: [...runtime.testRoomNumbers],
+  } satisfies HotelConfig;
+
+  attachGuestRequestRelationalAuthority(config, runtime.relationalAuthority);
+  return config;
 }
 
 async function loadFactoryGuestWriteContext(input: {
