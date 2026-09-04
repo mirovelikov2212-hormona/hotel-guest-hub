@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   assertBefore,
   assertContains,
+  assertNotContains,
   readProjectFile,
 } from "../helpers/source-contract.mjs";
 
@@ -116,4 +117,29 @@ test("configured test rooms silently recover stale identity without weakening re
   assertContains(refreshSource, "!isDateExemptTestRoom(expiredRoom) && !stayExpiredNotifiedRef.current");
   assertContains(source, "roomStateHydrated,\n    isDateExemptTestRoom,\n    roomStateKey,");
   assert.doesNotMatch(source, /isDateExemptTestRoom\([^)]*["']103["']/);
+});
+
+test("final browser and grouped acceptance bootstrap current Sandbox stay identities", async () => {
+  const browserHarness = await readProjectFile("scripts/factory-browser-device-matrix.py");
+  const groupedHarness = await readProjectFile("scripts/factory-final-620-peak.mjs");
+
+  assertContains(browserHarness, "/api/guest/stay/confirm");
+  assertContains(browserHarness, '"deviceToken": device_token');
+  assertContains(browserHarness, 'if not slug.endswith("-sandbox")');
+  assertNotContains(browserHarness, "deterministic_uuid");
+  assertNotContains(browserHarness, "factory-heavy-stay");
+
+  assertContains(groupedHarness, "bootstrapGroupStayIdentities");
+  assertContains(groupedHarness, "/api/guest/stay/confirm");
+  assertContains(groupedHarness, "identityPreflight");
+  assertContains(groupedHarness, 'hotelSlug.endsWith("-sandbox")');
+  assertNotContains(groupedHarness, "deterministicUuid");
+  assertNotContains(groupedHarness, 'deterministicUuid("factory-heavy-stay"');
+
+  assertBefore(
+    groupedHarness,
+    "const groupWallStarted = performance.now();",
+    "const operations = [];",
+    "Grouped wall timing must begin before operation promises are created.",
+  );
 });
