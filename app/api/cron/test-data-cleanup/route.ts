@@ -11,11 +11,22 @@ const NO_STORE_HEADERS = {
 };
 
 const CLEANUP_CONCURRENCY = 5;
+const FACTORY_ACCEPTANCE_MIN_AGE_SECONDS = 15 * 60;
 
 type HotelRow = {
   id: string;
   slug: string;
   is_sandbox: boolean | null;
+};
+
+type FactoryAcceptanceCleanupResult = {
+  ok: boolean;
+  skipped?: boolean;
+  reason?: string;
+  candidateCount?: number;
+  minimumAgeSeconds?: number;
+  cutoff?: string;
+  deleted?: Record<string, number>;
 };
 
 function isAuthorizedCronRequest(req: NextRequest) {
@@ -27,11 +38,47 @@ function isAuthorizedCronRequest(req: NextRequest) {
   return fromVercelCron;
 }
 
+function parseFactoryAcceptanceCleanupResult(value: unknown): FactoryAcceptanceCleanupResult | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const result = value as Record<string, unknown>;
+  if (typeof result.ok !== "boolean") return null;
+
+  return value as FactoryAcceptanceCleanupResult;
+}
+
 export async function GET(req: NextRequest) {
   if (!isAuthorizedCronRequest(req)) {
     return NextResponse.json(
       { ok: false, error: "Unauthorized" },
       { status: 401, headers: NO_STORE_HEADERS },
+    );
+  }
+
+  const { data: factoryCleanupRaw, error: factoryCleanupError } = await supabaseAdmin.rpc(
+    "cleanup_factory_acceptance_sandbox_data_v1",
+    { p_min_age_seconds: FACTORY_ACCEPTANCE_MIN_AGE_SECONDS },
+  );
+
+  if (factoryCleanupError) {
+    console.error("Scheduled Factory acceptance Sandbox cleanup failed", factoryCleanupError);
+    return NextResponse.json(
+      { ok: false, error: "FACTORY_ACCEPTANCE_CLEANUP_FAILED" },
+      { status: 500, headers: NO_STORE_HEADERS },
+    );
+  }
+
+  const factoryAcceptanceCleanup = parseFactoryAcceptanceCleanupResult(factoryCleanupRaw);
+  if (!factoryAcceptanceCleanup?.ok) {
+    console.error("Scheduled Factory acceptance Sandbox cleanup failed closed", {
+      result: factoryCleanupRaw,
+    });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "FACTORY_ACCEPTANCE_CLEANUP_REJECTED",
+        factoryAcceptanceCleanup: factoryCleanupRaw,
+      },
+      { status: 500, headers: NO_STORE_HEADERS },
     );
   }
 
@@ -45,7 +92,11 @@ export async function GET(req: NextRequest) {
   if (error) {
     console.error("Failed to load hotels for lifecycle cleanup", error);
     return NextResponse.json(
-      { ok: false, error: "HOTEL_LIST_FAILED" },
+      {
+        ok: false,
+        error: "HOTEL_LIST_FAILED",
+        factoryAcceptanceCleanup,
+      },
       { status: 500, headers: NO_STORE_HEADERS },
     );
   }
@@ -135,6 +186,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(
     {
       ok: failed.length === 0,
+      factoryAcceptanceCleanup,
       hotelsChecked: hotels.length,
       failures: failed.length,
       results,
