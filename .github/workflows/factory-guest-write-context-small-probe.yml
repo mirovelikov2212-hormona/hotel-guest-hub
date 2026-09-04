@@ -1,0 +1,39 @@
+name: Factory Guest Write Context Small Probe
+
+on:
+  push:
+    branches:
+      - perf/factory-guest-write-context-v1
+    paths:
+      - ".github/workflows/factory-guest-write-context-small-probe.yml"
+      - "scripts/factory-guest-write-context-small-probe.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      STAYHUB_PROBE_BASE_URL: https://hotel-guest-n09d3q80i-miroslav-velikovs-projects.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate probe syntax
+        run: node --check scripts/factory-guest-write-context-small-probe.mjs
+      - name: Run 30-operation Factory guest write probe
+        run: node scripts/factory-guest-write-context-small-probe.mjs
+      - name: Print concise evidence
+        if: always()
+        run: |
+          if [ -f factory-guest-write-context-small-probe-results.json ]; then
+            jq '{schemaVersion,runId,sourceAppSha,baseUrl,room,totalOperations,wallMs,request,survey,massage,thresholdsMs,accepted,failures}' factory-guest-write-context-small-probe-results.json
+          fi
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-guest-write-context-small-probe-evidence
+          path: factory-guest-write-context-small-probe-results.json
+          if-no-files-found: warn
