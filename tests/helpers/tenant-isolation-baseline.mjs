@@ -23,6 +23,68 @@ export function makeTenantIsolationFindingKey(finding) {
   ].join("|");
 }
 
+function findReviewedEntryMatches(entries, descriptor) {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) =>
+      entry.filePath === descriptor.filePath &&
+      Number(entry.line) === Number(descriptor.line ?? descriptor.fromLine) &&
+      (!descriptor.table || entry.table === descriptor.table) &&
+      (!descriptor.operation || entry.operation === descriptor.operation),
+    );
+}
+
+/**
+ * Apply one explicit reviewed-baseline delta while preserving the provenance of
+ * already-audited findings. Relocations may move a finding across files as well
+ * as lines; this records source refactors without pretending an old query is a
+ * newly reviewed authority.
+ */
+export function applyTenantIsolationReviewedDelta(base, delta) {
+  if (!delta) return base;
+  if (delta.baseCheckpoint !== base.checkpoint) {
+    throw new Error(
+      `Tenant isolation delta expects base checkpoint ${delta.baseCheckpoint}, got ${base.checkpoint}.`,
+    );
+  }
+
+  const entries = base.entries.map((entry) => ({ ...entry }));
+
+  for (const removal of delta.removals || []) {
+    const matches = findReviewedEntryMatches(entries, removal);
+    if (matches.length !== 1) {
+      throw new Error(
+        `Tenant isolation removal must match exactly one reviewed entry: ${removal.filePath}:${removal.line}.`,
+      );
+    }
+    entries.splice(matches[0].index, 1);
+  }
+
+  for (const relocation of delta.relocations || []) {
+    const matches = findReviewedEntryMatches(entries, relocation);
+    if (matches.length !== 1) {
+      throw new Error(
+        `Tenant isolation relocation must match exactly one reviewed entry: ${relocation.filePath}:${relocation.fromLine}.`,
+      );
+    }
+
+    entries[matches[0].index] = {
+      ...matches[0].entry,
+      filePath: String(relocation.toFilePath || matches[0].entry.filePath),
+      line: Number(relocation.toLine),
+    };
+  }
+
+  for (const addition of delta.additions || []) entries.push({ ...addition });
+
+  return {
+    ...base,
+    checkpoint: delta.checkpoint,
+    expectedNeedsReview: Number(delta.expectedNeedsReview),
+    entries,
+  };
+}
+
 export function evaluateTenantIsolation(findings, baseline) {
   const allFindings = Array.isArray(findings) ? findings : [];
   const entries = Array.isArray(baseline?.entries) ? baseline.entries : [];
