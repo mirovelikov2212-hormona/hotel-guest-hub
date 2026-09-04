@@ -3,7 +3,9 @@ name: Factory Final Client Runtime Acceptance
 on:
   push:
     branches:
+      - main
       - feat/factory-prepare-sandbox-load-acceptance
+      - test/final-grouped-cell-acceptance
     paths:
       - ".github/workflows/factory-final-client-runtime-acceptance.yml"
       - "scripts/factory-browser-device-matrix.py"
@@ -24,13 +26,14 @@ jobs:
           python -m py_compile scripts/factory-browser-device-matrix.py
 
   client-runtime:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     needs: harness-contract
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       STAYHUB_BROWSER_BASE_URL: https://www.stayhub.app
       STAYHUB_620_BASE_URL: https://www.stayhub.app
+      STAYHUB_620_GROUP_COOLDOWN_MS: "2000"
     steps:
       - uses: actions/checkout@v4
       - name: Record exact acceptance source SHA
@@ -41,13 +44,13 @@ jobs:
           python -m playwright install --with-deps chromium firefox webkit
       - name: Run real browser-engine and mobile-profile request matrix
         run: python scripts/factory-browser-device-matrix.py
-      - name: Run external 620-operation peak with live availability preflight
+      - name: Run grouped 620-operation acceptance by runtime cell
         run: node scripts/factory-final-620-peak.mjs
-      - name: Print concise peak evidence
+      - name: Print concise grouped acceptance evidence
         if: always()
         run: |
           if [ -f factory-final-620-results.json ]; then
-            jq '{schemaVersion,runId,baseUrl,totalOperations,wallMs,request,survey,massageUnique,massageContention,thresholdsMs,correctnessAccepted,performanceAccepted,accepted,contentionSlot,failures,contentionUnexpected}' factory-final-620-results.json
+            jq '{schemaVersion,runId,baseUrl,executionMode,totalOperations,expectedTotalOperations,wallMs,failedGroup,groups:(.groups|map({cellKey,hotelCount,totalOperations,wallMs,request,survey,massageUnique,massageContention,correctnessAccepted,performanceAccepted,accepted})),request,survey,massageUnique,massageContention,thresholdsMs,correctnessAccepted,performanceAccepted,accepted,contentionSlot,failures,contentionUnexpected}' factory-final-620-results.json
           fi
       - name: Upload final client-runtime evidence
         if: always()
