@@ -11,6 +11,8 @@ const migrationPath =
   "supabase/migrations/20260902101449_harden_factory_materialized_runtime_semantics.sql";
 const hotPathMigrationPath =
   "supabase/migrations/20260903190000_factory_runtime_hot_path_invalidation.sql";
+const readyRuntimeMigrationPath =
+  "supabase/migrations/20260904103500_factory_guest_hot_path_ready_runtime.sql";
 
 test("certified Factory Sandbox metadata drives exact projector semantics without slug exceptions", async () => {
   const published = await readProjectFile("lib/server/published-hotel-config.ts");
@@ -124,4 +126,45 @@ test("Factory Guest hot getter reuses existing materialization without per-read 
   assertNotContains(getter, "check_factory_tenant_runtime_semantics_v1");
   assertNotContains(getter, "public.routing_rules");
   assertNotContains(getter, "public.departments");
+});
+
+test("Factory ready runtime uses one materialized-row read and preserves checked reconciliation fallback", async () => {
+  const migration = await readProjectFile(readyRuntimeMigrationPath);
+  const readyMatch = migration.match(
+    /create or replace function public\.get_factory_tenant_runtime_ready_v1\(p_hotel_slug text\)([\s\S]*?)revoke all on function public\.get_factory_tenant_runtime_ready_v1/,
+  );
+  assert.ok(readyMatch, "Expected an explicit ready-only Factory runtime getter.");
+  const readyGetter = readyMatch[1];
+
+  assertContains(readyGetter, "hotel_tenant_runtime_materialized");
+  assertNotContains(readyGetter, "hotel_config_projection_state");
+  assertNotContains(readyGetter, "hotel_config_revisions");
+  assertNotContains(readyGetter, "routing_rules");
+  assertNotContains(readyGetter, "departments");
+  assertNotContains(readyGetter, "refresh_factory_tenant_runtime_v1");
+  assertNotContains(readyGetter, "check_factory_tenant_runtime_semantics_v1");
+
+  assertContains(migration, "rename to get_factory_tenant_runtime_checked_v1");
+  assertContains(migration, "v_ready := public.get_factory_tenant_runtime_ready_v1(p_hotel_slug)");
+  assertContains(migration, "return public.get_factory_tenant_runtime_checked_v1(p_hotel_slug)");
+  assertContains(migration, "grant execute on function public.get_factory_tenant_runtime_ready_v1(text) to service_role");
+  assertContains(migration, "revoke all on function public.get_factory_tenant_runtime_ready_v1(text) from public, anon, authenticated");
+});
+
+test("Factory ready runtime is invalidated on every identity and authority drift boundary", async () => {
+  const migration = await readProjectFile(readyRuntimeMigrationPath);
+
+  assertContains(migration, "trg_invalidate_factory_runtime_hotel_identity_update_v1");
+  assertContains(migration, "after update of active, is_sandbox, slug, public_slug, production_hotel_id, name, timezone");
+  assertContains(migration, "trg_invalidate_factory_runtime_hotel_identity_delete_v1");
+  assertContains(migration, "trg_invalidate_factory_runtime_projection_delete_v1");
+  assertContains(migration, "trg_invalidate_factory_runtime_publication_delete_v1");
+  assertContains(migration, "delete from public.hotel_tenant_runtime_materialized");
+  assertContains(migration, "hotel_tenant_runtime_materialized_public_slug_idx");
+
+  const priorInvalidation = await readProjectFile(hotPathMigrationPath);
+  assertContains(priorInvalidation, "trg_invalidate_factory_runtime_rooms_v1");
+  assertContains(priorInvalidation, "trg_invalidate_factory_runtime_departments_v1");
+  assertContains(priorInvalidation, "trg_invalidate_factory_runtime_routing_v1");
+  assertContains(priorInvalidation, "trg_invalidate_factory_runtime_test_rooms_v1");
 });
