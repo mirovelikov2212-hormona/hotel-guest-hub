@@ -64,3 +64,17 @@ test("native massage staff projection is deferred without moving the authoritati
     "Authoritative massage booking must remain before deferred staff projection.",
   );
 });
+
+
+test("Factory Day 3 survey reuses consolidated room proof on the positive fast path", async () => {
+  const route = await readProjectFile("app/api/guest/day3-survey/route.ts");
+
+  assertContains(route, "const roomValidation = factoryWriteContext");
+  assertContains(route, "factoryWriteContext.runtime.hotelTimezone");
+  assertContains(route, ": await validateHotelRoom(hotelSlug, room)");
+  assert.ok(
+    route.indexOf("const roomValidation = factoryWriteContext") <
+      route.indexOf('timing.mark("hotel_and_room")'),
+    "Factory room proof must be reused before hotel_and_room timing closes.",
+  );
+});

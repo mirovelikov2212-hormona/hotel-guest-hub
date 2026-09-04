@@ -136,7 +136,19 @@ export async function POST(req: NextRequest) {
       return runtimeCanaryRoutingErrorResponse(routingError);
     }
 
-    const roomValidation = await validateHotelRoom(hotelSlug, room);
+    // A ready Factory write context has already proved the exact hotel + room
+    // through get_factory_guest_write_context_v1 and returned the canonical
+    // roomId. Reuse that proof instead of reloading hotel config solely to
+    // validate the same room a second time. Legacy/non-Factory paths remain
+    // fail-closed through validateHotelRoom.
+    const roomValidation = factoryWriteContext
+      ? {
+          ok: true as const,
+          timezone:
+            String(factoryWriteContext.runtime.hotelTimezone || hotel.timezone || "UTC").trim() ||
+            "UTC",
+        }
+      : await validateHotelRoom(hotelSlug, room);
     timing.mark("hotel_and_room");
     if (!roomValidation.ok) {
       await logSystemEvent({
