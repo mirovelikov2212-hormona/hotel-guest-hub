@@ -43,15 +43,6 @@ function buildSlugOrFilter(candidates: string[]) {
   return buildHotelSlugOrFilter(candidates);
 }
 
-async function requireCommercialAccessWhenApplicable(hotel: HotelScope) {
-  // Sandbox is an explicit non-production runtime. The commercial entitlement
-  // resolver itself returns non_production_bypass for this environment, so a
-  // second RPC on every Sandbox guest operation cannot change the decision.
-  // Production remains fail-closed exactly as before.
-  if (hotel.is_sandbox === true) return;
-  await requireHotelCommercialRuntimeAccess(hotel.id);
-}
-
 export async function resolveHotelByAnySlugAdmin(inputSlug: string): Promise<HotelScope> {
   const candidates = getHotelSlugCandidates(inputSlug);
 
@@ -63,7 +54,8 @@ export async function resolveHotelByAnySlugAdmin(inputSlug: string): Promise<Hot
   try {
     const cached = await hotelScopeCache.get(cacheKey) as HotelScope | null;
     if (cached?.id && cached.slug) {
-      await requireCommercialAccessWhenApplicable(cached);
+      // Entitlement remains authoritative and fail-closed on every request.
+      await requireHotelCommercialRuntimeAccess(cached.id);
       return cached;
     }
   } catch (error) {
@@ -82,8 +74,8 @@ export async function resolveHotelByAnySlugAdmin(inputSlug: string): Promise<Hot
     throw new Error(`Hotel not found for slug: ${candidates.join("|")}`);
   }
 
+  await requireHotelCommercialRuntimeAccess(data.id);
   const hotel = data as HotelScope;
-  await requireCommercialAccessWhenApplicable(hotel);
   try {
     await hotelScopeCache.set(cacheKey, hotel, {
       ttl: HOTEL_SCOPE_TTL_SECONDS,
