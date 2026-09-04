@@ -1,5 +1,4 @@
-name: Factory Direct Write Context Patch v3
-# Revalidated after merging the Production massage safety hotfix into the performance candidate.
+name: Finalize Factory Survey Fast Path
 
 on:
   push:
@@ -12,8 +11,9 @@ permissions:
   contents: write
 
 jobs:
-  patch-and-validate:
+  patch-validate-clean:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,72 +24,33 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Apply direct-write runtime patch plus reviewed tenant relocations
+      - name: Reuse consolidated Factory room proof in Day 3 survey
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          import json
-          import textwrap
 
-          workflow = Path('.github/workflows/factory-direct-write-context-patch-v2.yml').read_text()
-          start_marker = "          python - <<'PY'\n"
-          start = workflow.index(start_marker) + len(start_marker)
-          end = workflow.index("\n          PY", start)
-          embedded = textwrap.dedent(workflow[start:end])
-          exec(compile(embedded, 'factory-direct-write-context-patch-v2.py', 'exec'), {})
+          route = Path('app/api/guest/day3-survey/route.ts')
+          text = route.read_text()
+          old = '''    const roomValidation = await validateHotelRoom(hotelSlug, room);\n    timing.mark("hotel_and_room");'''
+          new = '''    // A ready Factory write context has already proved the exact hotel + room\n    // through get_factory_guest_write_context_v1 and returned the canonical\n    // roomId. Reuse that proof instead of reloading hotel config solely to\n    // validate the same room a second time. Legacy/non-Factory paths remain\n    // fail-closed through validateHotelRoom.\n    const roomValidation = factoryWriteContext\n      ? {\n          ok: true as const,\n          timezone:\n            String(factoryWriteContext.runtime.hotelTimezone || hotel.timezone || "UTC").trim() ||\n            "UTC",\n        }\n      : await validateHotelRoom(hotelSlug, room);\n    timing.mark("hotel_and_room");'''
+          if text.count(old) != 1:
+              raise SystemExit(f'day3-survey route: expected one room-validation match, found {text.count(old)}')
+          route.write_text(text.replace(old, new, 1))
 
-          delta_path = Path('tests/contracts/tenant-isolation-baseline-factory-direct-write-context.json')
-          delta = {
-              'version': 1,
-              'checkpoint': 'factory-direct-write-context',
-              'baseCheckpoint': 'factory-guest-write-context',
-              'expectedNeedsReview': 182,
-              'removals': [],
-              'relocations': [
-                  {
-                      'filePath': 'app/api/guest/day3-survey/route.ts',
-                      'fromLine': 60,
-                      'toLine': 65,
-                      'table': 'guest_surveys',
-                      'operation': 'select',
-                  },
-                  {
-                      'filePath': 'lib/server/factory-guest-context.ts',
-                      'fromLine': 207,
-                      'toLine': 220,
-                      'operation': 'rpc',
-                  },
-                  {
-                      'filePath': 'lib/server/factory-guest-context.ts',
-                      'fromLine': 265,
-                      'toLine': 302,
-                      'operation': 'rpc',
-                  },
-              ],
-              'additions': [],
-          }
-          delta_path.write_text(json.dumps(delta, indent=2) + '\n')
-
-          guard = Path('scripts/tenant-isolation-guard.mjs')
-          text = guard.read_text()
-          needle = '  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-factory-guest-write-context.json"),\n];'
-          replacement = '  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-factory-guest-write-context.json"),\n  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-factory-direct-write-context.json"),\n];'
-          if text.count(needle) != 1:
-              raise SystemExit(f'tenant-isolation-guard.mjs: expected one delta-tail match, found {text.count(needle)}')
-          guard.write_text(text.replace(needle, replacement, 1))
+          contract = Path('tests/contracts/factory-guest-write-context-wiring.contract.test.mjs')
+          ctext = contract.read_text()
+          marker = 'test("Factory Day 3 survey reuses consolidated room proof on the positive fast path"'
+          if marker not in ctext:
+              ctext += '''\n\ntest("Factory Day 3 survey reuses consolidated room proof on the positive fast path", async () => {\n  const route = await readProjectFile("app/api/guest/day3-survey/route.ts");\n\n  assertContains(route, "const roomValidation = factoryWriteContext");\n  assertContains(route, "factoryWriteContext.runtime.hotelTimezone");\n  assertContains(route, ": await validateHotelRoom(hotelSlug, room)");\n  assert.ok(\n    route.indexOf("const roomValidation = factoryWriteContext") <\n      route.indexOf('timing.mark("hotel_and_room")'),\n    "Factory room proof must be reused before hotel_and_room timing closes.",\n  );\n});\n'''
+              contract.write_text(ctext)
           PY
 
       - name: Install dependencies
         run: npm ci --no-audit
 
-      - name: Run focused authority contracts
-        run: |
-          node --test tests/contracts/factory-guest-write-context-wiring.contract.test.mjs
-          node --test tests/contracts/m13-stay-read-only.contract.test.mjs
-
-      - name: Run focused tenant isolation guard
-        run: node scripts/tenant-isolation-guard.mjs
+      - name: Run focused Factory write-context contract
+        run: node --test tests/contracts/factory-guest-write-context-wiring.contract.test.mjs
 
       - name: Run full regression suite
         run: npm test
@@ -100,19 +61,19 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
         run: npm run build
 
-      - name: Commit only fully validated runtime change
+      - name: Commit validated runtime change and remove temporary patch runners
         shell: bash
         run: |
+          rm -f .github/workflows/factory-direct-write-context-patch.yml
+          rm -f .github/workflows/factory-direct-write-context-patch-v2.yml
+          rm -f .github/workflows/factory-direct-write-context-patch-v3.yml
           git config user.name "stayhub-ci"
           git config user.email "stayhub-ci@users.noreply.github.com"
-          git add \
-            app/api/guest/request-create/route.ts \
-            app/api/guest/day3-survey/route.ts \
-            lib/server/factory-guest-context.ts \
-            lib/server/guest-stays.ts \
-            scripts/tenant-isolation-guard.mjs \
-            tests/contracts/tenant-isolation-baseline-factory-direct-write-context.json
+          git add app/api/guest/day3-survey/route.ts \
+                  tests/contracts/factory-guest-write-context-wiring.contract.test.mjs \
+                  .github/workflows/factory-direct-write-context-patch.yml \
+                  .github/workflows/factory-direct-write-context-patch-v2.yml \
+                  .github/workflows/factory-direct-write-context-patch-v3.yml
           git diff --cached --check
-          git diff --cached --stat
-          git commit -m "Collapse Factory guest write authority roundtrips"
+          git commit -m "Reuse Factory room proof for Day 3 survey"
           git push origin HEAD:perf/factory-guest-write-context-v1
