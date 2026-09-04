@@ -15,13 +15,13 @@
     {
       "filePath": "lib/server/factory-guest-context.ts",
       "fromLine": 207,
-      "toLine": 220,
+      "toLine": 280,
       "operation": "rpc"
     },
     {
       "filePath": "lib/server/factory-guest-context.ts",
       "fromLine": 265,
-      "toLine": 302,
+      "toLine": 383,
       "operation": "rpc"
     }
   ],
