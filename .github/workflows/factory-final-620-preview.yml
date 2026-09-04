@@ -1,0 +1,62 @@
+name: Factory Final 620 Preview Acceptance
+
+on:
+  push:
+    branches:
+      - perf/factory-guest-write-context-v1
+    paths:
+      - ".github/workflows/factory-final-620-preview.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  final-620:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      STAYHUB_620_BASE_URL: https://hotel-guest-k6myv655n-miroslav-velikovs-projects.vercel.app
+      STAYHUB_620_EXPECTED_APP_SHA: 70e00e38c3f0826fa8c0af0d92955d9df0b1eff7
+      STAYHUB_620_REQUEST_P95_MS: "3000"
+      STAYHUB_620_SURVEY_P95_MS: "3000"
+      STAYHUB_620_MASSAGE_P95_MS: "4500"
+      STAYHUB_620_GROUP_COOLDOWN_MS: "2000"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate canonical acceptance harness
+        run: |
+          node --check scripts/vercel-preview-auth-preload.mjs
+          node --check scripts/factory-final-620-peak.mjs
+
+      - name: Mint short-lived GitHub OIDC token
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken();
+            core.setSecret(token);
+            core.setOutput('token', token);
+
+      - name: Run canonical 620-operation acceptance
+        env:
+          STAYHUB_VERCEL_TRUSTED_OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: node --import ./scripts/vercel-preview-auth-preload.mjs scripts/factory-final-620-peak.mjs
+
+      - name: Print concise final evidence
+        if: always()
+        run: |
+          if [ -f factory-final-620-results.json ]; then
+            jq '{schemaVersion,runId,baseUrl,executionMode,totalOperations,expectedTotalOperations,wallMs,failedGroup,groups:(.groups|map({cellKey,hotelCount,totalOperations,wallMs,request,survey,massageUnique,massageContention,correctnessAccepted,performanceAccepted,accepted})),request,survey,massageUnique,massageContention,thresholdsMs,correctnessAccepted,performanceAccepted,accepted,contentionSlot,failures,contentionUnexpected}' factory-final-620-results.json
+          fi
+
+      - name: Upload final 620 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-final-620-preview-evidence
+          path: factory-final-620-results.json
+          if-no-files-found: warn
