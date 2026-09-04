@@ -3,6 +3,11 @@ import {
   buildHotelSlugOrFilter,
   getHotelSlugCandidates,
 } from "@/lib/hotels/hotel-slug.mjs";
+import {
+  getPrimedFactoryRuntimeBySlug,
+  resolveFactoryGuestScopeFastPath,
+  type FactoryGuestRuntime,
+} from "@/lib/server/factory-guest-context";
 import { getSupabaseAdmin } from "@/lib/server/supabase-admin";
 
 type HotelSheetSources = {
@@ -71,9 +76,10 @@ async function primeSharedRuntimeCaches(runtime: MaterializedTenantRuntime) {
   }
 
   try {
-    const [publishedRuntime, normalizedRuntime] = await Promise.all([
+    const [publishedRuntime, normalizedRuntime, testRoomRuntime] = await Promise.all([
       import("@/lib/server/published-hotel-config"),
       import("@/lib/server/normalized-config-runtime"),
+      import("@/lib/server/test-rooms"),
     ]);
 
     const results = await Promise.allSettled([
@@ -97,6 +103,15 @@ async function primeSharedRuntimeCaches(runtime: MaterializedTenantRuntime) {
           ? runtime.relationalAuthority
           : null,
       }),
+      Promise.resolve(
+        testRoomRuntime.primeActiveTestRoomNumbersRuntimeCache(
+          [
+            hotelId,
+            String(runtime.productionHotelId || "").trim() || null,
+          ],
+          Array.isArray(runtime.testRoomNumbers) ? runtime.testRoomNumbers : [],
+        ),
+      ),
     ]);
 
     if (results.some((result) => result.status === "rejected")) {
@@ -236,6 +251,23 @@ export async function getHotelSheetSources(inputSlug?: string): Promise<HotelShe
 
   if (!candidates.length) {
     throw new Error("Missing hotel slug");
+  }
+
+  // A guest-write scope RPC may already have returned the complete certified
+  // materialized runtime. Reuse it inside the same process instead of paying a
+  // second runtime RPC before getHotelConfig can continue.
+  let primedRuntime: FactoryGuestRuntime | null = null;
+  for (const candidate of candidates) {
+    primedRuntime = getPrimedFactoryRuntimeBySlug(candidate);
+    if (primedRuntime) break;
+  }
+  if (!primedRuntime) {
+    const fastScope = await resolveFactoryGuestScopeFastPath(inputSlug ?? "");
+    primedRuntime = fastScope?.runtime ?? null;
+  }
+  if (primedRuntime) {
+    await primeSharedRuntimeCaches(primedRuntime);
+    return directoryFromMaterialized(primedRuntime);
   }
 
   const slugFilter = buildHotelSlugOrFilter(candidates);
