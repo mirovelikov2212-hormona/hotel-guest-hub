@@ -18,8 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      STAYHUB_PROBE_BASE_URL: https://hotel-guest-1kw8qmh1z-miroslav-velikovs-projects.vercel.app
-      STAYHUB_PROBE_EXPECTED_APP_SHA: cae28a3c253b9b49fbb2dadcaec9ad1bfa112d83
+      STAYHUB_PROBE_BASE_URL: https://hotel-guest-hp8ka6eku-miroslav-velikovs-projects.vercel.app
+      STAYHUB_PROBE_EXPECTED_APP_SHA: f99f70934a88864cea5254854250c68fe8b0b6b2
     steps:
       - uses: actions/checkout@v4
       - name: Validate probe syntax
@@ -31,7 +31,7 @@ jobs:
           script: |
             const token = await core.getIDToken();
             core.setSecret(token);
-            core.setOutput('token', token);
+            core.setOutput('token', token)
       - name: Run 30-operation Factory guest write probe
         env:
           STAYHUB_VERCEL_TRUSTED_OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
