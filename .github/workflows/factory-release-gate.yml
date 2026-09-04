@@ -18,9 +18,33 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm ci --no-audit
       - name: Dependency security audit
-        run: npm audit --audit-level=low
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            audit_log="${RUNNER_TEMP}/npm-audit-${attempt}.log"
+            set +e
+            npm audit --audit-level=low --fetch-timeout=30000 --fetch-retries=0 2>&1 | tee "${audit_log}"
+            audit_status=${PIPESTATUS[0]}
+            set -e
+
+            if [ "${audit_status}" -eq 0 ]; then
+              exit 0
+            fi
+
+            if grep -Eqi 'audit endpoint returned an error|5[0-9]{2} (Service Unavailable|Internal Server Error|Bad Gateway|Gateway Timeout)|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN' "${audit_log}"; then
+              if [ "${attempt}" -lt 3 ]; then
+                echo "npm audit transport failure on attempt ${attempt}; retrying without weakening the audit policy."
+                sleep $((attempt * 5))
+                continue
+              fi
+              echo "npm audit transport failure persisted for all attempts."
+            fi
+
+            exit "${audit_status}"
+          done
       - run: npm test
       - name: Runtime cell architecture contracts
         run: node --test tests/contracts/p5-1-runtime-cells-control-plane.contract.test.mjs tests/contracts/p5-2-runtime-cell-health-recovery.contract.test.mjs
