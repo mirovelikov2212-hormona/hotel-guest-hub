@@ -212,6 +212,7 @@ async function markMirrorTerminal(input: {
         ? "Native massage booking remains authoritative, but the Google Sheet slot is occupied by a different booking. Automatic Sheet writes have stopped for this booking."
         : "Native massage booking remains authoritative, but its past-dated Google Sheet mirror cannot be established safely. Automatic Sheet writes have stopped for this booking.",
     roomNumber: input.booking.room_number,
+    error: new Error(reason),
     metadata: {
       nativeBookingId: input.booking.id,
       hotelSlug: input.hotel.slug,
