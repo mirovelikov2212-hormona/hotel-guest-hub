@@ -43,7 +43,7 @@
   "additions": [
     {
       "filePath": "lib/server/runtime-sandbox-canary-router.ts",
-      "line": 185,
+      "line": 186,
       "rpc": "has_active_sandbox_canary_traffic_v1",
       "tableExpression": "\"has_active_sandbox_canary_traffic_v1\"",
       "operation": "rpc",
@@ -52,7 +52,7 @@
     },
     {
       "filePath": "lib/server/runtime-sandbox-canary-router.ts",
-      "line": 210,
+      "line": 211,
       "rpc": "resolve_guest_sandbox_canary_route_v1",
       "tableExpression": "\"resolve_guest_sandbox_canary_route_v1\"",
       "operation": "rpc",
@@ -61,7 +61,7 @@
     },
     {
       "filePath": "lib/server/runtime-sandbox-canary-router.ts",
-      "line": 382,
+      "line": 383,
       "rpc": "validate_guest_sandbox_canary_forward_v1",
       "tableExpression": "\"validate_guest_sandbox_canary_forward_v1\"",
       "operation": "rpc",
