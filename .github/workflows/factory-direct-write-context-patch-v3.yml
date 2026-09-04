@@ -1,0 +1,114 @@
+name: Factory Direct Write Context Patch v3
+
+on:
+  push:
+    branches:
+      - perf/factory-guest-write-context-v1
+    paths:
+      - ".github/workflows/factory-direct-write-context-patch-v3.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Apply direct-write runtime patch plus reviewed tenant relocations
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import textwrap
+
+          # Reuse the already-reviewed v2 patch exactly: v1 runtime transform plus
+          # the explicit canonical M13 lifecycle authority restoration.
+          workflow = Path('.github/workflows/factory-direct-write-context-patch-v2.yml').read_text()
+          start_marker = "          python - <<'PY'\n"
+          start = workflow.index(start_marker) + len(start_marker)
+          end = workflow.index("\n          PY", start)
+          embedded = textwrap.dedent(workflow[start:end])
+          exec(compile(embedded, 'factory-direct-write-context-patch-v2.py', 'exec'), {})
+
+          # The runtime transform moves exactly three already-reviewed scanner
+          # findings. Preserve their existing provenance and the audited count.
+          delta_path = Path('tests/contracts/tenant-isolation-baseline-factory-direct-write-context.json')
+          delta = {
+              'version': 1,
+              'checkpoint': 'factory-direct-write-context',
+              'baseCheckpoint': 'factory-guest-write-context',
+              'expectedNeedsReview': 182,
+              'removals': [],
+              'relocations': [
+                  {
+                      'filePath': 'app/api/guest/day3-survey/route.ts',
+                      'fromLine': 60,
+                      'toLine': 65,
+                      'table': 'guest_surveys',
+                      'operation': 'select',
+                  },
+                  {
+                      'filePath': 'lib/server/factory-guest-context.ts',
+                      'fromLine': 207,
+                      'toLine': 220,
+                      'operation': 'rpc',
+                  },
+                  {
+                      'filePath': 'lib/server/factory-guest-context.ts',
+                      'fromLine': 265,
+                      'toLine': 302,
+                      'operation': 'rpc',
+                  },
+              ],
+              'additions': [],
+          }
+          delta_path.write_text(json.dumps(delta, indent=2) + '\n')
+
+          guard = Path('scripts/tenant-isolation-guard.mjs')
+          text = guard.read_text()
+          needle = '  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-factory-guest-write-context.json"),\n];'
+          replacement = '  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-factory-guest-write-context.json"),\n  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-factory-direct-write-context.json"),\n];'
+          if text.count(needle) != 1:
+              raise SystemExit(f'tenant-isolation-guard.mjs: expected one delta-tail match, found {text.count(needle)}')
+          guard.write_text(text.replace(needle, replacement, 1))
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused authority contracts
+        run: |
+          node --test tests/contracts/factory-guest-write-context-wiring.contract.test.mjs
+          node --test tests/contracts/m13-stay-read-only.contract.test.mjs
+
+      - name: Run focused tenant isolation guard
+        run: node scripts/tenant-isolation-guard.mjs
+
+      - name: Run full regression suite
+        run: npm test
+
+      - name: Run production build
+        run: npm run build
+
+      - name: Commit only fully validated runtime change
+        shell: bash
+        run: |
+          rm .github/workflows/factory-direct-write-context-patch.yml
+          rm .github/workflows/factory-direct-write-context-patch-v2.yml
+          rm .github/workflows/factory-direct-write-context-patch-v3.yml
+          git config user.name "stayhub-ci"
+          git config user.email "stayhub-ci@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Collapse Factory guest write authority roundtrips"
+          git push origin HEAD:perf/factory-guest-write-context-v1
