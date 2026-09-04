@@ -1,0 +1,90 @@
+name: Apply Factory Guest Hot Path Roundtrip Patch
+
+on:
+  push:
+    branches:
+      - perf/factory-guest-write-context-v1
+    paths:
+      - ".github/workflows/apply-factory-hotpath-roundtrip-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/factory-guest-write-context-v1
+          fetch-depth: 0
+
+      - name: Apply minimal roundtrip patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one replacement target, found {count}")
+              p.write_text(text.replace(old, new, 1))
+
+          # 1) Build a canonical HotelConfig directly from the already-validated
+          # materialized Factory runtime and reattach the server-only relational authority.
+          replace_once(
+              "lib/server/factory-guest-context.ts",
+              'import { supabaseAdmin } from "@/lib/server/supabase-admin";\n',
+              'import { supabaseAdmin } from "@/lib/server/supabase-admin";\nimport type { HotelConfig } from "@/lib/types";\nimport { attachGuestRequestRelationalAuthority } from "@/lib/server/guest-request-relational-ids.mjs";\n',
+          )
+
+          anchor = '''function hotelScopeFromRuntime(runtime: FactoryGuestRuntime): FactoryGuestHotelScope {\n  return {\n    id: runtime.hotelId,\n    slug: runtime.hotelSlug,\n    public_slug: runtime.publicSlug,\n    name: runtime.hotelName,\n    timezone: runtime.hotelTimezone,\n    active: true,\n    is_sandbox: true,\n    production_hotel_id: runtime.productionHotelId,\n  };\n}\n'''
+          helper = anchor + '''\n/**\n * Reuse the exact materialized Factory config that was already validated by\n * parseRuntime(). This removes a second published/normalized config resolution\n * roundtrip from positive guest writes while preserving the same server-only\n * relational UUID authority used by getHotelConfig().\n */\nexport function buildFactoryGuestHotelConfig(runtime: FactoryGuestRuntime): HotelConfig {\n  const config = {\n    ...(runtime.config as unknown as HotelConfig),\n    hotelId: runtime.hotelId,\n    hotelSlug: runtime.hotelSlug,\n    publicSlug: runtime.publicSlug || runtime.hotelSlug,\n    isSandbox: true,\n    productionHotelId: runtime.productionHotelId,\n    testRoomNumbers: [...runtime.testRoomNumbers],\n  } satisfies HotelConfig;\n\n  attachGuestRequestRelationalAuthority(config, runtime.relationalAuthority);\n  return config;\n}\n'''
+          replace_once("lib/server/factory-guest-context.ts", anchor, helper)
+
+          # 2) Positive Factory requests reuse runtime.config. Legacy/non-Factory
+          # requests keep the exact getHotelConfig() fallback and error handling.
+          replace_once(
+              "app/api/guest/request-create/route.ts",
+              'import { resolveFactoryGuestWriteContextFastPath } from "@/lib/server/factory-guest-context";\n',
+              'import {\n  buildFactoryGuestHotelConfig,\n  resolveFactoryGuestWriteContextFastPath,\n} from "@/lib/server/factory-guest-context";\n',
+          )
+
+          old_request_config = '''    const hotelConfig = await getHotelConfig(hotelSlug).catch(async (error) => {\n      console.error("Failed to load hotel config for room validation", { hotelSlug, error });\n      await logSystemError({\n        hotelId: hotel.id,\n        source: "guest_hub",\n        eventType: "guest_request_room_validation_config_failed",\n        message: "Guest request room validation config could not be loaded.",\n        error,\n        metadata: { hotelSlug },\n      });\n      return null;\n    });\n'''
+          new_request_config = '''    const hotelConfig = factoryWriteContext\n      ? buildFactoryGuestHotelConfig(factoryWriteContext.runtime)\n      : await getHotelConfig(hotelSlug).catch(async (error) => {\n          console.error("Failed to load hotel config for room validation", { hotelSlug, error });\n          await logSystemError({\n            hotelId: hotel.id,\n            source: "guest_hub",\n            eventType: "guest_request_room_validation_config_failed",\n            message: "Guest request room validation config could not be loaded.",\n            error,\n            metadata: { hotelSlug },\n          });\n          return null;\n        });\n'''
+          replace_once("app/api/guest/request-create/route.ts", old_request_config, new_request_config)
+
+          # 3) Day-3 survey uses the existing database unique constraint as the
+          # primary duplicate guard. The 23505 recovery below remains unchanged
+          # and returns the already-existing survey id on a race/retry.
+          old_duplicate = '''    const existing = await findExistingStayDeviceSurvey({ stayId, stayDeviceId });\n    timing.mark("duplicate_check");\n    if (existing.error) {\n      await logSystemError({\n        hotelId: hotel.id,\n        source: "survey",\n        eventType: "day3_survey_duplicate_check_failed",\n        message: "Day 3 survey duplicate protection could not verify an existing response.",\n        roomNumber: room,\n        error: existing.error,\n        metadata: { hotelSlug, surveyVersion, targetDateKey, stayId, stayDeviceId },\n      });\n    } else if (existing.data?.id) {\n      return NextResponse.json(\n        { ok: true, survey: { id: existing.data.id }, duplicate: true },\n        { headers: NO_STORE_HEADERS },\n      );\n    }\n\n'''
+          new_duplicate = '''    // guest_surveys_one_device_per_stay_uidx is the authoritative duplicate\n    // guard. Avoid a separate read-before-write roundtrip; a concurrent retry\n    // is recovered from PostgreSQL 23505 immediately after the insert attempt.\n'''
+          replace_once("app/api/guest/day3-survey/route.ts", old_duplicate, new_duplicate)
+
+          # 4) Regression contract: positive Factory request must not invoke the
+          # legacy config resolver; survey must keep DB-unique 23505 recovery.
+          test_path = Path("tests/contracts/factory-guest-write-context-wiring.contract.test.mjs")
+          test_text = test_path.read_text()
+          regression = '''\n\ntest("Factory positive guest writes eliminate redundant Data API roundtrips", async () => {\n  const context = await readProjectFile("lib/server/factory-guest-context.ts");\n  const requestRoute = await readProjectFile("app/api/guest/request-create/route.ts");\n  const surveyRoute = await readProjectFile("app/api/guest/day3-survey/route.ts");\n\n  assertContains(context, "export function buildFactoryGuestHotelConfig");\n  assertContains(context, "attachGuestRequestRelationalAuthority(config, runtime.relationalAuthority)");\n  assertContains(requestRoute, "const hotelConfig = factoryWriteContext");\n  assertContains(requestRoute, "? buildFactoryGuestHotelConfig(factoryWriteContext.runtime)");\n  assertContains(requestRoute, ": await getHotelConfig(hotelSlug).catch");\n  assert.ok(\n    !surveyRoute.includes('timing.mark("duplicate_check")'),\n    "Positive survey writes must not perform a duplicate read before the authoritative insert.",\n  );\n  assertContains(surveyRoute, 'if (error?.code === "23505")');\n  assertContains(surveyRoute, "guest_surveys_one_device_per_stay_uidx");\n});\n'''
+          if regression.strip() in test_text:
+              raise SystemExit("regression contract already present")
+          test_path.write_text(test_text + regression)
+          PY
+
+      - name: Run focused regression contract
+        run: node --test tests/contracts/factory-guest-write-context-wiring.contract.test.mjs
+
+      - name: Build application
+        run: npm ci && npm run build
+
+      - name: Commit verified patch and remove helper workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-factory-hotpath-roundtrip-patch.yml
+          git add lib/server/factory-guest-context.ts app/api/guest/request-create/route.ts app/api/guest/day3-survey/route.ts tests/contracts/factory-guest-write-context-wiring.contract.test.mjs
+          git commit -m "Optimize Factory guest write roundtrips"
+          git push origin HEAD:perf/factory-guest-write-context-v1
