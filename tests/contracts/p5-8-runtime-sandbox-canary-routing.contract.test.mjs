@@ -68,10 +68,12 @@ test("P5.8 forwarded requests are revalidated against current exact route author
   assertContains(router, "RUNTIME_FORWARD_AUTHORITY_REVOKED");
 });
 
-test("P5.8 remote forwarding uses Vercel OIDC, trusted-source bypass, and strict compute allowlist", async () => {
+test("P5.8 remote forwarding uses request-context Vercel OIDC, trusted-source bypass, and strict compute allowlist", async () => {
   const router = await readProjectFile(ROUTER);
 
-  assertContains(router, "process.env.VERCEL_OIDC_TOKEN");
+  assertContains(router, 'import { getVercelOidcToken } from "@vercel/functions/oidc"');
+  assertContains(router, "const oidcToken = await getVercelOidcToken()");
+  assertNotContains(router, "process.env.VERCEL_OIDC_TOKEN");
   assertContains(router, '"x-vercel-trusted-oidc-idp-token": oidcToken');
   assertContains(router, 'authorization: `Bearer ${oidcToken}`');
   assertContains(router, 'payload.owner_id !== EXPECTED_VERCEL_TEAM_ID');
