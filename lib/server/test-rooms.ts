@@ -21,6 +21,27 @@ function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
 }
 
+function normalizeHotelIds(hotelIds: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(hotelIds.map((value) => String(value || "").trim()).filter(Boolean)),
+  ).sort();
+}
+
+export function primeActiveTestRoomNumbersRuntimeCache(
+  hotelIds: Array<string | null | undefined>,
+  roomNumbers: unknown[],
+) {
+  const normalizedHotelIds = normalizeHotelIds(hotelIds);
+  if (!normalizedHotelIds.length) return;
+  const normalizedRoomNumbers = Array.from(
+    new Set(roomNumbers.map(normalizeRoomNumber).filter(Boolean)),
+  ).sort();
+  roomListCache.set(normalizedHotelIds.join(":"), {
+    cachedAt: Date.now(),
+    roomNumbers: normalizedRoomNumbers,
+  });
+}
+
 function normalizeAutoDeleteSeconds(value: unknown) {
   const seconds = Number(value);
   if (!Number.isFinite(seconds) || seconds <= 0) return DEFAULT_TEST_AUTO_DELETE_SECONDS;
@@ -115,9 +136,7 @@ export async function getEffectiveTestRoomPolicy(
 export async function getActiveTestRoomNumbers(
   hotelIds: Array<string | null | undefined>,
 ): Promise<string[]> {
-  const normalizedHotelIds = Array.from(
-    new Set(hotelIds.map((value) => String(value || "").trim()).filter(Boolean)),
-  ).sort();
+  const normalizedHotelIds = normalizeHotelIds(hotelIds);
 
   if (!normalizedHotelIds.length) return [];
 
