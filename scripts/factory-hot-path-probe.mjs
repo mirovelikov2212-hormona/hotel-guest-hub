@@ -9,6 +9,13 @@ const serviceId = "load_massage";
 const timeoutMs = 30_000;
 const runId = `${prefix}-hot-path-probe-${Date.now()}`;
 
+function dateKeyOffset(days) {
+  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+}
+
+const stayCheckInDate = dateKeyOffset(-1);
+const stayCheckOutDate = dateKeyOffset(2);
+
 function percentile(values, p) {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -47,7 +54,14 @@ async function confirmIdentity(hotel) {
   const { response, body } = await fetchJson(`${baseUrl}/api/guest/stay/confirm`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-stayhub-load-run": runId },
-    body: JSON.stringify({ hotelSlug, room, deviceToken, language: "en" }),
+    body: JSON.stringify({
+      hotelSlug,
+      room,
+      checkInDate: stayCheckInDate,
+      checkOutDate: stayCheckOutDate,
+      deviceToken,
+      language: "en",
+    }),
   });
   if (!response.ok || body?.ok !== true || !body?.stay?.id || !body?.stay?.stayDeviceId) {
     throw new Error(`Stay bootstrap failed for ${hotelSlug}: HTTP ${response.status} ${body?.error || "invalid identity"}`);
@@ -61,7 +75,7 @@ async function confirmIdentity(hotel) {
 }
 
 async function discoverMassageSlot(identity) {
-  const fromDate = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  const fromDate = dateKeyOffset(1);
   const params = new URLSearchParams({
     hotelSlug: identity.hotelSlug,
     action: "bookable_dates",
@@ -172,6 +186,8 @@ const output = {
   runId,
   startedAt,
   completedAt: new Date().toISOString(),
+  stayCheckInDate,
+  stayCheckOutDate,
   hotels,
   totalOperations: rows.length,
   wallMs,
