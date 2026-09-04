@@ -55,17 +55,25 @@ begin
     return jsonb_build_object('status', 'invalid_room', 'hotelId', v_hotel_id);
   end if;
 
-  select s.*, d.*
-  into v_stay, v_device
+  select s
+    into v_stay
   from public.guest_stays s
-  join public.guest_stay_devices d
-    on d.id = p_stay_device_id
-   and d.stay_id = s.id
-   and d.hotel_id = s.hotel_id
-   and d.room_number = s.room_number
   where s.id = p_stay_id
     and s.hotel_id = v_hotel_id
     and s.room_number = v_room
+  limit 1;
+
+  if not found then
+    return jsonb_build_object('status', 'stay_required', 'hotelId', v_hotel_id);
+  end if;
+
+  select d
+    into v_device
+  from public.guest_stay_devices d
+  where d.id = p_stay_device_id
+    and d.stay_id = v_stay.id
+    and d.hotel_id = v_stay.hotel_id
+    and d.room_number = v_stay.room_number
   limit 1;
 
   if not found then
