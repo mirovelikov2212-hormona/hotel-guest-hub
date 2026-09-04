@@ -19,16 +19,24 @@ test("sandbox direct communication RPC allows test stays only for sandbox hotels
 
 test("missing stay identities are controlled misses while DB faults and ended stays still fail closed", async () => {
   const guestStays = await readProjectFile("lib/server/guest-stays.ts");
+  const guestStaysLegacy = await readProjectFile("lib/server/guest-stays-legacy.ts");
   const requestRoute = await readProjectFile("app/api/guest/request-create/route.ts");
   const surveyRoute = await readProjectFile("app/api/guest/day3-survey/route.ts");
   const pushRoute = await readProjectFile("app/api/guest/push/subscription/route.ts");
   const massageRoute = await readProjectFile("app/api/guest/massages/route.ts");
 
-  assert.match(guestStays, /if \(stayError\) throw stayError;\s*if \(!stay\) return null;/);
-  assert.match(guestStays, /if \(deviceError\) throw deviceError;\s*if \(!device\) return null;/);
-  assert.doesNotMatch(guestStays, /new Error\("INVALID_STAY"\)/);
-  assert.doesNotMatch(guestStays, /new Error\("INVALID_STAY_DEVICE"\)/);
+  // The Factory facade owns the consolidated fast path and delegates legacy/
+  // rolling-test fallbacks without redefining their controlled-miss semantics.
+  assert.match(guestStays, /return validateGuestStayIdentityLegacy\(input\);/);
   assert.match(guestStays, /if \(!access\.canWrite\) throw new Error\("STAY_ENDED"\)/);
+
+  // Legacy DB validation still distinguishes controlled identity misses from
+  // database faults and remains fail-closed after checkout.
+  assert.match(guestStaysLegacy, /if \(stayError\) throw stayError;\s*if \(!stay\) return null;/);
+  assert.match(guestStaysLegacy, /if \(deviceError\) throw deviceError;\s*if \(!device\) return null;/);
+  assert.doesNotMatch(guestStaysLegacy, /new Error\("INVALID_STAY"\)/);
+  assert.doesNotMatch(guestStaysLegacy, /new Error\("INVALID_STAY_DEVICE"\)/);
+  assert.match(guestStaysLegacy, /if \(!access\.canWrite\) throw new Error\("STAY_ENDED"\)/);
 
   assert.match(requestRoute, /if \(!stayIdentity\)[\s\S]{0,260}code: "STAY_REQUIRED"[\s\S]{0,120}status: 401/);
   assert.match(surveyRoute, /if \(!stayIdentity\)[\s\S]{0,180}STAY_REQUIRED[\s\S]{0,80}401/);
