@@ -19,8 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      STAYHUB_620_BASE_URL: https://hotel-guest-nfqzrx1kn-miroslav-velikovs-projects.vercel.app
-      STAYHUB_CELL_EXPECTED_APP_SHA: c57e3900bd6d99c9cddf22280d80779b5e8d9112
+      STAYHUB_620_BASE_URL: https://hotel-guest-1kw8qmh1z-miroslav-velikovs-projects.vercel.app
+      STAYHUB_CELL_EXPECTED_APP_SHA: cae28a3c253b9b49fbb2dadcaec9ad1bfa112d83
       STAYHUB_620_REQUEST_P95_MS: "3000"
       STAYHUB_620_SURVEY_P95_MS: "3000"
       STAYHUB_620_MASSAGE_P95_MS: "4500"
