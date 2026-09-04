@@ -11,6 +11,7 @@ on:
       - ".github/workflows/factory-final-client-runtime-acceptance.yml"
       - "scripts/factory-browser-device-matrix.py"
       - "scripts/factory-final-620-peak.mjs"
+      - "supabase/migrations/*factory*runtime*.sql"
   workflow_dispatch:
 
 permissions:
