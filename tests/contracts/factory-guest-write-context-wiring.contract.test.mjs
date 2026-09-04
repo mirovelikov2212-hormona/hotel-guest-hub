@@ -65,7 +65,6 @@ test("native massage staff projection is deferred without moving the authoritati
   );
 });
 
-
 test("Factory Day 3 survey reuses consolidated room proof on the positive fast path", async () => {
   const route = await readProjectFile("app/api/guest/day3-survey/route.ts");
 
@@ -77,4 +76,12 @@ test("Factory Day 3 survey reuses consolidated room proof on the positive fast p
       route.indexOf('timing.mark("hotel_and_room")'),
     "Factory room proof must be reused before hotel_and_room timing closes.",
   );
+});
+
+test("Vercel Functions stay colocated with the Frankfurt Supabase authority", async () => {
+  const raw = await readProjectFile("vercel.json");
+  const config = JSON.parse(raw);
+
+  assert.deepEqual(config.regions, ["fra1"]);
+  assert.equal(config.fluid, true);
 });
