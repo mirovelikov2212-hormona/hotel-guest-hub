@@ -32,8 +32,6 @@ jobs:
           import json
           import textwrap
 
-          # Reuse the already-reviewed v2 patch exactly: v1 runtime transform plus
-          # the explicit canonical M13 lifecycle authority restoration.
           workflow = Path('.github/workflows/factory-direct-write-context-patch-v2.yml').read_text()
           start_marker = "          python - <<'PY'\n"
           start = workflow.index(start_marker) + len(start_marker)
@@ -41,8 +39,6 @@ jobs:
           embedded = textwrap.dedent(workflow[start:end])
           exec(compile(embedded, 'factory-direct-write-context-patch-v2.py', 'exec'), {})
 
-          # The runtime transform moves exactly three already-reviewed scanner
-          # findings. Preserve their existing provenance and the audited count.
           delta_path = Path('tests/contracts/tenant-isolation-baseline-factory-direct-write-context.json')
           delta = {
               'version': 1,
@@ -99,9 +95,30 @@ jobs:
         run: npm test
 
       - name: Run production build
-        run: npm run build
+        id: build
+        shell: bash
+        run: |
+          set +e
+          npm run build > factory-direct-write-build.log 2>&1
+          code=$?
+          cat factory-direct-write-build.log
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload build diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-direct-write-build-${{ github.sha }}
+          path: factory-direct-write-build.log
+          retention-days: 1
+
+      - name: Fail if build failed
+        if: steps.build.outputs.exit_code != '0'
+        run: exit 1
 
       - name: Commit only fully validated runtime change
+        if: steps.build.outputs.exit_code == '0'
         shell: bash
         run: |
           rm .github/workflows/factory-direct-write-context-patch.yml
