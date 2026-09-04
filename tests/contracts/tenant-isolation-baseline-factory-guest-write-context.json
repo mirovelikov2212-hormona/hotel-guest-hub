@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "checkpoint": "factory-guest-write-context",
+  "baseCheckpoint": "p5-8-sandbox-canary-routing",
+  "expectedNeedsReview": 182,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "lib/hotels/getHotelSheetSources.ts",
+      "fromLine": 119,
+      "toLine": 134,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/test-rooms.ts",
+      "fromLine": 177,
+      "toLine": 224,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "fromLine": 173,
+      "toFilePath": "lib/server/guest-stays-legacy.ts",
+      "toLine": 173,
+      "table": "guest_stays",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "fromLine": 355,
+      "toFilePath": "lib/server/guest-stays-legacy.ts",
+      "toLine": 355,
+      "table": "guest_stays",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "fromLine": 387,
+      "toFilePath": "lib/server/guest-stays-legacy.ts",
+      "toLine": 387,
+      "table": "guest_stays",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "fromLine": 511,
+      "toFilePath": "lib/server/guest-stays-legacy.ts",
+      "toLine": 511,
+      "table": "guest_stay_devices",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "fromLine": 523,
+      "toFilePath": "lib/server/guest-stays-legacy.ts",
+      "toLine": 523,
+      "table": "guest_stays",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "fromLine": 524,
+      "toFilePath": "lib/server/guest-stays-legacy.ts",
+      "toLine": 524,
+      "table": "guest_stay_devices",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "fromLine": 528,
+      "toFilePath": "lib/server/guest-stays-legacy.ts",
+      "toLine": 528,
+      "table": "guest_push_subscriptions",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "fromLine": 563,
+      "toFilePath": "lib/server/guest-stays-legacy.ts",
+      "toLine": 563,
+      "table": "guest_stay_devices",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "fromLine": 596,
+      "toFilePath": "lib/server/guest-stays-legacy.ts",
+      "toLine": 596,
+      "table": "guest_stays",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/guest-stays.ts",
+      "fromLine": 645,
+      "toFilePath": "lib/server/guest-stays-legacy.ts",
+      "toLine": 645,
+      "table": "guest_stays",
+      "operation": "update"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-guest-context.ts",
+      "line": 207,
+      "rpc": "get_factory_guest_scope_v1",
+      "tableExpression": "\"get_factory_guest_scope_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "server_only_certified_factory_sandbox_scope_resolver_combines_authoritative_materialized_runtime_and_commercial_entitlement_in_one_service_role_roundtrip_returns_null_for_non_factory_or_stale_scope_and_fail_closes_malformed_or_mismatched_authority"
+    },
+    {
+      "filePath": "lib/server/factory-guest-context.ts",
+      "line": 265,
+      "rpc": "get_factory_guest_write_context_v1",
+      "tableExpression": "\"get_factory_guest_write_context_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "server_only_certified_factory_sandbox_guest_write_context_validates_materialized_room_authority_exact_hotel_room_stay_and_device_identity_plus_commercial_entitlement_and_explicitly_returns_legacy_fallback_for_rolling_test_stays"
+    }
+  ]
+}
