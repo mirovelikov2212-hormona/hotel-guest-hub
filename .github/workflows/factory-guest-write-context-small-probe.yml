@@ -18,8 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      STAYHUB_PROBE_BASE_URL: https://hotel-guest-hp8ka6eku-miroslav-velikovs-projects.vercel.app
-      STAYHUB_PROBE_EXPECTED_APP_SHA: f99f70934a88864cea5254854250c68fe8b0b6b2
+      STAYHUB_PROBE_BASE_URL: https://hotel-guest-k6myv655n-miroslav-velikovs-projects.vercel.app
+      STAYHUB_PROBE_EXPECTED_APP_SHA: 70e00e38c3f0826fa8c0af0d92955d9df0b1eff7
     steps:
       - uses: actions/checkout@v4
       - name: Validate probe syntax
