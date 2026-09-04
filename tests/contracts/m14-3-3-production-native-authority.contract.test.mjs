@@ -6,6 +6,10 @@ const migration = readFileSync(
   new URL("../../supabase/migrations/20260815023500_m14_3_3_production_native_massage_authority.sql", import.meta.url),
   "utf8",
 );
+const safetyMigration = readFileSync(
+  new URL("../../supabase/migrations/20260904162000_harden_native_massage_mirror_safety.sql", import.meta.url),
+  "utf8",
+);
 const authority = readFileSync(
   new URL("../../lib/server/massage-runtime-authority.ts", import.meta.url),
   "utf8",
@@ -144,4 +148,51 @@ test("M14.3.3 mirror workflow is post-M16 scheduled recovery, authenticated, and
   assert.match(mirrorWorkflow, /native-massage-sheet-mirror/);
   assert.doesNotMatch(mirrorWorkflow, /vercel\s+--prod/);
   assert.doesNotMatch(mirrorWorkflow, /deploy_to_vercel/);
+});
+
+test("M14.3.3 safety hotfix keeps unmatched SH Sheet rows blocking availability", () => {
+  assert.match(safetyMigration, /set active = true,[\s\S]*source_snapshot_id = p_snapshot_id/);
+  assert.match(safetyMigration, /rb\.is_stayhub_marker = true/);
+  assert.match(safetyMigration, /and exists \([\s\S]*from public\.massage_runtime_bookings nb/);
+  assert.match(safetyMigration, /nb\.hotel_id = rb\.hotel_id/);
+  assert.match(safetyMigration, /nb\.status = 'confirmed'/);
+  assert.match(safetyMigration, /nb\.is_test = false/);
+  assert.match(safetyMigration, /nb\.booking_date = rb\.booking_date/);
+  assert.match(safetyMigration, /nb\.start_time = rb\.start_time/);
+  assert.match(safetyMigration, /nb\.service_id = rb\.service_id/);
+  assert.match(safetyMigration, /substring\(trim\(nb\.room_number\) from '\^\(\[0-9\]\+\)'\)/);
+  assert.match(safetyMigration, /proven_native_sheet_mirror/);
+  assert.match(safetyMigration, /snapshotUnmatchedStayHubBlockCount/);
+  assert.doesNotMatch(safetyMigration, /exclusionReason', 'stayhub_sheet_mirror'/);
+});
+
+test("M14.3.3 safety hotfix persists terminal mirror states without changing booking authority", () => {
+  assert.match(safetyMigration, /'conflict'::text/);
+  assert.match(safetyMigration, /'manual_reconciliation_required'::text/);
+  assert.match(mirror, /status: "conflict"/);
+  assert.match(mirror, /status: "manual_reconciliation_required"/);
+  assert.doesNotMatch(mirror, /status:\s*"cancelled"/);
+  assert.doesNotMatch(mirror, /status:\s*"confirmed"/);
+  assert.match(migration, /b\.mirror_status <> 'mirrored'/);
+});
+
+test("M14.3.3 safety hotfix verifies exact Sheet state before a failed mirror retry", () => {
+  assert.match(mirror, /createMassageBooking, verifyMassageBooking/);
+  assert.match(mirror, /const shouldVerifyBeforeWrite = booking\.mirror_status === "failed"/);
+  assert.match(mirror, /verifyExactSheetMirror/);
+  assert.match(mirror, /BOOKING_ALREADY_CONFIRMED/);
+  assert.match(mirror, /BOOKING_CONFLICT/);
+  assert.match(mirror, /BOOKING_NOT_FOUND/);
+  const preverify = mirror.indexOf("if (shouldVerifyBeforeWrite)");
+  const write = mirror.indexOf("const result = await createMassageBooking");
+  assert.ok(preverify >= 0 && write > preverify, "exact verification must precede a retry write");
+  assert.match(mirror, /\.in\("mirror_status", \["pending", "failed"\]\)/);
+});
+
+test("M14.3.3 mirror cron separates retryable work from terminal manual action", () => {
+  assert.match(mirrorCron, /terminal: number/);
+  assert.match(mirrorCron, /actionRequiredTotal/);
+  assert.match(mirrorCron, /requiresManualReconciliation: actionRequiredTotal > 0/);
+  assert.match(mirrorCron, /pendingTotal = summaries\.reduce\(\(sum, row\) => sum \+ row\.failed, 0\)/);
+  assert.match(mirrorCron, /const ok = pendingTotal === 0/);
 });

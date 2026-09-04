@@ -1,7 +1,7 @@
 {
   "version": 1,
   "checkpoint": "factory-guest-write-context",
-  "baseCheckpoint": "p5-8-sandbox-canary-routing",
+  "baseCheckpoint": "massage-mirror-safety-hotfix",
   "expectedNeedsReview": 182,
   "removals": [],
   "relocations": [
