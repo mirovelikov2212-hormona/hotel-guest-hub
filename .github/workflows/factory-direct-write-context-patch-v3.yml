@@ -95,40 +95,24 @@ jobs:
         run: npm test
 
       - name: Run production build
-        id: build
-        continue-on-error: true
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
-        shell: bash
-        run: |
-          npm run build > factory-direct-write-build.log 2>&1
-          code=$?
-          cat factory-direct-write-build.log
-          exit $code
-
-      - name: Upload build diagnostic
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: factory-direct-write-build-${{ github.sha }}
-          path: factory-direct-write-build.log
-          retention-days: 1
-
-      - name: Fail if build failed
-        if: steps.build.outcome == 'failure'
-        run: exit 1
+        run: npm run build
 
       - name: Commit only fully validated runtime change
-        if: steps.build.outcome == 'success'
         shell: bash
         run: |
-          rm .github/workflows/factory-direct-write-context-patch.yml
-          rm .github/workflows/factory-direct-write-context-patch-v2.yml
-          rm .github/workflows/factory-direct-write-context-patch-v3.yml
           git config user.name "stayhub-ci"
           git config user.email "stayhub-ci@users.noreply.github.com"
-          git add -A
+          git add \
+            app/api/guest/request-create/route.ts \
+            app/api/guest/day3-survey/route.ts \
+            lib/server/factory-guest-context.ts \
+            lib/server/guest-stays.ts \
+            scripts/tenant-isolation-guard.mjs \
+            tests/contracts/tenant-isolation-baseline-factory-direct-write-context.json
           git diff --cached --check
+          git diff --cached --stat
           git commit -m "Collapse Factory guest write authority roundtrips"
           git push origin HEAD:perf/factory-guest-write-context-v1
