@@ -41,10 +41,23 @@ export type FactoryGuestHotelScope = {
   production_hotel_id: string | null;
 };
 
+export type FactoryGuestReadyIdentity = {
+  kind: "ready";
+  stay: JsonObject;
+  device: JsonObject;
+  roomId: string;
+};
+
 type FactoryGuestWriteIdentityResult =
-  | { kind: "ready"; stay: JsonObject; device: JsonObject; roomId: string }
+  | FactoryGuestReadyIdentity
   | { kind: "missing" }
   | { kind: "stay_ended" };
+
+export type FactoryGuestWriteContextFastPath = {
+  hotel: FactoryGuestHotelScope;
+  runtime: FactoryGuestRuntime;
+  identity: FactoryGuestReadyIdentity;
+};
 
 const runtimeByHotelId = new Map<string, FactoryGuestRuntime>();
 const runtimeBySlug = new Map<string, FactoryGuestRuntime>();
@@ -248,24 +261,48 @@ export async function resolveFactoryGuestScopeFastPath(
   return { hotel, runtime };
 }
 
-export async function resolveFactoryGuestWriteIdentity(input: {
-  hotelId: string;
+type LoadedFactoryGuestWriteContext =
+  | {
+      kind: "ready";
+      runtime: FactoryGuestRuntime;
+      identity: FactoryGuestReadyIdentity;
+    }
+  | { kind: "missing" }
+  | { kind: "stay_ended" }
+  | { kind: "fallback" };
+
+function hotelScopeFromRuntime(runtime: FactoryGuestRuntime): FactoryGuestHotelScope {
+  return {
+    id: runtime.hotelId,
+    slug: runtime.hotelSlug,
+    public_slug: runtime.publicSlug,
+    name: runtime.hotelName,
+    timezone: runtime.hotelTimezone,
+    active: true,
+    is_sandbox: true,
+    production_hotel_id: runtime.productionHotelId,
+  };
+}
+
+async function loadFactoryGuestWriteContext(input: {
+  hotelSlug: string;
   room: string;
-  stayId?: unknown;
-  stayDeviceId?: unknown;
-}): Promise<FactoryGuestWriteIdentityResult | null> {
-  const hotelId = normalizeString(input.hotelId);
+  stayId: unknown;
+  stayDeviceId: unknown;
+  expectedHotelId?: string | null;
+}): Promise<LoadedFactoryGuestWriteContext | null> {
+  const hotelSlug = normalizeSlug(input.hotelSlug);
   const room = normalizeRoom(input.room);
   const stayId = normalizeString(input.stayId);
   const stayDeviceId = normalizeString(input.stayDeviceId);
-  const runtime = getPrimedFactoryRuntimeByHotelId(hotelId);
+  const expectedHotelId = normalizeString(input.expectedHotelId);
 
-  if (!runtime || !room || !isUuid(stayId) || !isUuid(stayDeviceId)) return null;
+  if (!hotelSlug || !room || !isUuid(stayId) || !isUuid(stayDeviceId)) return null;
 
   const { data, error } = await supabaseAdmin.rpc(
     "get_factory_guest_write_context_v1",
     {
-      p_hotel_slug: runtime.hotelSlug,
+      p_hotel_slug: hotelSlug,
       p_room_number: room,
       p_stay_id: stayId,
       p_stay_device_id: stayDeviceId,
@@ -275,8 +312,8 @@ export async function resolveFactoryGuestWriteIdentity(input: {
   if (error) {
     if (!isMissingRpc(error, "get_factory_guest_write_context_v1")) {
       console.warn("Factory guest write context unavailable; using legacy stay validation", {
-        hotelId,
-        hotelSlug: runtime.hotelSlug,
+        hotelSlug,
+        expectedHotelId: expectedHotelId || null,
         error,
       });
     }
@@ -286,18 +323,20 @@ export async function resolveFactoryGuestWriteIdentity(input: {
   if (data == null) return null;
   if (!isObject(data)) throw new Error("FACTORY_GUEST_WRITE_CONTEXT_INVALID");
   if (data.status === "commercial_blocked") throwCommercialBlocked(data);
-  if (data.status === "fallback_required") return null;
+  if (data.status === "fallback_required") return { kind: "fallback" };
   if (data.status === "invalid_room" || data.status === "stay_required") {
     return { kind: "missing" };
   }
   if (data.status === "stay_ended") return { kind: "stay_ended" };
   if (data.status !== "ready") throw new Error("FACTORY_GUEST_WRITE_CONTEXT_STATUS_INVALID");
 
-  const contextRuntime = parseRuntime(data.runtime);
-  if (contextRuntime.hotelId !== hotelId) {
+  const runtime = parseRuntime(data.runtime);
+  if (
+    (expectedHotelId && runtime.hotelId !== expectedHotelId) ||
+    (hotelSlug !== runtime.hotelSlug && hotelSlug !== runtime.publicSlug)
+  ) {
     throw new Error("FACTORY_GUEST_WRITE_CONTEXT_SCOPE_MISMATCH");
   }
-  rememberRuntime(contextRuntime);
 
   const stay = isObject(data.stay) ? data.stay : null;
   const device = isObject(data.device) ? data.device : null;
@@ -307,15 +346,66 @@ export async function resolveFactoryGuestWriteIdentity(input: {
     !device ||
     !isUuid(roomId) ||
     normalizeString(stay.id) !== stayId ||
-    normalizeString(stay.hotel_id) !== hotelId ||
+    normalizeString(stay.hotel_id) !== runtime.hotelId ||
     normalizeRoom(stay.room_number) !== room ||
     normalizeString(device.id) !== stayDeviceId ||
     normalizeString(device.stay_id) !== stayId ||
-    normalizeString(device.hotel_id) !== hotelId ||
+    normalizeString(device.hotel_id) !== runtime.hotelId ||
     normalizeRoom(device.room_number) !== room
   ) {
     throw new Error("FACTORY_GUEST_WRITE_CONTEXT_IDENTITY_MISMATCH");
   }
 
-  return { kind: "ready", stay, device, roomId };
+  rememberRuntime(runtime);
+  return {
+    kind: "ready",
+    runtime,
+    identity: { kind: "ready", stay, device, roomId },
+  };
+}
+
+/**
+ * Positive Factory guest writes can bootstrap tenant scope, materialized runtime
+ * and stay/device authority with one database roundtrip. Negative, rolling-test
+ * and non-Factory cases deliberately return null so existing legacy semantics
+ * remain authoritative. Identity is request-scoped and is never cached.
+ */
+export async function resolveFactoryGuestWriteContextFastPath(input: {
+  hotelSlug: string;
+  room: string;
+  stayId: unknown;
+  stayDeviceId: unknown;
+}): Promise<FactoryGuestWriteContextFastPath | null> {
+  const loaded = await loadFactoryGuestWriteContext(input);
+  if (!loaded || loaded.kind !== "ready") return null;
+
+  return {
+    hotel: hotelScopeFromRuntime(loaded.runtime),
+    runtime: loaded.runtime,
+    identity: loaded.identity,
+  };
+}
+
+export async function resolveFactoryGuestWriteIdentity(input: {
+  hotelId: string;
+  room: string;
+  stayId?: unknown;
+  stayDeviceId?: unknown;
+}): Promise<FactoryGuestWriteIdentityResult | null> {
+  const hotelId = normalizeString(input.hotelId);
+  const runtime = getPrimedFactoryRuntimeByHotelId(hotelId);
+  if (!runtime) return null;
+
+  const loaded = await loadFactoryGuestWriteContext({
+    hotelSlug: runtime.hotelSlug,
+    room: input.room,
+    stayId: input.stayId,
+    stayDeviceId: input.stayDeviceId,
+    expectedHotelId: hotelId,
+  });
+
+  if (!loaded || loaded.kind === "fallback") return null;
+  if (loaded.kind === "missing") return { kind: "missing" };
+  if (loaded.kind === "stay_ended") return { kind: "stay_ended" };
+  return loaded.identity;
 }

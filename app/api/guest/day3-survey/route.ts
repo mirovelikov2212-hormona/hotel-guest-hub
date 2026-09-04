@@ -21,7 +21,12 @@ import {
   type GuestSurveyRow,
   mapSurveyRow,
 } from "@/lib/server/day3-surveys";
-import { getHotelTimeParts, validateGuestStayIdentity } from "@/lib/server/guest-stays";
+import {
+  getHotelTimeParts,
+  validateGuestStayIdentity,
+  validatePreparedFactoryGuestWriteIdentity,
+} from "@/lib/server/guest-stays";
+import { resolveFactoryGuestWriteContextFastPath } from "@/lib/server/factory-guest-context";
 import {
   maybeForwardSandboxGuestRequest,
   runtimeCanaryRoutingErrorResponse,
@@ -111,7 +116,13 @@ export async function POST(req: NextRequest) {
       return validationError("Resolution status is required for critical surveys.", "MISSING_SURVEY_RESOLUTION_STATUS");
     }
 
-    const hotel = await getHotelByAnySlugAdmin(hotelSlug);
+    const factoryWriteContext = await resolveFactoryGuestWriteContextFastPath({
+      hotelSlug,
+      room,
+      stayId,
+      stayDeviceId,
+    });
+    const hotel = factoryWriteContext?.hotel ?? await getHotelByAnySlugAdmin(hotelSlug);
 
     try {
       const routed = await maybeForwardSandboxGuestRequest({
@@ -145,12 +156,14 @@ export async function POST(req: NextRequest) {
     const isolationMetadata = getOperationalIsolationMetadata({ hotel, testRoomPolicy });
     const suppressLivePush = shouldSuppressLivePush({ hotel, testRoomPolicy });
 
-    const stayIdentity = await validateGuestStayIdentity({
-      hotelId: hotel.id,
-      room,
-      stayId,
-      stayDeviceId,
-    });
+    const stayIdentity = factoryWriteContext
+      ? validatePreparedFactoryGuestWriteIdentity(factoryWriteContext.identity)
+      : await validateGuestStayIdentity({
+          hotelId: hotel.id,
+          room,
+          stayId,
+          stayDeviceId,
+        });
     timing.mark("stay_identity");
     if (!stayIdentity) {
       return validationError("A confirmed stay is required.", "STAY_REQUIRED", 401);

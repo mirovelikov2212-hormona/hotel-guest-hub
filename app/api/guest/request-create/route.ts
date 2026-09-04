@@ -16,7 +16,12 @@ import { translateGuestText, translateGuestTextToBulgarian, hasBulgarianLetters 
 import { getTestRoomPolicy } from "@/lib/server/test-rooms";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import { resolveGuestRequestRelationalIds } from "@/lib/server/guest-request-relational-ids.mjs";
-import { markLateCheckoutRequested, validateGuestStayIdentity } from "@/lib/server/guest-stays";
+import {
+  markLateCheckoutRequested,
+  validateGuestStayIdentity,
+  validatePreparedFactoryGuestWriteIdentity,
+} from "@/lib/server/guest-stays";
+import { resolveFactoryGuestWriteContextFastPath } from "@/lib/server/factory-guest-context";
 import {
   getOperationalIsolationFields,
   getOperationalIsolationMetadata,
@@ -142,7 +147,13 @@ export async function POST(req: NextRequest) {
       lateCheckoutRequestedTime,
     } = payloadValidation.value;
 
-    const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
+    const factoryWriteContext = await resolveFactoryGuestWriteContextFastPath({
+      hotelSlug,
+      room,
+      stayId,
+      stayDeviceId,
+    });
+    const hotel = factoryWriteContext?.hotel ?? await resolveHotelByAnySlugAdmin(hotelSlug);
 
     try {
       const routed = await maybeForwardSandboxGuestRequest({
@@ -226,12 +237,14 @@ export async function POST(req: NextRequest) {
     const isolationFields = getOperationalIsolationFields({ hotel, testRoomPolicy });
     const isolationMetadata = getOperationalIsolationMetadata({ hotel, testRoomPolicy });
     const suppressLivePush = shouldSuppressLivePush({ hotel, testRoomPolicy });
-    const stayIdentity = await validateGuestStayIdentity({
-      hotelId: hotel.id,
-      room,
-      stayId,
-      stayDeviceId,
-    });
+    const stayIdentity = factoryWriteContext
+      ? validatePreparedFactoryGuestWriteIdentity(factoryWriteContext.identity)
+      : await validateGuestStayIdentity({
+          hotelId: hotel.id,
+          room,
+          stayId,
+          stayDeviceId,
+        });
     timing.mark("room_and_stay");
     if (!stayIdentity) {
       return NextResponse.json(

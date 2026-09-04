@@ -58,6 +58,7 @@ const milestoneDeltaPaths = [
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-p5-8-sandbox-canary-routing.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-massage-mirror-safety-hotfix.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-factory-guest-write-context.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-factory-direct-write-context.json"),
 ];
 
 const baseBaseline = JSON.parse(await readFile(baselinePath, "utf8"));
