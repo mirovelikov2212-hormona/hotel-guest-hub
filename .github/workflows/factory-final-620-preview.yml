@@ -6,6 +6,8 @@ on:
       - perf/factory-guest-write-context-v1
     paths:
       - ".github/workflows/factory-final-620-preview.yml"
+      - "scripts/factory-final-620-peak.mjs"
+      - "tests/contracts/factory-final-620-contention-authority.contract.test.mjs"
   workflow_dispatch:
 
 permissions:
@@ -30,6 +32,7 @@ jobs:
         run: |
           node --check scripts/vercel-preview-auth-preload.mjs
           node --check scripts/factory-final-620-peak.mjs
+          node --test tests/contracts/factory-final-620-contention-authority.contract.test.mjs
 
       - name: Mint short-lived GitHub OIDC token
         id: oidc
