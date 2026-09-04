@@ -21,6 +21,23 @@ test("Factory guest writes reuse consolidated scope and identity RPCs with expli
   assertContains(stays, "validateGuestStayIdentityLegacy(input)");
 });
 
+test("Factory guest write RPC assigns table columns into rowtype records", async () => {
+  const migration = await readProjectFile(
+    "supabase/migrations/20260904114500_factory_guest_write_context_rowtype_fix.sql",
+  );
+
+  assertContains(migration, "select s.*\n    into v_stay");
+  assertContains(migration, "select d.*\n    into v_device");
+  assert.ok(
+    !migration.includes("select s\n    into v_stay"),
+    "guest_stays rowtype must not receive a single composite-record value",
+  );
+  assert.ok(
+    !migration.includes("select d\n    into v_device"),
+    "guest_stay_devices rowtype must not receive a single composite-record value",
+  );
+});
+
 test("Factory test-room cache skips only authoritative negative lookups", async () => {
   const testRooms = await readProjectFile("lib/server/test-rooms.ts");
 
