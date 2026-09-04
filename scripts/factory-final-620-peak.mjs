@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { writeFile } from "node:fs/promises";
 
@@ -13,6 +12,15 @@ const surveyP95Limit = Number(process.env.STAYHUB_620_SURVEY_P95_MS || 3_000);
 const massageP95Limit = Number(process.env.STAYHUB_620_MASSAGE_P95_MS || 4_500);
 const groupCooldownMs = Number(process.env.STAYHUB_620_GROUP_COOLDOWN_MS || 2_000);
 const slotPreflightWorkers = Number(process.env.STAYHUB_620_SLOT_PREFLIGHT_WORKERS || 4);
+const identityPreflightWorkers = Number(process.env.STAYHUB_620_IDENTITY_PREFLIGHT_WORKERS || 8);
+
+function dateKeyOffset(days) {
+  const date = new Date(Date.now() + days * 86_400_000);
+  return date.toISOString().slice(0, 10);
+}
+
+const stayCheckInDate = String(process.env.STAYHUB_620_STAY_CHECK_IN_DATE || dateKeyOffset(-1));
+const stayCheckOutDate = String(process.env.STAYHUB_620_STAY_CHECK_OUT_DATE || dateKeyOffset(2));
 
 // Exact live Sandbox cell membership captured immediately before the final acceptance.
 // The harness validates that these groups contain every synthetic factory-heavy hotel 1..100 exactly once.
@@ -63,13 +71,9 @@ function validateCellGroups() {
 
 validateCellGroups();
 
-function deterministicUuid(label, hotel, roomIndex) {
-  const hash = createHash("md5").update(`${label}-${hotel}-${roomIndex}`).digest("hex");
-  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20)}`;
-}
-
 const slug = (hotel) => `${prefix}-${String(hotel).padStart(3, "0")}-sandbox`;
 const roomNumber = (roomIndex) => String(200 + roomIndex);
+const identityKey = (hotel, roomIndex) => `${hotel}:${roomIndex}`;
 
 function percentile(values, p) {
   if (!values.length) return null;
@@ -94,6 +98,92 @@ async function fetchJson(url, init = {}) {
   const response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs), cache: "no-store" });
   const body = await response.json().catch(() => null);
   return { response, body };
+}
+
+function buildIdentitySpecs(group) {
+  const specs = [];
+  const seen = new Set();
+  const add = (hotel, roomIndex) => {
+    const key = identityKey(hotel, roomIndex);
+    if (seen.has(key)) return;
+    seen.add(key);
+    specs.push({ hotel, roomIndex });
+  };
+
+  for (const hotel of group.hotels) {
+    for (let roomIndex = 1; roomIndex <= 3; roomIndex += 1) add(hotel, roomIndex);
+  }
+  if (group.hotels.includes(1)) {
+    for (let roomIndex = 1; roomIndex <= 20; roomIndex += 1) add(1, roomIndex);
+  }
+  return specs;
+}
+
+async function confirmStayIdentity(hotel, roomIndex, cellKey) {
+  const started = performance.now();
+  const hotelSlug = slug(hotel);
+  const room = roomNumber(roomIndex);
+  if (!hotelSlug.endsWith("-sandbox")) {
+    throw new Error(`Refusing identity preflight outside Sandbox: ${hotelSlug}`);
+  }
+
+  const deviceToken = `${runId}:identity:h${hotel}:r${room}`;
+  const { response, body } = await fetchJson(`${baseUrl}/api/guest/stay/confirm`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-stayhub-load-run": runId,
+      "x-stayhub-load-cell": cellKey,
+    },
+    body: JSON.stringify({
+      hotelSlug,
+      room,
+      checkInDate: stayCheckInDate,
+      checkOutDate: stayCheckOutDate,
+      deviceToken,
+      language: "en",
+    }),
+  });
+
+  const stay = body?.stay || {};
+  const stayId = typeof stay.id === "string" ? stay.id : null;
+  const stayDeviceId = typeof stay.stayDeviceId === "string" ? stay.stayDeviceId : null;
+  if (!response.ok || body?.ok !== true || !stayId || !stayDeviceId) {
+    throw new Error(
+      `${cellKey}: stay bootstrap failed for ${hotelSlug} room ${room}: HTTP ${response.status} ${body?.error || "invalid_stay_identity"}`,
+    );
+  }
+
+  return {
+    cellKey,
+    hotel,
+    hotelSlug,
+    roomIndex,
+    room,
+    deviceToken,
+    stayId,
+    stayDeviceId,
+    status: response.status,
+    latencyMs: Number((performance.now() - started).toFixed(1)),
+  };
+}
+
+async function bootstrapGroupStayIdentities(group) {
+  const pending = buildIdentitySpecs(group);
+  const rows = [];
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(identityPreflightWorkers, pending.length)) },
+    async () => {
+      while (pending.length) {
+        const spec = pending.shift();
+        if (!spec) return;
+        rows.push(await confirmStayIdentity(spec.hotel, spec.roomIndex, group.cellKey));
+      }
+    },
+  );
+  await Promise.all(workers);
+  rows.sort((a, b) => a.hotel - b.hotel || a.roomIndex - b.roomIndex);
+  return rows;
 }
 
 function parseClockMinutes(value) {
@@ -177,17 +267,18 @@ async function discoverMassageSlotsForGroup(hotels) {
   return results;
 }
 
-async function postOperation(kind, hotel, roomIndex, slot = null, cellKey = null) {
+async function postOperation(kind, hotel, roomIndex, identity, slot = null, cellKey = null) {
   const started = performance.now();
   const hotelSlug = slug(hotel);
   const room = roomNumber(roomIndex);
-  const stayId = deterministicUuid("factory-heavy-stay", hotel, roomIndex);
-  const stayDeviceId = deterministicUuid("factory-heavy-device", hotel, roomIndex);
+  const stayId = identity?.stayId || null;
+  const stayDeviceId = identity?.stayDeviceId || null;
   const marker = `${runId}:${cellKey || "unknown-cell"}:${kind}:h${hotel}:r${room}`;
   let status = 0;
   let body = null;
   let transportError = null;
   try {
+    if (!stayId || !stayDeviceId) throw new Error(`Missing preflight stay identity for ${hotelSlug} room ${room}`);
     const massage = kind.startsWith("massage");
     const route = massage ? "/api/guest/massages" : kind === "request" ? "/api/guest/request-create" : "/api/guest/day3-survey";
     const payload = massage
@@ -247,6 +338,8 @@ async function postOperation(kind, hotel, roomIndex, slot = null, cellKey = null
     room,
     marker,
     slot,
+    stayId,
+    stayDeviceId,
     status,
     ok: body?.ok === true,
     duplicate: body?.duplicate === true,
@@ -315,12 +408,26 @@ const overallWallStarted = performance.now();
 const allResults = [];
 const groups = [];
 const selectedMassageSlots = [];
+const identityPreflight = [];
 let massageServiceRuntime = null;
 let contentionSlot = null;
 let failedGroup = null;
 
 for (let groupIndex = 0; groupIndex < cellGroups.length; groupIndex += 1) {
   const group = cellGroups[groupIndex];
+
+  const identityWallStarted = performance.now();
+  const identityRows = await bootstrapGroupStayIdentities(group);
+  const identityWallMs = Number((performance.now() - identityWallStarted).toFixed(1));
+  const identityByKey = new Map(identityRows.map((row) => [identityKey(row.hotel, row.roomIndex), row]));
+  identityPreflight.push({
+    cellKey: group.cellKey,
+    total: identityRows.length,
+    successful: identityRows.length,
+    wallMs: identityWallMs,
+    results: identityRows,
+  });
+
   const slotPlans = await discoverMassageSlotsForGroup(group.hotels);
   const slotByHotel = new Map(slotPlans.map((row) => [row.hotel, row.slots[0]]));
   selectedMassageSlots.push(...slotPlans.map((row) => ({ cellKey: group.cellKey, hotel: row.hotel, slot: row.slots[0] })));
@@ -339,19 +446,56 @@ for (let groupIndex = 0; groupIndex < cellGroups.length; groupIndex += 1) {
     }
   }
 
+  const groupWallStarted = performance.now();
   const operations = [];
   for (const hotel of group.hotels) {
     for (let roomIndex = 1; roomIndex <= 3; roomIndex += 1) {
-      operations.push(postOperation("request", hotel, roomIndex, null, group.cellKey));
+      operations.push(
+        postOperation(
+          "request",
+          hotel,
+          roomIndex,
+          identityByKey.get(identityKey(hotel, roomIndex)),
+          null,
+          group.cellKey,
+        ),
+      );
     }
     for (let roomIndex = 1; roomIndex <= 2; roomIndex += 1) {
-      operations.push(postOperation("survey", hotel, roomIndex, null, group.cellKey));
+      operations.push(
+        postOperation(
+          "survey",
+          hotel,
+          roomIndex,
+          identityByKey.get(identityKey(hotel, roomIndex)),
+          null,
+          group.cellKey,
+        ),
+      );
     }
-    operations.push(postOperation("massage_unique", hotel, 1, slotByHotel.get(hotel), group.cellKey));
+    operations.push(
+      postOperation(
+        "massage_unique",
+        hotel,
+        1,
+        identityByKey.get(identityKey(hotel, 1)),
+        slotByHotel.get(hotel),
+        group.cellKey,
+      ),
+    );
   }
   if (group.hotels.includes(1)) {
     for (let roomIndex = 1; roomIndex <= 20; roomIndex += 1) {
-      operations.push(postOperation("massage_contention", 1, roomIndex, contentionSlot, group.cellKey));
+      operations.push(
+        postOperation(
+          "massage_contention",
+          1,
+          roomIndex,
+          identityByKey.get(identityKey(1, roomIndex)),
+          contentionSlot,
+          group.cellKey,
+        ),
+      );
     }
   }
 
@@ -360,12 +504,18 @@ for (let groupIndex = 0; groupIndex < cellGroups.length; groupIndex += 1) {
     throw new Error(`${group.cellKey}: expected ${expectedOperations} operations, got ${operations.length}`);
   }
 
-  const groupWallStarted = performance.now();
   const rows = await Promise.all(operations);
   const groupWallMs = Number((performance.now() - groupWallStarted).toFixed(1));
   allResults.push(...rows);
 
-  const summary = evaluateGroup(group.cellKey, group.hotels, rows, groupWallMs, group.hotels.includes(1));
+  const summary = {
+    ...evaluateGroup(group.cellKey, group.hotels, rows, groupWallMs, group.hotels.includes(1)),
+    identityPreflight: {
+      total: identityRows.length,
+      successful: identityRows.length,
+      wallMs: identityWallMs,
+    },
+  };
   groups.push(summary);
   console.log(JSON.stringify({ phase: "cell-complete", ...summary }, null, 2));
 
@@ -409,13 +559,15 @@ const performanceAccepted =
   massageUnique.p95 <= massageP95Limit;
 
 const output = {
-  schemaVersion: "stayhub-factory-final-620-grouped-v4",
+  schemaVersion: "stayhub-factory-final-620-grouped-v5",
   runId,
   baseUrl,
   preflightStartedAt,
   startedAt,
   completedAt: new Date().toISOString(),
   availabilityFromDate,
+  stayCheckInDate,
+  stayCheckOutDate,
   executionMode: "sequential-runtime-cells",
   totalOperations: allResults.length,
   expectedTotalOperations: 620,
@@ -438,6 +590,7 @@ const output = {
   correctnessAccepted,
   performanceAccepted,
   accepted: correctnessAccepted && performanceAccepted,
+  identityPreflight,
   selectedMassageSlots,
   contentionSlot,
   failures: allResults.filter((row) => !row.ok && row.kind !== "massage_contention"),
@@ -446,5 +599,21 @@ const output = {
 };
 
 await writeEvidence(output);
-console.log(JSON.stringify({ ...output, results: undefined, selectedMassageSlots: undefined }, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      ...output,
+      identityPreflight: identityPreflight.map((row) => ({
+        cellKey: row.cellKey,
+        total: row.total,
+        successful: row.successful,
+        wallMs: row.wallMs,
+      })),
+      results: undefined,
+      selectedMassageSlots: undefined,
+    },
+    null,
+    2,
+  ),
+);
 if (!output.accepted) process.exitCode = 1;
