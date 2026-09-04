@@ -21,7 +21,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Apply direct-write runtime patch plus reviewed tenant relocations
@@ -81,7 +81,7 @@ jobs:
           PY
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit
 
       - name: Run focused authority contracts
         run: |
@@ -96,14 +96,16 @@ jobs:
 
       - name: Run production build
         id: build
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
         shell: bash
         run: |
-          set +e
           npm run build > factory-direct-write-build.log 2>&1
           code=$?
           cat factory-direct-write-build.log
-          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
-          exit 0
+          exit $code
 
       - name: Upload build diagnostic
         if: always()
@@ -114,11 +116,11 @@ jobs:
           retention-days: 1
 
       - name: Fail if build failed
-        if: steps.build.outputs.exit_code != '0'
+        if: steps.build.outcome == 'failure'
         run: exit 1
 
       - name: Commit only fully validated runtime change
-        if: steps.build.outputs.exit_code == '0'
+        if: steps.build.outcome == 'success'
         shell: bash
         run: |
           rm .github/workflows/factory-direct-write-context-patch.yml
