@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm ci --no-audit
       - run: npm run test:p4-6
       - run: npm run test:tenant-isolation
       - run: npm test
