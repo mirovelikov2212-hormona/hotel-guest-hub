@@ -8,6 +8,8 @@ on:
       - "app/api/cron/native-massage-sheet-mirror/route.ts"
       - "supabase/migrations/20260904162000_harden_native_massage_mirror_safety.sql"
       - "tests/contracts/m14-3-3-production-native-authority.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-massage-mirror-safety-hotfix.json"
+      - "scripts/tenant-isolation-guard.mjs"
       - ".github/workflows/massage-hotfix-diagnostic.yml"
   workflow_dispatch:
 
@@ -44,6 +46,16 @@ jobs:
           cat massage-hotfix-full.log
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
+      - name: Run build
+        id: build
+        shell: bash
+        run: |
+          set +e
+          npm run build > massage-hotfix-build.log 2>&1
+          code=$?
+          cat massage-hotfix-build.log
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
       - name: Upload diagnostic logs
         uses: actions/upload-artifact@v4
         with:
@@ -51,9 +63,10 @@ jobs:
           path: |
             massage-hotfix-targeted.log
             massage-hotfix-full.log
+            massage-hotfix-build.log
           retention-days: 1
       - name: Fail on regression
-        if: steps.targeted.outputs.exit_code != '0' || steps.full.outputs.exit_code != '0'
+        if: steps.targeted.outputs.exit_code != '0' || steps.full.outputs.exit_code != '0' || steps.build.outputs.exit_code != '0'
         run: |
-          echo "targeted=${{ steps.targeted.outputs.exit_code }} full=${{ steps.full.outputs.exit_code }}"
+          echo "targeted=${{ steps.targeted.outputs.exit_code }} full=${{ steps.full.outputs.exit_code }} build=${{ steps.build.outputs.exit_code }}"
           exit 1
