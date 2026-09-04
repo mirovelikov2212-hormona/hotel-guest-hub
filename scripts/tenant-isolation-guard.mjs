@@ -54,6 +54,7 @@ const milestoneDeltaPaths = [
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-guest-stay-invalid-identity.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-materialized-runtime-process-fast-path.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-p5-1-runtime-cells.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-p5-8-sandbox-canary-routing.json"),
 ];
 
 const baseBaseline = JSON.parse(await readFile(baselinePath, "utf8"));

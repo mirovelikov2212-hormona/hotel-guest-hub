@@ -23,6 +23,10 @@ import {
   resolveHotelByAnySlugAdmin,
   shouldSuppressLivePush,
 } from "@/lib/server/hotel-scope";
+import {
+  maybeForwardSandboxGuestRequest,
+  runtimeCanaryRoutingErrorResponse,
+} from "@/lib/server/runtime-sandbox-canary-router";
 import { createApiStageTiming } from "@/lib/server/api-stage-timing";
 
 const STAFF_ROLE_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
@@ -83,8 +87,6 @@ function getStaffPushRolesForRequest(input: {
       return;
     }
 
-    // A tenant-defined department without an explicit after-hours handoff keeps
-    // its own notification path instead of silently dropping the request alert.
     roles.add(role);
   };
 
@@ -141,6 +143,18 @@ export async function POST(req: NextRequest) {
     } = payloadValidation.value;
 
     const hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
+
+    try {
+      const routed = await maybeForwardSandboxGuestRequest({
+        req,
+        hotel,
+        body,
+        routePath: "/api/guest/request-create",
+      });
+      if (routed) return routed;
+    } catch (routingError) {
+      return runtimeCanaryRoutingErrorResponse(routingError);
+    }
 
     const hotelConfig = await getHotelConfig(hotelSlug).catch(async (error) => {
       console.error("Failed to load hotel config for room validation", { hotelSlug, error });
@@ -264,8 +278,6 @@ export async function POST(req: NextRequest) {
       requestAuthority.requestType,
       requestAuthority.department ?? undefined,
     );
-    // Keep the historical routing contract explicit while P4.12 separately
-    // preserves tenant service identity for persistence and relational lookup.
     const normalizedType = legacyNormalizedType;
     const authoritativeRequestType = requestAuthority.sourceRequestDef
       ? String(requestAuthority.requestType)
@@ -350,10 +362,6 @@ export async function POST(req: NextRequest) {
         note: noteForStaffCopy,
       },
     });
-    // Request-definition copy is already reviewed tenant content. Reuse it
-    // across staff languages before considering free-text AI translation; an
-    // untranslated reviewed label is safer than hundreds of synchronous model
-    // calls in the guest write path.
     const configuredStaffTitleEn = authoritativeStaffLabels?.en || authoritativeStaffLabels?.bg || staffTitleBg || null;
     const configuredStaffTitleDe = authoritativeStaffLabels?.de || authoritativeStaffLabels?.en || authoritativeStaffLabels?.bg || staffTitleBg || null;
     const staffNoteBg = getOperationalRequestNoteBg({

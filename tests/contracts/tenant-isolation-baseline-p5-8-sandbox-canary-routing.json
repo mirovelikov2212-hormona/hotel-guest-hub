@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "checkpoint": "p5-8-sandbox-canary-routing",
+  "baseCheckpoint": "p5-3-runtime-cell-demand-telemetry",
+  "expectedNeedsReview": 180,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "app/api/guest/communications/route.ts",
+      "fromLine": 76,
+      "toLine": 93,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "app/api/guest/communications/route.ts",
+      "fromLine": 96,
+      "toLine": 113,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "app/api/guest/communications/route.ts",
+      "fromLine": 123,
+      "toLine": 139,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "app/api/guest/communications/route.ts",
+      "fromLine": 134,
+      "toLine": 150,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "app/api/guest/day3-survey/route.ts",
+      "fromLine": 56,
+      "toLine": 60,
+      "table": "guest_surveys",
+      "operation": "select"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/runtime-sandbox-canary-router.ts",
+      "line": 186,
+      "rpc": "has_active_sandbox_canary_traffic_v1",
+      "tableExpression": "\"has_active_sandbox_canary_traffic_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "server_only_platform_canary_presence_probe_returns_one_boolean_from_current_sandbox_target_verification_traffic_lease_and_cell_metadata_only_with_no_tenant_business_payload_mutation_or_production_route_eligibility"
+    },
+    {
+      "filePath": "lib/server/runtime-sandbox-canary-router.ts",
+      "line": 211,
+      "rpc": "resolve_guest_sandbox_canary_route_v1",
+      "tableExpression": "\"resolve_guest_sandbox_canary_route_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "server_only_exact_hotel_id_guest_router_resolves_at_most_one_active_sandbox_hotel_cell_target_binding_and_exact_fresh_verification_plus_traffic_lease_evidence_with_production_shared_and_demo_targets_fail_closed"
+    },
+    {
+      "filePath": "lib/server/runtime-sandbox-canary-router.ts",
+      "line": 383,
+      "rpc": "validate_guest_sandbox_canary_forward_v1",
+      "tableExpression": "\"validate_guest_sandbox_canary_forward_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "server_only_target_side_forward_revalidation_matches_exact_hotel_id_target_generation_verification_evidence_traffic_lease_and_compute_ref_against_current_sandbox_only_router_authority_and_returns_boolean_without_business_payload_access"
+    }
+  ]
+}

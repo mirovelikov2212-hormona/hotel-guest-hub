@@ -7,6 +7,10 @@ import {
 } from "@/lib/server/guest-communications-translation";
 import { getGuestStayAccessState } from "@/lib/server/guest-stay-access";
 import { getGuestStayStatus } from "@/lib/server/guest-stays";
+import {
+  maybeForwardSandboxGuestRequest,
+  runtimeCanaryRoutingErrorResponse,
+} from "@/lib/server/runtime-sandbox-canary-router";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export const runtime = "nodejs";
@@ -52,6 +56,19 @@ export async function POST(req: NextRequest) {
       stayDeviceId: body?.stayDeviceId,
       deviceToken: body?.deviceToken,
     });
+
+    try {
+      const routed = await maybeForwardSandboxGuestRequest({
+        req,
+        hotel: stayResult.hotel,
+        body,
+        routePath: "/api/guest/communications",
+      });
+      if (routed) return routed;
+    } catch (routingError) {
+      return runtimeCanaryRoutingErrorResponse(routingError);
+    }
+
     const access = await getGuestStayAccessState({
       hotelId: stayResult.hotel.id,
       room: stayResult.stay.room,
@@ -113,7 +130,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, communicationId }, { status: 201, headers: NO_STORE });
     }
 
-    // Broadcasts and direct messages target the current writable stay only.
     if (!access.canWrite) {
       return NextResponse.json({ ok: true, messages: [] }, { headers: NO_STORE });
     }

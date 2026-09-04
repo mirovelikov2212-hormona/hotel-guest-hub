@@ -22,6 +22,10 @@ import {
   mapSurveyRow,
 } from "@/lib/server/day3-surveys";
 import { getHotelTimeParts, validateGuestStayIdentity } from "@/lib/server/guest-stays";
+import {
+  maybeForwardSandboxGuestRequest,
+  runtimeCanaryRoutingErrorResponse,
+} from "@/lib/server/runtime-sandbox-canary-router";
 import { canonicalizeLocaleTag } from "@/lib/i18n/locale-model.mjs";
 import {
   addDaysToStayDateKey,
@@ -108,6 +112,19 @@ export async function POST(req: NextRequest) {
     }
 
     const hotel = await getHotelByAnySlugAdmin(hotelSlug);
+
+    try {
+      const routed = await maybeForwardSandboxGuestRequest({
+        req,
+        hotel,
+        body,
+        routePath: "/api/guest/day3-survey",
+      });
+      if (routed) return routed;
+    } catch (routingError) {
+      return runtimeCanaryRoutingErrorResponse(routingError);
+    }
+
     const roomValidation = await validateHotelRoom(hotelSlug, room);
     timing.mark("hotel_and_room");
     if (!roomValidation.ok) {
