@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getVercelOidcToken } from "@vercel/functions/oidc";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
@@ -438,7 +439,7 @@ export async function maybeForwardSandboxGuestRequest(input: {
     return null;
   }
 
-  const oidcToken = process.env.VERCEL_OIDC_TOKEN || "";
+  const oidcToken = await getVercelOidcToken();
   if (!oidcToken) {
     throw new Error("RUNTIME_CANARY_FORWARD_OIDC_UNAVAILABLE");
   }
