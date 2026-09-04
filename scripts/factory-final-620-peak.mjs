@@ -5,13 +5,63 @@ import { writeFile } from "node:fs/promises";
 const baseUrl = String(process.env.STAYHUB_620_BASE_URL || "https://www.stayhub.app").replace(/\/$/, "");
 const prefix = String(process.env.STAYHUB_620_PREFIX || "factory-heavy-20260901");
 const timeoutMs = Number(process.env.STAYHUB_620_TIMEOUT_MS || 60_000);
-const hotelCount = 100;
-const runId = String(process.env.STAYHUB_620_RUN_ID || `${prefix}-final-620-${Date.now()}`);
+const runId = String(process.env.STAYHUB_620_RUN_ID || `${prefix}-final-620-grouped-${Date.now()}`);
 const availabilityFromDate = String(process.env.STAYHUB_620_FROM_DATE || new Date(Date.now() + 86_400_000).toISOString().slice(0, 10));
 const serviceId = String(process.env.STAYHUB_620_MASSAGE_SERVICE || "load_massage");
 const requestP95Limit = Number(process.env.STAYHUB_620_REQUEST_P95_MS || 3_000);
 const surveyP95Limit = Number(process.env.STAYHUB_620_SURVEY_P95_MS || 3_000);
 const massageP95Limit = Number(process.env.STAYHUB_620_MASSAGE_P95_MS || 4_500);
+const groupCooldownMs = Number(process.env.STAYHUB_620_GROUP_COOLDOWN_MS || 2_000);
+const slotPreflightWorkers = Number(process.env.STAYHUB_620_SLOT_PREFLIGHT_WORKERS || 4);
+
+// Exact live Sandbox cell membership captured immediately before the final acceptance.
+// The harness validates that these groups contain every synthetic factory-heavy hotel 1..100 exactly once.
+const cellGroups = [
+  {
+    cellKey: "sandbox-standard-01",
+    hotels: [6, 16, 20, 21, 23, 28, 31, 44, 64, 72, 75, 77, 78, 86, 89, 91],
+  },
+  {
+    cellKey: "sandbox-standard-02",
+    hotels: [5, 8, 14, 17, 18, 27, 47, 50, 56, 60, 63, 70, 79, 94, 95, 96, 98],
+  },
+  {
+    cellKey: "sandbox-standard-03",
+    hotels: [15, 26, 33, 34, 35, 36, 39, 45, 46, 54, 59, 65, 66, 74, 82, 93, 99],
+  },
+  {
+    cellKey: "sandbox-standard-04",
+    hotels: [7, 10, 30, 32, 37, 41, 43, 48, 49, 53, 55, 62, 68, 73, 80, 87, 88],
+  },
+  {
+    cellKey: "sandbox-standard-05",
+    hotels: [1, 3, 11, 24, 25, 38, 40, 52, 57, 61, 67, 69, 81, 83, 90, 92, 100],
+  },
+  {
+    cellKey: "sandbox-standard-06",
+    hotels: [2, 4, 9, 12, 13, 19, 22, 29, 42, 51, 58, 71, 76, 84, 85, 97],
+  },
+];
+
+function validateCellGroups() {
+  const hotels = cellGroups.flatMap((group) => group.hotels);
+  const unique = new Set(hotels);
+  const expected = Array.from({ length: 100 }, (_, index) => index + 1);
+  const actual = [...unique].sort((a, b) => a - b);
+  if (cellGroups.length !== 6) throw new Error(`Expected 6 Sandbox cell groups, got ${cellGroups.length}`);
+  if (hotels.length !== 100 || unique.size !== 100) {
+    throw new Error(`Expected exactly 100 unique synthetic hotels, got ${hotels.length} entries / ${unique.size} unique`);
+  }
+  if (actual.some((hotel, index) => hotel !== expected[index])) {
+    throw new Error("Cell manifest must cover synthetic hotels 1..100 exactly once");
+  }
+  const hotelOneGroups = cellGroups.filter((group) => group.hotels.includes(1));
+  if (hotelOneGroups.length !== 1 || hotelOneGroups[0].cellKey !== "sandbox-standard-05") {
+    throw new Error("Hotel 1 must belong to sandbox-standard-05 for the contention phase");
+  }
+}
+
+validateCellGroups();
 
 function deterministicUuid(label, hotel, roomIndex) {
   const hash = createHash("md5").update(`${label}-${hotel}-${roomIndex}`).digest("hex");
@@ -66,10 +116,7 @@ function slotsDoNotOverlap(uniqueSlot, candidateSlot, occupancyMinutes) {
 
 async function discoverMassageServiceOccupancy(hotel) {
   const hotelSlug = slug(hotel);
-  const params = new URLSearchParams({
-    hotelSlug,
-    action: "services",
-  });
+  const params = new URLSearchParams({ hotelSlug, action: "services" });
   const { response, body } = await fetchJson(`${baseUrl}/api/guest/massages?${params}`);
   const services = Array.isArray(body?.result?.services) ? body.result.services : [];
   const service = services.find((candidate) => String(candidate?.serviceId || "") === serviceId);
@@ -115,32 +162,28 @@ async function discoverMassageSlots(hotel) {
   return { hotel, hotelSlug, slots };
 }
 
-async function discoverAllMassageSlots() {
-  const hotels = Array.from({ length: hotelCount }, (_, index) => index + 1);
+async function discoverMassageSlotsForGroup(hotels) {
+  const pending = [...hotels];
   const results = [];
-  const workers = Array.from({ length: 10 }, async () => {
-    while (hotels.length) {
-      const hotel = hotels.shift();
+  const workers = Array.from({ length: Math.max(1, Math.min(slotPreflightWorkers, hotels.length)) }, async () => {
+    while (pending.length) {
+      const hotel = pending.shift();
       if (!hotel) return;
       results.push(await discoverMassageSlots(hotel));
     }
   });
   await Promise.all(workers);
   results.sort((a, b) => a.hotel - b.hotel);
-  const firstHotel = results[0];
-  if (!firstHotel || firstHotel.slots.length < 2) {
-    throw new Error("Hotel 1 needs at least two currently unused massage slots for unique + contention phases");
-  }
   return results;
 }
 
-async function postOperation(kind, hotel, roomIndex, slot = null) {
+async function postOperation(kind, hotel, roomIndex, slot = null, cellKey = null) {
   const started = performance.now();
   const hotelSlug = slug(hotel);
   const room = roomNumber(roomIndex);
   const stayId = deterministicUuid("factory-heavy-stay", hotel, roomIndex);
   const stayDeviceId = deterministicUuid("factory-heavy-device", hotel, roomIndex);
-  const marker = `${runId}:${kind}:h${hotel}:r${room}`;
+  const marker = `${runId}:${cellKey || "unknown-cell"}:${kind}:h${hotel}:r${room}`;
   let status = 0;
   let body = null;
   let transportError = null;
@@ -184,7 +227,11 @@ async function postOperation(kind, hotel, roomIndex, slot = null) {
           };
     const result = await fetchJson(`${baseUrl}${route}`, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-stayhub-load-run": runId },
+      headers: {
+        "content-type": "application/json",
+        "x-stayhub-load-run": runId,
+        "x-stayhub-load-cell": cellKey || "unknown-cell",
+      },
       body: JSON.stringify(payload),
     });
     status = result.response.status;
@@ -193,6 +240,7 @@ async function postOperation(kind, hotel, roomIndex, slot = null) {
     transportError = error instanceof Error ? error.message : String(error);
   }
   return {
+    cellKey,
     kind,
     hotel,
     hotelSlug,
@@ -210,43 +258,131 @@ async function postOperation(kind, hotel, roomIndex, slot = null) {
   };
 }
 
+function evaluateGroup(cellKey, hotels, rows, groupWallMs, contentionExpected) {
+  const requestRows = rows.filter((row) => row.kind === "request");
+  const surveyRows = rows.filter((row) => row.kind === "survey");
+  const massageUniqueRows = rows.filter((row) => row.kind === "massage_unique");
+  const contentionRows = rows.filter((row) => row.kind === "massage_contention");
+  const request = summarize(requestRows);
+  const survey = summarize(surveyRows);
+  const massageUnique = summarize(massageUniqueRows);
+  const massageContention = summarize(contentionRows);
+  const contentionWinners = contentionRows.filter((row) => row.ok && !row.replay);
+  const contentionRejected = contentionRows.filter((row) => !row.ok && row.status === 409);
+  const contentionUnexpected = contentionRows.filter((row) => !row.ok && row.status !== 409);
+
+  const correctnessAccepted =
+    request.failed === 0 &&
+    survey.failed === 0 &&
+    massageUnique.failed === 0 &&
+    (!contentionExpected ||
+      (contentionWinners.length === 1 && contentionRejected.length === 19 && contentionUnexpected.length === 0));
+  const performanceAccepted =
+    request.p95 <= requestP95Limit &&
+    survey.p95 <= surveyP95Limit &&
+    massageUnique.p95 <= massageP95Limit;
+
+  return {
+    cellKey,
+    hotels,
+    hotelCount: hotels.length,
+    totalOperations: rows.length,
+    wallMs: groupWallMs,
+    request,
+    survey,
+    massageUnique,
+    massageContention: {
+      ...massageContention,
+      winners: contentionWinners.length,
+      expectedRejected: contentionRejected.length,
+      unexpected: contentionUnexpected.length,
+    },
+    correctnessAccepted,
+    performanceAccepted,
+    accepted: correctnessAccepted && performanceAccepted,
+    failures: rows.filter((row) => !row.ok && row.kind !== "massage_contention"),
+    contentionUnexpected,
+  };
+}
+
+async function writeEvidence(partial) {
+  await writeFile("factory-final-620-results.json", `${JSON.stringify(partial, null, 2)}\n`);
+}
+
 const preflightStartedAt = new Date().toISOString();
-const [slotPlans, massageServiceRuntime] = await Promise.all([
-  discoverAllMassageSlots(),
-  discoverMassageServiceOccupancy(1),
-]);
-const slotByHotel = new Map(slotPlans.map((row) => [row.hotel, row.slots[0]]));
-const uniqueSlot = slotPlans[0].slots[0];
-const contentionSlot = slotPlans[0].slots.find((slot) =>
-  slotsDoNotOverlap(uniqueSlot, slot, massageServiceRuntime.occupancyMinutes),
-);
-if (!contentionSlot) {
-  throw new Error(
-    `Could not select a non-overlapping contention slot for hotel 1 (${massageServiceRuntime.occupancyMinutes} minute occupancy)`,
-  );
-}
-
-const operations = [];
-for (let hotel = 1; hotel <= hotelCount; hotel += 1) {
-  for (let roomIndex = 1; roomIndex <= 3; roomIndex += 1) operations.push(postOperation("request", hotel, roomIndex));
-  for (let roomIndex = 1; roomIndex <= 2; roomIndex += 1) operations.push(postOperation("survey", hotel, roomIndex));
-  operations.push(postOperation("massage_unique", hotel, 1, slotByHotel.get(hotel)));
-}
-for (let roomIndex = 1; roomIndex <= 20; roomIndex += 1) {
-  operations.push(postOperation("massage_contention", 1, roomIndex, contentionSlot));
-}
-
-if (operations.length !== 620) throw new Error(`Expected exactly 620 operations, got ${operations.length}`);
-
 const startedAt = new Date().toISOString();
-const wallStarted = performance.now();
-const results = await Promise.all(operations);
-const wallMs = Number((performance.now() - wallStarted).toFixed(1));
+const overallWallStarted = performance.now();
+const allResults = [];
+const groups = [];
+const selectedMassageSlots = [];
+let massageServiceRuntime = null;
+let contentionSlot = null;
+let failedGroup = null;
 
-const requestRows = results.filter((row) => row.kind === "request");
-const surveyRows = results.filter((row) => row.kind === "survey");
-const massageUniqueRows = results.filter((row) => row.kind === "massage_unique");
-const contentionRows = results.filter((row) => row.kind === "massage_contention");
+for (let groupIndex = 0; groupIndex < cellGroups.length; groupIndex += 1) {
+  const group = cellGroups[groupIndex];
+  const slotPlans = await discoverMassageSlotsForGroup(group.hotels);
+  const slotByHotel = new Map(slotPlans.map((row) => [row.hotel, row.slots[0]]));
+  selectedMassageSlots.push(...slotPlans.map((row) => ({ cellKey: group.cellKey, hotel: row.hotel, slot: row.slots[0] })));
+
+  if (group.hotels.includes(1)) {
+    massageServiceRuntime = await discoverMassageServiceOccupancy(1);
+    const hotelOnePlan = slotPlans.find((row) => row.hotel === 1);
+    const uniqueSlot = hotelOnePlan?.slots?.[0] || null;
+    contentionSlot = hotelOnePlan?.slots?.find((slot) =>
+      slotsDoNotOverlap(uniqueSlot, slot, massageServiceRuntime.occupancyMinutes),
+    );
+    if (!uniqueSlot || !contentionSlot) {
+      throw new Error(
+        `Hotel 1 needs two non-overlapping unused massage slots for unique + contention phases (${massageServiceRuntime.occupancyMinutes} minute occupancy)`,
+      );
+    }
+  }
+
+  const operations = [];
+  for (const hotel of group.hotels) {
+    for (let roomIndex = 1; roomIndex <= 3; roomIndex += 1) {
+      operations.push(postOperation("request", hotel, roomIndex, null, group.cellKey));
+    }
+    for (let roomIndex = 1; roomIndex <= 2; roomIndex += 1) {
+      operations.push(postOperation("survey", hotel, roomIndex, null, group.cellKey));
+    }
+    operations.push(postOperation("massage_unique", hotel, 1, slotByHotel.get(hotel), group.cellKey));
+  }
+  if (group.hotels.includes(1)) {
+    for (let roomIndex = 1; roomIndex <= 20; roomIndex += 1) {
+      operations.push(postOperation("massage_contention", 1, roomIndex, contentionSlot, group.cellKey));
+    }
+  }
+
+  const expectedOperations = group.hotels.length * 6 + (group.hotels.includes(1) ? 20 : 0);
+  if (operations.length !== expectedOperations) {
+    throw new Error(`${group.cellKey}: expected ${expectedOperations} operations, got ${operations.length}`);
+  }
+
+  const groupWallStarted = performance.now();
+  const rows = await Promise.all(operations);
+  const groupWallMs = Number((performance.now() - groupWallStarted).toFixed(1));
+  allResults.push(...rows);
+
+  const summary = evaluateGroup(group.cellKey, group.hotels, rows, groupWallMs, group.hotels.includes(1));
+  groups.push(summary);
+  console.log(JSON.stringify({ phase: "cell-complete", ...summary }, null, 2));
+
+  if (!summary.accepted) {
+    failedGroup = group.cellKey;
+    break;
+  }
+  if (groupIndex < cellGroups.length - 1 && groupCooldownMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, groupCooldownMs));
+  }
+}
+
+const wallMs = Number((performance.now() - overallWallStarted).toFixed(1));
+const requestRows = allResults.filter((row) => row.kind === "request");
+const surveyRows = allResults.filter((row) => row.kind === "survey");
+const massageUniqueRows = allResults.filter((row) => row.kind === "massage_unique");
+const contentionRows = allResults.filter((row) => row.kind === "massage_contention");
 const request = summarize(requestRows);
 const survey = summarize(surveyRows);
 const massageUnique = summarize(massageUniqueRows);
@@ -255,27 +391,39 @@ const contentionWinners = contentionRows.filter((row) => row.ok && !row.replay);
 const contentionRejected = contentionRows.filter((row) => !row.ok && row.status === 409);
 const contentionUnexpected = contentionRows.filter((row) => !row.ok && row.status !== 409);
 
+const completedAllGroups = groups.length === cellGroups.length && failedGroup === null;
 const correctnessAccepted =
-  request.failed === 0 &&
-  survey.failed === 0 &&
-  massageUnique.failed === 0 &&
+  completedAllGroups &&
+  request.total === 300 && request.failed === 0 &&
+  survey.total === 200 && survey.failed === 0 &&
+  massageUnique.total === 100 && massageUnique.failed === 0 &&
+  contentionRows.length === 20 &&
   contentionWinners.length === 1 &&
   contentionRejected.length === 19 &&
   contentionUnexpected.length === 0;
 const performanceAccepted =
+  completedAllGroups &&
+  groups.every((group) => group.performanceAccepted) &&
   request.p95 <= requestP95Limit &&
   survey.p95 <= surveyP95Limit &&
   massageUnique.p95 <= massageP95Limit;
 
 const output = {
-  schemaVersion: "stayhub-factory-final-620-v3",
+  schemaVersion: "stayhub-factory-final-620-grouped-v4",
   runId,
   baseUrl,
   preflightStartedAt,
   startedAt,
+  completedAt: new Date().toISOString(),
   availabilityFromDate,
-  totalOperations: results.length,
+  executionMode: "sequential-runtime-cells",
+  totalOperations: allResults.length,
+  expectedTotalOperations: 620,
   wallMs,
+  groupCooldownMs,
+  cellManifest: cellGroups,
+  groups,
+  failedGroup,
   request,
   survey,
   massageUnique,
@@ -290,13 +438,13 @@ const output = {
   correctnessAccepted,
   performanceAccepted,
   accepted: correctnessAccepted && performanceAccepted,
-  selectedMassageSlots: slotPlans.map((row) => ({ hotel: row.hotel, slot: row.slots[0] })),
+  selectedMassageSlots,
   contentionSlot,
-  failures: results.filter((row) => !row.ok && row.kind !== "massage_contention"),
+  failures: allResults.filter((row) => !row.ok && row.kind !== "massage_contention"),
   contentionUnexpected,
-  results,
+  results: allResults,
 };
 
-await writeFile("factory-final-620-results.json", `${JSON.stringify(output, null, 2)}\n`);
+await writeEvidence(output);
 console.log(JSON.stringify({ ...output, results: undefined, selectedMassageSlots: undefined }, null, 2));
 if (!output.accepted) process.exitCode = 1;
