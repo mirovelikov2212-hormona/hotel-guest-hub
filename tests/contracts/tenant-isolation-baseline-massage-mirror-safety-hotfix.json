@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "checkpoint": "massage-mirror-safety-hotfix",
+  "baseCheckpoint": "p5-8-sandbox-canary-routing",
+  "expectedNeedsReview": 180,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "lib/server/massage-native-sheet-mirror.ts",
+      "fromLine": 51,
+      "toLine": 83,
+      "table": "massage_external_source_configs",
+      "operation": "select"
+    }
+  ],
+  "additions": []
+}

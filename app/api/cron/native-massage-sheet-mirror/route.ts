@@ -27,7 +27,16 @@ export async function GET(req: NextRequest) {
   if (stateError) return json({ ok: false, code: "AUTHORITY_LOOKUP_FAILED" }, 500);
 
   const hotelIds = (states || []).map((row) => String(row.hotel_id)).filter(Boolean);
-  if (!hotelIds.length) return json({ ok: true, nativeAuthorityHotels: 0, pendingTotal: 0, results: [] });
+  if (!hotelIds.length) {
+    return json({
+      ok: true,
+      nativeAuthorityHotels: 0,
+      pendingTotal: 0,
+      actionRequiredTotal: 0,
+      requiresManualReconciliation: false,
+      results: [],
+    });
+  }
 
   const { data: hotels, error: hotelError } = await supabaseAdmin
     .from("hotels")
@@ -38,7 +47,13 @@ export async function GET(req: NextRequest) {
     .order("slug", { ascending: true });
   if (hotelError) return json({ ok: false, code: "HOTEL_LOOKUP_FAILED" }, 500);
 
-  const summaries: Array<{ hotelSlug: string; checked: number; mirrored: number; failed: number }> = [];
+  const summaries: Array<{
+    hotelSlug: string;
+    checked: number;
+    mirrored: number;
+    terminal: number;
+    failed: number;
+  }> = [];
   for (const rawHotel of hotels || []) {
     const hotel = rawHotel as HotelScope;
     try {
@@ -54,16 +69,19 @@ export async function GET(req: NextRequest) {
         error,
         metadata: { hotelSlug: hotel.slug },
       });
-      summaries.push({ hotelSlug: hotel.slug, checked: 0, mirrored: 0, failed: 1 });
+      summaries.push({ hotelSlug: hotel.slug, checked: 0, mirrored: 0, terminal: 0, failed: 1 });
     }
   }
 
   const pendingTotal = summaries.reduce((sum, row) => sum + row.failed, 0);
+  const actionRequiredTotal = summaries.reduce((sum, row) => sum + row.terminal, 0);
   const ok = pendingTotal === 0;
   return json({
     ok,
     nativeAuthorityHotels: summaries.length,
     pendingTotal,
+    actionRequiredTotal,
+    requiresManualReconciliation: actionRequiredTotal > 0,
     results: summaries,
     ...(ok ? {} : { code: "NATIVE_MASSAGE_SHEET_MIRROR_PENDING" }),
   }, ok ? 200 : 503);
