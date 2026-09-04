@@ -1,0 +1,73 @@
+name: Factory Direct Write Context Patch v2
+
+on:
+  push:
+    branches:
+      - perf/factory-guest-write-context-v1
+    paths:
+      - ".github/workflows/factory-direct-write-context-patch-v2.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Reuse direct-write patch and preserve explicit M13 lifecycle authority
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          workflow = Path('.github/workflows/factory-direct-write-context-patch.yml').read_text()
+          start_marker = "          python - <<'PY'\n"
+          start = workflow.index(start_marker) + len(start_marker)
+          end = workflow.index("\n          PY", start)
+          embedded = textwrap.dedent(workflow[start:end])
+          exec(compile(embedded, 'factory-direct-write-context-patch.py', 'exec'), {})
+
+          p = Path('lib/server/guest-stays.ts')
+          text = p.read_text()
+          old = '''  if (factoryIdentity.kind === "missing") return null;\n  if (factoryIdentity.kind === "stay_ended") throw new Error("STAY_ENDED");\n  return validatePreparedFactoryGuestWriteIdentity(factoryIdentity);\n}\n'''
+          new = '''  if (factoryIdentity.kind === "missing") return null;\n  if (factoryIdentity.kind === "stay_ended") throw new Error("STAY_ENDED");\n\n  // Keep the canonical M13 lifecycle derivation explicit at the shared mutation\n  // boundary even though positive Factory routes may also validate prepared\n  // request-scoped identity without another database roundtrip.\n  const currentStay = factoryIdentity.stay as unknown as GuestStayRow;\n  const lifecycleState = deriveGuestStayLifecycle({\n    status: currentStay.status,\n    lateCheckoutStatus: currentStay.late_checkout_status,\n    scheduledCheckOutAt: currentStay.scheduled_check_out_at,\n    effectiveCheckOutAt: currentStay.effective_check_out_at,\n    nowMs: Date.now(),\n  });\n  const access = getGuestStayAccessPolicy(lifecycleState);\n  if (!access.canWrite) throw new Error("STAY_ENDED");\n\n  return {\n    stay: currentStay,\n    device: factoryIdentity.device as unknown as GuestStayDeviceRow,\n  };\n}\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f'guest-stays.ts: expected one canonical validator tail, found {text.count(old)}')
+          p.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused authority contracts
+        run: |
+          node --test tests/contracts/factory-guest-write-context-wiring.contract.test.mjs
+          node --test tests/contracts/m13-stay-read-only.contract.test.mjs
+
+      - name: Run full regression suite
+        run: npm test
+
+      - name: Run production build
+        run: npm run build
+
+      - name: Commit validated runtime change
+        shell: bash
+        run: |
+          rm .github/workflows/factory-direct-write-context-patch.yml
+          rm .github/workflows/factory-direct-write-context-patch-v2.yml
+          git config user.name "stayhub-ci"
+          git config user.email "stayhub-ci@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Collapse Factory guest write authority roundtrips"
+          git push origin HEAD:perf/factory-guest-write-context-v1
