@@ -1,3 +1,4 @@
+# Final 620 acceptance executes sequentially by the current six Sandbox runtime cells.
 name: Factory Final Client Runtime Acceptance
 
 on:
