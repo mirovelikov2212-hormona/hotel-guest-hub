@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { scanTenantQueriesInDirectories } from "../tests/helpers/tenant-query-scanner.mjs";
 import {
+  applyTenantIsolationReviewedDelta,
   evaluateTenantIsolation,
   makeTenantIsolationFindingKey,
 } from "../tests/helpers/tenant-isolation-baseline.mjs";
@@ -56,6 +57,8 @@ const milestoneDeltaPaths = [
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-p5-1-runtime-cells.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-p5-8-sandbox-canary-routing.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-massage-mirror-safety-hotfix.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-factory-guest-write-context.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-factory-direct-write-context.json"),
 ];
 
 const baseBaseline = JSON.parse(await readFile(baselinePath, "utf8"));
@@ -69,63 +72,13 @@ async function loadMilestoneDelta(path) {
   }
 }
 
-function findReviewedEntryMatches(entries, descriptor) {
-  return entries
-    .map((entry, index) => ({ entry, index }))
-    .filter(({ entry }) =>
-      entry.filePath === descriptor.filePath &&
-      Number(entry.line) === Number(descriptor.line ?? descriptor.fromLine) &&
-      (!descriptor.table || entry.table === descriptor.table) &&
-      (!descriptor.operation || entry.operation === descriptor.operation),
-    );
-}
-
-function applyReviewedDelta(base, delta) {
-  if (!delta) return base;
-  if (delta.baseCheckpoint !== base.checkpoint) {
-    throw new Error(
-      `Tenant isolation delta expects base checkpoint ${delta.baseCheckpoint}, got ${base.checkpoint}.`,
-    );
-  }
-
-  const entries = base.entries.map((entry) => ({ ...entry }));
-
-  for (const removal of delta.removals || []) {
-    const matches = findReviewedEntryMatches(entries, removal);
-    if (matches.length !== 1) {
-      throw new Error(
-        `Tenant isolation removal must match exactly one reviewed entry: ${removal.filePath}:${removal.line}.`,
-      );
-    }
-    entries.splice(matches[0].index, 1);
-  }
-
-  for (const relocation of delta.relocations || []) {
-    const matches = findReviewedEntryMatches(entries, relocation);
-    if (matches.length !== 1) {
-      throw new Error(
-        `Tenant isolation relocation must match exactly one reviewed entry: ${relocation.filePath}:${relocation.fromLine}.`,
-      );
-    }
-
-    entries[matches[0].index] = {
-      ...matches[0].entry,
-      line: Number(relocation.toLine),
-    };
-  }
-
-  for (const addition of delta.additions || []) entries.push({ ...addition });
-
-  return {
-    ...base,
-    checkpoint: delta.checkpoint,
-    expectedNeedsReview: Number(delta.expectedNeedsReview),
-    entries,
-  };
-}
-
 let baseline = baseBaseline;
-for (const path of milestoneDeltaPaths) baseline = applyReviewedDelta(baseline, await loadMilestoneDelta(path));
+for (const path of milestoneDeltaPaths) {
+  baseline = applyTenantIsolationReviewedDelta(
+    baseline,
+    await loadMilestoneDelta(path),
+  );
+}
 
 const findings = await scanTenantQueriesInDirectories({ projectRoot });
 const result = evaluateTenantIsolation(findings, baseline);

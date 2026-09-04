@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "checkpoint": "factory-direct-write-context",
+  "baseCheckpoint": "factory-guest-write-context",
+  "expectedNeedsReview": 182,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "app/api/guest/day3-survey/route.ts",
+      "fromLine": 60,
+      "toLine": 65,
+      "table": "guest_surveys",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/factory-guest-context.ts",
+      "fromLine": 207,
+      "toLine": 280,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/factory-guest-context.ts",
+      "fromLine": 265,
+      "toLine": 383,
+      "operation": "rpc"
+    }
+  ],
+  "additions": []
+}

@@ -21,7 +21,12 @@ import {
   type GuestSurveyRow,
   mapSurveyRow,
 } from "@/lib/server/day3-surveys";
-import { getHotelTimeParts, validateGuestStayIdentity } from "@/lib/server/guest-stays";
+import {
+  getHotelTimeParts,
+  validateGuestStayIdentity,
+  validatePreparedFactoryGuestWriteIdentity,
+} from "@/lib/server/guest-stays";
+import { resolveFactoryGuestWriteContextFastPath } from "@/lib/server/factory-guest-context";
 import {
   maybeForwardSandboxGuestRequest,
   runtimeCanaryRoutingErrorResponse,
@@ -111,7 +116,13 @@ export async function POST(req: NextRequest) {
       return validationError("Resolution status is required for critical surveys.", "MISSING_SURVEY_RESOLUTION_STATUS");
     }
 
-    const hotel = await getHotelByAnySlugAdmin(hotelSlug);
+    const factoryWriteContext = await resolveFactoryGuestWriteContextFastPath({
+      hotelSlug,
+      room,
+      stayId,
+      stayDeviceId,
+    });
+    const hotel = factoryWriteContext?.hotel ?? await getHotelByAnySlugAdmin(hotelSlug);
 
     try {
       const routed = await maybeForwardSandboxGuestRequest({
@@ -125,7 +136,19 @@ export async function POST(req: NextRequest) {
       return runtimeCanaryRoutingErrorResponse(routingError);
     }
 
-    const roomValidation = await validateHotelRoom(hotelSlug, room);
+    // A ready Factory write context has already proved the exact hotel + room
+    // through get_factory_guest_write_context_v1 and returned the canonical
+    // roomId. Reuse that proof instead of reloading hotel config solely to
+    // validate the same room a second time. Legacy/non-Factory paths remain
+    // fail-closed through validateHotelRoom.
+    const roomValidation = factoryWriteContext
+      ? {
+          ok: true as const,
+          timezone:
+            String(factoryWriteContext.runtime.hotelTimezone || hotel.timezone || "UTC").trim() ||
+            "UTC",
+        }
+      : await validateHotelRoom(hotelSlug, room);
     timing.mark("hotel_and_room");
     if (!roomValidation.ok) {
       await logSystemEvent({
@@ -145,12 +168,14 @@ export async function POST(req: NextRequest) {
     const isolationMetadata = getOperationalIsolationMetadata({ hotel, testRoomPolicy });
     const suppressLivePush = shouldSuppressLivePush({ hotel, testRoomPolicy });
 
-    const stayIdentity = await validateGuestStayIdentity({
-      hotelId: hotel.id,
-      room,
-      stayId,
-      stayDeviceId,
-    });
+    const stayIdentity = factoryWriteContext
+      ? validatePreparedFactoryGuestWriteIdentity(factoryWriteContext.identity)
+      : await validateGuestStayIdentity({
+          hotelId: hotel.id,
+          room,
+          stayId,
+          stayDeviceId,
+        });
     timing.mark("stay_identity");
     if (!stayIdentity) {
       return validationError("A confirmed stay is required.", "STAY_REQUIRED", 401);
@@ -179,25 +204,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existing = await findExistingStayDeviceSurvey({ stayId, stayDeviceId });
-    timing.mark("duplicate_check");
-    if (existing.error) {
-      await logSystemError({
-        hotelId: hotel.id,
-        source: "survey",
-        eventType: "day3_survey_duplicate_check_failed",
-        message: "Day 3 survey duplicate protection could not verify an existing response.",
-        roomNumber: room,
-        error: existing.error,
-        metadata: { hotelSlug, surveyVersion, targetDateKey, stayId, stayDeviceId },
-      });
-    } else if (existing.data?.id) {
-      return NextResponse.json(
-        { ok: true, survey: { id: existing.data.id }, duplicate: true },
-        { headers: NO_STORE_HEADERS },
-      );
-    }
-
+    // guest_surveys_one_device_per_stay_uidx is the authoritative duplicate
+    // guard. Avoid a separate read-before-write roundtrip; a concurrent retry
+    // is recovered from PostgreSQL 23505 immediately after the insert attempt.
     const { hotelDateKey, activeUntil } = calculateSurveyActiveUntil(submittedAt, timezone);
     const insertPayload = {
       hotel_id: hotel.id,

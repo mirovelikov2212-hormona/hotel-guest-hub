@@ -8,6 +8,7 @@ import {
   sanitizeHotelSlug,
 } from "@/lib/hotels/hotel-slug.mjs";
 import { requireHotelCommercialRuntimeAccess } from "@/lib/server/commercial-runtime-entitlement";
+import { resolveFactoryGuestScopeFastPath } from "@/lib/server/factory-guest-context";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import type { TestRoomPolicy } from "@/lib/server/test-rooms";
 
@@ -49,6 +50,12 @@ export async function resolveHotelByAnySlugAdmin(inputSlug: string): Promise<Hot
   if (!candidates.length) {
     throw new Error("Missing hotel slug");
   }
+
+  // Certified Factory Sandbox guest writes resolve canonical hotel identity,
+  // materialized runtime and commercial entitlement in one database roundtrip.
+  // Null means non-Factory/stale/unavailable and preserves the legacy path below.
+  const factoryScope = await resolveFactoryGuestScopeFastPath(inputSlug);
+  if (factoryScope) return factoryScope.hotel;
 
   const cacheKey = `slug:${candidates.join("|")}`;
   try {

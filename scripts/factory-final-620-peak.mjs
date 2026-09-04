@@ -74,6 +74,7 @@ validateCellGroups();
 const slug = (hotel) => `${prefix}-${String(hotel).padStart(3, "0")}-sandbox`;
 const roomNumber = (roomIndex) => String(200 + roomIndex);
 const identityKey = (hotel, roomIndex) => `${hotel}:${roomIndex}`;
+const contentionIdentityKey = (actorIndex) => `1:contention:${actorIndex}`;
 
 function percentile(values, p) {
   if (!values.length) return null;
@@ -103,23 +104,26 @@ async function fetchJson(url, init = {}) {
 function buildIdentitySpecs(group) {
   const specs = [];
   const seen = new Set();
-  const add = (hotel, roomIndex) => {
-    const key = identityKey(hotel, roomIndex);
+  const add = (hotel, roomIndex, key = identityKey(hotel, roomIndex)) => {
     if (seen.has(key)) return;
     seen.add(key);
-    specs.push({ hotel, roomIndex });
+    specs.push({ hotel, roomIndex, key });
   };
 
   for (const hotel of group.hotels) {
     for (let roomIndex = 1; roomIndex <= 3; roomIndex += 1) add(hotel, roomIndex);
   }
   if (group.hotels.includes(1)) {
-    for (let roomIndex = 1; roomIndex <= 20; roomIndex += 1) add(1, roomIndex);
+    // Contention needs 20 distinct guest devices, not 20 invented room numbers.
+    // Keep every actor on authoritative room 201 while issuing a unique device token.
+    for (let actorIndex = 1; actorIndex <= 20; actorIndex += 1) {
+      add(1, 1, contentionIdentityKey(actorIndex));
+    }
   }
   return specs;
 }
 
-async function confirmStayIdentity(hotel, roomIndex, cellKey) {
+async function confirmStayIdentity(hotel, roomIndex, cellKey, specKey = identityKey(hotel, roomIndex)) {
   const started = performance.now();
   const hotelSlug = slug(hotel);
   const room = roomNumber(roomIndex);
@@ -127,7 +131,7 @@ async function confirmStayIdentity(hotel, roomIndex, cellKey) {
     throw new Error(`Refusing identity preflight outside Sandbox: ${hotelSlug}`);
   }
 
-  const deviceToken = `${runId}:identity:h${hotel}:r${room}`;
+  const deviceToken = `${runId}:identity:${specKey}`;
   const { response, body } = await fetchJson(`${baseUrl}/api/guest/stay/confirm`, {
     method: "POST",
     headers: {
@@ -160,6 +164,7 @@ async function confirmStayIdentity(hotel, roomIndex, cellKey) {
     hotelSlug,
     roomIndex,
     room,
+    identitySpecKey: specKey,
     deviceToken,
     stayId,
     stayDeviceId,
@@ -177,7 +182,7 @@ async function bootstrapGroupStayIdentities(group) {
       while (pending.length) {
         const spec = pending.shift();
         if (!spec) return;
-        rows.push(await confirmStayIdentity(spec.hotel, spec.roomIndex, group.cellKey));
+        rows.push(await confirmStayIdentity(spec.hotel, spec.roomIndex, group.cellKey, spec.key));
       }
     },
   );
@@ -419,7 +424,7 @@ for (let groupIndex = 0; groupIndex < cellGroups.length; groupIndex += 1) {
   const identityWallStarted = performance.now();
   const identityRows = await bootstrapGroupStayIdentities(group);
   const identityWallMs = Number((performance.now() - identityWallStarted).toFixed(1));
-  const identityByKey = new Map(identityRows.map((row) => [identityKey(row.hotel, row.roomIndex), row]));
+  const identityByKey = new Map(identityRows.map((row) => [row.identitySpecKey, row]));
   identityPreflight.push({
     cellKey: group.cellKey,
     total: identityRows.length,
@@ -485,13 +490,13 @@ for (let groupIndex = 0; groupIndex < cellGroups.length; groupIndex += 1) {
     );
   }
   if (group.hotels.includes(1)) {
-    for (let roomIndex = 1; roomIndex <= 20; roomIndex += 1) {
+    for (let actorIndex = 1; actorIndex <= 20; actorIndex += 1) {
       operations.push(
         postOperation(
           "massage_contention",
           1,
-          roomIndex,
-          identityByKey.get(identityKey(1, roomIndex)),
+          1,
+          identityByKey.get(contentionIdentityKey(actorIndex)),
           contentionSlot,
           group.cellKey,
         ),

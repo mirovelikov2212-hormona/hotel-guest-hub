@@ -1,5 +1,9 @@
 import "server-only";
 
+import {
+  getPrimedFactoryRuntimeByHotelId,
+  getPrimedFactoryTestRoomNumbersForHotelIds,
+} from "@/lib/server/factory-guest-context";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export type TestRoomPolicy = {
@@ -19,6 +23,27 @@ let lastCleanupByHotel = new Map<string, number>();
 
 function normalizeRoomNumber(value: unknown) {
   return String(value || "").trim().replace(/\s+/g, "");
+}
+
+function normalizeHotelIds(hotelIds: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(hotelIds.map((value) => String(value || "").trim()).filter(Boolean)),
+  ).sort();
+}
+
+export function primeActiveTestRoomNumbersRuntimeCache(
+  hotelIds: Array<string | null | undefined>,
+  roomNumbers: unknown[],
+) {
+  const normalizedHotelIds = normalizeHotelIds(hotelIds);
+  if (!normalizedHotelIds.length) return;
+  const normalizedRoomNumbers = Array.from(
+    new Set(roomNumbers.map(normalizeRoomNumber).filter(Boolean)),
+  ).sort();
+  roomListCache.set(normalizedHotelIds.join(":"), {
+    cachedAt: Date.now(),
+    roomNumbers: normalizedRoomNumbers,
+  });
 }
 
 function normalizeAutoDeleteSeconds(value: unknown) {
@@ -63,6 +88,18 @@ export async function getTestRoomPolicy(hotelId: string | null | undefined, room
     };
   }
 
+  // Certified Factory runtime invalidates when hotel_test_rooms membership
+  // changes. A room absent from its authoritative test-room list is therefore a
+  // safe negative answer and does not need another database roundtrip. Listed
+  // rooms still use the legacy row read because custom expiry seconds are not
+  // part of the materialized runtime contract.
+  const factoryRuntime = getPrimedFactoryRuntimeByHotelId(normalizedHotelId);
+  if (factoryRuntime && !factoryRuntime.testRoomNumbers.includes(normalizedRoom)) {
+    const policy = emptyPolicy();
+    policyCache.set(cacheKey, { cachedAt: Date.now(), policy });
+    return policy;
+  }
+
   const { data, error } = await supabaseAdmin
     .from("hotel_test_rooms")
     .select("auto_delete_after_seconds")
@@ -104,6 +141,15 @@ export async function getEffectiveTestRoomPolicy(
   },
   roomNumber: unknown,
 ): Promise<TestRoomPolicy> {
+  const normalizedRoom = normalizeRoomNumber(roomNumber);
+  const primedRooms = getPrimedFactoryTestRoomNumbersForHotelIds([
+    input.hotelId,
+    input.isSandbox ? input.productionHotelId : null,
+  ]);
+  if (primedRooms && normalizedRoom && !primedRooms.includes(normalizedRoom)) {
+    return emptyPolicy();
+  }
+
   const directPolicy = await getTestRoomPolicy(input.hotelId, roomNumber);
   if (directPolicy.isTest || !input.isSandbox || !input.productionHotelId) {
     return directPolicy;
@@ -115,11 +161,12 @@ export async function getEffectiveTestRoomPolicy(
 export async function getActiveTestRoomNumbers(
   hotelIds: Array<string | null | undefined>,
 ): Promise<string[]> {
-  const normalizedHotelIds = Array.from(
-    new Set(hotelIds.map((value) => String(value || "").trim()).filter(Boolean)),
-  ).sort();
+  const normalizedHotelIds = normalizeHotelIds(hotelIds);
 
   if (!normalizedHotelIds.length) return [];
+
+  const primedFactoryRooms = getPrimedFactoryTestRoomNumbersForHotelIds(normalizedHotelIds);
+  if (primedFactoryRooms) return primedFactoryRooms;
 
   const cacheKey = normalizedHotelIds.join(":");
   const cached = roomListCache.get(cacheKey);

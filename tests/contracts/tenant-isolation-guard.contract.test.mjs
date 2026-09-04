@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  applyTenantIsolationReviewedDelta,
   evaluateTenantIsolation,
   makeTenantIsolationFindingKey,
 } from "../helpers/tenant-isolation-baseline.mjs";
@@ -73,4 +74,39 @@ test("tenant isolation guard accepts scanner-safe statuses without baseline entr
   ];
   const result = evaluateTenantIsolation(findings, { expectedNeedsReview: 0, entries: [] });
   assert.equal(result.ok, true);
+});
+
+test("tenant isolation reviewed delta preserves provenance across a source-file relocation", () => {
+  const audited = {
+    ...reviewFinding(),
+    provenance: "validated_hotel_scoped_row_id",
+  };
+  const base = {
+    checkpoint: "before-refactor",
+    expectedNeedsReview: 1,
+    entries: [audited],
+  };
+  const delta = {
+    checkpoint: "after-refactor",
+    baseCheckpoint: "before-refactor",
+    expectedNeedsReview: 1,
+    removals: [],
+    relocations: [
+      {
+        filePath: "app/api/example/route.ts",
+        fromLine: 42,
+        toFilePath: "lib/server/example-legacy.ts",
+        toLine: 73,
+        operation: "update",
+      },
+    ],
+    additions: [],
+  };
+
+  const relocated = applyTenantIsolationReviewedDelta(base, delta);
+  assert.equal(relocated.checkpoint, "after-refactor");
+  assert.equal(relocated.entries.length, 1);
+  assert.equal(relocated.entries[0].filePath, "lib/server/example-legacy.ts");
+  assert.equal(relocated.entries[0].line, 73);
+  assert.equal(relocated.entries[0].provenance, audited.provenance);
 });

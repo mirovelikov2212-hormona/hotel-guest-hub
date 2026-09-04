@@ -1,5 +1,6 @@
 import "server-only";
 
+import { waitUntil } from "@vercel/functions";
 import { ensureMassageStaffRequest } from "@/lib/server/massage-staff-request";
 import { formatNativeMassageClientTime } from "@/lib/server/massage-native-runtime";
 import { getMassageRuntimeAuthority } from "@/lib/server/massage-runtime-authority";
@@ -80,13 +81,13 @@ async function updateNativeBookingStaffState(input: {
   if (error) throw error;
 }
 
-export async function attachNativeMassageStaffRequest(input: {
+async function attachNativeMassageStaffRequestNow(input: {
   hotel: HotelScope;
   bookingId: string;
-  reason?: "synchronous" | "reconciliation";
+  reason: "synchronous" | "reconciliation";
 }) {
   await requireNativeReconciliationAuthority(input.hotel);
-  const reason = input.reason || "synchronous";
+  const reason = input.reason;
   let booking: NativeBookingStaffRow | null = null;
   const attemptedAt = new Date().toISOString();
 
@@ -219,6 +220,38 @@ export async function attachNativeMassageStaffRequest(input: {
       staffRequestPending: true,
     };
   }
+}
+
+export async function attachNativeMassageStaffRequest(input: {
+  hotel: HotelScope;
+  bookingId: string;
+  reason?: "synchronous" | "reconciliation";
+}) {
+  const reason = input.reason || "synchronous";
+
+  if (reason === "synchronous") {
+    waitUntil(
+      attachNativeMassageStaffRequestNow({
+        hotel: input.hotel,
+        bookingId: input.bookingId,
+        reason,
+      }).then(() => undefined),
+    );
+
+    return {
+      ok: true as const,
+      bookingId: input.bookingId,
+      action: "pending" as const,
+      staffRequest: null,
+      staffRequestPending: true,
+    };
+  }
+
+  return attachNativeMassageStaffRequestNow({
+    hotel: input.hotel,
+    bookingId: input.bookingId,
+    reason,
+  });
 }
 
 export async function reconcileNativeMassageStaffRequests(input: {

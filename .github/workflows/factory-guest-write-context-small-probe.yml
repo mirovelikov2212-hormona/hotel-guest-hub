@@ -1,0 +1,52 @@
+name: Factory Guest Write Context Small Probe
+
+on:
+  push:
+    branches:
+      - perf/factory-guest-write-context-v1
+    paths:
+      - ".github/workflows/factory-guest-write-context-small-probe.yml"
+      - "scripts/factory-guest-write-context-small-probe.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      STAYHUB_PROBE_BASE_URL: https://hotel-guest-8lljt5zys-miroslav-velikovs-projects.vercel.app
+      STAYHUB_PROBE_EXPECTED_APP_SHA: 4ead260be3c3fad56c712d43e38a1200537edb65
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate probe syntax
+        run: node --check scripts/factory-guest-write-context-small-probe.mjs
+      - name: Mint short-lived GitHub OIDC token
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken();
+            core.setSecret(token);
+            core.setOutput('token', token)
+      - name: Run 30-operation Factory guest write probe
+        env:
+          STAYHUB_VERCEL_TRUSTED_OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: node scripts/factory-guest-write-context-small-probe.mjs
+      - name: Print concise evidence
+        if: always()
+        run: |
+          if [ -f factory-guest-write-context-small-probe-results.json ]; then
+            jq '{schemaVersion,runId,sourceAppSha,authMode,baseUrl,room,totalOperations,wallMs,request,survey,massage,thresholdsMs,accepted,failures}' factory-guest-write-context-small-probe-results.json
+          fi
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-guest-write-context-small-probe-evidence
+          path: factory-guest-write-context-small-probe-results.json
+          if-no-files-found: warn
