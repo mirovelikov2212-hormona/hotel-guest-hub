@@ -1,12 +1,20 @@
 import "server-only";
 
-import { createMassageBooking } from "@/lib/server/massage-api";
+import { createMassageBooking, verifyMassageBooking } from "@/lib/server/massage-api";
 import { getMassageRuntimeAuthority } from "@/lib/server/massage-runtime-authority";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import type { HotelScope } from "@/lib/server/hotel-scope";
 
 const MIRROR_BATCH_LIMIT = 20;
+
+type MirrorStatus =
+  | "not_required"
+  | "pending"
+  | "mirrored"
+  | "failed"
+  | "conflict"
+  | "manual_reconciliation_required";
 
 type MirrorBookingRow = {
   id: string;
@@ -17,10 +25,15 @@ type MirrorBookingRow = {
   room_number: string;
   status: string;
   is_test: boolean;
-  mirror_status: "not_required" | "pending" | "mirrored" | "failed";
+  mirror_status: MirrorStatus;
   mirror_attempt_count: number;
   created_at: string;
 };
+
+type ExactVerification =
+  | { kind: "confirmed"; adapterStatus: "BOOKING_ALREADY_CONFIRMED" }
+  | { kind: "conflict"; adapterStatus: "BOOKING_CONFLICT"; message: string }
+  | { kind: "not_found"; adapterStatus: "BOOKING_NOT_FOUND"; message: string };
 
 function errorMessage(error: unknown) {
   return (error instanceof Error ? error.message : String(error || "Unknown Sheet mirror error")).slice(0, 1000);
@@ -30,6 +43,25 @@ function clientTime(value: string) {
   const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})/);
   if (!match) throw new Error("MASSAGE_MIRROR_TIME_INVALID");
   return `${Number(match[1])}:${match[2]}`;
+}
+
+function hotelTodayIso(hotel: HotelScope) {
+  const timeZone = String(hotel.timezone || "UTC").trim() || "UTC";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  if (!year || !month || !day) throw new Error("MASSAGE_MIRROR_LOCAL_DATE_UNAVAILABLE");
+  return `${year}-${month}-${day}`;
+}
+
+function isBookingDatePastForHotel(bookingDate: string, hotel: HotelScope) {
+  return bookingDate < hotelTodayIso(hotel);
 }
 
 async function updateMirrorState(input: {
@@ -70,6 +102,187 @@ async function loadProductionHotelForMirror(hotelId: string): Promise<HotelScope
   return hotel;
 }
 
+async function verifyExactSheetMirror(input: {
+  hotel: HotelScope;
+  booking: MirrorBookingRow;
+}): Promise<ExactVerification> {
+  const verification = await verifyMassageBooking({
+    hotelSlug: input.hotel.slug,
+    serviceId: input.booking.service_id,
+    date: input.booking.booking_date,
+    time: clientTime(input.booking.start_time),
+    room: input.booking.room_number,
+  });
+  const status = String(verification.result.status || "");
+  if (status === "BOOKING_ALREADY_CONFIRMED") {
+    return { kind: "confirmed", adapterStatus: "BOOKING_ALREADY_CONFIRMED" };
+  }
+  if (status === "BOOKING_CONFLICT") {
+    return {
+      kind: "conflict",
+      adapterStatus: "BOOKING_CONFLICT",
+      message: String(verification.result.message || verification.result.code || "Sheet slot is occupied by another booking."),
+    };
+  }
+  if (status === "BOOKING_NOT_FOUND") {
+    return {
+      kind: "not_found",
+      adapterStatus: "BOOKING_NOT_FOUND",
+      message: String(verification.result.message || verification.result.code || "Exact Sheet booking was not found."),
+    };
+  }
+  throw new Error(`MASSAGE_NATIVE_MIRROR_VERIFY_UNEXPECTED_RESULT:${status}`);
+}
+
+async function markMirrorResolved(input: {
+  hotel: HotelScope;
+  booking: MirrorBookingRow;
+  attemptedAt: string;
+  adapterStatus: string;
+  recovery: "write" | "verification";
+}) {
+  const mirroredAt = new Date().toISOString();
+  await updateMirrorState({
+    hotelId: input.hotel.id,
+    bookingId: input.booking.id,
+    patch: {
+      mirror_status: "mirrored",
+      mirror_attempt_count: Number(input.booking.mirror_attempt_count || 0) + 1,
+      mirror_last_attempt_at: input.attemptedAt,
+      mirror_last_error: null,
+      mirrored_at: mirroredAt,
+    },
+  });
+
+  await logSystemEvent({
+    hotelId: input.hotel.id,
+    severity: "warning",
+    source: "massage",
+    eventType: "native_massage_sheet_mirrored",
+    message:
+      input.recovery === "verification"
+        ? "A confirmed native massage booking was verified as already present in the Google Sheet adapter and its mirror state was recovered."
+        : "A confirmed native massage booking was mirrored to the Google Sheet adapter.",
+    roomNumber: input.booking.room_number,
+    metadata: {
+      nativeBookingId: input.booking.id,
+      hotelSlug: input.hotel.slug,
+      adapterStatus: input.adapterStatus,
+      recovery: input.recovery,
+    },
+  });
+
+  return {
+    ok: true as const,
+    action: "mirrored" as const,
+    bookingId: input.booking.id,
+    adapterStatus: input.adapterStatus,
+    recovery: input.recovery,
+  };
+}
+
+async function markMirrorTerminal(input: {
+  hotel: HotelScope;
+  booking: MirrorBookingRow;
+  attemptedAt: string;
+  status: "conflict" | "manual_reconciliation_required";
+  reason: string;
+  adapterStatus: string;
+}) {
+  const reason = input.reason.slice(0, 1000);
+  await updateMirrorState({
+    hotelId: input.hotel.id,
+    bookingId: input.booking.id,
+    patch: {
+      mirror_status: input.status,
+      mirror_attempt_count: Number(input.booking.mirror_attempt_count || 0) + 1,
+      mirror_last_attempt_at: input.attemptedAt,
+      mirror_last_error: reason,
+      mirrored_at: null,
+    },
+  });
+
+  await logSystemError({
+    hotelId: input.hotel.id,
+    severity: "error",
+    source: "massage",
+    eventType: "native_massage_sheet_mirror_manual_reconciliation_required",
+    message:
+      input.status === "conflict"
+        ? "Native massage booking remains authoritative, but the Google Sheet slot is occupied by a different booking. Automatic Sheet writes have stopped for this booking."
+        : "Native massage booking remains authoritative, but its past-dated Google Sheet mirror cannot be established safely. Automatic Sheet writes have stopped for this booking.",
+    roomNumber: input.booking.room_number,
+    metadata: {
+      nativeBookingId: input.booking.id,
+      hotelSlug: input.hotel.slug,
+      mirrorStatus: input.status,
+      adapterStatus: input.adapterStatus,
+      reason,
+    },
+  });
+
+  return {
+    ok: true as const,
+    action: input.status,
+    bookingId: input.booking.id,
+    adapterStatus: input.adapterStatus,
+  };
+}
+
+async function markMirrorRetryableFailure(input: {
+  hotel: HotelScope;
+  booking: MirrorBookingRow;
+  attemptedAt: string;
+  error: unknown;
+  verificationError?: unknown;
+}) {
+  const originalMessage = errorMessage(input.error);
+  const verificationMessage = input.verificationError ? errorMessage(input.verificationError) : null;
+  const message = verificationMessage
+    ? `${originalMessage} | exact verification failed: ${verificationMessage}`.slice(0, 1000)
+    : originalMessage;
+
+  try {
+    await updateMirrorState({
+      hotelId: input.hotel.id,
+      bookingId: input.booking.id,
+      patch: {
+        mirror_status: "failed",
+        mirror_attempt_count: Number(input.booking.mirror_attempt_count || 0) + 1,
+        mirror_last_attempt_at: input.attemptedAt,
+        mirror_last_error: message,
+      },
+    });
+  } catch (stateError) {
+    await logSystemError({
+      hotelId: input.hotel.id,
+      severity: "critical",
+      source: "supabase",
+      eventType: "native_massage_sheet_mirror_state_update_failed",
+      message: "Native massage booking remains authoritative, but Sheet mirror failure state could not be persisted.",
+      roomNumber: input.booking.room_number,
+      error: stateError,
+      metadata: { nativeBookingId: input.booking.id, originalError: message },
+    });
+  }
+
+  await logSystemError({
+    hotelId: input.hotel.id,
+    severity: "error",
+    source: "massage",
+    eventType: "native_massage_sheet_mirror_failed",
+    message: "Native massage booking is confirmed, but the Google Sheet mirror remains pending for automatic retry.",
+    roomNumber: input.booking.room_number,
+    error: input.error,
+    metadata: {
+      nativeBookingId: input.booking.id,
+      hotelSlug: input.hotel.slug,
+      verificationError: verificationMessage,
+    },
+  });
+  return { ok: false as const, action: "failed" as const, bookingId: input.booking.id, error: message };
+}
+
 export async function mirrorNativeMassageBookingToSheet(input: {
   hotel: HotelScope;
   bookingId: string;
@@ -95,6 +308,9 @@ export async function mirrorNativeMassageBookingToSheet(input: {
   if (booking.mirror_status === "mirrored") {
     return { ok: true as const, action: "already_mirrored" as const, bookingId: booking.id };
   }
+  if (booking.mirror_status === "conflict" || booking.mirror_status === "manual_reconciliation_required") {
+    return { ok: true as const, action: booking.mirror_status, bookingId: booking.id };
+  }
 
   if (!(await hasConfiguredSheetMirror(input.hotel.id))) {
     await updateMirrorState({
@@ -109,6 +325,52 @@ export async function mirrorNativeMassageBookingToSheet(input: {
   }
 
   const attemptedAt = new Date().toISOString();
+  const shouldVerifyBeforeWrite = booking.mirror_status === "failed" || Number(booking.mirror_attempt_count || 0) > 0;
+  if (shouldVerifyBeforeWrite) {
+    let verification: ExactVerification;
+    try {
+      verification = await verifyExactSheetMirror({ hotel: input.hotel, booking });
+    } catch (verificationError) {
+      return markMirrorRetryableFailure({
+        hotel: input.hotel,
+        booking,
+        attemptedAt,
+        error: new Error("MASSAGE_NATIVE_MIRROR_PREWRITE_VERIFICATION_FAILED"),
+        verificationError,
+      });
+    }
+
+    if (verification.kind === "confirmed") {
+      return markMirrorResolved({
+        hotel: input.hotel,
+        booking,
+        attemptedAt,
+        adapterStatus: verification.adapterStatus,
+        recovery: "verification",
+      });
+    }
+    if (verification.kind === "conflict") {
+      return markMirrorTerminal({
+        hotel: input.hotel,
+        booking,
+        attemptedAt,
+        status: "conflict",
+        reason: verification.message,
+        adapterStatus: verification.adapterStatus,
+      });
+    }
+    if (isBookingDatePastForHotel(booking.booking_date, input.hotel)) {
+      return markMirrorTerminal({
+        hotel: input.hotel,
+        booking,
+        attemptedAt,
+        status: "manual_reconciliation_required",
+        reason: verification.message,
+        adapterStatus: verification.adapterStatus,
+      });
+    }
+  }
+
   try {
     const result = await createMassageBooking({
       hotelSlug: input.hotel.slug,
@@ -124,71 +386,62 @@ export async function mirrorNativeMassageBookingToSheet(input: {
       throw new Error(`MASSAGE_NATIVE_MIRROR_UNEXPECTED_RESULT:${status}`);
     }
 
-    const mirroredAt = new Date().toISOString();
-    await updateMirrorState({
-      hotelId: input.hotel.id,
-      bookingId: booking.id,
-      patch: {
-        mirror_status: "mirrored",
-        mirror_attempt_count: Number(booking.mirror_attempt_count || 0) + 1,
-        mirror_last_attempt_at: attemptedAt,
-        mirror_last_error: null,
-        mirrored_at: mirroredAt,
-      },
+    return markMirrorResolved({
+      hotel: input.hotel,
+      booking,
+      attemptedAt,
+      adapterStatus: status,
+      recovery: "write",
     });
-
-    await logSystemEvent({
-      hotelId: input.hotel.id,
-      severity: "warning",
-      source: "massage",
-      eventType: "native_massage_sheet_mirrored",
-      message: "A confirmed native massage booking was mirrored to the Google Sheet adapter.",
-      roomNumber: booking.room_number,
-      metadata: {
-        nativeBookingId: booking.id,
-        hotelSlug: input.hotel.slug,
-        adapterStatus: status,
-      },
-    });
-
-    return { ok: true as const, action: "mirrored" as const, bookingId: booking.id, adapterStatus: status };
   } catch (mirrorError) {
-    const message = errorMessage(mirrorError);
+    let verification: ExactVerification;
     try {
-      await updateMirrorState({
-        hotelId: input.hotel.id,
-        bookingId: booking.id,
-        patch: {
-          mirror_status: "failed",
-          mirror_attempt_count: Number(booking.mirror_attempt_count || 0) + 1,
-          mirror_last_attempt_at: attemptedAt,
-          mirror_last_error: message,
-        },
-      });
-    } catch (stateError) {
-      await logSystemError({
-        hotelId: input.hotel.id,
-        severity: "critical",
-        source: "supabase",
-        eventType: "native_massage_sheet_mirror_state_update_failed",
-        message: "Native massage booking remains authoritative, but Sheet mirror failure state could not be persisted.",
-        roomNumber: booking.room_number,
-        error: stateError,
-        metadata: { nativeBookingId: booking.id, originalError: message },
+      verification = await verifyExactSheetMirror({ hotel: input.hotel, booking });
+    } catch (verificationError) {
+      return markMirrorRetryableFailure({
+        hotel: input.hotel,
+        booking,
+        attemptedAt,
+        error: mirrorError,
+        verificationError,
       });
     }
 
-    await logSystemError({
-      hotelId: input.hotel.id,
-      severity: "error",
-      source: "massage",
-      eventType: "native_massage_sheet_mirror_failed",
-      message: "Native massage booking is confirmed, but the Google Sheet mirror remains pending for automatic retry.",
-      roomNumber: booking.room_number,
+    if (verification.kind === "confirmed") {
+      return markMirrorResolved({
+        hotel: input.hotel,
+        booking,
+        attemptedAt,
+        adapterStatus: verification.adapterStatus,
+        recovery: "verification",
+      });
+    }
+    if (verification.kind === "conflict") {
+      return markMirrorTerminal({
+        hotel: input.hotel,
+        booking,
+        attemptedAt,
+        status: "conflict",
+        reason: verification.message,
+        adapterStatus: verification.adapterStatus,
+      });
+    }
+    if (isBookingDatePastForHotel(booking.booking_date, input.hotel)) {
+      return markMirrorTerminal({
+        hotel: input.hotel,
+        booking,
+        attemptedAt,
+        status: "manual_reconciliation_required",
+        reason: verification.message,
+        adapterStatus: verification.adapterStatus,
+      });
+    }
+    return markMirrorRetryableFailure({
+      hotel: input.hotel,
+      booking,
+      attemptedAt,
       error: mirrorError,
-      metadata: { nativeBookingId: booking.id, hotelSlug: input.hotel.slug },
     });
-    return { ok: false as const, action: "failed" as const, bookingId: booking.id, error: message };
   }
 }
 
@@ -210,7 +463,7 @@ export async function reconcileNativeMassageSheetMirrors(input: {
   if (input.hotel.is_sandbox) throw new Error("MASSAGE_NATIVE_MIRROR_SANDBOX_FORBIDDEN");
   const authority = await getMassageRuntimeAuthority(input.hotel.id);
   if (authority.authorityMode !== "native_supabase") {
-    return { results: { checked: 0, mirrored: 0, failed: 0 } };
+    return { results: { checked: 0, mirrored: 0, terminal: 0, failed: 0 } };
   }
 
   const limit = Math.min(MIRROR_BATCH_LIMIT, Math.max(1, Number(input.limit || MIRROR_BATCH_LIMIT)));
@@ -225,12 +478,17 @@ export async function reconcileNativeMassageSheetMirrors(input: {
     .limit(limit);
   if (error) throw error;
 
-  const results = { checked: 0, mirrored: 0, failed: 0 };
+  const results = { checked: 0, mirrored: 0, terminal: 0, failed: 0 };
   for (const row of data || []) {
     results.checked += 1;
     const outcome = await mirrorNativeMassageBookingToSheet({ hotel: input.hotel, bookingId: String(row.id) });
-    if (outcome.ok) results.mirrored += 1;
-    else results.failed += 1;
+    if (!outcome.ok) {
+      results.failed += 1;
+    } else if (outcome.action === "conflict" || outcome.action === "manual_reconciliation_required") {
+      results.terminal += 1;
+    } else {
+      results.mirrored += 1;
+    }
   }
   return { results };
 }
