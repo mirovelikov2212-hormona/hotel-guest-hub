@@ -1,5 +1,6 @@
 -- Cover the Control Plane / runtime-cell foreign keys reported by Supabase Performance Advisor.
 -- Additive only; no data or routing semantics change.
+-- Validated after Factory Release Gate hardening merged to main.
 
 create index if not exists hotel_runtime_cell_assignments_assigned_by_admin_idx
   on public.hotel_runtime_cell_assignments (assigned_by_admin_id);
