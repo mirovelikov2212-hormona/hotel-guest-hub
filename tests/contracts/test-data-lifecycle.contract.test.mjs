@@ -169,6 +169,49 @@ test("INFRA-0 staff heartbeat is one service-role-only tenant-authenticated RPC 
   assertContains(migration, "grant execute on function public.get_staff_feed_state(text, text, text) to service_role");
 });
 
+test("Factory heavy Sandbox residue cleanup is atomic, aged, manifest-bound, and service-role-only", async () => {
+  const source = await readProjectFile("app/api/cron/test-data-cleanup/route.ts");
+  const migration = await readProjectFile(
+    "supabase/migrations/20260904210000_factory_acceptance_sandbox_cleanup.sql",
+  );
+
+  assertContains(source, "FACTORY_ACCEPTANCE_MIN_AGE_SECONDS = 15 * 60");
+  assertContains(source, '"cleanup_factory_acceptance_sandbox_data_v1"');
+  assertContains(source, "p_min_age_seconds: FACTORY_ACCEPTANCE_MIN_AGE_SECONDS");
+  assertContains(source, "FACTORY_ACCEPTANCE_CLEANUP_REJECTED");
+  assertNotContains(
+    source,
+    '.from("guest_requests")\n    .delete()',
+    "Factory acceptance cleanup must remain one atomic database operation rather than a route-level delete sequence.",
+  );
+
+  assertContains(
+    migration,
+    "create or replace function public.cleanup_factory_acceptance_sandbox_data_v1(",
+  );
+  assertContains(migration, "if coalesce(p_min_age_seconds, 0) < 900 then");
+  assertContains(migration, "^factory-heavy-20260901-[0-9]{3}-sandbox$");
+  assertContains(migration, "from generate_series(1, 100) as expected(n)");
+  assertContains(migration, "if v_candidate_count <> 100 or v_missing_expected <> 0 then");
+  assertContains(migration, "'reason', 'synthetic_manifest_mismatch'");
+  assertContains(migration, "and b.is_test = true");
+  assertContains(migration, "and s.is_test = true");
+  assertContains(migration, "and r.is_test = true");
+  assertContains(migration, "and e.is_test = true");
+  assertContains(migration, "and p.is_test = true");
+  assertContains(migration, "and d.is_test = true");
+  assertContains(migration, "and d.device_token like 'factory-heavy-20260901-final-620-grouped-%'");
+  assertContains(migration, "and d.created_at < v_cutoff");
+  assertContains(
+    migration,
+    "revoke all on function public.cleanup_factory_acceptance_sandbox_data_v1(integer)\nfrom public, anon, authenticated;",
+  );
+  assertContains(
+    migration,
+    "grant execute on function public.cleanup_factory_acceptance_sandbox_data_v1(integer)\nto service_role;",
+  );
+});
+
 test("scheduled cleanup keeps Production test TTL and normalizes expired stay lifecycle for every live tenant", async () => {
   const source = await readProjectFile("app/api/cron/test-data-cleanup/route.ts");
   const migration = await readProjectFile(

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "checkpoint": "factory-acceptance-sandbox-cleanup",
+  "baseCheckpoint": "factory-direct-write-context",
+  "expectedNeedsReview": 183,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "app/api/cron/test-data-cleanup/route.ts",
+      "fromLine": 73,
+      "toLine": 124,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "app/api/cron/test-data-cleanup/route.ts",
+      "fromLine": 97,
+      "toLine": 148,
+      "operation": "rpc"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "app/api/cron/test-data-cleanup/route.ts",
+      "line": 57,
+      "rpc": "cleanup_factory_acceptance_sandbox_data_v1",
+      "tableExpression": "\"cleanup_factory_acceptance_sandbox_data_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only_cron_authorized_service_role_atomic_cleanup_exact_100_factory_heavy_sandbox_manifest_minimum_15_minute_age_guard_fail_closed_non_production_scope"
+    }
+  ]
+}
