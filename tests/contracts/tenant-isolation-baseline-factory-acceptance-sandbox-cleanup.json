@@ -21,7 +21,7 @@
   "additions": [
     {
       "filePath": "app/api/cron/test-data-cleanup/route.ts",
-      "line": 56,
+      "line": 57,
       "rpc": "cleanup_factory_acceptance_sandbox_data_v1",
       "tableExpression": "\"cleanup_factory_acceptance_sandbox_data_v1\"",
       "operation": "rpc",
