@@ -1,3 +1,4 @@
+import { findInvalidHotelProfileValues, validateHotelIntelligenceValue } from "@/lib/ai/hotel-intelligence-value-quality.mjs";
 import type {
   HotelIntelligenceItem,
   HotelIntelligencePackage,
@@ -84,6 +85,10 @@ function scannerProvider(model: string) {
   return "unknown" as const;
 }
 
+function errorToken(value: unknown) {
+  return text(value, 240).replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "invalid";
+}
+
 export function createHotelIntelligenceReviewContent(
   intelligencePackage: HotelIntelligencePackage,
   diagnostics?: { model?: unknown },
@@ -162,11 +167,27 @@ export function validateHotelIntelligenceReviewContent(
     if (["approved", "corrected", "added"].includes(item.decision) && !text(item.effectiveValue)) {
       errors.push(`item_${index}_effective_value_required`);
     }
+    if (["approved", "corrected", "added"].includes(item.decision) && text(item.effectiveValue)) {
+      const quality = validateHotelIntelligenceValue({
+        category: item.category,
+        label: item.label,
+        value: item.effectiveValue,
+      });
+      if (!quality.valid) {
+        errors.push(`item_${index}_effective_value_invalid_${errorToken(quality.reason)}`);
+      }
+    }
     if (options.forApproval && item.decision === "pending") errors.push(`item_${index}_pending`);
   }
 
   if (options.forApproval && (content.unresolvedNotes || []).some((item) => text(item, 1_000))) {
     errors.push("unresolved_notes_present");
+  }
+
+  if (options.forApproval) {
+    for (const invalid of findInvalidHotelProfileValues(content.hotelProfileLayer)) {
+      errors.push(`hotel_profile_invalid_${errorToken(invalid.path)}_${errorToken(invalid.reason)}`);
+    }
   }
 
   return { ok: errors.length === 0, errors };
