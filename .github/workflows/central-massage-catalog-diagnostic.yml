@@ -1,0 +1,25 @@
+name: Central Massage Catalog Diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/central-massage-catalog-authority
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --no-audit
+      - name: Central catalog contract
+        run: node --test tests/contracts/central-massage-catalog-authority.contract.test.mjs
+      - name: Tenant isolation guard
+        run: npm run test:tenant-isolation
