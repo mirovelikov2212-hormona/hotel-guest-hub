@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - name: Hotel Scanner reconciliation contracts
@@ -51,3 +51,6 @@ jobs:
         run: node --test tests/contracts/hotel-intelligence-review-v1.contract.test.mjs
       - name: Next.js build
         run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
