@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "checkpoint": "hotel-intelligence-review-v1",
+  "baseCheckpoint": "communications-lifecycle-retention-v1",
+  "expectedNeedsReview": 192,
+  "additions": [
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "line": 186,
+      "table": "hotel_intelligence_workspaces",
+      "tableExpression": "\"hotel_intelligence_workspaces\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_control_plane_review_read_uses_service_role_only_to_resolve_pre_factory_hotel_intelligence_authoring_workspace_by_sha256_canonical_url_source_key; workspace_is_scanner_review_metadata_not_guest_or_staff_runtime_state_direct_client_access_is_denied_by_rls_and_no_hotel_activation_publication_or_operational_authority_is_read_or_mutated"
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "line": 194,
+      "table": "hotel_intelligence_revisions",
+      "tableExpression": "\"hotel_intelligence_revisions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_control_plane_review_history_read_uses_service_role_only_after_exact_workspace_resolution_and_lists_bounded_immutable_authoring_revision_metadata_for_that_workspace; revisions_are_pre_factory_review_state_with_direct_client_access_denied_by_rls_and no_guest_staff_or_live_runtime_authority"
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "line": 204,
+      "table": "hotel_intelligence_revisions",
+      "tableExpression": "\"hotel_intelligence_revisions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_control_plane_current_review_read_uses_service_role_only_with_exact_workspace_id_plus_current_revision_id_to_load_one immutable_review_payload; no_runtime_projection_publication_campaign_send_or_live_activation_authority"
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "line": 260,
+      "rpc": "save_hotel_intelligence_revision_v1",
+      "tableExpression": "\"save_hotel_intelligence_revision_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "same_origin_authenticated_control_plane_mutation_uses_service_role_only_security_definer_rpc_that_rechecks_active_super_admin_or_operator_serializes_by_source_key_enforces_parent_revision_optimistic_concurrency_idempotency_content_and_scanner_checksums_schema_validation_and_appends_audited_draft_authoring_revision_without_factory_materialization_publication_or_live_activation"
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "line": 296,
+      "table": "hotel_intelligence_revisions",
+      "tableExpression": "\"hotel_intelligence_revisions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_control_plane_approval_precheck_uses_service_role_only_with_exact_workspace_id_and_source_revision_id_to_load_draft_content_checksum_and_status_then_revalidates_review_content_and_checksum_before_any approval_rpc; no_guest_staff_or_runtime_tenant_state"
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "line": 315,
+      "rpc": "approve_hotel_intelligence_revision_v1",
+      "tableExpression": "\"approve_hotel_intelligence_revision_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "same_origin_authenticated_control_plane_approval_uses_service_role_only_security_definer_rpc_that_rechecks_active_super_admin_or_operator_exact_workspace_current_revision_cas_source_draft_validation_no_pending_facts_idempotency_and_appends_an_immutable_approved_revision_plus_approved_pointer; approval_does_not_materialize_factory_config_publish_activate_live_or_mutate_guest_staff_runtime"
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "line": 338,
+      "table": "hotel_intelligence_revisions",
+      "tableExpression": "\"hotel_intelligence_revisions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_side_approved_intelligence_handoff_read_uses_service_role_only_for_one_explicit_revision_id_then_requires_status_approved_approved_at_approved_by_and_recomputed_content_checksum_before_returning_the_approved_authoring_envelope; it_reads_no_operational_hotel_rows_and confers_no_publication_projection_or_live_authority"
+    }
+  ]
+}
