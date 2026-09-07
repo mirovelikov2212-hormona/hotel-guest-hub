@@ -5,6 +5,8 @@ on:
     paths:
       - "lib/ai/hotel-intelligence-value-quality.mjs"
       - "lib/ai/hotel-intelligence-value-quality.d.mts"
+      - "lib/ai/hotel-scanner-coverage.mjs"
+      - "lib/ai/hotel-scanner-coverage.d.mts"
       - "lib/ai/hotel-scanner-reconciliation.mjs"
       - "lib/ai/hotel-scanner-reconciliation.d.mts"
       - "lib/ai/hotel-scanner-rich-facts.ts"
@@ -13,6 +15,7 @@ on:
       - "lib/server/hotel-intelligence-revisions.ts"
       - "app/api/control-plane/hotel-intelligence/**"
       - "supabase/migrations/20260907152000_hotel_intelligence_review_v1.sql"
+      - "tests/contracts/hotel-scanner-coverage-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-reconciliation-v1.contract.test.mjs"
       - "tests/contracts/hotel-intelligence-value-quality-v1.contract.test.mjs"
       - "tests/contracts/hotel-intelligence-review-v1.contract.test.mjs"
@@ -37,6 +40,8 @@ jobs:
         run: node --test tests/contracts/hotel-scanner-reconciliation-v1.contract.test.mjs
       - name: Hotel Intelligence value quality contracts
         run: node --test tests/contracts/hotel-intelligence-value-quality-v1.contract.test.mjs
+      - name: Hotel Scanner coverage contracts
+        run: node --test tests/contracts/hotel-scanner-coverage-v1.contract.test.mjs
       - name: Hotel Intelligence review contracts
         run: node --test tests/contracts/hotel-intelligence-review-v1.contract.test.mjs
       - name: Next.js build
