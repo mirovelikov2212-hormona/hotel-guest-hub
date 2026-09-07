@@ -5,8 +5,10 @@ import {
   classifyHotelScannerUrlCoverage,
   planHotelScannerSecondaryUrls,
 } from "../../lib/server/hotel-scanner-crawl-plan.mjs";
+import { readProjectFile } from "../helpers/source-contract.mjs";
 
 const origin = "https://hotel.test";
+const crawlerPath = "lib/server/factory-hotel-scanner.ts";
 
 function plan(links, maxPages = 5) {
   return planHotelScannerSecondaryUrls({
@@ -86,4 +88,15 @@ test("planner stays within origin, de-duplicates URLs and never exceeds the conf
   assert.equal(result.urls.length, 4);
   assert.equal(new Set(result.urls).size, 4);
   assert.equal(result.urls.some((url) => url.startsWith("https://other.test")), false);
+});
+
+test("production crawler keeps the six-page bound and sources secondary URLs from the coverage planner", async () => {
+  const crawler = await readProjectFile(crawlerPath);
+  assert.match(crawler, /MAX_PAGES = 6/);
+  assert.match(crawler, /MAX_SECONDARY_PAGES = MAX_PAGES - 1/);
+  assert.match(crawler, /planHotelScannerSecondaryUrls/);
+  assert.match(crawler, /maxPages: MAX_SECONDARY_PAGES/);
+  assert.match(crawler, /Promise\.all\(crawlPlan\.urls\.map/);
+  assert.doesNotMatch(crawler, /function pagePriority/);
+  assert.doesNotMatch(crawler, /function uniqueCandidateUrls/);
 });
