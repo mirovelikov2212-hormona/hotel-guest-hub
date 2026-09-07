@@ -10,21 +10,21 @@
       "fromLine": 186,
       "table": "hotel_intelligence_workspaces",
       "operation": "select",
-      "toLine": 350
+      "toLine": 349
     },
     {
       "filePath": "lib/server/hotel-intelligence-revisions.ts",
       "fromLine": 194,
       "table": "hotel_intelligence_revisions",
       "operation": "select",
-      "toLine": 358
+      "toLine": 357
     },
     {
       "filePath": "lib/server/hotel-intelligence-revisions.ts",
       "fromLine": 204,
       "table": "hotel_intelligence_revisions",
       "operation": "select",
-      "toLine": 368
+      "toLine": 367
     },
     {
       "filePath": "lib/server/hotel-intelligence-revisions.ts",
@@ -37,7 +37,7 @@
       "fromLine": 296,
       "table": "hotel_intelligence_revisions",
       "operation": "select",
-      "toLine": 509
+      "toLine": 508
     },
     {
       "filePath": "lib/server/hotel-intelligence-revisions.ts",
@@ -50,13 +50,13 @@
       "fromLine": 338,
       "table": "hotel_intelligence_revisions",
       "operation": "select",
-      "toLine": 560
+      "toLine": 559
     }
   ],
   "additions": [
     {
       "filePath": "lib/server/hotel-intelligence-revisions.ts",
-      "line": 146,
+      "line": 145,
       "table": "hotel_scan_runs",
       "tableExpression": "\"hotel_scan_runs\"",
       "operation": "select",
@@ -65,7 +65,7 @@
     },
     {
       "filePath": "lib/server/hotel-intelligence-revisions.ts",
-      "line": 397,
+      "line": 396,
       "table": "hotel_intelligence_revisions",
       "tableExpression": "\"hotel_intelligence_revisions\"",
       "operation": "select",
