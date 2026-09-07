@@ -51,6 +51,8 @@ export type ApprovedHotelIntelligenceEnvelope = {
     workspaceId: string;
     revisionId: string;
     revisionNo: number;
+    scanRunId: string;
+    scanEvidenceChecksum: string;
     contentChecksum: string;
     approvedAt: string;
     approvedBy: string;
