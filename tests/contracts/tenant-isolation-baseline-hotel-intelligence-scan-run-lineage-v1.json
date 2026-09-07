@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "checkpoint": "hotel-intelligence-scan-run-lineage-v1",
+  "baseCheckpoint": "hotel-scan-run-v1",
+  "expectedNeedsReview": 195,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "fromLine": 186,
+      "table": "hotel_intelligence_workspaces",
+      "operation": "select",
+      "toLine": 350
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "fromLine": 194,
+      "table": "hotel_intelligence_revisions",
+      "operation": "select",
+      "toLine": 358
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "fromLine": 204,
+      "table": "hotel_intelligence_revisions",
+      "operation": "select",
+      "toLine": 368
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "fromLine": 260,
+      "operation": "rpc",
+      "toLine": 468
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "fromLine": 296,
+      "table": "hotel_intelligence_revisions",
+      "operation": "select",
+      "toLine": 509
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "fromLine": 315,
+      "operation": "rpc",
+      "toLine": 534
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "fromLine": 338,
+      "table": "hotel_intelligence_revisions",
+      "operation": "select",
+      "toLine": 560
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "line": 146,
+      "table": "hotel_scan_runs",
+      "tableExpression": "\"hotel_scan_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_review_lineage_read_uses_service_role_to_load_one_explicit_immutable_pre_hotel_scan_run_by_scan_run_id_then_recomputes_evidence_checksum_and_sha256_canonical_url_source_key_validates_evidence_technology_design_and_profile_schema_and_rebuilds_the_hotel_intelligence_package_server_side; direct_client_table_access_is_denied_by_rls_and_this_read_confers_no_factory_materialization_readiness_certification_publication_guest_staff_runtime_or_live_activation_authority"
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-revisions.ts",
+      "line": 397,
+      "table": "hotel_intelligence_revisions",
+      "tableExpression": "\"hotel_intelligence_revisions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_human_review_lineage_read_uses_service_role_to_load_one_explicit_parent_revision_by_revision_id_and inherit_only_immutable_scan_run_id_scan_evidence_checksum_scanner_package_checksum_and_provenance_before_preparing_the_next_review_revision; the inherited_lineage_is_reverified_against_the_scan_run_and_source_key_and_no_guest_staff_runtime_factory_materialization_publication_certification_or_live_authority_is_read_or_mutated"
+    }
+  ]
+}
