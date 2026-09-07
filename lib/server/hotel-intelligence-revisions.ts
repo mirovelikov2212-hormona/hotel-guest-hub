@@ -2,7 +2,11 @@ import "server-only";
 
 import crypto from "crypto";
 
-import type { HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
+import type { HotelScanProfile } from "@/lib/ai/hotel-scanner";
+import {
+  buildHotelIntelligencePackage,
+  type HotelIntelligencePackage,
+} from "@/lib/product-factory/hotel-intelligence-package";
 import {
   APPROVED_HOTEL_INTELLIGENCE_SCHEMA_VERSION,
   HOTEL_INTELLIGENCE_REVIEW_SCHEMA_VERSION,
@@ -12,6 +16,7 @@ import {
   type ApprovedHotelIntelligenceEnvelope,
   type HotelIntelligenceReviewContent,
 } from "@/lib/product-factory/hotel-intelligence-review";
+import { buildHotelScanEvidenceChecksum } from "@/lib/server/hotel-scan-run-payload.mjs";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export type HotelIntelligenceRevisionMetadata = {
@@ -20,6 +25,8 @@ export type HotelIntelligenceRevisionMetadata = {
   parentRevisionId: string | null;
   approvedFromRevisionId: string | null;
   status: "draft" | "approved";
+  scanRunId: string | null;
+  scanEvidenceChecksum: string | null;
   scannerPackageChecksum: string;
   contentChecksum: string;
   createdAt: string;
@@ -41,6 +48,22 @@ export type HotelIntelligenceWorkspaceSnapshot = {
   };
   revisions: HotelIntelligenceRevisionMetadata[];
   currentContent: HotelIntelligenceReviewContent | null;
+};
+
+type HotelScanRunReviewSource = {
+  scanRunId: string;
+  sourceKey: string;
+  requestedUrl: string;
+  canonicalUrl: string;
+  scannedUrls: string[];
+  scannedAt: string;
+  evidenceChecksum: string;
+  evidenceSnapshot: Record<string, unknown>;
+  technologySignals: Record<string, unknown>;
+  designSignals: Record<string, unknown>;
+  scannerMetadata: Record<string, unknown>;
+  diagnostics: Record<string, unknown>;
+  intelligencePackage: HotelIntelligencePackage;
 };
 
 function sha256Hex(value: string) {
@@ -103,9 +126,116 @@ function safeModel(value: unknown) {
   return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, 160);
 }
 
+function objectValue(value: unknown, code: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(code);
+  return value as Record<string, unknown>;
+}
+
+function stringArray(value: unknown, code: string) {
+  if (!Array.isArray(value)) throw new Error(code);
+  const result = value.map((item) => String(item || "").trim()).filter(Boolean);
+  if (!result.length) throw new Error(code);
+  return result;
+}
+
+async function loadHotelScanRunReviewSource(scanRunId: string): Promise<HotelScanRunReviewSource> {
+  const id = String(scanRunId || "").trim();
+  if (!id) throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_REQUIRED");
+
+  const { data, error } = await supabaseAdmin
+    .from("hotel_scan_runs")
+    .select("id,source_key,requested_url,canonical_url,scanned_urls,schema_version,evidence_checksum,evidence_json,technology_json,design_signals_json,scanner_metadata_json,diagnostics_json,scanned_at")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(`HOTEL_INTELLIGENCE_SCAN_RUN_READ_FAILED:${error.message}`);
+  if (!data) throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_NOT_FOUND");
+  if (data.schema_version !== "hotel-scan-run-v1") throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_SCHEMA_INVALID");
+
+  const canonicalUrl = normalizeHotelIntelligenceCanonicalUrl(String(data.canonical_url || ""));
+  const requestedUrl = normalizeHotelIntelligenceCanonicalUrl(String(data.requested_url || ""));
+  const scannedUrls = stringArray(data.scanned_urls, "HOTEL_INTELLIGENCE_SCAN_RUN_URLS_INVALID");
+  const evidenceSnapshot = objectValue(data.evidence_json, "HOTEL_INTELLIGENCE_SCAN_RUN_EVIDENCE_INVALID");
+  const technologySignals = objectValue(data.technology_json, "HOTEL_INTELLIGENCE_SCAN_RUN_TECHNOLOGY_INVALID");
+  const designSignals = objectValue(data.design_signals_json, "HOTEL_INTELLIGENCE_SCAN_RUN_DESIGN_INVALID");
+  const scannerMetadata = objectValue(data.scanner_metadata_json, "HOTEL_INTELLIGENCE_SCAN_RUN_METADATA_INVALID");
+  const diagnostics = objectValue(data.diagnostics_json, "HOTEL_INTELLIGENCE_SCAN_RUN_DIAGNOSTICS_INVALID");
+  if (evidenceSnapshot.schemaVersion !== "hotel-scan-evidence-v1") {
+    throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_EVIDENCE_INVALID");
+  }
+  if (technologySignals.schemaVersion !== "hotel-technology-discovery-v1") {
+    throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_TECHNOLOGY_INVALID");
+  }
+  if (designSignals.schemaVersion !== "hotel-scan-design-signals-v1") {
+    throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_DESIGN_INVALID");
+  }
+
+  const evidenceChecksum = String(data.evidence_checksum || "").toLowerCase().trim();
+  const calculatedChecksum = buildHotelScanEvidenceChecksum({
+    canonicalUrl,
+    scannedUrls,
+    evidenceSnapshot,
+    technologySignals,
+    designSignals,
+  });
+  if (calculatedChecksum !== evidenceChecksum) {
+    throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_CHECKSUM_MISMATCH");
+  }
+
+  const sourceKey = buildHotelIntelligenceSourceKey(canonicalUrl);
+  if (sourceKey !== String(data.source_key || "")) {
+    throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_SOURCE_MISMATCH");
+  }
+
+  const profileValue = objectValue(evidenceSnapshot.profile, "HOTEL_INTELLIGENCE_SCAN_RUN_PROFILE_INVALID");
+  if (profileValue.schemaVersion !== "hotel-scan-v1") {
+    throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_PROFILE_INVALID");
+  }
+  const profile = profileValue as unknown as HotelScanProfile;
+  const profileCanonicalUrl = normalizeHotelIntelligenceCanonicalUrl(String(profile.source?.canonicalUrl || ""));
+  if (profileCanonicalUrl !== canonicalUrl) {
+    throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_SOURCE_MISMATCH");
+  }
+  const intelligencePackage = buildHotelIntelligencePackage(profile);
+  if (normalizeHotelIntelligenceCanonicalUrl(intelligencePackage.source.canonicalUrl) !== canonicalUrl) {
+    throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_SOURCE_MISMATCH");
+  }
+
+  return {
+    scanRunId: String(data.id),
+    sourceKey,
+    requestedUrl,
+    canonicalUrl,
+    scannedUrls,
+    scannedAt: String(data.scanned_at),
+    evidenceChecksum,
+    evidenceSnapshot,
+    technologySignals,
+    designSignals,
+    scannerMetadata,
+    diagnostics,
+    intelligencePackage,
+  };
+}
+
+export async function verifyHotelScanRunLineage(input: {
+  scanRunId: string;
+  scanEvidenceChecksum: string;
+  sourceKey?: string;
+}) {
+  const scanRun = await loadHotelScanRunReviewSource(input.scanRunId);
+  if (scanRun.evidenceChecksum !== String(input.scanEvidenceChecksum || "").toLowerCase().trim()) {
+    throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_CHECKSUM_MISMATCH");
+  }
+  if (input.sourceKey && scanRun.sourceKey !== input.sourceKey) {
+    throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_SOURCE_MISMATCH");
+  }
+  return scanRun;
+}
+
 export function prepareInitialHotelIntelligenceReview(input: {
   intelligencePackage: unknown;
   diagnostics?: { model?: unknown; coreMode?: unknown } | null;
+  provenance?: Record<string, unknown> | null;
 }) {
   const sourcePackage = requirePackage(input.intelligencePackage);
   const content = createHotelIntelligenceReviewContent(sourcePackage, { model: input.diagnostics?.model });
@@ -118,8 +248,39 @@ export function prepareInitialHotelIntelligenceReview(input: {
       provider: content.scannerDiagnostics.provider,
       model: safeModel(input.diagnostics?.model),
       coreMode: safeModel(input.diagnostics?.coreMode),
+      ...(input.provenance || {}),
     },
   });
+}
+
+async function prepareInitialHotelIntelligenceReviewFromScanRun(scanRunId: string) {
+  const scanRun = await loadHotelScanRunReviewSource(scanRunId);
+  const scannerMetadata = scanRun.scannerMetadata;
+  const prepared = prepareInitialHotelIntelligenceReview({
+    intelligencePackage: scanRun.intelligencePackage,
+    diagnostics: {
+      model: scannerMetadata.model,
+      coreMode: scannerMetadata.coreMode,
+    },
+    provenance: {
+      scanRunId: scanRun.scanRunId,
+      scanEvidenceChecksum: scanRun.evidenceChecksum,
+      scanScannedAt: scanRun.scannedAt,
+      reviewSemanticsSchemaVersion: objectValue(
+        scanRun.evidenceSnapshot.reviewSemantics,
+        "HOTEL_INTELLIGENCE_SCAN_RUN_REVIEW_SEMANTICS_INVALID",
+      ).schemaVersion,
+      technologySchemaVersion: scanRun.technologySignals.schemaVersion,
+    },
+  });
+  if (prepared.sourceKey !== scanRun.sourceKey) {
+    throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_SOURCE_MISMATCH");
+  }
+  return {
+    ...prepared,
+    scanRunId: scanRun.scanRunId,
+    scanEvidenceChecksum: scanRun.evidenceChecksum,
+  };
 }
 
 export function prepareHotelIntelligenceReview(input: {
@@ -169,6 +330,8 @@ function mapRevision(row: Record<string, unknown>): HotelIntelligenceRevisionMet
     parentRevisionId: row.parent_revision_id ? String(row.parent_revision_id) : null,
     approvedFromRevisionId: row.approved_from_revision_id ? String(row.approved_from_revision_id) : null,
     status: row.status === "approved" ? "approved" : "draft",
+    scanRunId: row.scan_run_id ? String(row.scan_run_id) : null,
+    scanEvidenceChecksum: row.scan_evidence_checksum ? String(row.scan_evidence_checksum) : null,
     scannerPackageChecksum: String(row.scanner_package_checksum),
     contentChecksum: String(row.content_checksum),
     createdAt: String(row.created_at),
@@ -193,7 +356,7 @@ export async function loadHotelIntelligenceWorkspaceByCanonicalUrl(
 
   const { data: revisionData, error: revisionError } = await supabaseAdmin
     .from("hotel_intelligence_revisions")
-    .select("id,revision_no,parent_revision_id,approved_from_revision_id,status,scanner_package_checksum,content_checksum,created_at,created_by,approved_at,approved_by")
+    .select("id,revision_no,parent_revision_id,approved_from_revision_id,status,scan_run_id,scan_evidence_checksum,scanner_package_checksum,content_checksum,created_at,created_by,approved_at,approved_by")
     .eq("workspace_id", workspaceData.id)
     .order("revision_no", { ascending: false })
     .limit(50);
@@ -227,42 +390,89 @@ export async function loadHotelIntelligenceWorkspaceByCanonicalUrl(
   };
 }
 
+async function loadParentRevisionLineage(parentRevisionId: string) {
+  const id = String(parentRevisionId || "").trim();
+  if (!id) throw new Error("HOTEL_INTELLIGENCE_PARENT_REVISION_REQUIRED");
+  const { data, error } = await supabaseAdmin
+    .from("hotel_intelligence_revisions")
+    .select("id,scan_run_id,scan_evidence_checksum,scanner_package_checksum,provenance_json")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(`HOTEL_INTELLIGENCE_PARENT_REVISION_READ_FAILED:${error.message}`);
+  if (!data) throw new Error("HOTEL_INTELLIGENCE_PARENT_REVISION_NOT_FOUND");
+  if (!data.scan_run_id || !data.scan_evidence_checksum) {
+    throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_LINEAGE_REQUIRED");
+  }
+  return {
+    scanRunId: String(data.scan_run_id),
+    scanEvidenceChecksum: String(data.scan_evidence_checksum),
+    scannerPackageChecksum: String(data.scanner_package_checksum),
+    provenance: data.provenance_json && typeof data.provenance_json === "object"
+      ? data.provenance_json as Record<string, unknown>
+      : {},
+  };
+}
+
 export async function saveHotelIntelligenceRevision(input: {
   actorAdminId: string;
-  idempotencyKey: string;
+  idempotencyKey?: string;
   parentRevisionId: string | null;
-  content: unknown;
-  intelligencePackage?: unknown;
-  scannerPackageChecksum?: string;
-  provenance?: Record<string, unknown> | null;
-  diagnostics?: { model?: unknown; coreMode?: unknown } | null;
+  content?: unknown;
+  scanRunId?: string;
 }) {
   let prepared;
-  if (input.intelligencePackage) {
-    const initial = prepareInitialHotelIntelligenceReview({
-      intelligencePackage: input.intelligencePackage,
-      diagnostics: input.diagnostics,
-    });
-    const suppliedContent = input.content || initial.contentJson;
-    prepared = prepareHotelIntelligenceReview({
-      content: suppliedContent,
-      scannerPackageChecksum: initial.scannerPackageChecksum,
-      provenance: input.provenance || initial.provenanceJson,
-    });
+  let scanRunId: string;
+  let scanEvidenceChecksum: string;
+
+  if (input.scanRunId) {
+    if (input.content !== undefined && input.content !== null) {
+      throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_IMPORT_CONTENT_FORBIDDEN");
+    }
+    const initial = await prepareInitialHotelIntelligenceReviewFromScanRun(input.scanRunId);
+    prepared = initial;
+    scanRunId = initial.scanRunId;
+    scanEvidenceChecksum = initial.scanEvidenceChecksum;
   } else {
+    if (!input.parentRevisionId) throw new Error("HOTEL_INTELLIGENCE_PARENT_REVISION_REQUIRED");
+    const parent = await loadParentRevisionLineage(input.parentRevisionId);
     prepared = prepareHotelIntelligenceReview({
       content: input.content,
-      scannerPackageChecksum: String(input.scannerPackageChecksum || ""),
-      provenance: input.provenance,
+      scannerPackageChecksum: parent.scannerPackageChecksum,
+      provenance: {
+        ...parent.provenance,
+        kind: "human_review",
+        parentRevisionId: input.parentRevisionId,
+        scanRunId: parent.scanRunId,
+        scanEvidenceChecksum: parent.scanEvidenceChecksum,
+      },
     });
+    await verifyHotelScanRunLineage({
+      scanRunId: parent.scanRunId,
+      scanEvidenceChecksum: parent.scanEvidenceChecksum,
+      sourceKey: prepared.sourceKey,
+    });
+    scanRunId = parent.scanRunId;
+    scanEvidenceChecksum = parent.scanEvidenceChecksum;
   }
+
+  const requestedKey = String(input.idempotencyKey || "").trim();
+  const idempotencyKey = requestedKey || `hotel-intelligence-save:${sha256Hex([
+    input.actorAdminId,
+    prepared.sourceKey,
+    input.parentRevisionId || "-",
+    scanRunId,
+    scanEvidenceChecksum,
+    prepared.contentChecksum,
+  ].join("|"))}`;
 
   const { data, error } = await supabaseAdmin.rpc("save_hotel_intelligence_revision_v1", {
     p_actor_admin_id: input.actorAdminId,
     p_source_key: prepared.sourceKey,
     p_canonical_url: prepared.canonicalUrl,
     p_hotel_name: prepared.hotelName,
-    p_idempotency_key: input.idempotencyKey,
+    p_idempotency_key: idempotencyKey,
+    p_scan_run_id: scanRunId,
+    p_scan_evidence_checksum: scanEvidenceChecksum,
     p_scanner_package_checksum: prepared.scannerPackageChecksum,
     p_content_checksum: prepared.contentChecksum,
     p_content: prepared.contentJson,
@@ -279,6 +489,8 @@ export async function saveHotelIntelligenceRevision(input: {
     revisionNo: Number(row.revision_no),
     parentRevisionId: row.parent_revision_id ? String(row.parent_revision_id) : null,
     approvedRevisionId: row.approved_revision_id ? String(row.approved_revision_id) : null,
+    scanRunId: String(row.scan_run_id || scanRunId),
+    scanEvidenceChecksum: String(row.scan_evidence_checksum || scanEvidenceChecksum),
     replayed: Boolean(row.replayed),
     contentChecksum: prepared.contentChecksum,
     scannerPackageChecksum: prepared.scannerPackageChecksum,
@@ -295,13 +507,20 @@ export async function approveHotelIntelligenceRevision(input: {
 }) {
   const { data: sourceData, error: sourceError } = await supabaseAdmin
     .from("hotel_intelligence_revisions")
-    .select("content_json,content_checksum,status")
+    .select("content_json,content_checksum,status,scan_run_id,scan_evidence_checksum")
     .eq("workspace_id", input.workspaceId)
     .eq("id", input.sourceRevisionId)
     .maybeSingle();
   if (sourceError) throw new Error(`HOTEL_INTELLIGENCE_APPROVAL_SOURCE_READ_FAILED:${sourceError.message}`);
   if (!sourceData) throw new Error("HOTEL_INTELLIGENCE_SOURCE_REVISION_NOT_FOUND");
   if (sourceData.status !== "draft") throw new Error("HOTEL_INTELLIGENCE_SOURCE_NOT_DRAFT");
+  if (!sourceData.scan_run_id || !sourceData.scan_evidence_checksum) {
+    throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_LINEAGE_REQUIRED");
+  }
+  await verifyHotelScanRunLineage({
+    scanRunId: String(sourceData.scan_run_id),
+    scanEvidenceChecksum: String(sourceData.scan_evidence_checksum),
+  });
   const content = reviewContent(sourceData.content_json);
   const approvalValidation = validateHotelIntelligenceReviewContent(content, { forApproval: true });
   if (!approvalValidation.ok) {
@@ -327,6 +546,8 @@ export async function approveHotelIntelligenceRevision(input: {
     revisionId: String(row.revision_id),
     revisionNo: Number(row.revision_no),
     approvedFromRevisionId: String(row.approved_from_revision_id),
+    scanRunId: String(row.scan_run_id),
+    scanEvidenceChecksum: String(row.scan_evidence_checksum),
     contentChecksum: String(row.content_checksum),
     replayed: Boolean(row.replayed),
   };
@@ -337,7 +558,7 @@ export async function loadApprovedHotelIntelligenceEnvelope(
 ): Promise<ApprovedHotelIntelligenceEnvelope> {
   const { data, error } = await supabaseAdmin
     .from("hotel_intelligence_revisions")
-    .select("id,workspace_id,revision_no,status,content_checksum,content_json,approved_at,approved_by")
+    .select("id,workspace_id,revision_no,status,scan_run_id,scan_evidence_checksum,content_checksum,content_json,approved_at,approved_by")
     .eq("id", revisionId)
     .maybeSingle();
   if (error) throw new Error(`HOTEL_INTELLIGENCE_APPROVED_READ_FAILED:${error.message}`);
@@ -345,6 +566,13 @@ export async function loadApprovedHotelIntelligenceEnvelope(
   if (data.status !== "approved" || !data.approved_at || !data.approved_by) {
     throw new Error("HOTEL_INTELLIGENCE_REVISION_NOT_APPROVED");
   }
+  if (!data.scan_run_id || !data.scan_evidence_checksum) {
+    throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_LINEAGE_REQUIRED");
+  }
+  await verifyHotelScanRunLineage({
+    scanRunId: String(data.scan_run_id),
+    scanEvidenceChecksum: String(data.scan_evidence_checksum),
+  });
   const content = reviewContent(data.content_json);
   const calculatedChecksum = sha256Hex(stableHotelIntelligenceStringify(content));
   if (calculatedChecksum !== String(data.content_checksum)) {
@@ -358,6 +586,8 @@ export async function loadApprovedHotelIntelligenceEnvelope(
       workspaceId: String(data.workspace_id),
       revisionId: String(data.id),
       revisionNo: Number(data.revision_no),
+      scanRunId: String(data.scan_run_id),
+      scanEvidenceChecksum: String(data.scan_evidence_checksum),
       contentChecksum: calculatedChecksum,
       approvedAt: String(data.approved_at),
       approvedBy: String(data.approved_by),
