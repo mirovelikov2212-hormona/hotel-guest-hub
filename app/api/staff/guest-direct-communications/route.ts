@@ -20,6 +20,7 @@ export const dynamic = "force-dynamic";
 
 const NO_STORE = { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DIRECT_HISTORY_RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
 
 function json(body: Record<string, unknown>, status = 200) {
   return NextResponse.json(body, { status, headers: NO_STORE });
@@ -69,6 +70,24 @@ function directTitle(language: GuestCommunicationLanguage, sender: "staff" | "gu
   return sender === "staff" ? staff[language] : guest[language];
 }
 
+function directDeliveryState(row: {
+  sender_type: string | null;
+  delivery_total: number | null;
+  delivery_sent: number | null;
+  delivery_failed: number | null;
+  delivery_expired: number | null;
+}) {
+  if (String(row.sender_type || "") !== "staff") return "not_applicable";
+  const total = Number(row.delivery_total || 0);
+  const sent = Number(row.delivery_sent || 0);
+  const failed = Number(row.delivery_failed || 0);
+  const expired = Number(row.delivery_expired || 0);
+  if (sent > 0 && failed + expired > 0) return "partial";
+  if (sent > 0) return "delivered";
+  if (total > 0 || failed + expired > 0) return "failed";
+  return "not_delivered";
+}
+
 async function loadReceptionAccess(hotelSlug: string, role: string) {
   const access = await resolveGuestCommunicationsAccess(hotelSlug, role);
   if (!access || access.role !== "reception" || access.runtimeRole.kind !== "department" || !access.runtimeRole.departmentId) return null;
@@ -85,6 +104,7 @@ export async function GET(req: NextRequest) {
     if (!hasGuestCommunicationCapability(access, "guest_communications.view_own")) return json({ ok: false, error: "forbidden" }, 403);
 
     const now = new Date().toISOString();
+    const historyCutoff = new Date(Date.now() - DIRECT_HISTORY_RETENTION_MS).toISOString();
     const [{ data: stays, error: staysError }, { data: rows, error: rowsError }, deliveryEnabled] = await Promise.all([
       supabaseAdmin
         .from("guest_stays")
@@ -98,10 +118,11 @@ export async function GET(req: NextRequest) {
         .limit(1000),
       supabaseAdmin
         .from("guest_communications")
-        .select("id,stay_id,stay_device_id,sender_type,source_language,title,body,title_i18n,body_i18n,translation_status,sent_at,created_at")
+        .select("id,stay_id,stay_device_id,sender_type,source_language,title,body,title_i18n,body_i18n,translation_status,sent_at,created_at,delivery_total,delivery_sent,delivery_failed,delivery_expired,last_error")
         .eq("hotel_id", access.hotel.id)
         .eq("audience_type", "direct_guest")
         .in("status", ["sent", "partial_failed", "failed"])
+        .gte("sent_at", historyCutoff)
         .order("created_at", { ascending: false })
         .limit(250),
       guestCommunicationsDeliveryEnabledForHotel(access.hotel.id),
@@ -120,6 +141,13 @@ export async function GET(req: NextRequest) {
         body: localized(row.body_i18n, language, sourceLanguage, String(row.body || "")),
         createdAt: row.created_at,
         sentAt: row.sent_at,
+        hubPublished: true,
+        pushDeliveryState: directDeliveryState(row),
+        pushDeliveryTotal: Number(row.delivery_total || 0),
+        pushDeliverySent: Number(row.delivery_sent || 0),
+        pushDeliveryFailed: Number(row.delivery_failed || 0),
+        pushDeliveryExpired: Number(row.delivery_expired || 0),
+        deliveryError: row.last_error || null,
       };
     });
 
@@ -128,6 +156,7 @@ export async function GET(req: NextRequest) {
       hotel: access.hotel,
       department: { id: access.runtimeRole.departmentId, code: access.runtimeRole.departmentCode, name: access.runtimeRole.departmentName },
       deliveryEnabled,
+      historyRetentionDays: 3,
       stays: stays || [],
       messages,
     });
@@ -195,7 +224,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return json({ ok: true, communicationId, delivery }, 201);
+    return json({ ok: true, communicationId, hubPublished: true, delivery }, 201);
   } catch (error) {
     console.error("Guest direct communications POST failed", error);
     return json({ ok: false, error: "unavailable" }, 503);
