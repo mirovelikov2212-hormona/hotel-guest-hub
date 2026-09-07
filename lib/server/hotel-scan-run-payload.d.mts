@@ -22,6 +22,13 @@ export type PreparedHotelScanRunPayload = {
 };
 
 export function stableHotelScanRunStringify(value: unknown): string;
+export function buildHotelScanEvidenceChecksum(input?: {
+  canonicalUrl?: unknown;
+  scannedUrls?: unknown;
+  evidenceSnapshot?: unknown;
+  technologySignals?: unknown;
+  designSignals?: unknown;
+}): string;
 export function prepareHotelScanRunPayload(input?: Record<string, unknown>): PreparedHotelScanRunPayload;
 export function buildHotelScanRunIdempotencyKey(input?: {
   actorAdminId?: unknown;
