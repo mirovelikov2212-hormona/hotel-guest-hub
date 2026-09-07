@@ -2,6 +2,7 @@ import "server-only";
 
 import { sendGuestCommunicationPush } from "@/lib/guest-push/guest-communications-web-push";
 import { disableGuestPushSubscriptions, type GuestPushSubscriptionRow } from "@/lib/guest-push/web-push";
+import { guestCommunicationsDeliveryEnabledForHotel } from "@/lib/server/guest-communications-delivery-policy";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 type CommunicationRow = {
@@ -205,6 +206,9 @@ export async function deliverGuestCommunication(input: {
 }) {
   if (!guestCommunicationsDeliveryEnabled()) {
     return { delivered: false, skipped: true, reason: "delivery_disabled" };
+  }
+  if (!(await guestCommunicationsDeliveryEnabledForHotel(input.hotel.id))) {
+    return { delivered: false, skipped: true, reason: "hotel_delivery_disabled" };
   }
   if (!input.hotel.active) return { delivered: false, skipped: true, reason: "hotel_inactive" };
   if (input.hotel.is_sandbox) return { delivered: false, skipped: true, reason: "sandbox_delivery_disabled" };
