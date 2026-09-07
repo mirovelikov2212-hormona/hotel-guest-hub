@@ -41,98 +41,101 @@ type WorkspacePayload = {
 
 const COPY = {
   bg: {
-    title: "Съобщения към гостите",
-    intro: "Информация, промени, събития и оферти от вашия отдел към активните гости.",
+    title: "Общи съобщения към гостите",
+    intro: "Чернови, планирани и активни общи съобщения. Изтеклите съобщения не се показват в оперативния Staff UI.",
     reach: "Обхват",
     activeStayhubRooms: "активни StayHub стаи",
     push: "Push известяване",
     pushRooms: "стаи",
     pushDevices: "устройства",
-    newMessage: "Ново съобщение",
+    newMessage: "Ново общо съобщение",
     sourceLanguage: "Език на хотела",
-    sourceLanguageHelp: "Пишете на основния език на хотела. StayHub превежда автоматично съобщението и всеки активен гост го получава на езика на своя Hub.",
+    sourceLanguageHelp: "Пишете на основния език на хотела. При изпращане StayHub подготвя шестте guest езика и Guest Hub показва варианта за текущия език на госта.",
     category: "Тип",
     messageTitle: "Заглавие",
     messageBody: "Съобщение",
     titlePlaceholder: "Напр. Промяна в работното време",
     bodyPlaceholder: "Напишете ясното съобщение към гостите…",
     validUntil: "Валидно до",
-    validUntilHelp: "Задължително. След този момент съобщението автоматично изчезва от Guest Hub, но остава в Staff историята.",
+    validUntilHelp: "Задължително. След този момент съобщението изчезва от Guest Hub и от оперативния Staff Communications изглед. Audit данните могат да се пазят отделно.",
     saveDraft: "Запази чернова",
     send: "Изпрати",
     schedule: "Насрочи",
     scheduledFor: "Дата и час",
-    history: "История",
-    noMessages: "Все още няма съобщения от този обхват.",
+    history: "Активни / чернови / планирани",
+    noMessages: "Няма активни, планирани или валидни чернови.",
     refresh: "Обнови",
     cancel: "Отмени",
-    translating: "При изпращане StayHub подготвя BG, EN, DE, RO, CS и RU и избира правилния вариант за всеки гост.",
-    deliveryOff: "Реалното изпращане е временно изключено в текущия тестов етап. Бутонът „Изпрати“ ще се активира при финалното включване на delivery.",
-    deliveryOn: "Всички активни StayHub гости могат да видят съобщението в Hub до зададената валидност. Гостите с разрешен push получават и системно известие.",
+    translating: "Преводът се изпълнява fail-closed при „Изпрати“ или „Насрочи“: BG, EN, DE, RO, CS и RU трябва да са готови преди delivery.",
+    translationOnSend: "translation: при изпращане/планиране",
+    deliveryOff: "Bulk delivery остава заключен от release gate. Чернови могат да се подготвят, но реално изпращане се разрешава само след глобален и hotel-specific activation.",
+    deliveryOn: "Bulk delivery е разрешен за този хотел. Съобщението се вижда в Guest Hub до валидността; само устройства с push permission получават и системно известие.",
     loadError: "Съобщенията временно не са достъпни.",
     actionError: "Действието не беше записано. Проверете датата и часа за валидност и опитайте отново.",
   },
   en: {
-    title: "Guest communications",
-    intro: "Information, changes, events and offers from your department to active guests.",
+    title: "Guest broadcasts",
+    intro: "Draft, scheduled and currently active broadcasts. Expired broadcasts are removed from the operational Staff view.",
     reach: "Reach",
     activeStayhubRooms: "active StayHub rooms",
     push: "Push notification",
     pushRooms: "rooms",
     pushDevices: "devices",
-    newMessage: "New message",
+    newMessage: "New broadcast",
     sourceLanguage: "Hotel language",
-    sourceLanguageHelp: "Write in the hotel's primary language. StayHub translates automatically and each active guest receives the message in their Hub language.",
+    sourceLanguageHelp: "Write in the hotel's primary language. On send, StayHub prepares all six guest languages and Guest Hub renders the guest's current Hub language.",
     category: "Type",
     messageTitle: "Title",
     messageBody: "Message",
     titlePlaceholder: "Example: Opening hours change",
     bodyPlaceholder: "Write a clear message for guests…",
     validUntil: "Valid until",
-    validUntilHelp: "Required. After this time the message automatically disappears from the Guest Hub but remains in Staff history.",
+    validUntilHelp: "Required. After this time the message disappears from Guest Hub and the operational Staff Communications view. Audit data may be retained separately.",
     saveDraft: "Save draft",
     send: "Send",
     schedule: "Schedule",
     scheduledFor: "Date and time",
-    history: "History",
-    noMessages: "No messages in this scope yet.",
+    history: "Active / drafts / scheduled",
+    noMessages: "No active, scheduled or still-valid draft broadcasts.",
     refresh: "Refresh",
     cancel: "Cancel",
-    translating: "When sending, StayHub prepares BG, EN, DE, RO, CS and RU and selects the correct version for each guest.",
-    deliveryOff: "Real delivery is temporarily disabled during this test stage. The Send button will activate when delivery is enabled for release.",
-    deliveryOn: "All active StayHub guests can see the message in the Hub until its validity ends. Guests with push permission also receive a system notification.",
+    translating: "Translation runs fail-closed on Send or Schedule: BG, EN, DE, RO, CS and RU must all be ready before delivery.",
+    translationOnSend: "translation: on send/schedule",
+    deliveryOff: "Bulk delivery remains locked by the release gate. Drafts can be prepared, but real delivery requires both global and hotel-specific activation.",
+    deliveryOn: "Bulk delivery is enabled for this hotel. The message stays visible in Guest Hub until expiry; only devices with push permission receive a system notification.",
     loadError: "Guest communications are temporarily unavailable.",
     actionError: "The action could not be saved. Check the validity date and time and try again.",
   },
   de: {
-    title: "Gästekommunikation",
-    intro: "Informationen, Änderungen, Veranstaltungen und Angebote Ihrer Abteilung für aktive Gäste.",
+    title: "Gäste-Broadcasts",
+    intro: "Entwürfe, geplante und aktuell aktive allgemeine Mitteilungen. Abgelaufene Mitteilungen werden im operativen Staff-Bereich nicht angezeigt.",
     reach: "Reichweite",
     activeStayhubRooms: "aktive StayHub-Zimmer",
     push: "Push-Benachrichtigung",
     pushRooms: "Zimmer",
     pushDevices: "Geräte",
-    newMessage: "Neue Nachricht",
+    newMessage: "Neue allgemeine Mitteilung",
     sourceLanguage: "Hotelsprache",
-    sourceLanguageHelp: "Schreiben Sie in der Hauptsprache des Hotels. StayHub übersetzt automatisch und jeder aktive Gast erhält die Nachricht in seiner Hub-Sprache.",
+    sourceLanguageHelp: "Schreiben Sie in der Hauptsprache des Hotels. Beim Senden erstellt StayHub alle sechs Gästesprachen; der Guest Hub zeigt die aktuell gewählte Sprache des Gastes.",
     category: "Typ",
     messageTitle: "Titel",
     messageBody: "Nachricht",
     titlePlaceholder: "Beispiel: Änderung der Öffnungszeiten",
     bodyPlaceholder: "Schreiben Sie eine klare Nachricht für die Gäste…",
     validUntil: "Gültig bis",
-    validUntilHelp: "Pflichtfeld. Danach verschwindet die Nachricht automatisch aus dem Guest Hub, bleibt aber im Staff-Verlauf erhalten.",
+    validUntilHelp: "Pflichtfeld. Danach verschwindet die Mitteilung aus Guest Hub und dem operativen Staff-Communications-Bereich. Audit-Daten können separat erhalten bleiben.",
     saveDraft: "Entwurf speichern",
     send: "Senden",
     schedule: "Planen",
     scheduledFor: "Datum und Uhrzeit",
-    history: "Verlauf",
-    noMessages: "In diesem Bereich gibt es noch keine Nachrichten.",
+    history: "Aktiv / Entwürfe / geplant",
+    noMessages: "Keine aktiven, geplanten oder noch gültigen Entwürfe.",
     refresh: "Aktualisieren",
     cancel: "Stornieren",
-    translating: "Beim Senden erstellt StayHub BG, EN, DE, RO, CS und RU und wählt für jeden Gast die richtige Version.",
-    deliveryOff: "Die reale Zustellung ist in dieser Testphase vorübergehend deaktiviert. Der Senden-Button wird beim finalen Delivery-Start aktiviert.",
-    deliveryOn: "Alle aktiven StayHub-Gäste können die Nachricht bis zum Ablauf im Hub sehen. Gäste mit Push-Berechtigung erhalten zusätzlich eine Systembenachrichtigung.",
+    translating: "Die Übersetzung läuft fail-closed beim Senden oder Planen: BG, EN, DE, RO, CS und RU müssen vor der Zustellung vollständig bereit sein.",
+    translationOnSend: "translation: beim Senden/Planen",
+    deliveryOff: "Bulk Delivery bleibt durch das Release Gate gesperrt. Entwürfe sind möglich; reale Zustellung erfordert globale und hotelspezifische Aktivierung.",
+    deliveryOn: "Bulk Delivery ist für dieses Hotel aktiviert. Die Mitteilung bleibt bis zum Ablauf im Guest Hub sichtbar; nur Geräte mit Push-Berechtigung erhalten zusätzlich eine Systembenachrichtigung.",
     loadError: "Die Gästekommunikation ist vorübergehend nicht verfügbar.",
     actionError: "Die Aktion konnte nicht gespeichert werden. Prüfen Sie Gültigkeitsdatum und -zeit und versuchen Sie es erneut.",
   },
@@ -165,13 +168,7 @@ function statusTone(status: string) {
   return "border-amber-400/25 bg-amber-400/10 text-amber-700";
 }
 
-export default function GuestCommunicationsWorkspace({
-  hotelSlug,
-  role,
-}: {
-  hotelSlug: string;
-  role: string;
-}) {
+export default function GuestCommunicationsWorkspace({ hotelSlug, role }: { hotelSlug: string; role: string }) {
   const { lang } = useStaffUi();
   const uiLang = lang === "de" ? "de" : lang === "en" ? "en" : "bg";
   const copy = COPY[uiLang];
@@ -189,17 +186,10 @@ export default function GuestCommunicationsWorkspace({
     setLoading(true);
     try {
       const params = new URLSearchParams({ hotelSlug, role, _: String(Date.now()) });
-      const response = await fetch(`/api/staff/guest-communications?${params.toString()}`, {
-        credentials: "include",
-        cache: "no-store",
-      });
-      if (response.status === 401 || response.status === 403) {
-        setPayload(null);
-        return;
-      }
+      const response = await fetch(`/api/staff/guest-communications?${params.toString()}`, { credentials: "include", cache: "no-store" });
+      if (response.status === 401 || response.status === 403) { setPayload(null); return; }
       if (!response.ok) throw new Error(`communications ${response.status}`);
-      const next = await response.json() as WorkspacePayload;
-      setPayload(next);
+      setPayload(await response.json() as WorkspacePayload);
       setError("");
     } catch (loadError) {
       console.error("Guest Communications workspace load failed", loadError);
@@ -209,9 +199,7 @@ export default function GuestCommunicationsWorkspace({
     }
   }, [copy.loadError, hotelSlug, role]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   const capabilities = payload?.capabilities || {};
   const canCreate = Boolean(capabilities["guest_communications.create"]);
@@ -221,55 +209,36 @@ export default function GuestCommunicationsWorkspace({
   const deliveryEnabled = Boolean(payload?.deliveryEnabled);
   const hotelSourceLanguage = String(payload?.hotelSourceLanguage || "en").toLowerCase();
   const hotelSourceLanguageLabel = LANGUAGE_LABELS[hotelSourceLanguage]?.[uiLang] || hotelSourceLanguage.toUpperCase();
-  const categoryOptions = useMemo(
-    () => ["information", "event", "change", "offer", "operational", ...(canEmergency ? ["emergency"] : [])],
-    [canEmergency],
-  );
+  const categoryOptions = useMemo(() => ["information", "event", "change", "offer", "operational", ...(canEmergency ? ["emergency"] : [])], [canEmergency]);
 
   async function submit(action: "draft" | "send_now" | "schedule") {
     if (!canCreate || !title.trim() || !body.trim() || !validUntil) return;
     if (action === "send_now" && (!canSend || !deliveryEnabled)) return;
     if (action === "schedule" && (!canSchedule || !deliveryEnabled || !scheduledAt)) return;
-    setBusy(true);
-    setError("");
+    setBusy(true); setError("");
     try {
       const response = await fetch("/api/staff/guest-communications", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          hotelSlug,
-          role,
-          action,
-          category,
-          title: title.trim(),
-          body: body.trim(),
+          hotelSlug, role, action, category, title: title.trim(), body: body.trim(),
           scheduledAt: action === "schedule" ? new Date(scheduledAt).toISOString() : null,
           displayUntil: new Date(validUntil).toISOString(),
         }),
       });
       if (!response.ok) throw new Error(`communications action ${response.status}`);
-      setTitle("");
-      setBody("");
-      setScheduledAt("");
-      setValidUntil("");
+      setTitle(""); setBody(""); setScheduledAt(""); setValidUntil("");
       await load();
     } catch (submitError) {
       console.error("Guest Communications action failed", submitError);
       setError(copy.actionError);
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }
 
   async function cancelMessage(id: string) {
-    setBusy(true);
-    setError("");
+    setBusy(true); setError("");
     try {
       const response = await fetch("/api/staff/guest-communications", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hotelSlug, role, action: "cancel", communicationId: id }),
       });
       if (!response.ok) throw new Error(`cancel ${response.status}`);
@@ -277,9 +246,7 @@ export default function GuestCommunicationsWorkspace({
     } catch (cancelError) {
       console.error("Guest Communications cancel failed", cancelError);
       setError(copy.actionError);
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }
 
   if (!payload && !loading && !error) return null;
@@ -290,18 +257,9 @@ export default function GuestCommunicationsWorkspace({
 
   return (
     <div className="mb-5">
-      <StaffCollapsiblePanel
-        title={copy.title}
-        summary={copy.intro}
-        badge={payload ? (
-          <span className="rounded-full border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-2.5 py-1 text-xs font-semibold">
-            {copy.reach}: {messageReachRooms}
-          </span>
-        ) : null}
-      >
+      <StaffCollapsiblePanel title={copy.title} summary={copy.intro} badge={payload ? <span className="rounded-full border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-2.5 py-1 text-xs font-semibold">{copy.reach}: {messageReachRooms}</span> : null}>
         {error ? <div className="mb-4 rounded-xl border border-rose-400/25 bg-rose-400/10 p-3 text-sm text-rose-700">{error}</div> : null}
         {loading && !payload ? <p className="text-sm text-[var(--staff-muted)]">…</p> : null}
-
         {payload ? (
           <div className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
             <div className="space-y-4">
@@ -322,37 +280,15 @@ export default function GuestCommunicationsWorkspace({
                 <div className="space-y-3 rounded-2xl border border-[var(--staff-border)] bg-[var(--staff-surface)] p-4">
                   <h3 className="font-semibold">{copy.newMessage}</h3>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="text-sm">
-                      <span className="mb-1 block text-[var(--staff-muted)]">{copy.category}</span>
-                      <select value={category} onChange={(event) => setCategory(event.target.value)} className="w-full rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5">
-                        {categoryOptions.map((value) => <option key={value} value={value}>{CATEGORY_LABELS[value]?.[uiLang] || value}</option>)}
-                      </select>
-                    </label>
-                    <div className="rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5 text-sm">
-                      <span className="block text-xs text-[var(--staff-muted)]">{copy.sourceLanguage}</span>
-                      <strong className="mt-0.5 block font-semibold text-[var(--staff-text)]">{hotelSourceLanguageLabel} ({hotelSourceLanguage.toUpperCase()})</strong>
-                    </div>
+                    <label className="text-sm"><span className="mb-1 block text-[var(--staff-muted)]">{copy.category}</span><select value={category} onChange={(event) => setCategory(event.target.value)} className="w-full rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5">{categoryOptions.map((value) => <option key={value} value={value}>{CATEGORY_LABELS[value]?.[uiLang] || value}</option>)}</select></label>
+                    <div className="rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5 text-sm"><span className="block text-xs text-[var(--staff-muted)]">{copy.sourceLanguage}</span><strong className="mt-0.5 block font-semibold text-[var(--staff-text)]">{hotelSourceLanguageLabel} ({hotelSourceLanguage.toUpperCase()})</strong></div>
                   </div>
                   <p className="rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] p-3 text-xs leading-5 text-[var(--staff-muted)]">{copy.sourceLanguageHelp}</p>
-                  <label className="block text-sm">
-                    <span className="mb-1 block text-[var(--staff-muted)]">{copy.messageTitle}</span>
-                    <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} placeholder={copy.titlePlaceholder} className="w-full rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5" />
-                  </label>
-                  <label className="block text-sm">
-                    <span className="mb-1 block text-[var(--staff-muted)]">{copy.messageBody}</span>
-                    <textarea value={body} onChange={(event) => setBody(event.target.value)} maxLength={1000} rows={5} placeholder={copy.bodyPlaceholder} className="w-full resize-y rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5" />
-                  </label>
+                  <label className="block text-sm"><span className="mb-1 block text-[var(--staff-muted)]">{copy.messageTitle}</span><input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} placeholder={copy.titlePlaceholder} className="w-full rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5" /></label>
+                  <label className="block text-sm"><span className="mb-1 block text-[var(--staff-muted)]">{copy.messageBody}</span><textarea value={body} onChange={(event) => setBody(event.target.value)} maxLength={1000} rows={5} placeholder={copy.bodyPlaceholder} className="w-full resize-y rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5" /></label>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {canSchedule ? (
-                      <label className="block text-sm">
-                        <span className="mb-1 block text-[var(--staff-muted)]">{copy.scheduledFor}</span>
-                        <input type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} className="w-full rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5" />
-                      </label>
-                    ) : <div />}
-                    <label className="block text-sm">
-                      <span className="mb-1 block text-[var(--staff-muted)]">{copy.validUntil} *</span>
-                      <input type="datetime-local" required value={validUntil} onChange={(event) => setValidUntil(event.target.value)} className="w-full rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5" />
-                    </label>
+                    {canSchedule ? <label className="block text-sm"><span className="mb-1 block text-[var(--staff-muted)]">{copy.scheduledFor}</span><input type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} className="w-full rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5" /></label> : <div />}
+                    <label className="block text-sm"><span className="mb-1 block text-[var(--staff-muted)]">{copy.validUntil} *</span><input type="datetime-local" required value={validUntil} onChange={(event) => setValidUntil(event.target.value)} className="w-full rounded-xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-3 py-2.5" /></label>
                   </div>
                   <p className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-xs leading-5 text-amber-800">{copy.validUntilHelp}</p>
                   <p className="text-xs leading-5 text-[var(--staff-muted)]">{copy.translating}</p>
@@ -361,42 +297,25 @@ export default function GuestCommunicationsWorkspace({
                     {canSend ? <button disabled={busy || !deliveryEnabled || !title.trim() || !body.trim() || !validUntil} onClick={() => void submit("send_now")} className="stayhub-communication-send rounded-xl border px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45">{copy.send}</button> : null}
                     {canSchedule ? <button disabled={busy || !deliveryEnabled || !title.trim() || !body.trim() || !scheduledAt || !validUntil} onClick={() => void submit("schedule")} className="stayhub-communication-schedule rounded-xl border px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45">{copy.schedule}</button> : null}
                   </div>
-                  <p className={`rounded-xl border p-3 text-xs leading-5 ${deliveryEnabled ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-700" : "border-amber-400/25 bg-amber-400/10 text-amber-700"}`}>
-                    {deliveryEnabled ? copy.deliveryOn : copy.deliveryOff}
-                  </p>
+                  <p className={`rounded-xl border p-3 text-xs leading-5 ${deliveryEnabled ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-700" : "border-amber-400/25 bg-amber-400/10 text-amber-700"}`}>{deliveryEnabled ? copy.deliveryOn : copy.deliveryOff}</p>
                 </div>
               ) : null}
             </div>
 
             <div>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h3 className="font-semibold">{copy.history}</h3>
-                <button type="button" onClick={() => void load()} disabled={loading} className="rounded-lg border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40">{copy.refresh}</button>
-              </div>
+              <div className="mb-3 flex items-center justify-between gap-3"><h3 className="font-semibold">{copy.history}</h3><button type="button" onClick={() => void load()} disabled={loading} className="rounded-lg border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40">{copy.refresh}</button></div>
               <div className="max-h-[40rem] space-y-3 overflow-y-auto pr-1">
                 {(payload.messages || []).length ? (payload.messages || []).map((message) => (
                   <article key={message.id} className="rounded-2xl border border-[var(--staff-border)] bg-[var(--staff-surface)] p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap gap-2">
-                          <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusTone(message.status)}`}>{message.status}</span>
-                          <span className="rounded-full border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-2.5 py-1 text-xs">{CATEGORY_LABELS[message.category]?.[uiLang] || message.category}</span>
-                          <span className="rounded-full border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-2.5 py-1 text-xs uppercase">{message.source_language}</span>
-                        </div>
-                        <h4 className="mt-3 font-semibold">{message.title}</h4>
-                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--staff-muted)]">{message.body}</p>
-                      </div>
-                    </div>
+                    <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap gap-2"><span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusTone(message.status)}`}>{message.status}</span><span className="rounded-full border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-2.5 py-1 text-xs">{CATEGORY_LABELS[message.category]?.[uiLang] || message.category}</span><span className="rounded-full border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-2.5 py-1 text-xs uppercase">{message.source_language}</span></div><h4 className="mt-3 font-semibold">{message.title}</h4><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--staff-muted)]">{message.body}</p></div></div>
                     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--staff-faint)]">
                       <span>{new Date(message.created_at).toLocaleString()}</span>
                       <span>{message.departments?.name || message.actor_role}</span>
-                      <span>translation: {message.translation_status}</span>
+                      <span>{message.status === "draft" && message.translation_status === "pending" ? copy.translationOnSend : `translation: ${message.translation_status}`}</span>
                       {message.display_until ? <span>{copy.validUntil}: {new Date(message.display_until).toLocaleString()}</span> : null}
-                      {message.delivery_total > 0 ? <span>{message.delivery_sent}/{message.delivery_total} delivered</span> : null}
+                      {["sent", "partial_failed", "failed"].includes(message.status) ? <span>{copy.push}: {message.delivery_sent}/{message.delivery_total}</span> : null}
                     </div>
-                    {["draft", "scheduled", "queued"].includes(message.status) && canCreate ? (
-                      <button type="button" disabled={busy} onClick={() => void cancelMessage(message.id)} className="mt-3 rounded-lg border border-rose-400/20 bg-rose-400/10 px-2.5 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-40">{copy.cancel}</button>
-                    ) : null}
+                    {["draft", "scheduled", "queued"].includes(message.status) && canCreate ? <button type="button" disabled={busy} onClick={() => void cancelMessage(message.id)} className="mt-3 rounded-lg border border-rose-400/20 bg-rose-400/10 px-2.5 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-40">{copy.cancel}</button> : null}
                   </article>
                 )) : <div className="rounded-2xl border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] p-5 text-sm text-[var(--staff-muted)]">{copy.noMessages}</div>}
               </div>
