@@ -29,10 +29,12 @@ on:
       - "lib/server/hotel-intelligence-revisions.ts"
       - "app/api/control-plane/hotel-intelligence/**"
       - "supabase/migrations/20260907152000_hotel_intelligence_review_v1.sql"
+      - "supabase/migrations/20260907193500_hotel_intelligence_scan_run_lineage_v1.sql"
       - "tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs"
       - "tests/contracts/hotel-technology-discovery-v1.contract.test.mjs"
       - "tests/contracts/hotel-review-semantics-v2.contract.test.mjs"
       - "tests/contracts/hotel-scan-run-v1.contract.test.mjs"
+      - "tests/contracts/hotel-intelligence-scan-run-lineage-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-coverage-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-conflicts-v1.contract.test.mjs"
@@ -74,6 +76,8 @@ jobs:
         run: node --test tests/contracts/hotel-review-semantics-v2.contract.test.mjs
       - name: Hotel Scan Run contracts
         run: node --test tests/contracts/hotel-scan-run-v1.contract.test.mjs
+      - name: Hotel Intelligence Scan Run lineage contracts
+        run: node --test tests/contracts/hotel-intelligence-scan-run-lineage-v1.contract.test.mjs
       - name: Hotel Intelligence review contracts
         run: node --test tests/contracts/hotel-intelligence-review-v1.contract.test.mjs
       - name: Next.js build
