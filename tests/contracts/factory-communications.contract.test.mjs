@@ -172,13 +172,14 @@ test("Production direct guest communications reuse Guest Communications with exa
   assertNotContains(staffRoute, 'all_active_guests');
 });
 
-test("Operational communications enforce expiry, three-day personal history, truthful evidence, and hotel-scoped bulk release", async () => {
+test("Operational communications enforce expiry, three-day personal history, truthful evidence, hotel-scoped bulk release, and automatic guest surfacing", async () => {
   const broadcastRoute = await readProjectFile("app/api/staff/guest-communications/route.ts");
   const directRoute = await readProjectFile("app/api/staff/guest-direct-communications/route.ts");
   const bulkDelivery = await readProjectFile("lib/server/guest-communications-delivery.ts");
   const broadcastUi = await readProjectFile("components/staff/GuestCommunicationsWorkspace.tsx");
   const directUi = await readProjectFile("components/staff/GuestDirectCommunicationsWorkspace.tsx");
   const guestRoute = await readProjectFile("app/api/guest/communications/route.ts");
+  const guestInbox = await readProjectFile("components/GuestCommunicationsInbox.tsx");
 
   assertContains(broadcastRoute, '.eq("audience_type", "all_active_guests")');
   assertContains(broadcastRoute, '.gt("display_until", now)');
@@ -201,4 +202,7 @@ test("Operational communications enforce expiry, three-day personal history, tru
 
   assertContains(guestRoute, 'language: requestedLanguage');
   assertContains(guestRoute, 'display_until.gt.${now}');
+  assertContains(guestInbox, 'if (!open && unreadCount > 0) openInbox()');
+  assertContains(guestInbox, 'animate-pulse ring-4 ring-red-500/20');
+  assertContains(guestInbox, 'message.senderType !== "guest"');
 });
