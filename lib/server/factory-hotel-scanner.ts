@@ -3,6 +3,8 @@ import "server-only";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
+import { planHotelScannerSecondaryUrls } from "@/lib/server/hotel-scanner-crawl-plan.mjs";
+
 const MAX_PAGES = 6;
 const MAX_SECONDARY_PAGES = MAX_PAGES - 1;
 const MAX_PAGE_BYTES = 1_000_000;
@@ -414,15 +416,6 @@ async function fetchStylesheet(startUrl: URL) {
   return null;
 }
 
-function pagePriority(url: string) {
-  const path = new URL(url).pathname.toLowerCase();
-  const signals = [
-    "hotel", "about", "contact", "room", "accommodation", "restaurant", "bar",
-    "spa", "wellness", "service", "facility", "amenit", "info", "faq", "policy",
-  ];
-  return signals.reduce((score, signal) => score + (path.includes(signal) ? 1 : 0), 0);
-}
-
 function buildPageEvidence(url: URL, html: string): HotelScanPageEvidence {
   return {
     url: url.toString(),
@@ -437,29 +430,6 @@ function buildPageEvidence(url: URL, html: string): HotelScanPageEvidence {
     imageUrls: extractImages(html, url),
     colors: extractColors(html),
   };
-}
-
-function uniqueCandidateUrls(links: string[], canonicalOrigin: string, firstUrl: string) {
-  const seen = new Set<string>([firstUrl]);
-  const candidates: string[] = [];
-
-  for (const href of links) {
-    if (candidates.length >= 30) break;
-    try {
-      const url = new URL(href);
-      if (url.origin !== canonicalOrigin) continue;
-      const normalized = url.toString();
-      if (seen.has(normalized)) continue;
-      seen.add(normalized);
-      candidates.push(normalized);
-    } catch {
-      continue;
-    }
-  }
-
-  return candidates
-    .sort((left, right) => pagePriority(right) - pagePriority(left))
-    .slice(0, MAX_SECONDARY_PAGES);
 }
 
 async function fetchSecondaryEvidence(url: string, canonicalOrigin: string) {
@@ -502,10 +472,15 @@ export async function crawlPublicHotelWebsite(rawUrl: string): Promise<HotelScan
   const first = await fetchHtml(requested);
   const firstPage = buildPageEvidence(first.url, first.html);
   const canonicalOrigin = first.url.origin;
-  const secondaryUrls = uniqueCandidateUrls(firstPage.links, canonicalOrigin, first.url.toString());
+  const crawlPlan = planHotelScannerSecondaryUrls({
+    links: firstPage.links,
+    canonicalOrigin,
+    firstUrl: first.url.toString(),
+    maxPages: MAX_SECONDARY_PAGES,
+  });
 
   const [secondaryResults, brand] = await Promise.all([
-    Promise.all(secondaryUrls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin))),
+    Promise.all(crawlPlan.urls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin))),
     collectBrandEvidence(first.html, first.url),
   ]);
 
