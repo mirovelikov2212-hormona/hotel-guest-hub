@@ -187,6 +187,8 @@ test("Operational communications enforce expiry, three-day personal history, tru
   assertContains(broadcastRoute, 'bulkDeliveryEnabledForHotel(access.hotel.id)');
   assertContains(bulkDelivery, 'guestCommunicationsDeliveryEnabledForHotel(input.hotel.id)');
   assertContains(bulkDelivery, 'reason: "hotel_delivery_disabled"');
+  assertContains(bulkDelivery, 'GUEST_COMMUNICATIONS_EMERGENCY_DISABLED');
+  assertNotContains(bulkDelivery, 'GUEST_COMMUNICATIONS_DELIVERY_ENABLED');
 
   assertContains(directRoute, 'DIRECT_HISTORY_RETENTION_MS = 3 * 24 * 60 * 60 * 1000');
   assertContains(directRoute, '.gte("sent_at", historyCutoff)');
