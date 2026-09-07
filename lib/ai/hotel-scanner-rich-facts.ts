@@ -92,6 +92,9 @@ export async function extractRichHotelScanFactsWithOpenAi(
   const languageInstruction = outputLanguage === "bg"
     ? "Write every human-readable fact label and value in Bulgarian. Preserve official hotel/venue names, brand names, phone numbers, emails, URLs and technical brand tokens exactly."
     : "Write every human-readable fact label and value in English. Preserve official hotel/venue names, brand names, phone numbers, emails, URLs and technical brand tokens exactly.";
+  const reconciliationLabelInstruction = outputLanguage === "bg"
+    ? "For reconciliation-critical facts use these exact labels when explicitly evidenced: location address => Адрес; each official room type => Тип стая (ONE fact per room type, official room-type name as value); check-in => Check-in; check-out => Check-out."
+    : "For reconciliation-critical facts use these exact labels when explicitly evidenced: location address => Address; each official room type => Room type (ONE fact per room type, official room-type name as value); check-in => Check-in; check-out => Check-out.";
   const inputPages = evidence.pages.map((page) => ({
     url: page.url,
     title: page.title,
@@ -107,11 +110,13 @@ export async function extractRichHotelScanFactsWithOpenAi(
     instructions: [
       "Extract a rich but precise set of evidence-backed hotel facts for a human review dashboard.",
       languageInstruction,
+      reconciliationLabelInstruction,
       "Use ONLY WEBSITE_EVIDENCE. Never browse, infer from outside knowledge, or guess.",
       "Aim for 18-28 DISTINCT useful facts when the evidence supports them; return fewer only when evidence is genuinely sparse.",
       "Prefer specific operational and guest-useful facts over generic marketing language.",
       `category MUST remain one canonical lowercase machine key from: ${FACT_CATEGORIES.join(", ")}. Do not translate category keys.`,
       "Split compound information into useful facts: e.g. restaurant hours and capacity should be separate facts when both are stated.",
+      "When the evidence explicitly lists room types, preserve every distinct official room type that fits within the fact budget; do not collapse several room types into one summary fact.",
       "Opening-hours facts MUST name one specific facility, venue, service or guest area in the label. Never emit generic labels such as Facility hours, Amenities hours, Opening hours, Работно време, or Работно време на удобствата.",
       "When the website gives different hours for different named facilities, emit one separate hours fact for each named facility whose schedule is explicit.",
       "If an hours range cannot be tied unambiguously to one named facility or explicitly named group, omit that hours fact rather than guessing its scope.",
