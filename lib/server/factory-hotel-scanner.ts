@@ -7,6 +7,10 @@ import {
   classifyHotelScannerPageCoverage,
   planHotelScannerSecondaryUrls,
 } from "@/lib/server/hotel-scanner-crawl-plan.mjs";
+import {
+  extractPublicTechnologySignals,
+  type HotelScannerRawTechnologySignals,
+} from "@/lib/server/hotel-scanner-public-technology.mjs";
 
 const MAX_PAGES = 6;
 const MAX_SECONDARY_PAGES = MAX_PAGES - 1;
@@ -27,6 +31,7 @@ export type HotelScanPageEvidence = {
   links: string[];
   imageUrls: string[];
   colors: string[];
+  technology: HotelScannerRawTechnologySignals;
 };
 
 export type HotelScanBrandEvidence = {
@@ -432,6 +437,7 @@ function buildPageEvidence(url: URL, html: string): HotelScanPageEvidence {
     links: extractLinks(html, url),
     imageUrls: extractImages(html, url),
     colors: extractColors(html),
+    technology: extractPublicTechnologySignals(html, url),
   };
 }
 
