@@ -8,8 +8,6 @@ import {
   approveHotelIntelligenceRevision,
   loadApprovedHotelIntelligenceEnvelope,
   loadHotelIntelligenceWorkspaceByCanonicalUrl,
-  prepareHotelIntelligenceReview,
-  prepareInitialHotelIntelligenceReview,
   saveHotelIntelligenceRevision,
 } from "@/lib/server/hotel-intelligence-revisions";
 
@@ -26,7 +24,7 @@ function json(body: Record<string, unknown>, status = 200) {
   return NextResponse.json(body, { status, headers: NO_STORE_HEADERS });
 }
 
-function idempotencyKey(kind: "save" | "approve", parts: Array<string | null | undefined>) {
+function idempotencyKey(kind: "approve", parts: Array<string | null | undefined>) {
   const digest = crypto.createHash("sha256").update(parts.map((part) => String(part || "-")).join("|")).digest("hex");
   return `hotel-intelligence-${kind}:${digest}`;
 }
@@ -37,12 +35,15 @@ function errorCode(error: unknown) {
     return { code: "revision_conflict", status: 409 };
   }
   if (message.includes("IDEMPOTENCY_CONFLICT")) return { code: "idempotency_conflict", status: 409 };
+  if (message.includes("SCAN_RUN") && (message.includes("MISMATCH") || message.includes("CHECKSUM"))) {
+    return { code: "scan_run_lineage_invalid", status: 409 };
+  }
   if (message.includes("NOT_APPROVED")) return { code: "revision_not_approved", status: 409 };
   if (message.includes("APPROVAL_NOT_READY") || message.includes("PENDING_FACTS") || message.includes("UNRESOLVED")) {
     return { code: "approval_not_ready", status: 409 };
   }
   if (message.includes("NOT_FOUND")) return { code: "not_found", status: 404 };
-  if (message.includes("INVALID") || message.includes("REQUIRED") || message.includes("MISMATCH")) {
+  if (message.includes("INVALID") || message.includes("REQUIRED") || message.includes("MISMATCH") || message.includes("FORBIDDEN")) {
     return { code: "invalid_intelligence_revision", status: 400 };
   }
   return { code: "hotel_intelligence_revision_failed", status: 500 };
@@ -86,46 +87,21 @@ export async function POST(request: NextRequest) {
   try {
     if (action === "save") {
       const parentRevisionId = body?.parentRevisionId ? String(body.parentRevisionId) : null;
-      const intelligencePackage = body?.intelligencePackage;
+      const scanRunId = String(body?.scanRunId || "").trim();
       const reviewContent = body?.reviewContent;
-      const scannerPackageChecksum = String(body?.scannerPackageChecksum || "").trim();
-      const diagnostics = body?.diagnostics && typeof body.diagnostics === "object"
-        ? body.diagnostics as { model?: unknown; coreMode?: unknown }
-        : null;
-
-      const prepared = intelligencePackage
-        ? prepareInitialHotelIntelligenceReview({ intelligencePackage, diagnostics })
-        : prepareHotelIntelligenceReview({
-            content: reviewContent,
-            scannerPackageChecksum,
-            provenance: { kind: "human_review" },
-          });
-      const effectiveContent = reviewContent || prepared.contentJson;
-      const finalPrepared = reviewContent
-        ? prepareHotelIntelligenceReview({
-            content: effectiveContent,
-            scannerPackageChecksum: prepared.scannerPackageChecksum,
-            provenance: intelligencePackage ? prepared.provenanceJson : { kind: "human_review" },
-          })
-        : prepared;
+      if (!scanRunId && !parentRevisionId) {
+        return json({ ok: false, error: "scan_run_or_parent_revision_required" }, 400);
+      }
+      if (scanRunId && reviewContent !== undefined && reviewContent !== null) {
+        return json({ ok: false, error: "scan_run_import_content_forbidden" }, 400);
+      }
       const requestedKey = String(body?.idempotencyKey || "").trim();
-      const saveKey = requestedKey || idempotencyKey("save", [
-        authority.adminId,
-        finalPrepared.sourceKey,
-        parentRevisionId,
-        finalPrepared.scannerPackageChecksum,
-        finalPrepared.contentChecksum,
-      ]);
-
       const result = await saveHotelIntelligenceRevision({
         actorAdminId: authority.adminId,
-        idempotencyKey: saveKey,
+        idempotencyKey: requestedKey || undefined,
         parentRevisionId,
-        content: effectiveContent,
-        intelligencePackage,
-        scannerPackageChecksum: finalPrepared.scannerPackageChecksum,
-        provenance: finalPrepared.provenanceJson,
-        diagnostics,
+        content: reviewContent,
+        scanRunId: scanRunId || undefined,
       });
       return json({ ok: true, revision: result });
     }
