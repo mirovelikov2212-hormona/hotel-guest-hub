@@ -20,6 +20,9 @@ on:
       - "lib/server/hotel-scanner-crawl-plan.d.mts"
       - "lib/server/hotel-scanner-public-technology.mjs"
       - "lib/server/hotel-scanner-public-technology.d.mts"
+      - "lib/server/hotel-scan-run-payload.mjs"
+      - "lib/server/hotel-scan-run-payload.d.mts"
+      - "lib/server/hotel-scan-runs.ts"
       - "lib/server/factory-hotel-scanner.ts"
       - "app/api/control-plane/hotel-scanner/**"
       - "lib/product-factory/hotel-intelligence-review.ts"
@@ -29,6 +32,7 @@ on:
       - "tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs"
       - "tests/contracts/hotel-technology-discovery-v1.contract.test.mjs"
       - "tests/contracts/hotel-review-semantics-v2.contract.test.mjs"
+      - "tests/contracts/hotel-scan-run-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-coverage-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-conflicts-v1.contract.test.mjs"
@@ -68,6 +72,8 @@ jobs:
         run: node --test tests/contracts/hotel-technology-discovery-v1.contract.test.mjs
       - name: Review Semantics V2 contracts
         run: node --test tests/contracts/hotel-review-semantics-v2.contract.test.mjs
+      - name: Hotel Scan Run contracts
+        run: node --test tests/contracts/hotel-scan-run-v1.contract.test.mjs
       - name: Hotel Intelligence review contracts
         run: node --test tests/contracts/hotel-intelligence-review-v1.contract.test.mjs
       - name: Next.js build
