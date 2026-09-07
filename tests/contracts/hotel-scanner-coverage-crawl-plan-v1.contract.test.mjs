@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  classifyHotelScannerPageCoverage,
   classifyHotelScannerUrlCoverage,
   planHotelScannerSecondaryUrls,
 } from "../../lib/server/hotel-scanner-crawl-plan.mjs";
@@ -28,12 +29,13 @@ const CANONICAL_DOMAINS = [
   "design",
 ];
 
-function plan(links, maxPages = 5) {
+function plan(links, maxPages = 5, alreadyCoveredDomains = []) {
   return planHotelScannerSecondaryUrls({
     links,
     canonicalOrigin: origin,
     firstUrl: `${origin}/`,
     maxPages,
+    alreadyCoveredDomains,
   });
 }
 
@@ -43,6 +45,21 @@ test("coverage planner exposes all canonical lifecycle coverage domains", () => 
   assert.deepEqual(classifyHotelScannerUrlCoverage(`${origin}/careers`), ["technology"]);
   assert.deepEqual(classifyHotelScannerUrlCoverage(`${origin}/guest-account-login`), ["guest_account_portal"]);
   assert.deepEqual(classifyHotelScannerUrlCoverage(`${origin}/gallery`), ["design"]);
+});
+
+test("first-page content deterministically seeds already-discovered coverage", () => {
+  const coverage = classifyHotelScannerPageCoverage({
+    title: "Grand Resort",
+    description: "Medical and SPA hotel",
+    text: "Rooms and apartments. Check-in 15:00. Check-out 12:00. Restaurant Forum. SPA wellness. Reservations +359 888 123 456 info@hotel.test",
+  });
+  assert.ok(coverage.includes("identity"));
+  assert.ok(coverage.includes("contacts"));
+  assert.ok(coverage.includes("accommodation"));
+  assert.ok(coverage.includes("check_in_out"));
+  assert.ok(coverage.includes("dining"));
+  assert.ok(coverage.includes("wellness"));
+  assert.ok(coverage.includes("booking"));
 });
 
 test("coverage planner prevents many room links from consuming the whole secondary-page budget", () => {
@@ -118,7 +135,7 @@ test("planner stays within origin, de-duplicates URLs and never exceeds the conf
   assert.equal(result.urls.some((url) => url.startsWith("https://other.test")), false);
 });
 
-test("technology candidates compete inside the same bounded secondary-page budget", () => {
+test("homepage-discovered F&B and wellness free bounded budget for technology discovery", () => {
   const result = plan([
     `${origin}/rooms`,
     `${origin}/contact`,
@@ -126,17 +143,21 @@ test("technology candidates compete inside the same bounded secondary-page budge
     `${origin}/restaurant`,
     `${origin}/spa`,
     `${origin}/careers`,
-  ], 5);
+  ], 5, ["dining", "wellness"]);
   assert.equal(result.urls.length, 5);
   assert.ok(result.selections.some((selection) => selection.domains.includes("technology")));
   assert.equal(result.urls.filter((url) => url.includes("careers")).length, 1);
+  assert.equal(result.urls.includes(`${origin}/restaurant`), false);
+  assert.equal(result.urls.includes(`${origin}/spa`), false);
 });
 
-test("production crawler keeps the six-page bound and sources secondary URLs from the coverage planner", async () => {
+test("production crawler keeps the six-page bound and seeds the coverage planner from the first page", async () => {
   const crawler = await readProjectFile(crawlerPath);
   assert.match(crawler, /MAX_PAGES = 6/);
   assert.match(crawler, /MAX_SECONDARY_PAGES = MAX_PAGES - 1/);
+  assert.match(crawler, /classifyHotelScannerPageCoverage\(firstPage\)/);
   assert.match(crawler, /planHotelScannerSecondaryUrls/);
+  assert.match(crawler, /alreadyCoveredDomains: firstPageCoverage/);
   assert.match(crawler, /maxPages: MAX_SECONDARY_PAGES/);
   assert.match(crawler, /Promise\.all\(crawlPlan\.urls\.map/);
   assert.doesNotMatch(crawler, /function pagePriority/);
