@@ -151,8 +151,9 @@ test("Factory Hotel Scanner keeps discovered logos reference-only until hotel au
   const route = await readProjectFile(routePath);
 
   assertContains(route, 'LOGO_ASSET_POLICY = "hotel_authorization_required"');
+  assertContains(route, 'const assetPolicy = {');
   assertContains(route, 'scannedLogoUrls: "reference_only"');
-  assertContains(route, "assetPolicy:");
+  assertContains(route, "assetPolicy,");
 });
 
 test("Factory Hotel Scanner keeps BG and EN review output language-consistent", async () => {
