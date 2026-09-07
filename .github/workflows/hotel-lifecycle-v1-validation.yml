@@ -1,0 +1,31 @@
+name: Hotel Lifecycle V1 Validation
+
+on:
+  pull_request:
+    paths:
+      - "lib/product-factory/hotel-intelligence-review.ts"
+      - "lib/server/hotel-intelligence-revisions.ts"
+      - "app/api/control-plane/hotel-intelligence/**"
+      - "supabase/migrations/20260907152000_hotel_intelligence_review_v1.sql"
+      - "tests/contracts/hotel-intelligence-review-v1.contract.test.mjs"
+      - ".github/workflows/hotel-lifecycle-v1-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Hotel Intelligence review contracts
+        run: node --test tests/contracts/hotel-intelligence-review-v1.contract.test.mjs
+      - name: Next.js build
+        run: npm run build
