@@ -7,11 +7,18 @@ export type HotelScannerCrawlSelection = {
 
 export function classifyHotelScannerUrlCoverage(rawUrl: string): string[];
 
+export function classifyHotelScannerPageCoverage(page?: {
+  title?: unknown;
+  description?: unknown;
+  text?: unknown;
+}): string[];
+
 export function planHotelScannerSecondaryUrls(input?: {
   links?: string[];
   canonicalOrigin?: string;
   firstUrl?: string;
   maxPages?: number;
+  alreadyCoveredDomains?: string[];
 }): {
   urls: string[];
   selections: HotelScannerCrawlSelection[];
