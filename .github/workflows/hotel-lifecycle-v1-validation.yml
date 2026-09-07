@@ -12,14 +12,20 @@ on:
       - "lib/ai/hotel-scanner-reconciliation.mjs"
       - "lib/ai/hotel-scanner-reconciliation.d.mts"
       - "lib/ai/hotel-scanner-rich-facts.ts"
+      - "lib/ai/hotel-technology-discovery.mjs"
+      - "lib/ai/hotel-technology-discovery.d.mts"
       - "lib/server/hotel-scanner-crawl-plan.mjs"
       - "lib/server/hotel-scanner-crawl-plan.d.mts"
+      - "lib/server/hotel-scanner-public-technology.mjs"
+      - "lib/server/hotel-scanner-public-technology.d.mts"
       - "lib/server/factory-hotel-scanner.ts"
       - "app/api/control-plane/hotel-scanner/**"
       - "lib/product-factory/hotel-intelligence-review.ts"
       - "lib/server/hotel-intelligence-revisions.ts"
       - "app/api/control-plane/hotel-intelligence/**"
       - "supabase/migrations/20260907152000_hotel_intelligence_review_v1.sql"
+      - "tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs"
+      - "tests/contracts/hotel-technology-discovery-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-coverage-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-conflicts-v1.contract.test.mjs"
@@ -53,6 +59,10 @@ jobs:
         run: node --test tests/contracts/hotel-scanner-conflicts-v1.contract.test.mjs
       - name: Hotel Scanner coverage-driven crawl plan contracts
         run: node --test tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs
+      - name: Hotel Scanner public technology signal contracts
+        run: node --test tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs
+      - name: Hotel Technology discovery contracts
+        run: node --test tests/contracts/hotel-technology-discovery-v1.contract.test.mjs
       - name: Hotel Intelligence review contracts
         run: node --test tests/contracts/hotel-intelligence-review-v1.contract.test.mjs
       - name: Next.js build
