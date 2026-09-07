@@ -14,6 +14,7 @@ import {
 import { extractRichHotelScanFactsWithOpenAi } from "@/lib/ai/hotel-scanner-rich-facts";
 import { reconcileHotelScanProfileWithFacts } from "@/lib/ai/hotel-scanner-reconciliation.mjs";
 import { sanitizeHotelScanProfileValues } from "@/lib/ai/hotel-intelligence-value-quality.mjs";
+import { buildHotelTechnologyDiscovery } from "@/lib/ai/hotel-technology-discovery.mjs";
 import { buildHotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
 import {
   crawlPublicHotelWebsite,
@@ -271,6 +272,7 @@ export async function POST(request: NextRequest) {
     const conflicts = detectHotelScanConflicts(sanitizedProfile);
     const { profile, conflictNotes } = attachHotelScanConflictReview(sanitizedProfile, conflicts, outputLanguage);
     const coverage = buildHotelScanCoverage({ profile, evidence, invalidValues, conflicts, reconciliation });
+    const technologyDiscovery = buildHotelTechnologyDiscovery(evidence);
     const intelligencePackage = buildHotelIntelligencePackage(profile);
 
     return json({
@@ -283,6 +285,7 @@ export async function POST(request: NextRequest) {
       conflicts,
       conflictNotes,
       coverage,
+      technologyDiscovery,
       intelligencePackage,
       assetPolicy: {
         logo: LOGO_ASSET_POLICY,
@@ -301,6 +304,7 @@ export async function POST(request: NextRequest) {
         invalidValueCount: invalidValues.length,
         conflictCount: conflicts.length,
         coverageCounts: coverage.counts,
+        technologyProviderCount: technologyDiscovery.providers.length,
         brandColorCount: profile.brand.colors.length,
         brandFontCount: profile.brand.fonts.length,
         crawlLatencyMs,
