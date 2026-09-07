@@ -22,7 +22,13 @@ import {
   HotelScannerError,
   type HotelScanEvidenceBundle,
 } from "@/lib/server/factory-hotel-scanner";
+import { canMutateControlPlane } from "@/lib/server/control-plane-auth";
 import { refineHotelScanBrandEvidence } from "@/lib/server/hotel-scanner-brand-refiner";
+import {
+  createHotelScanRun,
+  hotelScanRunPersistenceEnabled,
+  preparePersistableHotelScanRun,
+} from "@/lib/server/hotel-scan-runs";
 import { collectHotelSocialLinkEvidence } from "@/lib/server/hotel-scanner-social-evidence";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
@@ -190,7 +196,7 @@ export async function POST(request: NextRequest) {
   if (!url) return json({ ok: false, error: "missing_url" }, 400);
 
   const startedAt = Date.now();
-  let stage: "crawl" | "ai" = "crawl";
+  let stage: "crawl" | "ai" | "persistence" = "crawl";
 
   try {
     const crawledEvidence = await crawlPublicHotelWebsite(url);
@@ -284,6 +290,80 @@ export async function POST(request: NextRequest) {
       technologyDiscovery,
     });
     const intelligencePackage = buildHotelIntelligencePackage(profile);
+    const assetPolicy = {
+      logo: LOGO_ASSET_POLICY,
+      scannedLogoUrls: "reference_only",
+    };
+    const diagnostics = {
+      ...coreState.normalized.diagnostics,
+      coreMode: coreState.coreMode,
+      coreError: coreState.coreError || undefined,
+      richFactCount: richFacts.length,
+      detectedSocialLinkCount: detectedSocialLinks.length,
+      reconciliationAppliedCount: reconciliation.applied.length,
+      reconciliationIssueCount: reconciliation.issues.length,
+      semanticDuplicateCount: reconciliation.semanticDuplicatesRemoved.length,
+      resolvedUncertaintyCount: reconciliation.resolvedUncertainties.length,
+      invalidValueCount: invalidValues.length,
+      conflictCount: conflicts.length,
+      coverageCounts: coverage.counts,
+      technologyProviderCount: technologyDiscovery.providers.length,
+      reviewSemanticIssueCount: reviewSemantics.issues.length,
+      reviewSemanticHumanCount: reviewSemantics.requiresHumanReviewCount,
+      brandColorCount: profile.brand.colors.length,
+      brandFontCount: profile.brand.fonts.length,
+      crawlLatencyMs,
+    };
+    const persistableScanRun = preparePersistableHotelScanRun({
+      actorAdminId: authority.adminId,
+      requestedUrl: evidence.requestedUrl,
+      canonicalUrl: evidence.canonicalUrl,
+      scannedAt: evidence.scannedAt,
+      scannedUrls: evidence.pages.map((page) => page.url),
+      profile,
+      reconciliation,
+      invalidValues,
+      conflicts,
+      conflictNotes,
+      coverage,
+      reviewSemantics,
+      technologyDiscovery,
+      rawDesignSignals: {
+        stylesheetUrls: evidence.brand.stylesheetUrls,
+        colors: evidence.brand.colors,
+        fonts: evidence.brand.fonts,
+        pageColors: evidence.pages.map((page) => ({ url: page.url, colors: page.colors })),
+        imageReferences: unique(evidence.pages.flatMap((page) => page.imageUrls), 50, 2_048),
+      },
+      refinedDesignSignals: profile.brand,
+      assetPolicy,
+      scannerVersion: "hotel-scanner-v1",
+      model: coreState.normalized.diagnostics.model,
+      coreMode: coreState.coreMode,
+      outputLanguage,
+      diagnostics,
+    });
+
+    let scanRun: Record<string, unknown> = {
+      persisted: false,
+      persistence: hotelScanRunPersistenceEnabled() ? "forbidden" : "disabled",
+      schemaVersion: persistableScanRun.schemaVersion,
+      evidenceChecksum: persistableScanRun.evidenceChecksum,
+      scannedAt: persistableScanRun.scannedAt,
+    };
+    if (hotelScanRunPersistenceEnabled() && canMutateControlPlane(authority.role)) {
+      stage = "persistence";
+      const persisted = await createHotelScanRun({
+        ...persistableScanRun,
+        actorAdminId: authority.adminId,
+      });
+      scanRun = {
+        persisted: true,
+        persistence: "persisted",
+        ...persisted,
+        schemaVersion: persistableScanRun.schemaVersion,
+      };
+    }
 
     return json({
       ok: true,
@@ -297,30 +377,12 @@ export async function POST(request: NextRequest) {
       coverage,
       technologyDiscovery,
       reviewSemantics,
+      scanRun,
       intelligencePackage,
-      assetPolicy: {
-        logo: LOGO_ASSET_POLICY,
-        scannedLogoUrls: "reference_only",
-      },
+      assetPolicy,
       diagnostics: {
-        ...coreState.normalized.diagnostics,
-        coreMode: coreState.coreMode,
-        coreError: coreState.coreError || undefined,
-        richFactCount: richFacts.length,
-        detectedSocialLinkCount: detectedSocialLinks.length,
-        reconciliationAppliedCount: reconciliation.applied.length,
-        reconciliationIssueCount: reconciliation.issues.length,
-        semanticDuplicateCount: reconciliation.semanticDuplicatesRemoved.length,
-        resolvedUncertaintyCount: reconciliation.resolvedUncertainties.length,
-        invalidValueCount: invalidValues.length,
-        conflictCount: conflicts.length,
-        coverageCounts: coverage.counts,
-        technologyProviderCount: technologyDiscovery.providers.length,
-        reviewSemanticIssueCount: reviewSemantics.issues.length,
-        reviewSemanticHumanCount: reviewSemantics.requiresHumanReviewCount,
-        brandColorCount: profile.brand.colors.length,
-        brandFontCount: profile.brand.fonts.length,
-        crawlLatencyMs,
+        ...diagnostics,
+        scanRunPersistence: scanRun.persistence,
         totalLatencyMs: Date.now() - startedAt,
       },
     });
@@ -344,6 +406,9 @@ export async function POST(request: NextRequest) {
     }
     if (message.startsWith("hotel_scanner_ai_incomplete:")) {
       return json({ ok: false, error: "scanner_ai_incomplete", stage: "ai" }, 502);
+    }
+    if (stage === "persistence") {
+      return json({ ok: false, error: "scanner_persistence_failed", stage }, 502);
     }
     return json(
       {
