@@ -8,6 +8,7 @@ import {
 } from "@/lib/ai/hotel-scanner";
 import { extractRichHotelScanFactsWithOpenAi } from "@/lib/ai/hotel-scanner-rich-facts";
 import { reconcileHotelScanProfileWithFacts } from "@/lib/ai/hotel-scanner-reconciliation.mjs";
+import { sanitizeHotelScanProfileValues } from "@/lib/ai/hotel-intelligence-value-quality.mjs";
 import { buildHotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
 import {
   crawlPublicHotelWebsite,
@@ -260,7 +261,8 @@ export async function POST(request: NextRequest) {
         ? profileWithRichFacts.uncertainties.filter((item) => !SOCIAL_UNCERTAINTY_PATTERN.test(item))
         : profileWithRichFacts.uncertainties,
     };
-    const { profile, reconciliation } = reconcileHotelScanProfileWithFacts(unreconciledProfile);
+    const { profile: reconciledProfile, reconciliation } = reconcileHotelScanProfileWithFacts(unreconciledProfile);
+    const { profile, invalidValues } = sanitizeHotelScanProfileValues(reconciledProfile);
     const intelligencePackage = buildHotelIntelligencePackage(profile);
 
     return json({
@@ -269,6 +271,7 @@ export async function POST(request: NextRequest) {
       lang: outputLanguage,
       profile,
       reconciliation,
+      invalidValues,
       intelligencePackage,
       assetPolicy: {
         logo: LOGO_ASSET_POLICY,
@@ -284,6 +287,7 @@ export async function POST(request: NextRequest) {
         reconciliationIssueCount: reconciliation.issues.length,
         semanticDuplicateCount: reconciliation.semanticDuplicatesRemoved.length,
         resolvedUncertaintyCount: reconciliation.resolvedUncertainties.length,
+        invalidValueCount: invalidValues.length,
         brandColorCount: profile.brand.colors.length,
         brandFontCount: profile.brand.fonts.length,
         crawlLatencyMs,
