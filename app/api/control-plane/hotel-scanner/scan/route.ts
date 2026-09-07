@@ -7,6 +7,7 @@ import {
   type HotelScannerOutputLanguage,
 } from "@/lib/ai/hotel-scanner";
 import { extractRichHotelScanFactsWithOpenAi } from "@/lib/ai/hotel-scanner-rich-facts";
+import { reconcileHotelScanProfileWithFacts } from "@/lib/ai/hotel-scanner-reconciliation.mjs";
 import { buildHotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
 import {
   crawlPublicHotelWebsite,
@@ -248,7 +249,7 @@ export async function POST(request: NextRequest) {
       facts: mergeFacts(richFacts, coreState.normalized.profile.facts),
     };
     const socialFacts = buildSocialFacts(detectedSocialLinks, evidence.canonicalUrl);
-    const profile = {
+    const unreconciledProfile = {
       ...profileWithRichFacts,
       contacts: {
         ...profileWithRichFacts.contacts,
@@ -259,6 +260,7 @@ export async function POST(request: NextRequest) {
         ? profileWithRichFacts.uncertainties.filter((item) => !SOCIAL_UNCERTAINTY_PATTERN.test(item))
         : profileWithRichFacts.uncertainties,
     };
+    const { profile, reconciliation } = reconcileHotelScanProfileWithFacts(unreconciledProfile);
     const intelligencePackage = buildHotelIntelligencePackage(profile);
 
     return json({
@@ -266,6 +268,7 @@ export async function POST(request: NextRequest) {
       draft: true,
       lang: outputLanguage,
       profile,
+      reconciliation,
       intelligencePackage,
       assetPolicy: {
         logo: LOGO_ASSET_POLICY,
@@ -277,6 +280,10 @@ export async function POST(request: NextRequest) {
         coreError: coreState.coreError || undefined,
         richFactCount: richFacts.length,
         detectedSocialLinkCount: detectedSocialLinks.length,
+        reconciliationAppliedCount: reconciliation.applied.length,
+        reconciliationIssueCount: reconciliation.issues.length,
+        semanticDuplicateCount: reconciliation.semanticDuplicatesRemoved.length,
+        resolvedUncertaintyCount: reconciliation.resolvedUncertainties.length,
         brandColorCount: profile.brand.colors.length,
         brandFontCount: profile.brand.fonts.length,
         crawlLatencyMs,
