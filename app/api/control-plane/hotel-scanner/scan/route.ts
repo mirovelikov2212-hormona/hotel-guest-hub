@@ -6,6 +6,7 @@ import {
   type HotelScanProfile,
   type HotelScannerOutputLanguage,
 } from "@/lib/ai/hotel-scanner";
+import { buildHotelScanCoverage } from "@/lib/ai/hotel-scanner-coverage.mjs";
 import { extractRichHotelScanFactsWithOpenAi } from "@/lib/ai/hotel-scanner-rich-facts";
 import { reconcileHotelScanProfileWithFacts } from "@/lib/ai/hotel-scanner-reconciliation.mjs";
 import { sanitizeHotelScanProfileValues } from "@/lib/ai/hotel-intelligence-value-quality.mjs";
@@ -263,6 +264,7 @@ export async function POST(request: NextRequest) {
     };
     const { profile: reconciledProfile, reconciliation } = reconcileHotelScanProfileWithFacts(unreconciledProfile);
     const { profile, invalidValues } = sanitizeHotelScanProfileValues(reconciledProfile);
+    const coverage = buildHotelScanCoverage({ profile, evidence, invalidValues, reconciliation });
     const intelligencePackage = buildHotelIntelligencePackage(profile);
 
     return json({
@@ -272,6 +274,7 @@ export async function POST(request: NextRequest) {
       profile,
       reconciliation,
       invalidValues,
+      coverage,
       intelligencePackage,
       assetPolicy: {
         logo: LOGO_ASSET_POLICY,
@@ -288,6 +291,7 @@ export async function POST(request: NextRequest) {
         semanticDuplicateCount: reconciliation.semanticDuplicatesRemoved.length,
         resolvedUncertaintyCount: reconciliation.resolvedUncertainties.length,
         invalidValueCount: invalidValues.length,
+        coverageCounts: coverage.counts,
         brandColorCount: profile.brand.colors.length,
         brandFontCount: profile.brand.fonts.length,
         crawlLatencyMs,
