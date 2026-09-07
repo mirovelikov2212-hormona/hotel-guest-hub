@@ -171,3 +171,34 @@ test("Production direct guest communications reuse Guest Communications with exa
   assertContains(migration, 'to service_role');
   assertNotContains(staffRoute, 'all_active_guests');
 });
+
+test("Operational communications enforce expiry, three-day personal history, truthful evidence, and hotel-scoped bulk release", async () => {
+  const broadcastRoute = await readProjectFile("app/api/staff/guest-communications/route.ts");
+  const directRoute = await readProjectFile("app/api/staff/guest-direct-communications/route.ts");
+  const bulkDelivery = await readProjectFile("lib/server/guest-communications-delivery.ts");
+  const broadcastUi = await readProjectFile("components/staff/GuestCommunicationsWorkspace.tsx");
+  const directUi = await readProjectFile("components/staff/GuestDirectCommunicationsWorkspace.tsx");
+  const guestRoute = await readProjectFile("app/api/guest/communications/route.ts");
+
+  assertContains(broadcastRoute, '.eq("audience_type", "all_active_guests")');
+  assertContains(broadcastRoute, '.gt("display_until", now)');
+  assertContains(broadcastRoute, 'guestCommunicationsDeliveryEnabledForHotel');
+  assertContains(broadcastRoute, 'bulkDeliveryEnabledForHotel(access.hotel.id)');
+  assertContains(bulkDelivery, 'guestCommunicationsDeliveryEnabledForHotel(input.hotel.id)');
+  assertContains(bulkDelivery, 'reason: "hotel_delivery_disabled"');
+
+  assertContains(directRoute, 'DIRECT_HISTORY_RETENTION_MS = 3 * 24 * 60 * 60 * 1000');
+  assertContains(directRoute, '.gte("sent_at", historyCutoff)');
+  assertContains(directRoute, 'historyRetentionDays: 3');
+  assertContains(directRoute, 'hubPublished: true');
+  assertContains(directRoute, 'pushDeliveryState');
+
+  assertContains(broadcastUi, 'Активни / чернови / планирани');
+  assertContains(broadcastUi, 'translation: при изпращане/планиране');
+  assertNotContains(broadcastUi, 'но остава в Staff историята');
+  assertContains(directUi, 'История · последни 3 дни');
+  assertContains(directUi, 'Push: няма доказана доставка');
+
+  assertContains(guestRoute, 'language: requestedLanguage');
+  assertContains(guestRoute, 'display_until.gt.${now}');
+});
