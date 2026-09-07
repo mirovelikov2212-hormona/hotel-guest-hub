@@ -7,6 +7,10 @@ import {
   type HotelScannerOutputLanguage,
 } from "@/lib/ai/hotel-scanner";
 import { buildHotelScanCoverage } from "@/lib/ai/hotel-scanner-coverage.mjs";
+import {
+  attachHotelScanConflictReview,
+  detectHotelScanConflicts,
+} from "@/lib/ai/hotel-scanner-conflicts.mjs";
 import { extractRichHotelScanFactsWithOpenAi } from "@/lib/ai/hotel-scanner-rich-facts";
 import { reconcileHotelScanProfileWithFacts } from "@/lib/ai/hotel-scanner-reconciliation.mjs";
 import { sanitizeHotelScanProfileValues } from "@/lib/ai/hotel-intelligence-value-quality.mjs";
@@ -263,8 +267,10 @@ export async function POST(request: NextRequest) {
         : profileWithRichFacts.uncertainties,
     };
     const { profile: reconciledProfile, reconciliation } = reconcileHotelScanProfileWithFacts(unreconciledProfile);
-    const { profile, invalidValues } = sanitizeHotelScanProfileValues(reconciledProfile);
-    const coverage = buildHotelScanCoverage({ profile, evidence, invalidValues, reconciliation });
+    const { profile: sanitizedProfile, invalidValues } = sanitizeHotelScanProfileValues(reconciledProfile);
+    const conflicts = detectHotelScanConflicts(sanitizedProfile);
+    const { profile, conflictNotes } = attachHotelScanConflictReview(sanitizedProfile, conflicts, outputLanguage);
+    const coverage = buildHotelScanCoverage({ profile, evidence, invalidValues, conflicts, reconciliation });
     const intelligencePackage = buildHotelIntelligencePackage(profile);
 
     return json({
@@ -274,6 +280,8 @@ export async function POST(request: NextRequest) {
       profile,
       reconciliation,
       invalidValues,
+      conflicts,
+      conflictNotes,
       coverage,
       intelligencePackage,
       assetPolicy: {
@@ -291,6 +299,7 @@ export async function POST(request: NextRequest) {
         semanticDuplicateCount: reconciliation.semanticDuplicatesRemoved.length,
         resolvedUncertaintyCount: reconciliation.resolvedUncertainties.length,
         invalidValueCount: invalidValues.length,
+        conflictCount: conflicts.length,
         coverageCounts: coverage.counts,
         brandColorCount: profile.brand.colors.length,
         brandFontCount: profile.brand.fonts.length,
