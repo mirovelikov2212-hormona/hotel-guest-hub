@@ -144,11 +144,20 @@ test("homepage-discovered F&B and wellness free bounded budget for technology di
     `${origin}/spa`,
     `${origin}/careers`,
   ], 5, ["dining", "wellness"]);
-  assert.equal(result.urls.length, 5);
+  assert.equal(result.urls.length, 4);
   assert.ok(result.selections.some((selection) => selection.domains.includes("technology")));
   assert.equal(result.urls.filter((url) => url.includes("careers")).length, 1);
   assert.equal(result.urls.includes(`${origin}/restaurant`), false);
   assert.equal(result.urls.includes(`${origin}/spa`), false);
+});
+
+test("planner does not fill unused page budget with zero-gain secondary pages", () => {
+  const result = plan([
+    `${origin}/restaurant`,
+    `${origin}/spa`,
+  ], 5, ["dining", "wellness"]);
+  assert.deepEqual(result.urls, []);
+  assert.deepEqual(result.selections, []);
 });
 
 test("production crawler keeps the six-page bound and seeds the coverage planner from the first page", async () => {
