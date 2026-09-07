@@ -44,6 +44,8 @@ export async function POST(request: NextRequest) {
       metadata: {
         workspaceId: approved.lineage.workspaceId,
         revisionNo: approved.lineage.revisionNo,
+        scanRunId: approved.lineage.scanRunId,
+        scanEvidenceChecksum: approved.lineage.scanEvidenceChecksum,
         contentChecksum: approved.lineage.contentChecksum,
         target,
         authority: approved.authority,
@@ -55,7 +57,9 @@ export async function POST(request: NextRequest) {
     console.error("Hotel Intelligence approved handoff failed", { target, error: message });
     if (message.includes("NOT_FOUND")) return json({ ok: false, error: "not_found" }, 404);
     if (message.includes("NOT_APPROVED")) return json({ ok: false, error: "revision_not_approved" }, 409);
-    if (message.includes("MISMATCH")) return json({ ok: false, error: "checksum_mismatch" }, 409);
+    if (message.includes("SCAN_RUN") || message.includes("MISMATCH")) {
+      return json({ ok: false, error: "lineage_mismatch" }, 409);
+    }
     return json({ ok: false, error: "hotel_intelligence_handoff_failed" }, 500);
   }
 }
