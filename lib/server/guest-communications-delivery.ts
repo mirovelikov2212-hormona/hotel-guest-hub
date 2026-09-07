@@ -36,7 +36,7 @@ type ActiveStayRow = {
 };
 
 export function guestCommunicationsDeliveryEnabled() {
-  return String(process.env.GUEST_COMMUNICATIONS_DELIVERY_ENABLED || "").trim().toLowerCase() === "true";
+  return String(process.env.GUEST_COMMUNICATIONS_EMERGENCY_DISABLED || "").trim().toLowerCase() !== "true";
 }
 
 async function claimCommunication(row: CommunicationRow) {
