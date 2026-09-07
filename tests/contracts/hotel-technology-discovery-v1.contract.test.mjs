@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildHotelTechnologyDiscovery } from "../../lib/ai/hotel-technology-discovery.mjs";
+import { readProjectFile } from "../helpers/source-contract.mjs";
+
+const crawlerPath = "lib/server/factory-hotel-scanner.ts";
+const routePath = "app/api/control-plane/hotel-scanner/scan/route.ts";
 
 function evidence() {
   return {
@@ -85,4 +89,16 @@ test("positive guest-facing platform evidence changes Guest Hub semantics to con
   const result = buildHotelTechnologyDiscovery(input);
   assert.equal(result.capabilities.operationalGuestHub.classification, "CONFIRMED PUBLIC EVIDENCE");
   assert.ok(result.capabilities.operationalGuestHub.evidence.some((item) => /digital concierge/i.test(item.value)));
+});
+
+test("scanner captures raw technology evidence and returns semantic technology discovery separately from readiness", async () => {
+  const crawler = await readProjectFile(crawlerPath);
+  const route = await readProjectFile(routePath);
+
+  assert.match(crawler, /technology: extractPublicTechnologySignals\(html, url\)/);
+  assert.match(route, /buildHotelTechnologyDiscovery\(evidence\)/);
+  assert.match(route, /technologyDiscovery,/);
+  assert.match(route, /technologyProviderCount: technologyDiscovery\.providers\.length/);
+  assert.doesNotMatch(route, /reviewRequiredCount\s*[:=].*technology/i);
+  assert.doesNotMatch(route, /buildHotelIntelligencePackage\([^)]*technologyDiscovery/);
 });
