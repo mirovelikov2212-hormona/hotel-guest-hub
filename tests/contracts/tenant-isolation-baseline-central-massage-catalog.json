@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "checkpoint": "central-massage-catalog-authority",
+  "baseCheckpoint": "factory-acceptance-sandbox-cleanup",
+  "expectedNeedsReview": 185,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/massage-catalog-admin.ts",
+      "line": 84,
+      "table": "massage_runtime_services",
+      "tableExpression": "\"massage_runtime_services\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only_platform_admin_control_panel_read_explicit_hotel_id_scope_central_massage_catalog"
+    },
+    {
+      "filePath": "lib/server/massage-catalog-admin.ts",
+      "line": 123,
+      "rpc": "upsert_massage_catalog_service_v1",
+      "tableExpression": "\"upsert_massage_catalog_service_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only_platform_admin_super_admin_operator_guarded_service_role_rpc_hotel_scoped_central_catalog_mutation"
+    }
+  ]
+}

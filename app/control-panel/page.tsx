@@ -26,6 +26,9 @@ const COPY = {
     factoryTitle: "Hotel Factory",
     factoryText: "Създай и тествай нов хотелски Hub през guided onboarding и Sandbox-first workflow.",
     factoryAction: "Създай нов хотел",
+    catalogTitle: "Massage Catalog",
+    catalogText: "Управлявай централно услуги, цени, валута, продължителност, активност и преводи. Външните SPA адаптери остават само за график и наличности.",
+    catalogAction: "Отвори каталога",
     status: "Platform workspace",
     statusText: "Светъл режим по подразбиране · Dark режим при нужда · защитен Platform Admin достъп",
     logout: "Изход",
@@ -47,6 +50,9 @@ const COPY = {
     factoryTitle: "Hotel Factory",
     factoryText: "Create and test a new hotel Hub through guided onboarding and a Sandbox-first workflow.",
     factoryAction: "Create new hotel",
+    catalogTitle: "Massage Catalog",
+    catalogText: "Manage services, prices, currency, duration, active state and translations centrally. External SPA adapters remain availability-only.",
+    catalogAction: "Open catalog",
     status: "Platform workspace",
     statusText: "Light mode by default · Dark mode when needed · protected Platform Admin access",
     logout: "Sign out",
@@ -103,7 +109,7 @@ export default async function ControlPanelHome({
             </div>
           </header>
 
-          <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
             <article className={cardBase}>
               <div className="absolute inset-x-0 top-0 h-1 bg-amber-400" />
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-600">Business</p>
@@ -141,6 +147,16 @@ export default async function ControlPanelHome({
               <p className="mt-3 min-h-24 text-sm leading-6 text-[var(--cp-muted)]">{copy.factoryText}</p>
               <Link href={`/hotel-factory/new?lang=${lang}`} className={`${actionBase} border-teal-500/25 bg-teal-500/10 text-teal-700 hover:bg-teal-500/15`}>
                 {copy.factoryAction} →
+              </Link>
+            </article>
+
+            <article className={cardBase}>
+              <div className="absolute inset-x-0 top-0 h-1 bg-emerald-500" />
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600">Service Authority</p>
+              <h2 className="mt-3 text-xl font-semibold text-[var(--cp-text)]">{copy.catalogTitle}</h2>
+              <p className="mt-3 min-h-24 text-sm leading-6 text-[var(--cp-muted)]">{copy.catalogText}</p>
+              <Link href={`/control-panel/massages?lang=${lang}`} className={`${actionBase} border-emerald-500/25 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15`}>
+                {copy.catalogAction} →
               </Link>
             </article>
           </section>
