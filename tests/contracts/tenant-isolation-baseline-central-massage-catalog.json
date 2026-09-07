@@ -8,7 +8,7 @@
   "additions": [
     {
       "filePath": "lib/server/massage-catalog-admin.ts",
-      "line": 85,
+      "line": 84,
       "table": "massage_runtime_services",
       "tableExpression": "\"massage_runtime_services\"",
       "operation": "select",
