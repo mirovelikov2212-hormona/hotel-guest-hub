@@ -1,0 +1,104 @@
+{
+  "baseCheckpoint": "central-massage-catalog-authority",
+  "checkpoint": "communications-lifecycle-retention-v1",
+  "expectedNeedsReview": 185,
+  "relocations": [
+    {
+      "filePath": "app/api/staff/guest-communications/route.ts",
+      "fromLine": 77,
+      "toLine": 78,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "app/api/staff/guest-communications/route.ts",
+      "fromLine": 189,
+      "toLine": 194,
+      "table": "guest_communications",
+      "operation": "update"
+    },
+    {
+      "filePath": "app/api/staff/guest-direct-communications/route.ts",
+      "fromLine": 99,
+      "toLine": 119,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "app/api/staff/guest-direct-communications/route.ts",
+      "fromLine": 160,
+      "toLine": 189,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "app/api/staff/guest-direct-communications/route.ts",
+      "fromLine": 179,
+      "toLine": 208,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 43,
+      "toLine": 44,
+      "table": "guest_communications",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 107,
+      "toLine": 108,
+      "table": "guest_communication_deliveries",
+      "operation": "upsert"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 115,
+      "toLine": 116,
+      "table": "guest_communication_deliveries",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 141,
+      "toLine": 142,
+      "table": "guest_communication_deliveries",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 180,
+      "toLine": 181,
+      "table": "guest_communications",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 322,
+      "toLine": 326,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 334,
+      "toLine": 338,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 384,
+      "toLine": 388,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/guest-communications-delivery.ts",
+      "fromLine": 414,
+      "toLine": 418,
+      "table": "guest_communications",
+      "operation": "update"
+    }
+  ]
+}

@@ -135,12 +135,17 @@ export default function GuestCommunicationsInbox({ hotelSlug, defaultLanguage, b
 
   const unreadCount = useMemo(() => messages.filter((message) => !seenIds.has(message.id) && message.senderType !== "guest").length, [messages, seenIds]);
 
-  function openInbox() {
+  const openInbox = useCallback(() => {
     setOpen(true);
     const nextSeen = new Set(seenIds);
     for (const message of messages) nextSeen.add(message.id);
-    setSeenIds(nextSeen); writeSeen(hotelSlug, Array.from(nextSeen));
-  }
+    setSeenIds(nextSeen);
+    writeSeen(hotelSlug, Array.from(nextSeen));
+  }, [hotelSlug, messages, seenIds]);
+
+  useEffect(() => {
+    if (!open && unreadCount > 0) openInbox();
+  }, [open, openInbox, unreadCount]);
 
   async function sendReply() {
     if (!stay?.stayId || !stay.stayDeviceId || !stay.deviceToken || !reply.trim() || sending) return;
@@ -196,7 +201,13 @@ export default function GuestCommunicationsInbox({ hotelSlug, defaultLanguage, b
           ) : null}
         </section>
       ) : null}
-      <button type="button" onClick={open ? () => setOpen(false) : openInbox} className="relative ml-auto flex min-h-12 items-center gap-2 rounded-2xl border border-white/70 px-4 py-3 text-sm font-medium shadow-xl" style={{ background: "var(--guest-message-brand)", color: "#102027" }} aria-expanded={open}>
+      <button
+        type="button"
+        onClick={open ? () => setOpen(false) : openInbox}
+        className={`relative ml-auto flex min-h-12 items-center gap-2 rounded-2xl border border-white/70 px-4 py-3 text-sm font-medium shadow-xl ${unreadCount > 0 ? "animate-pulse ring-4 ring-red-500/20" : ""}`}
+        style={{ background: "var(--guest-message-brand)", color: "#102027" }}
+        aria-expanded={open}
+      >
         <span aria-hidden="true">✉</span><span>{copy.label}</span>
         {unreadCount > 0 ? <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-semibold text-white">{unreadCount > 9 ? "9+" : unreadCount}</span> : null}
       </button>

@@ -12,6 +12,7 @@ import {
   type GuestCommunicationLanguage,
 } from "@/lib/server/guest-communications-translation";
 import { guestCommunicationsDeliveryEnabled } from "@/lib/server/guest-communications-delivery";
+import { guestCommunicationsDeliveryEnabledForHotel } from "@/lib/server/guest-communications-delivery-policy";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export const runtime = "nodejs";
@@ -20,6 +21,7 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" };
 const CATEGORIES = new Set(["information", "event", "change", "offer", "emergency", "operational"]);
 const ACTIONS = new Set(["draft", "send_now", "schedule", "cancel"]);
+const OPERATIONAL_BROADCAST_STATUSES = ["draft", "scheduled", "queued", "sending", "sent", "partial_failed", "failed"];
 const ROLE_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_MESSAGE_VALIDITY_MS = 90 * 24 * 60 * 60 * 1000;
@@ -44,23 +46,21 @@ async function resolveHotelSourceLanguage(hotelSlug: string): Promise<GuestCommu
     return null;
   });
 
-  const candidates = [
-    config?.languageDefault,
-    config?.opsLanguage,
-    ...(config?.languages || []),
-  ];
-
-  for (const candidate of candidates) {
+  for (const candidate of [config?.languageDefault, config?.opsLanguage, ...(config?.languages || [])]) {
     const language = asCommunicationLanguage(candidate);
     if (language) return language;
   }
-
   return "en";
 }
 
 async function loadAccess(hotelSlug: string, role: string) {
   if (!hotelSlug || !ROLE_PATTERN.test(role)) return null;
   return resolveGuestCommunicationsAccess(hotelSlug, role);
+}
+
+async function bulkDeliveryEnabledForHotel(hotelId: string) {
+  if (!guestCommunicationsDeliveryEnabled()) return false;
+  return guestCommunicationsDeliveryEnabledForHotel(hotelId);
 }
 
 export async function GET(req: NextRequest) {
@@ -74,10 +74,14 @@ export async function GET(req: NextRequest) {
     const canViewOwn = hasGuestCommunicationCapability(access, "guest_communications.view_own");
     if (!canViewAll && !canViewOwn) return json({ ok: false, error: "forbidden" }, 403);
 
+    const now = new Date().toISOString();
     let messagesQuery = supabaseAdmin
       .from("guest_communications")
       .select("id,department_id,actor_role,category,source_language,title,body,title_i18n,body_i18n,translation_status,translated_at,audience_type,status,scheduled_at,queued_at,sent_at,display_from,display_until,delivery_total,delivery_sent,delivery_failed,delivery_expired,last_error,created_at,updated_at,departments(name,code)")
       .eq("hotel_id", access.hotel.id)
+      .eq("audience_type", "all_active_guests")
+      .in("status", OPERATIONAL_BROADCAST_STATUSES)
+      .gt("display_until", now)
       .order("created_at", { ascending: false })
       .limit(100);
 
@@ -86,7 +90,6 @@ export async function GET(req: NextRequest) {
       messagesQuery = messagesQuery.eq("department_id", access.runtimeRole.departmentId);
     }
 
-    const now = new Date().toISOString();
     const testFilter = access.hotel.isSandbox
       ? "is_test.is.null,is_test.eq.false,is_test.eq.true"
       : "is_test.is.null,is_test.eq.false";
@@ -96,6 +99,7 @@ export async function GET(req: NextRequest) {
       { data: activeStayRows, error: activeStaysError },
       { data: pushRows, error: pushError },
       hotelSourceLanguage,
+      deliveryEnabled,
     ] = await Promise.all([
       messagesQuery,
       supabaseAdmin
@@ -115,6 +119,7 @@ export async function GET(req: NextRequest) {
         .or(testFilter)
         .limit(5000),
       resolveHotelSourceLanguage(hotelSlug),
+      bulkDeliveryEnabledForHotel(access.hotel.id),
     ]);
 
     if (messagesError) throw messagesError;
@@ -159,7 +164,7 @@ export async function GET(req: NextRequest) {
       pushReach: pushReachDevices,
       hotelSourceLanguage,
       supportedLanguages: [...GUEST_COMMUNICATION_LANGUAGES],
-      deliveryEnabled: guestCommunicationsDeliveryEnabled(),
+      deliveryEnabled,
       messages: messages || [],
     });
   } catch (error) {
@@ -191,6 +196,7 @@ export async function POST(req: NextRequest) {
         .update({ status: "cancelled", updated_at: new Date().toISOString() })
         .eq("hotel_id", access.hotel.id)
         .eq("id", communicationId)
+        .eq("audience_type", "all_active_guests")
         .in("status", ["draft", "scheduled", "queued"]);
       if (!hasGuestCommunicationCapability(access, "guest_communications.view_all")) {
         if (!access.runtimeRole.departmentId) return json({ ok: false, error: "department_scope_required" }, 403);
@@ -205,7 +211,7 @@ export async function POST(req: NextRequest) {
     if (!hasGuestCommunicationCapability(access, "guest_communications.create")) return json({ ok: false, error: "forbidden" }, 403);
     if (action === "send_now" && !hasGuestCommunicationCapability(access, "guest_communications.send")) return json({ ok: false, error: "send_forbidden" }, 403);
     if (action === "schedule" && !hasGuestCommunicationCapability(access, "guest_communications.schedule")) return json({ ok: false, error: "schedule_forbidden" }, 403);
-    if ((action === "send_now" || action === "schedule") && !guestCommunicationsDeliveryEnabled()) {
+    if ((action === "send_now" || action === "schedule") && !(await bulkDeliveryEnabledForHotel(access.hotel.id))) {
       return json({ ok: false, error: "delivery_disabled" }, 409);
     }
 
@@ -248,15 +254,9 @@ export async function POST(req: NextRequest) {
     let translationStatus = "pending";
     let translatedAt: string | null = null;
 
-    // Drafts can be saved before translation. Anything prepared for delivery
-    // must have all six guest languages ready first, otherwise fail closed.
     if (action !== "draft") {
       try {
-        const translated = await translateGuestCommunication({
-          sourceLanguage,
-          title,
-          body: messageBody,
-        });
+        const translated = await translateGuestCommunication({ sourceLanguage, title, body: messageBody });
         titleI18n = translated.titleI18n;
         bodyI18n = translated.bodyI18n;
         translationStatus = "ready";
