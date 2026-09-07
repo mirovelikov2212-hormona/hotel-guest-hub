@@ -3,7 +3,10 @@ import "server-only";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
-import { planHotelScannerSecondaryUrls } from "@/lib/server/hotel-scanner-crawl-plan.mjs";
+import {
+  classifyHotelScannerPageCoverage,
+  planHotelScannerSecondaryUrls,
+} from "@/lib/server/hotel-scanner-crawl-plan.mjs";
 
 const MAX_PAGES = 6;
 const MAX_SECONDARY_PAGES = MAX_PAGES - 1;
@@ -472,11 +475,13 @@ export async function crawlPublicHotelWebsite(rawUrl: string): Promise<HotelScan
   const first = await fetchHtml(requested);
   const firstPage = buildPageEvidence(first.url, first.html);
   const canonicalOrigin = first.url.origin;
+  const firstPageCoverage = classifyHotelScannerPageCoverage(firstPage);
   const crawlPlan = planHotelScannerSecondaryUrls({
     links: firstPage.links,
     canonicalOrigin,
     firstUrl: first.url.toString(),
     maxPages: MAX_SECONDARY_PAGES,
+    alreadyCoveredDomains: firstPageCoverage,
   });
 
   const [secondaryResults, brand] = await Promise.all([
