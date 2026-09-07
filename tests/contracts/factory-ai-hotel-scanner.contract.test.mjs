@@ -50,8 +50,10 @@ test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
 
   assertContains(crawler, "MAX_SECONDARY_PAGES = MAX_PAGES - 1");
   assertContains(crawler, "FETCH_TIMEOUT_MS = 6_000");
+  assertContains(crawler, "planHotelScannerSecondaryUrls");
+  assertContains(crawler, "maxPages: MAX_SECONDARY_PAGES");
   assertContains(crawler, "await Promise.all(");
-  assertContains(crawler, "secondaryUrls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin))");
+  assertContains(crawler, "crawlPlan.urls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin))");
   assertContains(crawler, "STYLESHEET_TIMEOUT_MS = 4_000");
   assertContains(route, "AI_DEADLINE_MS = 32_000");
   assertContains(route, "withDeadline(");
