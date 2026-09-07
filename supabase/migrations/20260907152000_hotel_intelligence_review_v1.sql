@@ -72,6 +72,62 @@ create table if not exists public.hotel_intelligence_revisions (
     on delete restrict
 );
 
+create table if not exists public.hotel_scan_runs (
+  id uuid primary key default gen_random_uuid(),
+  source_key text not null,
+  requested_url text not null,
+  canonical_url text not null,
+  scanned_urls jsonb not null,
+  schema_version text not null,
+  idempotency_key text not null,
+  evidence_checksum text not null,
+  evidence_json jsonb not null,
+  technology_json jsonb not null,
+  design_signals_json jsonb not null,
+  scanner_metadata_json jsonb not null,
+  diagnostics_json jsonb not null default '{}'::jsonb,
+  scanned_at timestamptz not null,
+  created_by uuid not null references public.platform_admins(id) on delete restrict,
+  created_at timestamptz not null default now(),
+  constraint hotel_scan_runs_source_key_check
+    check (source_key ~ '^[a-f0-9]{64}$'),
+  constraint hotel_scan_runs_requested_url_check
+    check (length(requested_url) between 8 and 2048 and requested_url ~ '^https?://'),
+  constraint hotel_scan_runs_canonical_url_check
+    check (length(canonical_url) between 8 and 2048 and canonical_url ~ '^https?://'),
+  constraint hotel_scan_runs_scanned_urls_check
+    check (
+      jsonb_typeof(scanned_urls) = 'array'
+      and jsonb_array_length(scanned_urls) between 1 and 20
+    ),
+  constraint hotel_scan_runs_schema_version_check
+    check (schema_version = 'hotel-scan-run-v1'),
+  constraint hotel_scan_runs_idempotency_key_check
+    check (length(idempotency_key) between 8 and 180 and idempotency_key ~ '^[A-Za-z0-9._:-]+$'),
+  constraint hotel_scan_runs_idempotency_key_unique unique (idempotency_key),
+  constraint hotel_scan_runs_evidence_checksum_check
+    check (evidence_checksum ~ '^[a-f0-9]{64}$'),
+  constraint hotel_scan_runs_evidence_json_check
+    check (
+      jsonb_typeof(evidence_json) = 'object'
+      and evidence_json->>'schemaVersion' = 'hotel-scan-evidence-v1'
+    ),
+  constraint hotel_scan_runs_technology_json_check
+    check (
+      jsonb_typeof(technology_json) = 'object'
+      and technology_json->>'schemaVersion' = 'hotel-technology-discovery-v1'
+    ),
+  constraint hotel_scan_runs_design_signals_json_check
+    check (
+      jsonb_typeof(design_signals_json) = 'object'
+      and design_signals_json->>'schemaVersion' = 'hotel-scan-design-signals-v1'
+    ),
+  constraint hotel_scan_runs_scanner_metadata_json_check
+    check (jsonb_typeof(scanner_metadata_json) = 'object'),
+  constraint hotel_scan_runs_diagnostics_json_check
+    check (jsonb_typeof(diagnostics_json) = 'object')
+);
+
 alter table public.hotel_intelligence_workspaces
   add constraint hotel_intelligence_workspaces_current_revision_fk
   foreign key (id, current_revision_id)
@@ -102,19 +158,30 @@ create index if not exists hotel_intelligence_revisions_approved_from_idx
   where approved_from_revision_id is not null;
 create index if not exists hotel_intelligence_revisions_created_by_idx
   on public.hotel_intelligence_revisions (created_by);
+create index if not exists hotel_scan_runs_source_scanned_idx
+  on public.hotel_scan_runs (source_key, scanned_at desc, created_at desc);
+create index if not exists hotel_scan_runs_evidence_checksum_idx
+  on public.hotel_scan_runs (evidence_checksum);
+create index if not exists hotel_scan_runs_created_by_idx
+  on public.hotel_scan_runs (created_by);
 
 alter table public.hotel_intelligence_workspaces enable row level security;
 alter table public.hotel_intelligence_revisions enable row level security;
+alter table public.hotel_scan_runs enable row level security;
 
 revoke all on table public.hotel_intelligence_workspaces from public, anon, authenticated, service_role;
 revoke all on table public.hotel_intelligence_revisions from public, anon, authenticated, service_role;
+revoke all on table public.hotel_scan_runs from public, anon, authenticated, service_role;
 grant select on table public.hotel_intelligence_workspaces to service_role;
 grant select on table public.hotel_intelligence_revisions to service_role;
+grant select on table public.hotel_scan_runs to service_role;
 
 create policy hotel_intelligence_workspaces_deny_direct_access
   on public.hotel_intelligence_workspaces for all to public using (false) with check (false);
 create policy hotel_intelligence_revisions_deny_direct_access
   on public.hotel_intelligence_revisions for all to public using (false) with check (false);
+create policy hotel_scan_runs_deny_direct_access
+  on public.hotel_scan_runs for all to public using (false) with check (false);
 
 create or replace function public.guard_hotel_intelligence_revision_mutation()
 returns trigger
@@ -130,6 +197,136 @@ $$;
 create trigger hotel_intelligence_revisions_immutable
 before update or delete on public.hotel_intelligence_revisions
 for each row execute function public.guard_hotel_intelligence_revision_mutation();
+
+create or replace function public.guard_hotel_scan_run_mutation()
+returns trigger
+language plpgsql
+set search_path = pg_catalog, public
+as $$
+begin
+  raise exception 'HOTEL_SCAN_RUN_IMMUTABLE';
+end;
+$$;
+
+create trigger hotel_scan_runs_immutable
+before update or delete on public.hotel_scan_runs
+for each row execute function public.guard_hotel_scan_run_mutation();
+
+create or replace function public.create_hotel_scan_run_v1(
+  p_actor_admin_id uuid,
+  p_source_key text,
+  p_requested_url text,
+  p_canonical_url text,
+  p_scanned_urls jsonb,
+  p_schema_version text,
+  p_idempotency_key text,
+  p_evidence_checksum text,
+  p_evidence jsonb,
+  p_technology jsonb,
+  p_design_signals jsonb,
+  p_scanner_metadata jsonb,
+  p_diagnostics jsonb,
+  p_scanned_at timestamptz
+)
+returns table (
+  scan_run_id uuid,
+  evidence_checksum text,
+  scanned_at timestamptz,
+  replayed boolean
+)
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_actor_role text;
+  v_existing public.hotel_scan_runs%rowtype;
+  v_scan_run_id uuid;
+begin
+  select role into v_actor_role
+  from public.platform_admins
+  where id = p_actor_admin_id and active = true;
+
+  if v_actor_role is null or v_actor_role not in ('super_admin', 'operator') then
+    raise exception 'HOTEL_SCAN_RUN_ADMIN_FORBIDDEN';
+  end if;
+
+  p_source_key := lower(btrim(coalesce(p_source_key, '')));
+  p_requested_url := btrim(coalesce(p_requested_url, ''));
+  p_canonical_url := btrim(coalesce(p_canonical_url, ''));
+  p_schema_version := btrim(coalesce(p_schema_version, ''));
+  p_idempotency_key := btrim(coalesce(p_idempotency_key, ''));
+  p_evidence_checksum := lower(btrim(coalesce(p_evidence_checksum, '')));
+
+  if p_source_key !~ '^[a-f0-9]{64}$'
+     or length(p_requested_url) < 8 or length(p_requested_url) > 2048 or p_requested_url !~ '^https?://'
+     or length(p_canonical_url) < 8 or length(p_canonical_url) > 2048 or p_canonical_url !~ '^https?://'
+     or p_scanned_urls is null or jsonb_typeof(p_scanned_urls) <> 'array'
+     or jsonb_array_length(p_scanned_urls) < 1 or jsonb_array_length(p_scanned_urls) > 20
+     or p_schema_version <> 'hotel-scan-run-v1'
+     or length(p_idempotency_key) < 8 or length(p_idempotency_key) > 180
+     or p_idempotency_key !~ '^[A-Za-z0-9._:-]+$'
+     or p_evidence_checksum !~ '^[a-f0-9]{64}$'
+     or p_evidence is null or jsonb_typeof(p_evidence) <> 'object'
+     or p_evidence->>'schemaVersion' <> 'hotel-scan-evidence-v1'
+     or p_technology is null or jsonb_typeof(p_technology) <> 'object'
+     or p_technology->>'schemaVersion' <> 'hotel-technology-discovery-v1'
+     or p_design_signals is null or jsonb_typeof(p_design_signals) <> 'object'
+     or p_design_signals->>'schemaVersion' <> 'hotel-scan-design-signals-v1'
+     or p_scanner_metadata is null or jsonb_typeof(p_scanner_metadata) <> 'object'
+     or p_diagnostics is null or jsonb_typeof(p_diagnostics) <> 'object'
+     or p_scanned_at is null then
+    raise exception 'HOTEL_SCAN_RUN_INVALID';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('stayhub:hotel-scan-run:' || p_idempotency_key, 0));
+
+  select * into v_existing
+  from public.hotel_scan_runs
+  where idempotency_key = p_idempotency_key;
+
+  if found then
+    if v_existing.source_key <> p_source_key
+       or v_existing.schema_version <> p_schema_version
+       or v_existing.evidence_checksum <> p_evidence_checksum
+       or v_existing.scanned_at is distinct from p_scanned_at then
+      raise exception 'HOTEL_SCAN_RUN_IDEMPOTENCY_CONFLICT';
+    end if;
+    return query select v_existing.id, v_existing.evidence_checksum, v_existing.scanned_at, true;
+    return;
+  end if;
+
+  insert into public.hotel_scan_runs (
+    source_key, requested_url, canonical_url, scanned_urls, schema_version,
+    idempotency_key, evidence_checksum, evidence_json, technology_json,
+    design_signals_json, scanner_metadata_json, diagnostics_json,
+    scanned_at, created_by
+  ) values (
+    p_source_key, p_requested_url, p_canonical_url, p_scanned_urls, p_schema_version,
+    p_idempotency_key, p_evidence_checksum, p_evidence, p_technology,
+    p_design_signals, p_scanner_metadata, p_diagnostics,
+    p_scanned_at, p_actor_admin_id
+  ) returning id into v_scan_run_id;
+
+  insert into public.control_plane_audit_log (
+    actor_admin_id, action, resource_type, resource_id, metadata_json
+  ) values (
+    p_actor_admin_id,
+    'hotel_scan_run_created',
+    'hotel_scan_run',
+    v_scan_run_id::text,
+    jsonb_build_object(
+      'sourceKey', p_source_key,
+      'schemaVersion', p_schema_version,
+      'evidenceChecksum', p_evidence_checksum,
+      'scannedAt', p_scanned_at,
+      'scannedUrlCount', jsonb_array_length(p_scanned_urls)
+    )
+  );
+
+  return query select v_scan_run_id, p_evidence_checksum, p_scanned_at, false;
+end;
+$$;
 
 create or replace function public.save_hotel_intelligence_revision_v1(
   p_actor_admin_id uuid,
@@ -406,8 +603,11 @@ end;
 $$;
 
 revoke all on function public.guard_hotel_intelligence_revision_mutation() from public, anon, authenticated, service_role;
+revoke all on function public.guard_hotel_scan_run_mutation() from public, anon, authenticated, service_role;
+revoke all on function public.create_hotel_scan_run_v1(uuid, text, text, text, jsonb, text, text, text, jsonb, jsonb, jsonb, jsonb, jsonb, timestamptz) from public, anon, authenticated;
 revoke all on function public.save_hotel_intelligence_revision_v1(uuid, text, text, text, text, text, text, jsonb, jsonb, jsonb, uuid) from public, anon, authenticated;
 revoke all on function public.approve_hotel_intelligence_revision_v1(uuid, uuid, uuid, uuid, text) from public, anon, authenticated;
+grant execute on function public.create_hotel_scan_run_v1(uuid, text, text, text, jsonb, text, text, text, jsonb, jsonb, jsonb, jsonb, jsonb, timestamptz) to service_role;
 grant execute on function public.save_hotel_intelligence_revision_v1(uuid, text, text, text, text, text, text, jsonb, jsonb, jsonb, uuid) to service_role;
 grant execute on function public.approve_hotel_intelligence_revision_v1(uuid, uuid, uuid, uuid, text) to service_role;
 
