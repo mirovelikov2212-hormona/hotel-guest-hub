@@ -95,8 +95,9 @@ test("every new broadcast requires an explicit future expiry and expired broadca
   contains(guestApi, '.or(`display_until.is.null,display_until.gt.${now}`)');
 });
 
-test("delivery is kill-switched, active-stay scoped and idempotent", () => {
-  contains(delivery, 'process.env.GUEST_COMMUNICATIONS_DELIVERY_ENABLED');
+test("delivery keeps an emergency kill switch, active-stay scope and idempotence", () => {
+  contains(delivery, 'process.env.GUEST_COMMUNICATIONS_EMERGENCY_DISABLED');
+  excludes(delivery, 'process.env.GUEST_COMMUNICATIONS_DELIVERY_ENABLED');
   contains(delivery, '.eq("status", "active")');
   contains(delivery, '.eq("lifecycle_state", "active")');
   contains(delivery, '.eq("hotel_id", hotelId)');
