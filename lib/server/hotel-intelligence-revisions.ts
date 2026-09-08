@@ -10,8 +10,10 @@ import {
 import {
   APPROVED_HOTEL_INTELLIGENCE_SCHEMA_VERSION,
   HOTEL_INTELLIGENCE_REVIEW_SCHEMA_VERSION,
+  assertHotelReviewSemanticsProjectionMatches,
   buildApprovedHotelIntelligencePackage,
   createHotelIntelligenceReviewContent,
+  projectHotelReviewSemanticsV2,
   validateHotelIntelligenceReviewContent,
   type ApprovedHotelIntelligenceEnvelope,
   type HotelIntelligenceReviewContent,
@@ -59,6 +61,7 @@ type HotelScanRunReviewSource = {
   scannedAt: string;
   evidenceChecksum: string;
   evidenceSnapshot: Record<string, unknown>;
+  reviewSemantics: Record<string, unknown>;
   technologySignals: Record<string, unknown>;
   designSignals: Record<string, unknown>;
   scannerMetadata: Record<string, unknown>;
@@ -155,6 +158,10 @@ async function loadHotelScanRunReviewSource(scanRunId: string): Promise<HotelSca
   const requestedUrl = normalizeHotelIntelligenceCanonicalUrl(String(data.requested_url || ""));
   const scannedUrls = stringArray(data.scanned_urls, "HOTEL_INTELLIGENCE_SCAN_RUN_URLS_INVALID");
   const evidenceSnapshot = objectValue(data.evidence_json, "HOTEL_INTELLIGENCE_SCAN_RUN_EVIDENCE_INVALID");
+  const reviewSemantics = objectValue(
+    evidenceSnapshot.reviewSemantics,
+    "HOTEL_INTELLIGENCE_SCAN_RUN_REVIEW_SEMANTICS_INVALID",
+  );
   const technologySignals = objectValue(data.technology_json, "HOTEL_INTELLIGENCE_SCAN_RUN_TECHNOLOGY_INVALID");
   const designSignals = objectValue(data.design_signals_json, "HOTEL_INTELLIGENCE_SCAN_RUN_DESIGN_INVALID");
   const scannerMetadata = objectValue(data.scanner_metadata_json, "HOTEL_INTELLIGENCE_SCAN_RUN_METADATA_INVALID");
@@ -209,6 +216,7 @@ async function loadHotelScanRunReviewSource(scanRunId: string): Promise<HotelSca
     scannedAt: String(data.scanned_at),
     evidenceChecksum,
     evidenceSnapshot,
+    reviewSemantics,
     technologySignals,
     designSignals,
     scannerMetadata,
@@ -236,9 +244,20 @@ export function prepareInitialHotelIntelligenceReview(input: {
   intelligencePackage: unknown;
   diagnostics?: { model?: unknown; coreMode?: unknown } | null;
   provenance?: Record<string, unknown> | null;
+  reviewSemantics?: unknown;
+  scanRunId?: string;
+  scanEvidenceChecksum?: string;
 }) {
   const sourcePackage = requirePackage(input.intelligencePackage);
-  const content = createHotelIntelligenceReviewContent(sourcePackage, { model: input.diagnostics?.model });
+  const baseContent = createHotelIntelligenceReviewContent(sourcePackage, { model: input.diagnostics?.model });
+  const content = input.reviewSemantics === undefined
+    ? baseContent
+    : projectHotelReviewSemanticsV2({
+      content: baseContent,
+      reviewSemantics: input.reviewSemantics,
+      scanRunId: input.scanRunId || "",
+      scanEvidenceChecksum: input.scanEvidenceChecksum || "",
+    });
   return prepareHotelIntelligenceReview({
     content,
     scannerPackageChecksum: sha256Hex(stableHotelIntelligenceStringify(sourcePackage)),
@@ -262,14 +281,14 @@ async function prepareInitialHotelIntelligenceReviewFromScanRun(scanRunId: strin
       model: scannerMetadata.model,
       coreMode: scannerMetadata.coreMode,
     },
+    reviewSemantics: scanRun.reviewSemantics,
+    scanRunId: scanRun.scanRunId,
+    scanEvidenceChecksum: scanRun.evidenceChecksum,
     provenance: {
       scanRunId: scanRun.scanRunId,
       scanEvidenceChecksum: scanRun.evidenceChecksum,
       scanScannedAt: scanRun.scannedAt,
-      reviewSemanticsSchemaVersion: objectValue(
-        scanRun.evidenceSnapshot.reviewSemantics,
-        "HOTEL_INTELLIGENCE_SCAN_RUN_REVIEW_SEMANTICS_INVALID",
-      ).schemaVersion,
+      reviewSemanticsSchemaVersion: scanRun.reviewSemantics.schemaVersion,
       technologySchemaVersion: scanRun.technologySignals.schemaVersion,
     },
   });
@@ -435,8 +454,18 @@ export async function saveHotelIntelligenceRevision(input: {
   } else {
     if (!input.parentRevisionId) throw new Error("HOTEL_INTELLIGENCE_PARENT_REVISION_REQUIRED");
     const parent = await loadParentRevisionLineage(input.parentRevisionId);
-    prepared = prepareHotelIntelligenceReview({
+    const scanRun = await verifyHotelScanRunLineage({
+      scanRunId: parent.scanRunId,
+      scanEvidenceChecksum: parent.scanEvidenceChecksum,
+    });
+    const projectedContent = projectHotelReviewSemanticsV2({
       content: input.content,
+      reviewSemantics: scanRun.reviewSemantics,
+      scanRunId: parent.scanRunId,
+      scanEvidenceChecksum: parent.scanEvidenceChecksum,
+    });
+    prepared = prepareHotelIntelligenceReview({
+      content: projectedContent,
       scannerPackageChecksum: parent.scannerPackageChecksum,
       provenance: {
         ...parent.provenance,
@@ -446,11 +475,9 @@ export async function saveHotelIntelligenceRevision(input: {
         scanEvidenceChecksum: parent.scanEvidenceChecksum,
       },
     });
-    await verifyHotelScanRunLineage({
-      scanRunId: parent.scanRunId,
-      scanEvidenceChecksum: parent.scanEvidenceChecksum,
-      sourceKey: prepared.sourceKey,
-    });
+    if (scanRun.sourceKey !== prepared.sourceKey) {
+      throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_SOURCE_MISMATCH");
+    }
     scanRunId = parent.scanRunId;
     scanEvidenceChecksum = parent.scanEvidenceChecksum;
   }
@@ -517,11 +544,17 @@ export async function approveHotelIntelligenceRevision(input: {
   if (!sourceData.scan_run_id || !sourceData.scan_evidence_checksum) {
     throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_LINEAGE_REQUIRED");
   }
-  await verifyHotelScanRunLineage({
+  const scanRun = await verifyHotelScanRunLineage({
     scanRunId: String(sourceData.scan_run_id),
     scanEvidenceChecksum: String(sourceData.scan_evidence_checksum),
   });
   const content = reviewContent(sourceData.content_json);
+  assertHotelReviewSemanticsProjectionMatches({
+    content,
+    reviewSemantics: scanRun.reviewSemantics,
+    scanRunId: String(sourceData.scan_run_id),
+    scanEvidenceChecksum: String(sourceData.scan_evidence_checksum),
+  });
   const approvalValidation = validateHotelIntelligenceReviewContent(content, { forApproval: true });
   if (!approvalValidation.ok) {
     throw new Error(`HOTEL_INTELLIGENCE_APPROVAL_NOT_READY:${approvalValidation.errors.join(",")}`);
@@ -569,11 +602,17 @@ export async function loadApprovedHotelIntelligenceEnvelope(
   if (!data.scan_run_id || !data.scan_evidence_checksum) {
     throw new Error("HOTEL_INTELLIGENCE_SCAN_RUN_LINEAGE_REQUIRED");
   }
-  await verifyHotelScanRunLineage({
+  const scanRun = await verifyHotelScanRunLineage({
     scanRunId: String(data.scan_run_id),
     scanEvidenceChecksum: String(data.scan_evidence_checksum),
   });
   const content = reviewContent(data.content_json);
+  assertHotelReviewSemanticsProjectionMatches({
+    content,
+    reviewSemantics: scanRun.reviewSemantics,
+    scanRunId: String(data.scan_run_id),
+    scanEvidenceChecksum: String(data.scan_evidence_checksum),
+  });
   const calculatedChecksum = sha256Hex(stableHotelIntelligenceStringify(content));
   if (calculatedChecksum !== String(data.content_checksum)) {
     throw new Error("HOTEL_INTELLIGENCE_CONTENT_CHECKSUM_MISMATCH");
