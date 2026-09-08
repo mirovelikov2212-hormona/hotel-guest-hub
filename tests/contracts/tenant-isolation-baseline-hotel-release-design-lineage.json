@@ -2,11 +2,17 @@
   "version": 1,
   "checkpoint": "hotel-release-approved-design-lineage",
   "baseCheckpoint": "hotel-intelligence-scan-run-lineage-v1",
-  "expectedNeedsReview": 195,
+  "expectedNeedsReview": 194,
   "removals": [
     {
       "filePath": "app/api/control-plane/design-studio/factory-handoff/route.ts",
       "line": 57,
+      "table": "hub_design_draft_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/factory-prepare-sandbox.ts",
+      "line": 165,
       "table": "hub_design_draft_revisions",
       "operation": "select"
     }

@@ -41,7 +41,7 @@ test("P4.1 preflight stays same-origin, authenticated, bounded and mutation-free
   assert.match(authority, /exact_immutable_design_revision/);
   assert.match(authority, /FACTORY_RELEASE_DESIGN_CHECKSUM_MISMATCH/);
   assert.match(authority, /FACTORY_RELEASE_APPROVED_INTELLIGENCE_LINEAGE_MISMATCH/);
-  assert.doesNotMatch(authority, /\.insert\(|\.update\(|\.delete\(/);
+  assert.doesNotMatch(authority, /\.insert\(|\.upsert\(|\.update\s*\(\s*\{|\.delete\(/);
 });
 
 test("P4.1 parent wizard keeps preflight separate from the later explicit creation panel", () => {

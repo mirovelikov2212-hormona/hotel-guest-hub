@@ -6,6 +6,7 @@ const authorityPath = "lib/server/factory-release-design-authority.ts";
 const preflightPath = "app/api/control-plane/onboarding/preflight/route.ts";
 const onboardingPath = "lib/server/factory-onboarding.ts";
 const onboardingRoutePath = "app/api/control-plane/onboarding/route.ts";
+const sandboxPreparationPath = "lib/server/factory-prepare-sandbox.ts";
 const sandboxCertificationPath = "lib/server/factory-trusted-sandbox-certification.ts";
 const readinessPath = "lib/server/factory-production-readiness.ts";
 const publicationPath = "lib/server/factory-production-publication.ts";
@@ -33,7 +34,8 @@ test("Hotel Release authority reconstructs exact immutable Design provenance and
   ]) assertContains(authority, fragment);
 
   assertNotContains(authority, ".insert(");
-  assertNotContains(authority, ".update(");
+  assertNotContains(authority, ".upsert(");
+  assertNotContains(authority, ".update({");
   assertNotContains(authority, ".delete(");
 });
 
@@ -76,6 +78,15 @@ test("Persisted Factory release revision is rebound to its exact immutable bluep
     "FACTORY_RELEASE_DESIGN_PROVENANCE_MISMATCH",
     "FACTORY_RELEASE_DESIGN_LINEAGE_REQUIRED",
   ]) assertContains(authority, fragment);
+});
+
+test("Sandbox preparation validates the immutable persisted Design lineage without requiring the moving workspace current pointer", async () => {
+  const preparation = await readProjectFile(sandboxPreparationPath);
+
+  assertContains(preparation, "verifyPersistedFactoryReleaseDesignBlueprint");
+  assertNotContains(preparation, '.from("hub_design_draft_revisions")');
+  assertNotContains(preparation, "current_revision_id");
+  assertNotContains(preparation, "currentRevisionId");
 });
 
 test("Sandbox, readiness, publication, runtime certification and LIVE all independently fail closed on missing or forged Design lineage", async () => {

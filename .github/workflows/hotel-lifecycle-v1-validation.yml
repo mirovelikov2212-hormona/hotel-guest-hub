@@ -32,6 +32,7 @@ on:
       - "lib/server/hub-design-draft-revisions.ts"
       - "lib/server/factory-release-design-authority.ts"
       - "lib/server/factory-onboarding.ts"
+      - "lib/server/factory-prepare-sandbox.ts"
       - "lib/server/factory-trusted-sandbox-certification.ts"
       - "lib/server/factory-production-readiness.ts"
       - "lib/server/factory-production-publication.ts"

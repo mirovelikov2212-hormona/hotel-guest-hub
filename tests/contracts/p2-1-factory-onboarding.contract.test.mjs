@@ -153,7 +153,8 @@ test("P2.1 onboarding API requires same-origin authority and delegates stale-pre
   assertContains(route, "hasExactFoundationApproval");
   assertContains(route, "beginFactoryOnboarding");
   assertContains(route, "expectedBlueprintHash,");
-  assertContains(route, 'error: "stale_preflight"');
+  assertContains(route, 'code: "stale_preflight"');
+  assertContains(route, "error: mapped.code");
   assertContains(route, "MAX_BODY_BYTES");
   assertContains(route, 'error: "unauthorized"');
   assertNotContains(route, "prepareFactoryOnboarding");
