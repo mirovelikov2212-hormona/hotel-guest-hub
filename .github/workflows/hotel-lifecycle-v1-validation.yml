@@ -35,6 +35,7 @@ on:
       - "tests/contracts/hotel-review-semantics-v2.contract.test.mjs"
       - "tests/contracts/hotel-scan-run-v1.contract.test.mjs"
       - "tests/contracts/hotel-intelligence-scan-run-lineage-v1.contract.test.mjs"
+      - "tests/contracts/hotel-intelligence-review-semantics-v2-integration.contract.test.mjs"
       - "tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-coverage-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-conflicts-v1.contract.test.mjs"
@@ -80,6 +81,8 @@ jobs:
         run: node --test tests/contracts/hotel-intelligence-scan-run-lineage-v1.contract.test.mjs
       - name: Hotel Intelligence review contracts
         run: node --test tests/contracts/hotel-intelligence-review-v1.contract.test.mjs
+      - name: HL5.2 Review Semantics V2 integration contracts
+        run: node --test tests/contracts/hotel-intelligence-review-semantics-v2-integration.contract.test.mjs
       - name: Next.js build
         run: npm run build
         env:
