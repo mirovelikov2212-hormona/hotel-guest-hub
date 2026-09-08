@@ -46,8 +46,9 @@ test("P4.3 reconstructs authoritative Design provenance and rejects stale prefli
   assert.match(server, /factory-release-design-authority/);
   assert.match(server, /P2_FACTORY_STALE_PREFLIGHT/);
   assert.match(onboardingRoute, /BLUEPRINT_HASH_PATTERN/);
-  assert.match(onboardingRoute, /error: "stale_preflight"/);
-  assert.match(onboardingRoute, /409/);
+  assert.match(onboardingRoute, /P2_FACTORY_STALE_PREFLIGHT/);
+  assert.match(onboardingRoute, /return \{ status: 409, code: "stale_preflight" \}/);
+  assert.match(onboardingRoute, /error: mapped\.code/);
 });
 
 test("P4.3 binds the create panel to the exact successful client preflight snapshot", () => {
