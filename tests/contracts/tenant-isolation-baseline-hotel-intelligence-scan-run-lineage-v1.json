@@ -51,6 +51,60 @@
       "table": "hotel_intelligence_revisions",
       "operation": "select",
       "toLine": 592
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "fromLine": 112,
+      "table": "hub_design_workspaces",
+      "operation": "select",
+      "toLine": 183
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "fromLine": 120,
+      "table": "hub_design_draft_revisions",
+      "operation": "select",
+      "toLine": 191
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "fromLine": 130,
+      "table": "hub_design_draft_revisions",
+      "operation": "select",
+      "toLine": 201
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "fromLine": 163,
+      "operation": "rpc",
+      "toLine": 233
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "fromLine": 198,
+      "operation": "rpc",
+      "toLine": 269
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "fromLine": 209,
+      "table": "hub_design_draft_revisions",
+      "operation": "select",
+      "toLine": 280
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "fromLine": 235,
+      "table": "hub_design_draft_revisions",
+      "operation": "select",
+      "toLine": 306
+    },
+    {
+      "filePath": "app/api/control-plane/design-studio/factory-handoff/route.ts",
+      "fromLine": 40,
+      "table": "hub_design_draft_revisions",
+      "operation": "select",
+      "toLine": 57
     }
   ],
   "additions": [
