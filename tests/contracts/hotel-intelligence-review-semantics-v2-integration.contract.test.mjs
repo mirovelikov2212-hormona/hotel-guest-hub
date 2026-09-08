@@ -44,7 +44,9 @@ test("only Review V1 human decisions are used and required tasks block approval 
     assert.match(review, new RegExp(`"${decision}"`));
   }
   assert.match(review, /options\.forApproval && task\.requiresHumanReview && task\.decision === "pending"/);
-  assert.doesNotMatch(review, /resolved|dismissed|waived|accepted_as_is/);
+  for (const forbiddenDecision of ["resolved", "dismissed", "waived", "accepted_as_is"]) {
+    assert.doesNotMatch(review, new RegExp(`"${forbiddenDecision}"`));
+  }
 });
 
 test("coverage and technology semantic states remain projection data, including absence-safe technology language", () => {
