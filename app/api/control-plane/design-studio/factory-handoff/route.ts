@@ -3,10 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 import {
   asHubDesignDraftPayload,
+  getHubDesignApprovedIntelligenceLineage,
+  normalizeCanonicalHotelSourceUrl,
   stableDesignDraftStringify,
 } from "@/lib/product-factory/hub-design-draft";
 import type { HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
+import { loadApprovedHotelIntelligenceEnvelope } from "@/lib/server/hotel-intelligence-revisions";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export const runtime = "nodejs";
@@ -25,6 +28,20 @@ function json(body: Record<string, unknown>, status = 200) {
 
 function sha256(value: unknown) {
   return crypto.createHash("sha256").update(stableDesignDraftStringify(value)).digest("hex");
+}
+
+function approvedLineageMatches(
+  designLineage: NonNullable<ReturnType<typeof getHubDesignApprovedIntelligenceLineage>>,
+  approved: Awaited<ReturnType<typeof loadApprovedHotelIntelligenceEnvelope>>,
+) {
+  return designLineage.schemaVersion === approved.schemaVersion
+    && designLineage.authority === approved.authority
+    && designLineage.workspaceId === approved.lineage.workspaceId
+    && designLineage.revisionId === approved.lineage.revisionId
+    && designLineage.revisionNo === approved.lineage.revisionNo
+    && designLineage.scanRunId === approved.lineage.scanRunId
+    && designLineage.scanEvidenceChecksum === approved.lineage.scanEvidenceChecksum
+    && designLineage.contentChecksum === approved.lineage.contentChecksum;
 }
 
 export async function GET(request: NextRequest) {
@@ -62,10 +79,43 @@ export async function GET(request: NextRequest) {
     return json({ ok: false, error: "revision_checksum_mismatch" }, 409);
   }
 
+  const designLineage = getHubDesignApprovedIntelligenceLineage(payload);
+  if (!designLineage) {
+    return json({ ok: false, error: "approved_intelligence_lineage_required" }, 409);
+  }
+
+  let approved: Awaited<ReturnType<typeof loadApprovedHotelIntelligenceEnvelope>>;
+  try {
+    approved = await loadApprovedHotelIntelligenceEnvelope(designLineage.revisionId);
+  } catch (lineageError) {
+    console.error("Design Factory upstream intelligence validation failed", {
+      revisionId,
+      approvedRevisionId: designLineage.revisionId,
+      error: lineageError instanceof Error ? lineageError.message : String(lineageError),
+    });
+    return json({ ok: false, error: "approved_intelligence_lineage_invalid" }, 409);
+  }
+
+  if (!approvedLineageMatches(designLineage, approved)) {
+    return json({ ok: false, error: "approved_intelligence_lineage_mismatch" }, 409);
+  }
+
+  const approvedSourcePackageChecksum = sha256(approved.intelligencePackage);
+  if (approvedSourcePackageChecksum !== sourcePackageChecksum) {
+    return json({ ok: false, error: "approved_intelligence_source_mismatch" }, 409);
+  }
+
   const workspace = Array.isArray(data.hub_design_workspaces)
     ? data.hub_design_workspaces[0]
     : data.hub_design_workspaces;
   if (!workspace) return json({ ok: false, error: "workspace_not_found" }, 404);
+
+  const approvedCanonicalUrl = normalizeCanonicalHotelSourceUrl(approved.intelligencePackage.source.canonicalUrl);
+  const payloadCanonicalUrl = normalizeCanonicalHotelSourceUrl(payload.source.canonicalUrl);
+  const workspaceCanonicalUrl = normalizeCanonicalHotelSourceUrl(String(workspace.canonical_url || ""));
+  if (approvedCanonicalUrl !== payloadCanonicalUrl || approvedCanonicalUrl !== workspaceCanonicalUrl) {
+    return json({ ok: false, error: "approved_intelligence_source_mismatch" }, 409);
+  }
 
   return json({
     ok: true,
@@ -82,6 +132,7 @@ export async function GET(request: NextRequest) {
       hotelName: workspace.hotel_name,
       isCurrentRevision: workspace.current_revision_id === revisionId,
       createdAt: data.created_at,
+      approvedIntelligence: designLineage,
       sourcePackage,
       designDraft: payload,
       policies: {
