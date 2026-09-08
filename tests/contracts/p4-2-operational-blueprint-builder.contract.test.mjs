@@ -63,12 +63,14 @@ test("P4.2 removes dangling references when operational resources are deleted", 
   assert.match(wizard, /workflowId:\s*""/);
 });
 
-test("P4.2 operational authoring itself still reaches only the preflight boundary", () => {
+test("P4.2 operational authoring itself still reaches only the authoritative preflight boundary", () => {
   assert.match(wizard, /fetch\("\/api\/control-plane\/onboarding\/preflight"/);
   assert.doesNotMatch(wizard, /fetch\("\/api\/control-plane\/onboarding"\s*,/);
   assert.doesNotMatch(wizard, /production-live-activation|sandbox-certification|projectFactoryOperationalResources|beginFactoryOnboarding/);
-  assert.match(route, /prepareFactoryOnboarding/);
+  assert.match(route, /prepareAuthoritativeFactoryOnboarding/);
+  assert.match(route, /factory-release-design-authority/);
   assert.match(route, /validateFactoryBlueprint/);
+  assert.doesNotMatch(route, /supabaseAdmin|\.rpc\(|\.from\(/);
 });
 
 test("P4.2 operational blueprint remains credential-free as P4.3 adds a separate foundation action", () => {

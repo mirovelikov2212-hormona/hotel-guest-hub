@@ -38,11 +38,13 @@ test("P4.3 requires an exact explicit draft-only approval object", () => {
   assert.match(onboardingRoute, /error: "approval_required"/);
 });
 
-test("P4.3 recomputes the normalized blueprint hash before the P2.1 mutation", () => {
-  const prepareIndex = onboardingRoute.indexOf("const prepared = prepareFactoryOnboarding");
-  const staleIndex = onboardingRoute.indexOf("prepared.blueprintHash !== expectedBlueprintHash");
-  const beginIndex = onboardingRoute.indexOf("const result = await beginFactoryOnboarding");
+test("P4.3 reconstructs authoritative Design provenance and rejects stale preflight before the P2.1 mutation", () => {
+  const prepareIndex = server.indexOf("const prepared = await prepareAuthoritativeFactoryOnboarding");
+  const staleIndex = server.indexOf("prepared.blueprintHash !== String(input.expectedBlueprintHash)");
+  const beginIndex = server.indexOf('supabaseAdmin.rpc("begin_factory_onboarding_v1"');
   assert.ok(prepareIndex >= 0 && staleIndex > prepareIndex && beginIndex > staleIndex);
+  assert.match(server, /factory-release-design-authority/);
+  assert.match(server, /P2_FACTORY_STALE_PREFLIGHT/);
   assert.match(onboardingRoute, /BLUEPRINT_HASH_PATTERN/);
   assert.match(onboardingRoute, /error: "stale_preflight"/);
   assert.match(onboardingRoute, /409/);
