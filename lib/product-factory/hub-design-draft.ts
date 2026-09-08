@@ -21,6 +21,17 @@ export type HubDesignDraftTheme = {
   bodyFont: string;
 };
 
+export type HubDesignApprovedIntelligenceLineage = {
+  schemaVersion: "approved-hotel-intelligence-v1";
+  authority: "approved_hotel_intelligence_revision";
+  workspaceId: string;
+  revisionId: string;
+  revisionNo: number;
+  scanRunId: string;
+  scanEvidenceChecksum: string;
+  contentChecksum: string;
+};
+
 export type HubDesignDraftAuthoringState = {
   preset: HubExperiencePreset;
   theme: HubDesignDraftTheme;
@@ -44,6 +55,7 @@ export type HubDesignDraftPayload = {
     canonicalUrl: string;
     hotelName: string;
     packageSchemaVersion: "hotel-intelligence-v1";
+    approvedIntelligence?: HubDesignApprovedIntelligenceLineage;
   };
   authoring: HubDesignDraftAuthoringState;
   experience: HubExperienceBlueprint;
@@ -108,6 +120,10 @@ function isHexColor(value: string) {
   return /^#[0-9a-f]{6}$/i.test(String(value || "").trim());
 }
 
+function isChecksum(value: unknown) {
+  return /^[a-f0-9]{64}$/i.test(String(value || "").trim());
+}
+
 export function validateHubDesignDraftPayload(value: unknown): HubDesignDraftValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -125,6 +141,22 @@ export function validateHubDesignDraftPayload(value: unknown): HubDesignDraftVal
     }
     if (!String(source.hotelName || "").trim()) errors.push("SOURCE_HOTEL_NAME_REQUIRED");
     if (source.packageSchemaVersion !== "hotel-intelligence-v1") errors.push("SOURCE_PACKAGE_VERSION_UNSUPPORTED");
+
+    if (source.approvedIntelligence !== undefined) {
+      const lineage = isRecord(source.approvedIntelligence) ? source.approvedIntelligence : null;
+      if (!lineage) {
+        errors.push("SOURCE_APPROVED_INTELLIGENCE_INVALID");
+      } else {
+        if (lineage.schemaVersion !== "approved-hotel-intelligence-v1") errors.push("SOURCE_APPROVED_INTELLIGENCE_SCHEMA_INVALID");
+        if (lineage.authority !== "approved_hotel_intelligence_revision") errors.push("SOURCE_APPROVED_INTELLIGENCE_AUTHORITY_INVALID");
+        if (!String(lineage.workspaceId || "").trim()) errors.push("SOURCE_APPROVED_INTELLIGENCE_WORKSPACE_REQUIRED");
+        if (!String(lineage.revisionId || "").trim()) errors.push("SOURCE_APPROVED_INTELLIGENCE_REVISION_REQUIRED");
+        if (!Number.isInteger(lineage.revisionNo) || Number(lineage.revisionNo) < 1) errors.push("SOURCE_APPROVED_INTELLIGENCE_REVISION_NO_INVALID");
+        if (!String(lineage.scanRunId || "").trim()) errors.push("SOURCE_APPROVED_INTELLIGENCE_SCAN_RUN_REQUIRED");
+        if (!isChecksum(lineage.scanEvidenceChecksum)) errors.push("SOURCE_APPROVED_INTELLIGENCE_SCAN_CHECKSUM_INVALID");
+        if (!isChecksum(lineage.contentChecksum)) errors.push("SOURCE_APPROVED_INTELLIGENCE_CONTENT_CHECKSUM_INVALID");
+      }
+    }
   }
 
   const authoring = isRecord(value.authoring) ? value.authoring : null;
@@ -175,6 +207,10 @@ export function validateHubDesignDraftPayload(value: unknown): HubDesignDraftVal
 export function asHubDesignDraftPayload(value: unknown): HubDesignDraftPayload | null {
   const validation = validateHubDesignDraftPayload(value);
   return validation.ok ? value as HubDesignDraftPayload : null;
+}
+
+export function getHubDesignApprovedIntelligenceLineage(payload: HubDesignDraftPayload) {
+  return payload.source.approvedIntelligence || null;
 }
 
 function diffValues(left: unknown, right: unknown, path: string, changes: string[], limit: number) {
