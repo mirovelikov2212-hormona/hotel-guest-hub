@@ -28,6 +28,9 @@ on:
       - "lib/product-factory/hotel-intelligence-review.ts"
       - "lib/server/hotel-intelligence-revisions.ts"
       - "app/api/control-plane/hotel-intelligence/**"
+      - "lib/product-factory/hub-design-draft.ts"
+      - "lib/server/hub-design-draft-revisions.ts"
+      - "app/api/control-plane/design-studio/**"
       - "supabase/migrations/20260907152000_hotel_intelligence_review_v1.sql"
       - "supabase/migrations/20260907193500_hotel_intelligence_scan_run_lineage_v1.sql"
       - "tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs"
@@ -36,6 +39,7 @@ on:
       - "tests/contracts/hotel-scan-run-v1.contract.test.mjs"
       - "tests/contracts/hotel-intelligence-scan-run-lineage-v1.contract.test.mjs"
       - "tests/contracts/hotel-intelligence-review-semantics-v2-integration.contract.test.mjs"
+      - "tests/contracts/hub-design-approved-intelligence-lineage.contract.test.mjs"
       - "tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-coverage-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-conflicts-v1.contract.test.mjs"
@@ -83,6 +87,8 @@ jobs:
         run: node --test tests/contracts/hotel-intelligence-review-v1.contract.test.mjs
       - name: HL5.2 Review Semantics V2 integration contracts
         run: node --test tests/contracts/hotel-intelligence-review-semantics-v2-integration.contract.test.mjs
+      - name: Design approved intelligence lineage contracts
+        run: node --test tests/contracts/hub-design-approved-intelligence-lineage.contract.test.mjs
       - name: Next.js build
         run: npm run build
         env:
