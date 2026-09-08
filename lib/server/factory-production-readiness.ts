@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import { canMutateControlPlane, type PlatformAdminAuthority } from "@/lib/server/control-plane-auth";
+import { verifyFactoryReleaseDesignRevision } from "@/lib/server/factory-release-design-authority";
 import { deriveFactoryProductionReadinessEvidence } from "@/lib/server/factory-production-readiness-evidence";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
@@ -59,14 +60,19 @@ export async function assessFactoryProductionReadiness(input: {
   const sandboxCertificationRunId = normalizeUuid(input.sandboxCertificationRunId);
   const approval = normalizeApproval(input.approval);
   const evidence = await deriveFactoryProductionReadinessEvidence(sandboxCertificationRunId);
-  const checks = { ...evidence.checks, evidence, approval };
+  const releaseDesign = await verifyFactoryReleaseDesignRevision({
+    hotelId: evidence.certification.productionHotelId,
+    revisionId: evidence.certification.productionRevisionId,
+  });
+  const checks = { ...evidence.checks, releaseDesign, evidence, approval };
   const evidenceHash = createHash("sha256")
     .update(canonicalize({ schemaVersion: "p2.6.1-trusted", sandboxCertificationRunId, checks }))
     .digest("hex");
 
   // The client supplies only lineage + dark-readiness intent. Build/runtime/security/dry-run
   // evidence above is derived server-side from signed platform/runtime and tenant-bound data.
-  // The database RPC independently rechecks exact P2.1-P2.5 lineage and fail-closed Production state.
+  // Exact immutable Design -> Approved Intelligence -> Scan lineage is independently revalidated
+  // before the existing readiness RPC is allowed to assess the dark Production candidate.
   const { data, error } = await supabaseAdmin.rpc("assess_factory_production_readiness_v1", {
     p_actor_admin_id: input.authority.adminId,
     p_sandbox_certification_run_id: sandboxCertificationRunId,
@@ -85,5 +91,6 @@ export async function assessFactoryProductionReadiness(input: {
     replayed: Boolean(row.replayed),
     evidenceHash,
     evidence,
+    releaseDesign,
   };
 }

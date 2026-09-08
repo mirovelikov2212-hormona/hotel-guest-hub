@@ -129,30 +129,33 @@ test("P2.1 onboarding history covers every non-leading foreign key used by reten
   assertContains(migration, "factory_onboarding_runs_sandbox_revision_idx");
 });
 
-test("P2.1 server mutation is restricted to Control Plane mutation authority and one reviewed RPC", async () => {
+test("P2.1 server mutation canonicalizes Design provenance before the one reviewed onboarding RPC", async () => {
   const source = await readProjectFile("lib/server/factory-onboarding.ts");
 
   assertContains(source, 'import "server-only"');
   assertContains(source, "canMutateControlPlane(input.authority.role)");
-  assertContains(source, "prepareFactoryOnboarding");
+  assertContains(source, "prepareAuthoritativeFactoryOnboarding");
+  assertContains(source, "expectedBlueprintHash");
+  assertContains(source, "prepared.blueprintHash !== String(input.expectedBlueprintHash)");
+  assertContains(source, "P2_FACTORY_STALE_PREFLIGHT");
   assertContains(source, 'supabaseAdmin.rpc("begin_factory_onboarding_v1"');
   assertContains(source, "p_actor_admin_id: input.authority.adminId");
   assertNotContains(source, "manager_pin");
   assertNotContains(source, "staff_sessions");
 });
 
-test("P2.1 onboarding API requires same-origin Control Plane session authority plus P4.3 exact preflight approval", async () => {
+test("P2.1 onboarding API requires same-origin authority and delegates stale-preflight enforcement to the authoritative service", async () => {
   const route = await readProjectFile("app/api/control-plane/onboarding/route.ts");
 
   assertContains(route, "enforceControlPlaneSameOrigin(req)");
   assertContains(route, "getCurrentPlatformAdminSession()");
-  assertContains(route, "prepareFactoryOnboarding");
   assertContains(route, "expectedBlueprintHash");
   assertContains(route, "hasExactFoundationApproval");
-  assertContains(route, "prepared.blueprintHash !== expectedBlueprintHash");
-  assertContains(route, 'error: "stale_preflight"');
   assertContains(route, "beginFactoryOnboarding");
+  assertContains(route, "expectedBlueprintHash,");
+  assertContains(route, 'error: "stale_preflight"');
   assertContains(route, "MAX_BODY_BYTES");
   assertContains(route, 'error: "unauthorized"');
+  assertNotContains(route, "prepareFactoryOnboarding");
   assertNotContains(route, "manager_pin");
 });

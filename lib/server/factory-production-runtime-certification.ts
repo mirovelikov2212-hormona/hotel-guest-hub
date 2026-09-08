@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import { canMutateControlPlane, type PlatformAdminAuthority } from "@/lib/server/control-plane-auth";
+import { verifyFactoryReleaseDesignRevision } from "@/lib/server/factory-release-design-authority";
 import { deriveFactoryProductionRuntimeCertificationEvidence } from "@/lib/server/factory-production-runtime-certification-evidence";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
@@ -66,7 +67,11 @@ export async function certifyFactoryProductionRuntime(input: {
   const expectedProductionRevisionId = evidence.publication.productionRevisionId;
   const deploymentId = evidence.release.deploymentId;
   const deploymentSha = evidence.release.deploymentSha;
-  const checks = { ...evidence.checks, evidence, approval };
+  const releaseDesign = await verifyFactoryReleaseDesignRevision({
+    hotelId: expectedProductionHotelId,
+    revisionId: expectedProductionRevisionId,
+  });
+  const checks = { ...evidence.checks, releaseDesign, evidence, approval };
 
   const evidenceHash = createHash("sha256")
     .update(canonicalize({
@@ -82,7 +87,8 @@ export async function certifyFactoryProductionRuntime(input: {
 
   // The caller supplies only the immutable publication lineage plus dark-certification intent.
   // Exact deployment, signed runtime window and all runtime/security checks are derived server-side.
-  // The database transaction independently revalidates the full P2.1 -> P2.6.2 state before mutation.
+  // The exact published configuration is independently rebound to immutable Design/Intelligence lineage
+  // before the existing certification transaction is allowed to mutate state.
   const { data, error } = await supabaseAdmin.rpc("certify_factory_production_runtime_v1", {
     p_actor_admin_id: input.authority.adminId,
     p_publication_run_id: publicationRunId,
@@ -113,6 +119,7 @@ export async function certifyFactoryProductionRuntime(input: {
     deploymentSha,
     evidenceHash,
     evidence,
+    releaseDesign,
     status: "certified_dark" as const,
     productionActive: false as const,
     publicIdentityStatus: "certified" as const,

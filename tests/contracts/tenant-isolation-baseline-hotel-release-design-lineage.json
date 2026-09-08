@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "checkpoint": "hotel-release-approved-design-lineage",
+  "baseCheckpoint": "hotel-intelligence-scan-run-lineage-v1",
+  "expectedNeedsReview": 195,
+  "removals": [
+    {
+      "filePath": "app/api/control-plane/design-studio/factory-handoff/route.ts",
+      "line": 57,
+      "table": "hub_design_draft_revisions",
+      "operation": "select"
+    }
+  ],
+  "relocations": [
+    {
+      "filePath": "lib/server/factory-onboarding.ts",
+      "fromLine": 60,
+      "operation": "rpc",
+      "toLine": 68
+    },
+    {
+      "filePath": "lib/server/factory-production-readiness.ts",
+      "fromLine": 70,
+      "operation": "rpc",
+      "toLine": 76
+    },
+    {
+      "filePath": "lib/server/factory-production-publication.ts",
+      "fromLine": 96,
+      "operation": "rpc",
+      "toLine": 102
+    },
+    {
+      "filePath": "lib/server/factory-production-runtime-certification.ts",
+      "fromLine": 86,
+      "operation": "rpc",
+      "toLine": 92
+    },
+    {
+      "filePath": "lib/server/factory-production-live-activation.ts",
+      "fromLine": 123,
+      "operation": "rpc",
+      "toLine": 131
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-release-design-authority.ts",
+      "line": 96,
+      "table": "hub_design_draft_revisions",
+      "tableExpression": "\"hub_design_draft_revisions\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_factory_release_authority_reads_one_exact_pre_factory_immutable_design_revision_scoped_by_explicit_workspace_id_plus_revision_id_recomputes_payload_and_source_package_sha256_reloads_the_exact_approved_hotel_intelligence_revision_and_revalidates_review_scan_run_evidence_and_canonical_source_lineage_before_canonicalizing_the_existing_factory_blueprint; current_workspace_pointer_is_informational_only_and_this_read_has_no_insert_update_publication_certification_or_live_activation_authority"
+    }
+  ]
+}

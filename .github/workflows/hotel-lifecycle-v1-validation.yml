@@ -30,7 +30,16 @@ on:
       - "app/api/control-plane/hotel-intelligence/**"
       - "lib/product-factory/hub-design-draft.ts"
       - "lib/server/hub-design-draft-revisions.ts"
+      - "lib/server/factory-release-design-authority.ts"
+      - "lib/server/factory-onboarding.ts"
+      - "lib/server/factory-trusted-sandbox-certification.ts"
+      - "lib/server/factory-production-readiness.ts"
+      - "lib/server/factory-production-publication.ts"
+      - "lib/server/factory-production-runtime-certification.ts"
+      - "lib/server/factory-production-live-activation.ts"
       - "app/api/control-plane/design-studio/**"
+      - "app/api/control-plane/onboarding/**"
+      - "app/hotel-factory/from-design/**"
       - "supabase/migrations/20260907152000_hotel_intelligence_review_v1.sql"
       - "supabase/migrations/20260907193500_hotel_intelligence_scan_run_lineage_v1.sql"
       - "tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs"
@@ -40,6 +49,13 @@ on:
       - "tests/contracts/hotel-intelligence-scan-run-lineage-v1.contract.test.mjs"
       - "tests/contracts/hotel-intelligence-review-semantics-v2-integration.contract.test.mjs"
       - "tests/contracts/hub-design-approved-intelligence-lineage.contract.test.mjs"
+      - "tests/contracts/design-revision-factory-handoff.contract.test.mjs"
+      - "tests/contracts/p2-1-factory-onboarding.contract.test.mjs"
+      - "tests/contracts/p4-1-onboarding-workspace-blueprint-wizard.contract.test.mjs"
+      - "tests/contracts/p4-10-trusted-sandbox-certification.contract.test.mjs"
+      - "tests/contracts/hotel-release-approved-design-lineage.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-hotel-release-design-lineage.json"
+      - "scripts/tenant-isolation-guard.mjs"
       - "tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-coverage-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-conflicts-v1.contract.test.mjs"
@@ -89,6 +105,12 @@ jobs:
         run: node --test tests/contracts/hotel-intelligence-review-semantics-v2-integration.contract.test.mjs
       - name: Design approved intelligence lineage contracts
         run: node --test tests/contracts/hub-design-approved-intelligence-lineage.contract.test.mjs
+      - name: Hotel Release approved Design lineage contracts
+        run: node --test tests/contracts/hotel-release-approved-design-lineage.contract.test.mjs
+      - name: Relevant Factory release boundary contracts
+        run: node --test tests/contracts/design-revision-factory-handoff.contract.test.mjs tests/contracts/p2-1-factory-onboarding.contract.test.mjs tests/contracts/p2-6-1-production-readiness.contract.test.mjs tests/contracts/p2-6-2-production-publication.contract.test.mjs tests/contracts/p2-6-3-production-runtime-certification.contract.test.mjs tests/contracts/p2-6-4-production-live-activation.contract.test.mjs tests/contracts/p4-1-onboarding-workspace-blueprint-wizard.contract.test.mjs tests/contracts/p4-10-trusted-sandbox-certification.contract.test.mjs
+      - name: Tenant isolation guard
+        run: npm run test:tenant-isolation
       - name: Next.js build
         run: npm run build
         env:

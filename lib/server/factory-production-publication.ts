@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import { canMutateControlPlane, type PlatformAdminAuthority } from "@/lib/server/control-plane-auth";
+import { verifyFactoryReleaseDesignRevision } from "@/lib/server/factory-release-design-authority";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 const REQUIRED_APPROVAL = {
@@ -78,6 +79,10 @@ export async function publishFactoryProductionConfiguration(input: {
   );
   const expectedPublicSlug = normalizePublicSlug(input.expectedPublicSlug);
   const approval = normalizeApproval(input.approval);
+  const releaseDesign = await verifyFactoryReleaseDesignRevision({
+    hotelId: expectedProductionHotelId,
+    revisionId: expectedProductionRevisionId,
+  });
   const approvalHash = createHash("sha256")
     .update(canonicalize({
       schemaVersion: "p2.6.2",
@@ -85,14 +90,15 @@ export async function publishFactoryProductionConfiguration(input: {
       expectedProductionHotelId,
       expectedProductionRevisionId,
       expectedPublicSlug,
+      releaseDesign,
       approval,
     }))
     .digest("hex");
 
   // Reviewed platform-authority mutation: the service-role-only RPC treats the P2.6.1-ready
-  // revision as immutable source/CAS and publishes an exact derivative. It rechecks lineage
-  // while keeping Production inactive, public identity reserved, runtime disabled and certification pending.
-  // The browser never receives service-role database authority from this path.
+  // revision as immutable source/CAS and publishes an exact derivative. Before publication the
+  // source revision is independently rebound to exact Design -> Approved Intelligence -> Scan lineage.
+  // Production remains inactive, public identity reserved and runtime certification pending.
   const { data, error } = await supabaseAdmin.rpc("publish_factory_production_revision_v1", {
     p_actor_admin_id: input.authority.adminId,
     p_readiness_run_id: readinessRunId,
@@ -124,6 +130,7 @@ export async function publishFactoryProductionConfiguration(input: {
     sourceProductionRevisionId: expectedProductionRevisionId,
     expectedPublicSlug,
     approvalHash,
+    releaseDesign,
     status: "published_pending_certification" as const,
     productionActive: false as const,
     publicIdentityActive: false as const,

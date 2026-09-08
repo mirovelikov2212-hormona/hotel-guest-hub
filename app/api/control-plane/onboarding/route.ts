@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { prepareFactoryOnboarding } from "@/lib/product-factory/factory-onboarding-model.mjs";
 import { beginFactoryOnboarding } from "@/lib/server/factory-onboarding";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
@@ -58,10 +57,16 @@ function mapFactoryError(error: unknown) {
     return { status: 403, code: "forbidden" };
   }
 
+  if (message.includes("P2_FACTORY_STALE_PREFLIGHT")) {
+    return { status: 409, code: "stale_preflight" };
+  }
+
   if (
     message.includes("P2_FACTORY_IDEMPOTENCY_CONFLICT") ||
     message.includes("P2_FACTORY_PROPERTY_EXISTS") ||
-    message.includes("P2_FACTORY_HOTEL_IDENTITY_EXISTS")
+    message.includes("P2_FACTORY_HOTEL_IDENTITY_EXISTS") ||
+    message.includes("FACTORY_RELEASE_DESIGN_PROVENANCE_MISMATCH") ||
+    message.includes("FACTORY_RELEASE_APPROVED_INTELLIGENCE")
   ) {
     return { status: 409, code: "conflict" };
   }
@@ -71,7 +76,8 @@ function mapFactoryError(error: unknown) {
     message.includes("P2_FACTORY_INVALID_") ||
     message.includes("P2_FACTORY_SECRET_FORBIDDEN") ||
     message.includes("P2_FACTORY_ENVIRONMENTS_REQUIRED") ||
-    message.includes("P2_FACTORY_SANDBOX_IDENTITY_TOO_LONG")
+    message.includes("P2_FACTORY_SANDBOX_IDENTITY_TOO_LONG") ||
+    message.includes("FACTORY_RELEASE_")
   ) {
     return { status: 400, code: "invalid_blueprint" };
   }
@@ -124,20 +130,14 @@ export async function POST(req: NextRequest) {
       return jsonResponse({ ok: false, error: "invalid_preflight_hash" }, 400);
     }
 
-    // Re-run the exact P2.1 normalization and secret checks on the server. The
-    // approved hash must match the blueprint that is about to enter the DB transaction.
-    const prepared = prepareFactoryOnboarding({
-      idempotencyKey,
-      blueprint: body.blueprint as Record<string, unknown>,
-    });
-    if (prepared.blueprintHash !== expectedBlueprintHash) {
-      return jsonResponse({ ok: false, error: "stale_preflight" }, 409);
-    }
-
+    // The mutation service reconstructs the exact Design provenance again in the
+    // same request and compares the resulting authoritative blueprint hash with
+    // the previously reviewed preflight hash before calling the existing P2.1 RPC.
     const result = await beginFactoryOnboarding({
       authority,
       idempotencyKey,
-      blueprint: prepared.blueprint,
+      expectedBlueprintHash,
+      blueprint: body.blueprint as Record<string, unknown>,
     });
 
     return jsonResponse(

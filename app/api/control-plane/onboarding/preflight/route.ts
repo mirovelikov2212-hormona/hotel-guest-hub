@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
-import { prepareFactoryOnboarding } from "@/lib/product-factory/factory-onboarding-model.mjs";
 import { prepareFactoryNativeContentVenues } from "@/lib/product-factory/factory-native-content-venues-model.mjs";
 import { prepareFactoryCommunications } from "@/lib/product-factory/factory-communications-model.mjs";
 import { validateFactoryBlueprint } from "@/lib/product-factory/factory-blueprint-model.mjs";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
+import { prepareAuthoritativeFactoryOnboarding } from "@/lib/server/factory-release-design-authority";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,7 +29,8 @@ function mapPreflightError(error: unknown) {
     message.includes("P0_FACTORY_") ||
     message.includes("P2_FACTORY_INVALID_") ||
     message.includes("P2_FACTORY_NATIVE_") ||
-    message.includes("P2D_COMMUNICATION_")
+    message.includes("P2D_COMMUNICATION_") ||
+    message.includes("FACTORY_RELEASE_")
   ) {
     return "invalid_blueprint";
   }
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
       return jsonResponse({ ok: false, error: "invalid_blueprint" }, 400);
     }
 
-    const prepared = prepareFactoryOnboarding({
+    const prepared = await prepareAuthoritativeFactoryOnboarding({
       blueprint: body.blueprint as Record<string, unknown>,
       idempotencyKey: `preflight:${randomUUID()}`,
     });

@@ -6,6 +6,7 @@ const modelPath = "lib/product-factory/hub-design-draft.ts";
 const serverPath = "lib/server/hub-design-draft-revisions.ts";
 const draftRoutePath = "app/api/control-plane/design-studio/drafts/route.ts";
 const factoryHandoffPath = "app/api/control-plane/design-studio/factory-handoff/route.ts";
+const releaseAuthorityPath = "lib/server/factory-release-design-authority.ts";
 const scannerPath = "app/hotel-scanner/HotelScannerClient.tsx";
 
 test("Design provenance can carry exact approved Hotel Intelligence and Scan Run lineage without a new schema authority", async () => {
@@ -56,30 +57,35 @@ test("Legacy Scanner browser package cannot become authoritative Design provenan
   assertNotContains(server, "sourcePackage: input.sourcePackage");
 });
 
-test("Factory handoff rejects legacy Design revisions and revalidates exact approved upstream lineage", async () => {
-  const handoff = await readProjectFile(factoryHandoffPath);
+test("Factory release authority rejects legacy Design revisions and revalidates exact approved upstream lineage", async () => {
+  const route = await readProjectFile(factoryHandoffPath);
+  const authority = await readProjectFile(releaseAuthorityPath);
+
+  assertContains(route, "loadVerifiedHubDesignFactoryHandoff");
   for (const fragment of [
     "getHubDesignApprovedIntelligenceLineage(payload)",
-    'error: "approved_intelligence_lineage_required"',
+    "FACTORY_RELEASE_APPROVED_INTELLIGENCE_LINEAGE_REQUIRED",
     "loadApprovedHotelIntelligenceEnvelope(designLineage.revisionId)",
     "approvedLineageMatches(designLineage, approved)",
-    'error: "approved_intelligence_lineage_mismatch"',
-    "approvedSourcePackageChecksum !== sourcePackageChecksum",
-    'error: "approved_intelligence_source_mismatch"',
+    "FACTORY_RELEASE_APPROVED_INTELLIGENCE_LINEAGE_MISMATCH",
+    "sha256(approved.intelligencePackage) !== sourcePackageChecksum",
+    "FACTORY_RELEASE_APPROVED_INTELLIGENCE_SOURCE_MISMATCH",
     "approvedCanonicalUrl !== payloadCanonicalUrl",
     "approvedCanonicalUrl !== workspaceCanonicalUrl",
-  ]) assertContains(handoff, fragment);
+  ]) assertContains(authority, fragment);
 });
 
 test("Design hardening reuses existing revision and Factory authorities without new persistence or LIVE activation", async () => {
   const server = await readProjectFile(serverPath);
-  const handoff = await readProjectFile(factoryHandoffPath);
+  const route = await readProjectFile(factoryHandoffPath);
+  const authority = await readProjectFile(releaseAuthorityPath);
   assertContains(server, 'rpc("save_hub_design_draft_revision_v1"');
   assertContains(server, 'rpc("restore_hub_design_draft_revision_v1"');
-  assertContains(handoff, '.from("hub_design_draft_revisions")');
+  assertContains(authority, '.from("hub_design_draft_revisions")');
+  assertNotContains(route, '.from("hub_design_draft_revisions")');
   assertNotContains(server, "create table");
-  assertNotContains(handoff, ".insert({");
-  assertNotContains(handoff, ".update({");
-  assertNotContains(handoff, "production-live-activation");
-  assertNotContains(handoff, "publish_hotel_config_revision");
+  assertNotContains(authority, ".insert({");
+  assertNotContains(authority, ".update({");
+  assertNotContains(authority, "production-live-activation");
+  assertNotContains(authority, "publish_hotel_config_revision");
 });
