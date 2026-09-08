@@ -52,7 +52,7 @@
   "additions": [
     {
       "filePath": "lib/server/factory-release-design-authority.ts",
-      "line": 96,
+      "line": 95,
       "table": "hub_design_draft_revisions",
       "tableExpression": "\"hub_design_draft_revisions\"",
       "operation": "select",
