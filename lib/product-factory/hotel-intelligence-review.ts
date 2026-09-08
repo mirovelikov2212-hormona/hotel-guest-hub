@@ -1,5 +1,10 @@
 import { findInvalidHotelProfileValues, validateHotelIntelligenceValue } from "@/lib/ai/hotel-intelligence-value-quality.mjs";
 import type {
+  HotelReviewSemanticIssue,
+  HotelReviewSemanticKind,
+  HotelReviewSemanticsV2,
+} from "@/lib/ai/hotel-review-semantics-v2.mjs";
+import type {
   HotelIntelligenceItem,
   HotelIntelligencePackage,
   HotelIntelligenceTarget,
@@ -29,6 +34,36 @@ export type HotelIntelligenceReviewItem = {
   reviewerNote?: string;
 };
 
+export type HotelIntelligenceReviewTask = {
+  id: string;
+  kind: HotelReviewSemanticKind;
+  state: string;
+  domain?: string;
+  subject: string;
+  detail: string;
+  sourceUrls: string[];
+  candidateUrls: string[];
+  observedValue?: string;
+  requiresHumanReview: boolean;
+  decision: HotelIntelligenceReviewDecision;
+  reviewerNote?: string;
+};
+
+export type HotelIntelligenceReviewProjection = {
+  schemaVersion: "hotel-review-semantics-v2";
+  authority: {
+    kind: "review_projection_only";
+    persistenceAuthority: false;
+    lifecycleReadinessAuthority: false;
+    approvalAuthority: false;
+  };
+  lineage: {
+    scanRunId: string;
+    scanEvidenceChecksum: string;
+  };
+  tasks: HotelIntelligenceReviewTask[];
+};
+
 export type HotelIntelligenceReviewContent = {
   schemaVersion: typeof HOTEL_INTELLIGENCE_REVIEW_SCHEMA_VERSION;
   source: HotelIntelligencePackage["source"];
@@ -37,6 +72,7 @@ export type HotelIntelligenceReviewContent = {
   designIntelligenceLayer: HotelIntelligencePackage["designIntelligenceLayer"];
   items: HotelIntelligenceReviewItem[];
   unresolvedNotes: string[];
+  reviewProjection?: HotelIntelligenceReviewProjection;
   scannerDiagnostics: {
     provider: "openai" | "deterministic_fallback" | "mixed" | "unknown";
     model: string;
@@ -68,6 +104,15 @@ const DECISIONS = new Set<HotelIntelligenceReviewDecision>([
   "added",
 ]);
 
+const REVIEW_SEMANTIC_KINDS = new Set<HotelReviewSemanticKind>([
+  "conflict",
+  "coverage_gap",
+  "invalid_value",
+  "profile_evidence_mismatch",
+  "technology_ambiguity",
+  "human_enrichment",
+]);
+
 function text(value: unknown, max = 4_000) {
   const normalized = String(value ?? "").replace(/\s+/g, " ").trim();
   return normalized.length <= max ? normalized : normalized.slice(0, max);
@@ -81,6 +126,18 @@ function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function stableJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableJsonValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, child]) => [key, stableJsonValue(child)]),
+    );
+  }
+  return value;
+}
+
 function scannerProvider(model: string) {
   if (model === "deterministic-fallback") return "deterministic_fallback" as const;
   if (model) return "openai" as const;
@@ -89,6 +146,120 @@ function scannerProvider(model: string) {
 
 function errorToken(value: unknown) {
   return text(value, 240).replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "invalid";
+}
+
+function requireReviewSemantics(value: unknown): HotelReviewSemanticsV2 {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("HOTEL_INTELLIGENCE_REVIEW_SEMANTICS_INVALID");
+  }
+  const semantics = value as Partial<HotelReviewSemanticsV2>;
+  if (semantics.schemaVersion !== "hotel-review-semantics-v2") {
+    throw new Error("HOTEL_INTELLIGENCE_REVIEW_SEMANTICS_INVALID");
+  }
+  if (
+    semantics.authority?.kind !== "review_projection_only"
+    || semantics.authority.persistenceAuthority !== false
+    || semantics.authority.lifecycleReadinessAuthority !== false
+    || semantics.authority.approvalAuthority !== false
+    || !Array.isArray(semantics.issues)
+  ) {
+    throw new Error("HOTEL_INTELLIGENCE_REVIEW_SEMANTICS_AUTHORITY_INVALID");
+  }
+  return value as HotelReviewSemanticsV2;
+}
+
+function priorTaskResolutions(content: unknown) {
+  const projection = content && typeof content === "object" && !Array.isArray(content)
+    ? (content as { reviewProjection?: { tasks?: unknown } }).reviewProjection
+    : undefined;
+  const tasks = Array.isArray(projection?.tasks) ? projection.tasks : [];
+  const resolutions = new Map<string, { decision: HotelIntelligenceReviewDecision; reviewerNote?: string }>();
+  for (const raw of tasks) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const task = raw as { id?: unknown; decision?: unknown; reviewerNote?: unknown };
+    const id = text(task.id, 180);
+    const decision = text(task.decision, 40) as HotelIntelligenceReviewDecision;
+    if (!id || !DECISIONS.has(decision)) continue;
+    const reviewerNote = text(task.reviewerNote, 1_000);
+    resolutions.set(id, {
+      decision,
+      ...(reviewerNote ? { reviewerNote } : {}),
+    });
+  }
+  return resolutions;
+}
+
+function projectedTask(
+  issue: HotelReviewSemanticIssue,
+  resolution?: { decision: HotelIntelligenceReviewDecision; reviewerNote?: string },
+): HotelIntelligenceReviewTask {
+  const id = text(issue.id, 180);
+  const kind = text(issue.kind, 80) as HotelReviewSemanticKind;
+  if (!id || !REVIEW_SEMANTIC_KINDS.has(kind)) {
+    throw new Error("HOTEL_INTELLIGENCE_REVIEW_SEMANTICS_ISSUE_INVALID");
+  }
+  const domain = text(issue.domain, 120);
+  const observedValue = text(issue.observedValue, 1_000);
+  return {
+    id,
+    kind,
+    state: text(issue.state, 120),
+    ...(domain ? { domain } : {}),
+    subject: text(issue.subject, 240),
+    detail: text(issue.detail, 2_000),
+    sourceUrls: unique(issue.sourceUrls || [], 20),
+    candidateUrls: unique(issue.candidateUrls || [], 20),
+    ...(observedValue ? { observedValue } : {}),
+    requiresHumanReview: issue.requiresHumanReview === true,
+    decision: resolution?.decision || "pending",
+    ...(resolution?.reviewerNote ? { reviewerNote: resolution.reviewerNote } : {}),
+  };
+}
+
+export function projectHotelReviewSemanticsV2(input: {
+  content: unknown;
+  reviewSemantics: unknown;
+  scanRunId: string;
+  scanEvidenceChecksum: string;
+}): HotelIntelligenceReviewContent {
+  if (!input.content || typeof input.content !== "object" || Array.isArray(input.content)) {
+    throw new Error("HOTEL_INTELLIGENCE_REVIEW_CONTENT_INVALID");
+  }
+  const semantics = requireReviewSemantics(input.reviewSemantics);
+  const scanRunId = text(input.scanRunId, 160);
+  const scanEvidenceChecksum = text(input.scanEvidenceChecksum, 80).toLowerCase();
+  if (!scanRunId || !/^[a-f0-9]{64}$/.test(scanEvidenceChecksum)) {
+    throw new Error("HOTEL_INTELLIGENCE_REVIEW_PROJECTION_LINEAGE_INVALID");
+  }
+  const resolutions = priorTaskResolutions(input.content);
+  const tasks = semantics.issues.map((issue) => projectedTask(issue, resolutions.get(text(issue.id, 180))));
+  return {
+    ...(cloneJson(input.content) as HotelIntelligenceReviewContent),
+    reviewProjection: {
+      schemaVersion: "hotel-review-semantics-v2",
+      authority: {
+        kind: "review_projection_only",
+        persistenceAuthority: false,
+        lifecycleReadinessAuthority: false,
+        approvalAuthority: false,
+      },
+      lineage: { scanRunId, scanEvidenceChecksum },
+      tasks,
+    },
+  };
+}
+
+export function assertHotelReviewSemanticsProjectionMatches(input: {
+  content: HotelIntelligenceReviewContent;
+  reviewSemantics: unknown;
+  scanRunId: string;
+  scanEvidenceChecksum: string;
+}) {
+  const canonical = projectHotelReviewSemanticsV2(input).reviewProjection;
+  const actual = input.content.reviewProjection;
+  if (JSON.stringify(stableJsonValue(actual)) !== JSON.stringify(stableJsonValue(canonical))) {
+    throw new Error("HOTEL_INTELLIGENCE_REVIEW_PROJECTION_MISMATCH");
+  }
 }
 
 export function createHotelIntelligenceReviewContent(
@@ -180,6 +351,51 @@ export function validateHotelIntelligenceReviewContent(
       }
     }
     if (options.forApproval && item.decision === "pending") errors.push(`item_${index}_pending`);
+  }
+
+  if (content.reviewProjection !== undefined) {
+    const projection = content.reviewProjection;
+    if (!projection || typeof projection !== "object" || Array.isArray(projection)) {
+      errors.push("review_projection_object_required");
+    } else {
+      if (projection.schemaVersion !== "hotel-review-semantics-v2") errors.push("review_projection_schema_invalid");
+      if (
+        projection.authority?.kind !== "review_projection_only"
+        || projection.authority.persistenceAuthority !== false
+        || projection.authority.lifecycleReadinessAuthority !== false
+        || projection.authority.approvalAuthority !== false
+      ) errors.push("review_projection_authority_invalid");
+      if (!text(projection.lineage?.scanRunId, 160)) errors.push("review_projection_scan_run_required");
+      if (!/^[a-f0-9]{64}$/.test(text(projection.lineage?.scanEvidenceChecksum, 80).toLowerCase())) {
+        errors.push("review_projection_scan_checksum_invalid");
+      }
+      if (!Array.isArray(projection.tasks)) {
+        errors.push("review_projection_tasks_array_required");
+      } else {
+        const taskIds = new Set<string>();
+        for (const [index, task] of projection.tasks.entries()) {
+          if (!task || typeof task !== "object" || Array.isArray(task)) {
+            errors.push(`review_task_${index}_object_required`);
+            continue;
+          }
+          const id = text(task.id, 180);
+          if (!id) errors.push(`review_task_${index}_id_required`);
+          if (taskIds.has(id)) errors.push(`review_task_${index}_id_duplicate`);
+          taskIds.add(id);
+          if (!REVIEW_SEMANTIC_KINDS.has(task.kind)) errors.push(`review_task_${index}_kind_invalid`);
+          if (!text(task.state, 120)) errors.push(`review_task_${index}_state_required`);
+          if (!text(task.subject, 240)) errors.push(`review_task_${index}_subject_required`);
+          if (!text(task.detail, 2_000)) errors.push(`review_task_${index}_detail_required`);
+          if (!Array.isArray(task.sourceUrls)) errors.push(`review_task_${index}_source_urls_invalid`);
+          if (!Array.isArray(task.candidateUrls)) errors.push(`review_task_${index}_candidate_urls_invalid`);
+          if (typeof task.requiresHumanReview !== "boolean") errors.push(`review_task_${index}_human_review_invalid`);
+          if (!DECISIONS.has(task.decision)) errors.push(`review_task_${index}_decision_invalid`);
+          if (options.forApproval && task.requiresHumanReview && task.decision === "pending") {
+            errors.push(`review_task_${index}_pending`);
+          }
+        }
+      }
+    }
   }
 
   if (options.forApproval && (content.unresolvedNotes || []).some((item) => text(item, 1_000))) {
