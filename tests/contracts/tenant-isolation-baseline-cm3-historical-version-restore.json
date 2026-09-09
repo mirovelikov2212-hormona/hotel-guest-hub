@@ -2,8 +2,108 @@
   "version": 1,
   "checkpoint": "cm3-historical-version-restore",
   "baseCheckpoint": "cm2-version-diff",
-  "expectedNeedsReview": 204,
+  "expectedNeedsReview": 215,
   "removals": [],
   "relocations": [],
-  "additions": []
+  "additions": [
+    {
+      "filePath": "lib/server/factory-production-version-restore.ts",
+      "line": 194,
+      "table": "hotel_public_identity_configs",
+      "tableExpression": "\"hotel_public_identity_configs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_restore_context_reads_the_single_public_identity_row_scoped_by_the_production_hotel_id_derived_from_the_historical_revision_or_restore_ledger; requires_active_non_sandbox_non_demo_hotel_active_identity_and_exact_current_live_publication_lkg_before_any_restore_readiness_publication_certification_or_activation_step"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-restore.ts",
+      "line": 250,
+      "table": "factory_production_live_activation_runs",
+      "tableExpression": "\"factory_production_live_activation_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_restore_verifies_that_the_requested_historical_revision_was_previously_live_using_the_exact_production_hotel_id_plus_revision_id_plus_live_status_and_accepts_only_first_live_version_upgrade_or_version_restore_activation_lineage_before_restore_readiness_or_recertification"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-restore.ts",
+      "line": 324,
+      "table": "hotel_config_revisions",
+      "tableExpression": "\"hotel_config_revisions\"",
+      "operation": "select",
+      "reasons": ["primary_key_only_scope"],
+      "provenance": "server_only_authenticated_control_plane_restore_readiness_resolves_one_globally_unique_historical_revision_locator_then_derives_its_hotel_id; requires_superseded_factory_blueprint_validated_sha256_revision_and_revalidates_exact_historical_live_activation_design_intelligence_scan_lineage_current_live_authority_projection_and_diff_before_any_restore_rpc"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-restore.ts",
+      "line": 428,
+      "rpc": "assess_factory_production_restore_readiness_v1",
+      "tableExpression": "\"assess_factory_production_restore_readiness_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_platform_admin_calls_service_role_only_security_definer_cm3_restore_readiness_rpc_with_server_derived_target_hotel_current_live_revision_historical_activation_public_slug_projection_diff_and_revalidated_release_lineage; database_rechecks_same_hotel_historical_superseded_target_previous_live_evidence_current_live_cas_and_appends_readiness_without_mutating_live_authority"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-restore.ts",
+      "line": 513,
+      "table": "factory_production_readiness_runs",
+      "tableExpression": "\"factory_production_readiness_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_restore_publication_resolves_one_globally_unique_restore_readiness_run_locator_then_derives_production_hotel_target_historical_revision_expected_current_live_revision_public_slug_historical_activation_and_reason; requires_version_restore_ready_state_and_reloads_exact_live_and_release_design_authority_before publication"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-restore.ts",
+      "line": 597,
+      "rpc": "publish_factory_production_restore_v1",
+      "tableExpression": "\"publish_factory_production_restore_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_platform_admin_calls_service_role_only_security_definer_cm3_restore_publication_rpc_only_from_an_exact_ready_restore_ledger_row_with_server_derived_hotel_current_live_target_historical_revision_public_slug_activation_lineage_and_approval_hash; database_rechecks_same_authority_and_records_ledger_only_publication_without_early_revision_or_live_pointer_mutation"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-restore.ts",
+      "line": 679,
+      "table": "factory_production_publication_runs",
+      "tableExpression": "\"factory_production_publication_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_restore_certification_resolves_one_globally_unique_version_restore_publication_run_locator_then_derives_and_binds_production_hotel_historical_target_expected_current_live_revision_public_slug_previous_activation_and_reason_before_reloading_hotel_scoped_target_and_exact_release_evidence"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-restore.ts",
+      "line": 802,
+      "rpc": "certify_factory_production_restore_runtime_v1",
+      "tableExpression": "\"certify_factory_production_restore_runtime_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_platform_admin_calls_service_role_only_security_definer_cm3_restore_certification_rpc_only_after_server_reloads_exact_restore_publication_hotel_scoped_superseded_target_historical_activation_revalidates_design_lineage_rebuilds_projection_and_verifies_exact_validated_production_release_evidence; database_rechecks_current_live_cas_and_records_recertification_without_live_mutation"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-restore.ts",
+      "line": 878,
+      "table": "factory_production_runtime_certification_runs",
+      "tableExpression": "\"factory_production_runtime_certification_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_restore_activation_resolves_one_globally_unique_passed_version_restore_certification_locator_then_derives_production_hotel_publication_target_expected_current_live_revision_certified_projection_hash_and_deployment_before_reloading_all_restore_authority_and_attempting_atomic_cutover"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-restore.ts",
+      "line": 937,
+      "table": "factory_production_publication_runs",
+      "tableExpression": "\"factory_production_publication_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_restore_activation_reloads_the_exact_publication_run_referenced_by_the_passed_restore_certification_and_cross_checks_production_hotel_historical_target_source_revision_expected_current_live_revision_release_mode_status_public_slug_historical_activation_and_reason_before_atomic_restore"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-restore.ts",
+      "line": 1067,
+      "rpc": "activate_factory_production_restore_live_v1",
+      "tableExpression": "\"activate_factory_production_restore_live_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_platform_admin_calls_service_role_only_security_definer_cm3_atomic_restore_rpc_only_with_server_derived_exact_hotel_current_live_historical_target_public_slug_previous_activation_certified_deployment_and_server_rebuilt_projection; database_uses_the_same_cm1_activation_mutex_rechecks_same_hotel_publication_certification_historical_live_lineage_and_current_live_cas_then_atomically_supersedes_current_live_republishes_historical_target_projects_relational_resources_updates_current_lkg_health_and_appends_restore_history_or_rolls_back_the_entire_transaction_on_failure"
+    }
+  ]
 }
