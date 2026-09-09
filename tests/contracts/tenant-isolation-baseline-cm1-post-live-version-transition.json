@@ -80,7 +80,7 @@
     },
     {
       "filePath": "lib/server/factory-production-version-readiness.ts",
-      "line": 92,
+      "line": 91,
       "table": "hotel_config_revisions",
       "tableExpression": "\"hotel_config_revisions\"",
       "operation": "select",
