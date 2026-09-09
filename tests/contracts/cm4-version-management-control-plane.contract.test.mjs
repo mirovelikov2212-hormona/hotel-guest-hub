@@ -86,6 +86,11 @@ test("CM4 UI keeps migrations/read-only roles locked and requires explicit activ
   assert.match(source, /change_management_migration_required/);
 });
 
+test("CM4 hides draft candidates that are semantically identical to current LIVE", async () => {
+  const source = await read(FILES.readModel);
+  assert.match(source, /\.filter\(\(revision\) => revision\.diffFromCurrent\?\.changed === true\)/);
+});
+
 test("CM4 Factory page exposes version management only for an active Production hotel", async () => {
   const source = await read(FILES.page);
   assert.match(source, /progress\.production\.active\s*\?\s*await getFactoryProductionVersionManagementSnapshot/);

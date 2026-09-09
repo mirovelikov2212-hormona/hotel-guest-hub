@@ -285,7 +285,8 @@ export async function getFactoryProductionVersionManagementSnapshot(input: {
 
   const candidates = revisions
     .filter((row) => row.status === "draft" && !isPublicationDerivative(row))
-    .map((row) => createSummary({ row, currentConfig, activations, workflow: workflowFor("version_upgrade", String(row.id).toLowerCase()) }));
+    .map((row) => createSummary({ row, currentConfig, activations, workflow: workflowFor("version_upgrade", String(row.id).toLowerCase()) }))
+    .filter((revision) => revision.diffFromCurrent?.changed === true);
 
   const history = revisions
     .filter((row) => row.status === "superseded")
