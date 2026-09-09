@@ -8,6 +8,7 @@ on:
       - "lib/server/factory-production-version-readiness.ts"
       - "supabase/migrations/20260909200000_cm3_historical_version_restore_v1.sql"
       - "tests/contracts/cm3-historical-version-restore.contract.test.mjs"
+      - "tests/contracts/cm3-restore-live-episode-idempotency.contract.test.mjs"
       - "tests/contracts/tenant-isolation-baseline-cm3-historical-version-restore.json"
       - "scripts/tenant-isolation-guard.mjs"
       - ".github/workflows/cm3-historical-version-restore.yml"
@@ -26,8 +27,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: CM3 historical restore contract
-        run: node --test tests/contracts/cm3-historical-version-restore.contract.test.mjs
+      - name: CM3 historical restore contracts
+        run: |
+          node --test tests/contracts/cm3-historical-version-restore.contract.test.mjs
+          node --test tests/contracts/cm3-restore-live-episode-idempotency.contract.test.mjs
       - name: CM2 diff regression
         run: node --test tests/contracts/cm2-version-diff.contract.test.mjs
       - name: CM1 transition regression
