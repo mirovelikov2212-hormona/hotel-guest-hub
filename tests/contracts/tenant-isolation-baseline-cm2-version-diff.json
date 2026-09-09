@@ -2,14 +2,14 @@
   "version": 1,
   "checkpoint": "cm2-version-diff",
   "baseCheckpoint": "cm1-post-live-version-transition",
-  "expectedNeedsReview": 206,
+  "expectedNeedsReview": 204,
   "removals": [],
   "relocations": [
     {
       "filePath": "lib/server/factory-production-version-readiness.ts",
       "fromLine": 91,
       "operation": "select",
-      "toLine": 93
+      "toLine": 92
     },
     {
       "filePath": "lib/server/factory-production-version-readiness.ts",
@@ -18,24 +18,5 @@
       "toLine": 184
     }
   ],
-  "additions": [
-    {
-      "filePath": "lib/server/factory-production-version-readiness.ts",
-      "line": 113,
-      "table": "hotel_config_publication_state",
-      "tableExpression": "\"hotel_config_publication_state\"",
-      "operation": "select",
-      "reasons": ["unclassified_table"],
-      "provenance": "server_only_authenticated_control_plane_cm2_diff_derives_the_exact_current_live_revision_from_the_single_publication_state_row_scoped_by_the_production_hotel_id_already_derived_from_the_immutable_factory_blueprint_candidate; requires_published_revision_and_last_known_good_revision_to_match_before_loading_any_current_config_or_creating_readiness_evidence"
-    },
-    {
-      "filePath": "lib/server/factory-production-version-readiness.ts",
-      "line": 138,
-      "table": "hotel_config_revisions",
-      "tableExpression": "\"hotel_config_revisions\"",
-      "operation": "select",
-      "reasons": ["primary_key_only_scope"],
-      "provenance": "server_only_authenticated_control_plane_cm2_diff_reads_one_exact_current_live_immutable_revision_by_the_server_derived_published_revision_id_and_explicit_same_hotel_id; requires_published_status_validated_config_and_compares_it_to_the_already_tenant_bound_candidate_only_to_derive_privacy_minimal_change_paths_categories_counts_and_hash_for_the_existing_readiness_audit"
-    }
-  ]
+  "additions": []
 }
