@@ -2,7 +2,7 @@
   "version": 1,
   "checkpoint": "cm1-post-live-version-transition",
   "baseCheckpoint": "hotel-release-approved-design-lineage",
-  "expectedNeedsReview": 202,
+  "expectedNeedsReview": 204,
   "removals": [],
   "relocations": [],
   "additions": [
@@ -77,6 +77,24 @@
       "operation": "rpc",
       "reasons": ["rpc_requires_review"],
       "provenance": "authenticated_control_plane_platform_admin_calls_service_role_only_security_definer_cm1_atomic_version_activation_rpc_only_with_server_derived_exact_hotel_current_live_target_public_slug_certified_deployment_and_server_rebuilt_projection; database_rechecks_same_hotel_publication_certification_candidate_and_current_live_cas_then_atomically_supersedes_old_live_publishes_target_projects_relational_resources_updates_current_lkg_health_and_appends_activation_history_or_rolls_back_the_entire_transaction_on_any_failure"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-readiness.ts",
+      "line": 92,
+      "table": "hotel_config_revisions",
+      "tableExpression": "\"hotel_config_revisions\"",
+      "operation": "select",
+      "reasons": ["primary_key_only_scope"],
+      "provenance": "server_only_authenticated_control_plane_transition_readiness_resolves_one_globally_unique_candidate_revision_locator_then_derives_its_hotel_id; requires_draft_factory_blueprint_validated_sha256_candidate_and_revalidates_exact_design_intelligence_scan_lineage_for_that_same_hotel_before_calling_the_service_role_only_readiness_rpc"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-readiness.ts",
+      "line": 132,
+      "rpc": "assess_factory_production_readiness_v2",
+      "tableExpression": "\"assess_factory_production_readiness_v2\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_platform_admin_calls_service_role_only_security_definer_cm1_transition_readiness_rpc_with_server_derived_candidate_hotel_lineage_evidence_and_human_release_reason; database_reloads_candidate_derives_exact_current_live_revision_public_identity_and_current_live_activation_then_appends_a_version_upgrade_readiness_ledger_row_without_mutating_live_publication_projection_health_hotel_or_identity_state"
     }
   ]
 }
