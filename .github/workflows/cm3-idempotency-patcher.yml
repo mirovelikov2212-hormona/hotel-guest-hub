@@ -1,0 +1,63 @@
+name: CM3 Restore Idempotency Patcher
+
+on:
+  push:
+    branches:
+      - feat/hotel-lifecycle-v1-intelligence-review
+    paths:
+      - ".cm3-idempotency-trigger.txt"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - name: Bind restore replay to current LIVE activation episode
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path("supabase/migrations/20260909200000_cm3_historical_version_restore_v1.sql")
+          s = p.read_text()
+
+          replacements = [
+            (
+              """  on public.factory_production_readiness_runs(\n    production_hotel_id,\n    expected_current_live_revision_id,\n    production_revision_id\n  )\n  where release_mode='version_restore';""",
+              """  on public.factory_production_readiness_runs(\n    production_hotel_id,\n    source_live_activation_run_id,\n    production_revision_id\n  )\n  where release_mode='version_restore';""",
+            ),
+            (
+              """  on public.factory_production_publication_runs(\n    production_hotel_id,\n    expected_current_live_revision_id,\n    source_revision_id\n  )\n  where release_mode='version_restore';""",
+              """  on public.factory_production_publication_runs(\n    production_hotel_id,\n    source_live_activation_run_id,\n    source_revision_id\n  )\n  where release_mode='version_restore';""",
+            ),
+            (
+              """  where release_mode='version_restore'\n    and production_hotel_id=v_hotel.id\n    and expected_current_live_revision_id=v_current.id\n    and production_revision_id=v_target.id;""",
+              """  where release_mode='version_restore'\n    and production_hotel_id=v_hotel.id\n    and source_live_activation_run_id=v_current_activation.id\n    and expected_current_live_revision_id=v_current.id\n    and production_revision_id=v_target.id;""",
+            ),
+            (
+              """  where release_mode='version_restore'\n    and production_hotel_id=p_expected_production_hotel_id\n    and expected_current_live_revision_id=p_expected_current_live_revision_id\n    and source_revision_id=p_target_historical_revision_id;""",
+              """  where release_mode='version_restore'\n    and production_hotel_id=p_expected_production_hotel_id\n    and source_live_activation_run_id=v_current_activation.id\n    and expected_current_live_revision_id=p_expected_current_live_revision_id\n    and source_revision_id=p_target_historical_revision_id;""",
+            ),
+          ]
+
+          for old, new in replacements:
+            count = s.count(old)
+            if count != 1:
+              raise SystemExit(f"expected exactly one CM3 idempotency anchor, found {count}: {old[:90]!r}")
+            s = s.replace(old, new)
+
+          p.write_text(s)
+          PY
+          rm -f .cm3-idempotency-trigger.txt
+          git config user.name "stayhub-ci"
+          git config user.email "stayhub-ci@users.noreply.github.com"
+          git add supabase/migrations/20260909200000_cm3_historical_version_restore_v1.sql .cm3-idempotency-trigger.txt
+          git commit -m "Fix CM3 restore live-episode idempotency"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
