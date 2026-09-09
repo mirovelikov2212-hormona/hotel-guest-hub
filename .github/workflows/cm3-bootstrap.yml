@@ -1,0 +1,54 @@
+name: CM3 Bootstrap
+
+on:
+  push:
+    branches:
+      - feat/hotel-lifecycle-v1-intelligence-review
+    paths:
+      - ".cm3-payload/**"
+      - ".github/workflows/cm3-bootstrap.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - name: Assemble CM3 source payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cm3
+          cat .cm3-payload/payload.part.* | base64 -d > /tmp/cm3.tar.gz
+          tar -xzf /tmp/cm3.tar.gz -C /tmp/cm3
+          mkdir -p supabase/migrations lib/server tests/contracts .github/workflows
+          cp /tmp/cm3/20260909200000_cm3_historical_version_restore_v1.sql supabase/migrations/
+          cp /tmp/cm3/factory-production-version-restore.ts lib/server/
+          cp /tmp/cm3/cm3-historical-version-restore.contract.test.mjs tests/contracts/
+          cp /tmp/cm3/cm3-historical-version-restore.yml .github/workflows/cm3-historical-version-restore.yml
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("scripts/tenant-isolation-guard.mjs")
+          s = p.read_text()
+          needle = '  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-cm2-version-diff.json"),\n'
+          addition = needle + '  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-cm3-historical-version-restore.json"),\n'
+          if addition not in s:
+              if needle not in s:
+                  raise SystemExit("CM2 tenant baseline anchor missing")
+              s = s.replace(needle, addition)
+              p.write_text(s)
+          PY
+          rm -rf .cm3-payload .github/workflows/cm3-bootstrap.yml
+          git config user.name "stayhub-ci"
+          git config user.email "stayhub-ci@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Add CM3 historical version restore authority"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
