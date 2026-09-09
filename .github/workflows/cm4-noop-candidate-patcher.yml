@@ -1,0 +1,51 @@
+name: CM4 No-op Candidate Patcher
+
+on:
+  push:
+    branches:
+      - feat/hotel-lifecycle-v1-intelligence-review
+    paths:
+      - ".cm4-noop-candidate-trigger.txt"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - name: Hide semantically identical draft candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path("lib/server/factory-production-version-management.ts")
+          text = source.read_text()
+          old = '''  const candidates = revisions\n    .filter((row) => row.status === "draft" && !isPublicationDerivative(row))\n    .map((row) => createSummary({ row, currentConfig, activations, workflow: workflowFor("version_upgrade", String(row.id).toLowerCase()) }));'''
+          new = '''  const candidates = revisions\n    .filter((row) => row.status === "draft" && !isPublicationDerivative(row))\n    .map((row) => createSummary({ row, currentConfig, activations, workflow: workflowFor("version_upgrade", String(row.id).toLowerCase()) }))\n    .filter((revision) => revision.diffFromCurrent?.changed === true);'''
+          if text.count(old) != 1:
+            raise SystemExit(f"expected one candidate anchor, found {text.count(old)}")
+          source.write_text(text.replace(old, new))
+
+          contract = Path("tests/contracts/cm4-version-management-control-plane.contract.test.mjs")
+          c = contract.read_text()
+          marker = '''test("CM4 Factory page exposes version management only for an active Production hotel", async () => {'''
+          addition = '''test("CM4 hides draft candidates that are semantically identical to current LIVE", async () => {\n  const source = await read(FILES.readModel);\n  assert.match(source, /\\.filter\\(\\(revision\\) => revision\\.diffFromCurrent\\?\\.changed === true\\)/);\n});\n\n'''
+          if addition not in c:
+            if c.count(marker) != 1:
+              raise SystemExit(f"expected one contract marker, found {c.count(marker)}")
+            c = c.replace(marker, addition + marker)
+          contract.write_text(c)
+          PY
+          rm -f .cm4-noop-candidate-trigger.txt
+          git config user.name "stayhub-ci"
+          git config user.email "stayhub-ci@users.noreply.github.com"
+          git add lib/server/factory-production-version-management.ts tests/contracts/cm4-version-management-control-plane.contract.test.mjs .cm4-noop-candidate-trigger.txt
+          git commit -m "Hide CM4 no-op version candidates"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
