@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 
 import { canMutateControlPlane, type PlatformAdminAuthority } from "@/lib/server/control-plane-auth";
 import { verifyFactoryReleaseDesignRevision } from "@/lib/server/factory-release-design-authority";
+import { buildHotelConfigVersionDiff } from "@/lib/server/factory-production-version-diff.mjs";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -90,7 +91,7 @@ export async function assessFactoryProductionVersionReadiness(input: {
 
   const { data: source, error: sourceError } = await supabaseAdmin
     .from("hotel_config_revisions")
-    .select("id,hotel_id,status,source_type,source_checksum,validation_json")
+    .select("id,hotel_id,status,source_type,source_checksum,config_json,validation_json")
     .eq("id", sourceCandidateRevisionId)
     .maybeSingle();
   if (sourceError) throw new Error(`CM1_READINESS_SOURCE_READ_FAILED:${sourceError.message}`);
@@ -101,11 +102,58 @@ export async function assessFactoryProductionVersionReadiness(input: {
     || !SHA256_PATTERN.test(String(source.source_checksum || "").toLowerCase())
     || !isRecord(source.validation_json)
     || source.validation_json.ok !== true
+    || !isRecord(source.config_json)
   ) {
     throw new Error("CM1_READINESS_SOURCE_CANDIDATE_INVALID");
   }
 
   const productionHotelId = normalizeUuid(source.hotel_id, "CM1_READINESS_HOTEL_ID_INVALID");
+
+  const { data: publicationState, error: publicationStateError } = await supabaseAdmin
+    .from("hotel_config_publication_state")
+    .select("published_revision_id,last_known_good_revision_id")
+    .eq("hotel_id", productionHotelId)
+    .maybeSingle();
+  if (publicationStateError) {
+    throw new Error(`CM2_CURRENT_LIVE_STATE_READ_FAILED:${publicationStateError.message}`);
+  }
+  if (!publicationState) throw new Error("CM2_CURRENT_LIVE_STATE_MISSING");
+
+  const expectedCurrentLiveRevisionId = normalizeUuid(
+    publicationState.published_revision_id,
+    "CM2_CURRENT_LIVE_REVISION_ID_INVALID",
+  );
+  const lastKnownGoodRevisionId = normalizeUuid(
+    publicationState.last_known_good_revision_id,
+    "CM2_LAST_KNOWN_GOOD_REVISION_ID_INVALID",
+  );
+  if (expectedCurrentLiveRevisionId !== lastKnownGoodRevisionId) {
+    throw new Error("CM2_CURRENT_LIVE_LKG_MISMATCH");
+  }
+  if (expectedCurrentLiveRevisionId === sourceCandidateRevisionId) {
+    throw new Error("CM2_CANDIDATE_EQUALS_CURRENT_LIVE");
+  }
+
+  const { data: currentLive, error: currentLiveError } = await supabaseAdmin
+    .from("hotel_config_revisions")
+    .select("id,hotel_id,status,config_json,validation_json")
+    .eq("id", expectedCurrentLiveRevisionId)
+    .eq("hotel_id", productionHotelId)
+    .maybeSingle();
+  if (currentLiveError) throw new Error(`CM2_CURRENT_LIVE_READ_FAILED:${currentLiveError.message}`);
+  if (
+    !currentLive
+    || currentLive.status !== "published"
+    || !isRecord(currentLive.config_json)
+    || !isRecord(currentLive.validation_json)
+    || currentLive.validation_json.ok !== true
+  ) {
+    throw new Error("CM2_CURRENT_LIVE_REVISION_INVALID");
+  }
+
+  const changeDiff = buildHotelConfigVersionDiff(currentLive.config_json, source.config_json);
+  if (!changeDiff.changed) throw new Error("CM2_VERSION_NO_SEMANTIC_CHANGE");
+
   const releaseDesign = await verifyFactoryReleaseDesignRevision({
     hotelId: productionHotelId,
     revisionId: sourceCandidateRevisionId,
@@ -118,13 +166,17 @@ export async function assessFactoryProductionVersionReadiness(input: {
     public_identity_preserved: true,
     runtime_certification_required: true,
     no_activation: true,
+    change_diff_derived: true,
+    expectedCurrentLiveRevisionId,
+    changeDiff,
     releaseDesign,
     approval,
   };
   const evidenceHash = sha256({
-    schemaVersion: "cm1-version-readiness-v1",
+    schemaVersion: "cm2-version-readiness-diff-v1",
     sourceCandidateRevisionId,
     productionHotelId,
+    expectedCurrentLiveRevisionId,
     reason,
     checks,
   });
@@ -143,7 +195,15 @@ export async function assessFactoryProductionVersionReadiness(input: {
 
   const rowHotelId = normalizeUuid(row.production_hotel_id, "CM1_READINESS_RESULT_HOTEL_INVALID");
   const rowRevisionId = normalizeUuid(row.production_revision_id, "CM1_READINESS_RESULT_REVISION_INVALID");
-  if (rowHotelId !== productionHotelId || rowRevisionId !== sourceCandidateRevisionId) {
+  const rowCurrentLiveRevisionId = normalizeUuid(
+    row.expected_current_live_revision_id,
+    "CM1_READINESS_CURRENT_LIVE_REVISION_ID_INVALID",
+  );
+  if (
+    rowHotelId !== productionHotelId
+    || rowRevisionId !== sourceCandidateRevisionId
+    || rowCurrentLiveRevisionId !== expectedCurrentLiveRevisionId
+  ) {
     throw new Error("CM1_PRODUCTION_VERSION_READINESS_RESULT_MISMATCH");
   }
 
@@ -151,12 +211,10 @@ export async function assessFactoryProductionVersionReadiness(input: {
     readinessRunId: normalizeUuid(row.readiness_run_id, "CM1_READINESS_RUN_ID_INVALID"),
     productionHotelId,
     sourceCandidateRevisionId,
-    expectedCurrentLiveRevisionId: normalizeUuid(
-      row.expected_current_live_revision_id,
-      "CM1_READINESS_CURRENT_LIVE_REVISION_ID_INVALID",
-    ),
+    expectedCurrentLiveRevisionId,
     publicSlug: normalizeSlug(row.expected_public_slug, "CM1_READINESS_PUBLIC_SLUG_INVALID"),
     evidenceHash,
+    changeDiff,
     releaseDesign,
     reason,
     status: "version_candidate_ready_for_publication" as const,
