@@ -71,7 +71,7 @@ alter table public.factory_production_readiness_runs
 create unique index if not exists factory_production_readiness_restore_target_unique
   on public.factory_production_readiness_runs(
     production_hotel_id,
-    expected_current_live_revision_id,
+    source_live_activation_run_id,
     production_revision_id
   )
   where release_mode='version_restore';
@@ -118,7 +118,7 @@ alter table public.factory_production_publication_runs
 create unique index if not exists factory_production_publication_restore_target_unique
   on public.factory_production_publication_runs(
     production_hotel_id,
-    expected_current_live_revision_id,
+    source_live_activation_run_id,
     source_revision_id
   )
   where release_mode='version_restore';
@@ -335,6 +335,7 @@ begin
   from public.factory_production_readiness_runs
   where release_mode='version_restore'
     and production_hotel_id=v_hotel.id
+    and source_live_activation_run_id=v_current_activation.id
     and expected_current_live_revision_id=v_current.id
     and production_revision_id=v_target.id;
   if found then
@@ -623,6 +624,7 @@ begin
   from public.factory_production_publication_runs
   where release_mode='version_restore'
     and production_hotel_id=p_expected_production_hotel_id
+    and source_live_activation_run_id=v_current_activation.id
     and expected_current_live_revision_id=p_expected_current_live_revision_id
     and source_revision_id=p_target_historical_revision_id;
   if found then
