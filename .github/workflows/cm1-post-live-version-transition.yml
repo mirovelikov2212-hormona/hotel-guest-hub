@@ -4,7 +4,10 @@ on:
   pull_request:
     paths:
       - "supabase/migrations/20260909120000_cm1_post_live_version_transition_v1.sql"
+      - "supabase/migrations/20260909172000_cm1_production-relational-authority-compat-v1.sql"
       - "tests/contracts/cm1-post-live-version-transition.contract.test.mjs"
+      - "tests/contracts/cm1-trusted-server-integration.contract.test.mjs"
+      - "lib/server/factory-production-version-transition.ts"
       - "lib/server/factory-production-publication.ts"
       - "lib/server/factory-production-runtime-certification.ts"
       - "lib/server/factory-production-live-activation.ts"
@@ -25,7 +28,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --test tests/contracts/cm1-post-live-version-transition.contract.test.mjs
+      - run: node --test tests/contracts/cm1-trusted-server-integration.contract.test.mjs
       - run: npm run test:p2-6-2
       - run: npm run test:p2-6-3
       - run: npm run test:p2-6-4
       - run: npm run test:p2-6-5
+      - run: npm run build
