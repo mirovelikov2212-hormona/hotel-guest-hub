@@ -1,5 +1,6 @@
 name: CM3 Bootstrap
 
+# Trigger registration after the workflow already exists on the branch.
 on:
   push:
     branches:
