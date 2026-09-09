@@ -1,6 +1,7 @@
 name: CM3 Bootstrap
 
-# Trigger registration after the workflow already exists on the branch.
+# Temporary source assembler. Workflow-file changes are intentionally excluded
+# because the Actions GITHUB_TOKEN only has contents:write.
 on:
   push:
     branches:
@@ -27,11 +28,10 @@ jobs:
           mkdir -p /tmp/cm3
           cat .cm3-payload/payload.part.* | base64 -d > /tmp/cm3.tar.gz
           tar -xzf /tmp/cm3.tar.gz -C /tmp/cm3
-          mkdir -p supabase/migrations lib/server tests/contracts .github/workflows
+          mkdir -p supabase/migrations lib/server tests/contracts
           cp /tmp/cm3/20260909200000_cm3_historical_version_restore_v1.sql supabase/migrations/
           cp /tmp/cm3/factory-production-version-restore.ts lib/server/
           cp /tmp/cm3/cm3-historical-version-restore.contract.test.mjs tests/contracts/
-          cp /tmp/cm3/cm3-historical-version-restore.yml .github/workflows/cm3-historical-version-restore.yml
           python - <<'PY'
           from pathlib import Path
           p = Path("scripts/tenant-isolation-guard.mjs")
@@ -44,7 +44,7 @@ jobs:
               s = s.replace(needle, addition)
               p.write_text(s)
           PY
-          rm -rf .cm3-payload .github/workflows/cm3-bootstrap.yml
+          rm -rf .cm3-payload
           git config user.name "stayhub-ci"
           git config user.email "stayhub-ci@users.noreply.github.com"
           git add -A
