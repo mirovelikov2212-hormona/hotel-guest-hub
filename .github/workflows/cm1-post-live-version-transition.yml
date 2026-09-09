@@ -1,0 +1,31 @@
+name: CM1 Post-LIVE Version Transition
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/20260909120000_cm1_post_live_version_transition_v1.sql"
+      - "tests/contracts/cm1-post-live-version-transition.contract.test.mjs"
+      - "lib/server/factory-production-publication.ts"
+      - "lib/server/factory-production-runtime-certification.ts"
+      - "lib/server/factory-production-live-activation.ts"
+      - ".github/workflows/cm1-post-live-version-transition.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/contracts/cm1-post-live-version-transition.contract.test.mjs
+      - run: npm run test:p2-6-2
+      - run: npm run test:p2-6-3
+      - run: npm run test:p2-6-4
+      - run: npm run test:p2-6-5
