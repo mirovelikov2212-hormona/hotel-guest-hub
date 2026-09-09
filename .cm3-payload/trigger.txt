@@ -1,2 +1,0 @@
-trigger cm3 bootstrap after workflow registration
-trigger 2: materialize staged source
