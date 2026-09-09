@@ -1,0 +1,1 @@
+trigger cm3 bootstrap after workflow registration
