@@ -1,5 +1,6 @@
 name: CM3 Historical Version Restore
 
+# Exact-SHA acceptance gate for historical restore authority.
 on:
   pull_request:
     paths:
