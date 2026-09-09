@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "checkpoint": "cm4-version-management-control-plane",
+  "baseCheckpoint": "cm3-historical-version-restore",
+  "expectedNeedsReview": 222,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-production-version-management.ts",
+      "line": 218,
+      "table": "hotel_public_identity_configs",
+      "tableExpression": "\"hotel_public_identity_configs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_version_management_read_model_reads_the_single_public_identity_row_scoped_by_the_selected_factory_production_hotel_id; snapshot_requires_active_non_sandbox_non_demo_hotel_active_identity_and_exact_current_live_publication_lkg_before_exposing_version_state"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-management.ts",
+      "line": 221,
+      "table": "factory_production_live_activation_runs",
+      "tableExpression": "\"factory_production_live_activation_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_version_management_history_reads_live_activation_records_scoped_by_production_hotel_id_and_bounded_to_the_latest_100_rows; results_are_used_only_to_mark_same_hotel_revisions_as_previously_live_and_build_read_only_history"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-management.ts",
+      "line": 245,
+      "table": "factory_production_readiness_runs",
+      "tableExpression": "\"factory_production_readiness_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_capability_probe_is_scoped_by_production_hotel_id_and_reads_at_most_one_readiness_row_only_to_detect_whether_change_management_schema_columns_are_deployed; schema_absence_fails_soft_to_read_only_migration_required"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-management.ts",
+      "line": 264,
+      "table": "factory_production_readiness_runs",
+      "tableExpression": "\"factory_production_readiness_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_version_management_reads_readiness_ledger_rows_scoped_by_production_hotel_id_and_release_mode_version_upgrade_or_version_restore_bounded_to_100_rows_for_read_only_workflow_stage_and_audit_timeline_derivation"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-management.ts",
+      "line": 265,
+      "table": "factory_production_publication_runs",
+      "tableExpression": "\"factory_production_publication_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_version_management_reads_publication_ledger_rows_scoped_by_production_hotel_id_and_change_management_release_modes_bounded_to_100_rows_then_correlates_only_same_hotel_readiness_and_revision_lineage_for_stage_and_audit_display"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-management.ts",
+      "line": 266,
+      "table": "factory_production_runtime_certification_runs",
+      "tableExpression": "\"factory_production_runtime_certification_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_version_management_reads_runtime_certification_ledger_rows_scoped_by_production_hotel_id_and_change_management_release_modes_bounded_to_100_rows_then_correlates_only_publication_ids_from_the_same_hotel_snapshot"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-management.ts",
+      "line": 267,
+      "table": "factory_production_live_activation_runs",
+      "tableExpression": "\"factory_production_live_activation_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_version_management_reads_change_management_activation_rows_scoped_by_production_hotel_id_and_release_mode_version_upgrade_or_version_restore_bounded_to_100_rows_to_derive_same_hotel_completion_state_and_append_only_audit_timeline"
+    }
+  ]
+}
