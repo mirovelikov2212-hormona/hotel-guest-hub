@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "checkpoint": "cm3-historical-version-restore",
+  "baseCheckpoint": "cm2-version-diff",
+  "expectedNeedsReview": 204,
+  "removals": [],
+  "relocations": [],
+  "additions": []
+}
