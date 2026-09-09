@@ -7,6 +7,8 @@ on:
       - "supabase/migrations/20260909172000_cm1_production-relational-authority-compat-v1.sql"
       - "tests/contracts/cm1-post-live-version-transition.contract.test.mjs"
       - "tests/contracts/cm1-trusted-server-integration.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-cm1-post-live-version-transition.json"
+      - "scripts/tenant-isolation-guard.mjs"
       - "lib/server/factory-production-version-transition.ts"
       - "lib/server/factory-production-publication.ts"
       - "lib/server/factory-production-runtime-certification.ts"
@@ -34,3 +36,6 @@ jobs:
       - run: npm run test:p2-6-4
       - run: npm run test:p2-6-5
       - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key

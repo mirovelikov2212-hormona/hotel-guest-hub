@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "checkpoint": "cm1-post-live-version-transition",
+  "baseCheckpoint": "hotel-release-approved-design-lineage",
+  "expectedNeedsReview": 202,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/factory-production-version-transition.ts",
+      "line": 160,
+      "table": "hotel_public_identity_configs",
+      "tableExpression": "\"hotel_public_identity_configs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_version_transition_reads_the_single_public_identity_row_scoped_by_the_production_hotel_id_already_derived_from_an_immutable_factory_blueprint_candidate_or_certified_transition_ledger; requires_active_non_sandbox_non_demo_hotel_active_identity_and_exact_current_live_publication_lkg_before_any_version_publication_certification_or_activation_rpc"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-transition.ts",
+      "line": 217,
+      "table": "hotel_config_revisions",
+      "tableExpression": "\"hotel_config_revisions\"",
+      "operation": "select",
+      "reasons": ["primary_key_only_scope"],
+      "provenance": "server_only_authenticated_control_plane_version_publication_resolves_one_globally_unique_immutable_candidate_revision_locator_then_derives_and_binds_its_hotel_id; requires_draft_factory_blueprint_validated_sha256_lineage_and_revalidates_exact_design_intelligence_scan_authority_for_that_same_hotel_before_calling_the_service_role_only_version_publication_rpc"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-transition.ts",
+      "line": 257,
+      "rpc": "publish_factory_production_revision_v2",
+      "tableExpression": "\"publish_factory_production_revision_v2\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_platform_admin_calls_service_role_only_security_definer_cm1_version_publication_rpc_with_server_derived_production_hotel_current_live_revision_candidate_revision_public_slug_and_approval_hash; database_rechecks_same_hotel_factory_blueprint_candidate_active_production_identity_exact_current_lkg_and_cas_then_creates_only_an_immutable_non_live_version_candidate_and_append_only_publication_ledger_without_mutating_effective_live_authority"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-transition.ts",
+      "line": 314,
+      "table": "factory_production_publication_runs",
+      "tableExpression": "\"factory_production_publication_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_candidate_certification_resolves_one_immutable_publication_run_locator_then_derives_its_production_hotel_target_revision_expected_current_live_revision_and_public_slug; requires_version_upgrade_and_published_pending_certification_then_reloads_exact_live_authority_and_exact_hotel_scoped_candidate_before_any_certification_rpc"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-transition.ts",
+      "line": 388,
+      "rpc": "certify_factory_production_runtime_v2",
+      "tableExpression": "\"certify_factory_production_runtime_v2\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_platform_admin_calls_service_role_only_security_definer_cm1_candidate_certification_rpc_only_after_server_reloads_exact_version_publication_and_hotel_scoped_immutable_candidate_rebuilds_projection_server_side_revalidates_design_lineage_and_exact_validated_production_release_evidence; database_rechecks_current_live_cas_and_records_certification_evidence_without_live_projection_or_runtime_mutation"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-transition.ts",
+      "line": 444,
+      "table": "factory_production_runtime_certification_runs",
+      "tableExpression": "\"factory_production_runtime_certification_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_version_activation_resolves_one_globally_unique_passed_version_upgrade_certification_locator_then_derives_and_binds_production_hotel_publication_target_revision_expected_current_live_revision_candidate_projection_hash_and_certified_deployment_before_reloading_all_hotel_scoped_authority_and_attempting_atomic_activation"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-transition.ts",
+      "line": 473,
+      "table": "factory_production_publication_runs",
+      "tableExpression": "\"factory_production_publication_runs\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_control_plane_version_activation_reloads_the_exact_publication_run_referenced_by_the_passed_certification_and_cross_checks_its_production_hotel_target_revision_expected_current_live_revision_release_mode_status_public_slug_and_release_reason_against_the_certified_transition_before_atomic_cutover"
+    },
+    {
+      "filePath": "lib/server/factory-production-version-transition.ts",
+      "line": 561,
+      "rpc": "activate_factory_production_live_v2",
+      "tableExpression": "\"activate_factory_production_live_v2\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "authenticated_control_plane_platform_admin_calls_service_role_only_security_definer_cm1_atomic_version_activation_rpc_only_with_server_derived_exact_hotel_current_live_target_public_slug_certified_deployment_and_server_rebuilt_projection; database_rechecks_same_hotel_publication_certification_candidate_and_current_live_cas_then_atomically_supersedes_old_live_publishes_target_projects_relational_resources_updates_current_lkg_health_and_appends_activation_history_or_rolls_back_the_entire_transaction_on_any_failure"
+    }
+  ]
+}
