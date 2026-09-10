@@ -11,28 +11,20 @@ import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import { getRequestSummary, sortStaffRequests } from "@/lib/staff/mock-data";
 import { staffText } from "@/lib/staff/ui-copy";
+import type { StaffRequest } from "@/lib/staff/types";
+import { evaluateOperationalRequestSla } from "@/lib/server/operational-request-sla.mjs";
 
 type SummaryFilter = "active" | "new" | "in_progress" | "returned";
 
-const DEPARTMENT_OVERDUE_AFTER_MINUTES = 10;
-
-function getRequestAgeMinutes(createdAtIso: string, nowMs: number) {
-  const createdAtMs = new Date(createdAtIso).getTime();
-
-  if (!Number.isFinite(createdAtMs)) return 0;
-
-  return Math.max(0, Math.floor((nowMs - createdAtMs) / 60000));
-}
-
-function isDepartmentRequestOverdue(
-  status: string,
-  createdAtIso: string,
-  nowMs: number,
-) {
-  return (
-    status === "new" &&
-    getRequestAgeMinutes(createdAtIso, nowMs) >= DEPARTMENT_OVERDUE_AFTER_MINUTES
-  );
+function getRequestSlaEvidence(request: StaffRequest, nowMs: number) {
+  return evaluateOperationalRequestSla({
+    status: request.status,
+    createdAtIso: request.createdAtIso,
+    startedAtIso: request.startedAtIso,
+    resolvedAtIso: request.resolvedAtIso,
+    now: new Date(nowMs),
+    policy: request.operationalSla ?? undefined,
+  });
 }
 
 export default function MaintenancePage() {
@@ -145,10 +137,8 @@ export default function MaintenancePage() {
       <section className="space-y-4">
         {visibleRequests.length ? (
           visibleRequests.map((request) => {
-            const requestAgeMinutes = getRequestAgeMinutes(
-              request.createdAtIso,
-              nowMs,
-            );
+            const slaEvidence = getRequestSlaEvidence(request, nowMs);
+            const requestAgeMinutes = slaEvidence.ageMinutes ?? 0;
 
             return (
               <StaffRequestCard
@@ -156,11 +146,7 @@ export default function MaintenancePage() {
                 request={request}
                 mode="department"
                 canAct
-                isOverdue={isDepartmentRequestOverdue(
-                  request.status,
-                  request.createdAtIso,
-                  nowMs,
-                )}
+                isOverdue={slaEvidence.escalationRequired}
                 overdueMinutes={requestAgeMinutes}
                 onStart={(id) => void updateRequestStatus(id, "in_progress")}
                 onDone={(id) => void updateRequestStatus(id, "completed")}

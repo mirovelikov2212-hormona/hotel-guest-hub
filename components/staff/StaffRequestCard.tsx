@@ -113,7 +113,7 @@ function formatRequestDateTime(iso: string, locale: string, timeZone?: string) {
 }
 
 function formatOverdueText(minutes: number | undefined, locale: string) {
-  const safeMinutes = Math.max(10, Math.floor(minutes || 10));
+  const safeMinutes = Math.max(1, Math.floor(minutes || 1));
 
   if (locale === "bg") return `Чака ${safeMinutes} мин.`;
   if (locale === "de") return `Wartet ${safeMinutes} Min.`;

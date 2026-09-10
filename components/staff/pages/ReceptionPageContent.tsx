@@ -23,6 +23,7 @@ import {
   translateStaffStatus,
 } from "@/lib/staff/ui-copy";
 import { buildSurveyAlertRequests } from "@/lib/staff/survey-display";
+import { evaluateOperationalRequestSla } from "@/lib/server/operational-request-sla.mjs";
 
 type DepartmentFilter = "all" | StaffDepartment;
 type StatusFilter = "all" | "active" | StaffRequestStatus;
@@ -79,8 +80,6 @@ const receptionHistoryCopy: Record<"bg" | "en" | "de", ReceptionHistoryCopy> = {
   },
 };
 
-const RECEPTION_OVERDUE_AFTER_MINUTES = 10;
-
 const priorityOrder: Record<StaffRequestStatus, number> = {
   new: 0,
   returned: 1,
@@ -92,20 +91,23 @@ function isActiveStatus(status: StaffRequestStatus) {
   return status !== "completed";
 }
 
+function getRequestSlaEvidence(request: StaffRequest, nowMs: number) {
+  return evaluateOperationalRequestSla({
+    status: request.status,
+    createdAtIso: request.createdAtIso,
+    startedAtIso: request.startedAtIso,
+    resolvedAtIso: request.resolvedAtIso,
+    now: new Date(nowMs),
+    policy: request.operationalSla ?? undefined,
+  });
+}
+
 function getRequestAgeMinutes(request: StaffRequest, nowMs: number) {
-  const createdAtMs = new Date(request.createdAtIso).getTime();
-
-  if (!Number.isFinite(createdAtMs)) return 0;
-
-  return Math.max(0, Math.floor((nowMs - createdAtMs) / 60000));
+  return getRequestSlaEvidence(request, nowMs).ageMinutes ?? 0;
 }
 
 function isOverdueForReception(request: StaffRequest, nowMs: number) {
-  if (request.status !== "new") return false;
-
-  return (
-    getRequestAgeMinutes(request, nowMs) >= RECEPTION_OVERDUE_AFTER_MINUTES
-  );
+  return getRequestSlaEvidence(request, nowMs).escalationRequired;
 }
 
 function getHotelDateKey(iso: string, hotelTimeZone: string) {

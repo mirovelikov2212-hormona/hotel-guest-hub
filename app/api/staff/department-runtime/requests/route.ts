@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveGenericDepartmentStaffScope } from "@/lib/server/generic-department-staff-scope";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { normalizeOperationalRequestSlaPolicy } from "@/lib/server/operational-request-sla.mjs";
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
@@ -19,6 +20,8 @@ type RequestRow = {
   title_bg?: string | null;
   status: string;
   created_at: string;
+  started_at?: string | null;
+  resolved_at?: string | null;
   is_test?: boolean | null;
   test_expires_at?: string | null;
   metadata_json: Record<string, unknown> | null;
@@ -42,6 +45,13 @@ function mapRequest(row: RequestRow, departmentCode: string) {
     noteOriginal: row.message_original || row.message || null,
     status: row.status,
     createdAtIso: row.created_at,
+    startedAtIso: row.started_at ?? null,
+    resolvedAtIso: row.resolved_at ?? null,
+    operationalSla: normalizeOperationalRequestSlaPolicy(
+      metadata.operationalSla && typeof metadata.operationalSla === "object"
+        ? metadata.operationalSla as Record<string, unknown>
+        : undefined,
+    ),
     department: departmentCode,
     serviceTime: String(metadata.serviceTime || "now"),
     requiresBilling: Boolean(metadata.requiresBilling),
@@ -67,7 +77,7 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from("guest_requests")
-      .select("id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, status, created_at, is_test, test_expires_at, metadata_json")
+      .select("id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, status, created_at, started_at, resolved_at, is_test, test_expires_at, metadata_json")
       .eq("hotel_id", scope.hotelId)
       .eq("department_id", scope.departmentId)
       .order("created_at", { ascending: false });

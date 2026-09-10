@@ -292,6 +292,8 @@ export function parseRequestDefs(rows: LooseRow[], langs: LangKey[]): RequestDef
       price: readFirst(row, ["price", "Price"]),
       currency: readFirst(row, ["currency", "Currency"]),
       requiresBilling: toBool(readFirst(row, ["requires_billing", "requiresBilling", "billing", "Billing"])),
+      slaMinutes: toNumber(readFirst(row, ["sla_minutes", "slaMinutes", "SLA Minutes", "first_response_sla_minutes", "First Response SLA Minutes"])),
+      escalationDepartments: parseList(readFirst(row, ["escalation_departments", "escalationDepartments", "Escalation Departments"])),
       notifyDepartments: parseList(readFirst(row, ["notify_departments", "notifyDepartments", "Notify Departments"])),
       keywords: parseList(readFirst(row, ["keywords", "Keywords"])),
       aliasesByLang: buildListMap(row, "aliases", langs),

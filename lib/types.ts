@@ -88,6 +88,10 @@ export type RequestDef = {
   price?: string;
   currency?: string;
   requiresBilling?: boolean;
+  /** Hotel-owned first-response SLA in minutes. */
+  slaMinutes?: number;
+  /** Explicit hotel-owned escalation recipients. Operational AI never invents these. */
+  escalationDepartments?: string[];
   notifyDepartments?: string[];
   keywords: string[];
   aliasesByLang?: Partial<Record<LangKey, string[]>>;

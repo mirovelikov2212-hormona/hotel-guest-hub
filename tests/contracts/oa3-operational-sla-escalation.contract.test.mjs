@@ -142,3 +142,50 @@ test("OA3 SLA evaluator is pure and has no operational write authority", async (
     /supabase|\.insert\(|\.update\(|\.delete\(|\.rpc\(|fetch\(|sendStaffPush|sendManagerPush/i,
   );
 });
+
+
+test("OA3 runtime wiring snapshots only LIVE RequestDef policy and reuses canonical staff feeds", async () => {
+  const requestCreate = await readFile(new URL("../../app/api/guest/request-create/route.ts", import.meta.url), "utf8");
+  const staffFeed = await readFile(new URL("../../app/api/staff/requests/route.ts", import.meta.url), "utf8");
+  const genericFeed = await readFile(new URL("../../app/api/staff/department-runtime/requests/route.ts", import.meta.url), "utf8");
+
+  assert.match(requestCreate, /find\(\(def\) => def\.id === sourceRequestDef\)/);
+  assert.match(requestCreate, /buildOperationalRequestSlaSnapshot\(\{/);
+  assert.match(requestCreate, /operationalSla,/);
+  assert.doesNotMatch(requestCreate, /body\.(slaMinutes|escalationDepartments|operationalSla)/);
+
+  for (const source of [staffFeed, genericFeed]) {
+    assert.match(source, /started_at/);
+    assert.match(source, /resolved_at/);
+    assert.match(source, /operationalSla/);
+  }
+});
+
+test("OA3 RequestDef parser owns SLA and explicit escalation configuration", async () => {
+  const types = await readFile(new URL("../../lib/types.ts", import.meta.url), "utf8");
+  const parser = await readFile(new URL("../../lib/request-defs.ts", import.meta.url), "utf8");
+
+  assert.match(types, /slaMinutes\?: number/);
+  assert.match(types, /escalationDepartments\?: string\[\]/);
+  assert.match(parser, /sla_minutes/);
+  assert.match(parser, /escalation_departments/);
+});
+
+test("OA3 staff boards consume the shared evaluator instead of local ten-minute thresholds", async () => {
+  const paths = [
+    "../../components/staff/pages/ReceptionPageContent.tsx",
+    "../../components/staff/pages/HousekeepingPageContent.tsx",
+    "../../components/staff/pages/MaintenancePageContent.tsx",
+    "../../components/staff/pages/GenericDepartmentPageContent.tsx",
+    "../../components/staff/pages/ManagerPageContent.tsx",
+  ];
+
+  for (const path of paths) {
+    const source = await readFile(new URL(path, import.meta.url), "utf8");
+    assert.match(source, /evaluateOperationalRequestSla/);
+    assert.doesNotMatch(source, /(RECEPTION|DEPARTMENT)_OVERDUE_AFTER_MINUTES/);
+  }
+
+  const card = await readFile(new URL("../../components/staff/StaffRequestCard.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(card, /Math\.max\(10,/);
+});

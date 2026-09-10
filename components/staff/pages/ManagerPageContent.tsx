@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
@@ -15,6 +15,7 @@ import type { StaffBillingStatus, StaffRequest, StaffRequestType, StaffRequestSt
 import { isMassageBookingLikeRequest, isTechnicalRequestType } from "@/lib/staff/request-type-utils";
 import { staffText, translateRequestType } from "@/lib/staff/ui-copy";
 import { buildSurveyAlertRequests } from "@/lib/staff/survey-display";
+import { evaluateOperationalRequestSla } from "@/lib/server/operational-request-sla.mjs";
 
 type ReportView =
   | "requests_snapshot"
@@ -555,6 +556,13 @@ export default function ManagerPage() {
   useStaffTabTitleAlert(managerAlertRequests);
   const [activeReport, setActiveReport] = useState<ReportView>("requests_snapshot");
   const [selectedDrilldown, setSelectedDrilldown] = useState<DrilldownSelection | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const summary = useMemo(() => getRequestSummary(reportRequests), [reportRequests]);
   const problemRequests = useMemo(() => reportRequests.filter(isTechnicalProblem), [reportRequests]);
   const problemSummary = useMemo(() => getRequestSummary(problemRequests), [problemRequests]);
@@ -826,22 +834,35 @@ export default function ManagerPage() {
 
         <div className="mt-5 space-y-4">
           {operationalRequests.length ? (
-            operationalRequests.map((request) => (
-              <StaffRequestCard
-                key={`manager-operational-${request.id}`}
-                request={request}
-                mode="manager"
-                canAct
-                forceBillingOnly={isMassageBookingLikeRequest(request)}
-                canCharge
-                onStart={(id) => void updateRequestStatus(id, "in_progress")}
-                onDone={(id) => void updateRequestStatus(id, "completed")}
-                onReturn={(id) => void updateRequestStatus(id, "returned")}
-                onCharge={(id) => void setRequestBillingStatus(id, "charged")}
-                onWaive={(id) => void setRequestBillingStatus(id, "waived")}
-                onCancelBilling={(id) => void setRequestBillingStatus(id, "cancelled")}
-              />
-            ))
+            operationalRequests.map((request) => {
+              const slaEvidence = evaluateOperationalRequestSla({
+                status: request.status,
+                createdAtIso: request.createdAtIso,
+                startedAtIso: request.startedAtIso,
+                resolvedAtIso: request.resolvedAtIso,
+                now: new Date(nowMs),
+                policy: request.operationalSla ?? undefined,
+              });
+
+              return (
+                <StaffRequestCard
+                  key={`manager-operational-${request.id}`}
+                  request={request}
+                  mode="manager"
+                  canAct
+                  forceBillingOnly={isMassageBookingLikeRequest(request)}
+                  canCharge
+                  isOverdue={slaEvidence.escalationRequired}
+                  overdueMinutes={slaEvidence.ageMinutes ?? 0}
+                  onStart={(id) => void updateRequestStatus(id, "in_progress")}
+                  onDone={(id) => void updateRequestStatus(id, "completed")}
+                  onReturn={(id) => void updateRequestStatus(id, "returned")}
+                  onCharge={(id) => void setRequestBillingStatus(id, "charged")}
+                  onWaive={(id) => void setRequestBillingStatus(id, "waived")}
+                  onCancelBilling={(id) => void setRequestBillingStatus(id, "cancelled")}
+                />
+              );
+            })
           ) : (
             <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">
               {t.noManagerOperationalRequests}

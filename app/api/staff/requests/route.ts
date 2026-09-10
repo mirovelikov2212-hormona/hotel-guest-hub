@@ -13,6 +13,7 @@ import {
   getOperationalRequestTitleBg,
 } from "@/lib/staff/ops-request-copy";
 import { translateGuestText } from "@/lib/server/staff-translation";
+import { normalizeOperationalRequestSlaPolicy } from "@/lib/server/operational-request-sla.mjs";
 import type {
   StaffDepartment,
   StaffRequest,
@@ -37,6 +38,8 @@ type GuestRequestRow = {
   message_de?: string | null;
   status: StaffRequestStatus;
   created_at: string;
+  started_at?: string | null;
+  resolved_at?: string | null;
   is_test?: boolean | null;
   test_expires_at?: string | null;
   metadata_json: {
@@ -181,7 +184,7 @@ async function backfillMissingRequestReportTranslations(rows: GuestRequestRow[])
         metadata_json: nextMetadata,
       })
       .eq("id", row.id)
-      .select("id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, title_en, title_de, message_bg, message_en, message_de, status, created_at, is_test, test_expires_at, metadata_json")
+      .select("id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, title_en, title_de, message_bg, message_en, message_de, status, created_at, started_at, resolved_at, is_test, test_expires_at, metadata_json")
       .single();
 
     if (error || !data) {
@@ -247,6 +250,13 @@ function mapRowToStaffRequest(row: GuestRequestRow): StaffRequest {
       minute: "2-digit",
     }),
     createdAtIso: row.created_at,
+    startedAtIso: row.started_at ?? null,
+    resolvedAtIso: row.resolved_at ?? null,
+    operationalSla: normalizeOperationalRequestSlaPolicy(
+      metadata.operationalSla && typeof metadata.operationalSla === "object"
+        ? metadata.operationalSla as Record<string, unknown>
+        : undefined,
+    ),
     createdDateKey: created.toLocaleDateString("sv-SE"),
     note: noteBg || undefined,
     noteOriginal: row.message_original || row.message || null,
@@ -345,7 +355,7 @@ export async function GET(req: NextRequest) {
     let query = supabaseAdmin
       .from("guest_requests")
       .select(
-        "id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, title_en, title_de, message_bg, message_en, message_de, status, created_at, is_test, test_expires_at, metadata_json"
+        "id, room_number_snapshot, request_type, title, message, title_original, message_original, title_bg, title_en, title_de, message_bg, message_en, message_de, status, created_at, started_at, resolved_at, is_test, test_expires_at, metadata_json"
       )
       .eq("hotel_id", scope.hotelId)
       .order("created_at", { ascending: false });
