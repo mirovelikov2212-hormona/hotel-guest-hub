@@ -214,7 +214,9 @@ test("OA4 staff timeline boundary derives stay identity server-side from a hotel
   assert.ok(route.includes('.eq("id", requestId)'));
   assert.ok(route.includes("getCurrentStaffSession(hotelSlug, role)"));
   assert.ok(route.includes("hotelMatchesRequestedSlug(hotel, hotelSlug)"));
-  assert.ok(!route.includes("body:"));
+  assert.ok(route.includes("export async function GET"));
+  assert.ok(!route.includes("req.json("));
+  assert.ok(!route.includes("export async function POST"));
 });
 
 test("OA4 canonical read model is bounded, stay-scoped and never selects raw guest free text", async () => {
