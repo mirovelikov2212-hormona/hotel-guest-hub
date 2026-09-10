@@ -16,13 +16,27 @@ function json(body: Record<string, unknown>, status = 200) {
   return NextResponse.json(body, { status, headers: NO_STORE });
 }
 
+async function resolveStayIdFromRequest(hotelId: string, requestId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("guest_requests")
+    .select("stay_id")
+    .eq("hotel_id", hotelId)
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return String(data?.stay_id || "").trim() || null;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const hotelSlug = String(req.nextUrl.searchParams.get("hotelSlug") || "").trim().toLowerCase();
     const role = normalizeStaffRoleCode(req.nextUrl.searchParams.get("role"));
-    const stayId = String(req.nextUrl.searchParams.get("stayId") || "").trim();
+    const requestedStayId = String(req.nextUrl.searchParams.get("stayId") || "").trim();
+    const requestId = String(req.nextUrl.searchParams.get("requestId") || "").trim();
+    const hasExactlyOneLocator = Boolean(requestedStayId) !== Boolean(requestId);
 
-    if (!hotelSlug || !role || !stayId) {
+    if (!hotelSlug || !role || !hasExactlyOneLocator) {
       return json({ ok: false, error: "invalid_request" }, 400);
     }
     if (!ALLOWED_ROLES.has(role)) {
@@ -46,8 +60,16 @@ export async function GET(req: NextRequest) {
       return json({ ok: false, error: "unauthorized" }, 401);
     }
 
+    const hotelId = String(hotel.id);
+    const stayId = requestId
+      ? await resolveStayIdFromRequest(hotelId, requestId)
+      : requestedStayId;
+    if (!stayId) {
+      return json({ ok: false, error: "stay_not_found" }, 404);
+    }
+
     const readModel = await loadUnifiedGuestTimelineForStay({
-      hotelId: String(hotel.id),
+      hotelId,
       stayId,
       includeTest: Boolean(hotel.is_sandbox),
     });
@@ -59,7 +81,7 @@ export async function GET(req: NextRequest) {
       ok: true,
       generatedAt: new Date().toISOString(),
       hotel: {
-        id: String(hotel.id),
+        id: hotelId,
         slug: String(hotel.slug),
         publicSlug: String(hotel.public_slug || hotel.slug),
         name: String(hotel.name || hotel.slug),
