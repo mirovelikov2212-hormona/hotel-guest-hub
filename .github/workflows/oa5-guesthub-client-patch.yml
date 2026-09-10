@@ -1,0 +1,58 @@
+name: OA5 GuestHub Locator Patch
+
+on:
+  push:
+    branches:
+      - feat/hotel-lifecycle-v1-intelligence-review
+    paths:
+      - ".github/workflows/oa5-guesthub-client-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/hotel-lifecycle-v1-intelligence-review
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Patch only the AI request locator payload
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("components/GuestHub.tsx")
+          source = path.read_text()
+          old = '''        body: JSON.stringify({
+            question: questionText,
+            lang: String(lang),
+            hotelSlug: config.hotelSlug,
+            history: historyForRequest,
+          }),'''
+          new = '''        body: JSON.stringify({
+            question: questionText,
+            lang: String(lang),
+            hotelSlug: config.hotelSlug,
+            history: historyForRequest,
+            room,
+            stayId: activeStayId,
+            stayDeviceId,
+          }),'''
+          count = source.count(old)
+          if count != 1:
+              raise SystemExit(f"Expected exactly one AI payload block, found {count}")
+          path.write_text(source.replace(old, new, 1))
+          PY
+          git diff --check
+          git diff -- components/GuestHub.tsx
+      - name: Commit bounded GuestHub patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/GuestHub.tsx
+          git commit -m "Send verified stay locators to OA5 AI context"
+          git push origin HEAD:feat/hotel-lifecycle-v1-intelligence-review
