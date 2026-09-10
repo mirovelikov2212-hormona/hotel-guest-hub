@@ -6759,9 +6759,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
       const answerText = String(data.answer || tUI("ai_no_info") || "Все още нямам тази информация за хотела.");
       const operationalAction = buildAiOperationalAction(data, questionText);
+      const operationalStatus = String(data?.operationalActionStatus || "").trim();
       const actions = operationalAction
         ? [operationalAction]
-        : buildAiActions(data?.diagnostics?.matchedIds);
+        : operationalStatus === "clarification_required"
+          ? []
+          : buildAiActions(data?.diagnostics?.matchedIds);
       setAiAnswer(answerText);
       setAiHistory((previous) => [
         ...previous,
