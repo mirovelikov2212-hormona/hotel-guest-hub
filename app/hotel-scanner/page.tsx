@@ -41,7 +41,7 @@ export default async function HotelScannerPage({
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-neutral-950 px-4 py-8 text-neutral-50 sm:px-6 lg:px-8">
+    <main className="hotel-scanner-page relative min-h-screen overflow-hidden bg-neutral-950 px-4 py-8 text-neutral-50 sm:px-6 lg:px-8">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-[radial-gradient(circle_at_50%_-20%,rgba(34,211,238,0.14),transparent_60%)]" />
       <div className="pointer-events-none absolute left-[-12rem] top-[20rem] h-96 w-96 rounded-full bg-indigo-400/5 blur-3xl" />
       <div className="relative mx-auto max-w-6xl space-y-6">
@@ -61,7 +61,9 @@ export default async function HotelScannerPage({
           <Link href={`/control-panel?lang=${lang}`} className="mt-6 inline-flex text-sm font-semibold text-cyan-200 transition hover:text-cyan-100">{copy.back}</Link>
         </header>
 
-        <HotelScannerClient lang={lang} />
+        <div className="hotel-scanner-workspace">
+          <HotelScannerClient lang={lang} />
+        </div>
       </div>
     </main>
   );
