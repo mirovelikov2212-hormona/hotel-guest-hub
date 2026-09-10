@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 
 type Theme = "light" | "dark";
 
-const STORAGE_KEY = "stayhub:control-panel-theme:v1";
+const STORAGE_KEY = "stayhub.internal-tools.theme.v1";
 
 const LIGHT = {
   "--cp-bg": "#f3f7f8",

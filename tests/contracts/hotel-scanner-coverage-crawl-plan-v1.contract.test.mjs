@@ -160,15 +160,19 @@ test("planner does not fill unused page budget with zero-gain secondary pages", 
   assert.deepEqual(result.selections, []);
 });
 
-test("production crawler keeps the six-page bound and seeds the coverage planner from the first page", async () => {
+test("production crawler uses a bounded multi-wave coverage crawl instead of the former six-page ceiling", async () => {
   const crawler = await readProjectFile(crawlerPath);
-  assert.match(crawler, /MAX_PAGES = 6/);
+  assert.match(crawler, /MAX_PAGES = 14/);
   assert.match(crawler, /MAX_SECONDARY_PAGES = MAX_PAGES - 1/);
+  assert.match(crawler, /MAX_CRAWL_BATCH_SIZE = 6/);
+  assert.match(crawler, /MAX_CRAWL_WAVES = 3/);
+  assert.match(crawler, /discoverSitemapPageUrls/);
   assert.match(crawler, /classifyHotelScannerPageCoverage\(firstPage\)/);
   assert.match(crawler, /planHotelScannerSecondaryUrls/);
-  assert.match(crawler, /alreadyCoveredDomains: firstPageCoverage/);
-  assert.match(crawler, /maxPages: MAX_SECONDARY_PAGES/);
-  assert.match(crawler, /Promise\.all\(crawlPlan\.urls\.map/);
+  assert.match(crawler, /alreadyCoveredDomains: \[\.\.\.coveredDomains\]/);
+  assert.match(crawler, /for \(let wave = 0; wave < MAX_CRAWL_WAVES; wave \+= 1\)/);
+  assert.match(crawler, /page\.links/);
+  assert.doesNotMatch(crawler, /MAX_PAGES = 6/);
   assert.doesNotMatch(crawler, /function pagePriority/);
   assert.doesNotMatch(crawler, /function uniqueCandidateUrls/);
 });

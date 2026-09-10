@@ -16,7 +16,7 @@ const BOOTSTRAP_COLORS = new Set([
   "#e9ecef", "#dee2e6", "#ced4da", "#000000", "#ffffff",
 ]);
 
-const ICON_FONT_PATTERN = /(font\s*awesome|bootstrap[- ]?icons?|flaticon|themify|material[- ]?icons?|icomoon|glyphicons?|feather|remixicon)/i;
+const ICON_FONT_PATTERN = /(font\s*awesome|bootstrap[- ]?icons?|flaticon|themify|material(?:[- ]?(?:icons?|symbols?))?|icomoon|glyphicons?|feather|remixicon|apple color emoji|segoe ui emoji|noto color emoji|wingdings|webdings|symbol)/i;
 const GENERIC_FONTS = new Set([
   "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui", "ui-serif",
   "ui-sans-serif", "ui-monospace", "inherit", "initial", "unset", "revert", "emoji",

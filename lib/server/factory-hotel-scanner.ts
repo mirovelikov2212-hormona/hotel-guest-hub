@@ -12,12 +12,17 @@ import {
   type HotelScannerRawTechnologySignals,
 } from "@/lib/server/hotel-scanner-public-technology.mjs";
 
-const MAX_PAGES = 6;
+const MAX_PAGES = 14;
 const MAX_SECONDARY_PAGES = MAX_PAGES - 1;
+const MAX_CRAWL_BATCH_SIZE = 6;
+const MAX_CRAWL_WAVES = 3;
+const MAX_DISCOVERED_URLS = 240;
 const MAX_PAGE_BYTES = 1_000_000;
-const MAX_TOTAL_TEXT = 45_000;
+const MAX_TOTAL_TEXT = 80_000;
 const MAX_REDIRECTS = 5;
 const FETCH_TIMEOUT_MS = 6_000;
+const SITEMAP_TIMEOUT_MS = 4_000;
+const MAX_SITEMAP_BYTES = 500_000;
 const MAX_STYLESHEETS = 6;
 const MAX_STYLESHEET_BYTES = 400_000;
 const STYLESHEET_TIMEOUT_MS = 4_000;
@@ -199,6 +204,7 @@ const GENERIC_FONTS = new Set([
   "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui", "ui-serif",
   "ui-sans-serif", "ui-monospace", "inherit", "initial", "unset", "revert", "emoji",
 ]);
+const UTILITY_FONT_PATTERN = /(font\s*awesome|bootstrap[- ]?icons?|flaticon|themify|material(?:[- ]?(?:icons?|symbols?))?|icomoon|glyphicons?|feather|remixicon|apple color emoji|segoe ui emoji|noto color emoji|wingdings|webdings|symbol)/i;
 
 function cleanFontName(raw: string) {
   return raw.trim().replace(/^['"]|['"]$/g, "").replace(/\s+/g, " ").slice(0, 100);
@@ -208,7 +214,7 @@ function rankedFonts(css: string, stylesheetUrls: string[], max = 8) {
   const scores = new Map<string, number>();
   const add = (font: string, score: number) => {
     const cleaned = cleanFontName(font);
-    if (!cleaned || GENERIC_FONTS.has(cleaned.toLowerCase()) || /^var\(/i.test(cleaned)) return;
+    if (!cleaned || GENERIC_FONTS.has(cleaned.toLowerCase()) || UTILITY_FONT_PATTERN.test(cleaned) || /^var\(/i.test(cleaned)) return;
     scores.set(cleaned, (scores.get(cleaned) || 0) + score);
   };
 
@@ -393,6 +399,97 @@ async function fetchHtml(startUrl: URL) {
   throw new HotelScannerError("scanner_too_many_redirects", 422);
 }
 
+
+function sitemapLocs(xml: string) {
+  const result: string[] = [];
+  const regex = /<loc\b[^>]*>([\s\S]*?)<\/loc>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(xml)) && result.length < MAX_DISCOVERED_URLS) {
+    const value = cleanText(match[1] || "", 2_048);
+    if (value) result.push(value);
+  }
+  return result;
+}
+
+async function fetchScannerText(startUrl: URL, timeoutMs: number, maxBytes: number) {
+  let current = new URL(startUrl);
+  for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
+    await assertPublicHostname(current);
+    const response = await fetch(current, {
+      method: "GET",
+      redirect: "manual",
+      cache: "no-store",
+      headers: {
+        Accept: "application/xml,text/xml,text/plain,*/*;q=0.1",
+        "User-Agent": USER_AGENT,
+      },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location) return null;
+      current = new URL(location, current);
+      continue;
+    }
+    if (!response.ok) return null;
+    const contentLength = Number(response.headers.get("content-length") || 0);
+    if (contentLength > maxBytes) return null;
+    return { url: current, text: (await response.text()).slice(0, maxBytes) };
+  }
+  return null;
+}
+
+function collectSitemapUrls(
+  xml: string,
+  canonicalOrigin: string,
+  pageUrls: Set<string>,
+  childSitemaps: Set<string>,
+) {
+  for (const raw of sitemapLocs(xml)) {
+    try {
+      const url = new URL(raw);
+      if (url.origin !== canonicalOrigin) continue;
+      url.hash = "";
+      if (/\.xml(?:\.gz)?$/i.test(url.pathname)) childSitemaps.add(url.toString());
+      else if (!/\.(?:pdf|jpe?g|png|gif|webp|svg|zip|docx?|xlsx?|pptx?)(?:$|\?)/i.test(url.pathname)) {
+        pageUrls.add(url.toString());
+      }
+    } catch {
+      continue;
+    }
+    if (pageUrls.size >= MAX_DISCOVERED_URLS) break;
+  }
+}
+
+async function discoverSitemapPageUrls(baseUrl: URL, canonicalOrigin: string) {
+  const pageUrls = new Set<string>();
+  const childSitemaps = new Set<string>();
+  const roots = [
+    new URL("/sitemap.xml", baseUrl),
+    new URL("/sitemap_index.xml", baseUrl),
+  ];
+
+  const rootDocuments = await Promise.all(
+    roots.map((url) => fetchScannerText(url, SITEMAP_TIMEOUT_MS, MAX_SITEMAP_BYTES).catch(() => null)),
+  );
+  for (const document of rootDocuments) {
+    if (!document || document.url.origin !== canonicalOrigin) continue;
+    collectSitemapUrls(document.text, canonicalOrigin, pageUrls, childSitemaps);
+  }
+
+  const childDocuments = await Promise.all(
+    [...childSitemaps].slice(0, 4).map((raw) => (
+      fetchScannerText(new URL(raw), SITEMAP_TIMEOUT_MS, MAX_SITEMAP_BYTES).catch(() => null)
+    )),
+  );
+  for (const document of childDocuments) {
+    if (!document || document.url.origin !== canonicalOrigin) continue;
+    collectSitemapUrls(document.text, canonicalOrigin, pageUrls, new Set<string>());
+  }
+
+  return [...pageUrls].slice(0, MAX_DISCOVERED_URLS);
+}
+
 async function fetchStylesheet(startUrl: URL) {
   let current = new URL(startUrl);
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
@@ -481,35 +578,63 @@ export async function crawlPublicHotelWebsite(rawUrl: string): Promise<HotelScan
   const first = await fetchHtml(requested);
   const firstPage = buildPageEvidence(first.url, first.html);
   const canonicalOrigin = first.url.origin;
-  const firstPageCoverage = classifyHotelScannerPageCoverage(firstPage);
-  const crawlPlan = planHotelScannerSecondaryUrls({
-    links: firstPage.links,
-    canonicalOrigin,
-    firstUrl: first.url.toString(),
-    maxPages: MAX_SECONDARY_PAGES,
-    alreadyCoveredDomains: firstPageCoverage,
-  });
 
-  const [secondaryResults, brand] = await Promise.all([
-    Promise.all(crawlPlan.urls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin))),
-    collectBrandEvidence(first.html, first.url),
-  ]);
+  // Brand and sitemap discovery run in parallel with the bounded crawl work.
+  const brandPromise = collectBrandEvidence(first.html, first.url);
+  const sitemapUrls = await discoverSitemapPageUrls(first.url, canonicalOrigin).catch(() => [] as string[]);
 
   const pages: HotelScanPageEvidence[] = [firstPage];
+  const attemptedUrls = new Set<string>([first.url.toString()]);
   const seenFinalUrls = new Set<string>([first.url.toString()]);
+  const discoveredLinks = new Set<string>([...firstPage.links, ...sitemapUrls]);
+  const coveredDomains = new Set<string>(classifyHotelScannerPageCoverage(firstPage));
   let totalText = firstPage.text.length;
 
-  for (const page of secondaryResults) {
-    if (!page || pages.length >= MAX_PAGES || totalText >= MAX_TOTAL_TEXT) continue;
-    if (seenFinalUrls.has(page.url)) continue;
-    seenFinalUrls.add(page.url);
-    const remaining = Math.max(0, MAX_TOTAL_TEXT - totalText);
-    if (!remaining) break;
-    page.text = page.text.slice(0, remaining);
-    totalText += page.text.length;
-    pages.push(page);
+  for (let wave = 0; wave < MAX_CRAWL_WAVES; wave += 1) {
+    if (pages.length >= MAX_PAGES || totalText >= MAX_TOTAL_TEXT) break;
+    const remainingBudget = Math.min(MAX_SECONDARY_PAGES, MAX_PAGES - pages.length);
+    if (remainingBudget <= 0) break;
+
+    const candidates = [...discoveredLinks]
+      .filter((url) => !attemptedUrls.has(url) && !seenFinalUrls.has(url))
+      .slice(0, MAX_DISCOVERED_URLS);
+    if (!candidates.length) break;
+
+    const crawlPlan = planHotelScannerSecondaryUrls({
+      links: candidates,
+      canonicalOrigin,
+      firstUrl: first.url.toString(),
+      maxPages: Math.min(MAX_CRAWL_BATCH_SIZE, remainingBudget),
+      alreadyCoveredDomains: [...coveredDomains],
+    });
+    if (!crawlPlan.urls.length) break;
+
+    for (const url of crawlPlan.urls) attemptedUrls.add(url);
+    const secondaryResults = await Promise.all(
+      crawlPlan.urls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin)),
+    );
+
+    for (const page of secondaryResults) {
+      if (!page || pages.length >= MAX_PAGES || totalText >= MAX_TOTAL_TEXT) continue;
+      attemptedUrls.add(page.url);
+      if (seenFinalUrls.has(page.url)) continue;
+      seenFinalUrls.add(page.url);
+
+      const remainingText = Math.max(0, MAX_TOTAL_TEXT - totalText);
+      if (!remainingText) break;
+      page.text = page.text.slice(0, remainingText);
+      totalText += page.text.length;
+      pages.push(page);
+
+      for (const link of page.links) {
+        if (discoveredLinks.size >= MAX_DISCOVERED_URLS) break;
+        discoveredLinks.add(link);
+      }
+      for (const domain of classifyHotelScannerPageCoverage(page)) coveredDomains.add(domain);
+    }
   }
 
+  const brand = await brandPromise;
   return {
     requestedUrl: requested.toString(),
     canonicalUrl: first.url.toString(),

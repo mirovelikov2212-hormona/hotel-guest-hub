@@ -46,7 +46,7 @@ test("hotel intelligence value guard rejects obvious placeholder addresses", () 
   );
 });
 
-test("scanner profile sanitizer removes invalid critical profile values while retaining raw fact evidence", () => {
+test("scanner profile sanitizer removes invalid critical profile values and invalid visible fact evidence", () => {
   const profile = {
     identity: { address: "Address" },
     contacts: { emails: ["example@example.com", "reservations@realhotel.bg"] },
@@ -64,7 +64,7 @@ test("scanner profile sanitizer removes invalid critical profile values while re
   const result = sanitizeHotelScanProfileValues(profile);
   assert.equal(result.profile.identity.address, "");
   assert.deepEqual(result.profile.contacts.emails, ["reservations@realhotel.bg"]);
-  assert.equal(result.profile.facts.length, 1);
+  assert.equal(result.profile.facts.length, 0);
   assert.equal(result.invalidValues.length, 3);
 });
 
