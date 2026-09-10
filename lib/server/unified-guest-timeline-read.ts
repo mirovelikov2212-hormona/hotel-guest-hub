@@ -1,6 +1,10 @@
 import "server-only";
 
 import {
+  buildGuestStayContext,
+  type GuestStayContext,
+} from "@/lib/server/guest-stay-context.mjs";
+import {
   buildUnifiedGuestTimeline,
   UNIFIED_GUEST_TIMELINE_SAFE_HUB_EVENTS,
   type UnifiedGuestTimeline,
@@ -24,6 +28,7 @@ export type UnifiedGuestTimelineReadModel = {
   authority: "canonical_stay_sources";
   stay: UnifiedGuestTimelineStaySnapshot;
   timeline: UnifiedGuestTimeline;
+  stayContext: GuestStayContext;
   sourceCounts: {
     requests: number;
     communications: number;
@@ -37,6 +42,7 @@ type LoadUnifiedGuestTimelineInput = {
   hotelId: string;
   stayId: string;
   includeTest?: boolean;
+  now?: Date;
 };
 
 function clean(value: unknown) {
@@ -48,12 +54,12 @@ function nullableText(value: unknown) {
   return result || null;
 }
 
-function isUnexpiredTestRow(row: Record<string, unknown>) {
+function isUnexpiredTestRow(row: Record<string, unknown>, nowMs: number) {
   if (row.is_test !== true) return true;
   const expiresAt = nullableText(row.test_expires_at);
   if (!expiresAt) return true;
   const expiresAtMs = Date.parse(expiresAt);
-  return !Number.isFinite(expiresAtMs) || expiresAtMs > Date.now();
+  return !Number.isFinite(expiresAtMs) || expiresAtMs > nowMs;
 }
 
 export async function loadUnifiedGuestTimelineForStay(
@@ -62,6 +68,11 @@ export async function loadUnifiedGuestTimelineForStay(
   const hotelId = clean(input.hotelId);
   const stayId = clean(input.stayId);
   if (!hotelId || !stayId) return null;
+
+  const now = input.now instanceof Date && Number.isFinite(input.now.getTime())
+    ? input.now
+    : new Date();
+  const nowMs = now.getTime();
 
   const { data: stayRow, error: stayError } = await supabaseAdmin
     .from("guest_stays")
@@ -77,7 +88,7 @@ export async function loadUnifiedGuestTimelineForStay(
 
   const stayIsTest = Boolean(stayRow.is_test);
   if (stayIsTest && !input.includeTest) return null;
-  if (stayIsTest && !isUnexpiredTestRow(stayRow as Record<string, unknown>)) return null;
+  if (stayIsTest && !isUnexpiredTestRow(stayRow as Record<string, unknown>, nowMs)) return null;
 
   let requestsQuery = supabaseAdmin
     .from("guest_requests")
@@ -153,11 +164,17 @@ export async function loadUnifiedGuestTimelineForStay(
   if (massageResult.error) throw massageResult.error;
   if (eventsResult.error) throw eventsResult.error;
 
-  const requests = ((requestsResult.data ?? []) as Record<string, unknown>[]).filter(isUnexpiredTestRow);
+  const requests = ((requestsResult.data ?? []) as Record<string, unknown>[]).filter((row) =>
+    isUnexpiredTestRow(row, nowMs),
+  );
   const communications = (communicationsResult.data ?? []) as Record<string, unknown>[];
-  const surveys = ((surveysResult.data ?? []) as Record<string, unknown>[]).filter(isUnexpiredTestRow);
+  const surveys = ((surveysResult.data ?? []) as Record<string, unknown>[]).filter((row) =>
+    isUnexpiredTestRow(row, nowMs),
+  );
   const massageBookings = (massageResult.data ?? []) as Record<string, unknown>[];
-  const hubEvents = ((eventsResult.data ?? []) as Record<string, unknown>[]).filter(isUnexpiredTestRow);
+  const hubEvents = ((eventsResult.data ?? []) as Record<string, unknown>[]).filter((row) =>
+    isUnexpiredTestRow(row, nowMs),
+  );
 
   const timeline = buildUnifiedGuestTimeline({
     stay: stayRow,
@@ -168,21 +185,26 @@ export async function loadUnifiedGuestTimelineForStay(
     hubEvents,
   });
 
+  const stay = {
+    id: clean(stayRow.id),
+    roomNumber: clean(stayRow.room_number),
+    lifecycleState: clean(stayRow.lifecycle_state || stayRow.status),
+    status: clean(stayRow.status),
+    checkInDate: nullableText(stayRow.check_in_date),
+    checkOutDate: nullableText(stayRow.check_out_date),
+    checkInAt: nullableText(stayRow.check_in_at),
+    effectiveCheckOutAt: nullableText(stayRow.effective_check_out_at),
+    lastSeenAt: nullableText(stayRow.last_seen_at),
+    isTest: stayIsTest,
+  } satisfies UnifiedGuestTimelineStaySnapshot;
+
+  const stayContext = buildGuestStayContext({ stay, timeline, now });
+
   return {
     authority: "canonical_stay_sources",
-    stay: {
-      id: clean(stayRow.id),
-      roomNumber: clean(stayRow.room_number),
-      lifecycleState: clean(stayRow.lifecycle_state || stayRow.status),
-      status: clean(stayRow.status),
-      checkInDate: nullableText(stayRow.check_in_date),
-      checkOutDate: nullableText(stayRow.check_out_date),
-      checkInAt: nullableText(stayRow.check_in_at),
-      effectiveCheckOutAt: nullableText(stayRow.effective_check_out_at),
-      lastSeenAt: nullableText(stayRow.last_seen_at),
-      isTest: stayIsTest,
-    },
+    stay,
     timeline,
+    stayContext,
     sourceCounts: {
       requests: requests.length,
       communications: communications.length,
