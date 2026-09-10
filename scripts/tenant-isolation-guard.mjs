@@ -71,6 +71,7 @@ const milestoneDeltaPaths = [
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-cm3-historical-version-restore.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-cm4-version-management-control-plane.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-oa3-operational-sla-escalation.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-oa4-unified-guest-timeline.json"),
 ];
 
 const baseBaseline = JSON.parse(await readFile(baselinePath, "utf8"));
