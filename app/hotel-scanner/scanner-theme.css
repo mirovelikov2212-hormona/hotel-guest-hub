@@ -1,0 +1,67 @@
+/* Hotel Scanner route-specific light theme.
+   The shared tools shell owns the light/dark preference; this file only defines
+   Scanner surface hierarchy so light mode does not depend on Tailwind opacity
+   utility fallbacks. Dark mode intentionally keeps the existing component styles. */
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-page {
+  background:
+    radial-gradient(circle at 50% -12%, rgba(34, 211, 238, 0.12), transparent 34rem),
+    linear-gradient(180deg, #f7fbfc 0%, #eef5f7 48%, #f7fafb 100%) !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-page > div > header {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: #cfe8ed !important;
+  box-shadow: 0 24px 70px rgba(24, 72, 84, 0.10) !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace > section {
+  background: rgba(255, 255, 255, 0.97) !important;
+  border-color: #cfe8ed !important;
+  box-shadow: 0 24px 70px rgba(24, 72, 84, 0.10) !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace section section {
+  background: #f6fafb !important;
+  border-color: #d9e7ea !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace .bg-black\/20,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace .bg-black\/30 {
+  background: #ffffff !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace .border-white\/5,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace .border-white\/10 {
+  border-color: #d8e4e7 !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace input {
+  background: #ffffff !important;
+  border-color: #c9dadd !important;
+  color: #172126 !important;
+  box-shadow: inset 0 1px 2px rgba(24, 45, 54, 0.04);
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace input:focus {
+  border-color: #40a9bb !important;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12) !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace .bg-cyan-300\/\[0\.03\] {
+  background: #edf9fb !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace .bg-violet-300\/\[0\.04\] {
+  background: #f7f3fb !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace .bg-emerald-400\/5 {
+  background: #eef9f4 !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace a,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace button {
+  text-shadow: none;
+}
