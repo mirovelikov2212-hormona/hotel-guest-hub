@@ -109,6 +109,24 @@ test("OA1 accepts only one executable service that still exists in LIVE requestD
   assert.equal(missingResult.code, "OPERATIONAL_REQUEST_DEF_NOT_FOUND");
 });
 
+test("OA1 preserves opaque service locators exactly, including mixed-case RequestDef IDs", () => {
+  const def = requestDef({
+    id: "SpaVIP",
+    requestType: "spa_vip",
+    targetDepartment: "reception",
+    afterHoursDepartment: undefined,
+  });
+  const result = resolve({
+    def,
+    routerResult: routed({ selected_ids: ["service:SpaVIP"] }),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.action.catalogRecordId, "service:SpaVIP");
+  assert.equal(result.action.sourceRequestDef, "SpaVIP");
+  assert.equal(result.action.requestType, "spa_vip");
+});
+
 test("OA1 derives routing from hotel RequestDef and ignores catalog/model routing tampering", () => {
   const def = requestDef({ targetDepartment: "housekeeping" });
   const result = resolve({
