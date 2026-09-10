@@ -6733,6 +6733,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           lang: String(lang),
           hotelSlug: config.hotelSlug,
           history: historyForRequest,
+          room,
+          stayId: activeStayId,
+          stayDeviceId,
         }),
       });
 
