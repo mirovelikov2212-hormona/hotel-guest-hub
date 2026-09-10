@@ -137,11 +137,20 @@ export default async function HotelHubPage({ params, searchParams }: PageProps) 
   const cfg = await getHotelConfig(hotelSlug);
   if (!cfg) return notFound();
 
+  // The validated /h/[hotelSlug] route is the guest tenant authority. Hotel
+  // configuration supplies content and capabilities, but must never override
+  // tenant identity for guest operational API calls.
+  const guestRuntimeHotelSlug = hotelSlug.trim().toLowerCase();
+  const guestConfig = {
+    ...cfg,
+    hotelSlug: guestRuntimeHotelSlug,
+  };
+
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-50">
-      <GuestHub config={cfg} />
+      <GuestHub config={guestConfig} />
       <GuestCommunicationsInbox
-        hotelSlug={hotelSlug}
+        hotelSlug={guestRuntimeHotelSlug}
         defaultLanguage={(cfg.languageDefault || "en") as LangKey}
         brandColor={String(cfg.theme?.primary || cfg.theme?.accent || "#43B5A1")}
       />
