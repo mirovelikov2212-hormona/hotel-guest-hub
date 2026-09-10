@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { AI_COPY } from "@/lib/ai/copy";
 import { buildAiAnswer } from "@/lib/ai/answer-builder";
-import { resolveOperationalWorkflow } from "@/lib/server/operational-workflow-resolution.mjs";
+import {
+  answerFromGuestStayContext,
+  detectGuestStayContextIntent,
+} from "@/lib/ai/guest-stay-context.mjs";
 import { buildAiCatalog } from "@/lib/ai/catalog";
 import { getCachedCatalog } from "@/lib/ai/cache";
 import { deterministicRoute } from "@/lib/ai/fallback";
@@ -11,8 +14,14 @@ import { normalizeAiLang, type AiDiagnostics, type AiHistoryTurn } from "@/lib/a
 import { getHotelConfig } from "@/lib/config";
 import { deriveGuestRuntimeCapabilities } from "@/lib/guest/guest-runtime-capabilities.mjs";
 import { isCommercialRuntimeAccessDeniedError } from "@/lib/server/commercial-runtime-entitlement";
+import {
+  GuestStayAccessError,
+  requireGuestStayReadAccess,
+} from "@/lib/server/guest-stay-access";
 import { hotelMatchesRequestedSlug, resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
+import { resolveOperationalWorkflow } from "@/lib/server/operational-workflow-resolution.mjs";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { loadUnifiedGuestTimelineForStay } from "@/lib/server/unified-guest-timeline-read";
 import type { HotelConfig } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -206,6 +215,9 @@ export async function POST(request: Request) {
     const lang = normalizeAiLang(body?.lang);
     const hotelSlug = clean(body?.hotelSlug ?? body?.hotel?.hotelSlug ?? body?.hotel?.slug).toLowerCase();
     const history = sanitizeHistory(body?.history);
+    const room = clean(body?.room);
+    const stayId = clean(body?.stayId);
+    const stayDeviceId = clean(body?.stayDeviceId);
 
     if (!hotelSlug) {
       return NextResponse.json({ ok: false, answer: AI_COPY[lang].error, error: "missing_hotel_slug" }, { status: 400 });
@@ -245,6 +257,72 @@ export async function POST(request: Request) {
           intent: "weather",
         } satisfies AiDiagnostics,
       });
+    }
+
+    const stayIntent = detectGuestStayContextIntent(question);
+    if (stayIntent) {
+      if (!room || !stayId || !stayDeviceId) {
+        return NextResponse.json(
+          { ok: false, answer: AI_COPY[lang].error, error: "stay_context_identity_required" },
+          { status: 401 },
+        );
+      }
+
+      let validatedStayId: string;
+      try {
+        const stayAccess = await requireGuestStayReadAccess({
+          hotelId: context.hotel.id,
+          room,
+          stayId,
+          stayDeviceId,
+        });
+        validatedStayId = String(stayAccess.stay.id);
+      } catch (error) {
+        if (error instanceof GuestStayAccessError) {
+          return NextResponse.json(
+            { ok: false, answer: AI_COPY[lang].error, error: "stay_context_unavailable" },
+            { status: error.statusCode },
+          );
+        }
+        throw error;
+      }
+
+      const readModel = await loadUnifiedGuestTimelineForStay({
+        hotelId: context.hotel.id,
+        stayId: validatedStayId,
+        includeTest: true,
+      });
+      if (!readModel) {
+        return NextResponse.json(
+          { ok: false, answer: AI_COPY[lang].error, error: "stay_context_unavailable" },
+          { status: 404 },
+        );
+      }
+
+      const stayAnswer = answerFromGuestStayContext({
+        intent: stayIntent,
+        lang,
+        stayContext: readModel.stayContext,
+      });
+      if (stayAnswer) {
+        return NextResponse.json({
+          ok: true,
+          answer: stayAnswer.answer,
+          hotelOnly: true,
+          aiPowered: false,
+          operationalAction: null,
+          operationalActionStatus: "not_applicable",
+          diagnostics: {
+            engine: "deterministic",
+            fallbackUsed: false,
+            matchedIds: [],
+            catalogCount: 0,
+            cacheHit: false,
+            latencyMs: Date.now() - startedAt,
+            intent: stayAnswer.intent,
+          } satisfies AiDiagnostics,
+        });
+      }
     }
 
     const { catalog, cacheHit } = await getCachedCatalog(context.catalogCacheKey, async () =>
