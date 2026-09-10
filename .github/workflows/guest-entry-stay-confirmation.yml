@@ -1,0 +1,53 @@
+name: Guest Entry + Stay Confirmation
+
+on:
+  push:
+    paths:
+      - "app/page.tsx"
+      - "app/h/[hotelSlug]/page.tsx"
+      - "app/api/guest/stay/confirm/route.ts"
+      - "lib/server/guest-root-entry.mjs"
+      - "lib/server/guest-stays.ts"
+      - "lib/server/guest-stays-legacy.ts"
+      - "lib/server/hotel-scope.ts"
+      - "tests/contracts/guest-preview-entry-and-stay-confirm.contract.test.mjs"
+      - ".github/workflows/guest-entry-stay-confirmation.yml"
+  pull_request:
+    paths:
+      - "app/page.tsx"
+      - "app/h/[hotelSlug]/page.tsx"
+      - "app/api/guest/stay/confirm/route.ts"
+      - "lib/server/guest-root-entry.mjs"
+      - "lib/server/guest-stays.ts"
+      - "lib/server/guest-stays-legacy.ts"
+      - "lib/server/hotel-scope.ts"
+      - "tests/contracts/guest-preview-entry-and-stay-confirm.contract.test.mjs"
+      - ".github/workflows/guest-entry-stay-confirmation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guest-entry-stay-confirmation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Guest entry and stay confirmation contracts
+        run: node --test tests/contracts/guest-preview-entry-and-stay-confirm.contract.test.mjs
+      - name: Blocking tenant isolation
+        run: npm run test:tenant-isolation
+      - name: Next.js build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
