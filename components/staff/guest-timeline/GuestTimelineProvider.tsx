@@ -24,6 +24,40 @@ type TimelineItem = {
   metadata: Record<string, unknown>;
 };
 
+type StayContext = {
+  scope: "current_stay";
+  observedLanguage: string | null;
+  requests: {
+    total: number;
+    active: number;
+    completed: number;
+    returned: number;
+    firstResponseBreaches: number;
+    activeSlaBreaches: number;
+  };
+  communications: {
+    total: number;
+    fromGuest: number;
+    fromStaff: number;
+    lastActivityAt: string | null;
+  };
+  feedback: {
+    total: number;
+    latestRating: number | null;
+    averageRating: number | null;
+    needsAttention: boolean;
+    selectedCategories: Array<{ category: string; count: number }>;
+  };
+  bookings: {
+    total: number;
+    active: number;
+    cancelled: number;
+    upcoming: number;
+  };
+  observedServiceUsage: Array<{ serviceKey: string; count: number }>;
+  attention: Array<{ type: string }>;
+};
+
 type TimelineResponse = {
   ok: boolean;
   stay?: {
@@ -37,6 +71,7 @@ type TimelineResponse = {
   timeline?: {
     items: TimelineItem[];
   };
+  stayContext?: StayContext;
   sourceCounts?: {
     requests: number;
     communications: number;
@@ -57,6 +92,7 @@ function text(lang: string) {
   if (lang === "bg") {
     return {
       title: "История на престоя",
+      contextTitle: "Контекст на престоя",
       loading: "Зареждане на историята…",
       empty: "Няма записани събития за този престой.",
       unavailable: "Историята на престоя не е налична в момента.",
@@ -65,14 +101,23 @@ function text(lang: string) {
       currentStay: "Текущ престой",
       test: "ТЕСТ",
       requests: "Заявки",
+      active: "Активни",
+      completed: "Завършени",
+      attention: "За внимание",
       messages: "Съобщения",
       surveys: "Анкети",
       massages: "Масажи",
+      upcoming: "Предстоящи",
+      rating: "Последна оценка",
+      language: "Наблюдаван език",
+      usedServices: "Използвани услуги",
+      none: "Няма",
     };
   }
   if (lang === "de") {
     return {
       title: "Aufenthaltsverlauf",
+      contextTitle: "Aufenthaltskontext",
       loading: "Aufenthaltsverlauf wird geladen…",
       empty: "Für diesen Aufenthalt sind keine Ereignisse vorhanden.",
       unavailable: "Der Aufenthaltsverlauf ist derzeit nicht verfügbar.",
@@ -81,13 +126,22 @@ function text(lang: string) {
       currentStay: "Aktueller Aufenthalt",
       test: "TEST",
       requests: "Anfragen",
+      active: "Aktiv",
+      completed: "Erledigt",
+      attention: "Beachten",
       messages: "Nachrichten",
       surveys: "Umfragen",
       massages: "Massagen",
+      upcoming: "Bevorstehend",
+      rating: "Letzte Bewertung",
+      language: "Beobachtete Sprache",
+      usedServices: "Genutzte Services",
+      none: "Keine",
     };
   }
   return {
     title: "Stay timeline",
+    contextTitle: "Stay context",
     loading: "Loading stay timeline…",
     empty: "No recorded events for this stay.",
     unavailable: "The stay timeline is currently unavailable.",
@@ -96,9 +150,17 @@ function text(lang: string) {
     currentStay: "Current stay",
     test: "TEST",
     requests: "Requests",
+    active: "Active",
+    completed: "Completed",
+    attention: "Attention",
     messages: "Messages",
     surveys: "Surveys",
     massages: "Massages",
+    upcoming: "Upcoming",
+    rating: "Latest rating",
+    language: "Observed language",
+    usedServices: "Used services",
+    none: "None",
   };
 }
 
@@ -224,6 +286,7 @@ export default function GuestTimelineProvider({
   const controls = useMemo(() => ({ openForRequest }), [openForRequest]);
   const items = data?.timeline?.items ?? [];
   const counts = data?.sourceCounts;
+  const stayContext = data?.stayContext;
 
   return (
     <TimelineContext.Provider value={controls}>
@@ -240,7 +303,7 @@ export default function GuestTimelineProvider({
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/80">StayHub · OA4</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/80">StayHub · OA4/OA5</p>
                 <h2 className="mt-2 text-2xl font-semibold text-white">{copy.title}</h2>
                 {data?.stay ? (
                   <p className="mt-2 text-sm text-white/55">
@@ -257,6 +320,53 @@ export default function GuestTimelineProvider({
                 {copy.close}
               </button>
             </div>
+
+            {stayContext ? (
+              <section className="mt-5 rounded-3xl border border-emerald-300/20 bg-emerald-400/5 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-emerald-100">{copy.contextTitle}</h3>
+                  {stayContext.observedLanguage ? (
+                    <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-xs text-white/60">
+                      {copy.language}: {stayContext.observedLanguage.toUpperCase()}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {[
+                    [copy.active, stayContext.requests.active],
+                    [copy.completed, stayContext.requests.completed],
+                    [copy.attention, stayContext.attention.length],
+                    [copy.upcoming, stayContext.bookings.upcoming],
+                  ].map(([label, value]) => (
+                    <div key={String(label)} className="rounded-2xl border border-white/10 bg-black/15 px-3 py-3">
+                      <div className="text-xs text-white/45">{label}</div>
+                      <div className="mt-1 text-xl font-semibold text-white">{value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-3">
+                    <div className="text-xs text-white/45">{copy.rating}</div>
+                    <div className="mt-1 text-sm font-semibold text-white">
+                      {stayContext.feedback.latestRating == null ? copy.none : `${stayContext.feedback.latestRating}/5`}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-3">
+                    <div className="text-xs text-white/45">{copy.usedServices}</div>
+                    <div className="mt-1 text-sm font-semibold text-white">
+                      {stayContext.observedServiceUsage.length
+                        ? stayContext.observedServiceUsage
+                            .slice(0, 3)
+                            .map((item) => `${item.serviceKey} ×${item.count}`)
+                            .join(" · ")
+                        : copy.none}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            ) : null}
 
             {counts ? (
               <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
