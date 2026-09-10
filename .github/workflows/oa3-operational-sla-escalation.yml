@@ -13,6 +13,8 @@ on:
       - "app/api/staff/department-runtime/requests/route.ts"
       - "components/staff/pages/**"
       - "tests/contracts/oa3-operational-sla-escalation.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-oa3-operational-sla-escalation.json"
+      - "scripts/tenant-isolation-guard.mjs"
       - ".github/workflows/oa3-operational-sla-escalation.yml"
   workflow_dispatch:
 
