@@ -24,28 +24,32 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path("components/GuestHub.tsx")
           source = path.read_text()
-          old = '''        body: JSON.stringify({
-            question: questionText,
-            lang: String(lang),
-            hotelSlug: config.hotelSlug,
-            history: historyForRequest,
-          }),'''
-          new = '''        body: JSON.stringify({
-            question: questionText,
-            lang: String(lang),
-            hotelSlug: config.hotelSlug,
-            history: historyForRequest,
-            room,
-            stayId: activeStayId,
-            stayDeviceId,
-          }),'''
-          count = source.count(old)
-          if count != 1:
-              raise SystemExit(f"Expected exactly one AI payload block, found {count}")
-          path.write_text(source.replace(old, new, 1))
+          pattern = re.compile(
+              r'(body:\s*JSON\.stringify\(\{\s*'
+              r'question:\s*questionText,\s*'
+              r'lang:\s*String\(lang\),\s*'
+              r'hotelSlug:\s*config\.hotelSlug,\s*'
+              r'history:\s*historyForRequest,)'
+              r'(?P<tail>\s*\}\),)'
+          )
+          matches = list(pattern.finditer(source))
+          if len(matches) != 1:
+              raise SystemExit(f"Expected exactly one AI payload block, found {len(matches)}")
+
+          match = matches[0]
+          history_line_start = source.rfind("\n", 0, match.end(1)) + 1
+          history_indent = source[history_line_start:match.end(1)].split("history:", 1)[0]
+          addition = (
+              f"\n{history_indent}room,"
+              f"\n{history_indent}stayId: activeStayId,"
+              f"\n{history_indent}stayDeviceId,"
+          )
+          patched = source[:match.end(1)] + addition + source[match.end(1):]
+          path.write_text(patched)
           PY
           git diff --check
           git diff -- components/GuestHub.tsx
