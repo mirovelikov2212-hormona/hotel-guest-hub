@@ -1,0 +1,88 @@
+name: Hotel Scanner + Internal Tools Quality Gate
+
+on:
+  push:
+    paths:
+      - "lib/server/factory-hotel-scanner.ts"
+      - "lib/server/hotel-scanner-crawl-plan.mjs"
+      - "lib/server/hotel-scanner-brand-refiner.ts"
+      - "lib/ai/hotel-intelligence-value-quality.mjs"
+      - "lib/ai/hotel-scanner-reconciliation.mjs"
+      - "lib/ai/hotel-scanner-conflicts.mjs"
+      - "lib/server/hotel-scanner-public-technology.mjs"
+      - "lib/ai/hotel-technology-discovery.mjs"
+      - "components/internal-tools/ToolsThemeShell.tsx"
+      - "components/control-panel/ControlPanelThemeShell.tsx"
+      - "app/control-plane/layout.tsx"
+      - "app/hotel-factory/layout.tsx"
+      - "app/hotel-scanner/layout.tsx"
+      - "app/design-studio/layout.tsx"
+      - "app/globals.css"
+      - "tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs"
+      - "tests/contracts/hotel-intelligence-value-quality-v1.contract.test.mjs"
+      - "tests/contracts/hotel-scanner-reconciliation-v1.contract.test.mjs"
+      - "tests/contracts/hotel-scanner-conflicts-v1.contract.test.mjs"
+      - "tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs"
+      - "tests/contracts/hotel-technology-discovery-v1.contract.test.mjs"
+      - "tests/contracts/hotel-scanner-professional-regressions-v1.contract.test.mjs"
+      - "tests/contracts/control-plane-tools-theme.contract.test.mjs"
+      - "scripts/scanner-theme-hardening-patch.py"
+      - "scripts/internal-tools-theme-expansion.py"
+      - "scripts/scanner-depth-evidence-patch.py"
+      - ".github/workflows/scanner-theme-hardening-patcher.yml"
+      - ".github/workflows/hotel-scanner-professional-regression.yml"
+  pull_request:
+    paths:
+      - "lib/server/factory-hotel-scanner.ts"
+      - "lib/server/hotel-scanner-crawl-plan.mjs"
+      - "lib/server/hotel-scanner-brand-refiner.ts"
+      - "lib/ai/hotel-intelligence-value-quality.mjs"
+      - "lib/ai/hotel-scanner-reconciliation.mjs"
+      - "components/internal-tools/ToolsThemeShell.tsx"
+      - "components/control-panel/ControlPanelThemeShell.tsx"
+      - "app/control-plane/layout.tsx"
+      - "app/hotel-factory/layout.tsx"
+      - "app/hotel-scanner/layout.tsx"
+      - "app/design-studio/layout.tsx"
+      - "app/globals.css"
+      - "tests/contracts/hotel-scanner-professional-regressions-v1.contract.test.mjs"
+      - "tests/contracts/control-plane-tools-theme.contract.test.mjs"
+      - ".github/workflows/hotel-scanner-professional-regression.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scanner-theme-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Scanner professional regression contracts
+        run: >-
+          node --test
+          tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs
+          tests/contracts/hotel-intelligence-value-quality-v1.contract.test.mjs
+          tests/contracts/hotel-scanner-reconciliation-v1.contract.test.mjs
+          tests/contracts/hotel-scanner-conflicts-v1.contract.test.mjs
+          tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs
+          tests/contracts/hotel-technology-discovery-v1.contract.test.mjs
+          tests/contracts/hotel-scanner-professional-regressions-v1.contract.test.mjs
+      - name: Shared internal tools light-dark theme contract
+        run: node --test tests/contracts/control-plane-tools-theme.contract.test.mjs
+      - name: Blocking tenant isolation
+        run: npm run test:tenant-isolation
+      - name: Next.js build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
