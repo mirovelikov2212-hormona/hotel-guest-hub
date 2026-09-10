@@ -47,3 +47,21 @@ test("brand typography filters system emoji and icon-font families", async () =>
     assert.match(source, /segoe ui emoji/i);
   }
 });
+
+
+test("crawler verifies critical detail domains and preserves bounded embedded public evidence", async () => {
+  const crawler = await readProjectFile("lib/server/factory-hotel-scanner.ts");
+  const planner = await readProjectFile("lib/server/hotel-scanner-crawl-plan.mjs");
+
+  assert.match(crawler, /homepageCoverage\.filter\(\(domain\) => domain === "identity" \|\| domain === "design"\)/);
+  assert.match(crawler, /extractEmbeddedPublicHints/);
+  assert.match(crawler, /application\\\/ld\\\+json/);
+  assert.match(crawler, /mailto:/);
+  assert.match(crawler, /tel:/);
+  assert.match(crawler, /checkinTime/);
+  assert.match(crawler, /checkoutTime/);
+  assert.match(crawler, /petsAllowed/);
+  assert.match(crawler, /cleanText\(`\$\{extractEmbeddedPublicHints\(html\)\} \$\{htmlText\(html\)\}`, 25_000\)/);
+  assert.match(planner, /uniqueUrls\(input\.links \|\| \[\], 200\)/);
+  assert.match(planner, /candidates\.length >= 160/);
+});

@@ -521,6 +521,89 @@ async function fetchStylesheet(startUrl: URL) {
   return null;
 }
 
+const JSON_LD_EVIDENCE_KEYS = new Set([
+  "streetAddress",
+  "addressLocality",
+  "addressRegion",
+  "postalCode",
+  "addressCountry",
+  "telephone",
+  "email",
+  "checkinTime",
+  "checkoutTime",
+  "openingHours",
+  "petsAllowed",
+]);
+
+function pushPublicHint(hints: string[], seen: Set<string>, label: string, raw: unknown) {
+  if (raw === null || raw === undefined) return;
+  if (Array.isArray(raw)) {
+    for (const item of raw.slice(0, 12)) pushPublicHint(hints, seen, label, item);
+    return;
+  }
+  if (typeof raw === "object") return;
+  const value = cleanText(String(raw), 500);
+  if (!value) return;
+  const hint = `${label}: ${value}`;
+  const key = hint.toLocaleLowerCase("en-US");
+  if (seen.has(key)) return;
+  seen.add(key);
+  hints.push(hint);
+}
+
+function collectJsonLdEvidence(value: unknown, hints: string[], seen: Set<string>, depth = 0) {
+  if (depth > 8 || value === null || value === undefined) return;
+  if (Array.isArray(value)) {
+    for (const item of value.slice(0, 40)) collectJsonLdEvidence(item, hints, seen, depth + 1);
+    return;
+  }
+  if (typeof value !== "object") return;
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    if (JSON_LD_EVIDENCE_KEYS.has(key)) pushPublicHint(hints, seen, key, child);
+    collectJsonLdEvidence(child, hints, seen, depth + 1);
+    if (hints.length >= 60) break;
+  }
+}
+
+function extractEmbeddedPublicHints(html: string) {
+  const hints: string[] = [];
+  const seen = new Set<string>();
+
+  const mailto = /\bhref\s*=\s*["']mailto:([^"'?#]+)(?:\?[^"']*)?["']/gi;
+  let mailMatch: RegExpExecArray | null;
+  while ((mailMatch = mailto.exec(html)) && hints.length < 60) {
+    try {
+      pushPublicHint(hints, seen, "email", decodeURIComponent(mailMatch[1]));
+    } catch {
+      pushPublicHint(hints, seen, "email", mailMatch[1]);
+    }
+  }
+
+  const tel = /\bhref\s*=\s*["']tel:([^"']+)["']/gi;
+  let telMatch: RegExpExecArray | null;
+  while ((telMatch = tel.exec(html)) && hints.length < 60) {
+    try {
+      pushPublicHint(hints, seen, "telephone", decodeURIComponent(telMatch[1]));
+    } catch {
+      pushPublicHint(hints, seen, "telephone", telMatch[1]);
+    }
+  }
+
+  const jsonLd = /<script\b[^>]*\btype\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let jsonMatch: RegExpExecArray | null;
+  while ((jsonMatch = jsonLd.exec(html)) && hints.length < 60) {
+    const raw = String(jsonMatch[1] || "").trim();
+    if (!raw || raw.length > 250_000) continue;
+    try {
+      collectJsonLdEvidence(JSON.parse(raw), hints, seen);
+    } catch {
+      // Invalid third-party JSON-LD is ignored instead of weakening the scan.
+    }
+  }
+
+  return cleanText(hints.join(" | "), 8_000);
+}
+
 function buildPageEvidence(url: URL, html: string): HotelScanPageEvidence {
   return {
     url: url.toString(),
@@ -530,7 +613,7 @@ function buildPageEvidence(url: URL, html: string): HotelScanPageEvidence {
       /<meta\b[^>]*\bproperty=["']og:description["'][^>]*\bcontent=["']([^"']*)["'][^>]*>/i,
       /<meta\b[^>]*\bcontent=["']([^"']*)["'][^>]*\bname=["']description["'][^>]*>/i,
     ]),
-    text: htmlText(html),
+    text: cleanText(`${extractEmbeddedPublicHints(html)} ${htmlText(html)}`, 25_000),
     links: extractLinks(html, url),
     imageUrls: extractImages(html, url),
     colors: extractColors(html),
@@ -587,7 +670,10 @@ export async function crawlPublicHotelWebsite(rawUrl: string): Promise<HotelScan
   const attemptedUrls = new Set<string>([first.url.toString()]);
   const seenFinalUrls = new Set<string>([first.url.toString()]);
   const discoveredLinks = new Set<string>([...firstPage.links, ...sitemapUrls]);
-  const coveredDomains = new Set<string>(classifyHotelScannerPageCoverage(firstPage));
+  const homepageCoverage = classifyHotelScannerPageCoverage(firstPage);
+  const coveredDomains = new Set<string>(
+    homepageCoverage.filter((domain) => domain === "identity" || domain === "design"),
+  );
   let totalText = firstPage.text.length;
 
   for (let wave = 0; wave < MAX_CRAWL_WAVES; wave += 1) {

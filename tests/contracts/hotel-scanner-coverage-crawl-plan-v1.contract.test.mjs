@@ -167,7 +167,8 @@ test("production crawler uses a bounded multi-wave coverage crawl instead of the
   assert.match(crawler, /MAX_CRAWL_BATCH_SIZE = 6/);
   assert.match(crawler, /MAX_CRAWL_WAVES = 3/);
   assert.match(crawler, /discoverSitemapPageUrls/);
-  assert.match(crawler, /classifyHotelScannerPageCoverage\(firstPage\)/);
+  assert.match(crawler, /homepageCoverage = classifyHotelScannerPageCoverage\(firstPage\)/);
+  assert.match(crawler, /homepageCoverage\.filter\(\(domain\) => domain === "identity" \|\| domain === "design"\)/);
   assert.match(crawler, /planHotelScannerSecondaryUrls/);
   assert.match(crawler, /alreadyCoveredDomains: \[\.\.\.coveredDomains\]/);
   assert.match(crawler, /for \(let wave = 0; wave < MAX_CRAWL_WAVES; wave \+= 1\)/);
