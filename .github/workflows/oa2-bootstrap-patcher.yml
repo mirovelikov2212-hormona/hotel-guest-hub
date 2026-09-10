@@ -1,0 +1,677 @@
+name: OA2 Bootstrap Patcher
+
+on:
+  push:
+    branches:
+      - feat/hotel-lifecycle-v1-intelligence-review
+    paths:
+      - ".github/workflows/oa2-bootstrap-patcher.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply OA2 source and contract changes
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly one match, found {count}")
+              return text.replace(old, new, 1)
+
+          guest_path = Path("components/GuestHub.tsx")
+          guest = guest_path.read_text()
+
+          guest = replace_once(
+              guest,
+              'import { deriveGuestRuntimeCapabilities } from "@/lib/guest/guest-runtime-capabilities.mjs";\n',
+              'import { deriveGuestRuntimeCapabilities } from "@/lib/guest/guest-runtime-capabilities.mjs";\nimport { resolveOperationalActionExecutionBridge } from "@/lib/guest/operational-action-execution-bridge.mjs";\n',
+              "OA2 import",
+          )
+
+          guest = replace_once(
+              guest,
+              '''type AiChatAction = {
+  kind: "request_def" | "venue";
+  targetId: string;
+  matchedId: string;
+  label: string;
+};''',
+              '''type AiChatAction = {
+  kind: "request_def" | "venue" | "operational_request";
+  targetId: string;
+  matchedId: string;
+  label: string;
+  submission?: {
+    type: string;
+    sourceRequestDef: string;
+    note?: string;
+  };
+};''',
+              "OA2 chat action type",
+          )
+
+          guest = replace_once(
+              guest,
+              '''  function handleRequestDefClick(def: RequestDef) {
+    const infoMessage = getRequestDefMessage(def);''',
+              '''  function handleRequestDefClick(def: RequestDef, initialNote?: string) {
+    const infoMessage = getRequestDefMessage(def);''',
+              "OA2 request def handler signature",
+          )
+
+          guest = replace_once(
+              guest,
+              '''    const continueSubmit = () => {
+      const note = buildRequestDefNote(def, infoMessage);
+      if (note === null) return;
+
+      submitGuestRequest({
+        type: String(def.requestType || def.id),
+        typeLabel: title,
+        note: note || undefined,''',
+              '''    const continueSubmit = () => {
+      const configuredNote = buildRequestDefNote(def, infoMessage);
+      if (configuredNote === null) return;
+
+      const note = [String(initialNote || "").trim(), String(configuredNote || "").trim()]
+        .filter(Boolean)
+        .join("\\n");
+
+      submitGuestRequest({
+        type: String(def.requestType || def.id),
+        typeLabel: title,
+        note: note || undefined,''',
+              "OA2 merge AI guest text into canonical request flow",
+          )
+
+          guest = replace_once(
+              guest,
+              '''    const sourceRequestDefKey = String(input.sourceRequestDef || "").trim().toLowerCase();
+    const sourceRequestDef = sourceRequestDefKey
+      ? requestDefs.find((def) => String(def.id || "").trim().toLowerCase() === sourceRequestDefKey)
+      : undefined;
+    const requestDefLabel = sourceRequestDef ? getRequestDefTitle(sourceRequestDef) : "";''',
+              '''    const sourceRequestDefId = String(input.sourceRequestDef || "").trim();
+    const sourceRequestDef = sourceRequestDefId
+      ? requestDefs.find((def) => String(def.id || "").trim() === sourceRequestDefId)
+      : undefined;
+    const sourceRequestDefKey = String(sourceRequestDef?.id || sourceRequestDefId).trim().toLowerCase();
+    const requestDefLabel = sourceRequestDef ? getRequestDefTitle(sourceRequestDef) : "";''',
+              "OA2 preserve opaque requestDef ID in guest confirmation lookup",
+          )
+
+          operational_builder = '''  function buildAiOperationalAction(data: any, guestText: string): AiChatAction | null {
+    const bridge = resolveOperationalActionExecutionBridge({
+      operationalActionStatus: data?.operationalActionStatus,
+      operationalAction: data?.operationalAction,
+      requestDefs,
+      guestText,
+    });
+
+    if (!bridge.ok) return null;
+
+    const def = requestDefs.find(
+      (item) => String(item.id || "").trim() === bridge.sourceRequestDef
+    );
+    if (!def) return null;
+
+    const title = getRequestDefTitle(def) || bridge.sourceRequestDef.replace(/_/g, " ");
+    const normalizedId = bridge.sourceRequestDef.toLowerCase();
+    const verb =
+      normalizedId.includes("massage")
+        ? aiActionCopy.reserve
+        : def.requestKind === "selection"
+          ? aiActionCopy.choose
+          : def.requestKind === "quantity" || def.requiresQuantity
+            ? aiActionCopy.order
+            : aiActionCopy.request;
+
+    if (bridge.mode === "guided_request_def") {
+      return {
+        kind: "request_def",
+        targetId: bridge.sourceRequestDef,
+        matchedId: bridge.catalogRecordId,
+        label: `${verb} ${title}`.trim(),
+      };
+    }
+
+    return {
+      kind: "operational_request",
+      targetId: bridge.sourceRequestDef,
+      matchedId: bridge.catalogRecordId,
+      label: `${verb} ${title}`.trim(),
+      submission: bridge.submission,
+    };
+  }
+
+'''
+          guest = replace_once(
+              guest,
+              '  function buildAiActions(matchedIds: unknown): AiChatAction[] {\n',
+              operational_builder + '  function buildAiActions(matchedIds: unknown): AiChatAction[] {\n',
+              "OA2 operational action builder",
+          )
+
+          guest = replace_once(
+              guest,
+              '''    window.setTimeout(() => {
+      if (action.kind === "request_def") {''',
+              '''    window.setTimeout(() => {
+      if (action.kind === "operational_request") {
+        if (!action.submission) return;
+
+        const def = requestDefs.find(
+          (item) => String(item.id || "").trim() === action.submission?.sourceRequestDef
+        );
+        if (
+          !def ||
+          def.type !== "request" ||
+          def.enabled !== true ||
+          def.guestVisible !== true ||
+          def.aiVisible !== true ||
+          String(def.requestKind || "").trim().toLowerCase() === "info_only"
+        ) {
+          return;
+        }
+
+        handleRequestDefClick(def, action.submission.note);
+        return;
+      }
+
+      if (action.kind === "request_def") {''',
+              "OA2 confirmation click bridge",
+          )
+
+          guest = replace_once(
+              guest,
+              '''      const answerText = String(data.answer || tUI("ai_no_info") || "Все още нямам тази информация за хотела.");
+      const actions = buildAiActions(data?.diagnostics?.matchedIds);''',
+              '''      const answerText = String(data.answer || tUI("ai_no_info") || "Все още нямам тази информация за хотела.");
+      const operationalAction = buildAiOperationalAction(data, questionText);
+      const actions = operationalAction
+        ? [operationalAction]
+        : buildAiActions(data?.diagnostics?.matchedIds);''',
+              "OA2 AI response wiring",
+          )
+
+          guest_path.write_text(guest)
+
+          authority_path = Path("lib/server/guest-request-authority.mjs")
+          authority = authority_path.read_text()
+          authority = replace_once(
+              authority,
+              '''function findRequestDef(requestDefs, rawType, sourceRequestDef) {
+  const defs = (Array.isArray(requestDefs) ? requestDefs : []).filter(isUsableRequestDef);
+  const sourceKey = normalizeKey(sourceRequestDef);
+  const rawKey = normalizeKey(rawType);
+
+  if (sourceKey) {
+    const byId = defs.find((def) => normalizeKey(def.id) === sourceKey);
+    if (byId) return { def: byId, matchedBy: "source" };
+
+    const byCanonicalRef = defs.find(
+      (def) => normalizeKey(def.canonicalRef) === sourceKey,
+    );
+    if (byCanonicalRef) return { def: byCanonicalRef, matchedBy: "source" };
+
+    return { def: null, matchedBy: "source_missing" };
+  }
+
+  if (!rawKey) return { def: null, matchedBy: "none" };
+''',
+              '''function findRequestDef(requestDefs, rawType, sourceRequestDef) {
+  const defs = (Array.isArray(requestDefs) ? requestDefs : []).filter(isUsableRequestDef);
+  const sourceId = String(sourceRequestDef ?? "").trim();
+  const rawKey = normalizeKey(rawType);
+
+  if (sourceId) {
+    const byId = defs.find((def) => String(def?.id ?? "").trim() === sourceId);
+    if (byId) return { def: byId, matchedBy: "source" };
+
+    const byCanonicalRef = defs.find(
+      (def) => String(def?.canonicalRef ?? "").trim() === sourceId,
+    );
+    if (byCanonicalRef) return { def: byCanonicalRef, matchedBy: "source" };
+
+    return { def: null, matchedBy: "source_missing" };
+  }
+
+  if (!rawKey) return { def: null, matchedBy: "none" };
+''',
+              "canonical opaque requestDef lookup",
+          )
+          authority = replace_once(
+              authority,
+              '''  const rawType = normalizeKey(input?.rawType);
+  const requestedSourceRequestDef = normalizeKey(input?.sourceRequestDef);''',
+              '''  const rawType = normalizeKey(input?.rawType);
+  const requestedSourceRequestDef = normalizeOptionalText(input?.sourceRequestDef);''',
+              "canonical sourceRequestDef preservation",
+          )
+          authority_path.write_text(authority)
+
+          Path("lib/guest/operational-action-execution-bridge.mjs").write_text('''const MAX_GUEST_TEXT_CHARS = 1_000;
+
+function clean(value) {
+  return String(value ?? "").trim();
+}
+
+function normalizeKey(value) {
+  return clean(value).toLowerCase().replace(/\\s+/g, "_").replace(/-+/g, "_");
+}
+
+function blocked(code, status = "not_applicable") {
+  return { ok: false, status, code };
+}
+
+function isExecutableRequestDef(def) {
+  return Boolean(
+    def &&
+      typeof def === "object" &&
+      normalizeKey(def.type || "request") === "request" &&
+      def.enabled === true &&
+      def.guestVisible === true &&
+      def.aiVisible === true &&
+      normalizeKey(def.requestKind) !== "info_only",
+  );
+}
+
+export function resolveOperationalActionExecutionBridge(input) {
+  if (clean(input?.operationalActionStatus) !== "confirmation_required") {
+    return blocked("OPERATIONAL_CONFIRMATION_NOT_REQUIRED");
+  }
+
+  const action = input?.operationalAction;
+  if (
+    !action ||
+    action.kind !== "guest_request" ||
+    action.executionMode !== "confirmation_required" ||
+    action.requiresGuestConfirmation !== true ||
+    action.authority !== "hotel_request_def"
+  ) {
+    return blocked("OPERATIONAL_PLAN_INVALID");
+  }
+
+  const sourceRequestDef = clean(action.sourceRequestDef);
+  if (!sourceRequestDef) {
+    return blocked("OPERATIONAL_REQUEST_DEF_MISSING");
+  }
+
+  const catalogRecordId = clean(action.catalogRecordId);
+  if (catalogRecordId !== `service:${sourceRequestDef}`) {
+    return blocked("OPERATIONAL_SERVICE_LOCATOR_MISMATCH");
+  }
+
+  const requestDefs = Array.isArray(input?.requestDefs) ? input.requestDefs : [];
+  const def = requestDefs.find((candidate) => clean(candidate?.id) === sourceRequestDef);
+  if (!isExecutableRequestDef(def)) {
+    return blocked("OPERATIONAL_REQUEST_DEF_NOT_EXECUTABLE");
+  }
+
+  const requestType = normalizeKey(def.requestType || def.id);
+  if (!requestType || normalizeKey(action.requestType) !== requestType) {
+    return blocked("OPERATIONAL_REQUEST_TYPE_MISMATCH");
+  }
+
+  const guestText = clean(input?.guestText);
+  if (!guestText) {
+    return blocked("OPERATIONAL_GUEST_TEXT_MISSING", "clarification_required");
+  }
+  if (guestText.length > MAX_GUEST_TEXT_CHARS) {
+    return blocked("OPERATIONAL_GUEST_TEXT_TOO_LONG", "clarification_required");
+  }
+
+  const requestKind = normalizeKey(def.requestKind);
+  const defIdKey = normalizeKey(def.id);
+  const requiresGuidedFlow = Boolean(
+    requestKind === "selection" ||
+      requestKind === "quantity" ||
+      def.requiresQuantity === true ||
+      defIdKey === "massage_booking" ||
+      requestType === "massage_booking",
+  );
+
+  if (requiresGuidedFlow) {
+    return {
+      ok: true,
+      status: "confirmation_required",
+      mode: "guided_request_def",
+      catalogRecordId,
+      sourceRequestDef,
+      requestType,
+    };
+  }
+
+  return {
+    ok: true,
+    status: "confirmation_required",
+    mode: "direct_confirmation",
+    catalogRecordId,
+    sourceRequestDef,
+    requestType,
+    submission: {
+      type: requestType,
+      sourceRequestDef,
+      note: guestText,
+    },
+  };
+}
+''')
+
+          Path("lib/guest/operational-action-execution-bridge.d.mts").write_text('''export type OperationalExecutionSubmission = {
+  type: string;
+  sourceRequestDef: string;
+  note: string;
+};
+
+export type OperationalActionExecutionBridge =
+  | {
+      ok: true;
+      status: "confirmation_required";
+      mode: "direct_confirmation";
+      catalogRecordId: string;
+      sourceRequestDef: string;
+      requestType: string;
+      submission: OperationalExecutionSubmission;
+    }
+  | {
+      ok: true;
+      status: "confirmation_required";
+      mode: "guided_request_def";
+      catalogRecordId: string;
+      sourceRequestDef: string;
+      requestType: string;
+    }
+  | {
+      ok: false;
+      status: "not_applicable" | "clarification_required";
+      code: string;
+    };
+
+export function resolveOperationalActionExecutionBridge(input: {
+  operationalActionStatus?: unknown;
+  operationalAction?: Record<string, any> | null;
+  requestDefs?: Array<Record<string, any>>;
+  guestText?: unknown;
+}): OperationalActionExecutionBridge;
+''')
+
+          Path("tests/contracts/oa2-operational-action-execution-bridge.contract.test.mjs").write_text('''import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import { resolveOperationalActionExecutionBridge } from "../../lib/guest/operational-action-execution-bridge.mjs";
+import { resolveGuestRequestAuthority } from "../../lib/server/guest-request-authority.mjs";
+import { validateGuestRequestCreatePayload } from "../../lib/server/guest-request-input-validation.mjs";
+
+function requestDef(overrides = {}) {
+  return {
+    id: "towels",
+    type: "request",
+    enabled: true,
+    guestVisible: true,
+    aiVisible: true,
+    requestType: "towels",
+    requestKind: "service",
+    targetDepartment: "housekeeping",
+    afterHoursDepartment: "reception",
+    notifyDepartments: [],
+    requiresBilling: false,
+    ...overrides,
+  };
+}
+
+function plan(def = requestDef(), overrides = {}) {
+  return {
+    kind: "guest_request",
+    executionMode: "confirmation_required",
+    requiresGuestConfirmation: true,
+    authority: "hotel_request_def",
+    catalogRecordId: `service:${def.id}`,
+    sourceRequestDef: def.id,
+    requestType: String(def.requestType || def.id).trim().toLowerCase().replace(/\\s+/g, "_").replace(/-+/g, "_"),
+    primaryDepartment: def.targetDepartment,
+    effectiveDepartment: def.targetDepartment,
+    afterHoursDepartment: def.afterHoursDepartment || null,
+    notifyDepartments: def.notifyDepartments || [],
+    requiresBilling: def.requiresBilling === true,
+    price: def.price || null,
+    currency: def.currency || null,
+    ...overrides,
+  };
+}
+
+function resolve({ def = requestDef(), defs, action, status = "confirmation_required", guestText = "Please bring clean towels" } = {}) {
+  return resolveOperationalActionExecutionBridge({
+    operationalActionStatus: status,
+    operationalAction: action ?? plan(def),
+    requestDefs: defs ?? [def],
+    guestText,
+  });
+}
+
+test("OA2 turns a valid OA1 plan into a confirmation-only canonical selector", () => {
+  const result = resolve();
+  assert.equal(result.ok, true);
+  assert.equal(result.status, "confirmation_required");
+  assert.equal(result.mode, "direct_confirmation");
+  assert.deepEqual(result.submission, {
+    type: "towels",
+    sourceRequestDef: "towels",
+    note: "Please bring clean towels",
+  });
+});
+
+test("OA2 fails closed unless the OA1 plan explicitly requires guest confirmation", () => {
+  assert.equal(resolve({ status: "not_applicable" }).code, "OPERATIONAL_CONFIRMATION_NOT_REQUIRED");
+  assert.equal(resolve({ action: plan(requestDef(), { requiresGuestConfirmation: false }) }).code, "OPERATIONAL_PLAN_INVALID");
+  assert.equal(resolve({ action: plan(requestDef(), { executionMode: "execute_now" }) }).code, "OPERATIONAL_PLAN_INVALID");
+  assert.equal(resolve({ action: plan(requestDef(), { authority: "model" }) }).code, "OPERATIONAL_PLAN_INVALID");
+});
+
+test("OA2 revalidates the exact LIVE requestDef and service locator", () => {
+  const def = requestDef({ id: "SpaVIP", requestType: "spa_vip", targetDepartment: "reception" });
+  const colliding = requestDef({ id: "spavip", requestType: "spa_vip", targetDepartment: "maintenance" });
+  const result = resolve({ def, defs: [colliding, def], action: plan(def) });
+  assert.equal(result.ok, true);
+  assert.equal(result.sourceRequestDef, "SpaVIP");
+  assert.equal(result.submission.sourceRequestDef, "SpaVIP");
+
+  const wrongCase = resolve({
+    def,
+    defs: [def],
+    action: plan(def, { catalogRecordId: "service:spavip" }),
+  });
+  assert.equal(wrongCase.code, "OPERATIONAL_SERVICE_LOCATOR_MISMATCH");
+
+  for (const [field, value] of [["enabled", false], ["guestVisible", false], ["aiVisible", false]]) {
+    const disabled = requestDef({ [field]: value });
+    assert.equal(resolve({ def: disabled }).code, "OPERATIONAL_REQUEST_DEF_NOT_EXECUTABLE");
+  }
+});
+
+test("OA2 rejects request type mismatch and invalid guest text", () => {
+  assert.equal(resolve({ action: plan(requestDef(), { requestType: "maintenance" }) }).code, "OPERATIONAL_REQUEST_TYPE_MISMATCH");
+  assert.equal(resolve({ guestText: "" }).code, "OPERATIONAL_GUEST_TEXT_MISSING");
+  assert.equal(resolve({ guestText: "x".repeat(1001) }).code, "OPERATIONAL_GUEST_TEXT_TOO_LONG");
+});
+
+test("OA2 never forwards model routing or billing as execution authority", () => {
+  const def = requestDef({ targetDepartment: "housekeeping", requiresBilling: false });
+  const result = resolve({
+    def,
+    action: plan(def, {
+      primaryDepartment: "maintenance",
+      effectiveDepartment: "maintenance",
+      afterHoursDepartment: "manager",
+      notifyDepartments: ["manager"],
+      requiresBilling: true,
+      price: "999.00",
+      currency: "USD",
+    }),
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(Object.keys(result.submission).sort(), ["note", "sourceRequestDef", "type"]);
+  assert.equal("primaryDepartment" in result.submission, false);
+  assert.equal("requiresBilling" in result.submission, false);
+});
+
+test("OA2 preserves specialized selection, quantity and massage flows instead of bypassing them", () => {
+  for (const def of [
+    requestDef({ id: "pillow_menu", requestKind: "selection" }),
+    requestDef({ id: "coffee_capsules", requestKind: "quantity", requiresQuantity: true }),
+    requestDef({ id: "massage_booking", requestType: "massage_booking" }),
+  ]) {
+    const result = resolve({ def });
+    assert.equal(result.ok, true);
+    assert.equal(result.mode, "guided_request_def");
+    assert.equal("submission" in result, false);
+  }
+});
+
+test("canonical request authority preserves opaque sourceRequestDef IDs end-to-end", () => {
+  const selected = requestDef({ id: "SpaVIP", requestType: "spa_vip", targetDepartment: "reception" });
+  const colliding = requestDef({ id: "spavip", requestType: "spa_vip", targetDepartment: "maintenance" });
+
+  const authority = resolveGuestRequestAuthority({
+    requestDefs: [colliding, selected],
+    strictConfiguredRequests: true,
+    rawType: "spa_vip",
+    sourceRequestDef: "SpaVIP",
+    note: "Please arrange it",
+  });
+  assert.equal(authority.ok, true);
+  assert.equal(authority.sourceRequestDef, "SpaVIP");
+  assert.equal(authority.department, "reception");
+
+  const wrongCase = resolveGuestRequestAuthority({
+    requestDefs: [selected],
+    strictConfiguredRequests: true,
+    rawType: "spa_vip",
+    sourceRequestDef: "spavip",
+  });
+  assert.equal(wrongCase.ok, false);
+  assert.equal(wrongCase.code, "REQUEST_DEF_NOT_FOUND");
+});
+
+test("canonical request-create input drops client routing and billing override fields", () => {
+  const validation = validateGuestRequestCreatePayload({
+    hotelSlug: "example-hotel",
+    room: "103",
+    type: "towels",
+    typeLabel: "Towels",
+    note: "Please bring towels",
+    sourceRequestDef: "towels",
+    stayId: "stay-1",
+    stayDeviceId: "device-1",
+    departmentOverride: "maintenance",
+    notifyDepartments: ["manager"],
+    requiresBilling: true,
+    price: "999.00",
+    currency: "USD",
+  });
+  assert.equal(validation.ok, true);
+  assert.equal("departmentOverride" in validation.value, false);
+  assert.equal("notifyDepartments" in validation.value, false);
+  assert.equal("requiresBilling" in validation.value, false);
+  assert.equal("price" in validation.value, false);
+  assert.equal("currency" in validation.value, false);
+});
+
+test("OA2 client wiring requires an action click and existing confirmation dialog before canonical execution", async () => {
+  const guestHub = await readFile(new URL("../../components/GuestHub.tsx", import.meta.url), "utf8");
+  const requestRoute = await readFile(new URL("../../app/api/guest/request-create/route.ts", import.meta.url), "utf8");
+  const bridgeSource = await readFile(new URL("../../lib/guest/operational-action-execution-bridge.mjs", import.meta.url), "utf8");
+
+  assert.match(guestHub, /resolveOperationalActionExecutionBridge/);
+  assert.match(guestHub, /operationalActionStatus/);
+  assert.match(guestHub, /kind:\s*"operational_request"/);
+  assert.match(guestHub, /handleRequestDefClick\(def, action\.submission\.note\)/);
+  assert.match(guestHub, /openRequestDialog\([\s\S]*?onConfirm:[\s\S]*?performGuestRequestSubmission/);
+  assert.match(guestHub, /fetch\("\/api\/guest\/request-create"/);
+  assert.doesNotMatch(bridgeSource, /fetch\(|supabase|guest_requests|\.insert\(/i);
+  assert.match(requestRoute, /resolveGuestRequestAuthority/);
+  assert.match(requestRoute, /\.from\("guest_requests"\)[\s\S]*?\.insert\(/);
+});
+''')
+
+          Path(".github/workflows/oa2-operational-action-execution-bridge.yml").write_text('''name: OA2 Operational Action Execution Bridge
+
+on:
+  pull_request:
+    paths:
+      - "components/GuestHub.tsx"
+      - "lib/guest/operational-action-execution-bridge.mjs"
+      - "lib/guest/operational-action-execution-bridge.d.mts"
+      - "lib/server/guest-request-authority.mjs"
+      - "lib/server/guest-request-input-validation.mjs"
+      - "app/api/guest/request-create/route.ts"
+      - "app/api/ai/route.ts"
+      - "tests/contracts/oa2-operational-action-execution-bridge.contract.test.mjs"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/oa2-operational-action-execution-bridge.yml"
+      - ".github/workflows/oa2-bootstrap-patcher.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: OA2 confirmation and execution bridge contract
+        run: node --test tests/contracts/oa2-operational-action-execution-bridge.contract.test.mjs
+      - name: OA1 deterministic workflow regression
+        run: node --test tests/contracts/oa1-operational-workflow-resolution.contract.test.mjs
+      - name: Existing operational regressions
+        run: |
+          node --test tests/contracts/operational-contracts.test.mjs
+          node --test tests/contracts/request-type.contract.test.mjs
+          node --test tests/contracts/operations-hours-model.contract.test.mjs
+          node --test tests/contracts/api-security.contract.test.mjs
+      - name: Blocking tenant isolation
+        run: npm run test:tenant-isolation
+      - name: P2.6 release regressions
+        run: |
+          npm run test:p2-6-2
+          npm run test:p2-6-3
+          npm run test:p2-6-4
+          npm run test:p2-6-5
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+''')
+
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/GuestHub.tsx \
+            lib/server/guest-request-authority.mjs \
+            lib/guest/operational-action-execution-bridge.mjs \
+            lib/guest/operational-action-execution-bridge.d.mts \
+            tests/contracts/oa2-operational-action-execution-bridge.contract.test.mjs \
+            .github/workflows/oa2-operational-action-execution-bridge.yml
+          git diff --cached --check
+          git commit -m "Add OA2 confirmation execution bridge"
+          git push origin HEAD:${GITHUB_REF_NAME}
