@@ -1,0 +1,74 @@
+name: OA5 Guest Stay Context
+
+on:
+  pull_request:
+    paths:
+      - "lib/server/guest-stay-context.mjs"
+      - "lib/server/guest-stay-context.d.mts"
+      - "lib/ai/guest-stay-context.mjs"
+      - "lib/ai/guest-stay-context.d.mts"
+      - "lib/server/unified-guest-timeline-read.ts"
+      - "app/api/ai/route.ts"
+      - "app/api/staff/guest-timeline/route.ts"
+      - "components/GuestHub.tsx"
+      - "components/staff/guest-timeline/**"
+      - "tests/contracts/oa5-guest-stay-context.contract.test.mjs"
+      - "tests/contracts/oa5-ai-stay-context.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-oa5-guest-stay-context.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/oa5-guest-stay-context.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: OA5 stay context contracts
+        run: |
+          node --test tests/contracts/oa5-guest-stay-context.contract.test.mjs
+          node --test tests/contracts/oa5-ai-stay-context.contract.test.mjs
+      - name: OA4 timeline regression
+        run: node --test tests/contracts/oa4-unified-guest-timeline.contract.test.mjs
+      - name: Operational AI regressions
+        run: |
+          node --test tests/contracts/oa1-operational-workflow-resolution.contract.test.mjs
+          node --test tests/contracts/oa2-operational-action-execution-bridge.contract.test.mjs
+          node --test tests/contracts/oa2-clarification-action-gate.contract.test.mjs
+          node --test tests/contracts/oa3-operational-sla-escalation.contract.test.mjs
+      - name: Existing operational regressions
+        run: |
+          node --test tests/contracts/operational-contracts.test.mjs
+          node --test tests/contracts/request-type.contract.test.mjs
+          node --test tests/contracts/operations-hours-model.contract.test.mjs
+          node --test tests/contracts/api-security.contract.test.mjs
+      - name: Change Management regressions
+        run: |
+          node --test tests/contracts/cm1-post-live-version-transition.contract.test.mjs
+          node --test tests/contracts/cm1-trusted-server-integration.contract.test.mjs
+          node --test tests/contracts/cm1-transition-readiness-v2.contract.test.mjs
+          node --test tests/contracts/cm2-version-diff.contract.test.mjs
+          node --test tests/contracts/cm3-historical-version-restore.contract.test.mjs
+          node --test tests/contracts/cm3-restore-live-episode-idempotency.contract.test.mjs
+          node --test tests/contracts/cm4-version-management-control-plane.contract.test.mjs
+      - name: Blocking tenant isolation
+        run: npm run test:tenant-isolation
+      - name: P2.6 release regressions
+        run: |
+          npm run test:p2-6-2
+          npm run test:p2-6-3
+          npm run test:p2-6-4
+          npm run test:p2-6-5
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
