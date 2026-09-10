@@ -1,6 +1,10 @@
 name: OA3 Runtime Wiring Patcher
 
 on:
+  pull_request:
+    paths:
+      - "scripts/oa3-wire-runtime.py"
+      - ".github/workflows/oa3-runtime-wiring-patcher.yml"
   workflow_dispatch:
   push:
     branches:
