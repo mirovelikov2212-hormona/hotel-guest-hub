@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - "app/page.tsx"
-      - "app/h/[hotelSlug]/page.tsx"
+      - "app/h/**/page.tsx"
       - "app/api/guest/stay/confirm/route.ts"
       - "lib/server/guest-root-entry.mjs"
       - "lib/server/guest-stays.ts"
@@ -15,7 +15,7 @@ on:
   pull_request:
     paths:
       - "app/page.tsx"
-      - "app/h/[hotelSlug]/page.tsx"
+      - "app/h/**/page.tsx"
       - "app/api/guest/stay/confirm/route.ts"
       - "lib/server/guest-root-entry.mjs"
       - "lib/server/guest-stays.ts"
