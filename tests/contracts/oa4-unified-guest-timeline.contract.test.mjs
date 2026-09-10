@@ -59,6 +59,7 @@ test("OA4 preserves opaque canonical identifiers exactly", () => {
 test("OA4 whitelists meaningful lifecycle evidence and excludes clickstream noise", () => {
   assert.ok(UNIFIED_GUEST_TIMELINE_SAFE_HUB_EVENTS.includes("room_confirmed"));
   assert.ok(UNIFIED_GUEST_TIMELINE_SAFE_HUB_EVENTS.includes("ai_action_clicked"));
+  assert.ok(UNIFIED_GUEST_TIMELINE_SAFE_HUB_EVENTS.includes("returned_to_pending"));
   assert.ok(!UNIFIED_GUEST_TIMELINE_SAFE_HUB_EVENTS.includes("section_opened"));
   assert.ok(!UNIFIED_GUEST_TIMELINE_SAFE_HUB_EVENTS.includes("button_clicked"));
 
@@ -151,13 +152,13 @@ test("OA4 captures survey and massage evidence without duplicating operational a
   assert.ok(!JSON.stringify(timeline).includes("private cancellation reason"));
 });
 
-test("OA4 retains returned and billing transition evidence from canonical event ledger", () => {
+test("OA4 normalizes the canonical returned_to_pending ledger event into request_returned evidence", () => {
   const timeline = buildUnifiedGuestTimeline({
     stay,
     hubEvents: [
       {
         id: "evt-return",
-        event_name: "request_returned",
+        event_name: "returned_to_pending",
         created_at: "2026-09-10T10:00:00.000Z",
         extra: { requestId: "ReqVIP", role: "manager", previousStatus: "in_progress", nextStatus: "returned" },
       },
@@ -202,4 +203,40 @@ test("OA4 projector has no database or operational write authority", async () =>
   assert.ok(!source.includes(".update("));
   assert.ok(!source.includes(".delete("));
   assert.ok(!source.includes("fetch("));
+});
+
+test("OA4 staff timeline boundary derives stay identity server-side from a hotel-scoped request", async () => {
+  const route = await readFile(new URL("../../app/api/staff/guest-timeline/route.ts", import.meta.url), "utf8");
+  assert.ok(route.includes('const ALLOWED_ROLES = new Set(["manager", "reception"])'));
+  assert.ok(route.includes('.from("guest_requests")'));
+  assert.ok(route.includes('.select("stay_id")'));
+  assert.ok(route.includes('.eq("hotel_id", hotelId)'));
+  assert.ok(route.includes('.eq("id", requestId)'));
+  assert.ok(route.includes("getCurrentStaffSession(hotelSlug, role)"));
+  assert.ok(route.includes("hotelMatchesRequestedSlug(hotel, hotelSlug)"));
+  assert.ok(!route.includes("body:"));
+});
+
+test("OA4 canonical read model is bounded, stay-scoped and never selects raw guest free text", async () => {
+  const source = await readFile(new URL("../../lib/server/unified-guest-timeline-read.ts", import.meta.url), "utf8");
+  assert.ok(source.includes('.eq("hotel_id", hotelId)'));
+  assert.ok(source.includes('.eq("stay_id", stayId)'));
+  assert.ok(source.includes('.limit(1000)'));
+  assert.ok(source.includes('.limit(500)'));
+  assert.ok(!source.includes("improvement_text"));
+  assert.ok(!source.includes("problem_text"));
+  assert.ok(!source.includes("cancel_reason"));
+  assert.ok(!source.includes('"id,title,body'));
+  assert.ok(!source.includes(".insert("));
+  assert.ok(!source.includes(".update("));
+  assert.ok(!source.includes(".delete("));
+});
+
+test("OA4 manager UI opens timeline by request identity instead of trusting client stay metadata", async () => {
+  const provider = await readFile(new URL("../../components/staff/guest-timeline/GuestTimelineProvider.tsx", import.meta.url), "utf8");
+  const card = await readFile(new URL("../../components/staff/StaffRequestCard.tsx", import.meta.url), "utf8");
+  assert.ok(provider.includes("new URLSearchParams({ hotelSlug, role, requestId })"));
+  assert.ok(provider.includes("/api/staff/guest-timeline"));
+  assert.ok(!provider.includes("stayId:"));
+  assert.ok(card.includes("timelineControls.openForRequest(request.id)"));
 });
