@@ -45,6 +45,15 @@ test("root page preserves query parameters and delegates routing to the shared r
   assert.doesNotMatch(source, /redirect\("\/h\/demo"\)/);
 });
 
+test("validated hotel route remains the guest operational tenant authority", async () => {
+  const source = await readFile(new URL("../../app/h/[hotelSlug]/page.tsx", import.meta.url), "utf8");
+  assert.match(source, /await resolveHotelByAnySlugAdmin\(hotelSlug\)/);
+  assert.match(source, /const guestRuntimeHotelSlug = hotelSlug\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(source, /const guestConfig = \{\s*\.\.\.cfg,\s*hotelSlug: guestRuntimeHotelSlug,\s*\}/s);
+  assert.match(source, /<GuestHub config=\{guestConfig\} \/>/);
+  assert.doesNotMatch(source, /<GuestHub config=\{cfg\} \/>/);
+});
+
 test("stay confirmation translates relational inactive-room enforcement into guest validation", async () => {
   const source = await readFile(new URL("../../app/api/guest/stay/confirm/route.ts", import.meta.url), "utf8");
   assert.match(source, /GUEST_STAY_ROOM_NOT_ACTIVE/);
