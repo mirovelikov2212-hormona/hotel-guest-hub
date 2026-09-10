@@ -29,6 +29,42 @@ jobs:
           cache: npm
       - name: Apply deterministic OA3 runtime wiring
         run: python scripts/oa3-wire-runtime.py
+      - name: Record audited OA3 tenant-query relocation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          guard_path = Path("scripts/tenant-isolation-guard.mjs")
+          guard = guard_path.read_text(encoding="utf-8")
+          anchor = '  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-cm4-version-management-control-plane.json"),\n];'
+          replacement = '  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-cm4-version-management-control-plane.json"),\n  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-oa3-operational-sla-escalation.json"),\n];'
+          if guard.count(anchor) != 1:
+              raise RuntimeError("OA3 tenant baseline anchor mismatch")
+          guard_path.write_text(guard.replace(anchor, replacement, 1), encoding="utf-8")
+
+          delta = {
+              "version": 1,
+              "checkpoint": "oa3-operational-sla-escalation",
+              "baseCheckpoint": "cm4-version-management-control-plane",
+              "expectedNeedsReview": 222,
+              "removals": [],
+              "relocations": [
+                  {
+                      "filePath": "app/api/staff/requests/route.ts",
+                      "fromLine": 170,
+                      "toLine": 173,
+                      "table": "guest_requests",
+                      "operation": "update"
+                  }
+              ],
+              "additions": []
+          }
+          Path("tests/contracts/tenant-isolation-baseline-oa3-operational-sla-escalation.json").write_text(
+              json.dumps(delta, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
       - name: Install dependencies
         run: npm ci
       - name: OA3 and Operational AI contracts before commit
@@ -61,7 +97,9 @@ jobs:
             components/staff/pages/GenericDepartmentPageContent.tsx \
             components/staff/pages/ManagerPageContent.tsx \
             components/staff/StaffRequestCard.tsx \
-            tests/contracts/oa3-operational-sla-escalation.contract.test.mjs
+            tests/contracts/oa3-operational-sla-escalation.contract.test.mjs \
+            tests/contracts/tenant-isolation-baseline-oa3-operational-sla-escalation.json \
+            scripts/tenant-isolation-guard.mjs
           git diff --cached --quiet && exit 0
           git commit -m "Wire OA3 SLA policy into request runtime"
           git push origin HEAD:feat/hotel-lifecycle-v1-intelligence-review
