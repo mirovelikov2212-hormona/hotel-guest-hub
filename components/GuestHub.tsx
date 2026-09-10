@@ -218,6 +218,7 @@ import type { StaffDepartment, StaffRequestType, StaffServiceTime, StaffRequestS
 import { usePathname, useSearchParams } from "next/navigation";
 import type { HotelConfig, LangKey, HubSection, DepartmentKey, HubItem, RequestDef } from "@/lib/types";
 import { deriveGuestRuntimeCapabilities } from "@/lib/guest/guest-runtime-capabilities.mjs";
+import { resolveOperationalActionExecutionBridge } from "@/lib/guest/operational-action-execution-bridge.mjs";
 import { buildFactoryGuestDepartmentGroups } from "@/lib/guest/factory-guest-navigation.mjs";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
 import { persistQrContextFromUrl, trackHubEvent, type TrackHubPayload } from "@/lib/trackHubEvent";
@@ -2203,10 +2204,15 @@ function normalizeRoomNumber(value: unknown) {
 }
 
 type AiChatAction = {
-  kind: "request_def" | "venue";
+  kind: "request_def" | "venue" | "operational_request";
   targetId: string;
   matchedId: string;
   label: string;
+  submission?: {
+    type: string;
+    sourceRequestDef: string;
+    note?: string;
+  };
 };
 
 type AiChatMessage = {
@@ -5159,7 +5165,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     return Array.from(new Set([...departments, "reception"]));
   }
 
-  function handleRequestDefClick(def: RequestDef) {
+  function handleRequestDefClick(def: RequestDef, initialNote?: string) {
     const infoMessage = getRequestDefMessage(def);
     const title = getRequestDefTitle(def) || def.id.replace(/_/g, " ");
 
@@ -5176,8 +5182,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     if (!ensureConfirmedRoom()) return;
 
     const continueSubmit = () => {
-      const note = buildRequestDefNote(def, infoMessage);
-      if (note === null) return;
+      const configuredNote = buildRequestDefNote(def, infoMessage);
+      if (configuredNote === null) return;
+
+      const note = [String(initialNote || "").trim(), String(configuredNote || "").trim()]
+        .filter(Boolean)
+        .join("\n");
 
       submitGuestRequest({
         type: String(def.requestType || def.id),
@@ -6241,10 +6251,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
   const submitGuestRequest = (input: GuestRequestSubmissionInput) => {
     const roomValue = room.trim();
-    const sourceRequestDefKey = String(input.sourceRequestDef || "").trim().toLowerCase();
-    const sourceRequestDef = sourceRequestDefKey
-      ? requestDefs.find((def) => String(def.id || "").trim().toLowerCase() === sourceRequestDefKey)
+    const sourceRequestDefId = String(input.sourceRequestDef || "").trim();
+    const sourceRequestDef = sourceRequestDefId
+      ? requestDefs.find((def) => String(def.id || "").trim() === sourceRequestDefId)
       : undefined;
+    const sourceRequestDefKey = String(sourceRequestDef?.id || sourceRequestDefId).trim().toLowerCase();
     const requestDefLabel = sourceRequestDef ? getRequestDefTitle(sourceRequestDef) : "";
     const titleDerivedKey = getGuestRequestLabelKey("", input.typeLabel);
     const typeDerivedKey = getGuestRequestLabelKey(input.type, input.typeLabel);
@@ -6404,6 +6415,50 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     return slug || `venue_${index}`;
   }
 
+  function buildAiOperationalAction(data: any, guestText: string): AiChatAction | null {
+    const bridge = resolveOperationalActionExecutionBridge({
+      operationalActionStatus: data?.operationalActionStatus,
+      operationalAction: data?.operationalAction,
+      requestDefs,
+      guestText,
+    });
+
+    if (!bridge.ok) return null;
+
+    const def = requestDefs.find(
+      (item) => String(item.id || "").trim() === bridge.sourceRequestDef
+    );
+    if (!def) return null;
+
+    const title = getRequestDefTitle(def) || bridge.sourceRequestDef.replace(/_/g, " ");
+    const normalizedId = bridge.sourceRequestDef.toLowerCase();
+    const verb =
+      normalizedId.includes("massage")
+        ? aiActionCopy.reserve
+        : def.requestKind === "selection"
+          ? aiActionCopy.choose
+          : def.requestKind === "quantity" || def.requiresQuantity
+            ? aiActionCopy.order
+            : aiActionCopy.request;
+
+    if (bridge.mode === "guided_request_def") {
+      return {
+        kind: "request_def",
+        targetId: bridge.sourceRequestDef,
+        matchedId: bridge.catalogRecordId,
+        label: `${verb} ${title}`.trim(),
+      };
+    }
+
+    return {
+      kind: "operational_request",
+      targetId: bridge.sourceRequestDef,
+      matchedId: bridge.catalogRecordId,
+      label: `${verb} ${title}`.trim(),
+      submission: bridge.submission,
+    };
+  }
+
   function buildAiActions(matchedIds: unknown): AiChatAction[] {
     if (!Array.isArray(matchedIds)) return [];
 
@@ -6557,6 +6612,27 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     setAiPanelOpen(false);
 
     window.setTimeout(() => {
+      if (action.kind === "operational_request") {
+        if (!action.submission) return;
+
+        const def = requestDefs.find(
+          (item) => String(item.id || "").trim() === action.submission?.sourceRequestDef
+        );
+        if (
+          !def ||
+          def.type !== "request" ||
+          def.enabled !== true ||
+          def.guestVisible !== true ||
+          def.aiVisible !== true ||
+          String(def.requestKind || "").trim().toLowerCase() === "info_only"
+        ) {
+          return;
+        }
+
+        handleRequestDefClick(def, action.submission.note);
+        return;
+      }
+
       if (action.kind === "request_def") {
         const def = requestDefs.find((item) => {
           const id = String(item.id || "").trim();
@@ -6682,7 +6758,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       }
 
       const answerText = String(data.answer || tUI("ai_no_info") || "Все още нямам тази информация за хотела.");
-      const actions = buildAiActions(data?.diagnostics?.matchedIds);
+      const operationalAction = buildAiOperationalAction(data, questionText);
+      const actions = operationalAction
+        ? [operationalAction]
+        : buildAiActions(data?.diagnostics?.matchedIds);
       setAiAnswer(answerText);
       setAiHistory((previous) => [
         ...previous,
