@@ -30,8 +30,14 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Apply deterministic hardening patch
+      - name: Apply scanner and base theme hardening
         run: python3 scripts/scanner-theme-hardening-patch.py
+
+      - name: Expand one shared theme across all internal tools
+        run: python3 scripts/internal-tools-theme-expansion.py
+
+      - name: Keep permanent validation workflow unchanged in Actions commit
+        run: git restore .github/workflows/hotel-lifecycle-v1-validation.yml
 
       - name: Scanner regression contracts
         run: >-
@@ -56,7 +62,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
 
-      - name: Commit validated patch
+      - name: Commit validated application and test patch only
         run: |
           if git diff --quiet; then
             echo "No patch changes produced"
@@ -69,13 +75,16 @@ jobs:
             lib/server/hotel-scanner-brand-refiner.ts \
             lib/ai/hotel-intelligence-value-quality.mjs \
             lib/ai/hotel-scanner-reconciliation.mjs \
-            app/control-plane/ToolsThemeShell.tsx \
+            components/internal-tools/ToolsThemeShell.tsx \
             app/control-plane/layout.tsx \
+            app/hotel-factory/layout.tsx \
+            app/hotel-scanner/layout.tsx \
+            app/design-studio/layout.tsx \
+            app/control-panel/layout.tsx \
             app/globals.css \
             tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs \
             tests/contracts/hotel-intelligence-value-quality-v1.contract.test.mjs \
             tests/contracts/hotel-scanner-professional-regressions-v1.contract.test.mjs \
-            tests/contracts/control-plane-tools-theme.contract.test.mjs \
-            .github/workflows/hotel-lifecycle-v1-validation.yml
-          git commit -m "feat: harden hotel scanner and add shared tool themes"
+            tests/contracts/control-plane-tools-theme.contract.test.mjs
+          git commit -m "feat: harden hotel scanner and theme all internal tools"
           git push origin HEAD:feat/hotel-lifecycle-v1-intelligence-review
