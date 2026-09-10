@@ -1,0 +1,63 @@
+name: OA3 Runtime Wiring Patcher
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/hotel-lifecycle-v1-intelligence-review
+    paths:
+      - "scripts/oa3-wire-runtime.py"
+      - ".github/workflows/oa3-runtime-wiring-patcher.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-build-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply deterministic OA3 runtime wiring
+        run: python scripts/oa3-wire-runtime.py
+      - name: Install dependencies
+        run: npm ci
+      - name: OA3 and Operational AI contracts before commit
+        run: |
+          node --test tests/contracts/oa3-operational-sla-escalation.contract.test.mjs
+          node --test tests/contracts/oa1-operational-workflow-resolution.contract.test.mjs
+          node --test tests/contracts/oa2-operational-action-execution-bridge.contract.test.mjs
+          node --test tests/contracts/oa2-clarification-action-gate.contract.test.mjs
+      - name: Tenant isolation before commit
+        run: npm run test:tenant-isolation
+      - name: Production-style build before commit
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+      - name: Commit only after tests and build pass
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            lib/types.ts \
+            lib/request-defs.ts \
+            lib/staff/types.ts \
+            app/api/guest/request-create/route.ts \
+            app/api/staff/requests/route.ts \
+            app/api/staff/department-runtime/requests/route.ts \
+            components/staff/pages/ReceptionPageContent.tsx \
+            components/staff/pages/HousekeepingPageContent.tsx \
+            components/staff/pages/MaintenancePageContent.tsx \
+            components/staff/pages/GenericDepartmentPageContent.tsx \
+            components/staff/pages/ManagerPageContent.tsx \
+            components/staff/StaffRequestCard.tsx \
+            tests/contracts/oa3-operational-sla-escalation.contract.test.mjs
+          git diff --cached --quiet && exit 0
+          git commit -m "Wire OA3 SLA policy into request runtime"
+          git push origin HEAD:feat/hotel-lifecycle-v1-intelligence-review
