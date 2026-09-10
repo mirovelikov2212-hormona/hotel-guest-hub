@@ -21,7 +21,7 @@ export type OperationalWorkflowAction = {
 export type OperationalWorkflowResolution =
   | {
       ok: true;
-      status: "ready_for_confirmation";
+      status: "confirmation_required";
       action: OperationalWorkflowAction;
     }
   | {

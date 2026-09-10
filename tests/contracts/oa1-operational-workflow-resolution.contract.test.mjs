@@ -69,8 +69,9 @@ function resolve({ def = requestDef(), hotelConfig, aiCatalog, routerResult, now
   });
 }
 
-test("OA1 ignores non-operational AI answers and ambiguous selections", () => {
-  assert.equal(resolve({ routerResult: routed({ requested_fields: ["hours"] }) }).ok, false);
+test("OA1 ignores non-operational AI answers, ambiguous selections and low confidence", () => {
+  assert.equal(resolve({ routerResult: routed({ status: "clarification" }) }).code, "AI_RESULT_NOT_ACTIONABLE");
+  assert.equal(resolve({ routerResult: routed({ requested_fields: ["hours"] }) }).code, "OPERATIONAL_REQUEST_NOT_REQUESTED");
 
   const ambiguous = resolve({
     routerResult: routed({ selected_ids: ["service:towels", "service:iron"] }),
@@ -96,12 +97,23 @@ test("OA1 accepts only one executable service that still exists in LIVE requestD
   });
   assert.equal(infoResult.code, "OPERATIONAL_TARGET_NOT_SERVICE");
 
-  const hiddenDef = requestDef({ aiVisible: false });
-  const hiddenResult = resolve({
-    def: hiddenDef,
-    aiCatalog: catalog(hiddenDef, { aiVisible: true }),
+  for (const [field, value] of [
+    ["enabled", false],
+    ["guestVisible", false],
+    ["aiVisible", false],
+  ]) {
+    const hiddenDef = requestDef({ [field]: value });
+    const hiddenResult = resolve({
+      def: hiddenDef,
+      aiCatalog: catalog(hiddenDef, { active: true, aiVisible: true }),
+    });
+    assert.equal(hiddenResult.code, "OPERATIONAL_REQUEST_DEF_NOT_EXECUTABLE");
+  }
+
+  const unavailableCatalog = resolve({
+    aiCatalog: catalog(requestDef(), { active: false }),
   });
-  assert.equal(hiddenResult.code, "OPERATIONAL_REQUEST_DEF_NOT_EXECUTABLE");
+  assert.equal(unavailableCatalog.code, "OPERATIONAL_SERVICE_NOT_AVAILABLE");
 
   const missingResult = resolve({
     hotelConfig: config(requestDef(), { requestDefs: [] }),
@@ -109,15 +121,42 @@ test("OA1 accepts only one executable service that still exists in LIVE requestD
   assert.equal(missingResult.code, "OPERATIONAL_REQUEST_DEF_NOT_FOUND");
 });
 
-test("OA1 preserves opaque service locators exactly, including mixed-case RequestDef IDs", () => {
-  const def = requestDef({
+test("OA1 fails closed for malformed service locators and cross-hotel service identities", () => {
+  const malformed = resolve({
+    aiCatalog: {
+      records: [{ id: "service:", kind: "service", active: true, aiVisible: true, requestKind: "service" }],
+    },
+    routerResult: routed({ selected_ids: ["service:"] }),
+  });
+  assert.equal(malformed.code, "OPERATIONAL_SERVICE_ID_INVALID");
+
+  const hotelAService = requestDef({ id: "hotelAOnly" });
+  const hotelBConfig = config(requestDef({ id: "hotelBOnly" }));
+  const crossHotel = resolve({
+    def: hotelAService,
+    hotelConfig: hotelBConfig,
+    aiCatalog: catalog(hotelAService),
+    routerResult: routed({ selected_ids: ["service:hotelAOnly"] }),
+  });
+  assert.equal(crossHotel.code, "OPERATIONAL_REQUEST_DEF_NOT_FOUND");
+});
+
+test("OA1 preserves opaque service locators through authority resolution, including colliding mixed-case IDs", () => {
+  const selectedDef = requestDef({
     id: "SpaVIP",
     requestType: "spa_vip",
     targetDepartment: "reception",
     afterHoursDepartment: undefined,
   });
+  const collidingDef = requestDef({
+    id: "spavip",
+    requestType: "spa_vip",
+    targetDepartment: "maintenance",
+    afterHoursDepartment: "reception",
+  });
   const result = resolve({
-    def,
+    def: selectedDef,
+    hotelConfig: config(selectedDef, { requestDefs: [collidingDef, selectedDef] }),
     routerResult: routed({ selected_ids: ["service:SpaVIP"] }),
   });
 
@@ -125,6 +164,7 @@ test("OA1 preserves opaque service locators exactly, including mixed-case Reques
   assert.equal(result.action.catalogRecordId, "service:SpaVIP");
   assert.equal(result.action.sourceRequestDef, "SpaVIP");
   assert.equal(result.action.requestType, "spa_vip");
+  assert.equal(result.action.primaryDepartment, "reception");
 });
 
 test("OA1 derives routing from hotel RequestDef and ignores catalog/model routing tampering", () => {
@@ -132,6 +172,11 @@ test("OA1 derives routing from hotel RequestDef and ignores catalog/model routin
   const result = resolve({
     def,
     aiCatalog: catalog(def, { targetDepartment: "maintenance" }),
+    routerResult: routed({
+      selected_ids: [`service:${def.id}`],
+      department: "maintenance",
+      targetDepartment: "maintenance",
+    }),
     now: new Date("2026-09-10T10:00:00.000Z"),
   });
 
@@ -140,6 +185,13 @@ test("OA1 derives routing from hotel RequestDef and ignores catalog/model routin
   assert.equal(result.action.primaryDepartment, "housekeeping");
   assert.equal(result.action.effectiveDepartment, "housekeeping");
   assert.equal(result.action.afterHoursApplied, false);
+});
+
+test("OA1 fails closed when the selected RequestDef has no authoritative department", () => {
+  const def = requestDef({ targetDepartment: undefined });
+  const result = resolve({ def });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "OPERATIONAL_AUTHORITY_DEPARTMENT_UNAVAILABLE");
 });
 
 test("OA1 applies configured after-hours routing without mutating the primary department", () => {
@@ -156,7 +208,7 @@ test("OA1 applies configured after-hours routing without mutating the primary de
   assert.equal(result.action.afterHoursApplied, true);
 });
 
-test("OA1 preserves the existing HK/MNT reception fallback when no explicit after-hours department exists", () => {
+test("OA1 does not invent an AI-layer after-hours fallback when hotel config does not provide one", () => {
   const def = requestDef({ afterHoursDepartment: undefined });
   const result = resolve({
     def,
@@ -165,8 +217,9 @@ test("OA1 preserves the existing HK/MNT reception fallback when no explicit afte
 
   assert.equal(result.ok, true);
   assert.equal(result.action.primaryDepartment, "housekeeping");
-  assert.equal(result.action.effectiveDepartment, "reception");
-  assert.equal(result.action.afterHoursApplied, true);
+  assert.equal(result.action.effectiveDepartment, "housekeeping");
+  assert.equal(result.action.afterHoursDepartment, null);
+  assert.equal(result.action.afterHoursApplied, false);
 });
 
 test("OA1 derives billing and notification evidence from RequestDef authority", () => {
@@ -190,10 +243,10 @@ test("OA1 derives billing and notification evidence from RequestDef authority", 
   assert.deepEqual(result.action.notifyDepartments.sort(), ["maintenance", "reception"]);
 });
 
-test("OA1 returns a confirmation-required plan and never performs the canonical write", async () => {
+test("OA1 returns a confirmation_required plan and never performs the canonical write", async () => {
   const result = resolve();
   assert.equal(result.ok, true);
-  assert.equal(result.status, "ready_for_confirmation");
+  assert.equal(result.status, "confirmation_required");
   assert.equal(result.action.kind, "guest_request");
   assert.equal(result.action.executionMode, "confirmation_required");
   assert.equal(result.action.requiresGuestConfirmation, true);
@@ -209,6 +262,7 @@ test("OA1 is wired into the existing AI route without replacing guest request ex
 
   assert.match(aiRoute, /resolveOperationalWorkflow/);
   assert.match(aiRoute, /operationalAction/);
+  assert.match(aiRoute, /operationalActionStatus:\s*operationalResolution\.status/);
   assert.match(guestRequestRoute, /resolveGuestRequestAuthority/);
   assert.match(guestRequestRoute, /\.from\("guest_requests"\)[\s\S]*?\.insert\(/);
   assert.doesNotMatch(aiRoute, /\.from\("guest_requests"\)[\s\S]*?\.insert\(/);
