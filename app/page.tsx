@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { resolveGuestRootEntry } from "@/lib/server/guest-root-entry.mjs";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -21,23 +22,17 @@ export default async function HomePage({
 }) {
   const hdrs = await headers();
   const host = (hdrs.get("host") || "").split(":")[0].toLowerCase();
-
   const sp = await searchParams;
+  const params = new URLSearchParams();
 
-  const isMainHost =
-    host === "www.stayhub.app" ||
-    host === "stayhub.app" ||
-    host === "localhost";
+  Object.entries(sp || {}).forEach(([key, value]) => appendSearchParam(params, key, value));
 
-  if (!isMainHost && host.endsWith(".stayhub.app")) {
-    const subdomain = host.replace(".stayhub.app", "").trim();
-    const params = new URLSearchParams();
+  const destination = resolveGuestRootEntry({
+    host,
+    vercelEnv: process.env.VERCEL_ENV,
+    previewHotelSlug: process.env.STAYHUB_PREVIEW_HOTEL_SLUG,
+  });
+  const query = params.toString();
 
-    Object.entries(sp || {}).forEach(([key, value]) => appendSearchParam(params, key, value));
-
-    const query = params.toString();
-    redirect(`/h/${subdomain}${query ? `?${query}` : ""}`);
-  }
-
-  redirect("/h/demo");
+  redirect(`${destination}${query ? `?${query}` : ""}`);
 }
