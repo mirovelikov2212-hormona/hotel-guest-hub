@@ -76,11 +76,11 @@ jobs:
             lib/ai/hotel-intelligence-value-quality.mjs \
             lib/ai/hotel-scanner-reconciliation.mjs \
             components/internal-tools/ToolsThemeShell.tsx \
+            components/control-panel/ControlPanelThemeShell.tsx \
             app/control-plane/layout.tsx \
             app/hotel-factory/layout.tsx \
             app/hotel-scanner/layout.tsx \
             app/design-studio/layout.tsx \
-            app/control-panel/layout.tsx \
             app/globals.css \
             tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs \
             tests/contracts/hotel-intelligence-value-quality-v1.contract.test.mjs \
