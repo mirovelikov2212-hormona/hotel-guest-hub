@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AI_COPY } from "@/lib/ai/copy";
 import { buildAiAnswer } from "@/lib/ai/answer-builder";
+import { resolveOperationalWorkflow } from "@/lib/server/operational-workflow-resolution.mjs";
 import { buildAiCatalog } from "@/lib/ai/catalog";
 import { getCachedCatalog } from "@/lib/ai/cache";
 import { deterministicRoute } from "@/lib/ai/fallback";
@@ -279,6 +280,14 @@ export async function POST(request: Request) {
       routed = deterministicRoute(question, lang, catalog);
     }
 
+    const operationalResolution = resolveOperationalWorkflow({
+      routerResult: routed,
+      catalog,
+      hotelConfig: context.config,
+      guestText: question,
+      now: new Date(),
+    });
+
     const answer = buildAiAnswer(routed, lang, catalog);
     const diagnostics: AiDiagnostics = {
       engine,
@@ -301,6 +310,8 @@ export async function POST(request: Request) {
       answer,
       hotelOnly: true,
       aiPowered: engine === "openai",
+      operationalAction: operationalResolution.ok ? operationalResolution.action : null,
+      operationalActionStatus: operationalResolution.status,
       diagnostics,
       routerLatencyMs: routerLatency,
     });
