@@ -80,7 +80,7 @@ function parseFacts(value: string, allowed: Set<string>): HotelScanFact[] {
     if (previous) { previous.sourceUrls = [...new Set([...(previous.sourceUrls || []), ...sourceUrls])].slice(0, 8); previous.confidence = Math.max(Number(previous.confidence || 0), Math.max(0, Math.min(1, Number(raw?.confidence || 0)))); continue; }
     seen.set(key, { category, subject, attribute, label, value: factValue, confidence: Math.max(0, Math.min(1, Number(raw?.confidence || 0))), sourceUrls } as RichFact);
   }
-  return [...seen.values()].slice(0, 120) as HotelScanFact[];
+  return [...seen.values()].slice(0, 160) as HotelScanFact[];
 }
 
 function languageInstruction(outputLanguage: HotelScannerOutputLanguage) {
@@ -116,15 +116,18 @@ async function runFactExtraction(evidence: HotelScanEvidenceBundle, outputLangua
     "For duration: minutes/hours for one treatment/session are session_duration; recommended/minimum stay measured in days/nights is recommended_stay.",
     "Prefer atomic facts. A policy page with pets, smoking and quiet hours must produce separate facts.",
   ] : hub ? [
-    "Build an evidence-backed CONTENT INVENTORY for a future mobile hotel Hub and Design Studio. Do not write a marketing summary.",
-    "Extract EVERY named accommodation type, dining venue, guest service, SPA/wellness/medical service, experience/activity/nearby attraction, event/meeting option and public offer that the supplied pages explicitly support.",
+    "Build a concise evidence-backed CONTENT INVENTORY for a future mobile hotel Hub and Design Studio. This is the primary guest-facing payload, not a legal/policy dump.",
+    "Treat top-level hotel landing pages such as rooms/accommodation, gastronomy/dining, services, spa/wellness, experiences/activities, events and offers as authoritative inventories of named guest-facing content.",
+    "Extract EVERY named accommodation type, dining venue, guest service, SPA/wellness/medical service, experience/activity/nearby attraction, event/meeting option and public offer that the supplied pages explicitly support, even when the landing page only links to a detail page.",
     "Do not summarize multiple named offerings into one generic fact. Each named room, restaurant/bar, service, experience and event space must remain separately addressable through subject.",
     "Accommodation: emit room_type plus separate capacity, size, bed, view, meal_inclusion, price and booking facts when present.",
-    "Dining: emit every venue plus description, cuisine/menu as description, hours, external_access, booking, dress_code and price when present.",
-    "Services and wellness: emit every named service/treatment/facility plus description, price, hours, booking, age/access and duration when present.",
-    "Experiences: use category experiences and attribute experience/activity/attraction for every named activity, place, excursion or nearby attraction; use experience_booking/access when stated.",
+    "Dining: emit every venue plus concise description, hours, external_access, booking, dress_code and price when present.",
+    "Services and wellness: emit every named service/treatment/facility plus concise description, price, hours, booking, age/access and duration when present.",
+    "Experiences: use category experiences and attribute experience/activity/attraction for every named on-property activity, excursion or nearby attraction; use experience_booking/access when stated.",
     "Events: use category events and event_space/event_capacity/event_service for public meeting, conference, wedding and event capabilities.",
-    "Contacts/social/location and policies remain atomic. Preserve conflicting FAQ/policy claims rather than choosing one.",
+    "Offers: use category offers and attribute offer for public packages or bookable stay/service offers.",
+    "Policies are secondary in this HUB pass. Extract only guest-essential rules that affect the stay directly (check-in/out, quiet hours, smoking, access/reservation requirements). Leave exhaustive house rules, legal conditions and fee schedules to the critical/comprehensive evidence passes.",
+    "Contacts/social/location remain atomic and should not be repeated under every venue or page.",
   ] : [
     "Extract a professional, entity-aware evidence set from a hotel website for StayHub Hotel Factory and Design Studio.",
     "The goal is COMPREHENSIVE HOTEL ONBOARDING, not a marketing summary. Capture every useful operational, guest-facing, content, service, accommodation, policy, venue and design-relevant fact that the supplied pages explicitly support.",
@@ -132,6 +135,7 @@ async function runFactExtraction(evidence: HotelScanEvidenceBundle, outputLangua
     "For every official room type emit a concise room_type fact whose value is ONLY the official room-type name; put capacity, size, bed/view, meal inclusion, price and description in separate facts.",
     "For every named restaurant, bar or dining venue emit a venue fact and separate hours, external_access, booking, dress_code, description or price facts when explicitly stated.",
     "For every named SPA, medical, wellness or guest service emit separate service/treatment/facility facts and separate session_duration, recommended_stay, price, age_policy, access and booking facts when explicitly stated.",
+    "For every named experience/activity/nearby attraction emit a category experiences fact instead of hiding it in a generic services summary.",
     "For hotel policies emit separate atomic facts. Use pet_policy, smoking_policy, quiet_hours, cancellation_policy and payment_policy when applicable.",
     "For check-in and check-out use subject hotel and attributes check_in/check_out. For contacts use subject hotel and attributes phone/email/social_profile.",
     "For amenities and facilities emit the amenity/facility NAME as label/entity, not an access sentence. Opening-hours facts MUST name one specific facility, venue, service or guest area through subject.",
@@ -145,8 +149,8 @@ async function runFactExtraction(evidence: HotelScanEvidenceBundle, outputLangua
       `attribute MUST be one canonical machine key from: ${FACT_ATTRIBUTES.join(", ")}.`,
       "subject identifies the hotel entity the fact is about: hotel for property-wide facts; exact official room type for room facts; exact venue name for restaurant/bar facts; exact SPA/medical/service/experience name for those facts.",
     ].join("\n"),
-    input: JSON.stringify({ MODE: mode, OUTPUT_LANGUAGE: outputLanguage, ALLOWED_SOURCE_URLS: allowedSourceUrls, WEBSITE_EVIDENCE: inputPages(extractionPages, critical ? 7_500 : hub ? 5_000 : 6_000) }),
-    text: { format: { type: "json_schema", name: `stayhub_hotel_scan_${mode}_facts_v4`, strict: true, schema: {
+    input: JSON.stringify({ MODE: mode, OUTPUT_LANGUAGE: outputLanguage, ALLOWED_SOURCE_URLS: allowedSourceUrls, WEBSITE_EVIDENCE: inputPages(extractionPages, critical ? 7_500 : hub ? 6_500 : 6_000) }),
+    text: { format: { type: "json_schema", name: `stayhub_hotel_scan_${mode}_facts_v5`, strict: true, schema: {
       type: "object", additionalProperties: false, properties: { facts: { type: "array", minItems: 1, maxItems, items: {
         type: "object", additionalProperties: false, properties: {
           category: { type: "string", enum: FACT_CATEGORIES }, subject: { type: "string" }, attribute: { type: "string", enum: FACT_ATTRIBUTES },
@@ -168,7 +172,7 @@ function mergeExtractions(...collections: HotelScanFact[][]) {
     if (!previous) { byKey.set(key, { ...enriched, sourceUrls: [...new Set(enriched.sourceUrls || [])] }); continue; }
     previous.sourceUrls = [...new Set([...(previous.sourceUrls || []), ...(enriched.sourceUrls || [])])].slice(0, 8); previous.confidence = Math.max(Number(previous.confidence || 0), Number(enriched.confidence || 0));
   }
-  return [...byKey.values()].slice(0, 140) as HotelScanFact[];
+  return [...byKey.values()].slice(0, 180) as HotelScanFact[];
 }
 
 export async function extractRichHotelScanFactsWithOpenAi(evidence: HotelScanEvidenceBundle, outputLanguage: HotelScannerOutputLanguage) {
@@ -177,5 +181,5 @@ export async function extractRichHotelScanFactsWithOpenAi(evidence: HotelScanEvi
     runFactExtraction(evidence, outputLanguage, "hub").catch(() => [] as HotelScanFact[]),
     runFactExtraction(evidence, outputLanguage, "comprehensive").catch(() => [] as HotelScanFact[]),
   ]);
-  return mergeExtractions(critical, hub, comprehensive);
+  return mergeExtractions(hub, critical, comprehensive);
 }
