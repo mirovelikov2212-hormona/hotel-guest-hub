@@ -2,8 +2,12 @@ export type HotelScannerCrawlSelection = {
   url: string;
   domains: string[];
   newlyCoveredDomains: string[];
+  corroboratedDomains: string[];
   legacyPriority: number;
+  score: number;
 };
+
+export type HotelScannerDomainVisitCounts = Record<string, number>;
 
 export function classifyHotelScannerUrlCoverage(rawUrl: string): string[];
 
@@ -19,9 +23,12 @@ export function planHotelScannerSecondaryUrls(input?: {
   firstUrl?: string;
   maxPages?: number;
   alreadyCoveredDomains?: string[];
+  domainVisitCounts?: HotelScannerDomainVisitCounts;
 }): {
   urls: string[];
   selections: HotelScannerCrawlSelection[];
+  domainVisitCounts: HotelScannerDomainVisitCounts;
   coveredDomains: string[];
   uncoveredDomains: string[];
+  underCorroboratedDomains: string[];
 };
