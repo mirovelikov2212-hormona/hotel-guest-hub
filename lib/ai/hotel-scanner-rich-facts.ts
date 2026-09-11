@@ -25,12 +25,52 @@ const FACT_CATEGORIES = [
   "hotel",
 ] as const;
 
+const FACT_ATTRIBUTES = [
+  "name",
+  "description",
+  "address",
+  "phone",
+  "email",
+  "social_profile",
+  "check_in",
+  "check_out",
+  "language",
+  "room_type",
+  "capacity",
+  "size",
+  "bed",
+  "view",
+  "meal_inclusion",
+  "price",
+  "hours",
+  "external_access",
+  "access",
+  "venue",
+  "amenity",
+  "facility",
+  "service",
+  "treatment",
+  "duration",
+  "booking",
+  "pet_policy",
+  "smoking_policy",
+  "quiet_hours",
+  "cancellation_policy",
+  "payment_policy",
+  "parking",
+  "wifi",
+  "offer",
+  "other",
+] as const;
+
 export type HotelScannerOutputLanguage = "bg" | "en";
+
+type RichFact = HotelScanFact & { subject?: string; attribute?: string };
 
 function getClient() {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
   if (!apiKey) throw new Error("openai_api_key_missing");
-  if (!client) client = new OpenAI({ apiKey, timeout: 28_000, maxRetries: 0 });
+  if (!client) client = new OpenAI({ apiKey, timeout: 30_000, maxRetries: 0 });
   return client;
 }
 
@@ -42,41 +82,41 @@ function clean(value: unknown, max = 500) {
 function isGenericHoursLabel(label: string) {
   const normalized = label.toLocaleLowerCase("bg-BG").replace(/\s+/g, " ").trim();
   if (["работно време", "часове", "hours", "opening hours"].includes(normalized)) return true;
-
   const bulgarianHours = normalized.includes("работно време") || normalized.includes("часове");
-  const bulgarianGeneric = /(удобств|обект|услуг)/u.test(normalized);
-  if (bulgarianHours && bulgarianGeneric) return true;
-
+  if (bulgarianHours && /(удобств|обект|услуг)/u.test(normalized)) return true;
   const englishHours = normalized.includes("hours");
-  const englishGeneric = /(amenit|facilit|venue|service)/u.test(normalized);
-  return englishHours && englishGeneric;
+  return englishHours && /(amenit|facilit|venue|service)/u.test(normalized);
 }
 
 function parseFacts(value: string, allowed: Set<string>): HotelScanFact[] {
-  const parsed = JSON.parse(value) as { facts?: HotelScanFact[] };
+  const parsed = JSON.parse(value) as { facts?: RichFact[] };
   if (!parsed || !Array.isArray(parsed.facts)) return [];
 
   const seen = new Set<string>();
   const result: HotelScanFact[] = [];
   for (const raw of parsed.facts) {
     const category = clean(raw?.category, 80) || "hotel";
+    const subject = clean(raw?.subject, 160) || "hotel";
+    const attribute = clean(raw?.attribute, 80) || "other";
     const label = clean(raw?.label, 120);
     const factValue = clean(raw?.value, 500);
     const sourceUrls = [...new Set((Array.isArray(raw?.sourceUrls) ? raw.sourceUrls : [])
       .map((url) => String(url))
-      .filter((url) => allowed.has(url)))].slice(0, 4);
+      .filter((url) => allowed.has(url)))].slice(0, 6);
     if (!label || !factValue || !sourceUrls.length || isGenericHoursLabel(label)) continue;
-    const key = `${category.toLowerCase()}|${label.toLowerCase()}|${factValue.toLowerCase()}`;
+    const key = `${category.toLowerCase()}|${subject.toLowerCase()}|${attribute.toLowerCase()}|${factValue.toLowerCase()}`;
     if (seen.has(key)) continue;
     seen.add(key);
     result.push({
       category,
+      subject,
+      attribute,
       label,
       value: factValue,
       confidence: Math.max(0, Math.min(1, Number(raw?.confidence || 0))),
       sourceUrls,
-    });
-    if (result.length >= 28) break;
+    } as HotelScanFact);
+    if (result.length >= 64) break;
   }
   return result;
 }
@@ -90,40 +130,44 @@ export async function extractRichHotelScanFactsWithOpenAi(
   const allowedSourceUrls = evidence.pages.map((page) => page.url);
   const allowed = new Set(allowedSourceUrls);
   const languageInstruction = outputLanguage === "bg"
-    ? "Write every human-readable fact label and value in Bulgarian. Preserve official hotel/venue names, brand names, phone numbers, emails, URLs and technical brand tokens exactly."
-    : "Write every human-readable fact label and value in English. Preserve official hotel/venue names, brand names, phone numbers, emails, URLs and technical brand tokens exactly.";
-  const reconciliationLabelInstruction = outputLanguage === "bg"
-    ? "For reconciliation-critical facts use these exact labels when explicitly evidenced: location address => Адрес; each official room type => Тип стая (ONE fact per room type, official room-type name as value); check-in => Check-in; check-out => Check-out."
-    : "For reconciliation-critical facts use these exact labels when explicitly evidenced: location address => Address; each official room type => Room type (ONE fact per room type, official room-type name as value); check-in => Check-in; check-out => Check-out.";
+    ? "Write every human-readable fact label and value in Bulgarian. Preserve official hotel/venue/room/service names, brand names, phone numbers, emails, URLs and technical brand tokens exactly."
+    : "Write every human-readable fact label and value in English. Preserve official hotel/venue/room/service names, brand names, phone numbers, emails, URLs and technical brand tokens exactly.";
+
   const inputPages = evidence.pages.map((page) => ({
     url: page.url,
     title: page.title,
     description: page.description,
-    text: page.text.slice(0, 5_500),
+    text: page.text.slice(0, 6_000),
   }));
 
   const response = await openai.responses.create({
     model,
     store: false,
-    max_output_tokens: 2_800,
+    max_output_tokens: 6_800,
     reasoning: { effort: "none" },
     instructions: [
-      "Extract a rich but precise set of evidence-backed hotel facts for a human review dashboard.",
+      "Extract a professional, entity-aware evidence set from a hotel website for StayHub Hotel Factory and Design Studio.",
       languageInstruction,
-      reconciliationLabelInstruction,
       "Use ONLY WEBSITE_EVIDENCE. Never browse, infer from outside knowledge, or guess.",
-      "Aim for 18-28 DISTINCT useful facts when the evidence supports them; return fewer only when evidence is genuinely sparse.",
-      "Prefer specific operational and guest-useful facts over generic marketing language.",
-      `category MUST remain one canonical lowercase machine key from: ${FACT_CATEGORIES.join(", ")}. Do not translate category keys.`,
-      "Split compound information into useful facts: e.g. restaurant hours and capacity should be separate facts when both are stated.",
-      "When the evidence explicitly lists room types, preserve every distinct official room type that fits within the fact budget; do not collapse several room types into one summary fact.",
-      "Opening-hours facts MUST name one specific facility, venue, service or guest area in the label. Never emit generic labels such as Facility hours, Amenities hours, Opening hours, Работно време, or Работно време на удобствата.",
-      "When the website gives different hours for different named facilities, emit one separate hours fact for each named facility whose schedule is explicit.",
-      "If an hours range cannot be tied unambiguously to one named facility or explicitly named group, omit that hours fact rather than guessing its scope.",
-      "If the same named facility has conflicting schedules and the evidence does not resolve season/date/scope, omit the hours fact rather than merging conflicting times.",
-      "Do not duplicate the same claim under different labels.",
+      "The goal is COMPREHENSIVE HOTEL ONBOARDING, not a marketing summary. Capture every useful operational, guest-facing, content, service, accommodation, policy, venue and design-relevant fact that the supplied pages explicitly support.",
+      "Aim for 40-64 DISTINCT facts when the evidence is rich. Return fewer only when the supplied website evidence is genuinely sparse.",
+      `category MUST be one canonical lowercase machine key from: ${FACT_CATEGORIES.join(", ")}.`,
+      `attribute MUST be one canonical machine key from: ${FACT_ATTRIBUTES.join(", ")}.`,
+      "subject identifies the hotel entity the fact is about: hotel for property-wide facts; exact official room type for room facts; exact venue name for restaurant/bar facts; exact SPA/medical/service name for service facts.",
+      "For every official room type emit a room_type fact, then separate capacity, size, bed/view, meal inclusion and price facts when explicitly stated.",
+      "For every named restaurant, bar or dining venue emit a venue fact and separate hours, access, booking, description or price facts when explicitly stated.",
+      "For every named SPA, medical, wellness or guest service emit separate service/treatment facts and duration/price/access/booking facts when explicitly stated.",
+      "For hotel policies emit separate atomic facts. Use pet_policy, smoking_policy, quiet_hours, cancellation_policy and payment_policy when applicable.",
+      "For check-in and check-out use subject hotel and attributes check_in/check_out.",
+      "For contacts use subject hotel and attributes phone/email/social_profile.",
+      "For amenities and facilities emit atomic facts rather than one comma-separated mega-fact.",
+      "Never hide contradictions. If two supplied pages state different values for the same entity+attribute, emit BOTH claims with their exact source URLs. A later verification layer will mark the conflict.",
+      "If identical claims appear on multiple materially different pages, include all supporting source URLs on the same fact when possible.",
+      "Different language variants of the same document may support a claim, but do not treat translation differences as permission to choose one side of a contradiction.",
+      "Opening-hours facts MUST name one specific facility, venue, service or guest area through subject. Never emit generic hours facts.",
+      "Do not duplicate the same claim under cosmetic label variants.",
       "Every fact MUST cite one or more exact URLs from ALLOWED_SOURCE_URLS.",
-      "Confidence should reflect evidence clarity; use high confidence only for explicit statements.",
+      "Confidence reflects clarity of the cited website statement only; high confidence does not resolve conflicts.",
       "Keep labels and values concise; paraphrase instead of copying long website text.",
       "Return JSON only via the requested schema.",
     ].join("\n"),
@@ -135,7 +179,7 @@ export async function extractRichHotelScanFactsWithOpenAi(
     text: {
       format: {
         type: "json_schema",
-        name: "stayhub_hotel_scan_rich_facts",
+        name: "stayhub_hotel_scan_rich_facts_v2",
         strict: true,
         schema: {
           type: "object",
@@ -144,12 +188,14 @@ export async function extractRichHotelScanFactsWithOpenAi(
             facts: {
               type: "array",
               minItems: 1,
-              maxItems: 28,
+              maxItems: 64,
               items: {
                 type: "object",
                 additionalProperties: false,
                 properties: {
                   category: { type: "string", enum: FACT_CATEGORIES },
+                  subject: { type: "string" },
+                  attribute: { type: "string", enum: FACT_ATTRIBUTES },
                   label: { type: "string" },
                   value: { type: "string" },
                   confidence: { type: "number", minimum: 0, maximum: 1 },
@@ -157,10 +203,10 @@ export async function extractRichHotelScanFactsWithOpenAi(
                     type: "array",
                     items: { type: "string", enum: allowedSourceUrls },
                     minItems: 1,
-                    maxItems: 4,
+                    maxItems: 6,
                   },
                 },
-                required: ["category", "label", "value", "confidence", "sourceUrls"],
+                required: ["category", "subject", "attribute", "label", "value", "confidence", "sourceUrls"],
               },
             },
           },
