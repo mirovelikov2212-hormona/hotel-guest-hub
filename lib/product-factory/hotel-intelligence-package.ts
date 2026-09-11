@@ -1,4 +1,5 @@
 import type { HotelScanFact, HotelScanProfile } from "@/lib/ai/hotel-scanner";
+import { buildHotelScannerBridgeSnapshot, type HotelScannerBridgeSnapshot } from "@/lib/ai/hotel-scanner-live-content.mjs";
 
 export type HotelIntelligenceTarget = "hub" | "smart_setup" | "design_studio" | "review";
 export type HotelIntelligenceStatus = "candidate" | "review_required";
@@ -43,6 +44,7 @@ export type HotelIntelligencePackage = {
   pipelineVersion?: "professional-crawler-v2";
   generatedAt: string;
   source: HotelScanProfile["source"];
+  scannerBridge: HotelScannerBridgeSnapshot;
   evidenceLayer: {
     facts: HotelIntelligenceItem[];
     sourceUrls: string[];
@@ -109,10 +111,7 @@ function classifyFact(fact: HotelScanFact, index: number): HotelIntelligenceItem
   if (SMART_SETUP_CATEGORIES.has(category)) targets.push("smart_setup");
   if (category === "brand") targets.push("design_studio");
 
-  const status: HotelIntelligenceStatus = Number(fact.confidence) >= 0.9
-    ? "candidate"
-    : "review_required";
-
+  const status: HotelIntelligenceStatus = Number(fact.confidence) >= 0.9 ? "candidate" : "review_required";
   if (status === "review_required" || targets.length === 0) targets.push("review");
 
   return {
@@ -128,15 +127,12 @@ function classifyFact(fact: HotelScanFact, index: number): HotelIntelligenceItem
 
 export function buildHotelIntelligencePackage(profile: HotelScanProfile): HotelIntelligencePackage {
   const facts = profile.facts.map(classifyFact);
-  const sourceUrls = unique([
-    profile.source.canonicalUrl,
-    ...facts.flatMap((fact) => fact.sourceUrls),
-  ]);
-
+  const sourceUrls = unique([profile.source.canonicalUrl, ...facts.flatMap((fact) => fact.sourceUrls)]);
   const hub = facts.filter((fact) => fact.targets.includes("hub"));
   const smartSetup = facts.filter((fact) => fact.targets.includes("smart_setup"));
   const designStudio = facts.filter((fact) => fact.targets.includes("design_studio"));
   const review = facts.filter((fact) => fact.targets.includes("review"));
+  const scannerBridge = buildHotelScannerBridgeSnapshot(facts, profile.source.scannedAt);
 
   const designSignalCount = [
     ...profile.brand.colors,
@@ -148,11 +144,8 @@ export function buildHotelIntelligencePackage(profile: HotelScanProfile): HotelI
     schemaVersion: "hotel-intelligence-v1",
     generatedAt: new Date().toISOString(),
     source: profile.source,
-    evidenceLayer: {
-      facts,
-      sourceUrls,
-      uncertainties: profile.uncertainties,
-    },
+    scannerBridge,
+    evidenceLayer: { facts, sourceUrls, uncertainties: profile.uncertainties },
     hotelProfileLayer: {
       identity: profile.identity,
       contacts: profile.contacts,
@@ -167,12 +160,7 @@ export function buildHotelIntelligencePackage(profile: HotelScanProfile): HotelI
       logoReferences: profile.brand.logoUrls,
       visualAssetPolicy: "hotel_authorization_required",
     },
-    routing: {
-      hub,
-      smartSetup,
-      designStudio,
-      review,
-    },
+    routing: { hub, smartSetup, designStudio, review },
     readiness: {
       evidenceFactCount: facts.length,
       hubCandidateCount: hub.length,
