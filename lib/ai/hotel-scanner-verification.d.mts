@@ -25,7 +25,7 @@ export function verifyHotelScanFacts(inputFacts?: HotelScanFact[]): {
   facts: VerifiedHotelScanFact[];
   conflicts: HotelScanVerificationConflict[];
   summary: {
-    schemaVersion: "hotel-scan-verification-v1";
+    schemaVersion: "hotel-scan-verification-v2";
     verifiedFactCount: number;
     singleSourceFactCount: number;
     conflictFactCount: number;
