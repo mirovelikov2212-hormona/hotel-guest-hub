@@ -2,6 +2,7 @@ import OpenAI from "openai";
 
 import type { HotelScanEvidenceBundle } from "@/lib/server/factory-hotel-scanner";
 import type { HotelScanFact } from "@/lib/ai/hotel-scanner";
+import { extractHotelScannerCriticalClaims } from "@/lib/ai/hotel-scanner-critical-claims.mjs";
 import { selectCriticalHotelScannerPages } from "@/lib/ai/hotel-scanner-critical-pages.mjs";
 import { selectHotelScannerHubPages } from "@/lib/ai/hotel-scanner-hub-pages.mjs";
 
@@ -160,26 +161,35 @@ async function runFactExtraction(evidence: HotelScanEvidenceBundle, outputLangua
       } } }, required: ["facts"],
     } } },
   });
-  if (response.status === "incomplete") return []; const outputText = String(response.output_text || "").trim(); if (!outputText) return [];
+  if (response.status === "incomplete") return [];
+  const outputText = String(response.output_text || "").trim();
+  if (!outputText) return [];
   return parseFacts(outputText, allowed);
 }
 
 function mergeExtractions(...collections: HotelScanFact[][]) {
   const byKey = new Map<string, RichFact>();
   for (const fact of collections.flat()) {
-    const enriched = fact as RichFact; const key = `${normalized(enriched.category)}|${normalized(enriched.subject)}|${normalized(enriched.attribute)}|${normalized(enriched.value)}`; if (!key) continue;
+    const enriched = fact as RichFact;
+    const key = `${normalized(enriched.category)}|${normalized(enriched.subject)}|${normalized(enriched.attribute)}|${normalized(enriched.value)}`;
+    if (!key) continue;
     const previous = byKey.get(key);
-    if (!previous) { byKey.set(key, { ...enriched, sourceUrls: [...new Set(enriched.sourceUrls || [])] }); continue; }
-    previous.sourceUrls = [...new Set([...(previous.sourceUrls || []), ...(enriched.sourceUrls || [])])].slice(0, 8); previous.confidence = Math.max(Number(previous.confidence || 0), Number(enriched.confidence || 0));
+    if (!previous) {
+      byKey.set(key, { ...enriched, sourceUrls: [...new Set(enriched.sourceUrls || [])] });
+      continue;
+    }
+    previous.sourceUrls = [...new Set([...(previous.sourceUrls || []), ...(enriched.sourceUrls || [])])].slice(0, 8);
+    previous.confidence = Math.max(Number(previous.confidence || 0), Number(enriched.confidence || 0));
   }
   return [...byKey.values()].slice(0, 180) as HotelScanFact[];
 }
 
 export async function extractRichHotelScanFactsWithOpenAi(evidence: HotelScanEvidenceBundle, outputLanguage: HotelScannerOutputLanguage) {
+  const deterministic = extractHotelScannerCriticalClaims(evidence.pages, outputLanguage) as HotelScanFact[];
   const [critical, hub, comprehensive] = await Promise.all([
     runFactExtraction(evidence, outputLanguage, "critical").catch(() => [] as HotelScanFact[]),
     runFactExtraction(evidence, outputLanguage, "hub").catch(() => [] as HotelScanFact[]),
     runFactExtraction(evidence, outputLanguage, "comprehensive").catch(() => [] as HotelScanFact[]),
   ]);
-  return mergeExtractions(hub, critical, comprehensive);
+  return mergeExtractions(deterministic, hub, critical, comprehensive);
 }
