@@ -89,8 +89,11 @@ test("scanner API verifies evidence before package handoff to downstream tools",
   const route = await readProjectFile("app/api/control-plane/hotel-scanner/scan/route.ts");
   assert.match(route, /verifyHotelScanFacts/);
   assert.match(route, /projectVerifiedHotelScanFacts/);
+  assert.match(route, /applyPrivacyMinimalHotelProjection/);
   assert.match(route, /professionalizeHotelIntelligencePackage/);
-  assert.match(route, /hotel-scanner-v2-verification/);
+  assert.match(route, /hotel-scanner-v3-critical-verification/);
+  assert.match(route, /publicDocumentGapCount/);
+  assert.match(route, /robotsApplied/);
   assert.match(route, /verifiedFactCount/);
   assert.match(route, /singleSourceFactCount/);
   assert.match(route, /conflictFactCount/);
