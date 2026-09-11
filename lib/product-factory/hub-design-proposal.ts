@@ -44,13 +44,13 @@ const DISPLAY_FONT_PATTERN = /(garamond|serif|display|playfair|baskerville|bodon
 
 const CATEGORY_PRIORITY: Record<string, number> = {
   overview: 5,
-  dining: 10,
-  wellness: 20,
-  services: 30,
-  experiences: 40,
-  offers: 45,
-  accommodation: 50,
+  accommodation: 10,
+  dining: 20,
+  wellness: 30,
+  services: 40,
+  experiences: 50,
   events: 60,
+  offers: 61,
   policies: 90,
 };
 
@@ -58,12 +58,12 @@ const CATEGORY_TITLES: Record<string, { bg: string; en: string }> = {
   overview: { bg: "Най-важното за хотела", en: "Hotel essentials" },
   accommodation: { bg: "Настаняване", en: "Accommodation" },
   dining: { bg: "Ресторанти и барове", en: "Restaurants & bars" },
-  wellness: { bg: "СПА, уелнес и medical", en: "SPA, wellness & medical" },
+  wellness: { bg: "SPA / Wellness / Medical", en: "SPA / Wellness / Medical" },
   services: { bg: "Услуги и удобства", en: "Services & amenities" },
   experiences: { bg: "Преживявания и активности", en: "Experiences & activities" },
   events: { bg: "Събития", en: "Events" },
-  offers: { bg: "Оферти и резервируеми услуги", en: "Offers & bookable services" },
-  policies: { bg: "Политики · кратко", en: "Policies · summary" },
+  offers: { bg: "Оферти", en: "Offers" },
+  policies: { bg: "Политики", en: "Policies" },
 };
 
 const ATTRIBUTE_LABELS: Record<string, { bg: string; en: string }> = {
@@ -73,6 +73,14 @@ const ATTRIBUTE_LABELS: Record<string, { bg: string; en: string }> = {
   event_capacity: { bg: "Капацитет", en: "Capacity" }, event_service: { bg: "Възможности", en: "Capabilities" }, check_in: { bg: "Настаняване", en: "Check-in" },
   check_out: { bg: "Освобождаване", en: "Check-out" }, quiet_hours: { bg: "Тихи часове", en: "Quiet hours" }, pet_policy: { bg: "Домашни любимци", en: "Pets" },
   smoking_policy: { bg: "Пушене", en: "Smoking" }, parking: { bg: "Паркинг", en: "Parking" }, wifi: { bg: "Wi‑Fi", en: "Wi‑Fi" },
+};
+
+const POLICY_LABELS: Record<string, { bg: string; en: string }> = {
+  pet_policy: { bg: "Домашни любимци", en: "Pets" }, pet_fee: { bg: "Домашни любимци", en: "Pets" },
+  smoking_policy: { bg: "Пушене", en: "Smoking" }, smoking_restriction: { bg: "Пушене", en: "Smoking" }, smoking_penalty: { bg: "Пушене", en: "Smoking" }, designated_smoking_area: { bg: "Пушене", en: "Smoking" },
+  quiet_hours: { bg: "Тихи часове", en: "Quiet hours" }, noise_policy: { bg: "Тихи часове / шум", en: "Quiet hours / noise" }, cancellation_policy: { bg: "Анулации", en: "Cancellation" }, payment_policy: { bg: "Плащане", en: "Payment" },
+  age_policy: { bg: "Деца / възраст", en: "Children / age" }, dress_code: { bg: "Облекло", en: "Dress code" }, food_beverage_policy: { bg: "Храна и напитки", en: "Food & beverage" },
+  room_cooking_policy: { bg: "Приготвяне на храна", en: "In-room cooking" }, fire_safety_policy: { bg: "Пожарна безопасност", en: "Fire safety" }, weapons_policy: { bg: "Сигурност", en: "Security" }, luggage_storage_policy: { bg: "Багаж", en: "Luggage" }, luggage_access_policy: { bg: "Багаж", en: "Luggage" },
 };
 
 function normalizeHex(value: string) {
@@ -98,9 +106,10 @@ function selectTheme(colors: string[], fonts: string[]): HubDesignTheme & { avai
 function categoryTitle(category: string, language: "bg" | "en") { return CATEGORY_TITLES[category]?.[language] || category; }
 function attrLabel(attribute: string, fallback: string, language: "bg" | "en") { return ATTRIBUTE_LABELS[attribute]?.[language] || fallback || attribute; }
 function clean(value: unknown) { return String(value ?? "").replace(/\s+/g, " ").trim(); }
+function normalized(value: unknown) { return clean(value).toLocaleLowerCase("en-US"); }
 
-function compactItemValue(facts: HotelIntelligenceItem[], language: "bg" | "en", limit = 5) {
-  const preferred = ["description", "capacity", "size", "price", "meal_inclusion", "hours", "booking", "external_access", "session_duration", "event_capacity", "event_service", "check_in", "check_out", "quiet_hours", "parking", "wifi"];
+function compactItemValue(facts: HotelIntelligenceItem[], language: "bg" | "en", limit = 3) {
+  const preferred = ["description", "hours", "booking", "external_access", "price", "session_duration", "event_capacity", "event_service", "check_in", "check_out", "quiet_hours", "parking", "wifi"];
   const ranked = [...facts].sort((a, b) => {
     const ai = preferred.indexOf(clean(a.attribute)); const bi = preferred.indexOf(clean(b.attribute));
     return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi);
@@ -109,26 +118,62 @@ function compactItemValue(facts: HotelIntelligenceItem[], language: "bg" | "en",
   const parts: string[] = [];
   for (const fact of ranked) {
     const value = clean(fact.value); if (!value) continue;
-    const key = `${clean(fact.attribute)}|${value.toLowerCase()}`; if (seen.has(key)) continue; seen.add(key);
+    const itemKey = `${clean(fact.attribute)}|${value.toLowerCase()}`; if (seen.has(itemKey)) continue; seen.add(itemKey);
     parts.push(`${attrLabel(clean(fact.attribute), fact.label, language)}: ${value}`);
     if (parts.length >= limit) break;
   }
   return parts.join(" · ");
 }
 
-function buildSections(items: HotelIntelligenceItem[], language: "bg" | "en") {
-  const grouped = buildHotelScannerHubSections(items) as Array<{ key: string; items: Array<{ key: string; name: string; facts: HotelIntelligenceItem[] }> }>;
+function simpleEntityName(item: { name: string; facts: HotelIntelligenceItem[] }, sectionKey: string) {
+  if (clean(item.name)) return clean(item.name);
+  const preferred = sectionKey === "accommodation" ? ["room_type"] : sectionKey === "dining" ? ["venue"] : ["treatment", "service", "facility", "amenity"];
+  for (const attribute of preferred) {
+    const match = item.facts.find((fact) => clean(fact.attribute) === attribute);
+    if (match?.value) return clean(match.value);
+  }
+  return clean(item.facts[0]?.label) || clean(item.facts[0]?.value);
+}
+
+function policyInventory(facts: HotelIntelligenceItem[], language: "bg" | "en") {
+  return unique(facts.map((fact) => POLICY_LABELS[clean(fact.attribute)]?.[language] || attrLabel(clean(fact.attribute), fact.label, language)).filter(Boolean));
+}
+
+function liveTitleAllowed(pkg: HotelIntelligencePackage, sectionKey: string, name: string) {
+  if (!["events", "offers"].includes(sectionKey) || !pkg.scannerBridge) return true;
+  const kind = sectionKey === "events" ? "events" : "offers";
+  const allowed = pkg.scannerBridge.activeItems.filter((item) => item.kind === kind).map((item) => normalized(item.title));
+  if (!allowed.length) return false;
+  const candidate = normalized(name);
+  return allowed.some((title) => title === candidate || title.includes(candidate) || candidate.includes(title));
+}
+
+function buildSections(pkg: HotelIntelligencePackage, language: "bg" | "en") {
+  const grouped = buildHotelScannerHubSections(pkg.routing.hub) as Array<{ key: string; facts: HotelIntelligenceItem[]; items: Array<{ key: string; name: string; facts: HotelIntelligenceItem[] }> }>;
   return grouped
     .filter((section) => section.key !== "contacts")
     .map((section) => {
-      const maxItems = section.key === "policies" ? 1 : 12;
-      const rows = section.items.slice(0, maxItems).flatMap((item, index) => {
+      if (section.key === "policies") {
+        const topics = policyInventory(section.facts, language);
+        const rows = topics.length ? [{ id: "hub-policies-inventory", label: categoryTitle("policies", language), value: topics.join(" · "), confidence: 1 }] : [];
+        return { id: "section-policies", category: "policies", title: categoryTitle("policies", language), priority: CATEGORY_PRIORITY.policies, items: rows };
+      }
+
+      const rows = section.items.slice(0, 16).flatMap((item, index) => {
         if (section.key === "overview" && !item.name) {
           return item.facts.slice(0, 6).map((fact, factIndex) => ({ id: `hub-${section.key}-${index}-${factIndex}`, label: fact.label, value: fact.value, confidence: fact.confidence }));
         }
-        const value = compactItemValue(item.facts, language, section.key === "policies" ? 4 : 5);
-        if (!value) return [];
-        return [{ id: `hub-${section.key}-${index}`, label: item.name || categoryTitle(section.key, language), value, confidence: Math.max(...item.facts.map((fact) => Number(fact.confidence || 0))) }];
+
+        const name = simpleEntityName(item, section.key);
+        if (!name || !liveTitleAllowed(pkg, section.key, name)) return [];
+        const confidence = Math.max(...item.facts.map((fact) => Number(fact.confidence || 0)));
+
+        if (["accommodation", "dining", "wellness"].includes(section.key)) {
+          return [{ id: `hub-${section.key}-${index}`, label: name, value: "", confidence }];
+        }
+
+        const value = compactItemValue(item.facts, language, ["services", "experiences"].includes(section.key) ? 2 : 3);
+        return [{ id: `hub-${section.key}-${index}`, label: name, value, confidence }];
       });
       return { id: `section-${section.key}`, category: section.key, title: categoryTitle(section.key, language), priority: CATEGORY_PRIORITY[section.key] ?? 500, items: rows };
     })
@@ -138,7 +183,7 @@ function buildSections(items: HotelIntelligenceItem[], language: "bg" | "en") {
 
 export function buildHubDesignProposal(pkg: HotelIntelligencePackage, language: "bg" | "en"): HubDesignProposal {
   const selected = selectTheme(pkg.designIntelligenceLayer.colors, pkg.designIntelligenceLayer.fonts);
-  const sections = buildSections(pkg.routing.hub, language);
+  const sections = buildSections(pkg, language);
   return {
     schemaVersion: "hub-design-proposal-v1",
     hotelName: pkg.hotelProfileLayer.identity.hotelName || "Hotel",
