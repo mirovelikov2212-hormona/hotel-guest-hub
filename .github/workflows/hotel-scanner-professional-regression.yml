@@ -7,6 +7,8 @@ on:
       - "lib/server/hotel-scanner-crawl-plan.mjs"
       - "lib/server/hotel-scanner-brand-refiner.ts"
       - "lib/server/hotel-scanner-public-technology.mjs"
+      - "lib/server/hub-design-draft-revisions.ts"
+      - "lib/server/factory-release-design-authority.ts"
       - "lib/ai/hotel-intelligence-value-quality.mjs"
       - "lib/ai/hotel-scanner-reconciliation.mjs"
       - "lib/ai/hotel-scanner-conflicts.mjs"
@@ -16,6 +18,7 @@ on:
       - "lib/ai/hotel-technology-discovery.mjs"
       - "lib/product-factory/hotel-intelligence-package.ts"
       - "lib/product-factory/hotel-intelligence-professionalizer.mjs"
+      - "lib/product-factory/hotel-intelligence-review.ts"
       - "app/api/control-plane/hotel-scanner/scan/route.ts"
       - "components/internal-tools/ToolsThemeShell.tsx"
       - "components/control-panel/ControlPanelThemeShell.tsx"
@@ -36,6 +39,7 @@ on:
       - "tests/contracts/hotel-technology-discovery-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-professional-regressions-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-verification-v2.contract.test.mjs"
+      - "tests/contracts/hotel-intelligence-professional-handoff-v2.contract.test.mjs"
       - "tests/contracts/control-plane-tools-theme.contract.test.mjs"
       - ".github/workflows/hotel-scanner-professional-regression.yml"
   pull_request:
@@ -44,6 +48,8 @@ on:
       - "lib/server/hotel-scanner-crawl-plan.mjs"
       - "lib/server/hotel-scanner-brand-refiner.ts"
       - "lib/server/hotel-scanner-public-technology.mjs"
+      - "lib/server/hub-design-draft-revisions.ts"
+      - "lib/server/factory-release-design-authority.ts"
       - "lib/ai/hotel-intelligence-value-quality.mjs"
       - "lib/ai/hotel-scanner-reconciliation.mjs"
       - "lib/ai/hotel-scanner-conflicts.mjs"
@@ -53,6 +59,7 @@ on:
       - "lib/ai/hotel-technology-discovery.mjs"
       - "lib/product-factory/hotel-intelligence-package.ts"
       - "lib/product-factory/hotel-intelligence-professionalizer.mjs"
+      - "lib/product-factory/hotel-intelligence-review.ts"
       - "app/api/control-plane/hotel-scanner/scan/route.ts"
       - "components/internal-tools/ToolsThemeShell.tsx"
       - "components/control-panel/ControlPanelThemeShell.tsx"
@@ -73,6 +80,7 @@ on:
       - "tests/contracts/hotel-technology-discovery-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-professional-regressions-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-verification-v2.contract.test.mjs"
+      - "tests/contracts/hotel-intelligence-professional-handoff-v2.contract.test.mjs"
       - "tests/contracts/control-plane-tools-theme.contract.test.mjs"
       - ".github/workflows/hotel-scanner-professional-regression.yml"
   workflow_dispatch:
@@ -105,6 +113,7 @@ jobs:
           tests/contracts/hotel-technology-discovery-v1.contract.test.mjs
           tests/contracts/hotel-scanner-professional-regressions-v1.contract.test.mjs
           tests/contracts/hotel-scanner-verification-v2.contract.test.mjs
+          tests/contracts/hotel-intelligence-professional-handoff-v2.contract.test.mjs
       - name: Shared internal tools light-dark theme contract
         run: node --test tests/contracts/control-plane-tools-theme.contract.test.mjs
       - name: Blocking tenant isolation
