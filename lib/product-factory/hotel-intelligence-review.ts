@@ -528,5 +528,5 @@ export function buildApprovedHotelIntelligencePackage(
     },
   };
 
-  return professionalizeHotelIntelligencePackage(basePackage) as HotelIntelligencePackage;
+  return professionalizeHotelIntelligencePackage(basePackage, { humanReviewResolved: true }) as HotelIntelligencePackage;
 }
