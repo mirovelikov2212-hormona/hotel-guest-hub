@@ -85,7 +85,7 @@ test("hub page selector is bounded, deterministic and preserves the four public 
   for (const suffix of ["/experiences", "/services", "/gastronomy", "/events"]) assert.ok(first.some((page) => page.url.endsWith(suffix)), suffix);
 });
 
-test("hub projector keeps accommodation, dining, experiences, contacts and policies in separate Design Studio-ready sections", () => {
+test("hub projector keeps guest content separate and routes static event facilities to services", () => {
   const fact = (category, subject, attribute, label, value, sourceUrl) => ({ category, subject, attribute, label, value, confidence: 0.9, sourceUrls: [sourceUrl] });
   const facts = [
     fact("accommodation", "Deluxe room", "capacity", "Capacity", "2 adults + 1 child", `${origin}/rooms/deluxe`),
@@ -101,8 +101,9 @@ test("hub projector keeps accommodation, dining, experiences, contacts and polic
     fact("policy", "hotel", "pet_policy", "Pets", "Pets are not allowed", `${origin}/faq`),
   ];
   assert.equal(hotelScannerHubSectionForFact(facts[6]), "experiences");
+  assert.equal(hotelScannerHubSectionForFact(facts[8]), "services");
   const sections = buildHotelScannerHubSections(facts); const byKey = Object.fromEntries(sections.map((section) => [section.key, section]));
-  assert.equal(byKey.accommodation.items[0].facts.length, 2); assert.equal(byKey.dining.items.length, 4); assert.equal(byKey.experiences.items.length, 1); assert.equal(byKey.services.items.length, 1); assert.equal(byKey.events.items.length, 1); assert.equal(byKey.contacts.facts.length, 1); assert.equal(byKey.policies.facts.length, 1);
+  assert.equal(byKey.accommodation.items[0].facts.length, 2); assert.equal(byKey.dining.items.length, 4); assert.equal(byKey.experiences.items.length, 1); assert.equal(byKey.services.items.length, 2); assert.equal(byKey.events, undefined); assert.equal(byKey.contacts.facts.length, 1); assert.equal(byKey.policies.facts.length, 1);
   assert.deepEqual(byKey.accommodation.items[0].sourceUrls, [`${origin}/rooms/deluxe`]);
 });
 
