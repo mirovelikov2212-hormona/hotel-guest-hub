@@ -83,13 +83,13 @@ export type HotelIntelligencePackage = {
 };
 
 const HUB_CATEGORIES = new Set([
-  "location", "operations", "accommodation", "dining", "amenities", "wellness", "events", "policy",
-  "sustainability", "family", "beach", "parking", "services", "hotel",
+  "identity", "location", "contact", "operations", "accommodation", "dining", "amenities", "wellness", "events",
+  "experiences", "offers", "policy", "sustainability", "family", "beach", "parking", "services", "hotel",
 ]);
 
 const SMART_SETUP_CATEGORIES = new Set([
   "identity", "location", "contact", "operations", "accommodation", "dining", "amenities", "wellness",
-  "events", "policy", "family", "beach", "parking", "services", "hotel",
+  "events", "experiences", "offers", "policy", "family", "beach", "parking", "services", "hotel",
 ]);
 
 function unique(values: string[]) {
