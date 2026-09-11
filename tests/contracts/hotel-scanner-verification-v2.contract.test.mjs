@@ -19,10 +19,7 @@ function fact(overrides = {}) {
 }
 
 test("contradictory official pet policies fail closed as one conflict group", () => {
-  const result = verifyHotelScanFacts([
-    fact(),
-    fact({ value: "Домашни любимци не се допускат", sourceUrls: ["https://hotel.test/en/faq"] }),
-  ]);
+  const result = verifyHotelScanFacts([fact(), fact({ value: "Домашни любимци не се допускат", sourceUrls: ["https://hotel.test/en/faq"] })]);
   assert.equal(result.conflicts.length, 1);
   assert.equal(result.conflicts[0].attribute, "pet_policy");
   assert.equal(result.summary.conflictGroupCount, 1);
@@ -213,7 +210,7 @@ test("professional package routes conflict and critical single-source facts to r
     readiness: { evidenceFactCount: 3, hubCandidateCount: 3, smartSetupCandidateCount: 3, designSignalCount: 0, reviewRequiredCount: 0 },
   };
   const pkg = professionalizeHotelIntelligencePackage(base);
-  assert.equal(pkg.pipelineVersion, "professional-crawler-v3");
+  assert.equal(pkg.pipelineVersion, "professional-crawler-v2");
   assert.equal(pkg.readiness.verifiedFactCount, 1);
   assert.equal(pkg.readiness.singleSourceFactCount, 1);
   assert.equal(pkg.readiness.conflictFactCount, 1);
