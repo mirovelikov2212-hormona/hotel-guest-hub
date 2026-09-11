@@ -42,7 +42,7 @@ test("Factory Hotel Scanner blocks private-network and unsafe URL targets", asyn
   assertContains(crawler, "assertPublicHostname(current)");
 });
 
-test("Factory Hotel Scanner keeps multi-wave crawl and AI latency bounded", async () => {
+test("Factory Hotel Scanner keeps multi-wave crawl and dual-pass AI latency bounded", async () => {
   const crawler = await readProjectFile(crawlerPath);
   const route = await readProjectFile(routePath);
   const normalizer = await readProjectFile(normalizerPath);
@@ -55,7 +55,7 @@ test("Factory Hotel Scanner keeps multi-wave crawl and AI latency bounded", asyn
   assertContains(crawler, "planHotelScannerSecondaryUrls");
   assertContains(crawler, "maxPages: Math.min(MAX_CRAWL_BATCH_SIZE, remainingBudget)");
   assertContains(crawler, "await Promise.all(");
-  assertContains(crawler, "crawlPlan.urls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin))");
+  assertContains(crawler, "crawlPlan.urls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin");
   assertContains(crawler, "STYLESHEET_TIMEOUT_MS = 4_000");
   assertContains(route, "AI_DEADLINE_MS = 38_000");
   assertContains(route, "withDeadline(");
@@ -73,7 +73,10 @@ test("Factory Hotel Scanner keeps multi-wave crawl and AI latency bounded", asyn
   assertContains(normalizer, "max_output_tokens: 1_800");
   assertContains(normalizer, "page.text.slice(0, 3_000)");
   assertContains(richFacts, 'timeout: 30_000');
-  assertContains(richFacts, "max_output_tokens: 6_800");
+  assertContains(richFacts, 'type FactExtractionMode = "comprehensive" | "critical"');
+  assertContains(richFacts, "max_output_tokens: critical ? 4_200 : 8_200");
+  assertContains(richFacts, 'runFactExtraction(evidence, outputLanguage, "comprehensive")');
+  assertContains(richFacts, 'runFactExtraction(evidence, outputLanguage, "critical")');
 });
 
 test("Factory Hotel Scanner fails soft when core AI enrichment is slow", async () => {
@@ -89,7 +92,7 @@ test("Factory Hotel Scanner fails soft when core AI enrichment is slow", async (
   assertContains(route, "facts: mergeFacts(richFacts, coreState.normalized.profile.facts)");
 });
 
-test("Factory Hotel Scanner keeps core profile separate from comprehensive rich fact extraction", async () => {
+test("Factory Hotel Scanner keeps core profile separate from comprehensive and critical fact extraction", async () => {
   const normalizer = await readProjectFile(normalizerPath);
   const route = await readProjectFile(routePath);
   const richFacts = await readProjectFile(richFactsPath);
@@ -101,8 +104,9 @@ test("Factory Hotel Scanner keeps core profile separate from comprehensive rich 
   assertNotContains(normalizer, "Every item in facts must cite exact URLs");
   assertContains(route, "extractRichHotelScanFactsWithOpenAi");
   assertContains(route, "mergeFacts(richFacts, coreState.normalized.profile.facts)");
-  assertContains(richFacts, "Aim for 40-64 DISTINCT facts when the evidence is rich");
-  assertContains(richFacts, "maxItems: 64");
+  assertContains(richFacts, "Aim for 55-80 DISTINCT facts when the evidence is rich");
+  assertContains(richFacts, "Perform a CRITICAL VERIFICATION PASS over every supplied page");
+  assertContains(richFacts, "maxItems: critical ? 40 : 80");
 });
 
 test("Factory Hotel Scanner extracts CSS brand colors and fonts deterministically", async () => {
@@ -135,17 +139,19 @@ test("Factory Hotel Scanner restores comprehensive evidence while curating frame
   assertContains(route, "mergeFacts");
   assertContains(route, "richFactCount");
   assertContains(route, "refineHotelScanBrandEvidence");
-  assertContains(richFacts, "Aim for 40-64 DISTINCT facts when the evidence is rich");
-  assertContains(richFacts, "maxItems: 64");
+  assertContains(richFacts, "Aim for 55-80 DISTINCT facts when the evidence is rich");
+  assertContains(richFacts, "maxItems: critical ? 40 : 80");
+  assertContains(richFacts, "return mergeExtractions(critical, comprehensive)");
 });
 
-test("Factory Hotel Scanner scopes opening hours to named facilities and preserves conflicts", async () => {
+test("Factory Hotel Scanner scopes opening hours and separates venue policy semantics", async () => {
   const richFacts = await readProjectFile(richFactsPath);
 
   assertContains(richFacts, "isGenericHoursLabel");
   assertContains(richFacts, "if (!label || !factValue || !sourceUrls.length || isGenericHoursLabel(label)) continue;");
   assertContains(richFacts, "Opening-hours facts MUST name one specific facility, venue, service or guest area through subject. Never emit generic hours facts.");
-  assertContains(richFacts, "For every named restaurant, bar or dining venue emit a venue fact and separate hours, access, booking, description or price facts when explicitly stated.");
+  assertContains(richFacts, "For every named restaurant, bar or dining venue emit a venue fact and separate hours, external_access, booking, dress_code, description or price facts when explicitly stated.");
+  assertContains(richFacts, "external guest eligibility is external_access; clothing requirements are dress_code; adult/child restrictions are age_policy");
   assertContains(richFacts, "Never hide contradictions.");
 });
 
@@ -183,7 +189,7 @@ test("Factory Hotel Scanner keeps BG and EN review output language-consistent", 
   assertContains(client, 'sourcesOne: "source"');
 });
 
-test("Factory Hotel Scanner AI normalization is evidence grounded", async () => {
+test("Factory Hotel Scanner AI normalization is evidence grounded and privacy-minimal", async () => {
   const normalizer = await readProjectFile(normalizerPath);
   const richFacts = await readProjectFile(richFactsPath);
 
@@ -195,6 +201,8 @@ test("Factory Hotel Scanner AI normalization is evidence grounded", async () => 
   assertContains(normalizer, "store: false");
   assertContains(richFacts, "Every fact MUST cite one or more exact URLs from ALLOWED_SOURCE_URLS.");
   assertContains(richFacts, ".filter((url) => allowed.has(url))");
+  assertContains(richFacts, "Never extract guest names, staff names, personal biographies");
+  assertContains(richFacts, "isPrivacyMinimalBusinessEmail");
 });
 
 test("Hotel Intelligence Package formalizes evidence profile design and routing layers", async () => {
