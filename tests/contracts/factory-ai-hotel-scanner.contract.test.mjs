@@ -74,11 +74,12 @@ test("Factory Hotel Scanner keeps multi-wave crawl and triple-pass AI latency bo
   assertContains(normalizer, "page.text.slice(0, 3_000)");
   assertContains(richFacts, 'timeout: 30_000');
   assertContains(richFacts, 'type FactExtractionMode = "comprehensive" | "critical" | "hub"');
-  assertContains(richFacts, "max_output_tokens: critical ? 4_200 : hub ? 9_000 : 8_200");
+  assertContains(richFacts, "max_output_tokens: critical ? 4_200 : hub ? 12_000 : 8_200");
   assertContains(richFacts, 'runFactExtraction(evidence, outputLanguage, "comprehensive")');
   assertContains(richFacts, 'runFactExtraction(evidence, outputLanguage, "critical")');
   assertContains(richFacts, 'runFactExtraction(evidence, outputLanguage, "hub")');
   assertContains(richFacts, "selectHotelScannerHubPages(evidence.pages)");
+  assertContains(richFacts, "hub ? 20_000 : 6_000");
 });
 
 test("Factory Hotel Scanner fails soft when core AI enrichment is slow", async () => {
@@ -107,7 +108,8 @@ test("Factory Hotel Scanner keeps core profile separate from comprehensive, crit
   assertContains(richFacts, "Aim for 55-80 DISTINCT facts when evidence is rich");
   assertContains(richFacts, "Perform a CRITICAL VERIFICATION PASS over every supplied page");
   assertContains(richFacts, "CONTENT INVENTORY for a future mobile hotel Hub and Design Studio");
-  assertContains(richFacts, "const maxItems = critical ? 40 : hub ? 96 : 80");
+  assertContains(richFacts, "FIRST enumerate every named guest-facing item visible in each supplied inventory page");
+  assertContains(richFacts, "const maxItems = critical ? 40 : hub ? 140 : 80");
 });
 
 test("Factory Hotel Scanner extracts CSS brand colors and fonts deterministically", async () => {
@@ -139,7 +141,7 @@ test("Factory Hotel Scanner restores comprehensive evidence and adds bounded Hub
   assertContains(route, "richFactCount");
   assertContains(route, "refineHotelScanBrandEvidence");
   assertContains(richFacts, "Aim for 55-80 DISTINCT facts when evidence is rich");
-  assertContains(richFacts, "const maxItems = critical ? 40 : hub ? 96 : 80");
+  assertContains(richFacts, "const maxItems = critical ? 40 : hub ? 140 : 80");
   assertContains(richFacts, "extractHotelScannerCriticalClaims");
   assertContains(richFacts, "return mergeExtractions(deterministic, hub, critical, comprehensive)");
 });
