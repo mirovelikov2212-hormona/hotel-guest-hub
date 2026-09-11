@@ -14,7 +14,6 @@ test("protected email placeholders are retained only as diagnostics, never as vi
       { category: "contact", label: "Email", value: "reservations@grandresort.example.bg", confidence: 0.98, sourceUrls: ["https://hotel.test/contact"] },
     ],
   });
-
   assert.deepEqual(result.profile.contacts.emails, ["reservations@grandresort.example.bg"]);
   assert.equal(result.profile.facts.length, 1);
   assert.equal(result.profile.facts[0].value, "reservations@grandresort.example.bg");
@@ -29,7 +28,6 @@ test("semantic review reconciliation merges equivalent contact facts with differ
       { category: "contact", label: "Електронна поща", value: "reservations@hotel.test", confidence: 0.95, sourceUrls: ["https://hotel.test/footer"] },
     ],
   });
-
   assert.equal(result.profile.facts.length, 1);
   assert.deepEqual(result.profile.facts[0].sourceUrls.sort(), ["https://hotel.test/contact", "https://hotel.test/footer"].sort());
   assert.equal(result.reconciliation.semanticDuplicatesRemoved.length, 1);
@@ -52,7 +50,6 @@ test("brand typography filters icon, emoji and technical monospace fallback fami
 test("crawler preserves rich embedded evidence and discovers beyond navigation menus", async () => {
   const crawler = await readProjectFile("lib/server/factory-hotel-scanner.ts");
   const planner = await readProjectFile("lib/server/hotel-scanner-crawl-plan.mjs");
-
   assert.match(crawler, /extractEmbeddedPublicHints/);
   assert.match(crawler, /application\\\/ld\\\+json/);
   assert.match(crawler, /mailto:/);
@@ -69,6 +66,23 @@ test("crawler preserves rich embedded evidence and discovers beyond navigation m
   assert.match(planner, /candidates\.length >= 500/);
   assert.match(planner, /targetDepth/);
   assert.match(planner, /corroboratedDomains/);
+  assert.match(planner, /PERSONAL_OR_PRIVATE_PATH/);
+  assert.match(planner, /SENSITIVE_QUERY_KEYS/);
+  assert.match(planner, /isPublicBusinessCrawlUrl/);
+});
+
+test("rich extraction has a dedicated critical verification pass and privacy-minimal contact policy", async () => {
+  const extractor = await readProjectFile("lib/ai/hotel-scanner-rich-facts.ts");
+  assert.match(extractor, /FactExtractionMode = "comprehensive" \| "critical"/);
+  assert.match(extractor, /CRITICAL VERIFICATION PASS/);
+  assert.match(extractor, /pet_policy/);
+  assert.match(extractor, /quiet_hours/);
+  assert.match(extractor, /external_access/);
+  assert.match(extractor, /dress_code/);
+  assert.match(extractor, /session_duration/);
+  assert.match(extractor, /recommended_stay/);
+  assert.match(extractor, /Never extract guest names, staff names, personal biographies/);
+  assert.match(extractor, /isPrivacyMinimalBusinessEmail/);
 });
 
 test("scanner API verifies evidence before package handoff to downstream tools", async () => {
