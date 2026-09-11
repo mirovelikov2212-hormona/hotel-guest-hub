@@ -152,7 +152,7 @@ function mergeFacts(primary: HotelScanFact[], fallback: HotelScanFact[]) {
     if (seen.has(key)) continue;
     seen.add(key);
     result.push(fact);
-    if (result.length >= 80) break;
+    if (result.length >= 220) break;
   }
   return result;
 }
