@@ -8,6 +8,7 @@ import {
 } from "@/lib/ai/hotel-scanner";
 import { buildHotelScanCoverage } from "@/lib/ai/hotel-scanner-coverage.mjs";
 import { attachHotelScanConflictReview } from "@/lib/ai/hotel-scanner-conflicts.mjs";
+import { applyPrivacyMinimalHotelProjection } from "@/lib/ai/hotel-scanner-privacy.mjs";
 import { projectVerifiedHotelScanFacts } from "@/lib/ai/hotel-scanner-profile-projector.mjs";
 import { extractRichHotelScanFactsWithOpenAi } from "@/lib/ai/hotel-scanner-rich-facts";
 import { reconcileHotelScanProfileWithFacts } from "@/lib/ai/hotel-scanner-reconciliation.mjs";
@@ -24,6 +25,7 @@ import {
 } from "@/lib/server/factory-hotel-scanner";
 import { canMutateControlPlane } from "@/lib/server/control-plane-auth";
 import { refineHotelScanBrandEvidence } from "@/lib/server/hotel-scanner-brand-refiner";
+import { isPublicBusinessCrawlUrl } from "@/lib/server/hotel-scanner-crawl-plan.mjs";
 import {
   createHotelScanRun,
   hotelScanRunPersistenceEnabled,
@@ -75,6 +77,15 @@ function titleCandidate(value: string) {
   if (!title) return "";
   const parts = title.split(/\s+[|–—-]\s+/).map((part) => part.trim()).filter(Boolean);
   return parts[0] || title;
+}
+
+function isAllowedPublicBusinessInput(rawUrl: string) {
+  try {
+    const parsed = new URL(/^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`);
+    return isPublicBusinessCrawlUrl(parsed.toString(), parsed.origin);
+  } catch {
+    return false;
+  }
 }
 
 function buildDeterministicFallbackProfile(
@@ -182,6 +193,9 @@ export async function POST(request: NextRequest) {
   const url = String(body?.url || "").trim();
   const outputLanguage: HotelScannerOutputLanguage = body?.lang === "en" ? "en" : "bg";
   if (!url) return json({ ok: false, error: "missing_url" }, 400);
+  if (!isAllowedPublicBusinessInput(url)) {
+    return json({ ok: false, error: "scanner_url_not_public_business_surface", stage: "crawl" }, 400);
+  }
 
   const startedAt = Date.now();
   let stage: "crawl" | "ai" | "persistence" = "crawl";
@@ -249,7 +263,8 @@ export async function POST(request: NextRequest) {
     };
 
     const { profile: reconciledProfile, reconciliation } = reconcileHotelScanProfileWithFacts(unreconciledProfile);
-    const { profile: sanitizedProfile, invalidValues } = sanitizeHotelScanProfileValues(reconciledProfile);
+    const privacyProjection = applyPrivacyMinimalHotelProjection(reconciledProfile);
+    const { profile: sanitizedProfile, invalidValues } = sanitizeHotelScanProfileValues(privacyProjection.profile);
     const verification = verifyHotelScanFacts(sanitizedProfile.facts);
     const projectedProfile = projectVerifiedHotelScanFacts({ ...sanitizedProfile, facts: verification.facts });
     const conflicts = verification.conflicts;
@@ -276,6 +291,7 @@ export async function POST(request: NextRequest) {
       singleSourceFactCount: verification.summary.singleSourceFactCount,
       conflictFactCount: verification.summary.conflictFactCount,
       conflictGroupCount: verification.summary.conflictGroupCount,
+      privacyFilteredCount: privacyProjection.filtered.length,
       detectedSocialLinkCount: detectedSocialLinks.length,
       reconciliationAppliedCount: reconciliation.applied.length,
       reconciliationIssueCount: reconciliation.issues.length,
@@ -314,7 +330,7 @@ export async function POST(request: NextRequest) {
       },
       refinedDesignSignals: profile.brand,
       assetPolicy,
-      scannerVersion: "hotel-scanner-v2-verification",
+      scannerVersion: "hotel-scanner-v3-critical-verification",
       model: coreState.normalized.diagnostics.model,
       coreMode: coreState.coreMode,
       outputLanguage,
@@ -347,6 +363,8 @@ export async function POST(request: NextRequest) {
       coverage,
       technologyDiscovery,
       reviewSemantics,
+      privacy: privacyProjection.policy,
+      privacyFiltered: privacyProjection.filtered,
       scanRun,
       intelligencePackage,
       assetPolicy,
