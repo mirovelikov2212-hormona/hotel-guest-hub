@@ -56,41 +56,24 @@
   color: #0D1B2A !important;
 }
 
-/* These five cards are intentionally explicit: their previous opacity utilities
-   made the labels nearly invisible in light mode. */
-.hotel-scanner-workspace .scanner-layer-metric {
+/* The five Intelligence summary cards use explicit light-mode contrast. Dark mode
+   inherits the shared StayHub tool theme instead of duplicating a route-local theme. */
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace .scanner-layer-metric {
   background: #FFFFFF;
   border-color: #DCD4E8;
   box-shadow: 0 8px 22px rgba(13, 27, 42, 0.05);
 }
 
-.hotel-scanner-workspace .scanner-layer-metric-label {
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace .scanner-layer-metric-label {
   color: #6F5A91;
 }
 
-.hotel-scanner-workspace .scanner-layer-metric-value {
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace .scanner-layer-metric-value {
   color: #0D1B2A;
 }
 
-.hotel-scanner-workspace .scanner-layer-metric-help {
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace .scanner-layer-metric-help {
   color: #667085;
-}
-
-.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .hotel-scanner-workspace .scanner-layer-metric {
-  background: #14273A;
-  border-color: #42516A;
-}
-
-.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .hotel-scanner-workspace .scanner-layer-metric-label {
-  color: #C8B9DF;
-}
-
-.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .hotel-scanner-workspace .scanner-layer-metric-value {
-  color: #FFFFFF;
-}
-
-.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .hotel-scanner-workspace .scanner-layer-metric-help {
-  color: #BEC5CF;
 }
 
 .stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace .bg-violet-300\/\[0\.04\],
