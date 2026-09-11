@@ -36,8 +36,8 @@ function baseProfile() {
   };
 }
 
-function fact(category, label, value, sourceUrl = "https://hotel.test/facts", confidence = 0.98) {
-  return { category, label, value, confidence, sourceUrls: [sourceUrl] };
+function fact(category, label, value, sourceUrl = "https://hotel.test/facts", confidence = 0.98, extra = {}) {
+  return { category, label, value, confidence, sourceUrls: [sourceUrl], ...extra };
 }
 
 test("reconciliation fills evidence-backed address and expands richer room-type evidence", () => {
@@ -56,14 +56,7 @@ test("reconciliation fills evidence-backed address and expands richer room-type 
   const result = reconcileHotelScanProfileWithFacts(profile);
 
   assert.equal(result.profile.identity.address, "ул. Пример 1, Павел баня, България");
-  assert.deepEqual(result.profile.hospitality.roomTypes, [
-    "Double",
-    "Apartment",
-    "Studio",
-    "Family",
-    "Deluxe",
-    "Maisonette",
-  ]);
+  assert.deepEqual(result.profile.hospitality.roomTypes, ["Double", "Apartment", "Studio", "Family", "Deluxe", "Maisonette"]);
   assert.equal(result.profile.uncertainties.some((item) => /адрес/iu.test(item)), false);
   assert.equal(result.profile.uncertainties.some((item) => /типовете стаи/iu.test(item)), false);
   assert.equal(result.reconciliation.semanticDuplicatesRemoved.length, 1);
@@ -82,13 +75,37 @@ test("reconciliation corrects a single explicit scalar mismatch from supported e
   const profile = baseProfile();
   profile.operations.checkIn = "14:00";
   profile.facts = [fact("operations", "Check-in", "15:00")];
-
   const result = reconcileHotelScanProfileWithFacts(profile);
-
   assert.equal(result.profile.operations.checkIn, "15:00");
   const change = result.reconciliation.applied.find((item) => item.field === "operations.checkIn");
   assert.equal(change?.action, "replaced_profile_value");
   assert.equal(change?.previousValue, "14:00");
+});
+
+test("explicit check-in and check-out attributes resolve false missing-time review notes even when category labels vary", () => {
+  const profile = baseProfile();
+  profile.uncertainties = ["Часовете за настаняване и напускане не са посочени."];
+  profile.facts = [
+    fact("policy", "Arrival", "След 15:00 часа.", "https://hotel.test/hotel-policy", 1, { attribute: "check_in" }),
+    fact("policy", "Departure", "До 12:00 часа.", "https://hotel.test/hotel-policy", 1, { attribute: "check_out" }),
+  ];
+
+  const result = reconcileHotelScanProfileWithFacts(profile);
+  assert.equal(result.profile.operations.checkIn, "След 15:00 часа.");
+  assert.equal(result.profile.operations.checkOut, "До 12:00 часа.");
+  assert.deepEqual(result.profile.uncertainties, []);
+  assert.equal(result.reconciliation.resolvedUncertainties.some((item) => item.field === "checkIn" || item.field === "checkOut"), true);
+});
+
+test("generic missing policy completeness notes do not enter Human Review", () => {
+  const profile = baseProfile();
+  profile.uncertainties = [
+    "Политиките за анулации, домашни любимци, деца и плащане не са посочени.",
+    "Работното време на SPA зоната не е ясно посочено.",
+  ];
+  const result = reconcileHotelScanProfileWithFacts(profile);
+  assert.deepEqual(result.profile.uncertainties, ["Работното време на SPA зоната не е ясно посочено."]);
+  assert.equal(result.reconciliation.resolvedUncertainties.some((item) => item.field === "policy_inventory"), true);
 });
 
 test("reconciliation never chooses between conflicting supported evidence values", () => {
@@ -97,16 +114,11 @@ test("reconciliation never chooses between conflicting supported evidence values
     fact("operations", "Check-in", "15:00", "https://hotel.test/info"),
     fact("operations", "Check-in", "16:00", "https://hotel.test/terms"),
   ];
-
   const result = reconcileHotelScanProfileWithFacts(profile);
-
   assert.equal(result.profile.operations.checkIn, "");
   assert.equal(result.reconciliation.issues.length, 1);
   assert.equal(result.reconciliation.issues[0].kind, "evidence_conflict");
-  assert.deepEqual(
-    result.reconciliation.issues[0].evidenceValues.map((item) => item.value),
-    ["15:00", "16:00"],
-  );
+  assert.deepEqual(result.reconciliation.issues[0].evidenceValues.map((item) => item.value), ["15:00", "16:00"]);
 });
 
 test("low-confidence or source-less facts cannot mutate the core profile", () => {
@@ -115,9 +127,7 @@ test("low-confidence or source-less facts cannot mutate the core profile", () =>
     fact("location", "Address", "Weak address", "https://hotel.test/contact", 0.4),
     { category: "operations", label: "Check-out", value: "12:00", confidence: 1, sourceUrls: [] },
   ];
-
   const result = reconcileHotelScanProfileWithFacts(profile);
-
   assert.equal(result.profile.identity.address, "");
   assert.equal(result.profile.operations.checkOut, "");
   assert.equal(result.reconciliation.applied.length, 0);
