@@ -31,6 +31,46 @@ test("contradictory official pet policies fail closed as one conflict group", ()
   assert.ok(result.facts.every((item) => item.verification.status === "CONFLICT"));
 });
 
+test("semantic wording variants of the same check-in time corroborate instead of becoming a fake conflict", () => {
+  const result = verifyHotelScanFacts([
+    fact({ category: "operations", attribute: "check_in", label: "Check-in", value: "Check-in след 15:00 часа", sourceUrls: ["https://hotel.test/en/faq"] }),
+    fact({ category: "operations", attribute: "check_in", label: "Настаняване", value: "Настаняване от 15:00", sourceUrls: ["https://hotel.test/en/terms"] }),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  assert.ok(result.facts.every((item) => item.verification.status === "VERIFIED"));
+  assert.equal(result.facts[0].verification.independentSourceCount, 2);
+});
+
+test("same pet-policy polarity in different wording corroborates, opposite polarity conflicts", () => {
+  const same = verifyHotelScanFacts([
+    fact({ value: "Малки домашни любимци са разрешени", sourceUrls: ["https://hotel.test/policy"] }),
+    fact({ value: "Хотелът приема малки домашни любимци", sourceUrls: ["https://hotel.test/terms"] }),
+  ]);
+  assert.equal(same.conflicts.length, 0);
+  assert.ok(same.facts.every((item) => item.verification.status === "VERIFIED"));
+
+  const opposite = verifyHotelScanFacts([
+    fact({ value: "Малки домашни любимци са разрешени", sourceUrls: ["https://hotel.test/policy"] }),
+    fact({ value: "Домашни любимци не се допускат", sourceUrls: ["https://hotel.test/faq"] }),
+  ]);
+  assert.equal(opposite.conflicts.length, 1);
+});
+
+test("quiet-hour time ranges compare by canonical clock sequence", () => {
+  const same = verifyHotelScanFacts([
+    fact({ category: "policy", attribute: "quiet_hours", label: "Часове за тишина", value: "15:00–16:00 и 22:00–08:00", sourceUrls: ["https://hotel.test/en/policy"] }),
+    fact({ category: "policy", attribute: "quiet_hours", label: "Тишина", value: "Тихи часове: 15.00 - 16.00; 22.00 - 08.00", sourceUrls: ["https://hotel.test/faq"] }),
+  ]);
+  assert.equal(same.conflicts.length, 0);
+  assert.ok(same.facts.every((item) => item.verification.status === "VERIFIED"));
+
+  const different = verifyHotelScanFacts([
+    fact({ category: "policy", attribute: "quiet_hours", label: "Часове за тишина", value: "15:00–16:00 и 22:00–08:00", sourceUrls: ["https://hotel.test/en/policy"] }),
+    fact({ category: "policy", attribute: "quiet_hours", label: "Часове за тишина", value: "14:00–16:00 и 22:00–08:00", sourceUrls: ["https://hotel.test/bg/policy-other"] }),
+  ]);
+  assert.equal(different.conflicts.length, 1);
+});
+
 test("same claim on two independent official documents becomes VERIFIED", () => {
   const result = verifyHotelScanFacts([
     fact({ category: "operations", attribute: "check_in", label: "Check-in", value: "След 15:00", sourceUrls: ["https://hotel.test/en/faq"] }),
