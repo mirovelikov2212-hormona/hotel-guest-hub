@@ -6,6 +6,8 @@ on:
       - "lib/server/factory-hotel-scanner.ts"
       - "lib/server/hotel-scanner-crawl-plan.mjs"
       - "lib/server/hotel-scanner-crawl-plan.d.mts"
+      - "lib/server/hotel-scanner-robots.mjs"
+      - "lib/server/hotel-scanner-robots.d.mts"
       - "lib/server/hotel-scanner-brand-refiner.ts"
       - "lib/server/hotel-scanner-public-technology.mjs"
       - "lib/server/hub-design-draft-revisions.ts"
@@ -36,6 +38,7 @@ on:
       - "app/design-studio/DesignStudioClient.tsx"
       - "app/globals.css"
       - "tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs"
+      - "tests/contracts/hotel-scanner-robots-v1.contract.test.mjs"
       - "tests/contracts/hotel-intelligence-value-quality-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-privacy-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-reconciliation-v1.contract.test.mjs"
@@ -52,6 +55,8 @@ on:
       - "lib/server/factory-hotel-scanner.ts"
       - "lib/server/hotel-scanner-crawl-plan.mjs"
       - "lib/server/hotel-scanner-crawl-plan.d.mts"
+      - "lib/server/hotel-scanner-robots.mjs"
+      - "lib/server/hotel-scanner-robots.d.mts"
       - "lib/server/hotel-scanner-brand-refiner.ts"
       - "lib/server/hotel-scanner-public-technology.mjs"
       - "lib/server/hub-design-draft-revisions.ts"
@@ -82,6 +87,7 @@ on:
       - "app/design-studio/DesignStudioClient.tsx"
       - "app/globals.css"
       - "tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs"
+      - "tests/contracts/hotel-scanner-robots-v1.contract.test.mjs"
       - "tests/contracts/hotel-intelligence-value-quality-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-privacy-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-reconciliation-v1.contract.test.mjs"
@@ -116,6 +122,7 @@ jobs:
         run: >-
           node --test
           tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs
+          tests/contracts/hotel-scanner-robots-v1.contract.test.mjs
           tests/contracts/hotel-intelligence-value-quality-v1.contract.test.mjs
           tests/contracts/hotel-scanner-privacy-v1.contract.test.mjs
           tests/contracts/hotel-scanner-reconciliation-v1.contract.test.mjs
