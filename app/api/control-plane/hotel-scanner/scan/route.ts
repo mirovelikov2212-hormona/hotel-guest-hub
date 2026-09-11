@@ -7,12 +7,11 @@ import {
   type HotelScannerOutputLanguage,
 } from "@/lib/ai/hotel-scanner";
 import { buildHotelScanCoverage } from "@/lib/ai/hotel-scanner-coverage.mjs";
-import {
-  attachHotelScanConflictReview,
-  detectHotelScanConflicts,
-} from "@/lib/ai/hotel-scanner-conflicts.mjs";
+import { attachHotelScanConflictReview } from "@/lib/ai/hotel-scanner-conflicts.mjs";
+import { projectVerifiedHotelScanFacts } from "@/lib/ai/hotel-scanner-profile-projector.mjs";
 import { extractRichHotelScanFactsWithOpenAi } from "@/lib/ai/hotel-scanner-rich-facts";
 import { reconcileHotelScanProfileWithFacts } from "@/lib/ai/hotel-scanner-reconciliation.mjs";
+import { verifyHotelScanFacts } from "@/lib/ai/hotel-scanner-verification.mjs";
 import { sanitizeHotelScanProfileValues } from "@/lib/ai/hotel-intelligence-value-quality.mjs";
 import { buildHotelReviewSemanticsV2 } from "@/lib/ai/hotel-review-semantics-v2.mjs";
 import { buildHotelTechnologyDiscovery } from "@/lib/ai/hotel-technology-discovery.mjs";
@@ -37,7 +36,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const AI_DEADLINE_MS = 32_000;
+const AI_DEADLINE_MS = 38_000;
 const SDK_TIMEOUT_MESSAGE = "Request timed out.";
 const LOGO_ASSET_POLICY = "hotel_authorization_required";
 const SOCIAL_UNCERTAINTY_PATTERN = /(social|facebook|instagram|linkedin|youtube|tiktok|twitter|социал|фейсбук|инстаграм|линкедин|ютуб|тикток)/i;
@@ -84,10 +83,10 @@ function buildDeterministicFallbackProfile(
 ): HotelScanProfile {
   const main = evidence.pages[0];
   const allText = evidence.pages.map((page) => page.text).join("\n");
-  const allLinks = unique(evidence.pages.flatMap((page) => page.links), 120, 2_048);
-  const allImages = unique(evidence.pages.flatMap((page) => page.imageUrls), 50, 2_048);
-  const emails = unique(allText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [], 10, 200);
-  const phones = unique(allText.match(/\+\d[\d\s().-]{7,}\d/g) || [], 10, 80);
+  const allLinks = unique(evidence.pages.flatMap((page) => page.links), 180, 2_048);
+  const allImages = unique(evidence.pages.flatMap((page) => page.imageUrls), 80, 2_048);
+  const emails = unique(allText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [], 12, 200);
+  const phones = unique(allText.match(/(?:\+|00)?\d[\d\s().-]{7,}\d/g) || [], 12, 80);
   const bookingUrl = allLinks.find((link) => /book|booking|reserv|резерв/i.test(link)) || "";
   const contactUrl = allLinks.find((link) => /contact|contacts|контакт/i.test(link)) || "";
   const fallbackNotice = outputLanguage === "bg"
@@ -111,26 +110,12 @@ function buildDeterministicFallbackProfile(
       bookingUrl,
       contactUrl,
     },
-    contacts: {
-      phones,
-      emails,
-      socialLinks: [],
-    },
-    operations: {
-      checkIn: "",
-      checkOut: "",
-      languages: [],
-    },
-    hospitality: {
-      roomTypes: [],
-      amenities: [],
-      venues: [],
-      spaServices: [],
-      policies: [],
-    },
+    contacts: { phones, emails, socialLinks: [] },
+    operations: { checkIn: "", checkOut: "", languages: [] },
+    hospitality: { roomTypes: [], amenities: [], venues: [], spaServices: [], policies: [] },
     brand: {
-      logoUrls: allImages.filter((url) => /logo/i.test(url)).slice(0, 6),
-      imageUrls: allImages.slice(0, 16),
+      logoUrls: allImages.filter((url) => /logo/i.test(url)).slice(0, 8),
+      imageUrls: allImages.slice(0, 24),
       colors: unique(evidence.brand.colors, 12, 16),
       fonts: unique(evidence.brand.fonts, 8, 100),
       styleKeywords: [],
@@ -144,11 +129,12 @@ function mergeFacts(primary: HotelScanFact[], fallback: HotelScanFact[]) {
   const seen = new Set<string>();
   const result: HotelScanFact[] = [];
   for (const fact of [...primary, ...fallback]) {
-    const key = `${fact.category}|${fact.label}|${fact.value}`.toLowerCase();
+    const enriched = fact as HotelScanFact & { subject?: string; attribute?: string };
+    const key = `${fact.category}|${enriched.subject || ""}|${enriched.attribute || ""}|${fact.label}|${fact.value}`.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     result.push(fact);
-    if (result.length >= 32) break;
+    if (result.length >= 80) break;
   }
   return result;
 }
@@ -172,11 +158,13 @@ function socialNetworkLabel(rawUrl: string) {
 function buildSocialFacts(socialLinks: string[], sourceUrl: string): HotelScanFact[] {
   return socialLinks.slice(0, 12).map((link) => ({
     category: "contact",
+    subject: "hotel",
+    attribute: "social_profile",
     label: socialNetworkLabel(link),
     value: link,
     confidence: 1,
     sourceUrls: [sourceUrl],
-  }));
+  } as HotelScanFact));
 }
 
 function errorMessage(error: unknown) {
@@ -202,15 +190,11 @@ export async function POST(request: NextRequest) {
     const crawledEvidence = await crawlPublicHotelWebsite(url);
     const [evidence, detectedSocialLinks] = await Promise.all([
       refineHotelScanBrandEvidence(crawledEvidence).catch((error) => {
-        console.warn("Factory Hotel Scanner brand refinement skipped", {
-          error: errorMessage(error),
-        });
+        console.warn("Factory Hotel Scanner brand refinement skipped", { error: errorMessage(error) });
         return crawledEvidence;
       }),
       collectHotelSocialLinkEvidence(crawledEvidence.canonicalUrl).catch((error) => {
-        console.warn("Factory Hotel Scanner social evidence skipped", {
-          error: errorMessage(error),
-        });
+        console.warn("Factory Hotel Scanner social evidence skipped", { error: errorMessage(error) });
         return [] as string[];
       }),
     ]);
@@ -218,16 +202,10 @@ export async function POST(request: NextRequest) {
 
     stage = "ai";
     const corePromise = normalizeHotelScanWithOpenAi(evidence, outputLanguage)
-      .then((normalized) => ({
-        normalized,
-        coreMode: "ai" as const,
-        coreError: "",
-      }))
+      .then((normalized) => ({ normalized, coreMode: "ai" as const, coreError: "" }))
       .catch((error) => {
         const coreError = errorMessage(error);
-        console.warn("Factory Hotel Scanner core profile fallback", {
-          error: coreError,
-        });
+        console.warn("Factory Hotel Scanner core profile fallback", { error: coreError });
         return {
           normalized: {
             profile: buildDeterministicFallbackProfile(evidence, outputLanguage),
@@ -246,9 +224,7 @@ export async function POST(request: NextRequest) {
       });
 
     const richFactsPromise = extractRichHotelScanFactsWithOpenAi(evidence, outputLanguage).catch((error) => {
-      console.warn("Factory Hotel Scanner rich facts fallback", {
-        error: errorMessage(error),
-      });
+      console.warn("Factory Hotel Scanner rich facts fallback", { error: errorMessage(error) });
       return [] as HotelScanFact[];
     });
 
@@ -265,19 +241,19 @@ export async function POST(request: NextRequest) {
     const socialFacts = buildSocialFacts(detectedSocialLinks, evidence.canonicalUrl);
     const unreconciledProfile = {
       ...profileWithRichFacts,
-      contacts: {
-        ...profileWithRichFacts.contacts,
-        socialLinks: detectedSocialLinks,
-      },
+      contacts: { ...profileWithRichFacts.contacts, socialLinks: detectedSocialLinks },
       facts: mergeFacts(socialFacts, profileWithRichFacts.facts),
       uncertainties: detectedSocialLinks.length
         ? profileWithRichFacts.uncertainties.filter((item) => !SOCIAL_UNCERTAINTY_PATTERN.test(item))
         : profileWithRichFacts.uncertainties,
     };
+
     const { profile: reconciledProfile, reconciliation } = reconcileHotelScanProfileWithFacts(unreconciledProfile);
     const { profile: sanitizedProfile, invalidValues } = sanitizeHotelScanProfileValues(reconciledProfile);
-    const conflicts = detectHotelScanConflicts(sanitizedProfile);
-    const { profile, conflictNotes } = attachHotelScanConflictReview(sanitizedProfile, conflicts, outputLanguage);
+    const verification = verifyHotelScanFacts(sanitizedProfile.facts);
+    const projectedProfile = projectVerifiedHotelScanFacts({ ...sanitizedProfile, facts: verification.facts });
+    const conflicts = verification.conflicts;
+    const { profile, conflictNotes } = attachHotelScanConflictReview(projectedProfile, conflicts, outputLanguage);
     const coverage = buildHotelScanCoverage({ profile, evidence, invalidValues, conflicts, reconciliation });
     const technologyDiscovery = buildHotelTechnologyDiscovery(evidence);
     const reviewSemantics = buildHotelReviewSemanticsV2({
@@ -290,15 +266,16 @@ export async function POST(request: NextRequest) {
       technologyDiscovery,
     });
     const intelligencePackage = buildHotelIntelligencePackage(profile);
-    const assetPolicy = {
-      logo: LOGO_ASSET_POLICY,
-      scannedLogoUrls: "reference_only",
-    };
+    const assetPolicy = { logo: LOGO_ASSET_POLICY, scannedLogoUrls: "reference_only" };
     const diagnostics = {
       ...coreState.normalized.diagnostics,
       coreMode: coreState.coreMode,
       coreError: coreState.coreError || undefined,
       richFactCount: richFacts.length,
+      verifiedFactCount: verification.summary.verifiedFactCount,
+      singleSourceFactCount: verification.summary.singleSourceFactCount,
+      conflictFactCount: verification.summary.conflictFactCount,
+      conflictGroupCount: verification.summary.conflictGroupCount,
       detectedSocialLinkCount: detectedSocialLinks.length,
       reconciliationAppliedCount: reconciliation.applied.length,
       reconciliationIssueCount: reconciliation.issues.length,
@@ -333,11 +310,11 @@ export async function POST(request: NextRequest) {
         colors: evidence.brand.colors,
         fonts: evidence.brand.fonts,
         pageColors: evidence.pages.map((page) => ({ url: page.url, colors: page.colors })),
-        imageReferences: unique(evidence.pages.flatMap((page) => page.imageUrls), 50, 2_048),
+        imageReferences: unique(evidence.pages.flatMap((page) => page.imageUrls), 80, 2_048),
       },
       refinedDesignSignals: profile.brand,
       assetPolicy,
-      scannerVersion: "hotel-scanner-v1",
+      scannerVersion: "hotel-scanner-v2-verification",
       model: coreState.normalized.diagnostics.model,
       coreMode: coreState.coreMode,
       outputLanguage,
@@ -353,16 +330,8 @@ export async function POST(request: NextRequest) {
     };
     if (hotelScanRunPersistenceEnabled() && canMutateControlPlane(authority.role)) {
       stage = "persistence";
-      const persisted = await createHotelScanRun({
-        ...persistableScanRun,
-        actorAdminId: authority.adminId,
-      });
-      scanRun = {
-        persisted: true,
-        persistence: "persisted",
-        ...persisted,
-        schemaVersion: persistableScanRun.schemaVersion,
-      };
+      const persisted = await createHotelScanRun({ ...persistableScanRun, actorAdminId: authority.adminId });
+      scanRun = { persisted: true, persistence: "persisted", ...persisted, schemaVersion: persistableScanRun.schemaVersion };
     }
 
     return json({
@@ -370,6 +339,7 @@ export async function POST(request: NextRequest) {
       draft: true,
       lang: outputLanguage,
       profile,
+      verification: verification.summary,
       reconciliation,
       invalidValues,
       conflicts,
@@ -380,11 +350,7 @@ export async function POST(request: NextRequest) {
       scanRun,
       intelligencePackage,
       assetPolicy,
-      diagnostics: {
-        ...diagnostics,
-        scanRunPersistence: scanRun.persistence,
-        totalLatencyMs: Date.now() - startedAt,
-      },
+      diagnostics: { ...diagnostics, scanRunPersistence: scanRun.persistence, totalLatencyMs: Date.now() - startedAt },
     });
   } catch (error) {
     if (error instanceof HotelScannerError) {
@@ -392,31 +358,12 @@ export async function POST(request: NextRequest) {
     }
 
     const message = errorMessage(error);
-    console.error("Factory AI Hotel Scanner failed", {
-      stage,
-      latencyMs: Date.now() - startedAt,
-      error: message,
-    });
+    console.error("Factory AI Hotel Scanner failed", { stage, latencyMs: Date.now() - startedAt, error: message });
 
-    if (message === "openai_api_key_missing") {
-      return json({ ok: false, error: "scanner_ai_not_configured", stage: "ai" }, 503);
-    }
-    if (message === "hotel_scanner_ai_timeout" || message === SDK_TIMEOUT_MESSAGE) {
-      return json({ ok: false, error: "scanner_ai_timeout", stage: "ai" }, 504);
-    }
-    if (message.startsWith("hotel_scanner_ai_incomplete:")) {
-      return json({ ok: false, error: "scanner_ai_incomplete", stage: "ai" }, 502);
-    }
-    if (stage === "persistence") {
-      return json({ ok: false, error: "scanner_persistence_failed", stage }, 502);
-    }
-    return json(
-      {
-        ok: false,
-        error: stage === "crawl" ? "scanner_crawl_failed" : "scanner_ai_failed",
-        stage,
-      },
-      502,
-    );
+    if (message === "openai_api_key_missing") return json({ ok: false, error: "scanner_ai_not_configured", stage: "ai" }, 503);
+    if (message === "hotel_scanner_ai_timeout" || message === SDK_TIMEOUT_MESSAGE) return json({ ok: false, error: "scanner_ai_timeout", stage: "ai" }, 504);
+    if (message.startsWith("hotel_scanner_ai_incomplete:")) return json({ ok: false, error: "scanner_ai_incomplete", stage: "ai" }, 502);
+    if (stage === "persistence") return json({ ok: false, error: "scanner_persistence_failed", stage }, 502);
+    return json({ ok: false, error: stage === "crawl" ? "scanner_crawl_failed" : "scanner_ai_failed", stage }, 502);
   }
 }
