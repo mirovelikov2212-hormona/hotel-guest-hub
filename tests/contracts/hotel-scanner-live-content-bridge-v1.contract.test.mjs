@@ -57,7 +57,7 @@ test("daily bridge diff adds new content, expires dated content and removes abse
   ], "2026-09-10T08:00:00.000Z");
   const current = buildHotelScannerBridgeSnapshot([
     fact("events", "New Wine Evening", "25.09.2026"),
-  ], "2026-10-21T08:00:00.000Z");
+  ], "2026-09-21T08:00:00.000Z");
 
   const full = diffHotelScannerBridgeSnapshots(previous, current, { successfulKinds: ["events", "offers"] });
   assert.deepEqual(full.added.map((item) => item.title), ["New Wine Evening"]);
