@@ -2,6 +2,7 @@ import OpenAI from "openai";
 
 import type { HotelScanEvidenceBundle } from "@/lib/server/factory-hotel-scanner";
 import type { HotelScanFact } from "@/lib/ai/hotel-scanner";
+import { selectCriticalHotelScannerPages } from "@/lib/ai/hotel-scanner-critical-pages.mjs";
 
 let client: OpenAI | null = null;
 
@@ -172,8 +173,8 @@ function languageInstruction(outputLanguage: HotelScannerOutputLanguage) {
     : "Write every human-readable fact label and value in English. Preserve official hotel/venue/room/service names, brand names, phone numbers, emails, URLs and technical brand tokens exactly.";
 }
 
-function inputPages(evidence: HotelScanEvidenceBundle, maxChars: number) {
-  return evidence.pages.map((page) => ({
+function inputPages(pages: HotelScanEvidenceBundle["pages"], maxChars: number) {
+  return pages.map((page) => ({
     url: page.url,
     title: page.title,
     description: page.description,
@@ -188,9 +189,10 @@ async function runFactExtraction(
 ) {
   const openai = getClient();
   const model = String(process.env.OPENAI_HOTEL_SCANNER_MODEL || "gpt-5.6-luna").trim();
-  const allowedSourceUrls = evidence.pages.map((page) => page.url);
-  const allowed = new Set(allowedSourceUrls);
   const critical = mode === "critical";
+  const extractionPages = critical ? selectCriticalHotelScannerPages(evidence.pages) : evidence.pages;
+  const allowedSourceUrls = extractionPages.map((page) => page.url);
+  const allowed = new Set(allowedSourceUrls);
 
   const commonInstructions = [
     "Use ONLY WEBSITE_EVIDENCE. Never browse, infer from outside knowledge, or guess.",
@@ -245,7 +247,7 @@ async function runFactExtraction(
       MODE: mode,
       OUTPUT_LANGUAGE: outputLanguage,
       ALLOWED_SOURCE_URLS: allowedSourceUrls,
-      WEBSITE_EVIDENCE: inputPages(evidence, critical ? 7_500 : 6_000),
+      WEBSITE_EVIDENCE: inputPages(extractionPages, critical ? 7_500 : 6_000),
     }),
     text: {
       format: {
