@@ -18,10 +18,7 @@ function fact(overrides = {}) {
 }
 
 test("Policy small pets allowed vs FAQ pets prohibited is a real conflict", () => {
-  const result = verifyHotelScanFacts([
-    fact(),
-    fact({ value: "Pets are not allowed", sourceUrls: ["https://hotel.test/en/faq"] }),
-  ]);
+  const result = verifyHotelScanFacts([fact(), fact({ value: "Pets are not allowed", sourceUrls: ["https://hotel.test/en/faq"] })]);
   assert.equal(result.conflicts.length, 1);
   assert.equal(result.conflicts[0].attribute, "pet_policy");
 });
@@ -84,6 +81,23 @@ test("cancellation branches on opposite sides of seven days are not a conflict",
   assert.equal(result.conflicts.length, 0);
 });
 
+test("compatible meal inclusion wording is not a conflict", () => {
+  const result = verifyHotelScanFacts([
+    fact({ category: "accommodation", subject: "Economy room", attribute: "meal_inclusion", label: "Хранене", value: "Закуската и вечерята са включени в цената на нощувката.", sourceUrls: ["https://hotel.test/rooms"] }),
+    fact({ category: "accommodation", subject: "Economy room", attribute: "meal_inclusion", label: "Хранене", value: "Закуска и вечеря на шведска маса са включени в цената на нощувката.", sourceUrls: ["https://hotel.test/en/rooms"] }),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+});
+
+test("compatible age-band descriptions are not a conflict", () => {
+  const result = verifyHotelScanFacts([
+    fact({ category: "policy", subject: "hotel", attribute: "age_policy", label: "Възраст", value: "2–7 години.", sourceUrls: ["https://hotel.test/children"] }),
+    fact({ category: "policy", subject: "hotel", attribute: "age_policy", label: "Възраст", value: "Подходящи за деца на възраст 2–7 години.", sourceUrls: ["https://hotel.test/en/children"] }),
+    fact({ category: "policy", subject: "hotel", attribute: "age_policy", label: "Възраст", value: "За деца над 7 години и възрастни.", sourceUrls: ["https://hotel.test/children"] }),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+});
+
 test("smoking prohibition, penalty and designated outdoor areas are separate concepts", () => {
   const result = verifyHotelScanFacts([
     refineHotelPolicySemantics(fact({ attribute: "smoking_policy", label: "Smoking rule", value: "The hotel building is non-smoking" })),
@@ -94,20 +108,10 @@ test("smoking prohibition, penalty and designated outdoor areas are separate con
 });
 
 test("generic policy price extraction keeps pet fee and smoking cleaning fee separate", () => {
-  const petFee = refineHotelPolicySemantics(fact({
-    attribute: "price",
-    label: "Такса за домашен любимец",
-    value: "75,00 EUR на нощувка за всеки домашен любимец.",
-  }));
-  const smokingPenalty = refineHotelPolicySemantics(fact({
-    attribute: "price",
-    label: "Такса за нарушаване на политиката за пушене",
-    value: "200 EUR такса за почистване при нарушение.",
-  }));
-
+  const petFee = refineHotelPolicySemantics(fact({ attribute: "price", label: "Такса за домашен любимец", value: "75,00 EUR на нощувка за всеки домашен любимец." }));
+  const smokingPenalty = refineHotelPolicySemantics(fact({ attribute: "price", label: "Такса за нарушаване на политиката за пушене", value: "200 EUR такса за почистване при нарушение." }));
   assert.equal(petFee.attribute, "pet_fee");
   assert.equal(smokingPenalty.attribute, "smoking_penalty");
-
   const result = verifyHotelScanFacts([petFee, smokingPenalty]);
   assert.equal(result.conflicts.length, 0);
 });
