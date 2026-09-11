@@ -9,6 +9,8 @@ export type HotelScannerCrawlSelection = {
 
 export type HotelScannerDomainVisitCounts = Record<string, number>;
 
+export function isPublicBusinessCrawlUrl(rawUrl: string, canonicalOrigin?: string): boolean;
+
 export function classifyHotelScannerUrlCoverage(rawUrl: string): string[];
 
 export function classifyHotelScannerPageCoverage(page?: {
