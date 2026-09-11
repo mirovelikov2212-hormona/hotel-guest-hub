@@ -88,6 +88,13 @@ function isAllowedPublicBusinessInput(rawUrl: string) {
   }
 }
 
+function publicDocumentGapNote(count: number, outputLanguage: HotelScannerOutputLanguage) {
+  if (!count) return "";
+  return outputLanguage === "bg"
+    ? `Открити са ${count} публични PDF документа. Те са отчетени като evidence gap и не са използвани за факти, докато не бъдат обработени от отделен безопасен document-ingestion слой.`
+    : `${count} public PDF documents were discovered. They are recorded as an evidence gap and are not used as facts until a separate safe document-ingestion layer processes them.`;
+}
+
 function buildDeterministicFallbackProfile(
   evidence: HotelScanEvidenceBundle,
   outputLanguage: HotelScannerOutputLanguage,
@@ -193,9 +200,7 @@ export async function POST(request: NextRequest) {
   const url = String(body?.url || "").trim();
   const outputLanguage: HotelScannerOutputLanguage = body?.lang === "en" ? "en" : "bg";
   if (!url) return json({ ok: false, error: "missing_url" }, 400);
-  if (!isAllowedPublicBusinessInput(url)) {
-    return json({ ok: false, error: "scanner_url_not_public_business_surface", stage: "crawl" }, 400);
-  }
+  if (!isAllowedPublicBusinessInput(url)) return json({ ok: false, error: "scanner_url_not_public_business_surface", stage: "crawl" }, 400);
 
   const startedAt = Date.now();
   let stage: "crawl" | "ai" | "persistence" = "crawl";
@@ -242,16 +247,8 @@ export async function POST(request: NextRequest) {
       return [] as HotelScanFact[];
     });
 
-    const [coreState, richFacts] = await withDeadline(
-      Promise.all([corePromise, richFactsPromise]),
-      AI_DEADLINE_MS,
-      "hotel_scanner_ai_timeout",
-    );
-
-    const profileWithRichFacts = {
-      ...coreState.normalized.profile,
-      facts: mergeFacts(richFacts, coreState.normalized.profile.facts),
-    };
+    const [coreState, richFacts] = await withDeadline(Promise.all([corePromise, richFactsPromise]), AI_DEADLINE_MS, "hotel_scanner_ai_timeout");
+    const profileWithRichFacts = { ...coreState.normalized.profile, facts: mergeFacts(richFacts, coreState.normalized.profile.facts) };
     const socialFacts = buildSocialFacts(detectedSocialLinks, evidence.canonicalUrl);
     const unreconciledProfile = {
       ...profileWithRichFacts,
@@ -267,19 +264,15 @@ export async function POST(request: NextRequest) {
     const { profile: sanitizedProfile, invalidValues } = sanitizeHotelScanProfileValues(privacyProjection.profile);
     const verification = verifyHotelScanFacts(sanitizedProfile.facts);
     const projectedProfile = projectVerifiedHotelScanFacts({ ...sanitizedProfile, facts: verification.facts });
+    const documentGap = publicDocumentGapNote(evidence.publicDocuments.length, outputLanguage);
+    const projectedWithDocumentGaps = documentGap
+      ? { ...projectedProfile, uncertainties: unique([...(projectedProfile.uncertainties || []), documentGap], 40, 500) }
+      : projectedProfile;
     const conflicts = verification.conflicts;
-    const { profile, conflictNotes } = attachHotelScanConflictReview(projectedProfile, conflicts, outputLanguage);
+    const { profile, conflictNotes } = attachHotelScanConflictReview(projectedWithDocumentGaps, conflicts, outputLanguage);
     const coverage = buildHotelScanCoverage({ profile, evidence, invalidValues, conflicts, reconciliation });
     const technologyDiscovery = buildHotelTechnologyDiscovery(evidence);
-    const reviewSemantics = buildHotelReviewSemanticsV2({
-      profile,
-      conflictNotes,
-      conflicts,
-      coverage,
-      invalidValues,
-      reconciliation,
-      technologyDiscovery,
-    });
+    const reviewSemantics = buildHotelReviewSemanticsV2({ profile, conflictNotes, conflicts, coverage, invalidValues, reconciliation, technologyDiscovery });
     const intelligencePackage = professionalizeHotelIntelligencePackage(buildHotelIntelligencePackage(profile));
     const assetPolicy = { logo: LOGO_ASSET_POLICY, scannedLogoUrls: "reference_only" };
     const diagnostics = {
@@ -292,6 +285,9 @@ export async function POST(request: NextRequest) {
       conflictFactCount: verification.summary.conflictFactCount,
       conflictGroupCount: verification.summary.conflictGroupCount,
       privacyFilteredCount: privacyProjection.filtered.length,
+      publicDocumentGapCount: evidence.publicDocuments.length,
+      robotsApplied: evidence.crawlPolicy.robotsApplied,
+      robotsBlockedUrlCount: evidence.crawlPolicy.robotsBlockedUrlCount,
       detectedSocialLinkCount: detectedSocialLinks.length,
       reconciliationAppliedCount: reconciliation.applied.length,
       reconciliationIssueCount: reconciliation.issues.length,
@@ -365,19 +361,18 @@ export async function POST(request: NextRequest) {
       reviewSemantics,
       privacy: privacyProjection.policy,
       privacyFiltered: privacyProjection.filtered,
+      publicDocuments: evidence.publicDocuments,
+      crawlPolicy: evidence.crawlPolicy,
       scanRun,
       intelligencePackage,
       assetPolicy,
       diagnostics: { ...diagnostics, scanRunPersistence: scanRun.persistence, totalLatencyMs: Date.now() - startedAt },
     });
   } catch (error) {
-    if (error instanceof HotelScannerError) {
-      return json({ ok: false, error: error.code, stage: "crawl" }, error.statusCode);
-    }
+    if (error instanceof HotelScannerError) return json({ ok: false, error: error.code, stage: "crawl" }, error.statusCode);
 
     const message = errorMessage(error);
     console.error("Factory AI Hotel Scanner failed", { stage, latencyMs: Date.now() - startedAt, error: message });
-
     if (message === "openai_api_key_missing") return json({ ok: false, error: "scanner_ai_not_configured", stage: "ai" }, 503);
     if (message === "hotel_scanner_ai_timeout" || message === SDK_TIMEOUT_MESSAGE) return json({ ok: false, error: "scanner_ai_timeout", stage: "ai" }, 504);
     if (message.startsWith("hotel_scanner_ai_incomplete:")) return json({ ok: false, error: "scanner_ai_incomplete", stage: "ai" }, 502);
