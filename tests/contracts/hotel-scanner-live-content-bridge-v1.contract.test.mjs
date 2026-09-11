@@ -7,7 +7,7 @@ import {
   parseHotelLiveContentValidity,
 } from "../../lib/ai/hotel-scanner-live-content.mjs";
 
-function fact(category, subject, value, attribute = category === "offers" ? "offer" : "event_service") {
+function fact(category, subject, value, attribute = category === "offers" ? "offer" : "other") {
   return {
     category,
     subject,
