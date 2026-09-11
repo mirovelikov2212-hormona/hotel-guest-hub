@@ -44,6 +44,16 @@ test("critical selector is bounded and prioritizes policy, FAQ, operational and 
   assert.ok(selected.filter((item) => item.url.includes("/rooms/")).length < 4);
 });
 
+test("structural FAQ page beats incidental FAQ wording on a broader page", () => {
+  const selected = selectCriticalHotelScannerPages([
+    page("/terms", "Terms & Conditions", "Frequently Asked Questions. Hotel Policy. Pets are not allowed. Restaurant and SPA service details."),
+    page("/en/faq", "Frequently Asked Questions", "Pets are not allowed. External visitors may access NERO with reservation."),
+  ], { maxPages: 1 });
+
+  assert.equal(selected.length, 1);
+  assert.equal(selected[0].url, "https://hotel.test/en/faq");
+});
+
 test("critical selector preserves translated policy siblings because translations may genuinely conflict", () => {
   const pages = [
     page("/en/hotel-policy", "Hotel Policy", "Quiet hours 15:00–16:00 and 22:00–08:00."),
