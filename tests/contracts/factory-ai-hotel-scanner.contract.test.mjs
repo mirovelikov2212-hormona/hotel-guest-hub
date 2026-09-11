@@ -37,25 +37,27 @@ test("Factory Hotel Scanner blocks private-network and unsafe URL targets", asyn
   assertContains(crawler, "isPrivateIp");
   assertContains(crawler, 'redirect: "manual"');
   assertContains(crawler, "MAX_REDIRECTS = 5");
-  assertContains(crawler, "MAX_PAGE_BYTES = 1_000_000");
-  assertContains(crawler, "MAX_PAGES = 6");
+  assertContains(crawler, "MAX_PAGE_BYTES = 1_250_000");
+  assertContains(crawler, "MAX_PAGES = 28");
   assertContains(crawler, "assertPublicHostname(current)");
 });
 
-test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
+test("Factory Hotel Scanner keeps multi-wave crawl and AI latency bounded", async () => {
   const crawler = await readProjectFile(crawlerPath);
   const route = await readProjectFile(routePath);
   const normalizer = await readProjectFile(normalizerPath);
   const richFacts = await readProjectFile(richFactsPath);
 
   assertContains(crawler, "MAX_SECONDARY_PAGES = MAX_PAGES - 1");
+  assertContains(crawler, "MAX_CRAWL_BATCH_SIZE = 8");
+  assertContains(crawler, "MAX_CRAWL_WAVES = 5");
   assertContains(crawler, "FETCH_TIMEOUT_MS = 6_000");
   assertContains(crawler, "planHotelScannerSecondaryUrls");
-  assertContains(crawler, "maxPages: MAX_SECONDARY_PAGES");
+  assertContains(crawler, "maxPages: Math.min(MAX_CRAWL_BATCH_SIZE, remainingBudget)");
   assertContains(crawler, "await Promise.all(");
   assertContains(crawler, "crawlPlan.urls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin))");
   assertContains(crawler, "STYLESHEET_TIMEOUT_MS = 4_000");
-  assertContains(route, "AI_DEADLINE_MS = 32_000");
+  assertContains(route, "AI_DEADLINE_MS = 38_000");
   assertContains(route, "withDeadline(");
   assertNotContains(route, "normalizeWithTimeoutRecovery");
   assertContains(route, 'SDK_TIMEOUT_MESSAGE = "Request timed out."');
@@ -70,8 +72,8 @@ test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
   assertContains(normalizer, 'reasoning: { effort: "none" }');
   assertContains(normalizer, "max_output_tokens: 1_800");
   assertContains(normalizer, "page.text.slice(0, 3_000)");
-  assertContains(richFacts, 'timeout: 28_000');
-  assertContains(richFacts, "max_output_tokens: 2_800");
+  assertContains(richFacts, 'timeout: 30_000');
+  assertContains(richFacts, "max_output_tokens: 6_800");
 });
 
 test("Factory Hotel Scanner fails soft when core AI enrichment is slow", async () => {
@@ -87,7 +89,7 @@ test("Factory Hotel Scanner fails soft when core AI enrichment is slow", async (
   assertContains(route, "facts: mergeFacts(richFacts, coreState.normalized.profile.facts)");
 });
 
-test("Factory Hotel Scanner keeps core profile separate from rich fact extraction", async () => {
+test("Factory Hotel Scanner keeps core profile separate from comprehensive rich fact extraction", async () => {
   const normalizer = await readProjectFile(normalizerPath);
   const route = await readProjectFile(routePath);
   const richFacts = await readProjectFile(richFactsPath);
@@ -99,8 +101,8 @@ test("Factory Hotel Scanner keeps core profile separate from rich fact extractio
   assertNotContains(normalizer, "Every item in facts must cite exact URLs");
   assertContains(route, "extractRichHotelScanFactsWithOpenAi");
   assertContains(route, "mergeFacts(richFacts, coreState.normalized.profile.facts)");
-  assertContains(richFacts, "Aim for 18-28 DISTINCT useful facts");
-  assertContains(richFacts, "maxItems: 28");
+  assertContains(richFacts, "Aim for 40-64 DISTINCT facts when the evidence is rich");
+  assertContains(richFacts, "maxItems: 64");
 });
 
 test("Factory Hotel Scanner extracts CSS brand colors and fonts deterministically", async () => {
@@ -108,7 +110,7 @@ test("Factory Hotel Scanner extracts CSS brand colors and fonts deterministicall
   const normalizer = await readProjectFile(normalizerPath);
   const client = await readProjectFile(clientPath);
 
-  assertContains(crawler, "MAX_STYLESHEETS = 6");
+  assertContains(crawler, "MAX_STYLESHEETS = 8");
   assertContains(crawler, "extractStylesheetUrls");
   assertContains(crawler, "fetchStylesheet");
   assertContains(crawler, "rankedColors");
@@ -125,7 +127,7 @@ test("Factory Hotel Scanner extracts CSS brand colors and fonts deterministicall
   assertContains(client, "backgroundColor: color");
 });
 
-test("Factory Hotel Scanner restores rich evidence while curating framework brand noise", async () => {
+test("Factory Hotel Scanner restores comprehensive evidence while curating framework brand noise", async () => {
   const route = await readProjectFile(routePath);
   const richFacts = await readProjectFile(richFactsPath);
 
@@ -133,18 +135,18 @@ test("Factory Hotel Scanner restores rich evidence while curating framework bran
   assertContains(route, "mergeFacts");
   assertContains(route, "richFactCount");
   assertContains(route, "refineHotelScanBrandEvidence");
-  assertContains(richFacts, "Aim for 18-28 DISTINCT useful facts");
-  assertContains(richFacts, "maxItems: 28");
+  assertContains(richFacts, "Aim for 40-64 DISTINCT facts when the evidence is rich");
+  assertContains(richFacts, "maxItems: 64");
 });
 
-test("Factory Hotel Scanner scopes opening hours to named facilities", async () => {
+test("Factory Hotel Scanner scopes opening hours to named facilities and preserves conflicts", async () => {
   const richFacts = await readProjectFile(richFactsPath);
 
   assertContains(richFacts, "isGenericHoursLabel");
-  assertContains(richFacts, "Opening-hours facts MUST name one specific facility, venue, service or guest area in the label.");
-  assertContains(richFacts, "emit one separate hours fact for each named facility whose schedule is explicit");
-  assertContains(richFacts, "omit that hours fact rather than guessing its scope");
-  assertContains(richFacts, "omit the hours fact rather than merging conflicting times");
+  assertContains(richFacts, "if (!label || !factValue || !sourceUrls.length || isGenericHoursLabel(label)) continue;");
+  assertContains(richFacts, "Opening-hours facts MUST name one specific facility, venue, service or guest area through subject. Never emit generic hours facts.");
+  assertContains(richFacts, "For every named restaurant, bar or dining venue emit a venue fact and separate hours, access, booking, description or price facts when explicitly stated.");
+  assertContains(richFacts, "Never hide contradictions.");
 });
 
 test("Factory Hotel Scanner keeps discovered logos reference-only until hotel authorization", async () => {
@@ -171,7 +173,8 @@ test("Factory Hotel Scanner keeps BG and EN review output language-consistent", 
   assertContains(normalizer, "Write ALL human-readable review content in English");
   assertContains(richFacts, "Write every human-readable fact label and value in Bulgarian");
   assertContains(richFacts, "Write every human-readable fact label and value in English");
-  assertContains(richFacts, "Do not translate category keys");
+  assertContains(richFacts, "category MUST be one canonical lowercase machine key from:");
+  assertContains(richFacts, "FACT_CATEGORIES.join");
   assertContains(client, "FACT_CATEGORY_COPY");
   assertContains(client, "factCategoryLabel(fact.category, lang)");
   assertContains(client, 'summary: "Описание"');
