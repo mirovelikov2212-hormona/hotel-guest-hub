@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
 import type { HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
 
+type VerificationStatus = "VERIFIED" | "SINGLE_SOURCE" | "CONFLICT" | "UNSCORED";
+
 type ScanFact = {
   category: string;
+  subject?: string;
+  attribute?: string;
   label: string;
   value: string;
   confidence: number;
   sourceUrls: string[];
+  verification?: {
+    status?: VerificationStatus;
+    independentSourceCount?: number;
+    sourceUrls?: string[];
+  };
 };
 
 type ScanProfile = {
@@ -31,13 +40,39 @@ type ScanProfile = {
   uncertainties: string[];
 };
 
+type FactoryBlueprint = {
+  rooms?: unknown[];
+  venues?: unknown[];
+  services?: unknown[];
+  policies?: unknown[];
+  operations?: unknown[];
+  amenities?: unknown[];
+};
+
+type ProfessionalIntelligencePackage = HotelIntelligencePackage & {
+  pipelineVersion?: string;
+  factoryBlueprint?: FactoryBlueprint;
+  readiness: HotelIntelligencePackage["readiness"] & {
+    verifiedFactCount?: number;
+    singleSourceFactCount?: number;
+    conflictFactCount?: number;
+    humanReviewResolved?: boolean;
+  };
+};
+
 type ScanResult = {
   ok?: boolean;
   error?: string;
   draft?: boolean;
   lang?: "bg" | "en";
   profile?: ScanProfile;
-  intelligencePackage?: HotelIntelligencePackage;
+  intelligencePackage?: ProfessionalIntelligencePackage;
+  verification?: {
+    verifiedFactCount?: number;
+    singleSourceFactCount?: number;
+    conflictFactCount?: number;
+    conflictGroupCount?: number;
+  };
   diagnostics?: {
     model?: string;
     latencyMs?: number;
@@ -48,6 +83,11 @@ type ScanResult = {
     detectedColorCount?: number;
     detectedFontCount?: number;
     detectedSocialLinkCount?: number;
+    richFactCount?: number;
+    verifiedFactCount?: number;
+    singleSourceFactCount?: number;
+    conflictFactCount?: number;
+    conflictGroupCount?: number;
   };
 };
 
@@ -56,11 +96,11 @@ const PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1";
 const COPY = {
   bg: {
     title: "AI сканиране на хотелски сайт",
-    help: "Въведи публичния сайт на хотела. StayHub събира само публични страници, извлича доказуеми факти и създава чернова за преглед. Нищо не се прехвърля към Smart Setup или Design Studio без твое действие.",
+    help: "StayHub обхожда публичните хотелски страници, сравнява независими официални източници, открива конфликти и изгражда структурирана Hotel Intelligence чернова за Hub, Design Studio и Factory.",
     url: "Хотелски уеб сайт",
     placeholder: "https://hotel-example.com",
     scan: "Сканирай сайта",
-    scanning: "Сканиране и AI анализ…",
+    scanning: "Професионално сканиране и AI анализ…",
     draft: "ЧЕРНОВА · нищо не е публикувано",
     identity: "Хотел",
     operations: "Оперативни данни",
@@ -71,11 +111,11 @@ const COPY = {
     style: "Стил",
     images: "Изображения",
     logos: "Лога",
-    evidence: "Доказани факти",
-    uncertainties: "За проверка",
+    evidence: "Evidence-backed факти",
+    uncertainties: "Изисква човешки преглед",
     sourcesOne: "източник",
     sourcesMany: "източника",
-    pages: "Страници",
+    pages: "Сканирани страници",
     aiModel: "AI модел",
     schema: "Схема",
     summary: "Описание",
@@ -86,32 +126,40 @@ const COPY = {
     checkIn: "Настаняване",
     checkOut: "Освобождаване",
     languages: "Езици",
-    rooms: "Стаи",
+    rooms: "Типове стаи",
     amenities: "Удобства",
-    spa: "СПА",
-    venues: "Обекти",
+    spa: "СПА / уелнес услуги",
+    venues: "Ресторанти и обекти",
     policies: "Политики",
     failed: "Сканирането не завърши успешно.",
     noFacts: "Няма достатъчно доказуеми факти в сканираните страници.",
-    next: "След преглед тази чернова може изрично да се подаде към Smart Setup / Design Studio.",
+    next: "След човешки преглед и approval същият immutable Intelligence Package продължава към Design Studio и Factory.",
     intelligence: "Hotel Intelligence Package",
     evidenceLayer: "Evidence Layer",
     profileLayer: "Hotel Profile Layer",
     designLayer: "Design Intelligence Layer",
+    factoryLayer: "Factory Blueprint",
     hubCandidates: "Hub кандидати",
     smartSetupCandidates: "Smart Setup кандидати",
     designSignals: "Design сигнали",
     reviewRequired: "За review",
+    verified: "Проверени",
+    singleSource: "Един източник",
+    conflicts: "Конфликти",
     openDesignStudio: "Отвори в Design Studio",
-    handoffHelp: "Package-ът се прехвърля само локално като чернова. Не се създава хотел и нищо не се публикува.",
+    handoffHelp: "Предава се структурирана чернова с evidence, entity metadata и Factory blueprint. Нищо не се активира автоматично.",
+    statusVerified: "ПРОВЕРЕН",
+    statusSingle: "1 ИЗТОЧНИК",
+    statusConflict: "КОНФЛИКТ",
+    statusUnscored: "НЕОЦЕНЕН",
   },
   en: {
     title: "AI hotel website scan",
-    help: "Enter the hotel's public website. StayHub reads public pages only, extracts evidence-backed facts and creates a review draft. Nothing is sent to Smart Setup or Design Studio without your action.",
+    help: "StayHub crawls public hotel pages, compares independent official sources, detects conflicts and builds structured Hotel Intelligence for Hub, Design Studio and Factory.",
     url: "Hotel website",
     placeholder: "https://hotel-example.com",
     scan: "Scan website",
-    scanning: "Scanning and AI analysis…",
+    scanning: "Professional crawl and AI analysis…",
     draft: "DRAFT · nothing has been published",
     identity: "Hotel",
     operations: "Operations",
@@ -123,10 +171,10 @@ const COPY = {
     images: "Images",
     logos: "Logos",
     evidence: "Evidence-backed facts",
-    uncertainties: "Needs review",
+    uncertainties: "Human review required",
     sourcesOne: "source",
     sourcesMany: "sources",
-    pages: "Pages",
+    pages: "Scanned pages",
     aiModel: "AI model",
     schema: "Schema",
     summary: "Summary",
@@ -137,69 +185,73 @@ const COPY = {
     checkIn: "Check-in",
     checkOut: "Check-out",
     languages: "Languages",
-    rooms: "Rooms",
+    rooms: "Room types",
     amenities: "Amenities",
-    spa: "SPA",
-    venues: "Venues",
+    spa: "SPA / wellness services",
+    venues: "Restaurants & venues",
     policies: "Policies",
     failed: "The scan did not complete successfully.",
     noFacts: "No sufficiently supported facts were found in the scanned pages.",
-    next: "After review, this draft can be explicitly sent to Smart Setup / Design Studio.",
+    next: "After human review and approval, the same immutable Intelligence Package continues to Design Studio and Factory.",
     intelligence: "Hotel Intelligence Package",
     evidenceLayer: "Evidence Layer",
     profileLayer: "Hotel Profile Layer",
     designLayer: "Design Intelligence Layer",
+    factoryLayer: "Factory Blueprint",
     hubCandidates: "Hub candidates",
     smartSetupCandidates: "Smart Setup candidates",
     designSignals: "Design signals",
     reviewRequired: "Needs review",
+    verified: "Verified",
+    singleSource: "Single source",
+    conflicts: "Conflicts",
     openDesignStudio: "Open in Design Studio",
-    handoffHelp: "The package is handed off locally as a draft only. No hotel is created and nothing is published.",
+    handoffHelp: "A structured draft with evidence, entity metadata and Factory blueprint is handed off. Nothing is activated automatically.",
+    statusVerified: "VERIFIED",
+    statusSingle: "1 SOURCE",
+    statusConflict: "CONFLICT",
+    statusUnscored: "UNSCORED",
   },
 } as const;
 
 const FACT_CATEGORY_COPY = {
   bg: {
-    identity: "Идентичност",
-    location: "Локация",
-    contact: "Контакти",
-    operations: "Операции",
-    accommodation: "Настаняване",
-    dining: "Хранене",
-    amenities: "Удобства",
-    wellness: "Уелнес",
-    events: "Събития",
-    policy: "Политики",
-    sustainability: "Устойчивост",
-    family: "За семейства",
-    beach: "Плаж",
-    parking: "Паркинг",
-    services: "Услуги",
-    brand: "Бранд",
-    hotel: "Хотел",
+    identity: "Идентичност", location: "Локация", contact: "Контакти", operations: "Операции",
+    accommodation: "Настаняване", dining: "Хранене", amenities: "Удобства", wellness: "Уелнес",
+    events: "Събития", policy: "Политики", sustainability: "Устойчивост", family: "За семейства",
+    beach: "Плаж", parking: "Паркинг", services: "Услуги", brand: "Бранд", hotel: "Хотел",
   },
   en: {
-    identity: "Identity",
-    location: "Location",
-    contact: "Contact",
-    operations: "Operations",
-    accommodation: "Accommodation",
-    dining: "Dining",
-    amenities: "Amenities",
-    wellness: "Wellness",
-    events: "Events",
-    policy: "Policy",
-    sustainability: "Sustainability",
-    family: "Family",
-    beach: "Beach",
-    parking: "Parking",
-    services: "Services",
-    brand: "Brand",
-    hotel: "Hotel",
+    identity: "Identity", location: "Location", contact: "Contact", operations: "Operations",
+    accommodation: "Accommodation", dining: "Dining", amenities: "Amenities", wellness: "Wellness",
+    events: "Events", policy: "Policy", sustainability: "Sustainability", family: "Family",
+    beach: "Beach", parking: "Parking", services: "Services", brand: "Brand", hotel: "Hotel",
   },
 } as const;
 
 const inputClass = "w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition placeholder:text-neutral-600 focus:border-cyan-300/60 focus:ring-2 focus:ring-cyan-300/10";
+
+function normalized(value: string) {
+  return value.normalize("NFKC").replace(/\s+/g, " ").trim().toLocaleLowerCase("en-US");
+}
+
+function formatAddress(identity: ScanProfile["identity"]) {
+  const parts: string[] = [];
+  for (const raw of [identity.address, identity.city, identity.country]) {
+    const value = String(raw || "").replace(/\s+/g, " ").trim();
+    if (!value) continue;
+    const key = normalized(value);
+    if (parts.some((part) => normalized(part).includes(key) || key.includes(normalized(part)))) continue;
+    parts.push(value);
+  }
+  return parts.join(", ");
+}
+
+function blueprintCount(blueprint?: FactoryBlueprint) {
+  if (!blueprint) return 0;
+  return [blueprint.rooms, blueprint.venues, blueprint.services, blueprint.policies, blueprint.operations, blueprint.amenities]
+    .reduce((sum, items) => sum + (Array.isArray(items) ? items.length : 0), 0);
+}
 
 export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang }) {
   const copy = COPY[lang];
@@ -234,9 +286,10 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
 
   const profile = result?.ok ? result.profile : undefined;
   const intelligencePackage = result?.ok ? result.intelligencePackage : undefined;
+  const readiness = intelligencePackage?.readiness;
 
   return (
-    <section className="rounded-[2rem] border border-cyan-300/15 bg-neutral-900/85 p-5 shadow-[0_30px_100px_rgba(6,182,212,0.06)] backdrop-blur-xl sm:p-7">
+    <section className="scanner-surface rounded-[2rem] border border-cyan-300/15 bg-neutral-900/85 p-5 shadow-[0_30px_100px_rgba(6,182,212,0.06)] backdrop-blur-xl sm:p-7">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-300/70">StayHub Intelligence</p>
@@ -256,7 +309,7 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
             onKeyDown={(event) => { if (event.key === "Enter") void scan(); }}
             placeholder={copy.placeholder}
             maxLength={2048}
-            className={`${inputClass} mt-2`}
+            className={`${inputClass} scanner-input mt-2`}
           />
         </label>
         <button
@@ -281,30 +334,30 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
             <Metric label={copy.identity} value={profile.identity.hotelName || "—"} />
             <Metric label={copy.pages} value={String(profile.source.pageCount)} />
             <Metric label={copy.aiModel} value={result?.diagnostics?.model || "—"} />
-            <Metric label={copy.schema} value={profile.schemaVersion} />
+            <Metric label={copy.schema} value={intelligencePackage?.pipelineVersion || profile.schemaVersion} />
           </div>
 
-          {intelligencePackage && (
+          {intelligencePackage && readiness && (
             <Card title={copy.intelligence}>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                <LayerMetric label={copy.evidenceLayer} value={intelligencePackage.readiness.evidenceFactCount} />
-                <LayerMetric label={copy.hubCandidates} value={intelligencePackage.readiness.hubCandidateCount} />
-                <LayerMetric label={copy.smartSetupCandidates} value={intelligencePackage.readiness.smartSetupCandidateCount} />
-                <LayerMetric label={copy.designSignals} value={intelligencePackage.readiness.designSignalCount} />
-                <LayerMetric label={copy.reviewRequired} value={intelligencePackage.readiness.reviewRequiredCount} />
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <LayerMetric label={copy.evidenceLayer} value={readiness.evidenceFactCount} />
+                <LayerMetric label={copy.verified} value={readiness.verifiedFactCount ?? result?.verification?.verifiedFactCount ?? 0} />
+                <LayerMetric label={copy.singleSource} value={readiness.singleSourceFactCount ?? result?.verification?.singleSourceFactCount ?? 0} />
+                <LayerMetric label={copy.conflicts} value={readiness.conflictFactCount ?? result?.verification?.conflictFactCount ?? 0} />
+                <LayerMetric label={copy.hubCandidates} value={readiness.hubCandidateCount} />
+                <LayerMetric label={copy.smartSetupCandidates} value={readiness.smartSetupCandidateCount} />
+                <LayerMetric label={copy.designSignals} value={readiness.designSignalCount} />
+                <LayerMetric label={copy.reviewRequired} value={readiness.reviewRequiredCount} />
               </div>
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <LayerDescription title={copy.evidenceLayer} text={`${intelligencePackage.evidenceLayer.sourceUrls.length} URLs · ${intelligencePackage.evidenceLayer.facts.length} facts`} />
                 <LayerDescription title={copy.profileLayer} text={profile.identity.hotelName || "—"} />
-                <LayerDescription title={copy.designLayer} text={`${profile.brand.colors.length} colors · ${profile.brand.fonts.length} fonts`} />
+                <LayerDescription title={copy.designLayer} text={`${profile.brand.colors.length} colors · ${profile.brand.fonts.length} fonts · ${profile.brand.imageUrls.length} images`} />
+                <LayerDescription title={copy.factoryLayer} text={`${blueprintCount(intelligencePackage.factoryBlueprint)} structured entities`} />
               </div>
               <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-violet-300/15 bg-violet-300/[0.04] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="max-w-2xl text-xs leading-5 text-neutral-400">{copy.handoffHelp}</p>
-                <button
-                  type="button"
-                  onClick={openDesignStudio}
-                  className="shrink-0 rounded-2xl border border-violet-300/35 bg-violet-300/10 px-4 py-3 text-sm font-semibold text-violet-100 transition hover:border-violet-200/60"
-                >
+                <button type="button" onClick={openDesignStudio} className="shrink-0 rounded-2xl border border-violet-300/35 bg-violet-300/10 px-4 py-3 text-sm font-semibold text-violet-100 transition hover:border-violet-200/60">
                   {copy.openDesignStudio}
                 </button>
               </div>
@@ -314,7 +367,7 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
           <div className="grid gap-5 lg:grid-cols-2">
             <Card title={copy.identity}>
               <Field label={copy.summary} value={profile.identity.summary} />
-              <Field label={copy.address} value={[profile.identity.address, profile.identity.city, profile.identity.country].filter(Boolean).join(", ")} />
+              <Field label={copy.address} value={formatAddress(profile.identity)} />
               <Field label={copy.phone} value={profile.contacts.phones.join(" · ")} />
               <Field label={copy.email} value={profile.contacts.emails.join(" · ")} />
               <SocialLinks label={copy.social} links={profile.contacts.socialLinks} />
@@ -328,7 +381,7 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
             <Card title={copy.hospitality}>
               <Field label={copy.amenities} value={profile.hospitality.amenities.join(", ")} />
               <Field label={copy.spa} value={profile.hospitality.spaServices.join(", ")} />
-              <Field label={copy.venues} value={profile.hospitality.venues.map((venue) => venue.name).join(", ")} />
+              <Field label={copy.venues} value={profile.hospitality.venues.map((venue) => venue.hours ? `${venue.name} (${venue.hours})` : venue.name).join(", ")} />
               <Field label={copy.policies} value={profile.hospitality.policies.join(" · ")} />
             </Card>
             <Card title={copy.brand}>
@@ -344,17 +397,7 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
             {profile.facts.length ? (
               <div className="grid gap-3 lg:grid-cols-2">
                 {profile.facts.map((fact, index) => (
-                  <div key={`${fact.category}:${fact.label}:${index}`} className="rounded-2xl border border-white/5 bg-black/20 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-200/60">{factCategoryLabel(fact.category, lang)}</p>
-                        <p className="mt-1 text-sm font-semibold text-neutral-200">{fact.label}</p>
-                      </div>
-                      <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-neutral-500">{Math.round(fact.confidence * 100)}%</span>
-                    </div>
-                    <p className="mt-3 break-words text-sm leading-6 text-neutral-400">{fact.value}</p>
-                    <p className="mt-3 text-[10px] text-neutral-600">{fact.sourceUrls.length} {fact.sourceUrls.length === 1 ? copy.sourcesOne : copy.sourcesMany}</p>
-                  </div>
+                  <FactCard key={`${fact.category}:${fact.subject || ""}:${fact.attribute || ""}:${fact.label}:${index}`} fact={fact} lang={lang} copy={copy} />
                 ))}
               </div>
             ) : <p className="text-sm text-neutral-500">{copy.noFacts}</p>}
@@ -377,14 +420,44 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
   );
 }
 
+function FactCard({ fact, lang, copy }: { fact: ScanFact; lang: ControlPlaneLang; copy: typeof COPY.bg | typeof COPY.en }) {
+  const status = fact.verification?.status || "UNSCORED";
+  const statusLabel = status === "VERIFIED" ? copy.statusVerified
+    : status === "SINGLE_SOURCE" ? copy.statusSingle
+      : status === "CONFLICT" ? copy.statusConflict
+        : copy.statusUnscored;
+  const statusClass = status === "VERIFIED" ? "border-emerald-300/25 text-emerald-200"
+    : status === "CONFLICT" ? "border-rose-300/30 text-rose-200"
+      : status === "SINGLE_SOURCE" ? "border-amber-300/25 text-amber-200"
+        : "border-white/10 text-neutral-500";
+
+  return (
+    <div className={`scanner-evidence-card rounded-2xl border bg-black/20 p-4 ${status === "CONFLICT" ? "border-rose-300/20" : "border-white/5"}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-200/60">{factCategoryLabel(fact.category, lang)}</p>
+          <p className="mt-1 text-sm font-semibold text-neutral-200">{fact.label}</p>
+          {(fact.subject || fact.attribute) && <p className="mt-1 text-[10px] text-neutral-600">{[fact.subject, fact.attribute].filter(Boolean).join(" · ")}</p>}
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <span className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${statusClass}`}>{statusLabel}</span>
+          <span className="text-[10px] text-neutral-600">{Math.round(fact.confidence * 100)}%</span>
+        </div>
+      </div>
+      <p className="mt-3 break-words text-sm leading-6 text-neutral-400">{fact.value}</p>
+      <p className="mt-3 text-[10px] text-neutral-600">{fact.sourceUrls.length} {fact.sourceUrls.length === 1 ? copy.sourcesOne : copy.sourcesMany}</p>
+    </div>
+  );
+}
+
 function factCategoryLabel(category: string, lang: ControlPlaneLang) {
   const key = category.trim().toLowerCase() as keyof typeof FACT_CATEGORY_COPY.bg;
   return FACT_CATEGORY_COPY[lang][key] || category;
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-3xl border border-white/5 bg-black/15 p-5">
+    <section className="scanner-subsection rounded-3xl border border-white/5 bg-black/15 p-5">
       <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-300">{title}</h3>
       <div className="mt-4 space-y-3">{children}</div>
     </section>
@@ -430,13 +503,13 @@ function BrandPalette({ label, colors }: { label: string; colors: string[] }) {
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-2xl border border-white/5 bg-black/20 p-4"><p className="text-[10px] uppercase tracking-[0.16em] text-neutral-600">{label}</p><p className="mt-2 break-words text-sm font-semibold text-neutral-200">{value}</p></div>;
+  return <div className="scanner-metric rounded-2xl border border-white/5 bg-black/20 p-4"><p className="text-[10px] uppercase tracking-[0.16em] text-neutral-600">{label}</p><p className="mt-2 break-words text-sm font-semibold text-neutral-200">{value}</p></div>;
 }
 
 function LayerMetric({ label, value }: { label: string; value: number }) {
-  return <div className="rounded-2xl border border-cyan-300/10 bg-cyan-300/[0.03] p-4"><p className="text-[10px] uppercase tracking-[0.14em] text-cyan-100/50">{label}</p><p className="mt-2 text-2xl font-semibold text-neutral-100">{value}</p></div>;
+  return <div className="scanner-layer-metric rounded-2xl border border-cyan-300/10 bg-cyan-300/[0.03] p-4"><p className="text-[10px] uppercase tracking-[0.14em] text-cyan-100/50">{label}</p><p className="mt-2 text-2xl font-semibold text-neutral-100">{value}</p></div>;
 }
 
 function LayerDescription({ title, text }: { title: string; text: string }) {
-  return <div className="rounded-2xl border border-white/5 bg-black/20 p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">{title}</p><p className="mt-2 text-sm text-neutral-300">{text}</p></div>;
+  return <div className="scanner-layer-description rounded-2xl border border-white/5 bg-black/20 p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">{title}</p><p className="mt-2 text-sm text-neutral-300">{text}</p></div>;
 }
