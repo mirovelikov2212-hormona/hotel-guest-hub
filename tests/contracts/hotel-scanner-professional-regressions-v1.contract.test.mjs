@@ -23,10 +23,7 @@ test("protected email placeholders are retained only as diagnostics, never as vi
 
 test("semantic review reconciliation merges equivalent contact facts with different labels", () => {
   const result = reconcileHotelScanProfileWithFacts({
-    identity: {},
-    operations: {},
-    hospitality: {},
-    uncertainties: [],
+    identity: {}, operations: {}, hospitality: {}, uncertainties: [],
     facts: [
       { category: "contact", label: "Email", value: "reservations@hotel.test", confidence: 0.91, sourceUrls: ["https://hotel.test/contact"] },
       { category: "contact", label: "Електронна поща", value: "reservations@hotel.test", confidence: 0.95, sourceUrls: ["https://hotel.test/footer"] },
@@ -38,22 +35,24 @@ test("semantic review reconciliation merges equivalent contact facts with differ
   assert.equal(result.reconciliation.semanticDuplicatesRemoved.length, 1);
 });
 
-test("brand typography filters system emoji and icon-font families", async () => {
+test("brand typography filters icon, emoji and technical monospace fallback families", async () => {
   const crawler = await readProjectFile("lib/server/factory-hotel-scanner.ts");
   const refiner = await readProjectFile("lib/server/hotel-scanner-brand-refiner.ts");
   for (const source of [crawler, refiner]) {
     assert.match(source, /material.*symbols/i);
     assert.match(source, /apple color emoji/i);
     assert.match(source, /segoe ui emoji/i);
+    assert.match(source, /sfmono-regular/i);
+    assert.match(source, /menlo/i);
+    assert.match(source, /monaco/i);
+    assert.match(source, /consolas/i);
   }
 });
 
-
-test("crawler verifies critical detail domains and preserves bounded embedded public evidence", async () => {
+test("crawler preserves rich embedded evidence and discovers beyond navigation menus", async () => {
   const crawler = await readProjectFile("lib/server/factory-hotel-scanner.ts");
   const planner = await readProjectFile("lib/server/hotel-scanner-crawl-plan.mjs");
 
-  assert.match(crawler, /homepageCoverage\.filter\(\(domain\) => domain === "identity" \|\| domain === "design"\)/);
   assert.match(crawler, /extractEmbeddedPublicHints/);
   assert.match(crawler, /application\\\/ld\\\+json/);
   assert.match(crawler, /mailto:/);
@@ -61,7 +60,24 @@ test("crawler verifies critical detail domains and preserves bounded embedded pu
   assert.match(crawler, /checkinTime/);
   assert.match(crawler, /checkoutTime/);
   assert.match(crawler, /petsAllowed/);
-  assert.match(crawler, /cleanText\(`\$\{extractEmbeddedPublicHints\(html\)\} \$\{htmlText\(html\)\}`, 25_000\)/);
-  assert.match(planner, /uniqueUrls\(input\.links \|\| \[\], 200\)/);
-  assert.match(planner, /candidates\.length >= 160/);
+  assert.match(crawler, /priceRange/);
+  assert.match(crawler, /amenityFeature/);
+  assert.match(crawler, /cleanText\(`\$\{extractEmbeddedPublicHints\(html\)\} \$\{htmlText\(html\)\}`, 32_000\)/);
+  assert.match(crawler, /robots\.txt/);
+  assert.match(crawler, /MAX_SITEMAP_DOCUMENTS = 12/);
+  assert.match(planner, /uniqueUrls\(input\.links \|\| \[\], 600\)/);
+  assert.match(planner, /candidates\.length >= 500/);
+  assert.match(planner, /targetDepth/);
+  assert.match(planner, /corroboratedDomains/);
+});
+
+test("scanner API verifies evidence before package handoff to downstream tools", async () => {
+  const route = await readProjectFile("app/api/control-plane/hotel-scanner/scan/route.ts");
+  assert.match(route, /verifyHotelScanFacts/);
+  assert.match(route, /projectVerifiedHotelScanFacts/);
+  assert.match(route, /professionalizeHotelIntelligencePackage/);
+  assert.match(route, /hotel-scanner-v2-verification/);
+  assert.match(route, /verifiedFactCount/);
+  assert.match(route, /singleSourceFactCount/);
+  assert.match(route, /conflictFactCount/);
 });
