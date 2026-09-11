@@ -35,13 +35,37 @@ test("different quiet-hours values across translations remain a real conflict", 
   assert.equal(result.conflicts[0].attribute, "quiet_hours");
 });
 
-test("NERO guests-only vs FAQ external visitors allowed is a real conflict", () => {
+test("noise complaint charging is not misclassified as quiet hours", () => {
+  const result = verifyHotelScanFacts([
+    fact({ attribute: "quiet_hours", label: "Тихи часове", value: "15:00–16:00 и 22:00–08:00", sourceUrls: ["https://hotel.test/bg/hotel-policy"] }),
+    fact({ attribute: "quiet_hours", label: "Шумови оплаквания", value: "Оплакванията за шум, довели до обезщетение на други гости, се начисляват към стаята.", sourceUrls: ["https://hotel.test/bg/terms"] }),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  assert.ok(result.facts.some((item) => item.attribute === "quiet_hours"));
+  assert.ok(result.facts.some((item) => item.attribute === "noise_policy"));
+});
+
+test("NERO guests-only vs FAQ external visitors allowed is a real conflict even when venue names differ", () => {
   const result = verifyHotelScanFacts([
     fact({ category: "dining", subject: "NERO Dining Club", attribute: "external_access", label: "Access", value: "Only resort guests and members", sourceUrls: ["https://hotel.test/restaurants/nero"] }),
-    fact({ category: "dining", subject: "NERO Dining Club", attribute: "external_access", label: "External access", value: "External visitors are allowed with reservation", sourceUrls: ["https://hotel.test/en/faq"] }),
+    fact({ category: "dining", subject: "NERO Restaurant", attribute: "external_access", label: "External access", value: "External visitors are allowed with reservation", sourceUrls: ["https://hotel.test/en/faq"] }),
   ]);
   assert.equal(result.conflicts.length, 1);
   assert.equal(result.conflicts[0].attribute, "external_access");
+});
+
+test("generic access house rules are independent facts rather than one conflict group", () => {
+  const result = verifyHotelScanFacts([
+    fact({ attribute: "access", label: "Храна и напитки в ресторантите", value: "Не се разрешава внасянето или изнасянето на храна и напитки от ресторантите и лоби бара." }),
+    fact({ attribute: "access", label: "Приготвяне на храна в стаите", value: "Приготвянето на храна в стаите с каквито и да е готварски уреди е забранено." }),
+    fact({ attribute: "access", label: "Открит огън и фойерверки", value: "Открит огън, пламъци, скари и фойерверки не са разрешени никъде в хотела." }),
+    fact({ attribute: "access", label: "Оръжия", value: "Носенето на оръжия от всякакъв вид в помещенията на хотела е забранено." }),
+    fact({ attribute: "access", label: "Съхранение на багаж", value: "Багаж може да се съхранява според заетостта и на риск на госта." }),
+    fact({ attribute: "access", label: "Кой може да оставя багаж", value: "Само гости с потвърдена резервация могат да използват багажното помещение." }),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  const attributes = new Set(result.facts.map((item) => item.attribute));
+  for (const expected of ["food_beverage_policy", "room_cooking_policy", "fire_safety_policy", "weapons_policy", "luggage_storage_policy", "luggage_access_policy"]) assert.ok(attributes.has(expected), expected);
 });
 
 test("booking channel and 50 percent deposit are not a conflict", () => {
