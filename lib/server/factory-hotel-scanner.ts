@@ -5,8 +5,14 @@ import { isIP } from "node:net";
 
 import {
   classifyHotelScannerPageCoverage,
+  isPublicBusinessCrawlUrl,
   planHotelScannerSecondaryUrls,
 } from "@/lib/server/hotel-scanner-crawl-plan.mjs";
+import {
+  buildHotelScannerRobotsPolicy,
+  isHotelScannerRobotsAllowed,
+  type HotelScannerRobotsPolicy,
+} from "@/lib/server/hotel-scanner-robots.mjs";
 import {
   extractPublicTechnologySignals,
   type HotelScannerRawTechnologySignals,
@@ -17,16 +23,20 @@ const MAX_SECONDARY_PAGES = MAX_PAGES - 1;
 const MAX_CRAWL_BATCH_SIZE = 8;
 const MAX_CRAWL_WAVES = 5;
 const MAX_DISCOVERED_URLS = 600;
+const MAX_PUBLIC_DOCUMENTS = 80;
 const MAX_PAGE_BYTES = 1_250_000;
 const MAX_TOTAL_TEXT = 190_000;
 const MAX_REDIRECTS = 5;
 const FETCH_TIMEOUT_MS = 6_000;
 const SITEMAP_TIMEOUT_MS = 4_000;
+const ROBOTS_TIMEOUT_MS = 3_000;
+const MAX_ROBOTS_BYTES = 200_000;
 const MAX_SITEMAP_BYTES = 750_000;
 const MAX_SITEMAP_DOCUMENTS = 12;
 const MAX_STYLESHEETS = 8;
 const MAX_STYLESHEET_BYTES = 500_000;
 const STYLESHEET_TIMEOUT_MS = 4_000;
+const USER_AGENT_TOKEN = "stayhub-hotel-scanner";
 const USER_AGENT = "StayHub-Hotel-Scanner/2.0 (+https://stayhub.app)";
 
 export type HotelScanPageEvidence = {
@@ -35,6 +45,7 @@ export type HotelScanPageEvidence = {
   description: string;
   text: string;
   links: string[];
+  documentUrls: string[];
   imageUrls: string[];
   colors: string[];
   technology: HotelScannerRawTechnologySignals;
@@ -46,11 +57,26 @@ export type HotelScanBrandEvidence = {
   fonts: string[];
 };
 
+export type HotelScanPublicDocument = {
+  url: string;
+  kind: "pdf";
+  status: "discovered_not_ingested";
+};
+
+export type HotelScanCrawlPolicy = {
+  publicBusinessBoundary: true;
+  robotsApplied: boolean;
+  robotsUrl: string;
+  robotsBlockedUrlCount: number;
+};
+
 export type HotelScanEvidenceBundle = {
   requestedUrl: string;
   canonicalUrl: string;
   scannedAt: string;
   pages: HotelScanPageEvidence[];
+  publicDocuments: HotelScanPublicDocument[];
+  crawlPolicy: HotelScanCrawlPolicy;
   brand: HotelScanBrandEvidence;
 };
 
@@ -121,6 +147,24 @@ function extractLinks(html: string, base: URL) {
     const candidate = absoluteUrl(match[1], base);
     if (!candidate || candidate.origin !== base.origin) continue;
     if (/\.(?:pdf|jpe?g|png|gif|webp|svg|zip|docx?|xlsx?|pptx?)(?:$|\?)/i.test(candidate.pathname)) continue;
+    if (!isPublicBusinessCrawlUrl(candidate.toString(), base.origin)) continue;
+    const href = candidate.toString();
+    if (seen.has(href)) continue;
+    seen.add(href);
+    result.push(href);
+  }
+  return result;
+}
+
+function extractPublicDocuments(html: string, base: URL) {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  const regex = /<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(html)) && result.length < MAX_PUBLIC_DOCUMENTS) {
+    const candidate = absoluteUrl(match[1], base);
+    if (!candidate || candidate.origin !== base.origin || !/\.pdf(?:$|\?)/i.test(candidate.pathname)) continue;
+    if (!isPublicBusinessCrawlUrl(candidate.toString(), base.origin)) continue;
     const href = candidate.toString();
     if (seen.has(href)) continue;
     seen.add(href);
@@ -151,9 +195,7 @@ function normalizeHexColor(raw: string) {
   const match = value.match(/^#([0-9a-f]{3,8})$/i);
   if (!match) return null;
   const hex = match[1];
-  if (hex.length === 3 || hex.length === 4) {
-    return `#${hex.slice(0, 3).split("").map((part) => part + part).join("")}`;
-  }
+  if (hex.length === 3 || hex.length === 4) return `#${hex.slice(0, 3).split("").map((part) => part + part).join("")}`;
   if (hex.length === 6 || hex.length === 8) return `#${hex.slice(0, 6)}`;
   return null;
 }
@@ -212,14 +254,8 @@ function rankedFonts(css: string, stylesheetUrls: string[], max = 8) {
     if (!cleaned || GENERIC_FONTS.has(cleaned.toLowerCase()) || UTILITY_FONT_PATTERN.test(cleaned) || /^var\(/i.test(cleaned)) return;
     scores.set(cleaned, (scores.get(cleaned) || 0) + score);
   };
-  const faceRegex = /@font-face\s*{[\s\S]*?font-family\s*:\s*([^;}{]+)[;}]?[\s\S]*?}/gi;
-  let faceMatch: RegExpExecArray | null;
-  while ((faceMatch = faceRegex.exec(css))) add(faceMatch[1], 12);
-  const familyRegex = /font-family\s*:\s*([^;}{]+)/gi;
-  let familyMatch: RegExpExecArray | null;
-  while ((familyMatch = familyRegex.exec(css))) {
-    for (const font of familyMatch[1].split(",")) add(font, 2);
-  }
+  for (const faceMatch of css.matchAll(/@font-face\s*{[\s\S]*?font-family\s*:\s*([^;}{]+)[;}]?[\s\S]*?}/gi)) add(faceMatch[1], 12);
+  for (const familyMatch of css.matchAll(/font-family\s*:\s*([^;}{]+)/gi)) for (const font of familyMatch[1].split(",")) add(font, 2);
   for (const rawUrl of stylesheetUrls) {
     try {
       const url = new URL(rawUrl);
@@ -227,30 +263,29 @@ function rankedFonts(css: string, stylesheetUrls: string[], max = 8) {
         const name = family.split(":")[0].replace(/\+/g, " ");
         if (name) add(name, 10);
       }
-    } catch {
-      continue;
-    }
+    } catch { continue; }
   }
   return [...scores.entries()].sort((left, right) => right[1] - left[1]).map(([font]) => font).slice(0, max);
 }
 
 function extractInlineCss(html: string) {
   const chunks: string[] = [];
-  const styleBlockRegex = /<style\b[^>]*>([\s\S]*?)<\/style>/gi;
-  let styleBlock: RegExpExecArray | null;
-  while ((styleBlock = styleBlockRegex.exec(html)) && chunks.length < 20) chunks.push(styleBlock[1]);
-  const styleAttrRegex = /\bstyle\s*=\s*["']([^"']+)["']/gi;
-  let styleAttr: RegExpExecArray | null;
-  while ((styleAttr = styleAttrRegex.exec(html)) && chunks.length < 80) chunks.push(styleAttr[1]);
+  for (const match of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
+    if (chunks.length >= 20) break;
+    chunks.push(match[1]);
+  }
+  for (const match of html.matchAll(/\bstyle\s*=\s*["']([^"']+)["']/gi)) {
+    if (chunks.length >= 100) break;
+    chunks.push(match[1]);
+  }
   return chunks.join("\n").slice(0, 200_000);
 }
 
 function extractStylesheetUrls(html: string, base: URL) {
   const result: string[] = [];
   const seen = new Set<string>();
-  const tagRegex = /<link\b[^>]*>/gi;
-  let tagMatch: RegExpExecArray | null;
-  while ((tagMatch = tagRegex.exec(html)) && result.length < MAX_STYLESHEETS) {
+  for (const tagMatch of html.matchAll(/<link\b[^>]*>/gi)) {
+    if (result.length >= MAX_STYLESHEETS) break;
     const tag = tagMatch[0];
     const rel = tag.match(/\brel\s*=\s*["']([^"']+)["']/i)?.[1] || "";
     if (!/\bstylesheet\b/i.test(rel)) continue;
@@ -295,19 +330,14 @@ async function assertPublicHostname(url: URL) {
   if (url.username || url.password) throw new HotelScannerError("scanner_url_credentials_not_allowed");
   if (url.port && !["80", "443"].includes(url.port)) throw new HotelScannerError("scanner_url_port_not_allowed");
   const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
-  if (!hostname || hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local") || hostname.endsWith(".internal")) {
-    throw new HotelScannerError("scanner_private_host_not_allowed");
-  }
+  if (!hostname || hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local") || hostname.endsWith(".internal")) throw new HotelScannerError("scanner_private_host_not_allowed");
   if (isIP(hostname)) {
     if (isPrivateIp(hostname)) throw new HotelScannerError("scanner_private_ip_not_allowed");
     return;
   }
   let addresses: Array<{ address: string; family: number }>;
-  try {
-    addresses = await lookup(hostname, { all: true, verbatim: true });
-  } catch {
-    throw new HotelScannerError("scanner_dns_failed", 422);
-  }
+  try { addresses = await lookup(hostname, { all: true, verbatim: true }); }
+  catch { throw new HotelScannerError("scanner_dns_failed", 422); }
   if (!addresses.length || addresses.some((item) => isPrivateIp(item.address))) throw new HotelScannerError("scanner_private_ip_not_allowed");
 }
 
@@ -315,12 +345,10 @@ export async function validatePublicHotelUrl(rawUrl: string) {
   const value = String(rawUrl || "").trim();
   if (!value || value.length > 2_048) throw new HotelScannerError("scanner_invalid_url");
   let url: URL;
-  try {
-    url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
-  } catch {
-    throw new HotelScannerError("scanner_invalid_url");
-  }
+  try { url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`); }
+  catch { throw new HotelScannerError("scanner_invalid_url"); }
   url.hash = "";
+  if (!isPublicBusinessCrawlUrl(url.toString(), url.origin)) throw new HotelScannerError("scanner_url_not_public_business_surface");
   await assertPublicHostname(url);
   return url;
 }
@@ -330,9 +358,7 @@ async function fetchHtml(startUrl: URL) {
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
     await assertPublicHostname(current);
     const response = await fetch(current, {
-      method: "GET",
-      redirect: "manual",
-      cache: "no-store",
+      method: "GET", redirect: "manual", cache: "no-store",
       headers: { Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1", "User-Agent": USER_AGENT },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
@@ -347,8 +373,7 @@ async function fetchHtml(startUrl: URL) {
     if (!contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) throw new HotelScannerError("scanner_non_html_response", 422);
     const contentLength = Number(response.headers.get("content-length") || 0);
     if (contentLength > MAX_PAGE_BYTES) throw new HotelScannerError("scanner_page_too_large", 422);
-    const html = (await response.text()).slice(0, MAX_PAGE_BYTES);
-    return { url: current, html };
+    return { url: current, html: (await response.text()).slice(0, MAX_PAGE_BYTES) };
   }
   throw new HotelScannerError("scanner_too_many_redirects", 422);
 }
@@ -369,9 +394,7 @@ async function fetchScannerText(startUrl: URL, timeoutMs: number, maxBytes: numb
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
     await assertPublicHostname(current);
     const response = await fetch(current, {
-      method: "GET",
-      redirect: "manual",
-      cache: "no-store",
+      method: "GET", redirect: "manual", cache: "no-store",
       headers: { Accept: "application/xml,text/xml,text/plain,*/*;q=0.1", "User-Agent": USER_AGENT },
       signal: AbortSignal.timeout(timeoutMs),
     });
@@ -389,45 +412,41 @@ async function fetchScannerText(startUrl: URL, timeoutMs: number, maxBytes: numb
   return null;
 }
 
-function collectSitemapUrls(xml: string, canonicalOrigin: string, pageUrls: Set<string>, childSitemaps: Set<string>) {
+type RobotsState = { found: boolean; url: string; policy: HotelScannerRobotsPolicy };
+
+async function fetchRobotsState(baseUrl: URL): Promise<RobotsState> {
+  const robotsUrl = new URL("/robots.txt", baseUrl);
+  const robots = await fetchScannerText(robotsUrl, ROBOTS_TIMEOUT_MS, MAX_ROBOTS_BYTES).catch(() => null);
+  if (!robots) return { found: false, url: robotsUrl.toString(), policy: buildHotelScannerRobotsPolicy("", USER_AGENT_TOKEN) };
+  return { found: true, url: robots.url.toString(), policy: buildHotelScannerRobotsPolicy(robots.text, USER_AGENT_TOKEN) };
+}
+
+function collectSitemapUrls(xml: string, canonicalOrigin: string, robotsPolicy: HotelScannerRobotsPolicy, pageUrls: Set<string>, childSitemaps: Set<string>) {
   for (const raw of sitemapLocs(xml)) {
     try {
       const url = new URL(raw);
       if (url.origin !== canonicalOrigin) continue;
       url.hash = "";
       if (/\.xml$/i.test(url.pathname)) childSitemaps.add(url.toString());
-      else if (!/\.(?:pdf|jpe?g|png|gif|webp|svg|zip|docx?|xlsx?|pptx?)(?:$|\?)/i.test(url.pathname)) pageUrls.add(url.toString());
-    } catch {
-      continue;
-    }
+      else if (!/\.(?:pdf|jpe?g|png|gif|webp|svg|zip|docx?|xlsx?|pptx?)(?:$|\?)/i.test(url.pathname)
+          && isPublicBusinessCrawlUrl(url.toString(), canonicalOrigin)
+          && isHotelScannerRobotsAllowed(url.toString(), robotsPolicy)) pageUrls.add(url.toString());
+    } catch { continue; }
     if (pageUrls.size >= MAX_DISCOVERED_URLS) break;
   }
 }
 
-function robotSitemapUrls(textValue: string, baseUrl: URL) {
-  const result: string[] = [];
-  const regex = /^\s*sitemap\s*:\s*(\S+)\s*$/gim;
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(textValue)) && result.length < 12) {
-    try {
-      const url = new URL(match[1], baseUrl);
-      if (url.origin === baseUrl.origin && /\.xml(?:$|\?)/i.test(url.pathname)) result.push(url.toString());
-    } catch {
-      continue;
-    }
-  }
-  return result;
-}
-
-async function discoverSitemapPageUrls(baseUrl: URL, canonicalOrigin: string) {
+async function discoverSitemapPageUrls(baseUrl: URL, canonicalOrigin: string, robotsState: RobotsState) {
   const pageUrls = new Set<string>();
   const roots = new Set<string>([
     new URL("/sitemap.xml", baseUrl).toString(),
     new URL("/sitemap_index.xml", baseUrl).toString(),
   ]);
-  const robots = await fetchScannerText(new URL("/robots.txt", baseUrl), 3_000, 200_000).catch(() => null);
-  if (robots?.url.origin === canonicalOrigin) {
-    for (const sitemap of robotSitemapUrls(robots.text, baseUrl)) roots.add(sitemap);
+  for (const raw of robotsState.policy.sitemaps) {
+    try {
+      const sitemap = new URL(raw, baseUrl);
+      if (sitemap.origin === canonicalOrigin && /\.xml(?:$|\?)/i.test(sitemap.pathname)) roots.add(sitemap.toString());
+    } catch { continue; }
   }
 
   const queue = [...roots];
@@ -440,10 +459,8 @@ async function discoverSitemapPageUrls(baseUrl: URL, canonicalOrigin: string) {
     for (const document of documents) {
       if (!document || document.url.origin !== canonicalOrigin) continue;
       const childSitemaps = new Set<string>();
-      collectSitemapUrls(document.text, canonicalOrigin, pageUrls, childSitemaps);
-      for (const child of childSitemaps) {
-        if (!visited.has(child) && queue.length < MAX_SITEMAP_DOCUMENTS * 2) queue.push(child);
-      }
+      collectSitemapUrls(document.text, canonicalOrigin, robotsState.policy, pageUrls, childSitemaps);
+      for (const child of childSitemaps) if (!visited.has(child) && queue.length < MAX_SITEMAP_DOCUMENTS * 2) queue.push(child);
     }
   }
   return [...pageUrls].slice(0, MAX_DISCOVERED_URLS);
@@ -454,9 +471,7 @@ async function fetchStylesheet(startUrl: URL) {
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
     await assertPublicHostname(current);
     const response = await fetch(current, {
-      method: "GET",
-      redirect: "manual",
-      cache: "no-store",
+      method: "GET", redirect: "manual", cache: "no-store",
       headers: { Accept: "text/css,*/*;q=0.1", "User-Agent": USER_AGENT },
       signal: AbortSignal.timeout(STYLESHEET_TIMEOUT_MS),
     });
@@ -548,6 +563,7 @@ function buildPageEvidence(url: URL, html: string): HotelScanPageEvidence {
     ]),
     text: cleanText(`${extractEmbeddedPublicHints(html)} ${htmlText(html)}`, 32_000),
     links: extractLinks(html, url),
+    documentUrls: extractPublicDocuments(html, url),
     imageUrls: extractImages(html, url),
     colors: extractColors(html),
     technology: extractPublicTechnologySignals(html, url),
@@ -560,9 +576,7 @@ async function fetchSecondaryEvidence(url: string, canonicalOrigin: string) {
     if (fetched.url.origin !== canonicalOrigin) return null;
     const page = buildPageEvidence(fetched.url, fetched.html);
     return page.text ? page : null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 async function collectBrandEvidence(html: string, baseUrl: URL): Promise<HotelScanBrandEvidence> {
@@ -582,29 +596,41 @@ async function collectBrandEvidence(html: string, baseUrl: URL): Promise<HotelSc
 
 export async function crawlPublicHotelWebsite(rawUrl: string): Promise<HotelScanEvidenceBundle> {
   const requested = await validatePublicHotelUrl(rawUrl);
+  const requestedRobots = await fetchRobotsState(requested);
+  if (!isHotelScannerRobotsAllowed(requested.toString(), requestedRobots.policy)) {
+    throw new HotelScannerError("scanner_robots_disallowed", 403);
+  }
+
   const first = await fetchHtml(requested);
   const firstPage = buildPageEvidence(first.url, first.html);
   const canonicalOrigin = first.url.origin;
-  const brandPromise = collectBrandEvidence(first.html, first.url);
-  const sitemapUrls = await discoverSitemapPageUrls(first.url, canonicalOrigin).catch(() => [] as string[]);
+  const robotsState = canonicalOrigin === requested.origin ? requestedRobots : await fetchRobotsState(first.url);
+  if (!isHotelScannerRobotsAllowed(first.url.toString(), robotsState.policy)) {
+    throw new HotelScannerError("scanner_robots_disallowed", 403);
+  }
 
+  const brandPromise = collectBrandEvidence(first.html, first.url);
+  const sitemapUrls = await discoverSitemapPageUrls(first.url, canonicalOrigin, robotsState).catch(() => [] as string[]);
   const pages: HotelScanPageEvidence[] = [firstPage];
   const attemptedUrls = new Set<string>([first.url.toString()]);
   const seenFinalUrls = new Set<string>([first.url.toString()]);
   const discoveredLinks = new Set<string>([...firstPage.links, ...sitemapUrls]);
+  const discoveredDocuments = new Set<string>(firstPage.documentUrls.filter((url) => isHotelScannerRobotsAllowed(url, robotsState.policy)));
   const domainVisitCounts: Record<string, number> = {};
-  for (const domain of classifyHotelScannerPageCoverage(firstPage)) {
-    if (domain === "identity" || domain === "design") domainVisitCounts[domain] = 1;
-  }
+  for (const domain of classifyHotelScannerPageCoverage(firstPage)) if (domain === "identity" || domain === "design") domainVisitCounts[domain] = 1;
   let totalText = firstPage.text.length;
+  let robotsBlockedUrlCount = 0;
 
   for (let wave = 0; wave < MAX_CRAWL_WAVES; wave += 1) {
     if (pages.length >= MAX_PAGES || totalText >= MAX_TOTAL_TEXT) break;
     const remainingBudget = Math.min(MAX_SECONDARY_PAGES, MAX_PAGES - pages.length);
     if (remainingBudget <= 0) break;
-    const candidates = [...discoveredLinks]
-      .filter((url) => !attemptedUrls.has(url) && !seenFinalUrls.has(url))
-      .slice(0, MAX_DISCOVERED_URLS);
+    const unfiltered = [...discoveredLinks].filter((url) => !attemptedUrls.has(url) && !seenFinalUrls.has(url)).slice(0, MAX_DISCOVERED_URLS);
+    const candidates = unfiltered.filter((url) => {
+      const allowed = isHotelScannerRobotsAllowed(url, robotsState.policy);
+      if (!allowed) robotsBlockedUrlCount += 1;
+      return allowed;
+    });
     if (!candidates.length) break;
 
     const crawlPlan = planHotelScannerSecondaryUrls({
@@ -618,7 +644,6 @@ export async function crawlPublicHotelWebsite(rawUrl: string): Promise<HotelScan
 
     for (const url of crawlPlan.urls) attemptedUrls.add(url);
     const secondaryResults = await Promise.all(crawlPlan.urls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin)));
-
     for (const page of secondaryResults) {
       if (!page || pages.length >= MAX_PAGES || totalText >= MAX_TOTAL_TEXT) continue;
       attemptedUrls.add(page.url);
@@ -633,9 +658,11 @@ export async function crawlPublicHotelWebsite(rawUrl: string): Promise<HotelScan
         if (discoveredLinks.size >= MAX_DISCOVERED_URLS) break;
         discoveredLinks.add(link);
       }
-      for (const domain of classifyHotelScannerPageCoverage(page)) {
-        domainVisitCounts[domain] = Number(domainVisitCounts[domain] || 0) + 1;
+      for (const documentUrl of page.documentUrls) {
+        if (discoveredDocuments.size >= MAX_PUBLIC_DOCUMENTS) break;
+        if (isHotelScannerRobotsAllowed(documentUrl, robotsState.policy)) discoveredDocuments.add(documentUrl);
       }
+      for (const domain of classifyHotelScannerPageCoverage(page)) domainVisitCounts[domain] = Number(domainVisitCounts[domain] || 0) + 1;
     }
   }
 
@@ -645,6 +672,13 @@ export async function crawlPublicHotelWebsite(rawUrl: string): Promise<HotelScan
     canonicalUrl: first.url.toString(),
     scannedAt: new Date().toISOString(),
     pages,
+    publicDocuments: [...discoveredDocuments].slice(0, MAX_PUBLIC_DOCUMENTS).map((url) => ({ url, kind: "pdf" as const, status: "discovered_not_ingested" as const })),
+    crawlPolicy: {
+      publicBusinessBoundary: true,
+      robotsApplied: robotsState.found,
+      robotsUrl: robotsState.url,
+      robotsBlockedUrlCount,
+    },
     brand,
   };
 }
