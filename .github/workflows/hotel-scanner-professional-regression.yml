@@ -11,6 +11,8 @@ on:
       - "lib/server/hub-design-draft-revisions.ts"
       - "lib/server/factory-release-design-authority.ts"
       - "lib/ai/hotel-intelligence-value-quality.mjs"
+      - "lib/ai/hotel-scanner-privacy.mjs"
+      - "lib/ai/hotel-scanner-privacy.d.mts"
       - "lib/ai/hotel-scanner-reconciliation.mjs"
       - "lib/ai/hotel-scanner-conflicts.mjs"
       - "lib/ai/hotel-scanner-verification.mjs"
@@ -35,6 +37,7 @@ on:
       - "app/globals.css"
       - "tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs"
       - "tests/contracts/hotel-intelligence-value-quality-v1.contract.test.mjs"
+      - "tests/contracts/hotel-scanner-privacy-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-reconciliation-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-conflicts-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs"
@@ -54,6 +57,8 @@ on:
       - "lib/server/hub-design-draft-revisions.ts"
       - "lib/server/factory-release-design-authority.ts"
       - "lib/ai/hotel-intelligence-value-quality.mjs"
+      - "lib/ai/hotel-scanner-privacy.mjs"
+      - "lib/ai/hotel-scanner-privacy.d.mts"
       - "lib/ai/hotel-scanner-reconciliation.mjs"
       - "lib/ai/hotel-scanner-conflicts.mjs"
       - "lib/ai/hotel-scanner-verification.mjs"
@@ -78,6 +83,7 @@ on:
       - "app/globals.css"
       - "tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs"
       - "tests/contracts/hotel-intelligence-value-quality-v1.contract.test.mjs"
+      - "tests/contracts/hotel-scanner-privacy-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-reconciliation-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-conflicts-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs"
@@ -111,6 +117,7 @@ jobs:
           node --test
           tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs
           tests/contracts/hotel-intelligence-value-quality-v1.contract.test.mjs
+          tests/contracts/hotel-scanner-privacy-v1.contract.test.mjs
           tests/contracts/hotel-scanner-reconciliation-v1.contract.test.mjs
           tests/contracts/hotel-scanner-conflicts-v1.contract.test.mjs
           tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs
