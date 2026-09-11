@@ -44,7 +44,7 @@ export type HotelIntelligencePackage = {
   pipelineVersion?: "professional-crawler-v2";
   generatedAt: string;
   source: HotelScanProfile["source"];
-  scannerBridge: HotelScannerBridgeSnapshot;
+  scannerBridge?: HotelScannerBridgeSnapshot;
   evidenceLayer: {
     facts: HotelIntelligenceItem[];
     sourceUrls: string[];
