@@ -61,6 +61,14 @@
   background: #eef9f4 !important;
 }
 
+/* The completion banner uses a very light Tailwind emerald text token that is
+   intentionally bright in dark mode. Give it an explicit accessible foreground
+   in light mode so the immutable-package handoff message remains readable. */
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace .bg-emerald-400\/5.text-emerald-100\/80 {
+  color: #17634f !important;
+  border-color: #a7decf !important;
+}
+
 .stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace a,
 .stayhub-tools-shell[data-stayhub-tools-theme="light"] .hotel-scanner-workspace button {
   text-shadow: none;
