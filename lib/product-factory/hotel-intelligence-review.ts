@@ -9,6 +9,7 @@ import type {
   HotelIntelligencePackage,
   HotelIntelligenceTarget,
 } from "@/lib/product-factory/hotel-intelligence-package";
+import { professionalizeHotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-professionalizer.mjs";
 
 export const HOTEL_INTELLIGENCE_REVIEW_SCHEMA_VERSION = "hotel-intelligence-review-v1" as const;
 export const APPROVED_HOTEL_INTELLIGENCE_SCHEMA_VERSION = "approved-hotel-intelligence-v1" as const;
@@ -20,10 +21,21 @@ export type HotelIntelligenceReviewDecision =
   | "corrected"
   | "added";
 
+export type HotelFactVerificationStatus = "VERIFIED" | "SINGLE_SOURCE" | "CONFLICT" | "UNSCORED";
+
+export type HotelFactVerificationMetadata = {
+  status: HotelFactVerificationStatus;
+  independentSourceCount: number;
+  sourceUrls: string[];
+};
+
 export type HotelIntelligenceReviewItem = {
   id: string;
   origin: "scanner" | "manual";
   category: string;
+  subject?: string;
+  attribute?: string;
+  verification?: HotelFactVerificationMetadata;
   label: string;
   scannerValue: string;
   effectiveValue: string;
@@ -76,7 +88,7 @@ export type HotelIntelligenceReviewContent = {
   scannerDiagnostics: {
     provider: "openai" | "deterministic_fallback" | "mixed" | "unknown";
     model: string;
-    scannerVersion: "hotel-scanner-v1";
+    scannerVersion: "hotel-scanner-v1" | "hotel-scanner-v2-verification";
   };
 };
 
@@ -113,6 +125,13 @@ const REVIEW_SEMANTIC_KINDS = new Set<HotelReviewSemanticKind>([
   "human_enrichment",
 ]);
 
+const VERIFICATION_STATUSES = new Set<HotelFactVerificationStatus>([
+  "VERIFIED",
+  "SINGLE_SOURCE",
+  "CONFLICT",
+  "UNSCORED",
+]);
+
 function text(value: unknown, max = 4_000) {
   const normalized = String(value ?? "").replace(/\s+/g, " ").trim();
   return normalized.length <= max ? normalized : normalized.slice(0, max);
@@ -146,6 +165,21 @@ function scannerProvider(model: string) {
 
 function errorToken(value: unknown) {
   return text(value, 240).replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "invalid";
+}
+
+function evidenceMetadata(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const candidate = value as Partial<HotelFactVerificationMetadata>;
+  const status = text(candidate.status, 40) as HotelFactVerificationStatus;
+  if (!VERIFICATION_STATUSES.has(status)) return undefined;
+  const independentSourceCount = Number(candidate.independentSourceCount || 0);
+  return {
+    status,
+    independentSourceCount: Number.isFinite(independentSourceCount) && independentSourceCount >= 0
+      ? Math.floor(independentSourceCount)
+      : 0,
+    sourceUrls: unique(Array.isArray(candidate.sourceUrls) ? candidate.sourceUrls : [], 24),
+  } satisfies HotelFactVerificationMetadata;
 }
 
 function requireReviewSemantics(value: unknown): HotelReviewSemanticsV2 {
@@ -277,23 +311,36 @@ export function createHotelIntelligenceReviewContent(
     scannerGeneratedAt: intelligencePackage.generatedAt,
     hotelProfileLayer: cloneJson(intelligencePackage.hotelProfileLayer),
     designIntelligenceLayer: cloneJson(intelligencePackage.designIntelligenceLayer),
-    items: intelligencePackage.evidenceLayer.facts.map((fact) => ({
-      id: text(fact.id, 160),
-      origin: "scanner" as const,
-      category: text(fact.category, 160),
-      label: text(fact.label, 240),
-      scannerValue: text(fact.value),
-      effectiveValue: text(fact.value),
-      confidence: Number.isFinite(Number(fact.confidence)) ? Number(fact.confidence) : null,
-      sourceUrls: unique(fact.sourceUrls || []),
-      targets: [...fact.targets],
-      decision: "pending" as const,
-    })),
+    items: intelligencePackage.evidenceLayer.facts.map((fact) => {
+      const enriched = fact as HotelIntelligenceItem & {
+        subject?: unknown;
+        attribute?: unknown;
+        verification?: unknown;
+      };
+      const subject = text(enriched.subject, 240);
+      const attribute = text(enriched.attribute, 120);
+      const verification = evidenceMetadata(enriched.verification);
+      return {
+        id: text(fact.id, 160),
+        origin: "scanner" as const,
+        category: text(fact.category, 160),
+        ...(subject ? { subject } : {}),
+        ...(attribute ? { attribute } : {}),
+        ...(verification ? { verification } : {}),
+        label: text(fact.label, 240),
+        scannerValue: text(fact.value),
+        effectiveValue: text(fact.value),
+        confidence: Number.isFinite(Number(fact.confidence)) ? Number(fact.confidence) : null,
+        sourceUrls: unique(fact.sourceUrls || []),
+        targets: [...fact.targets],
+        decision: "pending" as const,
+      };
+    }),
     unresolvedNotes: unique(intelligencePackage.evidenceLayer.uncertainties || [], 80, 1_000),
     scannerDiagnostics: {
       provider: scannerProvider(model),
       model,
-      scannerVersion: "hotel-scanner-v1",
+      scannerVersion: "hotel-scanner-v2-verification",
     },
   };
 }
@@ -330,6 +377,11 @@ export function validateHotelIntelligenceReviewContent(
     if (!text(item.label, 240)) errors.push(`item_${index}_label_required`);
     if (!Array.isArray(item.sourceUrls)) errors.push(`item_${index}_source_urls_invalid`);
     if (!Array.isArray(item.targets)) errors.push(`item_${index}_targets_invalid`);
+
+    if (item.verification !== undefined) {
+      const verification = evidenceMetadata(item.verification);
+      if (!verification) errors.push(`item_${index}_verification_invalid`);
+    }
 
     if (item.origin === "manual" && item.decision !== "added") {
       errors.push(`item_${index}_manual_decision_invalid`);
@@ -411,10 +463,19 @@ export function validateHotelIntelligenceReviewContent(
   return { ok: errors.length === 0, errors };
 }
 
+type ReviewedEvidenceItem = HotelIntelligenceItem & {
+  subject?: string;
+  attribute?: string;
+  verification?: HotelFactVerificationMetadata;
+};
+
 function reviewedFact(item: HotelIntelligenceReviewItem): HotelIntelligenceItem {
-  return {
+  const result: ReviewedEvidenceItem = {
     id: item.id,
     category: item.category,
+    ...(item.subject ? { subject: item.subject } : {}),
+    ...(item.attribute ? { attribute: item.attribute } : {}),
+    ...(item.verification ? { verification: cloneJson(item.verification) } : {}),
     label: item.label,
     value: item.effectiveValue,
     confidence: item.origin === "manual" ? 1 : Number(item.confidence ?? 1),
@@ -422,6 +483,7 @@ function reviewedFact(item: HotelIntelligenceReviewItem): HotelIntelligenceItem 
     targets: [...item.targets],
     status: "candidate",
   };
+  return result;
 }
 
 export function buildApprovedHotelIntelligencePackage(
@@ -441,7 +503,7 @@ export function buildApprovedHotelIntelligencePackage(
   const designStudio = routed("design_studio");
   const review = routed("review");
 
-  return {
+  const basePackage: HotelIntelligencePackage = {
     schemaVersion: "hotel-intelligence-v1",
     generatedAt: content.scannerGeneratedAt,
     source: cloneJson(content.source),
@@ -465,4 +527,6 @@ export function buildApprovedHotelIntelligencePackage(
       reviewRequiredCount: 0,
     },
   };
+
+  return professionalizeHotelIntelligencePackage(basePackage) as HotelIntelligencePackage;
 }
