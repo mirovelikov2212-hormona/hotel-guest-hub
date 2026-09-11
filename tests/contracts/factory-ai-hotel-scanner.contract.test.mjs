@@ -140,7 +140,8 @@ test("Factory Hotel Scanner restores comprehensive evidence and adds bounded Hub
   assertContains(route, "refineHotelScanBrandEvidence");
   assertContains(richFacts, "Aim for 55-80 DISTINCT facts when evidence is rich");
   assertContains(richFacts, "const maxItems = critical ? 40 : hub ? 96 : 80");
-  assertContains(richFacts, "return mergeExtractions(hub, critical, comprehensive)");
+  assertContains(richFacts, "extractHotelScannerCriticalClaims");
+  assertContains(richFacts, "return mergeExtractions(deterministic, hub, critical, comprehensive)");
 });
 
 test("Factory Hotel Scanner scopes opening hours and separates venue policy semantics", async () => {
@@ -157,7 +158,8 @@ test("Factory Hotel Scanner presents Hub-ready content without per-field evidenc
   const hubResults = await readProjectFile(hubResultsPath);
   const hubProposal = await readProjectFile(hubProposalPath);
   assertContains(hubResults, "SourceFooter");
-  assertContains(hubResults, 'policies: "Политики · кратко"');
+  assertContains(hubResults, 'policies: "Политики"');
+  assertContains(hubResults, 'policies: "Policies"');
   assertContains(hubResults, "contacts.socialLinks");
   assertNotContains(hubResults, "AI confidence");
   assertContains(hubProposal, "buildHotelScannerHubSections");
