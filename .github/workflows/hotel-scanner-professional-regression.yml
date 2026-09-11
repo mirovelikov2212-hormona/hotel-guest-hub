@@ -13,6 +13,7 @@ on:
       - "lib/server/hub-design-draft-revisions.ts"
       - "lib/server/factory-release-design-authority.ts"
       - "lib/ai/hotel-intelligence-value-quality.mjs"
+      - "lib/ai/hotel-policy-semantics.mjs"
       - "lib/ai/hotel-scanner-privacy.mjs"
       - "lib/ai/hotel-scanner-privacy.d.mts"
       - "lib/ai/hotel-scanner-reconciliation.mjs"
@@ -46,6 +47,7 @@ on:
       - "tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs"
       - "tests/contracts/hotel-technology-discovery-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-professional-regressions-v1.contract.test.mjs"
+      - "tests/contracts/hotel-scanner-policy-semantics-v3.contract.test.mjs"
       - "tests/contracts/hotel-scanner-verification-v2.contract.test.mjs"
       - "tests/contracts/hotel-intelligence-professional-handoff-v2.contract.test.mjs"
       - "tests/contracts/control-plane-tools-theme.contract.test.mjs"
@@ -62,6 +64,7 @@ on:
       - "lib/server/hub-design-draft-revisions.ts"
       - "lib/server/factory-release-design-authority.ts"
       - "lib/ai/hotel-intelligence-value-quality.mjs"
+      - "lib/ai/hotel-policy-semantics.mjs"
       - "lib/ai/hotel-scanner-privacy.mjs"
       - "lib/ai/hotel-scanner-privacy.d.mts"
       - "lib/ai/hotel-scanner-reconciliation.mjs"
@@ -95,6 +98,7 @@ on:
       - "tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs"
       - "tests/contracts/hotel-technology-discovery-v1.contract.test.mjs"
       - "tests/contracts/hotel-scanner-professional-regressions-v1.contract.test.mjs"
+      - "tests/contracts/hotel-scanner-policy-semantics-v3.contract.test.mjs"
       - "tests/contracts/hotel-scanner-verification-v2.contract.test.mjs"
       - "tests/contracts/hotel-intelligence-professional-handoff-v2.contract.test.mjs"
       - "tests/contracts/control-plane-tools-theme.contract.test.mjs"
@@ -130,6 +134,7 @@ jobs:
           tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs
           tests/contracts/hotel-technology-discovery-v1.contract.test.mjs
           tests/contracts/hotel-scanner-professional-regressions-v1.contract.test.mjs
+          tests/contracts/hotel-scanner-policy-semantics-v3.contract.test.mjs
           tests/contracts/hotel-scanner-verification-v2.contract.test.mjs
           tests/contracts/hotel-intelligence-professional-handoff-v2.contract.test.mjs
       - name: Shared internal tools light-dark theme contract
