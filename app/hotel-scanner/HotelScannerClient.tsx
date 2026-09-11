@@ -73,6 +73,11 @@ type ScanResult = {
     conflictFactCount?: number;
     conflictGroupCount?: number;
   };
+  privacy?: {
+    scope?: string;
+    personalProfileEnrichment?: boolean;
+    directPersonContactProjection?: boolean;
+  };
   diagnostics?: {
     model?: string;
     latencyMs?: number;
@@ -88,6 +93,7 @@ type ScanResult = {
     singleSourceFactCount?: number;
     conflictFactCount?: number;
     conflictGroupCount?: number;
+    privacyFilteredCount?: number;
   };
 };
 
@@ -102,6 +108,7 @@ const COPY = {
     scan: "Сканирай сайта",
     scanning: "Професионално сканиране и AI анализ…",
     draft: "ЧЕРНОВА · нищо не е публикувано",
+    publicOnly: "САМО ПУБЛИЧНИ БИЗНЕС ДАННИ",
     identity: "Хотел",
     operations: "Оперативни данни",
     hospitality: "Съдържание и услуги",
@@ -152,6 +159,10 @@ const COPY = {
     statusSingle: "1 ИЗТОЧНИК",
     statusConflict: "КОНФЛИКТ",
     statusUnscored: "НЕОЦЕНЕН",
+    scanned: "сканирани",
+    cited: "цитирани",
+    factsLabel: "факта",
+    evidenceSources: "Публични доказателства",
   },
   en: {
     title: "AI hotel website scan",
@@ -161,6 +172,7 @@ const COPY = {
     scan: "Scan website",
     scanning: "Professional crawl and AI analysis…",
     draft: "DRAFT · nothing has been published",
+    publicOnly: "PUBLIC BUSINESS DATA ONLY",
     identity: "Hotel",
     operations: "Operations",
     hospitality: "Content & services",
@@ -211,6 +223,10 @@ const COPY = {
     statusSingle: "1 SOURCE",
     statusConflict: "CONFLICT",
     statusUnscored: "UNSCORED",
+    scanned: "scanned",
+    cited: "cited",
+    factsLabel: "facts",
+    evidenceSources: "Public evidence",
   },
 } as const;
 
@@ -229,10 +245,43 @@ const FACT_CATEGORY_COPY = {
   },
 } as const;
 
+const LANGUAGE_LABELS: Record<ControlPlaneLang, Record<string, string>> = {
+  bg: { bg: "Български", en: "Английски", de: "Немски", ro: "Румънски", mk: "Македонски", ru: "Руски", cs: "Чешки", tr: "Турски", el: "Гръцки" },
+  en: { bg: "Bulgarian", en: "English", de: "German", ro: "Romanian", mk: "Macedonian", ru: "Russian", cs: "Czech", tr: "Turkish", el: "Greek" },
+};
+
+const LANGUAGE_ALIASES: Record<string, string> = {
+  bg: "bg", bulgarian: "bg", "български": "bg",
+  en: "en", english: "en", "английски": "en",
+  de: "de", german: "de", deutsch: "de", "немски": "de",
+  ro: "ro", romanian: "ro", "română": "ro", romana: "ro", "румънски": "ro",
+  mk: "mk", macedonian: "mk", "македонски": "mk",
+  ru: "ru", russian: "ru", "русский": "ru", "руски": "ru",
+  cs: "cs", cz: "cs", czech: "cs", "čeština": "cs", "чешки": "cs",
+  tr: "tr", turkish: "tr", "türkçe": "tr", "турски": "tr",
+  el: "el", greek: "el", "ελληνικά": "el", "гръцки": "el",
+};
+
 const inputClass = "w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition placeholder:text-neutral-600 focus:border-cyan-300/60 focus:ring-2 focus:ring-cyan-300/10";
 
 function normalized(value: string) {
   return value.normalize("NFKC").replace(/\s+/g, " ").trim().toLocaleLowerCase("en-US");
+}
+
+function formatLanguages(values: string[], lang: ControlPlaneLang) {
+  const seen = new Set<string>();
+  const labels: string[] = [];
+  for (const raw of values) {
+    for (const part of String(raw || "").split(/[,;/|]+/)) {
+      const cleaned = normalized(part);
+      if (!cleaned) continue;
+      const code = LANGUAGE_ALIASES[cleaned] || cleaned;
+      if (seen.has(code)) continue;
+      seen.add(code);
+      labels.push(LANGUAGE_LABELS[lang][code] || part.trim());
+    }
+  }
+  return labels.join(", ");
 }
 
 function formatAddress(identity: ScanProfile["identity"]) {
@@ -251,6 +300,16 @@ function blueprintCount(blueprint?: FactoryBlueprint) {
   if (!blueprint) return 0;
   return [blueprint.rooms, blueprint.venues, blueprint.services, blueprint.policies, blueprint.operations, blueprint.amenities]
     .reduce((sum, items) => sum + (Array.isArray(items) ? items.length : 0), 0);
+}
+
+function evidenceUrlLabel(rawUrl: string) {
+  try {
+    const parsed = new URL(rawUrl);
+    const path = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/$/, "");
+    return `${parsed.hostname.replace(/^www\./, "")}${path}`;
+  } catch {
+    return rawUrl;
+  }
 }
 
 export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang }) {
@@ -296,7 +355,10 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
           <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{copy.title}</h2>
           <p className="mt-3 text-sm leading-6 text-neutral-400">{copy.help}</p>
         </div>
-        <span className="w-fit rounded-full border border-amber-300/20 bg-amber-300/5 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100">{copy.draft}</span>
+        <div className="flex flex-wrap gap-2">
+          <span className="w-fit rounded-full border border-emerald-300/20 bg-emerald-300/5 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-100">{copy.publicOnly}</span>
+          <span className="w-fit rounded-full border border-amber-300/20 bg-amber-300/5 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100">{copy.draft}</span>
+        </div>
       </div>
 
       <div className="mt-7 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
@@ -343,14 +405,14 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
                 <LayerMetric label={copy.evidenceLayer} value={readiness.evidenceFactCount} />
                 <LayerMetric label={copy.verified} value={readiness.verifiedFactCount ?? result?.verification?.verifiedFactCount ?? 0} />
                 <LayerMetric label={copy.singleSource} value={readiness.singleSourceFactCount ?? result?.verification?.singleSourceFactCount ?? 0} />
-                <LayerMetric label={copy.conflicts} value={readiness.conflictFactCount ?? result?.verification?.conflictFactCount ?? 0} />
+                <LayerMetric label={copy.conflicts} value={result?.verification?.conflictGroupCount ?? readiness.conflictFactCount ?? 0} />
                 <LayerMetric label={copy.hubCandidates} value={readiness.hubCandidateCount} />
                 <LayerMetric label={copy.smartSetupCandidates} value={readiness.smartSetupCandidateCount} />
                 <LayerMetric label={copy.designSignals} value={readiness.designSignalCount} />
                 <LayerMetric label={copy.reviewRequired} value={readiness.reviewRequiredCount} />
               </div>
               <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <LayerDescription title={copy.evidenceLayer} text={`${intelligencePackage.evidenceLayer.sourceUrls.length} URLs · ${intelligencePackage.evidenceLayer.facts.length} facts`} />
+                <LayerDescription title={copy.evidenceLayer} text={`${profile.source.pageCount} ${copy.scanned} · ${intelligencePackage.evidenceLayer.sourceUrls.length} ${copy.cited} · ${intelligencePackage.evidenceLayer.facts.length} ${copy.factsLabel}`} />
                 <LayerDescription title={copy.profileLayer} text={profile.identity.hotelName || "—"} />
                 <LayerDescription title={copy.designLayer} text={`${profile.brand.colors.length} colors · ${profile.brand.fonts.length} fonts · ${profile.brand.imageUrls.length} images`} />
                 <LayerDescription title={copy.factoryLayer} text={`${blueprintCount(intelligencePackage.factoryBlueprint)} structured entities`} />
@@ -375,7 +437,7 @@ export default function HotelScannerClient({ lang }: { lang: ControlPlaneLang })
             <Card title={copy.operations}>
               <Field label={copy.checkIn} value={profile.operations.checkIn} />
               <Field label={copy.checkOut} value={profile.operations.checkOut} />
-              <Field label={copy.languages} value={profile.operations.languages.join(", ")} />
+              <Field label={copy.languages} value={formatLanguages(profile.operations.languages, lang)} />
               <Field label={copy.rooms} value={profile.hospitality.roomTypes.join(", ")} />
             </Card>
             <Card title={copy.hospitality}>
@@ -430,6 +492,7 @@ function FactCard({ fact, lang, copy }: { fact: ScanFact; lang: ControlPlaneLang
     : status === "CONFLICT" ? "border-rose-300/30 text-rose-200"
       : status === "SINGLE_SOURCE" ? "border-amber-300/25 text-amber-200"
         : "border-white/10 text-neutral-500";
+  const sourceUrls = fact.verification?.sourceUrls?.length ? fact.verification.sourceUrls : fact.sourceUrls;
 
   return (
     <div className={`scanner-evidence-card rounded-2xl border bg-black/20 p-4 ${status === "CONFLICT" ? "border-rose-300/20" : "border-white/5"}`}>
@@ -445,7 +508,18 @@ function FactCard({ fact, lang, copy }: { fact: ScanFact; lang: ControlPlaneLang
         </div>
       </div>
       <p className="mt-3 break-words text-sm leading-6 text-neutral-400">{fact.value}</p>
-      <p className="mt-3 text-[10px] text-neutral-600">{fact.sourceUrls.length} {fact.sourceUrls.length === 1 ? copy.sourcesOne : copy.sourcesMany}</p>
+      <details className="mt-3">
+        <summary className="cursor-pointer text-[10px] font-semibold text-neutral-500">
+          {copy.evidenceSources} · {sourceUrls.length} {sourceUrls.length === 1 ? copy.sourcesOne : copy.sourcesMany}
+        </summary>
+        <div className="mt-2 space-y-1.5">
+          {sourceUrls.map((sourceUrl) => (
+            <a key={sourceUrl} href={sourceUrl} target="_blank" rel="noreferrer" className="block break-all text-[10px] text-cyan-300/75 underline decoration-cyan-300/30 underline-offset-2 hover:text-cyan-200">
+              {evidenceUrlLabel(sourceUrl)}
+            </a>
+          ))}
+        </div>
+      </details>
     </div>
   );
 }
