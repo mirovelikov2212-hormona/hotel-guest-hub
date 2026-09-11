@@ -16,6 +16,7 @@ import { sanitizeHotelScanProfileValues } from "@/lib/ai/hotel-intelligence-valu
 import { buildHotelReviewSemanticsV2 } from "@/lib/ai/hotel-review-semantics-v2.mjs";
 import { buildHotelTechnologyDiscovery } from "@/lib/ai/hotel-technology-discovery.mjs";
 import { buildHotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
+import { professionalizeHotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-professionalizer.mjs";
 import {
   crawlPublicHotelWebsite,
   HotelScannerError,
@@ -55,7 +56,6 @@ function withDeadline<T>(promise: Promise<T>, timeoutMs: number, code: string) {
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error(code)), timeoutMs);
   });
-
   return Promise.race([promise, timeout]).finally(() => {
     if (timer) clearTimeout(timer);
   });
@@ -265,7 +265,7 @@ export async function POST(request: NextRequest) {
       reconciliation,
       technologyDiscovery,
     });
-    const intelligencePackage = buildHotelIntelligencePackage(profile);
+    const intelligencePackage = professionalizeHotelIntelligencePackage(buildHotelIntelligencePackage(profile));
     const assetPolicy = { logo: LOGO_ASSET_POLICY, scannedLogoUrls: "reference_only" };
     const diagnostics = {
       ...coreState.normalized.diagnostics,
