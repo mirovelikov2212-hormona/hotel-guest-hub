@@ -69,6 +69,25 @@ test("smoking prohibition, penalty and designated outdoor areas are separate con
   assert.equal(result.conflicts.length, 0);
 });
 
+test("generic policy price extraction keeps pet fee and smoking cleaning fee separate", () => {
+  const petFee = refineHotelPolicySemantics(fact({
+    attribute: "price",
+    label: "Такса за домашен любимец",
+    value: "75,00 EUR на нощувка за всеки домашен любимец.",
+  }));
+  const smokingPenalty = refineHotelPolicySemantics(fact({
+    attribute: "price",
+    label: "Такса за нарушаване на политиката за пушене",
+    value: "200 EUR такса за почистване при нарушение.",
+  }));
+
+  assert.equal(petFee.attribute, "pet_fee");
+  assert.equal(smokingPenalty.attribute, "smoking_penalty");
+
+  const result = verifyHotelScanFacts([petFee, smokingPenalty]);
+  assert.equal(result.conflicts.length, 0);
+});
+
 test("translations of one document family collapse to one logical source", () => {
   assert.equal(hotelScannerSourceDocumentKey("https://hotel.test/en/terms"), hotelScannerSourceDocumentKey("https://hotel.test/bg/terms"));
   const result = verifyHotelScanFacts([
