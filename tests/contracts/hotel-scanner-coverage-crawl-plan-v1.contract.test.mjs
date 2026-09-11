@@ -46,11 +46,13 @@ test("planner balances breadth with corroboration instead of treating one page a
   assert.ok(result.underCorroboratedDomains.length < CANONICAL_DOMAINS.length);
 });
 
-test("one multipurpose information URL can cover and corroborate several semantic domains", () => {
+test("one multipurpose information URL can still cover several semantic domains while Hub landing pages may outrank it", () => {
   assert.deepEqual(classifyHotelScannerUrlCoverage(`${origin}/hotel-information-check-in-policies`), ["identity", "check_in_out", "policies", "faq_terms"]);
   const result = plan([`${origin}/hotel-information-check-in-policies`, `${origin}/contact`, `${origin}/rooms`, `${origin}/restaurant`, `${origin}/spa`], 5);
-  assert.equal(result.urls[0], `${origin}/hotel-information-check-in-policies`);
-  assert.deepEqual(result.selections[0].newlyCoveredDomains, ["identity", "check_in_out", "policies", "faq_terms"]);
+  const selection = result.selections.find((item) => item.url === `${origin}/hotel-information-check-in-policies`);
+  assert.ok(selection);
+  assert.deepEqual(selection.domains, ["identity", "check_in_out", "policies", "faq_terms"]);
+  assert.ok(result.urls.indexOf(`${origin}/spa`) < result.urls.indexOf(`${origin}/hotel-information-check-in-policies`));
 });
 
 test("planner is deterministic and stays inside origin, privacy boundary and budget", () => {
@@ -64,10 +66,11 @@ test("critical domains remain eligible until target corroboration depth is reach
   const fullDepth = plan([`${origin}/restaurant`, `${origin}/spa`, `${origin}/hotel-policy`], 3, { dining: 5, wellness: 5, policies: 5, faq_terms: 5 }); assert.ok(fullDepth.urls.length <= 3); assert.ok(fullDepth.selections.every((selection) => Number.isFinite(selection.score)));
 });
 
-test("hub-critical public sections survive a noisy crawl budget", () => {
+test("hub-critical public sections outrank noisy room details in the crawl budget", () => {
   const links = Array.from({ length: 16 }, (_, index) => `${origin}/rooms/room-${index + 1}`).concat([`${origin}/experiences`, `${origin}/services`, `${origin}/gastronomy`, `${origin}/events`]);
   const result = plan(links, 8);
   for (const expected of [`${origin}/experiences`, `${origin}/services`, `${origin}/gastronomy`, `${origin}/events`]) assert.ok(result.urls.includes(expected), expected);
+  assert.deepEqual(result.urls.slice(0, 4), [`${origin}/experiences`, `${origin}/services`, `${origin}/gastronomy`, `${origin}/events`]);
 });
 
 test("hub page selector is bounded, deterministic and preserves the four public content families", () => {
@@ -100,6 +103,7 @@ test("hub projector keeps accommodation, dining, experiences, contacts and polic
   assert.equal(hotelScannerHubSectionForFact(facts[6]), "experiences");
   const sections = buildHotelScannerHubSections(facts); const byKey = Object.fromEntries(sections.map((section) => [section.key, section]));
   assert.equal(byKey.accommodation.items[0].facts.length, 2); assert.equal(byKey.dining.items.length, 4); assert.equal(byKey.experiences.items.length, 1); assert.equal(byKey.services.items.length, 1); assert.equal(byKey.events.items.length, 1); assert.equal(byKey.contacts.facts.length, 1); assert.equal(byKey.policies.facts.length, 1);
+  assert.deepEqual(byKey.accommodation.items[0].sourceUrls, [`${origin}/rooms/deluxe`]);
 });
 
 test("production crawler is bounded but deep, discovers robots/sitemaps and tracks domain visit depth", async () => {
