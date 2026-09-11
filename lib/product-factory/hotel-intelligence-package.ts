@@ -2,15 +2,45 @@ import type { HotelScanFact, HotelScanProfile } from "@/lib/ai/hotel-scanner";
 
 export type HotelIntelligenceTarget = "hub" | "smart_setup" | "design_studio" | "review";
 export type HotelIntelligenceStatus = "candidate" | "review_required";
+export type HotelFactVerificationStatus = "VERIFIED" | "SINGLE_SOURCE" | "CONFLICT" | "UNSCORED";
+
+export type HotelFactVerificationMetadata = {
+  status: HotelFactVerificationStatus;
+  independentSourceCount: number;
+  sourceUrls: string[];
+};
 
 export type HotelIntelligenceItem = HotelScanFact & {
   id: string;
+  subject?: string;
+  attribute?: string;
+  verification?: HotelFactVerificationMetadata;
   targets: HotelIntelligenceTarget[];
   status: HotelIntelligenceStatus;
 };
 
+export type HotelFactoryBlueprintEntity = {
+  name: string;
+  category: string;
+  attributes: Record<string, string[]>;
+  sourceUrls: string[];
+  verification: HotelFactVerificationStatus;
+  reviewRequired: boolean;
+  humanReviewResolved?: boolean;
+};
+
+export type HotelFactoryBlueprint = {
+  rooms: HotelFactoryBlueprintEntity[];
+  venues: HotelFactoryBlueprintEntity[];
+  services: HotelFactoryBlueprintEntity[];
+  policies: HotelFactoryBlueprintEntity[];
+  operations: HotelFactoryBlueprintEntity[];
+  amenities: HotelFactoryBlueprintEntity[];
+};
+
 export type HotelIntelligencePackage = {
   schemaVersion: "hotel-intelligence-v1";
+  pipelineVersion?: "professional-crawler-v2";
   generatedAt: string;
   source: HotelScanProfile["source"];
   evidenceLayer: {
@@ -32,6 +62,7 @@ export type HotelIntelligencePackage = {
     logoReferences: string[];
     visualAssetPolicy: "hotel_authorization_required";
   };
+  factoryBlueprint?: HotelFactoryBlueprint;
   routing: {
     hub: HotelIntelligenceItem[];
     smartSetup: HotelIntelligenceItem[];
@@ -44,42 +75,21 @@ export type HotelIntelligencePackage = {
     smartSetupCandidateCount: number;
     designSignalCount: number;
     reviewRequiredCount: number;
+    verifiedFactCount?: number;
+    singleSourceFactCount?: number;
+    conflictFactCount?: number;
+    humanReviewResolved?: boolean;
   };
 };
 
 const HUB_CATEGORIES = new Set([
-  "location",
-  "operations",
-  "accommodation",
-  "dining",
-  "amenities",
-  "wellness",
-  "events",
-  "policy",
-  "sustainability",
-  "family",
-  "beach",
-  "parking",
-  "services",
-  "hotel",
+  "location", "operations", "accommodation", "dining", "amenities", "wellness", "events", "policy",
+  "sustainability", "family", "beach", "parking", "services", "hotel",
 ]);
 
 const SMART_SETUP_CATEGORIES = new Set([
-  "identity",
-  "location",
-  "contact",
-  "operations",
-  "accommodation",
-  "dining",
-  "amenities",
-  "wellness",
-  "events",
-  "policy",
-  "family",
-  "beach",
-  "parking",
-  "services",
-  "hotel",
+  "identity", "location", "contact", "operations", "accommodation", "dining", "amenities", "wellness",
+  "events", "policy", "family", "beach", "parking", "services", "hotel",
 ]);
 
 function unique(values: string[]) {
@@ -87,6 +97,11 @@ function unique(values: string[]) {
 }
 
 function classifyFact(fact: HotelScanFact, index: number): HotelIntelligenceItem {
+  const enriched = fact as HotelScanFact & {
+    subject?: string;
+    attribute?: string;
+    verification?: HotelFactVerificationMetadata;
+  };
   const category = String(fact.category || "").trim().toLowerCase();
   const targets: HotelIntelligenceTarget[] = [];
 
@@ -102,6 +117,9 @@ function classifyFact(fact: HotelScanFact, index: number): HotelIntelligenceItem
 
   return {
     ...fact,
+    ...(enriched.subject ? { subject: enriched.subject } : {}),
+    ...(enriched.attribute ? { attribute: enriched.attribute } : {}),
+    ...(enriched.verification ? { verification: enriched.verification } : {}),
     id: `fact-${index + 1}`,
     targets: unique(targets) as HotelIntelligenceTarget[],
     status,
