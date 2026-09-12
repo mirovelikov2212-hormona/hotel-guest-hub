@@ -1,6 +1,6 @@
 import "server-only";
 
-import { verifyHotelScanFacts } from "@/lib/ai/hotel-scanner-verification.mjs";
+import { verifyHotelScanFactsV2 } from "@/lib/ai/hotel-scanner-v2-verification.mjs";
 import {
   extractHotelDomainsV2,
   type HotelScannerV2OutputLanguage,
@@ -36,7 +36,7 @@ export type HotelIntakePipelineV2Result = {
   };
   extraction: Awaited<ReturnType<typeof extractHotelDomainsV2>>;
   documents: Awaited<ReturnType<typeof ingestHotelDocumentsV2>>;
-  verification: ReturnType<typeof verifyHotelScanFacts>["summary"];
+  verification: ReturnType<typeof verifyHotelScanFactsV2>["summary"];
   completeness: ReturnType<typeof buildHotelCompletenessV2>;
   intelligenceCandidate: HotelIntelligenceCandidateV2;
   approvedHotelIntelligence: null;
@@ -80,7 +80,7 @@ export async function runHotelIntakePipelineV2(input: {
 
   const inventory = applyDocumentIngestionToInventoryV2(discovery.inventory, documents);
   const verificationStartedAt = Date.now();
-  const verification = verifyHotelScanFacts([...extraction.facts, ...documents.facts]);
+  const verification = verifyHotelScanFactsV2([...extraction.facts, ...documents.facts]);
   const completeness = buildHotelCompletenessV2({
     inventory,
     profile: { facts: verification.facts },
