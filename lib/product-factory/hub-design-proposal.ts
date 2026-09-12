@@ -1,3 +1,4 @@
+import { buildHotelScannerHubSections } from "@/lib/ai/hotel-scanner-hub-sections.mjs";
 import type { HotelIntelligenceItem, HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
 
 export type HubDesignTheme = {
@@ -42,189 +43,155 @@ const ICON_FONT_PATTERN = /(font\s*awesome|eleganticons?|ionicons?|linearicons?|
 const DISPLAY_FONT_PATTERN = /(garamond|serif|display|playfair|baskerville|bodoni|didot|cinzel|cormorant|libre|merriweather|lora)/i;
 
 const CATEGORY_PRIORITY: Record<string, number> = {
-  dining: 10,
-  wellness: 20,
-  beach: 30,
-  family: 40,
-  services: 50,
-  amenities: 60,
-  accommodation: 70,
-  events: 80,
-  operations: 90,
-  policy: 100,
-  location: 110,
-  hotel: 120,
-  sustainability: 130,
-  parking: 140,
+  overview: 5,
+  accommodation: 10,
+  dining: 20,
+  wellness: 30,
+  services: 40,
+  experiences: 50,
+  events: 60,
+  offers: 61,
+  policies: 90,
 };
 
 const CATEGORY_TITLES: Record<string, { bg: string; en: string }> = {
-  dining: { bg: "Хранене и напитки", en: "Dining & drinks" },
-  wellness: { bg: "СПА и уелнес", en: "SPA & wellness" },
-  beach: { bg: "Плаж", en: "Beach" },
-  family: { bg: "За семейства", en: "For families" },
-  services: { bg: "Услуги", en: "Services" },
-  amenities: { bg: "Удобства", en: "Amenities" },
+  overview: { bg: "Най-важното за хотела", en: "Hotel essentials" },
   accommodation: { bg: "Настаняване", en: "Accommodation" },
+  dining: { bg: "Ресторанти и барове", en: "Restaurants & bars" },
+  wellness: { bg: "SPA / Wellness / Medical", en: "SPA / Wellness / Medical" },
+  services: { bg: "Услуги и удобства", en: "Services & amenities" },
+  experiences: { bg: "Преживявания и активности", en: "Experiences & activities" },
   events: { bg: "Събития", en: "Events" },
-  operations: { bg: "Полезна информация", en: "Useful information" },
-  policy: { bg: "Правила и условия", en: "Policies" },
-  location: { bg: "Локация", en: "Location" },
-  hotel: { bg: "За хотела", en: "About the hotel" },
-  sustainability: { bg: "Устойчивост", en: "Sustainability" },
-  parking: { bg: "Паркинг", en: "Parking" },
+  offers: { bg: "Оферти", en: "Offers" },
+  policies: { bg: "Политики", en: "Policies" },
+};
+
+const ATTRIBUTE_LABELS: Record<string, { bg: string; en: string }> = {
+  description: { bg: "Описание", en: "Description" }, capacity: { bg: "Капацитет", en: "Capacity" }, size: { bg: "Площ", en: "Size" },
+  price: { bg: "Цена", en: "Price" }, meal_inclusion: { bg: "Хранене", en: "Meal plan" }, hours: { bg: "Работно време", en: "Hours" },
+  booking: { bg: "Резервация", en: "Booking" }, external_access: { bg: "Достъп", en: "Access" }, session_duration: { bg: "Продължителност", en: "Duration" },
+  event_capacity: { bg: "Капацитет", en: "Capacity" }, event_service: { bg: "Възможности", en: "Capabilities" }, check_in: { bg: "Настаняване", en: "Check-in" },
+  check_out: { bg: "Освобождаване", en: "Check-out" }, quiet_hours: { bg: "Тихи часове", en: "Quiet hours" }, pet_policy: { bg: "Домашни любимци", en: "Pets" },
+  smoking_policy: { bg: "Пушене", en: "Smoking" }, parking: { bg: "Паркинг", en: "Parking" }, wifi: { bg: "Wi‑Fi", en: "Wi‑Fi" },
+};
+
+const POLICY_LABELS: Record<string, { bg: string; en: string }> = {
+  pet_policy: { bg: "Домашни любимци", en: "Pets" }, pet_fee: { bg: "Домашни любимци", en: "Pets" },
+  smoking_policy: { bg: "Пушене", en: "Smoking" }, smoking_restriction: { bg: "Пушене", en: "Smoking" }, smoking_penalty: { bg: "Пушене", en: "Smoking" }, designated_smoking_area: { bg: "Пушене", en: "Smoking" },
+  quiet_hours: { bg: "Тихи часове", en: "Quiet hours" }, noise_policy: { bg: "Тихи часове / шум", en: "Quiet hours / noise" }, cancellation_policy: { bg: "Анулации", en: "Cancellation" }, payment_policy: { bg: "Плащане", en: "Payment" },
+  age_policy: { bg: "Деца / възраст", en: "Children / age" }, dress_code: { bg: "Облекло", en: "Dress code" }, food_beverage_policy: { bg: "Храна и напитки", en: "Food & beverage" },
+  room_cooking_policy: { bg: "Приготвяне на храна", en: "In-room cooking" }, fire_safety_policy: { bg: "Пожарна безопасност", en: "Fire safety" }, weapons_policy: { bg: "Сигурност", en: "Security" }, luggage_storage_policy: { bg: "Багаж", en: "Luggage" }, luggage_access_policy: { bg: "Багаж", en: "Luggage" },
 };
 
 function normalizeHex(value: string) {
   const raw = String(value || "").trim().toUpperCase();
   if (/^#[0-9A-F]{6}$/.test(raw)) return raw;
-  if (/^#[0-9A-F]{3}$/.test(raw)) {
-    return `#${raw.slice(1).split("").map((part) => `${part}${part}`).join("")}`;
-  }
+  if (/^#[0-9A-F]{3}$/.test(raw)) return `#${raw.slice(1).split("").map((part) => `${part}${part}`).join("")}`;
   return "";
 }
+function rgb(hex: string) { const value = normalizeHex(hex); if (!value) return null; return { r: Number.parseInt(value.slice(1, 3), 16), g: Number.parseInt(value.slice(3, 5), 16), b: Number.parseInt(value.slice(5, 7), 16) }; }
+function luminance(hex: string) { const color = rgb(hex); if (!color) return 0.5; const channels = [color.r, color.g, color.b].map((value) => { const part = value / 255; return part <= 0.03928 ? part / 12.92 : ((part + 0.055) / 1.055) ** 2.4; }); return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]; }
+function saturationSpread(hex: string) { const color = rgb(hex); return color ? Math.max(color.r, color.g, color.b) - Math.min(color.r, color.g, color.b) : 0; }
+function isUsefulBrandColor(hex: string) { const lum = luminance(hex); return saturationSpread(hex) >= 24 && lum > 0.025 && lum < 0.94; }
+function mixWithWhite(hex: string, whiteWeight = 0.86) { const color = rgb(hex); if (!color) return "#F2F7F6"; const mix = (value: number) => Math.round(value * (1 - whiteWeight) + 255 * whiteWeight).toString(16).padStart(2, "0").toUpperCase(); return `#${mix(color.r)}${mix(color.g)}${mix(color.b)}`; }
+function unique<T>(values: T[]) { return [...new Set(values)]; }
 
-function rgb(hex: string) {
-  const value = normalizeHex(hex);
-  if (!value) return null;
-  return {
-    r: Number.parseInt(value.slice(1, 3), 16),
-    g: Number.parseInt(value.slice(3, 5), 16),
-    b: Number.parseInt(value.slice(5, 7), 16),
-  };
-}
-
-function luminance(hex: string) {
-  const color = rgb(hex);
-  if (!color) return 0.5;
-  const channels = [color.r, color.g, color.b].map((value) => {
-    const part = value / 255;
-    return part <= 0.03928 ? part / 12.92 : ((part + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
-}
-
-function saturationSpread(hex: string) {
-  const color = rgb(hex);
-  if (!color) return 0;
-  return Math.max(color.r, color.g, color.b) - Math.min(color.r, color.g, color.b);
-}
-
-function isUsefulBrandColor(hex: string) {
-  const lum = luminance(hex);
-  return saturationSpread(hex) >= 24 && lum > 0.025 && lum < 0.94;
-}
-
-function mixWithWhite(hex: string, whiteWeight = 0.86) {
-  const color = rgb(hex);
-  if (!color) return "#F2F7F6";
-  const mix = (value: number) => Math.round(value * (1 - whiteWeight) + 255 * whiteWeight)
-    .toString(16)
-    .padStart(2, "0")
-    .toUpperCase();
-  return `#${mix(color.r)}${mix(color.g)}${mix(color.b)}`;
-}
-
-function unique<T>(values: T[]) {
-  return [...new Set(values)];
-}
-
-export function isContentFont(font: string) {
-  const value = String(font || "").trim();
-  return Boolean(value) && !ICON_FONT_PATTERN.test(value);
-}
-
-export function selectHubTypography(fonts: string[]) {
-  const contentFonts = unique(fonts.map((font) => String(font || "").trim()).filter(isContentFont));
-  const headingFont = contentFonts.find((font) => DISPLAY_FONT_PATTERN.test(font)) || contentFonts[0] || FALLBACK_FONT;
-  const bodyFont = contentFonts.find((font) => font !== headingFont && !DISPLAY_FONT_PATTERN.test(font))
-    || contentFonts.find((font) => font !== headingFont)
-    || contentFonts[0]
-    || FALLBACK_FONT;
-  return { headingFont, bodyFont, contentFonts };
-}
-
+export function isContentFont(font: string) { const value = String(font || "").trim(); return Boolean(value) && !ICON_FONT_PATTERN.test(value); }
+export function selectHubTypography(fonts: string[]) { const contentFonts = unique(fonts.map((font) => String(font || "").trim()).filter(isContentFont)); const headingFont = contentFonts.find((font) => DISPLAY_FONT_PATTERN.test(font)) || contentFonts[0] || FALLBACK_FONT; const bodyFont = contentFonts.find((font) => font !== headingFont && !DISPLAY_FONT_PATTERN.test(font)) || contentFonts.find((font) => font !== headingFont) || contentFonts[0] || FALLBACK_FONT; return { headingFont, bodyFont, contentFonts }; }
 function selectTheme(colors: string[], fonts: string[]): HubDesignTheme & { availableColors: string[]; availableFonts: string[] } {
-  const normalizedColors = unique(colors.map(normalizeHex).filter(Boolean));
-  const brandColors = normalizedColors.filter(isUsefulBrandColor);
-  const darkColors = normalizedColors.filter((color) => luminance(color) < 0.22);
-  const lightColors = normalizedColors.filter((color) => luminance(color) > 0.82);
-  const primaryColor = brandColors[0] || FALLBACK_PRIMARY;
-  const secondaryColor = brandColors.find((color) => color !== primaryColor && luminance(color) < luminance(primaryColor))
-    || darkColors[0]
-    || FALLBACK_SECONDARY;
-  const backgroundColor = lightColors.find((color) => color !== "#FFFFFF") || FALLBACK_BACKGROUND;
-  const surfaceColor = lightColors.includes("#FFFFFF") ? "#FFFFFF" : FALLBACK_SURFACE;
-  const textColor = darkColors[0] || FALLBACK_TEXT;
-  const typography = selectHubTypography(fonts);
-
-  return {
-    primaryColor,
-    secondaryColor,
-    backgroundColor,
-    surfaceColor,
-    textColor,
-    softAccentColor: mixWithWhite(primaryColor),
-    headingFont: typography.headingFont,
-    bodyFont: typography.bodyFont,
-    availableColors: normalizedColors.length ? normalizedColors : [FALLBACK_PRIMARY, FALLBACK_SECONDARY, FALLBACK_BACKGROUND, FALLBACK_SURFACE],
-    availableFonts: typography.contentFonts.length ? typography.contentFonts : [FALLBACK_FONT],
-  };
+  const normalizedColors = unique(colors.map(normalizeHex).filter(Boolean)); const brandColors = normalizedColors.filter(isUsefulBrandColor); const darkColors = normalizedColors.filter((color) => luminance(color) < 0.22); const lightColors = normalizedColors.filter((color) => luminance(color) > 0.82); const primaryColor = brandColors[0] || FALLBACK_PRIMARY; const secondaryColor = brandColors.find((color) => color !== primaryColor && luminance(color) < luminance(primaryColor)) || darkColors[0] || FALLBACK_SECONDARY; const backgroundColor = lightColors.find((color) => color !== "#FFFFFF") || FALLBACK_BACKGROUND; const surfaceColor = lightColors.includes("#FFFFFF") ? "#FFFFFF" : FALLBACK_SURFACE; const textColor = darkColors[0] || FALLBACK_TEXT; const typography = selectHubTypography(fonts);
+  return { primaryColor, secondaryColor, backgroundColor, surfaceColor, textColor, softAccentColor: mixWithWhite(primaryColor), headingFont: typography.headingFont, bodyFont: typography.bodyFont, availableColors: normalizedColors.length ? normalizedColors : [FALLBACK_PRIMARY, FALLBACK_SECONDARY, FALLBACK_BACKGROUND, FALLBACK_SURFACE], availableFonts: typography.contentFonts.length ? typography.contentFonts : [FALLBACK_FONT] };
 }
 
-function categoryTitle(category: string, language: "bg" | "en") {
-  return CATEGORY_TITLES[category]?.[language] || category;
-}
+function categoryTitle(category: string, language: "bg" | "en") { return CATEGORY_TITLES[category]?.[language] || category; }
+function attrLabel(attribute: string, fallback: string, language: "bg" | "en") { return ATTRIBUTE_LABELS[attribute]?.[language] || fallback || attribute; }
+function clean(value: unknown) { return String(value ?? "").replace(/\s+/g, " ").trim(); }
+function normalized(value: unknown) { return clean(value).toLocaleLowerCase("en-US"); }
 
-function buildSections(items: HotelIntelligenceItem[], language: "bg" | "en") {
-  const grouped = new Map<string, HotelIntelligenceItem[]>();
-  for (const item of items) {
-    const category = String(item.category || "hotel").trim().toLowerCase() || "hotel";
-    const current = grouped.get(category) || [];
-    current.push(item);
-    grouped.set(category, current);
+function compactItemValue(facts: HotelIntelligenceItem[], language: "bg" | "en", limit = 3) {
+  const preferred = ["description", "hours", "booking", "external_access", "price", "session_duration", "event_capacity", "event_service", "check_in", "check_out", "quiet_hours", "parking", "wifi"];
+  const ranked = [...facts].sort((a, b) => {
+    const ai = preferred.indexOf(clean(a.attribute)); const bi = preferred.indexOf(clean(b.attribute));
+    return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi);
+  });
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  for (const fact of ranked) {
+    const value = clean(fact.value); if (!value) continue;
+    const itemKey = `${clean(fact.attribute)}|${value.toLowerCase()}`; if (seen.has(itemKey)) continue; seen.add(itemKey);
+    parts.push(`${attrLabel(clean(fact.attribute), fact.label, language)}: ${value}`);
+    if (parts.length >= limit) break;
   }
+  return parts.join(" · ");
+}
 
-  return [...grouped.entries()]
-    .map(([category, facts]) => ({
-      id: `section-${category}`,
-      category,
-      title: categoryTitle(category, language),
-      priority: CATEGORY_PRIORITY[category] ?? 500,
-      items: facts.slice(0, 8).map((fact) => ({
-        id: fact.id,
-        label: fact.label,
-        value: fact.value,
-        confidence: fact.confidence,
-      })),
-    }))
+function simpleEntityName(item: { name: string; facts: HotelIntelligenceItem[] }, sectionKey: string) {
+  if (clean(item.name)) return clean(item.name);
+  const preferred = sectionKey === "accommodation" ? ["room_type"] : sectionKey === "dining" ? ["venue"] : ["treatment", "service", "facility", "amenity"];
+  for (const attribute of preferred) {
+    const match = item.facts.find((fact) => clean(fact.attribute) === attribute);
+    if (match?.value) return clean(match.value);
+  }
+  return clean(item.facts[0]?.label) || clean(item.facts[0]?.value);
+}
+
+function policyInventory(facts: HotelIntelligenceItem[], language: "bg" | "en") {
+  return unique(facts.map((fact) => POLICY_LABELS[clean(fact.attribute)]?.[language] || attrLabel(clean(fact.attribute), fact.label, language)).filter(Boolean));
+}
+
+function liveTitleAllowed(pkg: HotelIntelligencePackage, sectionKey: string, name: string) {
+  if (!["events", "offers"].includes(sectionKey) || !pkg.scannerBridge) return true;
+  const kind = sectionKey === "events" ? "events" : "offers";
+  const allowed = pkg.scannerBridge.activeItems.filter((item) => item.kind === kind).map((item) => normalized(item.title));
+  if (!allowed.length) return false;
+  const candidate = normalized(name);
+  return allowed.some((title) => title === candidate || title.includes(candidate) || candidate.includes(title));
+}
+
+function buildSections(pkg: HotelIntelligencePackage, language: "bg" | "en") {
+  const grouped = buildHotelScannerHubSections(pkg.routing.hub) as Array<{ key: string; facts: HotelIntelligenceItem[]; items: Array<{ key: string; name: string; facts: HotelIntelligenceItem[] }> }>;
+  return grouped
+    .filter((section) => section.key !== "contacts")
+    .map((section) => {
+      if (section.key === "policies") {
+        const topics = policyInventory(section.facts, language);
+        const rows = topics.length ? [{ id: "hub-policies-inventory", label: categoryTitle("policies", language), value: topics.join(" · "), confidence: 1 }] : [];
+        return { id: "section-policies", category: "policies", title: categoryTitle("policies", language), priority: CATEGORY_PRIORITY.policies, items: rows };
+      }
+
+      const rows = section.items.slice(0, 16).flatMap((item, index) => {
+        if (section.key === "overview" && !item.name) {
+          return item.facts.slice(0, 6).map((fact, factIndex) => ({ id: `hub-${section.key}-${index}-${factIndex}`, label: fact.label, value: fact.value, confidence: fact.confidence }));
+        }
+
+        const name = simpleEntityName(item, section.key);
+        if (!name || !liveTitleAllowed(pkg, section.key, name)) return [];
+        const confidence = Math.max(...item.facts.map((fact) => Number(fact.confidence || 0)));
+
+        if (["accommodation", "dining", "wellness"].includes(section.key)) {
+          return [{ id: `hub-${section.key}-${index}`, label: name, value: "", confidence }];
+        }
+
+        const value = compactItemValue(item.facts, language, ["services", "experiences"].includes(section.key) ? 2 : 3);
+        return [{ id: `hub-${section.key}-${index}`, label: name, value, confidence }];
+      });
+      return { id: `section-${section.key}`, category: section.key, title: categoryTitle(section.key, language), priority: CATEGORY_PRIORITY[section.key] ?? 500, items: rows };
+    })
+    .filter((section) => section.items.length > 0)
     .sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title));
 }
 
-export function buildHubDesignProposal(
-  pkg: HotelIntelligencePackage,
-  language: "bg" | "en",
-): HubDesignProposal {
+export function buildHubDesignProposal(pkg: HotelIntelligencePackage, language: "bg" | "en"): HubDesignProposal {
   const selected = selectTheme(pkg.designIntelligenceLayer.colors, pkg.designIntelligenceLayer.fonts);
-  const sections = buildSections(pkg.routing.hub, language);
-
+  const sections = buildSections(pkg, language);
   return {
     schemaVersion: "hub-design-proposal-v1",
     hotelName: pkg.hotelProfileLayer.identity.hotelName || "Hotel",
-    theme: {
-      primaryColor: selected.primaryColor,
-      secondaryColor: selected.secondaryColor,
-      backgroundColor: selected.backgroundColor,
-      surfaceColor: selected.surfaceColor,
-      textColor: selected.textColor,
-      softAccentColor: selected.softAccentColor,
-      headingFont: selected.headingFont,
-      bodyFont: selected.bodyFont,
-    },
+    theme: { primaryColor: selected.primaryColor, secondaryColor: selected.secondaryColor, backgroundColor: selected.backgroundColor, surfaceColor: selected.surfaceColor, textColor: selected.textColor, softAccentColor: selected.softAccentColor, headingFont: selected.headingFont, bodyFont: selected.bodyFont },
     availableColors: selected.availableColors,
     availableFonts: selected.availableFonts,
     sections,
-    quickActions: sections.slice(0, 6).map((section) => section.id),
+    quickActions: sections.filter((section) => !["overview", "policies"].includes(section.category)).slice(0, 6).map((section) => section.id),
     assetPolicy: "hotel_authorization_required",
     generatedFrom: "hotel-intelligence-v1",
   };

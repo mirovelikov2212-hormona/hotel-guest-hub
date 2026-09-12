@@ -1,4 +1,5 @@
 import type { CanonicalStaffRequestType } from "@/lib/staff/request-contract.mjs";
+import type { OperationalRequestSlaPolicy } from "@/lib/server/operational-request-sla.mjs";
 
 export type StaffDepartment = string;
 
@@ -28,6 +29,9 @@ export type StaffRequest = {
   serviceTime: StaffServiceTime;
   createdAt: string;
   createdAtIso: string;
+  startedAtIso?: string | null;
+  resolvedAtIso?: string | null;
+  operationalSla?: OperationalRequestSlaPolicy | null;
   createdDateKey: string;
   note?: string;
   noteOriginal?: string | null;

@@ -10,16 +10,17 @@ const crawlerPath = "lib/server/factory-hotel-scanner.ts";
 const normalizerPath = "lib/ai/hotel-scanner.ts";
 const richFactsPath = "lib/ai/hotel-scanner-rich-facts.ts";
 const intelligencePackagePath = "lib/product-factory/hotel-intelligence-package.ts";
+const hubProposalPath = "lib/product-factory/hub-design-proposal.ts";
 const routePath = "app/api/control-plane/hotel-scanner/scan/route.ts";
 const pagePath = "app/hotel-scanner/page.tsx";
 const clientPath = "app/hotel-scanner/HotelScannerClient.tsx";
+const hubResultsPath = "app/hotel-scanner/HotelScannerHubResults.tsx";
 const designStudioPagePath = "app/design-studio/page.tsx";
 const designStudioClientPath = "app/design-studio/DesignStudioClient.tsx";
 const controlPanelPath = "app/control-panel/page.tsx";
 
 test("Factory Hotel Scanner is admin protected and draft-only", async () => {
   const route = await readProjectFile(routePath);
-
   assertContains(route, "enforceControlPlaneSameOrigin(request)");
   assertContains(route, "getCurrentPlatformAdminSession()");
   assertContains(route, "draft: true");
@@ -30,30 +31,33 @@ test("Factory Hotel Scanner is admin protected and draft-only", async () => {
 
 test("Factory Hotel Scanner blocks private-network and unsafe URL targets", async () => {
   const crawler = await readProjectFile(crawlerPath);
-
   assertContains(crawler, 'hostname === "localhost"');
   assertContains(crawler, 'hostname.endsWith(".local")');
   assertContains(crawler, 'hostname.endsWith(".internal")');
   assertContains(crawler, "isPrivateIp");
   assertContains(crawler, 'redirect: "manual"');
   assertContains(crawler, "MAX_REDIRECTS = 5");
-  assertContains(crawler, "MAX_PAGE_BYTES = 1_000_000");
-  assertContains(crawler, "MAX_PAGES = 6");
+  assertContains(crawler, "MAX_PAGE_BYTES = 1_250_000");
+  assertContains(crawler, "MAX_PAGES = 28");
   assertContains(crawler, "assertPublicHostname(current)");
 });
 
-test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
+test("Factory Hotel Scanner keeps multi-wave crawl and triple-pass AI latency bounded", async () => {
   const crawler = await readProjectFile(crawlerPath);
   const route = await readProjectFile(routePath);
   const normalizer = await readProjectFile(normalizerPath);
   const richFacts = await readProjectFile(richFactsPath);
 
   assertContains(crawler, "MAX_SECONDARY_PAGES = MAX_PAGES - 1");
+  assertContains(crawler, "MAX_CRAWL_BATCH_SIZE = 8");
+  assertContains(crawler, "MAX_CRAWL_WAVES = 5");
   assertContains(crawler, "FETCH_TIMEOUT_MS = 6_000");
+  assertContains(crawler, "planHotelScannerSecondaryUrls");
+  assertContains(crawler, "maxPages: Math.min(MAX_CRAWL_BATCH_SIZE, remainingBudget)");
   assertContains(crawler, "await Promise.all(");
-  assertContains(crawler, "secondaryUrls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin))");
+  assertContains(crawler, "crawlPlan.urls.map((url) => fetchSecondaryEvidence(url, canonicalOrigin");
   assertContains(crawler, "STYLESHEET_TIMEOUT_MS = 4_000");
-  assertContains(route, "AI_DEADLINE_MS = 32_000");
+  assertContains(route, "AI_DEADLINE_MS = 38_000");
   assertContains(route, "withDeadline(");
   assertNotContains(route, "normalizeWithTimeoutRecovery");
   assertContains(route, 'SDK_TIMEOUT_MESSAGE = "Request timed out."');
@@ -68,13 +72,18 @@ test("Factory Hotel Scanner keeps crawl and AI latency bounded", async () => {
   assertContains(normalizer, 'reasoning: { effort: "none" }');
   assertContains(normalizer, "max_output_tokens: 1_800");
   assertContains(normalizer, "page.text.slice(0, 3_000)");
-  assertContains(richFacts, 'timeout: 28_000');
-  assertContains(richFacts, "max_output_tokens: 2_800");
+  assertContains(richFacts, 'timeout: 30_000');
+  assertContains(richFacts, 'type FactExtractionMode = "comprehensive" | "critical" | "hub"');
+  assertContains(richFacts, "max_output_tokens: critical ? 4_200 : hub ? 12_000 : 8_200");
+  assertContains(richFacts, 'runFactExtraction(evidence, outputLanguage, "comprehensive")');
+  assertContains(richFacts, 'runFactExtraction(evidence, outputLanguage, "critical")');
+  assertContains(richFacts, 'runFactExtraction(evidence, outputLanguage, "hub")');
+  assertContains(richFacts, "selectHotelScannerHubPages(evidence.pages)");
+  assertContains(richFacts, "hub ? 20_000 : 6_000");
 });
 
 test("Factory Hotel Scanner fails soft when core AI enrichment is slow", async () => {
   const route = await readProjectFile(routePath);
-
   assertContains(route, "buildDeterministicFallbackProfile");
   assertContains(route, 'coreMode: "ai" as const');
   assertContains(route, 'coreMode: "deterministic_fallback" as const');
@@ -85,11 +94,10 @@ test("Factory Hotel Scanner fails soft when core AI enrichment is slow", async (
   assertContains(route, "facts: mergeFacts(richFacts, coreState.normalized.profile.facts)");
 });
 
-test("Factory Hotel Scanner keeps core profile separate from rich fact extraction", async () => {
+test("Factory Hotel Scanner keeps core profile separate from comprehensive, critical and Hub extraction", async () => {
   const normalizer = await readProjectFile(normalizerPath);
   const route = await readProjectFile(routePath);
   const richFacts = await readProjectFile(richFactsPath);
-
   assertContains(normalizer, 'Omit<HotelScanProfile, "schemaVersion" | "source" | "brand" | "facts">');
   assertContains(normalizer, "facts: [],");
   assertContains(normalizer, "Do not generate evidence fact cards here; a separate bounded extractor owns the rich fact review.");
@@ -97,16 +105,18 @@ test("Factory Hotel Scanner keeps core profile separate from rich fact extractio
   assertNotContains(normalizer, "Every item in facts must cite exact URLs");
   assertContains(route, "extractRichHotelScanFactsWithOpenAi");
   assertContains(route, "mergeFacts(richFacts, coreState.normalized.profile.facts)");
-  assertContains(richFacts, "Aim for 18-28 DISTINCT useful facts");
-  assertContains(richFacts, "maxItems: 28");
+  assertContains(richFacts, "Aim for 55-80 DISTINCT facts when evidence is rich");
+  assertContains(richFacts, "Perform a CRITICAL VERIFICATION PASS over every supplied page");
+  assertContains(richFacts, "CONTENT INVENTORY for a future mobile hotel Hub and Design Studio");
+  assertContains(richFacts, "FIRST enumerate every named guest-facing item visible in each supplied inventory page");
+  assertContains(richFacts, "const maxItems = critical ? 40 : hub ? 140 : 80");
 });
 
 test("Factory Hotel Scanner extracts CSS brand colors and fonts deterministically", async () => {
   const crawler = await readProjectFile(crawlerPath);
   const normalizer = await readProjectFile(normalizerPath);
   const client = await readProjectFile(clientPath);
-
-  assertContains(crawler, "MAX_STYLESHEETS = 6");
+  assertContains(crawler, "MAX_STYLESHEETS = 8");
   assertContains(crawler, "extractStylesheetUrls");
   assertContains(crawler, "fetchStylesheet");
   assertContains(crawler, "rankedColors");
@@ -123,34 +133,48 @@ test("Factory Hotel Scanner extracts CSS brand colors and fonts deterministicall
   assertContains(client, "backgroundColor: color");
 });
 
-test("Factory Hotel Scanner restores rich evidence while curating framework brand noise", async () => {
+test("Factory Hotel Scanner restores comprehensive evidence and adds bounded Hub evidence", async () => {
   const route = await readProjectFile(routePath);
   const richFacts = await readProjectFile(richFactsPath);
-
   assertContains(route, "extractRichHotelScanFactsWithOpenAi");
   assertContains(route, "mergeFacts");
   assertContains(route, "richFactCount");
   assertContains(route, "refineHotelScanBrandEvidence");
-  assertContains(richFacts, "Aim for 18-28 DISTINCT useful facts");
-  assertContains(richFacts, "maxItems: 28");
+  assertContains(richFacts, "Aim for 55-80 DISTINCT facts when evidence is rich");
+  assertContains(richFacts, "const maxItems = critical ? 40 : hub ? 140 : 80");
+  assertContains(richFacts, "extractHotelScannerCriticalClaims");
+  assertContains(richFacts, "return mergeExtractions(deterministic, hub, critical, comprehensive)");
 });
 
-test("Factory Hotel Scanner scopes opening hours to named facilities", async () => {
+test("Factory Hotel Scanner scopes opening hours and separates venue policy semantics", async () => {
   const richFacts = await readProjectFile(richFactsPath);
-
   assertContains(richFacts, "isGenericHoursLabel");
-  assertContains(richFacts, "Opening-hours facts MUST name one specific facility, venue, service or guest area in the label.");
-  assertContains(richFacts, "emit one separate hours fact for each named facility whose schedule is explicit");
-  assertContains(richFacts, "omit that hours fact rather than guessing its scope");
-  assertContains(richFacts, "omit the hours fact rather than merging conflicting times");
+  assertContains(richFacts, "if (!label || !factValue || !sourceUrls.length || isGenericHoursLabel(label)) continue;");
+  assertContains(richFacts, "Opening-hours facts MUST name one specific facility, venue, service or guest area through subject.");
+  assertContains(richFacts, "For every named restaurant, bar or dining venue emit a venue fact and separate hours, external_access, booking, dress_code, description or price facts when explicitly stated.");
+  assertContains(richFacts, "external guest eligibility is external_access; clothing requirements are dress_code; adult/child restrictions are age_policy");
+  assertContains(richFacts, "Never hide contradictions.");
+});
+
+test("Factory Hotel Scanner presents Hub-ready content without per-field evidence noise", async () => {
+  const hubResults = await readProjectFile(hubResultsPath);
+  const hubProposal = await readProjectFile(hubProposalPath);
+  assertContains(hubResults, "SourceFooter");
+  assertContains(hubResults, 'policies: "Политики"');
+  assertContains(hubResults, 'policies: "Policies"');
+  assertContains(hubResults, "contacts.socialLinks");
+  assertNotContains(hubResults, "AI confidence");
+  assertContains(hubProposal, "buildHotelScannerHubSections");
+  assertContains(hubProposal, 'experiences: { bg: "Преживявания и активности"');
+  assertContains(hubProposal, "compactItemValue");
 });
 
 test("Factory Hotel Scanner keeps discovered logos reference-only until hotel authorization", async () => {
   const route = await readProjectFile(routePath);
-
   assertContains(route, 'LOGO_ASSET_POLICY = "hotel_authorization_required"');
+  assertContains(route, 'const assetPolicy = {');
   assertContains(route, 'scannedLogoUrls: "reference_only"');
-  assertContains(route, "assetPolicy:");
+  assertContains(route, "assetPolicy,");
 });
 
 test("Factory Hotel Scanner keeps BG and EN review output language-consistent", async () => {
@@ -158,8 +182,9 @@ test("Factory Hotel Scanner keeps BG and EN review output language-consistent", 
   const normalizer = await readProjectFile(normalizerPath);
   const richFacts = await readProjectFile(richFactsPath);
   const client = await readProjectFile(clientPath);
-
+  const hubResults = await readProjectFile(hubResultsPath);
   assertContains(client, "JSON.stringify({ url: url.trim(), lang })");
+  assertContains(client, "HotelScannerHubResults");
   assertContains(route, 'body?.lang === "en" ? "en" : "bg"');
   assertContains(route, "normalizeHotelScanWithOpenAi(evidence, outputLanguage)");
   assertContains(route, "extractRichHotelScanFactsWithOpenAi(evidence, outputLanguage)");
@@ -168,19 +193,19 @@ test("Factory Hotel Scanner keeps BG and EN review output language-consistent", 
   assertContains(normalizer, "Write ALL human-readable review content in English");
   assertContains(richFacts, "Write every human-readable fact label and value in Bulgarian");
   assertContains(richFacts, "Write every human-readable fact label and value in English");
-  assertContains(richFacts, "Do not translate category keys");
-  assertContains(client, "FACT_CATEGORY_COPY");
-  assertContains(client, "factCategoryLabel(fact.category, lang)");
-  assertContains(client, 'summary: "Описание"');
-  assertContains(client, 'summary: "Summary"');
-  assertContains(client, 'sourcesOne: "източник"');
-  assertContains(client, 'sourcesOne: "source"');
+  assertContains(richFacts, "category MUST be one canonical lowercase machine key from:");
+  assertContains(richFacts, "FACT_CATEGORIES.join");
+  assertContains(hubResults, "const TITLES =");
+  assertContains(hubResults, 'accommodation: "Настаняване"');
+  assertContains(hubResults, 'accommodation: "Accommodation"');
+  assertContains(hubResults, 'experiences: "Преживявания и активности"');
+  assertContains(hubResults, 'experiences: "Experiences & activities"');
+  assertContains(hubResults, "const ATTR =");
 });
 
-test("Factory Hotel Scanner AI normalization is evidence grounded", async () => {
+test("Factory Hotel Scanner AI normalization is evidence grounded and privacy-minimal", async () => {
   const normalizer = await readProjectFile(normalizerPath);
   const richFacts = await readProjectFile(richFactsPath);
-
   assertContains(normalizer, "Use ONLY WEBSITE_EVIDENCE and DETECTED_BRAND_SIGNALS");
   assertContains(normalizer, "ALLOWED_SOURCE_URLS");
   assertContains(normalizer, "allowedOrigins.has(url.origin)");
@@ -189,18 +214,20 @@ test("Factory Hotel Scanner AI normalization is evidence grounded", async () => 
   assertContains(normalizer, "store: false");
   assertContains(richFacts, "Every fact MUST cite one or more exact URLs from ALLOWED_SOURCE_URLS.");
   assertContains(richFacts, ".filter((url) => allowed.has(url))");
+  assertContains(richFacts, "Never extract guest names, staff names, personal biographies");
+  assertContains(richFacts, "isPrivacyMinimalBusinessEmail");
 });
 
 test("Hotel Intelligence Package formalizes evidence profile design and routing layers", async () => {
   const model = await readProjectFile(intelligencePackagePath);
   const route = await readProjectFile(routePath);
-
   assertContains(model, 'schemaVersion: "hotel-intelligence-v1"');
   assertContains(model, "evidenceLayer:");
   assertContains(model, "hotelProfileLayer:");
   assertContains(model, "designIntelligenceLayer:");
   assertContains(model, '"hub" | "smart_setup" | "design_studio" | "review"');
   assertContains(model, 'visualAssetPolicy: "hotel_authorization_required"');
+  assertContains(model, '"experiences", "offers"');
   assertContains(model, "hubCandidateCount");
   assertContains(model, "smartSetupCandidateCount");
   assertContains(model, "reviewRequiredCount");
@@ -210,7 +237,6 @@ test("Hotel Intelligence Package formalizes evidence profile design and routing 
 
 test("Scanner hands the Intelligence Package to Design Studio only by explicit local action", async () => {
   const client = await readProjectFile(clientPath);
-
   assertContains(client, 'PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1"');
   assertContains(client, "window.sessionStorage.setItem(PACKAGE_STORAGE_KEY");
   assertContains(client, 'window.location.assign(`/design-studio?lang=${lang}`)');
@@ -224,7 +250,6 @@ test("Hub Design Studio is protected and draft-only", async () => {
   const page = await readProjectFile(designStudioPagePath);
   const client = await readProjectFile(designStudioClientPath);
   const controlPanel = await readProjectFile(controlPanelPath);
-
   assertContains(page, "getCurrentPlatformAdminSession()");
   assertContains(page, "DesignStudioClient");
   assertContains(page, "/design-studio?lang=");
@@ -244,7 +269,6 @@ test("Hub Design Studio is protected and draft-only", async () => {
 test("Hotel Scanner is a standalone protected workspace", async () => {
   const page = await readProjectFile(pagePath);
   const controlPanel = await readProjectFile(controlPanelPath);
-
   assertContains(page, "getCurrentPlatformAdminSession()");
   assertContains(page, "HotelScannerClient");
   assertContains(page, "/hotel-scanner?lang=");

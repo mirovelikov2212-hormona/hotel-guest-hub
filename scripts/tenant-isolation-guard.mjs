@@ -62,6 +62,17 @@ const milestoneDeltaPaths = [
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-factory-acceptance-sandbox-cleanup.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-central-massage-catalog.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-communications-lifecycle-retention.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-hotel-intelligence-review-v1.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-hotel-scan-run-v1.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-hotel-intelligence-scan-run-lineage-v1.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-hotel-release-design-lineage.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-cm1-post-live-version-transition.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-cm2-version-diff.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-cm3-historical-version-restore.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-cm4-version-management-control-plane.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-oa3-operational-sla-escalation.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-oa4-unified-guest-timeline.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-oa5-guest-stay-context.json"),
 ];
 
 const baseBaseline = JSON.parse(await readFile(baselinePath, "utf8"));

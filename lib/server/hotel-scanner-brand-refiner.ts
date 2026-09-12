@@ -8,7 +8,7 @@ import type { HotelScanEvidenceBundle } from "@/lib/server/factory-hotel-scanner
 const MAX_STYLESHEETS = 8;
 const MAX_CSS_BYTES = 500_000;
 const CSS_TIMEOUT_MS = 4_000;
-const USER_AGENT = "StayHub-Hotel-Scanner/1.0 (+https://stayhub.app)";
+const USER_AGENT = "StayHub-Hotel-Scanner/2.0 (+https://stayhub.app)";
 
 const BOOTSTRAP_COLORS = new Set([
   "#0d6efd", "#6610f2", "#6f42c1", "#d63384", "#dc3545", "#fd7e14", "#ffc107",
@@ -16,26 +16,24 @@ const BOOTSTRAP_COLORS = new Set([
   "#e9ecef", "#dee2e6", "#ced4da", "#000000", "#ffffff",
 ]);
 
-const ICON_FONT_PATTERN = /(font\s*awesome|bootstrap[- ]?icons?|flaticon|themify|material[- ]?icons?|icomoon|glyphicons?|feather|remixicon)/i;
+const ICON_FONT_PATTERN = /(font\s*awesome|bootstrap[- ]?icons?|flaticon|themify|material(?:[- ]?(?:icons?|symbols?))?|icomoon|glyphicons?|feather|remixicon|apple color emoji|segoe ui emoji|noto color emoji|wingdings|webdings|symbol)/i;
 const GENERIC_FONTS = new Set([
   "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui", "ui-serif",
   "ui-sans-serif", "ui-monospace", "inherit", "initial", "unset", "revert", "emoji",
+  "sfmono-regular", "menlo", "monaco", "consolas", "liberation mono", "courier new",
 ]);
 
 type CssSource = { url: string; css: string; framework: boolean };
-
 type Score = { score: number; customHits: number; frameworkHits: number; semanticHits: number };
 
 function isPrivateIpv4(address: string) {
   const parts = address.split(".").map(Number);
   if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
   const [a, b] = parts;
-  return (
-    a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) ||
+  return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) ||
     (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168) || (a === 192 && b === 0) ||
-    (a === 198 && (b === 18 || b === 19)) || a >= 224
-  );
+    (a === 198 && (b === 18 || b === 19)) || a >= 224;
 }
 
 function isPrivateIp(address: string) {
@@ -54,9 +52,7 @@ async function assertPublicUrl(url: URL) {
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) throw new Error("unsafe_stylesheet_url");
   if (url.port && !["80", "443"].includes(url.port)) throw new Error("unsafe_stylesheet_port");
   const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
-  if (!hostname || hostname === "localhost" || hostname.endsWith(".local") || hostname.endsWith(".internal")) {
-    throw new Error("unsafe_stylesheet_host");
-  }
+  if (!hostname || hostname === "localhost" || hostname.endsWith(".local") || hostname.endsWith(".internal")) throw new Error("unsafe_stylesheet_host");
   if (isIP(hostname)) {
     if (isPrivateIp(hostname)) throw new Error("unsafe_stylesheet_ip");
     return;
@@ -90,11 +86,7 @@ async function fetchCss(rawUrl: string): Promise<CssSource | null> {
       if (!response.ok) return null;
       const contentLength = Number(response.headers.get("content-length") || 0);
       if (contentLength > MAX_CSS_BYTES) return null;
-      return {
-        url: current.toString(),
-        css: (await response.text()).slice(0, MAX_CSS_BYTES),
-        framework: isFrameworkStylesheet(current),
-      };
+      return { url: current.toString(), css: (await response.text()).slice(0, MAX_CSS_BYTES), framework: isFrameworkStylesheet(current) };
     }
   } catch {
     return null;
@@ -145,11 +137,9 @@ function scorePalette(sources: CssSource[], existing: string[]) {
     if (kind === "semantic") current.semanticHits += 1;
     scores.set(color, current);
   };
-
   for (const source of sources) {
     const base = source.framework ? 0.25 : 2.5;
     for (const color of colorsIn(source.css)) add(color, base, source.framework ? "framework" : "custom");
-
     const variableRegex = /--([\w-]+)\s*:\s*([^;}{]+)/g;
     let variable: RegExpExecArray | null;
     while ((variable = variableRegex.exec(source.css))) {
@@ -158,36 +148,23 @@ function scorePalette(sources: CssSource[], existing: string[]) {
       for (const color of colorsIn(variable[2])) add(color, source.framework ? 1 : 18, "semantic");
     }
   }
-
   for (const color of existing) {
     const normalized = normalizeHex(color);
     if (normalized) add(normalized, 1, "custom");
   }
-
   return [...scores.entries()]
-    .filter(([color, meta]) => {
-      if (!BOOTSTRAP_COLORS.has(color)) return true;
-      return meta.semanticHits > 0 || meta.customHits >= 3;
-    })
+    .filter(([color, meta]) => !BOOTSTRAP_COLORS.has(color) || meta.semanticHits > 0 || meta.customHits >= 3)
     .sort((left, right) => {
       const [leftColor, leftMeta] = left;
       const [rightColor, rightMeta] = right;
-      const leftPenalty = BOOTSTRAP_COLORS.has(leftColor) ? 8 : 0;
-      const rightPenalty = BOOTSTRAP_COLORS.has(rightColor) ? 8 : 0;
-      return (rightMeta.score - rightPenalty) - (leftMeta.score - leftPenalty);
+      return (rightMeta.score - (BOOTSTRAP_COLORS.has(rightColor) ? 8 : 0)) - (leftMeta.score - (BOOTSTRAP_COLORS.has(leftColor) ? 8 : 0));
     })
     .map(([color]) => color)
     .slice(0, 10);
 }
 
 function cleanFont(raw: string) {
-  return raw
-    .replace(/!important/gi, "")
-    .replace(/[;})]+$/g, "")
-    .trim()
-    .replace(/^['"]|['"]$/g, "")
-    .replace(/\s+/g, " ")
-    .slice(0, 100);
+  return raw.replace(/!important/gi, "").replace(/[;})]+$/g, "").trim().replace(/^['"]|['"]$/g, "").replace(/\s+/g, " ").slice(0, 100);
 }
 
 function scoreFonts(sources: CssSource[], existing: string[]) {
@@ -198,18 +175,13 @@ function scoreFonts(sources: CssSource[], existing: string[]) {
     if (!font || GENERIC_FONTS.has(lower) || ICON_FONT_PATTERN.test(font) || /^var\(/i.test(font)) return;
     scores.set(font, (scores.get(font) || 0) + score);
   };
-
   for (const source of sources) {
     const familyRegex = /font-family\s*:\s*([^;}{]+)/gi;
     let family: RegExpExecArray | null;
-    while ((family = familyRegex.exec(source.css))) {
-      for (const value of family[1].split(",")) add(value, source.framework ? 0.25 : 2.5);
-    }
-
+    while ((family = familyRegex.exec(source.css))) for (const value of family[1].split(",")) add(value, source.framework ? 0.25 : 2.5);
     const faceRegex = /@font-face\s*{[\s\S]*?font-family\s*:\s*([^;}{]+)/gi;
     let face: RegExpExecArray | null;
     while ((face = faceRegex.exec(source.css))) add(face[1], source.framework ? 0.5 : 5);
-
     try {
       const url = new URL(source.url);
       for (const familyName of url.searchParams.getAll("family")) add(familyName.split(":")[0].replace(/\+/g, " "), 8);
@@ -217,20 +189,14 @@ function scoreFonts(sources: CssSource[], existing: string[]) {
       // Ignore malformed provider URL metadata.
     }
   }
-
   for (const font of existing) add(font, 1);
-
-  return [...scores.entries()]
-    .sort((left, right) => right[1] - left[1])
-    .map(([font]) => font)
-    .slice(0, 5);
+  return [...scores.entries()].sort((left, right) => right[1] - left[1]).map(([font]) => font).slice(0, 5);
 }
 
 export async function refineHotelScanBrandEvidence(evidence: HotelScanEvidenceBundle): Promise<HotelScanEvidenceBundle> {
   const urls = [...new Set(evidence.brand.stylesheetUrls)].slice(0, MAX_STYLESHEETS);
   const sources = (await Promise.all(urls.map(fetchCss))).filter((item): item is CssSource => Boolean(item));
   if (!sources.length) return evidence;
-
   return {
     ...evidence,
     brand: {

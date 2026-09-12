@@ -16,13 +16,15 @@ test("P4.10 certification route accepts lineage ids only and rejects caller evid
   assertNotContains(route, "evidence: body.evidence");
 });
 
-test("P4.10 derives every P2.5 certification check from trusted server evidence", async () => {
+test("P4.10 derives every P2.5 certification check plus exact Design lineage from trusted server evidence", async () => {
   const service = await readProjectFile("lib/server/factory-trusted-sandbox-certification.ts");
 
   assertContains(service, "getFactorySandboxPreflight");
   assertContains(service, "getFactoryReleaseEvidence");
   assertContains(service, "probeFactorySandboxGenericStaffRuntime");
   assertContains(service, "getFactoryPreviewRuntimeSmokeStatus");
+  assertContains(service, "verifyFactoryReleaseDesignRevision");
+  assertContains(service, "releaseDesign");
   assertContains(service, "certifyFactorySandbox");
   assertContains(service, 'source: "system_derived"');
 
@@ -60,13 +62,15 @@ test("P4.10 requires exact Preview release lineage and a clean three-marker Drai
   assertContains(service, "smokeStatus.deploymentId !== releaseEvidence.runtimeDeploymentId");
 });
 
-test("P4.10 rechecks pre-certification state and current Generic Staff runtime before mutation", async () => {
+test("P4.10 rechecks pre-certification state, exact Sandbox release revision and current Generic Staff runtime before mutation", async () => {
   const service = await readProjectFile("lib/server/factory-trusted-sandbox-certification.ts");
 
   assertContains(service, 'preflight.databaseStatus !== "validated"');
   assertContains(service, "preflight.environment.productionActive");
   assertContains(service, "preflight.environment.sandboxActive");
   assertContains(service, 'preflight.certification.status !== "not_started"');
+  assertContains(service, "hotelId: preflight.lineage.sandboxHotelId");
+  assertContains(service, "revisionId: preflight.lineage.sandboxRevisionId");
   assertContains(service, 'genericStaffRuntime.status !== "validated"');
   assertContains(service, "genericStaffRuntime.sandboxHotelId !== preflight.lineage.sandboxHotelId");
   assertContains(service, "genericStaffRuntime.sandboxRevisionId !== preflight.lineage.sandboxRevisionId");

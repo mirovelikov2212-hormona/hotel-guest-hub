@@ -1,0 +1,46 @@
+name: CM1 Post-LIVE Version Transition
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/20260909120000_cm1_post_live_version_transition_v1.sql"
+      - "supabase/migrations/20260909172000_cm1_production-relational-authority-compat-v1.sql"
+      - "supabase/migrations/20260909183000_cm1_transition_readiness_v2.sql"
+      - "tests/contracts/cm1-post-live-version-transition.contract.test.mjs"
+      - "tests/contracts/cm1-trusted-server-integration.contract.test.mjs"
+      - "tests/contracts/cm1-transition-readiness-v2.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-cm1-post-live-version-transition.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - "lib/server/factory-production-version-readiness.ts"
+      - "lib/server/factory-production-version-transition.ts"
+      - "lib/server/factory-production-publication.ts"
+      - "lib/server/factory-production-runtime-certification.ts"
+      - "lib/server/factory-production-live-activation.ts"
+      - ".github/workflows/cm1-post-live-version-transition.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/contracts/cm1-post-live-version-transition.contract.test.mjs
+      - run: node --test tests/contracts/cm1-trusted-server-integration.contract.test.mjs
+      - run: node --test tests/contracts/cm1-transition-readiness-v2.contract.test.mjs
+      - run: npm run test:tenant-isolation
+      - run: npm run test:p2-6-2
+      - run: npm run test:p2-6-3
+      - run: npm run test:p2-6-4
+      - run: npm run test:p2-6-5
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key

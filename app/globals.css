@@ -3111,3 +3111,150 @@ input.stayhub-card::placeholder {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+
+/* StayHub internal tools shared light/dark theme v1 */
+.stayhub-tools-shell {
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #fafafa;
+  color-scheme: dark;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.stayhub-tools-theme-toggle {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid #404040;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.92);
+  color: #f5f5f5;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(12px);
+}
+
+.stayhub-tools-theme-toggle:hover {
+  border-color: #737373;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] {
+  background: #f3f6f7;
+  color: #172126;
+  color-scheme: light;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .stayhub-tools-theme-toggle {
+  border-color: #c8d2d6;
+  background: rgba(255, 255, 255, 0.94);
+  color: #172126;
+  box-shadow: 0 8px 24px rgba(24, 45, 54, 0.12);
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/90,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/80,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/70,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/60,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/50,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/40 {
+  background-color: #f7f9fa !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-900,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-900\/90,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-900\/80,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-900\/70,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-900\/60,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-900\/50 {
+  background-color: #ffffff !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-800,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-800\/50 {
+  background-color: #edf1f2 !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/20,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/30,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/40,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/50 {
+  background-color: rgba(239, 244, 246, 0.92) !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-white\/10,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-white\/15,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-white\/20 {
+  border-color: #d3dde0 !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-neutral-900,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-neutral-800,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-neutral-700,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-neutral-600 {
+  border-color: #d3dde0 !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-white,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-50,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-100,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-200 {
+  color: #172126 !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-300 {
+  color: #33454d !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-400,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-500 {
+  color: #5d7078 !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-600,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-700 {
+  color: #71838a !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-cyan-50,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-cyan-100,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-cyan-200,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-cyan-300 { color: #086476 !important; }
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-emerald-50,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-emerald-100,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-emerald-200,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-emerald-300 { color: #08744f !important; }
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-amber-50,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-amber-100,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-amber-200,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-amber-300,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-yellow-100,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-yellow-300,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-orange-100 { color: #8a4a00 !important; }
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-rose-50,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-rose-100,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-rose-200,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-rose-300 { color: #a32945 !important; }
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-violet-50,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-violet-100,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-violet-300,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-fuchsia-100 { color: #6f3dad !important; }
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] input,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] textarea,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] select {
+  color-scheme: light;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] input::placeholder,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] textarea::placeholder {
+  color: #7b8b91 !important;
+}

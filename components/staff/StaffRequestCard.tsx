@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useGuestTimelineControls } from "@/components/staff/guest-timeline/GuestTimelineProvider";
 import { useStaffHotelTimeZone } from "@/components/staff/StaffHotelTimeZoneProvider";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import type { StaffBillingStatus, StaffRequest } from "@/lib/staff/types";
@@ -113,12 +114,18 @@ function formatRequestDateTime(iso: string, locale: string, timeZone?: string) {
 }
 
 function formatOverdueText(minutes: number | undefined, locale: string) {
-  const safeMinutes = Math.max(10, Math.floor(minutes || 10));
+  const safeMinutes = Math.max(1, Math.floor(minutes || 1));
 
   if (locale === "bg") return `Чака ${safeMinutes} мин.`;
   if (locale === "de") return `Wartet ${safeMinutes} Min.`;
 
   return `Waiting ${safeMinutes} min.`;
+}
+
+function timelineButtonLabel(locale: string) {
+  if (locale === "bg") return "История на престоя";
+  if (locale === "de") return "Aufenthaltsverlauf";
+  return "Stay timeline";
 }
 
 function formatBillingAmount(request: StaffRequest) {
@@ -164,6 +171,7 @@ export default function StaffRequestCard({
 }: StaffRequestCardProps) {
   const { lang } = useStaffUi();
   const hotelTimeZone = useStaffHotelTimeZone();
+  const timelineControls = useGuestTimelineControls();
   const t = staffText(lang);
   const [billingActionsOpen, setBillingActionsOpen] = useState(false);
   const isNew = request.status === "new";
@@ -268,6 +276,16 @@ export default function StaffRequestCard({
         </div>
 
         <div className="flex w-full flex-col gap-3 lg:w-72">
+          {mode === "manager" && timelineControls ? (
+            <button
+              type="button"
+              onClick={() => timelineControls.openForRequest(request.id)}
+              className="min-h-12 rounded-2xl border border-violet-300/25 bg-violet-400/10 px-4 text-sm font-semibold text-violet-100 transition hover:bg-violet-400/20"
+            >
+              {timelineButtonLabel(lang)}
+            </button>
+          ) : null}
+
           {mode === "manager" && !canAct ? (
             <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm leading-6 text-white/70">
               {t.managerViewOnly}

@@ -3,23 +3,32 @@ import test from "node:test";
 import { assertContains, assertNotContains, readProjectFile } from "../helpers/source-contract.mjs";
 
 const apiPath = "app/api/control-plane/design-studio/factory-handoff/route.ts";
+const authorityPath = "lib/server/factory-release-design-authority.ts";
 const launcherPath = "app/design-studio/DesignFactoryHandoffLauncher.tsx";
 const handoffPath = "app/hotel-factory/from-design/DesignRevisionFactoryHandoffClient.tsx";
 const onboardingPath = "app/api/control-plane/onboarding/route.ts";
 
-test("Factory handoff reads one exact immutable Design Revision and verifies both checksums", async () => {
-  const source = await readProjectFile(apiPath);
-  assertContains(source, '.from("hub_design_draft_revisions")');
-  assertContains(source, '.eq("workspace_id", workspaceId)');
-  assertContains(source, '.eq("id", revisionId)');
-  assertContains(source, "payloadChecksum !== data.payload_checksum");
-  assertContains(source, "sourcePackageChecksum !== data.source_package_checksum");
-  assertContains(source, 'schemaVersion: "hub-design-factory-handoff-v1"');
-  assertContains(source, "isCurrentRevision");
-  assertNotContains(source, ".insert({");
-  assertNotContains(source, ".update({");
-  assertNotContains(source, ".delete(");
-  assertNotContains(source, "production-live-activation");
+test("Factory handoff delegates one exact immutable Design Revision to the shared release authority and verifies both checksums", async () => {
+  const route = await readProjectFile(apiPath);
+  const authority = await readProjectFile(authorityPath);
+
+  assertContains(route, "loadVerifiedHubDesignFactoryHandoff");
+  assertContains(route, "workspaceId");
+  assertContains(route, "revisionId");
+  assertNotContains(route, '.from("hub_design_draft_revisions")');
+
+  assertContains(authority, '.from("hub_design_draft_revisions")');
+  assertContains(authority, '.eq("workspace_id", workspaceId)');
+  assertContains(authority, '.eq("id", revisionId)');
+  assertContains(authority, "payloadChecksum !== requireChecksum(row.payload_checksum");
+  assertContains(authority, "sourcePackageChecksum !== requireChecksum(row.source_package_checksum");
+  assertContains(authority, 'schemaVersion: "hub-design-factory-handoff-v1"');
+  assertContains(authority, 'authority: "exact_immutable_design_revision"');
+  assertContains(authority, "isCurrentRevision");
+  assertNotContains(authority, ".insert({");
+  assertNotContains(authority, ".update({");
+  assertNotContains(authority, ".delete(");
+  assertNotContains(authority, "production-live-activation");
 });
 
 test("Design Studio launcher can hand the current saved revision to the reviewed Factory gate", async () => {

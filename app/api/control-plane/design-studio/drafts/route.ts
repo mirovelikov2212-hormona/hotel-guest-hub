@@ -1,13 +1,13 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 
+import { stableDesignDraftStringify } from "@/lib/product-factory/hub-design-draft";
 import { canMutateControlPlane } from "@/lib/server/control-plane-auth";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 import {
   compareHubDesignDraftRevisions,
   loadHubDesignWorkspaceByCanonicalUrl,
-  prepareHubDesignRevision,
   restoreHubDesignDraftRevision,
   saveHubDesignDraftRevision,
 } from "@/lib/server/hub-design-draft-revisions";
@@ -30,10 +30,16 @@ function idempotencyKey(kind: "save" | "restore", parts: Array<string | null | u
   return `hub-design-${kind}:${digest}`;
 }
 
+function payloadDigest(payload: unknown) {
+  return crypto.createHash("sha256").update(stableDesignDraftStringify(payload)).digest("hex");
+}
+
 function errorCode(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes("PARENT_CONFLICT") || message.includes("CURRENT_REVISION_CONFLICT")) return { code: "revision_conflict", status: 409 };
   if (message.includes("IDEMPOTENCY_CONFLICT")) return { code: "idempotency_conflict", status: 409 };
+  if (message.includes("APPROVED_INTELLIGENCE_REQUIRED") || message.includes("REVISION_NOT_APPROVED")) return { code: "approved_intelligence_required", status: 409 };
+  if (message.includes("APPROVED_INTELLIGENCE") && message.includes("MISMATCH")) return { code: "approved_intelligence_lineage_mismatch", status: 409 };
   if (message.includes("NOT_FOUND")) return { code: "not_found", status: 404 };
   if (message.includes("INVALID") || message.includes("REQUIRED") || message.includes("MISMATCH")) return { code: "invalid_draft", status: 400 };
   return { code: "design_draft_failed", status: 500 };
@@ -86,23 +92,18 @@ export async function POST(request: NextRequest) {
     if (!canMutateControlPlane(authority.role)) return json({ ok: false, error: "forbidden" }, 403);
 
     if (action === "save") {
-      const sourcePackage = body?.sourcePackage;
       const payload = body?.payload;
       const parentRevisionId = body?.parentRevisionId ? String(body.parentRevisionId) : null;
-      const prepared = prepareHubDesignRevision({ sourcePackage, payload });
       const requestedKey = String(body?.idempotencyKey || "").trim();
       const saveKey = requestedKey || idempotencyKey("save", [
         authority.adminId,
-        prepared.sourceKey,
         parentRevisionId,
-        prepared.payloadChecksum,
-        prepared.sourcePackageChecksum,
+        payloadDigest(payload),
       ]);
       const result = await saveHubDesignDraftRevision({
         actorAdminId: authority.adminId,
         idempotencyKey: saveKey,
         parentRevisionId,
-        sourcePackage,
         payload,
       });
       return json({ ok: true, revision: result });
