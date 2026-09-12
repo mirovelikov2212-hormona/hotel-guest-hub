@@ -19,6 +19,7 @@ function page(url, title, headings = [], text = "") {
     languageAlternates: [],
     headings: headings.map((value, index) => ({ level: index === 0 ? 1 : 3, text: value })),
     jsonLdEntities: [],
+    contentBlocks: headings.slice(1).map((value) => ({ level: 3, heading: value, text: "", links: [] })),
   };
 }
 
@@ -55,7 +56,7 @@ test("booking search parameters collapse to the canonical hotel content URL", ()
   );
 });
 
-test("landing structure can establish accommodation, gastronomy and experience inventory without detail URLs", () => {
+test("landing structure establishes only semantically valid accommodation, dining and destination entities", () => {
   const pages = [
     page("https://hotel.test/en/rooms", "Accommodations", ["Our Rooms & Suites", "Economy Room", "Standard Room", "Studio", "One-Bedroom Apartment", "Grand Deluxe Apartment", "VIP Apartment"]),
     page("https://hotel.test/en/gastronomy", "Gastronomy", ["Gastronomy", "Our Dining Venues", "Forum Restaurant", "NERO Dining Club", "Lobby Bar", "Nutri Bar", "Night Bar"], "Five distinctive dining venues"),
@@ -73,7 +74,11 @@ test("landing structure can establish accommodation, gastronomy and experience i
   assert.equal(gastronomy.expectationState, "DETERMINISTIC");
   assert.equal(gastronomy.expectedCount, 5);
   assert.equal(experiences.expectationState, "DETERMINISTIC");
-  assert.ok(experiences.expectedCount >= 6);
+  assert.equal(experiences.expectedCount, 4);
+  assert.deepEqual(
+    experiences.expectedItems.map((item) => item.nameHint).sort(),
+    ["Historical Routes", "Natural Landmarks", "Tourism & Trails", "Traditions"].sort(),
+  );
 });
 
 test("sitemap-only generic services URLs do not create authoritative service entities", () => {
