@@ -36,7 +36,7 @@ export type HotelScannerV2Completeness = {
 };
 
 export function buildHotelCompletenessV2(input?: {
-  inventory?: Record<string, unknown>;
-  profile?: Record<string, unknown>;
+  inventory?: unknown;
+  profile?: unknown;
   conflicts?: unknown[];
 }): HotelScannerV2Completeness;
