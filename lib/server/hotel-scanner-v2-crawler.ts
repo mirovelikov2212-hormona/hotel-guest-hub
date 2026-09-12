@@ -9,6 +9,7 @@ import { isPublicBusinessCrawlUrl } from "@/lib/server/hotel-scanner-crawl-plan.
 import { classifyHotelScannerPageV2 } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
 import {
   extractHotelPageStructureV2,
+  type HotelScannerV2ContentBlock,
   type HotelScannerV2Heading,
   type HotelScannerV2JsonLdEntity,
 } from "@/lib/server/hotel-scanner-v2-page-structure.mjs";
@@ -52,6 +53,7 @@ export type HotelScannerV2PageEvidence = {
   languageAlternates: HotelScannerV2LanguageAlternate[];
   headings: HotelScannerV2Heading[];
   jsonLdEntities: HotelScannerV2JsonLdEntity[];
+  contentBlocks: HotelScannerV2ContentBlock[];
 };
 export type HotelScannerV2PublicDocument = {
   url: string;
@@ -190,6 +192,7 @@ function buildPageEvidence(url: URL, html: string): HotelScannerV2PageEvidence {
     languageAlternates: languageAlternates(html, url),
     headings: structure.headings,
     jsonLdEntities: structure.jsonLdEntities,
+    contentBlocks: structure.contentBlocks,
   };
 }
 
