@@ -10,6 +10,9 @@ let client: OpenAI | null = null;
 const MAX_DOCUMENTS_PER_SCAN = 16;
 const MAX_DOCUMENT_BYTES = 10_000_000;
 const DOCUMENT_TIMEOUT_MS = 10_000;
+const DOCUMENT_CONCURRENCY = 1;
+const DOCUMENT_AI_RATE_LIMIT_RETRIES = 1;
+const DOCUMENT_AI_RATE_LIMIT_MAX_DELAY_MS = 12_000;
 const USER_AGENT = "StayHub-Hotel-Scanner/2.0 (+https://stayhub.app)";
 
 const DOCUMENT_CATEGORIES = [
@@ -135,6 +138,37 @@ function languageInstruction(outputLanguage: HotelScannerV2OutputLanguage) {
     : "Write human-readable labels and descriptions in English; preserve official entity names, prices, dates, times, phones and emails exactly.";
 }
 
+function isRateLimitError(error: unknown) {
+  const status = Number((error as { status?: unknown } | null)?.status || 0);
+  const message = error instanceof Error ? error.message : String(error || "");
+  return status === 429 || /\b429\b|rate limit|tokens per min|TPM/iu.test(message);
+}
+
+function retryDelayMs(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  const seconds = Number(message.match(/try again in\s+([0-9.]+)s/iu)?.[1] || 0);
+  const requested = seconds > 0 ? Math.ceil(seconds * 1_000) + 250 : 2_000;
+  return Math.min(DOCUMENT_AI_RATE_LIMIT_MAX_DELAY_MS, Math.max(500, requested));
+}
+
+async function sleep(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withDocumentRateLimitRetry<T>(operation: () => Promise<T>) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= DOCUMENT_AI_RATE_LIMIT_RETRIES; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (!isRateLimitError(error) || attempt >= DOCUMENT_AI_RATE_LIMIT_RETRIES) throw error;
+      await sleep(retryDelayMs(error));
+    }
+  }
+  throw lastError;
+}
+
 async function ingestOne(
   document: HotelScannerV2Inventory["documents"][number],
   canonicalOrigin: string,
@@ -156,7 +190,7 @@ async function ingestOne(
       return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_not_pdf", byteCount: fetched.buffer.byteLength, latencyMs: Date.now() - startedAt };
     }
 
-    const response = await getClient().responses.create({
+    const response = await withDocumentRateLimitRetry(() => getClient().responses.create({
       model,
       store: false,
       max_output_tokens: 7_000,
@@ -218,7 +252,7 @@ async function ingestOne(
           },
         },
       },
-    });
+    }));
 
     if (response.status === "incomplete") {
       return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_ai_incomplete", byteCount: fetched.buffer.byteLength, latencyMs: Date.now() - startedAt };
@@ -268,7 +302,7 @@ export async function ingestHotelDocumentsV2(input: {
   const documents = input.inventory.documents;
   const canonicalOrigin = new URL(input.canonicalUrl).origin;
   const selected = documents.slice(0, MAX_DOCUMENTS_PER_SCAN);
-  const ingested = await mapWithConcurrency(selected, 2, (document) => ingestOne(document, canonicalOrigin, input.outputLanguage, model));
+  const ingested = await mapWithConcurrency(selected, DOCUMENT_CONCURRENCY, (document) => ingestOne(document, canonicalOrigin, input.outputLanguage, model));
   const skipped = documents.slice(MAX_DOCUMENTS_PER_SCAN).map((document) => ({
     url: document.url,
     status: "SKIPPED_LIMIT" as const,
