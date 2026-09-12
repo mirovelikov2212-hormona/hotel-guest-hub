@@ -17,10 +17,13 @@ const DOCUMENT_CATEGORIES = [
 ] as const;
 const DOCUMENT_ATTRIBUTES = [
   "room_type", "capacity", "size", "bed", "view", "meal_inclusion", "price", "hours", "external_access", "access", "dress_code", "age_policy",
-  "venue", "amenity", "facility", "service", "treatment", "session_duration", "recommended_stay", "booking", "experience", "activity", "attraction",
-  "experience_access", "experience_booking", "event", "event_capacity", "event_service", "offer", "validity", "pet_policy", "smoking_policy", "quiet_hours",
-  "cancellation_policy", "payment_policy", "check_in", "check_out", "phone", "email", "social_profile", "address", "description", "other",
+  "venue", "amenity", "facility", "service", "treatment", "treatment_category", "technology", "equipment", "session_duration", "recommended_stay", "booking",
+  "experience", "activity", "attraction", "experience_access", "experience_booking", "event", "event_capacity", "event_service", "offer", "validity",
+  "pet_policy", "smoking_policy", "quiet_hours", "cancellation_policy", "payment_policy", "check_in", "check_out",
+  "phone", "email", "website", "social_profile", "address", "description", "other",
 ] as const;
+
+const SOCIAL_HOST = /(?:^|\.)(?:facebook\.com|instagram\.com|tiktok\.com|linkedin\.com|youtube\.com|youtu\.be|x\.com|twitter\.com)$/iu;
 
 export type HotelScannerV2DocumentStatus = "INGESTED" | "FAILED" | "SKIPPED_LIMIT";
 export type HotelScannerV2DocumentResult = {
@@ -77,6 +80,23 @@ function isPdf(buffer: Buffer) {
   return buffer.length >= 5 && buffer.subarray(0, 5).toString("ascii") === "%PDF-";
 }
 
+function hostnameFromValue(raw: string) {
+  const value = clean(raw, 500).replace(/^www\./iu, "");
+  try {
+    return new URL(/^https?:\/\//iu.test(value) ? value : `https://${value}`).hostname.toLocaleLowerCase("en-US");
+  } catch {
+    return "";
+  }
+}
+
+function normalizeContactAttribute(category: string, attribute: string, value: string) {
+  if (!["contact", "location"].includes(category)) return attribute;
+  const hostname = hostnameFromValue(value);
+  if (attribute === "social_profile" && hostname && !SOCIAL_HOST.test(hostname)) return "website";
+  if (attribute === "website" && hostname && SOCIAL_HOST.test(hostname)) return "social_profile";
+  return attribute;
+}
+
 function parseFacts(value: string, sourceUrl: string) {
   const parsed = JSON.parse(value) as { facts?: Array<Record<string, unknown>> };
   if (!parsed || !Array.isArray(parsed.facts)) return [] as HotelScanFact[];
@@ -84,10 +104,11 @@ function parseFacts(value: string, sourceUrl: string) {
   const facts: HotelScanFact[] = [];
   for (const raw of parsed.facts) {
     const category = clean(raw.category, 80).toLocaleLowerCase("en-US");
-    const attribute = clean(raw.attribute, 80).toLocaleLowerCase("en-US");
+    const parsedAttribute = clean(raw.attribute, 80).toLocaleLowerCase("en-US");
     const subject = clean(raw.subject, 160) || "hotel";
     const label = clean(raw.label, 160);
     const factValue = clean(raw.value, 700);
+    const attribute = normalizeContactAttribute(category, parsedAttribute, factValue);
     const confidence = Math.max(0, Math.min(1, Number(raw.confidence || 0)));
     if (!DOCUMENT_CATEGORIES.includes(category as (typeof DOCUMENT_CATEGORIES)[number])) continue;
     if (!DOCUMENT_ATTRIBUTES.includes(attribute as (typeof DOCUMENT_ATTRIBUTES)[number])) continue;
@@ -147,6 +168,7 @@ async function ingestOne(
         "Keep contradictions as separate facts. Do not reconcile or choose a winner.",
         "Do not extract guest names, staff names, biographies, personal profiles or named-person contact details.",
         "Use concise facts suitable for later cross-source verification against website pages.",
+        "Use website only for the hotel's own non-social web URL. Use social_profile only for actual social-network profiles such as Facebook, Instagram, TikTok, LinkedIn, YouTube or X/Twitter.",
         languageInstruction(outputLanguage),
         `category must be one of: ${DOCUMENT_CATEGORIES.join(", ")}.`,
         `attribute must be one of: ${DOCUMENT_ATTRIBUTES.join(", ")}.`,
