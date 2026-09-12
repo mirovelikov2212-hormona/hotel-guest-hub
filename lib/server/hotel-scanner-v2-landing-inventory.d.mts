@@ -1,14 +1,18 @@
 export type HotelScannerV2InventoryCandidate = {
   name: string;
-  basis: "heading_count_cluster" | "heading_lexicon";
+  basis: "semantic_content_block" | "json_ld_entity";
+  score: number;
+  links: string[];
 };
 
 export type HotelScannerV2PageInventoryHint = {
   domain: string;
   expectedCount: number;
   explicitCount: number | null;
+  identifiedCount: number;
   candidates: HotelScannerV2InventoryCandidate[];
-  consistency: "CONSISTENT" | "CONFLICT";
+  consistency: "CONSISTENT" | "PARTIAL" | "CONFLICT";
+  confidence: "HIGH" | "MEDIUM" | "COUNT_ONLY";
   evidence: string[];
 };
 
