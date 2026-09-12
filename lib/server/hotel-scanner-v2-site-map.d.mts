@@ -43,4 +43,4 @@ export type HotelScannerV2SiteMap = {
 
 export function canonicalizeHotelIntakeUrl(rawUrl: unknown, baseUrl?: unknown): string;
 export function inferHotelPageLanguage(rawUrl: unknown): string;
-export function buildHotelSiteMapV2(evidence?: Record<string, unknown>): HotelScannerV2SiteMap;
+export function buildHotelSiteMapV2(evidence?: unknown): HotelScannerV2SiteMap;
