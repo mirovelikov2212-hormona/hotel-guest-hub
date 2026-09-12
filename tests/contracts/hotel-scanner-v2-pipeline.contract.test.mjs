@@ -20,6 +20,7 @@ function gastronomyPages(count = 5) {
       navigationLinks: ["https://hotel.test/en/gastronomy/"],
       documentUrls: ["https://hotel.test/files/menus.pdf"],
       languageAlternates: [{ language: "bg", url: "https://hotel.test/bg/gastronomy/" }],
+      contentBlocks: [],
     },
     ...names.map((name) => ({
       url: `https://hotel.test/en/gastronomy/${name}`,
@@ -29,11 +30,13 @@ function gastronomyPages(count = 5) {
       navigationLinks: [],
       documentUrls: [],
       languageAlternates: [{ language: "bg", url: `https://hotel.test/bg/gastronomy/${name}` }],
+      contentBlocks: [],
     })),
   ];
 }
 
 function landingGastronomyPage(namedCount = 5) {
+  const names = VENUE_NAMES.slice(0, namedCount);
   return {
     url: "https://hotel.test/en/gastronomy/",
     title: "Gastronomy",
@@ -43,8 +46,14 @@ function landingGastronomyPage(namedCount = 5) {
     navigationLinks: [],
     documentUrls: [],
     languageAlternates: [],
-    headings: VENUE_NAMES.slice(0, namedCount).map((text) => ({ level: 3, text })),
+    headings: names.map((text) => ({ level: 3, text })),
     jsonLdEntities: [],
+    contentBlocks: names.map((heading) => ({
+      level: 3,
+      heading,
+      text: /bar/i.test(heading) ? "Hotel bar with drinks and evening service." : "Dining venue with restaurant menu and reservation options.",
+      links: [],
+    })),
   };
 }
 
@@ -117,7 +126,7 @@ test("V2 inventory establishes expected gastronomy count independently from extr
   assert.equal(gastronomy.expectedCount, 5);
 });
 
-test("V2 landing page can deterministically establish five venues without detail URLs", () => {
+test("V2 landing page can deterministically establish five semantic venues without detail URLs", () => {
   const siteMap = buildHotelSiteMapV2({
     canonicalUrl: "https://hotel.test/en/gastronomy",
     pages: [landingGastronomyPage(5)],
@@ -127,8 +136,8 @@ test("V2 landing page can deterministically establish five venues without detail
 
   assert.equal(gastronomy.expectationState, "DETERMINISTIC");
   assert.equal(gastronomy.expectedCount, 5);
-  assert.deepEqual(gastronomy.expectedItems.map((item) => item.nameHint), VENUE_NAMES);
-  assert.ok(gastronomy.expectedItems.every((item) => item.basis === "deterministic_landing_entity"));
+  assert.deepEqual(gastronomy.expectedItems.map((item) => item.nameHint).sort(), [...VENUE_NAMES].sort());
+  assert.ok(gastronomy.expectedItems.every((item) => item.basis === "deterministic_semantic_block_entity"));
 });
 
 test("V2 landing completeness reports 4/5 unique venues as INCOMPLETE", () => {
@@ -146,21 +155,26 @@ test("V2 landing completeness reports 4/5 unique venues as INCOMPLETE", () => {
   assert.equal(completeness.status, "INCOMPLETE");
 });
 
-test("V2 explicit count disagreement is an inventory conflict, never READY", () => {
+test("V2 explicit count with only four identified venues stays partial and incomplete, not a fake conflict", () => {
   const siteMap = buildHotelSiteMapV2({
     canonicalUrl: "https://hotel.test/en/gastronomy",
     pages: [landingGastronomyPage(4)],
   });
   const inventory = buildHotelInventoryV2(siteMap);
   const gastronomy = inventory.domains.find((domain) => domain.domain === "gastronomy");
-  const completeness = buildHotelCompletenessV2({ inventory, profile: { facts: diningFacts(5, "landing") }, conflicts: [] });
+  const completeness = buildHotelCompletenessV2({ inventory, profile: { facts: diningFacts(4, "landing") }, conflicts: [] });
   const coverage = completeness.domains.find((domain) => domain.domain === "gastronomy");
 
-  assert.equal(gastronomy.expectationState, "CONFLICT");
-  assert.ok(gastronomy.issues.includes("landing_inventory_count_conflict"));
-  assert.equal(coverage.reason, "expected_inventory_conflict");
+  assert.equal(gastronomy.expectationState, "DETERMINISTIC");
+  assert.equal(gastronomy.expectedCount, 5);
+  assert.equal(gastronomy.evidence.landingIdentifiedCount, 4);
+  assert.ok(gastronomy.issues.includes("landing_entities_partially_identified"));
+  assert.ok(gastronomy.expectedItems.some((item) => item.basis === "deterministic_explicit_count_slot"));
+  assert.equal(coverage.expected, 5);
+  assert.equal(coverage.extracted, 4);
+  assert.equal(coverage.status, "INCOMPLETE");
   assert.equal(completeness.status, "INCOMPLETE");
-  assert.ok(completeness.blockingReasons.includes("inventory_expectation_conflict"));
+  assert.ok(!completeness.blockingReasons.includes("inventory_expectation_conflict"));
 });
 
 test("V2 completeness reports 4/5 detail entities as INCOMPLETE instead of READY", () => {
