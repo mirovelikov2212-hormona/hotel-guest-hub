@@ -7,7 +7,7 @@ import { runHotelIntakePipelineV2 } from "@/lib/server/hotel-scanner-v2-pipeline
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 240;
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     console.error("Hotel Scanner V2 failed", { error: message });
     if (message === "openai_api_key_missing") return json({ ok: false, error: "scanner_v2_ai_not_configured", stage: "extraction" }, 503);
     if (message.includes("Request timed out") || message.includes("timeout")) return json({ ok: false, error: "scanner_v2_timeout", stage: "extraction" }, 504);
+    if (/\b429\b|rate limit|tokens per min|TPM/iu.test(message)) return json({ ok: false, error: "scanner_v2_rate_limited", stage: "extraction" }, 503);
     if (message.startsWith("hotel_scanner_v2_ai_incomplete:")) return json({ ok: false, error: "scanner_v2_ai_incomplete", stage: "extraction" }, 502);
     return json({ ok: false, error: "scanner_v2_failed", stage: "pipeline" }, 502);
   }
