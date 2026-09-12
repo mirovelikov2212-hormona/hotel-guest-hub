@@ -14,17 +14,21 @@ test("V2 discovery crawler is deterministic and contains no AI extraction depend
   assert.match(crawler, /languageAlternates/);
   assert.match(crawler, /hreflang/);
   assert.match(crawler, /discoveredBy/);
+  assert.match(crawler, /extractHotelPageStructureV2/);
+  assert.match(crawler, /failedPageUrls/);
 });
 
-test("V2 discovery crawler retains public-boundary, robots and SSRF protection", async () => {
+test("V2 discovery crawler retains public-boundary, robots and isolated SSRF protection", async () => {
   const crawler = await readProjectFile("lib/server/hotel-scanner-v2-crawler.ts");
+  const network = await readProjectFile("lib/server/hotel-scanner-v2-network.ts");
 
   assert.match(crawler, /isPublicBusinessCrawlUrl/);
   assert.match(crawler, /isHotelScannerRobotsAllowed/);
   assert.match(crawler, /buildHotelScannerRobotsPolicy/);
-  assert.match(crawler, /lookup\(hostname/);
-  assert.match(crawler, /isPrivateIp/);
-  assert.match(crawler, /MAX_REDIRECTS = 5/);
+  assert.match(network, /isPublicBusinessCrawlUrl/);
+  assert.match(network, /lookup\(hostname/);
+  assert.match(network, /isPrivateIp/);
+  assert.match(network, /MAX_REDIRECTS = 5/);
   assert.match(crawler, /MAX_DISCOVERED_PAGES = 2_000/);
   assert.match(crawler, /MAX_PUBLIC_DOCUMENTS = 200/);
   assert.match(crawler, /MAX_PAGES = 56/);
