@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
 import HotelScannerV2Details, {
@@ -22,7 +22,12 @@ type DomainInventory = {
   expectationState: string;
   expectedCount: number;
   issues: string[];
-  evidence: { detailCount: number; landingExpectedCount: number | null; observedLandingCounts: number[] };
+  evidence: {
+    detailCount: number;
+    landingExpectedCount: number | null;
+    landingIdentifiedCount: number | null;
+    observedLandingCounts: number[];
+  };
 };
 
 type ScanV2Result = {
@@ -51,6 +56,7 @@ type ScanV2Result = {
     inputFactCount?: number;
     outputFactCount?: number;
     crossDomainConflictCount?: number;
+    rejectedSingleDocumentConflictCount?: number;
   };
   completeness?: {
     status: string;
@@ -65,87 +71,110 @@ type ScanV2Result = {
   diagnostics?: { discoveryLatencyMs: number; extractionLatencyMs: number; verificationLatencyMs: number; totalLatencyMs: number };
 };
 
-const COPY = {
+const DOMAIN = {
   bg: {
-    title: "Production Hotel Scanner V2",
-    intro: "Preview-only Hotel Intake Pipeline. Inventory се установява независимо от AI extraction и нищо не се предава към Design Studio / Factory без validation и изрично approval.",
-    url: "Хотелски сайт",
-    placeholder: "https://hotel-example.com",
-    scan: "Сканирай с V2",
-    scanning: "Site Map → Inventory → Extraction → PDF → Verification…",
-    preview: "PREVIEW ONLY · БЕЗ PRODUCTION HANDOFF",
-    failed: "V2 сканирането не завърши успешно.",
-    status: "Pipeline статус",
-    canonical: "Canonical URL",
-    pages: "Crawled pages",
-    resources: "Site Map resources",
-    expected: "Expected items",
-    docs: "PDF документи",
-    conflicts: "Конфликти",
-    inventory: "Completeness по категории",
-    domain: "Категория",
-    expectation: "Inventory",
-    ratio: "Extracted / Expected",
-    result: "Резултат",
-    missing: "Липсващи",
-    blockers: "Validation blockers",
-    diagnostics: "Диагностика",
-    approval: "Approval gate",
-    eligible: "Готово за човешко approval",
-    blocked: "Блокирано",
-    noHandoff: "Downstream handoff е изключен. Scanner V2 никога не auto-approve-ва.",
-    failedUrls: "Неуспешно прочетени страници",
-    pendingDocs: "Необработени PDF-и",
-    webFacts: "Web facts",
-    pdfFacts: "PDF facts",
-    verificationInput: "Verification input",
-    verificationOutput: "Verification output",
-    verified: "Verified",
-    crossDomainConflicts: "Cross-domain conflicts",
+    accommodation: ["Настаняване", "Типове стаи, студиа, апартаменти и суити."],
+    gastronomy: ["Ресторанти и барове", "Реалните dining обекти на хотела."],
+    spa: ["SPA / Medical", "SPA, wellness и medical surfaces; детайлният каталог се проверява и през PDF."],
+    services: ["Хотелски услуги", "Удобства и услуги в самия хотел."],
+    experiences: ["Преживявания", "Дестинационни активности, маршрути и забележителности."],
+    events: ["Събития", "Събития с дати и валидност."],
+    offers: ["Оферти", "Пакети и промоции с период на валидност."],
+    policies: ["Правила", "Hotel policies и условия, които влияят на госта."],
+    contacts: ["Контакти", "Официални публични контакти на хотела."],
   },
   en: {
-    title: "Production Hotel Scanner V2",
-    intro: "Preview-only Hotel Intake Pipeline. Inventory is established independently from AI extraction and nothing reaches Design Studio / Factory before validation and explicit approval.",
-    url: "Hotel website",
-    placeholder: "https://hotel-example.com",
-    scan: "Scan with V2",
-    scanning: "Site Map → Inventory → Extraction → PDF → Verification…",
-    preview: "PREVIEW ONLY · NO PRODUCTION HANDOFF",
-    failed: "V2 scan did not complete successfully.",
-    status: "Pipeline status",
-    canonical: "Canonical URL",
-    pages: "Crawled pages",
-    resources: "Site Map resources",
-    expected: "Expected items",
-    docs: "PDF documents",
-    conflicts: "Conflicts",
-    inventory: "Completeness by domain",
-    domain: "Domain",
-    expectation: "Inventory",
-    ratio: "Extracted / Expected",
-    result: "Result",
-    missing: "Missing",
-    blockers: "Validation blockers",
-    diagnostics: "Diagnostics",
-    approval: "Approval gate",
-    eligible: "Ready for human approval",
-    blocked: "Blocked",
-    noHandoff: "Downstream handoff is disabled. Scanner V2 never auto-approves.",
-    failedUrls: "Failed page reads",
-    pendingDocs: "Pending PDFs",
-    webFacts: "Web facts",
-    pdfFacts: "PDF facts",
-    verificationInput: "Verification input",
-    verificationOutput: "Verification output",
-    verified: "Verified",
-    crossDomainConflicts: "Cross-domain conflicts",
+    accommodation: ["Accommodation", "Room, studio, apartment and suite types."],
+    gastronomy: ["Restaurants & bars", "The hotel's actual dining venues."],
+    spa: ["SPA / Medical", "SPA, wellness and medical surfaces; detailed catalogue is also checked in PDFs."],
+    services: ["Hotel services", "On-property amenities and services."],
+    experiences: ["Experiences", "Destination activities, routes and attractions."],
+    events: ["Events", "Events with dates and validity."],
+    offers: ["Offers", "Packages and promotions with validity periods."],
+    policies: ["Policies", "Guest-facing hotel rules and conditions."],
+    contacts: ["Contacts", "Official public hotel contact information."],
   },
 } as const;
 
-const inputClass = "w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition placeholder:text-neutral-600 focus:border-emerald-300/60 focus:ring-2 focus:ring-emerald-300/10";
+const COPY = {
+  bg: {
+    setup: "Ново сканиране",
+    setupHelp: "Въведи официалния сайт. Scanner V2 няма да публикува или предава нищо автоматично.",
+    url: "Официален хотелски сайт",
+    placeholder: "https://hotel-example.com",
+    scan: "Сканирай с V2",
+    scanning: "Сканиране и проверка…",
+    failed: "Сканирането не завърши успешно.",
+    overview: "Резюме на сканирането",
+    overviewHelp: "Тези показатели показват дали сайтът е обходен и дали резултатът може да продължи към човешки преглед.",
+    inventoryTitle: "2. Какво установихме, че съществува",
+    inventoryHelp: "Expected се определя от сайта и документите, независимо от extraction-а. Identified показва колко entities имат конкретно име. Extracted показва за колко сме извлекли данни.",
+    source: "1. Discovery",
+    sourceHelp: "Какво е открито и прочетено от публичния сайт.",
+    approval: "5. Approval",
+    approvalHelp: "Нищо не стига до Design Studio / Factory, докато липсите и конфликтите не бъдат разрешени и човек не одобри резултата.",
+    blocked: "Блокирано",
+    eligible: "Готово за човешки approval",
+    technical: "Технически детайли",
+    blockers: "Какво блокира approval",
+    identified: "Identified",
+    extracted: "Extracted",
+    expected: "Expected",
+    missing: "Липсва",
+    evidence: "Inventory evidence",
+    pages: "Прочетени страници",
+    resources: "Открити ресурси",
+    documents: "PDF обработка",
+    conflicts: "Конфликти",
+    canonical: "Canonical URL",
+    status: "Статус",
+  },
+  en: {
+    setup: "New scan",
+    setupHelp: "Enter the official website. Scanner V2 will not publish or hand anything off automatically.",
+    url: "Official hotel website",
+    placeholder: "https://hotel-example.com",
+    scan: "Scan with V2",
+    scanning: "Scanning and verifying…",
+    failed: "The scan did not complete successfully.",
+    overview: "Scan summary",
+    overviewHelp: "These indicators show whether the website was covered and whether the result can proceed to human review.",
+    inventoryTitle: "2. What the website says exists",
+    inventoryHelp: "Expected is established from the website and documents independently from extraction. Identified is the number of named entities. Extracted is how many have usable extracted data.",
+    source: "1. Discovery",
+    sourceHelp: "What was discovered and read from the public website.",
+    approval: "5. Approval",
+    approvalHelp: "Nothing reaches Design Studio / Factory until gaps and conflicts are resolved and a human approves the result.",
+    blocked: "Blocked",
+    eligible: "Ready for human approval",
+    technical: "Technical details",
+    blockers: "What blocks approval",
+    identified: "Identified",
+    extracted: "Extracted",
+    expected: "Expected",
+    missing: "Missing",
+    evidence: "Inventory evidence",
+    pages: "Crawled pages",
+    resources: "Discovered resources",
+    documents: "PDF ingestion",
+    conflicts: "Conflicts",
+    canonical: "Canonical URL",
+    status: "Status",
+  },
+} as const;
+
+function humanIssue(issue: string, lang: ControlPlaneLang) {
+  const labels: Record<string, [string, string]> = {
+    landing_inventory_count_conflict: ["Различни надеждни източници дават различна бройка.", "Reliable sources disagree on the expected count."],
+    landing_entities_partially_identified: ["Сайтът заявява повече обекти, отколкото сме идентифицирали по име.", "The site states more entities than we have identified by name."],
+    detail_inventory_exceeds_landing_count: ["Detail страниците са повече от заявената бройка на landing page.", "Detail pages exceed the count stated by the landing page."],
+  };
+  return labels[issue]?.[lang === "bg" ? 0 : 1] || issue;
+}
 
 export default function HotelScannerV2Client({ lang }: { lang: ControlPlaneLang }) {
   const copy = COPY[lang];
+  const domainCopy = DOMAIN[lang];
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ScanV2Result | null>(null);
@@ -172,97 +201,111 @@ export default function HotelScannerV2Client({ lang }: { lang: ControlPlaneLang 
   const webFactCount = result?.extraction?.diagnostics.factCount ?? 0;
   const pdfFactCount = result?.documents?.facts?.length ?? 0;
   const verificationInputCount = result?.verification?.inputFactCount ?? webFactCount + pdfFactCount;
-  const verificationOutputCount = result?.verification?.outputFactCount ?? 0;
 
   return (
-    <section className="rounded-[2rem] border border-emerald-300/20 bg-neutral-900/85 p-5 shadow-[0_30px_100px_rgba(13,27,42,0.08)] backdrop-blur-xl sm:p-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300/80">StayHub Hotel Intake</p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{copy.title}</h2>
-          <p className="mt-3 text-sm leading-6 text-neutral-400">{copy.intro}</p>
+    <div className="space-y-6">
+      <section className="v2-panel p-5 sm:p-6">
+        <h2 className="v2-section-title text-xl">{copy.setup}</h2>
+        <p className="v2-muted mt-1 text-sm">{copy.setupHelp}</p>
+        <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
+          <label className="text-sm font-semibold">{copy.url}
+            <input type="url" value={url} onChange={(event) => setUrl(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void scan(); }} placeholder={copy.placeholder} maxLength={2048} className="v2-input mt-2" />
+          </label>
+          <button type="button" onClick={() => void scan()} disabled={loading || !url.trim()} className="v2-button min-w-48">{loading ? copy.scanning : copy.scan}</button>
         </div>
-        <span className="rounded-full border border-amber-300/25 bg-amber-300/5 px-3 py-2 text-[10px] font-semibold uppercase text-amber-100">{copy.preview}</span>
-      </div>
+        {result && !result.ok ? <div className="v2-card mt-4 p-4"><span className="v2-pill v2-pill-bad">ERROR</span><p className="v2-muted mt-2 text-sm">{copy.failed} <span className="font-mono">{result.error || "scanner_v2_failed"}</span></p></div> : null}
+      </section>
 
-      <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
-        <label className="text-sm text-neutral-300">{copy.url}
-          <input type="url" value={url} onChange={(event) => setUrl(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void scan(); }} placeholder={copy.placeholder} maxLength={2048} className={`${inputClass} mt-2`} />
-        </label>
-        <button type="button" onClick={() => void scan()} disabled={loading || !url.trim()} className="rounded-2xl border border-emerald-300/45 bg-emerald-300/10 px-6 py-3 font-semibold text-emerald-50 transition hover:border-emerald-200/70 disabled:cursor-not-allowed disabled:opacity-40">{loading ? copy.scanning : copy.scan}</button>
-      </div>
-
-      {result && !result.ok ? <div className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/5 px-4 py-3 text-sm text-rose-100">{copy.failed} <span className="font-mono text-xs">{result.error || "scanner_v2_failed"}</span>{result.stage ? <span className="ml-2 text-neutral-400">({result.stage})</span> : null}</div> : null}
-
-      {result?.ok ? <div className="mt-6 space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <Metric label={copy.status} value={result.pipelineStatus || "—"} />
-          <Metric label={copy.pages} value={String(result.discovery?.siteMap.counts.crawledPages ?? 0)} />
-          <Metric label={copy.resources} value={String(result.discovery?.siteMap.counts.resources ?? 0)} />
-          <Metric label={copy.expected} value={String(result.discovery?.inventory.counts.expectedItems ?? 0)} />
-          <Metric label={copy.docs} value={`${result.completeness?.documents.ingested ?? 0}/${result.completeness?.documents.discovered ?? 0}`} />
-          <Metric label={copy.conflicts} value={String((result.completeness?.conflicts.unresolved ?? 0) + (result.completeness?.conflicts.inventory ?? 0))} />
-        </div>
-
-        <Card title={copy.canonical}><p className="break-all font-mono text-xs text-neutral-300">{result.source?.canonicalUrl || "—"}</p></Card>
-
-        <Card title={copy.inventory}>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] border-collapse text-left text-xs">
-              <thead className="text-neutral-500"><tr><th className="pb-3 pr-4">{copy.domain}</th><th className="pb-3 pr-4">{copy.expectation}</th><th className="pb-3 pr-4">{copy.ratio}</th><th className="pb-3 pr-4">{copy.result}</th><th className="pb-3">{copy.missing}</th></tr></thead>
-              <tbody className="divide-y divide-white/5">
-                {(result.completeness?.domains || []).map((coverage) => {
-                  const inventory = inventoryByDomain.get(coverage.domain);
-                  return <tr key={coverage.domain} className="align-top"><td className="py-3 pr-4 font-semibold text-neutral-200">{coverage.domain}</td><td className="py-3 pr-4"><State value={inventory?.expectationState || "—"} /></td><td className="py-3 pr-4 font-mono text-neutral-300">{coverage.expected === null ? `? / ${coverage.extracted}` : `${coverage.extracted} / ${coverage.expected}`}</td><td className="py-3 pr-4"><State value={coverage.status} /></td><td className="py-3 text-neutral-400">{coverage.missingItems.length ? coverage.missingItems.map((item) => item.nameHint || item.id).join(", ") : "—"}</td></tr>;
-                })}
-              </tbody>
-            </table>
+      {result?.ok ? <>
+        <section className="v2-panel p-5 sm:p-6">
+          <h2 className="v2-section-title text-xl">{copy.overview}</h2>
+          <p className="v2-muted mt-1 text-sm">{copy.overviewHelp}</p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            <Metric label={copy.status} value={result.pipelineStatus || "—"} />
+            <Metric label={copy.pages} value={String(result.discovery?.siteMap.counts.crawledPages ?? 0)} />
+            <Metric label={copy.resources} value={String(result.discovery?.siteMap.counts.resources ?? 0)} />
+            <Metric label={copy.expected} value={String(result.discovery?.inventory.counts.expectedItems ?? 0)} />
+            <Metric label={copy.documents} value={`${result.completeness?.documents.ingested ?? 0}/${result.completeness?.documents.discovered ?? 0}`} />
+            <Metric label={copy.conflicts} value={String(result.completeness?.conflicts.unresolved ?? 0)} />
           </div>
-        </Card>
-
-        <HotelScannerV2Details
-          candidate={result.intelligenceCandidate}
-          documents={result.documents?.documents}
-          lang={lang}
-        />
-
-        <Card title={copy.approval}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div><State value={result.validationGate?.approvalEligible ? copy.eligible : copy.blocked} /><p className="mt-2 text-xs leading-5 text-neutral-400">{copy.noHandoff}</p></div>
-            <div className="text-right text-xs text-neutral-500">candidate: <span className="font-mono text-neutral-300">{result.intelligenceCandidate?.validation.status || "—"}</span></div>
+          <div className="mt-5 grid gap-3 md:grid-cols-5">
+            {["Discovery", "Inventory", "Extracted data", "Conflicts & gaps", "Approval"].map((step, index) => <div key={step} className="v2-step"><span className="v2-step-number">{index + 1}</span><div><p className="text-sm font-semibold">{step}</p><p className="v2-muted mt-0.5 text-xs">{index < 4 ? "Evidence review" : "Human decision"}</p></div></div>)}
           </div>
-        </Card>
+        </section>
 
-        {(result.validationGate?.blockingReasons || []).length ? <Card title={copy.blockers}><ul className="space-y-2 text-sm text-amber-100/80">{result.validationGate?.blockingReasons.map((reason) => <li key={reason}>• {reason}</li>)}</ul></Card> : null}
-        {(result.completeness?.documents.pendingUrls || []).length ? <Card title={copy.pendingDocs}><ul className="space-y-2 text-xs text-neutral-400">{result.completeness?.documents.pendingUrls.map((item) => <li key={item} className="break-all font-mono">{item}</li>)}</ul></Card> : null}
-        {(result.discovery?.failedPageUrls || []).length ? <Card title={copy.failedUrls}><ul className="space-y-2 text-xs text-neutral-400">{result.discovery?.failedPageUrls.map((item) => <li key={item} className="break-all font-mono">{item}</li>)}</ul></Card> : null}
-
-        <Card title={copy.diagnostics}>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <Metric label={copy.webFacts} value={String(webFactCount)} />
-            <Metric label={copy.pdfFacts} value={String(pdfFactCount)} />
-            <Metric label={copy.verificationInput} value={String(verificationInputCount)} />
-            <Metric label={copy.verificationOutput} value={String(verificationOutputCount)} />
-            <Metric label={copy.verified} value={String(result.verification?.verifiedFactCount ?? 0)} />
-            <Metric label={copy.crossDomainConflicts} value={String(result.verification?.crossDomainConflictCount ?? 0)} />
+        <section className="v2-panel p-5 sm:p-6">
+          <h2 className="v2-section-title text-xl">{copy.source}</h2>
+          <p className="v2-muted mt-1 text-sm">{copy.sourceHelp}</p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="v2-card-soft p-4"><p className="v2-muted text-xs uppercase tracking-wide">{copy.canonical}</p><a href={result.source?.canonicalUrl || "#"} target="_blank" rel="noreferrer" className="v2-source-link mt-2 block break-all text-sm font-semibold">{result.source?.canonicalUrl || "—"}</a></div>
+            <div className="v2-card-soft p-4"><p className="v2-muted text-xs uppercase tracking-wide">Discovery evidence</p><p className="mt-2 text-sm">{result.discovery?.siteMap.counts.crawledPages ?? 0} pages · {result.discovery?.siteMap.counts.resources ?? 0} resources · {result.discovery?.siteMap.counts.languageVariantGroups ?? 0} language groups</p></div>
           </div>
-          <p className="mt-3 text-xs text-neutral-500">Single-source output: {result.verification?.singleSourceFactCount ?? 0} · Total: {result.diagnostics?.totalLatencyMs ?? 0} ms</p>
-        </Card>
-      </div> : null}
-    </section>
+        </section>
+
+        <section className="v2-panel p-5 sm:p-6">
+          <h2 className="v2-section-title text-xl">{copy.inventoryTitle}</h2>
+          <p className="v2-muted mt-1 text-sm leading-6">{copy.inventoryHelp}</p>
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            {(result.completeness?.domains || []).map((coverage) => {
+              const inventory = inventoryByDomain.get(coverage.domain);
+              const labels = domainCopy[coverage.domain as keyof typeof domainCopy] || [coverage.domain, ""];
+              const identified = inventory?.evidence?.landingIdentifiedCount ?? inventory?.evidence?.detailCount ?? null;
+              return <article key={coverage.domain} className="v2-card p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div><h3 className="font-bold">{labels[0]}</h3><p className="v2-muted mt-1 text-xs leading-5">{labels[1]}</p></div>
+                  <StatusPill value={coverage.status} />
+                </div>
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <SmallMetric label={copy.expected} value={coverage.expected === null ? "?" : String(coverage.expected)} />
+                  <SmallMetric label={copy.identified} value={identified === null ? "—" : String(identified)} />
+                  <SmallMetric label={copy.extracted} value={String(coverage.extracted)} />
+                </div>
+                <div className="v2-help mt-4"><strong>{copy.evidence}:</strong> {inventory?.expectationState || "UNKNOWN"}. {inventory?.evidence?.detailCount ? `${inventory.evidence.detailCount} dedicated detail pages. ` : ""}{inventory?.evidence?.landingExpectedCount ? `Landing page expectation: ${inventory.evidence.landingExpectedCount}.` : ""}</div>
+                {(inventory?.issues || []).length ? <ul className="mt-3 space-y-1 text-xs">{inventory?.issues.map((issue) => <li key={issue} className="v2-muted">• {humanIssue(issue, lang)}</li>)}</ul> : null}
+                {coverage.missingItems.length ? <div className="mt-3"><p className="text-xs font-bold">{copy.missing}</p><p className="v2-muted mt-1 text-xs leading-5">{coverage.missingItems.slice(0, 8).map((item) => item.nameHint || (lang === "bg" ? "Неидентифициран обект" : "Unidentified entity")).join(" · ")}{coverage.missingItems.length > 8 ? ` · +${coverage.missingItems.length - 8}` : ""}</p></div> : null}
+              </article>;
+            })}
+          </div>
+        </section>
+
+        <HotelScannerV2Details candidate={result.intelligenceCandidate} documents={result.documents?.documents} lang={lang} />
+
+        <section className="v2-panel p-5 sm:p-6">
+          <h2 className="v2-section-title text-xl">{copy.approval}</h2>
+          <p className="v2-muted mt-1 text-sm">{copy.approvalHelp}</p>
+          <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <StatusPill value={result.validationGate?.approvalEligible ? copy.eligible : copy.blocked} />
+            {(result.validationGate?.blockingReasons || []).length ? <div className="max-w-2xl"><p className="text-sm font-bold">{copy.blockers}</p><ul className="v2-muted mt-2 space-y-1 text-sm">{result.validationGate?.blockingReasons.map((reason) => <li key={reason}>• {reason}</li>)}</ul></div> : null}
+          </div>
+        </section>
+
+        <details className="v2-details v2-panel p-5 sm:p-6">
+          <summary className="cursor-pointer font-bold">{copy.technical}</summary>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Metric label="Web facts" value={String(webFactCount)} />
+            <Metric label="PDF facts" value={String(pdfFactCount)} />
+            <Metric label="Verification input" value={String(verificationInputCount)} />
+            <Metric label="Verification output" value={String(result.verification?.outputFactCount ?? 0)} />
+            <Metric label="Multi-source verified" value={String(result.verification?.verifiedFactCount ?? 0)} />
+            <Metric label="Single-source" value={String(result.verification?.singleSourceFactCount ?? 0)} />
+            <Metric label="Rejected same-document conflicts" value={String(result.verification?.rejectedSingleDocumentConflictCount ?? 0)} />
+            <Metric label="Total ms" value={String(result.diagnostics?.totalLatencyMs ?? 0)} />
+          </div>
+          {(result.discovery?.failedPageUrls || []).length ? <p className="v2-muted mt-4 text-xs">Failed page reads: {result.discovery?.failedPageUrls.length}</p> : null}
+        </details>
+      </> : null}
+    </div>
   );
 }
 
-function Card({ title, children }: { title: string; children: ReactNode }) {
-  return <section className="rounded-2xl border border-white/5 bg-black/15 p-4"><h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-300">{title}</h3><div className="mt-3">{children}</div></section>;
-}
-
 function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-2xl border border-white/5 bg-black/20 p-4"><p className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">{label}</p><p className="mt-2 break-words text-sm font-semibold text-neutral-100">{value}</p></div>;
+  return <div className="v2-card-soft p-4"><p className="v2-muted text-[10px] font-bold uppercase tracking-[0.12em]">{label}</p><p className="mt-2 text-lg font-bold">{value}</p></div>;
 }
-
-function State({ value }: { value: string }) {
-  const warning = /INCOMPLETE|CONFLICT|BLOCKED|UNKNOWN/i.test(value);
-  const good = /COMPLETE|DETERMINISTIC|READY/i.test(value) && !warning;
-  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ${good ? "border-emerald-300/25 bg-emerald-300/5 text-emerald-100" : warning ? "border-amber-300/25 bg-amber-300/5 text-amber-100" : "border-white/10 bg-white/5 text-neutral-300"}`}>{value}</span>;
+function SmallMetric({ label, value }: { label: string; value: string }) {
+  return <div className="v2-card-soft p-3 text-center"><p className="v2-muted text-[10px] uppercase tracking-wide">{label}</p><p className="mt-1 font-bold">{value}</p></div>;
+}
+function StatusPill({ value }: { value: string }) {
+  const upper = String(value || "").toUpperCase();
+  const cls = (upper.includes("COMPLETE") && !upper.includes("INCOMPLETE")) || upper.includes("READY") ? "v2-pill-good" : upper.includes("CONFLICT") || upper.includes("BLOCK") || upper.includes("INCOMPLETE") ? "v2-pill-warn" : "v2-pill-info";
+  return <span className={`v2-pill ${cls}`}>{value || "—"}</span>;
 }
