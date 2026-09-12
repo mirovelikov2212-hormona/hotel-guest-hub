@@ -37,3 +37,10 @@ test("technical diagnostics remain available but collapsed away from the primary
   assert.match(client, /Rejected same-document conflicts/);
   assert.match(client, /Multi-source verified/);
 });
+
+test("permanent Scanner quality gate explicitly covers the V2 workspace", async () => {
+  const workflow = await readProjectFile(".github/workflows/hotel-scanner-professional-regression.yml");
+
+  const matches = workflow.match(/app\/hotel-scanner-v2\/\*\*/g) || [];
+  assert.ok(matches.length >= 2, "V2 workspace must be included in push and pull_request paths");
+});
