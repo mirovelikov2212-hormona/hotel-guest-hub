@@ -3,6 +3,10 @@
 import { useState, type ReactNode } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
+import HotelScannerV2Details, {
+  type ScannerV2CandidateView,
+  type ScannerV2DocumentView,
+} from "./HotelScannerV2Details";
 
 type DomainCoverage = {
   domain: string;
@@ -35,6 +39,7 @@ type ScanV2Result = {
   };
   extraction?: { diagnostics: { model: string; extractedDomainCount: number; factCount: number } };
   documents?: {
+    documents?: ScannerV2DocumentView[];
     facts?: unknown[];
     diagnostics: { discoveredDocumentCount: number; ingestedDocumentCount: number; failedDocumentCount: number; skippedDocumentCount: number };
   };
@@ -55,7 +60,7 @@ type ScanV2Result = {
     blockingReasons: string[];
     prerequisitesSatisfied: boolean;
   };
-  intelligenceCandidate?: { validation: { status: string; downstreamHandoffAllowed: false; blockingReasons: string[] } };
+  intelligenceCandidate?: ScannerV2CandidateView;
   validationGate?: { downstreamHandoffAllowed: false; approvalEligible: boolean; blockingReasons: string[] };
   diagnostics?: { discoveryLatencyMs: number; extractionLatencyMs: number; verificationLatencyMs: number; totalLatencyMs: number };
 };
@@ -214,6 +219,12 @@ export default function HotelScannerV2Client({ lang }: { lang: ControlPlaneLang 
             </table>
           </div>
         </Card>
+
+        <HotelScannerV2Details
+          candidate={result.intelligenceCandidate}
+          documents={result.documents?.documents}
+          lang={lang}
+        />
 
         <Card title={copy.approval}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
