@@ -48,6 +48,7 @@ export type HotelIntakePipelineV2Result = {
   diagnostics: {
     discoveryLatencyMs: number;
     extractionLatencyMs: number;
+    documentLatencyMs: number;
     verificationLatencyMs: number;
     totalLatencyMs: number;
   };
@@ -62,21 +63,25 @@ export async function runHotelIntakePipelineV2(input: {
   const discovery = await discoverHotelIntakeV2(input.url);
   const discoveryLatencyMs = Date.now() - discoveryStartedAt;
 
+  // AI stages are intentionally paced rather than run in parallel. A large public
+  // hotel can have many pages plus PDFs; overlapping both stages can create a TPM
+  // spike even when every individual request is bounded.
   const extractionStartedAt = Date.now();
-  const [extraction, documents] = await Promise.all([
-    extractHotelDomainsV2({
-      evidence: discovery.evidence,
-      siteMap: discovery.siteMap,
-      inventory: discovery.inventory,
-      outputLanguage: input.outputLanguage,
-    }),
-    ingestHotelDocumentsV2({
-      inventory: discovery.inventory,
-      canonicalUrl: discovery.evidence.canonicalUrl,
-      outputLanguage: input.outputLanguage,
-    }),
-  ]);
+  const extraction = await extractHotelDomainsV2({
+    evidence: discovery.evidence,
+    siteMap: discovery.siteMap,
+    inventory: discovery.inventory,
+    outputLanguage: input.outputLanguage,
+  });
   const extractionLatencyMs = Date.now() - extractionStartedAt;
+
+  const documentStartedAt = Date.now();
+  const documents = await ingestHotelDocumentsV2({
+    inventory: discovery.inventory,
+    canonicalUrl: discovery.evidence.canonicalUrl,
+    outputLanguage: input.outputLanguage,
+  });
+  const documentLatencyMs = Date.now() - documentStartedAt;
 
   const inventory = applyDocumentIngestionToInventoryV2(discovery.inventory, documents);
   const verificationStartedAt = Date.now();
@@ -134,6 +139,7 @@ export async function runHotelIntakePipelineV2(input: {
     diagnostics: {
       discoveryLatencyMs,
       extractionLatencyMs,
+      documentLatencyMs,
       verificationLatencyMs,
       totalLatencyMs: Date.now() - startedAt,
     },
