@@ -7,6 +7,7 @@ export type HotelScannerV2VerificationSummary = {
   inputFactCount: number;
   outputFactCount: number;
   crossDomainConflictCount: number;
+  rejectedSingleDocumentConflictCount: number;
 };
 
 export type HotelScannerV2VerificationResult = {
