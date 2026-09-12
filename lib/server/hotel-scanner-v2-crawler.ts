@@ -331,8 +331,6 @@ async function fetchText(startUrl: URL, timeoutMs: number, maxBytes: number) {
   return null;
 }
 
-type RobotsState = { found: boolean; url: string; policy: HotelScannerRobotsPolicy };
-
 async function fetchRobotsState(baseUrl: URL): Promise<RobotsState> {
   const robotsUrl = new URL("/robots.txt", baseUrl);
   const robots = await fetchText(robotsUrl, ROBOTS_TIMEOUT_MS, MAX_ROBOTS_BYTES).catch(() => null);
