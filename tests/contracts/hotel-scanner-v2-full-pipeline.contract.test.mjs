@@ -52,6 +52,6 @@ test("PDF ingestion is crawler-owned, bounded and fail-closed", async () => {
   assert.match(ingestion, /%PDF-/);
   assert.match(ingestion, /document_cross_origin_redirect/);
   assert.match(ingestion, /type: "input_file"/);
-  assert.match(ingestion, /file_data: fetched\.buffer\.toString\("base64"\)/);
+  assert.match(ingestion, /file_data: `data:application\/pdf;base64,\$\{fetched\.buffer\.toString\("base64"\)\}`/);
   assert.match(network, /fetchPublicBinaryV2/);
 });
