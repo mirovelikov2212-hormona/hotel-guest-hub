@@ -34,8 +34,19 @@ type ScanV2Result = {
     failedPageUrls: string[];
   };
   extraction?: { diagnostics: { model: string; extractedDomainCount: number; factCount: number } };
-  documents?: { diagnostics: { discoveredDocumentCount: number; ingestedDocumentCount: number; failedDocumentCount: number; skippedDocumentCount: number } };
-  verification?: { verifiedFactCount: number; singleSourceFactCount: number; conflictFactCount: number; conflictGroupCount: number };
+  documents?: {
+    facts?: unknown[];
+    diagnostics: { discoveredDocumentCount: number; ingestedDocumentCount: number; failedDocumentCount: number; skippedDocumentCount: number };
+  };
+  verification?: {
+    verifiedFactCount: number;
+    singleSourceFactCount: number;
+    conflictFactCount: number;
+    conflictGroupCount: number;
+    inputFactCount?: number;
+    outputFactCount?: number;
+    crossDomainConflictCount?: number;
+  };
   completeness?: {
     status: string;
     domains: DomainCoverage[];
@@ -80,6 +91,12 @@ const COPY = {
     noHandoff: "Downstream handoff е изключен. Scanner V2 никога не auto-approve-ва.",
     failedUrls: "Неуспешно прочетени страници",
     pendingDocs: "Необработени PDF-и",
+    webFacts: "Web facts",
+    pdfFacts: "PDF facts",
+    verificationInput: "Verification input",
+    verificationOutput: "Verification output",
+    verified: "Verified",
+    crossDomainConflicts: "Cross-domain conflicts",
   },
   en: {
     title: "Production Hotel Scanner V2",
@@ -111,6 +128,12 @@ const COPY = {
     noHandoff: "Downstream handoff is disabled. Scanner V2 never auto-approves.",
     failedUrls: "Failed page reads",
     pendingDocs: "Pending PDFs",
+    webFacts: "Web facts",
+    pdfFacts: "PDF facts",
+    verificationInput: "Verification input",
+    verificationOutput: "Verification output",
+    verified: "Verified",
+    crossDomainConflicts: "Cross-domain conflicts",
   },
 } as const;
 
@@ -141,6 +164,10 @@ export default function HotelScannerV2Client({ lang }: { lang: ControlPlaneLang 
   }
 
   const inventoryByDomain = new Map((result?.discovery?.inventory?.domains || []).map((domain) => [domain.domain, domain]));
+  const webFactCount = result?.extraction?.diagnostics.factCount ?? 0;
+  const pdfFactCount = result?.documents?.facts?.length ?? 0;
+  const verificationInputCount = result?.verification?.inputFactCount ?? webFactCount + pdfFactCount;
+  const verificationOutputCount = result?.verification?.outputFactCount ?? 0;
 
   return (
     <section className="rounded-[2rem] border border-emerald-300/20 bg-neutral-900/85 p-5 shadow-[0_30px_100px_rgba(13,27,42,0.08)] backdrop-blur-xl sm:p-6">
@@ -200,12 +227,15 @@ export default function HotelScannerV2Client({ lang }: { lang: ControlPlaneLang 
         {(result.discovery?.failedPageUrls || []).length ? <Card title={copy.failedUrls}><ul className="space-y-2 text-xs text-neutral-400">{result.discovery?.failedPageUrls.map((item) => <li key={item} className="break-all font-mono">{item}</li>)}</ul></Card> : null}
 
         <Card title={copy.diagnostics}>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label="AI facts" value={String(result.extraction?.diagnostics.factCount ?? 0)} />
-            <Metric label="Verified" value={String(result.verification?.verifiedFactCount ?? 0)} />
-            <Metric label="Single source" value={String(result.verification?.singleSourceFactCount ?? 0)} />
-            <Metric label="Total ms" value={String(result.diagnostics?.totalLatencyMs ?? 0)} />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <Metric label={copy.webFacts} value={String(webFactCount)} />
+            <Metric label={copy.pdfFacts} value={String(pdfFactCount)} />
+            <Metric label={copy.verificationInput} value={String(verificationInputCount)} />
+            <Metric label={copy.verificationOutput} value={String(verificationOutputCount)} />
+            <Metric label={copy.verified} value={String(result.verification?.verifiedFactCount ?? 0)} />
+            <Metric label={copy.crossDomainConflicts} value={String(result.verification?.crossDomainConflictCount ?? 0)} />
           </div>
+          <p className="mt-3 text-xs text-neutral-500">Single-source output: {result.verification?.singleSourceFactCount ?? 0} · Total: {result.diagnostics?.totalLatencyMs ?? 0} ms</p>
         </Card>
       </div> : null}
     </section>
