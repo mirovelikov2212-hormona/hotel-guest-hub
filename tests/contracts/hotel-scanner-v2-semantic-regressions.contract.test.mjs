@@ -75,3 +75,22 @@ test("landing structure can establish accommodation, gastronomy and experience i
   assert.equal(experiences.expectationState, "DETERMINISTIC");
   assert.ok(experiences.expectedCount >= 6);
 });
+
+test("sitemap-only generic services URLs do not create authoritative service entities", () => {
+  const siteMap = buildHotelSiteMapV2({
+    canonicalUrl: "https://hotel.test/en",
+    pages: [page("https://hotel.test/en", "Hotel")],
+    discovery: {
+      sitemapPageUrls: [
+        "https://hotel.test/en/services/nero-dining",
+        "https://hotel.test/en/services/hydrotherapy",
+        "https://hotel.test/en/services/kids-corner",
+      ],
+    },
+  });
+  const inventory = buildHotelInventoryV2(siteMap);
+  const services = inventory.domains.find((item) => item.domain === "services");
+
+  assert.equal(services.expectedCount, 0);
+  assert.equal(services.expectationState, "UNKNOWN");
+});
