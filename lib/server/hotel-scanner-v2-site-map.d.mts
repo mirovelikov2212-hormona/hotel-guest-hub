@@ -19,6 +19,7 @@ export type HotelScannerV2SiteResource = {
   description: string;
   classification: HotelScannerV2PageClassification;
   inventoryHint: HotelScannerV2PageInventoryHint | null;
+  inventoryHints: HotelScannerV2PageInventoryHint[];
   variantGroupId: string;
 };
 
