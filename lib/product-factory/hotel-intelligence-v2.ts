@@ -47,7 +47,7 @@ function stable(value: unknown): string {
     const record = value as Record<string, unknown>;
     return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stable(record[key])}`).join(",")}}`;
   }
-  return JSON.stringify(value);
+  return JSON.stringify(value) ?? "null";
 }
 
 export function hotelIntelligenceCandidateChecksumV2(candidate: HotelIntelligenceCandidateV2) {
