@@ -23,6 +23,7 @@ export type HotelScannerV2DomainInventory = {
   evidence: {
     detailCount: number;
     landingExpectedCount: number | null;
+    landingIdentifiedCount: number | null;
     observedLandingCounts: number[];
   };
 };
