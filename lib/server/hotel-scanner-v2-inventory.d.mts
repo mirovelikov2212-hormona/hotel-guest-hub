@@ -1,4 +1,4 @@
-export type HotelScannerV2InventoryExpectationState = "DETERMINISTIC" | "UNKNOWN" | "ABSENT";
+export type HotelScannerV2InventoryExpectationState = "DETERMINISTIC" | "CONFLICT" | "UNKNOWN" | "ABSENT";
 
 export type HotelScannerV2ExpectedItem = {
   id: string;
@@ -19,6 +19,12 @@ export type HotelScannerV2DomainInventory = {
   expectedItems: HotelScannerV2ExpectedItem[];
   landingUrls: string[];
   detailUrls: string[];
+  issues: string[];
+  evidence: {
+    detailCount: number;
+    landingExpectedCount: number | null;
+    observedLandingCounts: number[];
+  };
 };
 
 export type HotelScannerV2DocumentInventory = {
@@ -34,6 +40,7 @@ export type HotelScannerV2Inventory = {
   documents: HotelScannerV2DocumentInventory[];
   counts: {
     deterministicDomains: number;
+    conflictingDomains: number;
     unknownExpectationDomains: number;
     expectedItems: number;
     pendingDocuments: number;
