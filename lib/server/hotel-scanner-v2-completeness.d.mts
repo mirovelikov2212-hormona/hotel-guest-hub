@@ -28,6 +28,7 @@ export type HotelScannerV2Completeness = {
   };
   conflicts: {
     unresolved: number;
+    inventory: number;
   };
   blockingReasons: string[];
   prerequisitesSatisfied: boolean;
