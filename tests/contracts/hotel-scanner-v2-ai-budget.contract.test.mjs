@@ -26,3 +26,14 @@ test("Scanner V2 paces web extraction before PDF ingestion instead of overlappin
   assert.doesNotMatch(pipeline, /Promise\.all\(\[\s*extractHotelDomainsV2/);
   assert.match(pipeline, /documentLatencyMs/);
 });
+
+test("Scanner V2 PDF ingestion is serialized and performs only one bounded 429 retry", async () => {
+  const ingestion = await readProjectFile("lib/ai/hotel-scanner-v2-document-ingestion.ts");
+
+  assert.match(ingestion, /DOCUMENT_CONCURRENCY = 1/);
+  assert.match(ingestion, /DOCUMENT_AI_RATE_LIMIT_RETRIES = 1/);
+  assert.match(ingestion, /DOCUMENT_AI_RATE_LIMIT_MAX_DELAY_MS = 12_000/);
+  assert.match(ingestion, /withDocumentRateLimitRetry/);
+  assert.match(ingestion, /try again in\\s\+\(\[0-9\.\]\+\)s/);
+  assert.match(ingestion, /mapWithConcurrency\(selected, DOCUMENT_CONCURRENCY/);
+});
