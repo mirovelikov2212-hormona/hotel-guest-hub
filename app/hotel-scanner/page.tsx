@@ -15,6 +15,7 @@ const COPY = {
     subtitle: "Самостоятелен инструмент за анализ на публичния сайт на хотел и създаване на структуриран review draft.",
     back: "← Control Panel",
     smartSetup: "Smart Setup",
+    v2: "Scanner V2 Preview",
   },
   en: {
     eyebrow: "StayHub Intelligence",
@@ -22,6 +23,7 @@ const COPY = {
     subtitle: "A standalone tool for analyzing a hotel's public website and producing a structured review draft.",
     back: "← Control Panel",
     smartSetup: "Smart Setup",
+    v2: "Scanner V2 Preview",
   },
 } as const;
 
@@ -53,6 +55,7 @@ export default async function HotelScannerPage({
               <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-400">{copy.subtitle}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <Link href={`/hotel-scanner-v2?lang=${lang}`} className="rounded-2xl border border-emerald-300/40 bg-emerald-300/10 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:border-emerald-200/70">{copy.v2}</Link>
               <Link href={`/hotel-factory/new?lang=${lang}`} className="rounded-2xl border border-violet-300/20 bg-violet-300/5 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:border-violet-300/45">{copy.smartSetup}</Link>
               <Link href="/hotel-scanner?lang=bg" className={`rounded-2xl border px-3 py-2 text-xs font-semibold ${lang === "bg" ? "border-neutral-100 bg-neutral-100 text-neutral-950" : "border-white/10 text-neutral-400"}`}>BG</Link>
               <Link href="/hotel-scanner?lang=en" className={`rounded-2xl border px-3 py-2 text-xs font-semibold ${lang === "en" ? "border-neutral-100 bg-neutral-100 text-neutral-950" : "border-white/10 text-neutral-400"}`}>EN</Link>
