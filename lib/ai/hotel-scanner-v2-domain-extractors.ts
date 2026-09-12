@@ -17,6 +17,7 @@ export type HotelScannerV2DomainExtraction = {
   sourceUrls: string[];
   expectedCount: number | null;
   latencyMs: number;
+  requestCount: number;
 };
 
 export type HotelScannerV2ExtractionResult = {
@@ -27,6 +28,8 @@ export type HotelScannerV2ExtractionResult = {
     model: string;
     extractedDomainCount: number;
     factCount: number;
+    aiRequestCount: number;
+    maxEvidenceCharsPerRequest: number;
   };
 };
 
@@ -37,6 +40,25 @@ type DomainConfig = {
   pageTypes: string[];
   propertyWide?: boolean;
 };
+
+type PagePayload = {
+  url: string;
+  title: string;
+  description: string;
+  headings: unknown[];
+  content_blocks: Array<{ heading: string; text: string; links: unknown[] }>;
+  json_ld_entities: Array<{ name: string; types: unknown[] }>;
+  text: string;
+};
+
+const MAX_AI_EVIDENCE_CHARS = 48_000;
+const MAX_PAGE_TEXT_CHARS = 7_500;
+const MAX_CONTENT_BLOCKS_PER_PAGE = 36;
+const MAX_CONTENT_BLOCK_TEXT_CHARS = 700;
+const MAX_HEADINGS_PER_PAGE = 80;
+const MAX_JSON_LD_PER_PAGE = 60;
+const DOMAIN_CONCURRENCY = 2;
+const RATE_LIMIT_RETRY_DELAY_MS = 9_000;
 
 const DOMAIN_CONFIGS: DomainConfig[] = [
   {
@@ -138,6 +160,26 @@ function unique(values: string[]) {
   return [...new Set(values.filter(Boolean))];
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRateLimitError(error: unknown) {
+  const status = Number((error as { status?: unknown } | null)?.status || 0);
+  const message = error instanceof Error ? error.message : String(error);
+  return status === 429 || /(?:^|\s)429(?:\s|$)|rate limit/i.test(message);
+}
+
+async function withBoundedRateLimitRetry<T>(operation: () => Promise<T>) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!isRateLimitError(error)) throw error;
+    await sleep(RATE_LIMIT_RETRY_DELAY_MS);
+    return operation();
+  }
+}
+
 function isPrivacyMinimalBusinessEmail(raw: string) {
   const value = clean(raw, 200).toLocaleLowerCase("en-US");
   const match = value.match(/^([^@]+)@([^@]+)$/);
@@ -167,18 +209,53 @@ function sourceUrlsForDomain(
   return unique([...urls]);
 }
 
+function compactPagePayload(page: HotelScannerV2EvidenceBundle["pages"][number]): PagePayload {
+  const blocks = page.contentBlocks.slice(0, MAX_CONTENT_BLOCKS_PER_PAGE).map((block) => ({
+    heading: clean(block?.heading, 240),
+    text: clean(block?.text, MAX_CONTENT_BLOCK_TEXT_CHARS),
+    links: Array.isArray(block?.links) ? block.links.slice(0, 8) : [],
+  }));
+  const jsonLd = page.jsonLdEntities.slice(0, MAX_JSON_LD_PER_PAGE).map((entity) => ({
+    name: clean(entity?.name, 240),
+    types: Array.isArray(entity?.types) ? entity.types.slice(0, 8) : [],
+  }));
+  return {
+    url: page.url,
+    title: clean(page.title, 300),
+    description: clean(page.description, 700),
+    headings: page.headings.slice(0, MAX_HEADINGS_PER_PAGE),
+    content_blocks: blocks,
+    json_ld_entities: jsonLd,
+    text: clean(page.text, MAX_PAGE_TEXT_CHARS),
+  };
+}
+
 function pagePayloads(evidence: HotelScannerV2EvidenceBundle, allowedUrls: Set<string>) {
   return evidence.pages
     .filter((page) => allowedUrls.has(page.url))
-    .map((page) => ({
-      url: page.url,
-      title: page.title,
-      description: page.description,
-      headings: page.headings.slice(0, 120),
-      content_blocks: page.contentBlocks.slice(0, 120),
-      json_ld_entities: page.jsonLdEntities.slice(0, 120),
-      text: page.text.slice(0, 18_000),
-    }));
+    .map(compactPagePayload);
+}
+
+function pagePayloadSize(page: PagePayload) {
+  return JSON.stringify(page).length;
+}
+
+function chunkPagePayloads(pages: PagePayload[]) {
+  const chunks: PagePayload[][] = [];
+  let current: PagePayload[] = [];
+  let currentChars = 0;
+  for (const page of pages) {
+    const pageChars = pagePayloadSize(page);
+    if (current.length && currentChars + pageChars > MAX_AI_EVIDENCE_CHARS) {
+      chunks.push(current);
+      current = [];
+      currentChars = 0;
+    }
+    current.push(page);
+    currentChars += pageChars;
+  }
+  if (current.length) chunks.push(current);
+  return chunks;
 }
 
 function parseFacts(value: string, config: DomainConfig, allowedUrls: Set<string>) {
@@ -205,6 +282,25 @@ function parseFacts(value: string, config: DomainConfig, allowedUrls: Set<string
     facts.push({ category, subject, attribute, label, value: factValue, confidence, sourceUrls } as HotelScanFact);
   }
   return facts;
+}
+
+function mergeFacts(values: HotelScanFact[]) {
+  const merged = new Map<string, HotelScanFact>();
+  for (const fact of values) {
+    const enriched = fact as HotelScanFact & { subject?: string; attribute?: string };
+    const key = `${clean(fact.category, 80).toLocaleLowerCase("en-US")}|${entityKey(enriched.subject)}|${clean(enriched.attribute, 80).toLocaleLowerCase("en-US")}|${entityKey(fact.value)}`;
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, fact);
+      continue;
+    }
+    merged.set(key, {
+      ...existing,
+      confidence: Math.max(Number(existing.confidence || 0), Number(fact.confidence || 0)),
+      sourceUrls: unique([...(existing.sourceUrls || []), ...(fact.sourceUrls || [])]).slice(0, 8),
+    } as HotelScanFact);
+  }
+  return [...merged.values()];
 }
 
 function expectedInventoryPayload(domainInventory: HotelScannerV2DomainInventory | undefined) {
@@ -286,44 +382,27 @@ function languageInstruction(outputLanguage: HotelScannerV2OutputLanguage) {
     : "Write human-readable labels and descriptive values in English. Preserve official entity names, prices, times, emails and phone numbers exactly.";
 }
 
-async function extractDomain(
-  config: DomainConfig,
-  evidence: HotelScannerV2EvidenceBundle,
-  siteMap: HotelScannerV2SiteMap,
-  inventory: HotelScannerV2Inventory,
-  outputLanguage: HotelScannerV2OutputLanguage,
-  model: string,
-): Promise<HotelScannerV2DomainExtraction> {
-  const domainInventory = inventory.domains.find((entry) => entry.domain === config.domain);
-  if (domainInventory?.expectationState === "ABSENT" && !config.propertyWide) {
-    return { domain: config.domain, status: "SKIPPED", facts: [], sourceUrls: [], expectedCount: 0, latencyMs: 0 };
-  }
-
-  const sourceUrls = sourceUrlsForDomain(config, evidence, siteMap, domainInventory);
+async function extractChunk(input: {
+  config: DomainConfig;
+  pages: PagePayload[];
+  expected: ReturnType<typeof expectedInventoryPayload>;
+  outputLanguage: HotelScannerV2OutputLanguage;
+  model: string;
+  chunkIndex: number;
+  chunkCount: number;
+}) {
+  const sourceUrls = unique(input.pages.map((page) => page.url));
   const allowedUrls = new Set(sourceUrls);
-  const pages = pagePayloads(evidence, allowedUrls);
-  if (!pages.length) {
-    return {
-      domain: config.domain,
-      status: "NO_EVIDENCE",
-      facts: [],
-      sourceUrls,
-      expectedCount: domainInventory?.expectationState === "UNKNOWN" ? null : domainInventory?.expectedCount ?? null,
-      latencyMs: 0,
-    };
-  }
-
-  const expected = expectedInventoryPayload(domainInventory);
-  const startedAt = Date.now();
-  const response = await getClient().responses.create({
-    model,
+  const response = await withBoundedRateLimitRetry(() => getClient().responses.create({
+    model: input.model,
     store: false,
-    max_output_tokens: Math.min(8_000, Math.max(2_000, 900 + Math.max(1, expected.expectedCount) * 500)),
+    max_output_tokens: Math.min(4_500, Math.max(1_500, 700 + Math.max(1, input.expected.expectedCount) * 220)),
     reasoning: { effort: "none" },
     instructions: [
-      `You are the StayHub Production Hotel Scanner V2 ${config.domain} extractor.`,
+      `You are the StayHub Production Hotel Scanner V2 ${input.config.domain} extractor.`,
       "The crawler and Inventory Engine have already determined what website surfaces and expected entities exist. You are NOT inventory authority.",
       "Use ONLY WEBSITE_EVIDENCE and EXPECTED_INVENTORY. Never browse, use outside knowledge, add an entity because it seems likely, or hide a contradiction.",
+      "This is one bounded evidence chunk. Extract only facts supported by this chunk; later code merges chunks deterministically.",
       "For named EXPECTED_INVENTORY items, extract facts only for those entities or exact property-wide facts supported by the supplied pages.",
       "For unnamed deterministic count slots, you may identify names only when explicitly present in the supplied evidence, and never exceed the authoritative expected count.",
       "If an expected item has no supporting content, emit no invented fact for it. Completeness will report it as missing.",
@@ -331,21 +410,22 @@ async function extractDomain(
       "Facts must be atomic: one subject + one attribute + one value.",
       "Preserve conflicting values as separate facts with their own source URLs.",
       "Do not extract staff names, guest names, biographies, personal profiles or named-person email addresses.",
-      languageInstruction(outputLanguage),
-      `category must be one of: ${config.categories.join(", ")}.`,
-      `attribute must be one of: ${config.attributes.join(", ")}.`,
+      languageInstruction(input.outputLanguage),
+      `category must be one of: ${input.config.categories.join(", ")}.`,
+      `attribute must be one of: ${input.config.attributes.join(", ")}.`,
     ].join("\n"),
     input: JSON.stringify({
-      DOMAIN: config.domain,
-      OUTPUT_LANGUAGE: outputLanguage,
-      EXPECTED_INVENTORY: expected,
+      DOMAIN: input.config.domain,
+      OUTPUT_LANGUAGE: input.outputLanguage,
+      CHUNK: { index: input.chunkIndex + 1, total: input.chunkCount },
+      EXPECTED_INVENTORY: input.expected,
       ALLOWED_SOURCE_URLS: sourceUrls,
-      WEBSITE_EVIDENCE: pages,
+      WEBSITE_EVIDENCE: input.pages,
     }),
     text: {
       format: {
         type: "json_schema",
-        name: `stayhub_v2_${config.domain}_facts`,
+        name: `stayhub_v2_${input.config.domain}_facts`,
         strict: true,
         schema: {
           type: "object",
@@ -358,9 +438,9 @@ async function extractDomain(
                 type: "object",
                 additionalProperties: false,
                 properties: {
-                  category: { type: "string", enum: config.categories },
+                  category: { type: "string", enum: input.config.categories },
                   subject: { type: "string" },
-                  attribute: { type: "string", enum: config.attributes },
+                  attribute: { type: "string", enum: input.config.attributes },
                   label: { type: "string" },
                   value: { type: "string" },
                   confidence: { type: "number", minimum: 0, maximum: 1 },
@@ -374,20 +454,57 @@ async function extractDomain(
         },
       },
     },
-  });
+  }));
 
-  if (response.status === "incomplete") throw new Error(`hotel_scanner_v2_ai_incomplete:${config.domain}`);
+  if (response.status === "incomplete") throw new Error(`hotel_scanner_v2_ai_incomplete:${input.config.domain}`);
   const outputText = String(response.output_text || "").trim();
-  if (!outputText) return {
-    domain: config.domain,
-    status: "NO_EVIDENCE",
-    facts: [],
-    sourceUrls,
-    expectedCount: domainInventory?.expectationState === "UNKNOWN" ? null : domainInventory?.expectedCount ?? null,
-    latencyMs: Date.now() - startedAt,
-  };
-  const parsed = parseFacts(outputText, config, allowedUrls);
-  const facts = boundFactsToInventory(config, parsed, domainInventory);
+  return outputText ? parseFacts(outputText, input.config, allowedUrls) : [];
+}
+
+async function extractDomain(
+  config: DomainConfig,
+  evidence: HotelScannerV2EvidenceBundle,
+  siteMap: HotelScannerV2SiteMap,
+  inventory: HotelScannerV2Inventory,
+  outputLanguage: HotelScannerV2OutputLanguage,
+  model: string,
+): Promise<HotelScannerV2DomainExtraction> {
+  const domainInventory = inventory.domains.find((entry) => entry.domain === config.domain);
+  if (domainInventory?.expectationState === "ABSENT" && !config.propertyWide) {
+    return { domain: config.domain, status: "SKIPPED", facts: [], sourceUrls: [], expectedCount: 0, latencyMs: 0, requestCount: 0 };
+  }
+
+  const sourceUrls = sourceUrlsForDomain(config, evidence, siteMap, domainInventory);
+  const allowedUrls = new Set(sourceUrls);
+  const pages = pagePayloads(evidence, allowedUrls);
+  if (!pages.length) {
+    return {
+      domain: config.domain,
+      status: "NO_EVIDENCE",
+      facts: [],
+      sourceUrls,
+      expectedCount: domainInventory?.expectationState === "UNKNOWN" ? null : domainInventory?.expectedCount ?? null,
+      latencyMs: 0,
+      requestCount: 0,
+    };
+  }
+
+  const expected = expectedInventoryPayload(domainInventory);
+  const chunks = chunkPagePayloads(pages);
+  const startedAt = Date.now();
+  const extracted: HotelScanFact[] = [];
+  for (let index = 0; index < chunks.length; index += 1) {
+    extracted.push(...await extractChunk({
+      config,
+      pages: chunks[index],
+      expected,
+      outputLanguage,
+      model,
+      chunkIndex: index,
+      chunkCount: chunks.length,
+    }));
+  }
+  const facts = boundFactsToInventory(config, mergeFacts(extracted), domainInventory);
   return {
     domain: config.domain,
     status: facts.length ? "EXTRACTED" : "NO_EVIDENCE",
@@ -395,6 +512,7 @@ async function extractDomain(
     sourceUrls,
     expectedCount: domainInventory?.expectationState === "UNKNOWN" ? null : domainInventory?.expectedCount ?? null,
     latencyMs: Date.now() - startedAt,
+    requestCount: chunks.length,
   };
 }
 
@@ -419,7 +537,7 @@ export async function extractHotelDomainsV2(input: {
   outputLanguage: HotelScannerV2OutputLanguage;
 }): Promise<HotelScannerV2ExtractionResult> {
   const model = String(process.env.OPENAI_HOTEL_SCANNER_MODEL || "gpt-5.6-luna").trim();
-  const domains = await mapWithConcurrency(DOMAIN_CONFIGS, 3, (config) =>
+  const domains = await mapWithConcurrency(DOMAIN_CONFIGS, DOMAIN_CONCURRENCY, (config) =>
     extractDomain(config, input.evidence, input.siteMap, input.inventory, input.outputLanguage, model));
   const facts = domains.flatMap((domain) => domain.facts);
   return {
@@ -430,6 +548,8 @@ export async function extractHotelDomainsV2(input: {
       model,
       extractedDomainCount: domains.filter((domain) => domain.status === "EXTRACTED").length,
       factCount: facts.length,
+      aiRequestCount: domains.reduce((sum, domain) => sum + domain.requestCount, 0),
+      maxEvidenceCharsPerRequest: MAX_AI_EVIDENCE_CHARS,
     },
   };
 }
