@@ -6,6 +6,8 @@ import { buildHotelSiteMapV2, canonicalizeHotelIntakeUrl } from "../../lib/serve
 import { buildHotelInventoryV2 } from "../../lib/server/hotel-scanner-v2-inventory.mjs";
 import { buildHotelCompletenessV2 } from "../../lib/server/hotel-scanner-v2-completeness.mjs";
 
+const VENUE_NAMES = ["Main Restaurant", "Lobby Bar", "NERO", "Nutrition Bar", "Pool Bar"];
+
 function gastronomyPages(count = 5) {
   const names = ["main-restaurant", "lobby-bar", "nero", "nutrition-bar", "pool-bar"].slice(0, count);
   const landingLinks = names.map((name) => `https://hotel.test/en/gastronomy/${name}`);
@@ -31,16 +33,31 @@ function gastronomyPages(count = 5) {
   ];
 }
 
-function diningFacts(count = 4) {
-  const names = ["main-restaurant", "lobby-bar", "nero", "nutrition-bar", "pool-bar"].slice(0, count);
-  return names.map((name) => ({
+function landingGastronomyPage(namedCount = 5) {
+  return {
+    url: "https://hotel.test/en/gastronomy/",
+    title: "Gastronomy",
+    description: "Discover five dining venues.",
+    text: "Five dining venues offer different restaurant and bar concepts.",
+    links: [],
+    navigationLinks: [],
+    documentUrls: [],
+    languageAlternates: [],
+    headings: VENUE_NAMES.slice(0, namedCount).map((text) => ({ level: 3, text })),
+    jsonLdEntities: [],
+  };
+}
+
+function diningFacts(count = 4, source = "detail") {
+  const slugs = ["main-restaurant", "lobby-bar", "nero", "nutrition-bar", "pool-bar"];
+  return VENUE_NAMES.slice(0, count).map((name, index) => ({
     category: "dining",
     subject: name,
     attribute: "venue",
     label: "Venue",
     value: name,
     confidence: 1,
-    sourceUrls: [`https://hotel.test/en/gastronomy/${name}`],
+    sourceUrls: [source === "landing" ? "https://hotel.test/en/gastronomy" : `https://hotel.test/en/gastronomy/${slugs[index]}`],
     verification: { status: "SINGLE_SOURCE" },
   }));
 }
@@ -100,7 +117,53 @@ test("V2 inventory establishes expected gastronomy count independently from extr
   assert.equal(gastronomy.expectedCount, 5);
 });
 
-test("V2 completeness reports 4/5 as INCOMPLETE instead of READY", () => {
+test("V2 landing page can deterministically establish five venues without detail URLs", () => {
+  const siteMap = buildHotelSiteMapV2({
+    canonicalUrl: "https://hotel.test/en/gastronomy",
+    pages: [landingGastronomyPage(5)],
+  });
+  const inventory = buildHotelInventoryV2(siteMap);
+  const gastronomy = inventory.domains.find((domain) => domain.domain === "gastronomy");
+
+  assert.equal(gastronomy.expectationState, "DETERMINISTIC");
+  assert.equal(gastronomy.expectedCount, 5);
+  assert.deepEqual(gastronomy.expectedItems.map((item) => item.nameHint), VENUE_NAMES);
+  assert.ok(gastronomy.expectedItems.every((item) => item.basis === "deterministic_landing_entity"));
+});
+
+test("V2 landing completeness reports 4/5 unique venues as INCOMPLETE", () => {
+  const siteMap = buildHotelSiteMapV2({
+    canonicalUrl: "https://hotel.test/en/gastronomy",
+    pages: [landingGastronomyPage(5)],
+  });
+  const inventory = buildHotelInventoryV2(siteMap);
+  const completeness = buildHotelCompletenessV2({ inventory, profile: { facts: diningFacts(4, "landing") }, conflicts: [] });
+  const gastronomy = completeness.domains.find((domain) => domain.domain === "gastronomy");
+
+  assert.equal(gastronomy.expected, 5);
+  assert.equal(gastronomy.extracted, 4);
+  assert.equal(gastronomy.status, "INCOMPLETE");
+  assert.equal(completeness.status, "INCOMPLETE");
+});
+
+test("V2 explicit count disagreement is an inventory conflict, never READY", () => {
+  const siteMap = buildHotelSiteMapV2({
+    canonicalUrl: "https://hotel.test/en/gastronomy",
+    pages: [landingGastronomyPage(4)],
+  });
+  const inventory = buildHotelInventoryV2(siteMap);
+  const gastronomy = inventory.domains.find((domain) => domain.domain === "gastronomy");
+  const completeness = buildHotelCompletenessV2({ inventory, profile: { facts: diningFacts(5, "landing") }, conflicts: [] });
+  const coverage = completeness.domains.find((domain) => domain.domain === "gastronomy");
+
+  assert.equal(gastronomy.expectationState, "CONFLICT");
+  assert.ok(gastronomy.issues.includes("landing_inventory_count_conflict"));
+  assert.equal(coverage.reason, "expected_inventory_conflict");
+  assert.equal(completeness.status, "INCOMPLETE");
+  assert.ok(completeness.blockingReasons.includes("inventory_expectation_conflict"));
+});
+
+test("V2 completeness reports 4/5 detail entities as INCOMPLETE instead of READY", () => {
   const pages = gastronomyPages(5);
   const siteMap = buildHotelSiteMapV2({ canonicalUrl: "https://hotel.test/en", pages });
   const inventory = buildHotelInventoryV2(siteMap);
