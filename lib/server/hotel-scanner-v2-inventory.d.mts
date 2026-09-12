@@ -40,5 +40,5 @@ export type HotelScannerV2Inventory = {
   };
 };
 
-export function buildHotelInventoryV2(siteMap?: Record<string, unknown>): HotelScannerV2Inventory;
+export function buildHotelInventoryV2(siteMap?: unknown): HotelScannerV2Inventory;
 export const HOTEL_SCANNER_V2_INVENTORY_DOMAINS: readonly string[];
