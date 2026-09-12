@@ -54,7 +54,10 @@ const DOMAIN_CONFIGS: DomainConfig[] = [
   {
     domain: "spa",
     categories: ["wellness"],
-    attributes: ["service", "treatment", "facility", "description", "price", "hours", "booking", "age_policy", "access", "session_duration", "recommended_stay"],
+    attributes: [
+      "service", "treatment", "treatment_category", "facility", "technology", "equipment",
+      "description", "price", "hours", "booking", "age_policy", "access", "session_duration", "recommended_stay",
+    ],
     pageTypes: ["spa", "spa_detail"],
   },
   {
@@ -91,7 +94,7 @@ const DOMAIN_CONFIGS: DomainConfig[] = [
   {
     domain: "contacts",
     categories: ["contact", "location"],
-    attributes: ["phone", "email", "social_profile", "address"],
+    attributes: ["phone", "email", "website", "social_profile", "address"],
     pageTypes: ["contacts"],
     propertyWide: true,
   },
@@ -102,6 +105,11 @@ const GENERIC_BUSINESS_EMAIL_LOCAL_PARTS = new Set([
   "reservation", "reservations", "booking", "bookings", "sales", "events", "event", "spa", "wellness",
   "restaurant", "restaurants", "marketing", "conference", "conferences", "groups", "group", "guestrelations",
   "guestservice", "guestservices", "service", "services",
+]);
+
+const NAMED_INVENTORY_BASES = new Set([
+  "deterministic_semantic_block_entity",
+  "deterministic_json_ld_entity",
 ]);
 
 function getClient() {
@@ -149,6 +157,7 @@ function sourceUrlsForDomain(
   const urls = new Set<string>([
     ...(inventory?.landingUrls || []),
     ...(inventory?.detailUrls || []),
+    ...(inventory?.supportingUrls || []),
   ]);
   for (const resource of siteMap.resources) {
     const types = pageTypeSet(resource);
@@ -166,6 +175,7 @@ function pagePayloads(evidence: HotelScannerV2EvidenceBundle, allowedUrls: Set<s
       title: page.title,
       description: page.description,
       headings: page.headings.slice(0, 120),
+      content_blocks: page.contentBlocks.slice(0, 120),
       json_ld_entities: page.jsonLdEntities.slice(0, 120),
       text: page.text.slice(0, 18_000),
     }));
@@ -204,6 +214,7 @@ function expectedInventoryPayload(domainInventory: HotelScannerV2DomainInventory
     expectedCount: domainInventory.expectedCount,
     items: domainInventory.expectedItems.map((item) => ({
       id: item.id,
+      entityType: item.entityType,
       name: item.nameHint,
       basis: item.basis,
       urls: item.urls,
@@ -221,7 +232,7 @@ function boundFactsToInventory(
 
   const expectedItems = domainInventory.expectedItems;
   const namedLandingKeys = new Set(expectedItems
-    .filter((item) => item.basis === "deterministic_landing_entity")
+    .filter((item) => NAMED_INVENTORY_BASES.has(item.basis))
     .map((item) => entityKey(item.nameHint))
     .filter(Boolean));
   const detailUrls = new Set(expectedItems
@@ -233,7 +244,10 @@ function boundFactsToInventory(
   function factEntity(fact: HotelScanFact) {
     const subject = entityKey((fact as HotelScanFact & { subject?: string }).subject);
     if (subject && !["hotel", "resort", "property"].includes(subject)) return subject;
-    if (["room_type", "venue", "service", "treatment", "facility", "amenity", "experience", "activity", "attraction", "offer", "event"].includes(String((fact as HotelScanFact & { attribute?: string }).attribute || ""))) {
+    if ([
+      "room_type", "venue", "service", "treatment", "treatment_category", "facility", "technology", "equipment", "amenity",
+      "experience", "activity", "attraction", "offer", "event",
+    ].includes(String((fact as HotelScanFact & { attribute?: string }).attribute || ""))) {
       return entityKey(fact.value);
     }
     return "";
