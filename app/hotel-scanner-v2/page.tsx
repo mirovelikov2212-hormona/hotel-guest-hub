@@ -11,17 +11,19 @@ export const dynamic = "force-dynamic";
 const COPY = {
   bg: {
     eyebrow: "StayHub Intelligence",
-    title: "Production Hotel Scanner V2",
-    subtitle: "Отделна Preview тестова среда за новия deterministic Hotel Intake Pipeline. V1 Scanner остава непроменен.",
+    title: "Hotel Scanner V2",
+    subtitle: "Работна среда за проверимо onboarding сканиране. Системата първо установява какво съществува на сайта, после извлича данните и показва всяка липса или конфликт преди approval.",
     back: "← Control Panel",
-    v1: "Отвори Scanner V1",
+    v1: "Scanner V1",
+    preview: "Preview · без Production handoff",
   },
   en: {
     eyebrow: "StayHub Intelligence",
-    title: "Production Hotel Scanner V2",
-    subtitle: "Isolated Preview workspace for the deterministic Hotel Intake Pipeline. Scanner V1 remains unchanged.",
+    title: "Hotel Scanner V2",
+    subtitle: "Workspace for verifiable hotel onboarding. The system first establishes what exists on the website, then extracts the data and exposes every gap or conflict before approval.",
     back: "← Control Panel",
-    v1: "Open Scanner V1",
+    v1: "Scanner V1",
+    preview: "Preview · no Production handoff",
   },
 } as const;
 
@@ -37,23 +39,23 @@ export default async function HotelScannerV2Page({ searchParams }: { searchParam
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-neutral-950 px-4 py-8 text-neutral-50 sm:px-6 lg:px-8">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-[radial-gradient(circle_at_50%_-20%,rgba(110,231,183,0.15),transparent_60%)]" />
-      <div className="relative mx-auto max-w-7xl space-y-6">
-        <header className="rounded-[2rem] border border-emerald-300/20 bg-neutral-900/80 p-6 shadow-[0_30px_100px_rgba(13,27,42,0.08)] backdrop-blur-xl">
+    <main className="scanner-v2-screen px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <header className="v2-panel p-6 sm:p-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300/80">{copy.eyebrow}</p>
-              <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{copy.title}</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-400">{copy.subtitle}</p>
+            <div className="max-w-4xl">
+              <p className="v2-accent text-xs font-bold uppercase tracking-[0.28em]">{copy.eyebrow}</p>
+              <h1 className="v2-section-title mt-3 text-3xl sm:text-4xl">{copy.title}</h1>
+              <p className="v2-muted mt-3 max-w-3xl text-sm leading-6">{copy.subtitle}</p>
+              <div className="mt-4"><span className="v2-pill v2-pill-info">{copy.preview}</span></div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Link href={`/hotel-scanner?lang=${lang}`} className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-semibold text-neutral-300 transition hover:border-emerald-300/40">{copy.v1}</Link>
-              <Link href="/hotel-scanner-v2?lang=bg" className={`rounded-2xl border px-3 py-2 text-xs font-semibold ${lang === "bg" ? "border-neutral-100 bg-neutral-100 text-neutral-950" : "border-white/10 text-neutral-400"}`}>BG</Link>
-              <Link href="/hotel-scanner-v2?lang=en" className={`rounded-2xl border px-3 py-2 text-xs font-semibold ${lang === "en" ? "border-neutral-100 bg-neutral-100 text-neutral-950" : "border-white/10 text-neutral-400"}`}>EN</Link>
+              <Link href={`/hotel-scanner?lang=${lang}`} className="v2-button text-xs">{copy.v1}</Link>
+              <Link href="/hotel-scanner-v2?lang=bg" className={`v2-pill ${lang === "bg" ? "v2-pill-info" : ""}`}>BG</Link>
+              <Link href="/hotel-scanner-v2?lang=en" className={`v2-pill ${lang === "en" ? "v2-pill-info" : ""}`}>EN</Link>
             </div>
           </div>
-          <Link href={`/control-panel?lang=${lang}`} className="mt-6 inline-flex text-sm font-semibold text-emerald-200 transition hover:text-emerald-100">{copy.back}</Link>
+          <Link href={`/control-panel?lang=${lang}`} className="v2-source-link mt-6 inline-flex text-sm font-semibold">{copy.back}</Link>
         </header>
 
         <HotelScannerV2Client lang={lang} />
