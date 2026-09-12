@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 export type ScannerV2ExpectedItemView = {
   id: string;
   domain: string;
+  entityType: string;
   nameHint: string;
   url: string;
   urls: string[];
@@ -118,6 +119,24 @@ function basisLabel(value: string, lang: "bg" | "en") {
   return labels[value]?.[lang === "bg" ? 0 : 1] || value;
 }
 
+function entityTypeLabel(value: string, lang: "bg" | "en") {
+  const labels: Record<string, [string, string]> = {
+    room_type: ["тип стая", "room type"],
+    venue: ["ресторант / бар", "dining venue"],
+    spa_facility: ["SPA зона / съоръжение", "SPA facility"],
+    treatment_category: ["категория процедури", "treatment category"],
+    spa_technology: ["SPA / medical технология", "SPA / medical technology"],
+    spa_surface: ["SPA информационна секция", "SPA information surface"],
+    service: ["хотелска услуга", "hotel service"],
+    experience: ["преживяване / дестинация", "experience / destination"],
+    event: ["събитие", "event"],
+    offer: ["оферта", "offer"],
+    operational_policy: ["оперативно правило", "operational policy"],
+    contact: ["контакт", "contact"],
+  };
+  return labels[value]?.[lang === "bg" ? 0 : 1] || value || (lang === "bg" ? "entity" : "entity");
+}
+
 export default function HotelScannerV2Details({
   candidate,
   documents,
@@ -140,8 +159,8 @@ export default function HotelScannerV2Details({
     noItems: "Няма записи.",
     source: "Източник",
     sources: "Източници",
-    status: "Статус",
     basis: "Защо е включено",
+    type: "Тип",
     crawled: "страницата е прочетена",
     discoveredOnly: "само е открита",
     facts: "факта",
@@ -158,8 +177,8 @@ export default function HotelScannerV2Details({
     noItems: "No records.",
     source: "Source",
     sources: "Sources",
-    status: "Status",
     basis: "Why included",
+    type: "Type",
     crawled: "page crawled",
     discoveredOnly: "discovered only",
     facts: "facts",
@@ -259,7 +278,10 @@ export default function HotelScannerV2Details({
               <div className="mt-3 grid gap-2 lg:grid-cols-2">
                 {(domain.expectedItems || []).map((item) => (
                   <div key={item.id} className="v2-card-soft p-3">
-                    <p className="text-sm font-bold">{item.nameHint || (lang === "bg" ? "Неидентифициран entity" : "Unidentified entity")}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-bold">{item.nameHint || (lang === "bg" ? "Неидентифициран entity" : "Unidentified entity")}</p>
+                      <span className="v2-pill v2-pill-info">{entityTypeLabel(item.entityType, lang)}</span>
+                    </div>
                     <p className="v2-muted mt-1 text-xs">{copy.basis}: {basisLabel(item.basis, lang)} · {item.crawled ? copy.crawled : copy.discoveredOnly}</p>
                     {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="v2-source-link mt-2 block break-all text-xs">{item.url}</a> : null}
                   </div>
