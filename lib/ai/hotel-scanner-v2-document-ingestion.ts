@@ -161,7 +161,7 @@ async function ingestOne(
           {
             type: "input_file",
             filename: filenameForUrl(document.url),
-            file_data: fetched.buffer.toString("base64"),
+            file_data: `data:application/pdf;base64,${fetched.buffer.toString("base64")}`,
           },
         ],
       }],
