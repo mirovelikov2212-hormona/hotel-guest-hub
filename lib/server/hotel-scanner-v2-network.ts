@@ -105,7 +105,7 @@ type FetchOptions = {
   userAgent?: string;
 };
 
-async function boundedFetch(startUrl: URL, options: FetchOptions) {
+async function boundedResponse(startUrl: URL, options: FetchOptions) {
   let current = new URL(startUrl);
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
     await assertPublicHostnameV2(current);
@@ -136,18 +136,23 @@ async function boundedFetch(startUrl: URL, options: FetchOptions) {
       throw new HotelScannerV2NetworkError("scanner_v2_non_html_response", 422);
     }
 
-    return {
-      url: current,
-      contentType,
-      text: (await response.text()).slice(0, options.maxBytes),
-    };
+    return { url: current, response, contentType };
   }
 
   throw new HotelScannerV2NetworkError("scanner_v2_too_many_redirects", 422);
 }
 
+async function boundedText(startUrl: URL, options: FetchOptions) {
+  const result = await boundedResponse(startUrl, options);
+  const text = await result.response.text();
+  if (Buffer.byteLength(text, "utf8") > options.maxBytes) {
+    throw new HotelScannerV2NetworkError("scanner_v2_resource_too_large", 422);
+  }
+  return { url: result.url, contentType: result.contentType, text };
+}
+
 export async function fetchPublicHtmlV2(startUrl: URL, options: { timeoutMs: number; maxBytes: number; userAgent?: string }) {
-  const result = await boundedFetch(startUrl, {
+  const result = await boundedText(startUrl, {
     ...options,
     requireHtml: true,
     accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
@@ -159,11 +164,26 @@ export async function fetchPublicTextV2(
   startUrl: URL,
   options: { timeoutMs: number; maxBytes: number; accept?: string; userAgent?: string },
 ) {
-  const result = await boundedFetch(startUrl, {
+  const result = await boundedText(startUrl, {
     ...options,
     accept: options.accept || "application/xml,text/xml,text/plain,*/*;q=0.1",
   });
   return { url: result.url, text: result.text, contentType: result.contentType };
+}
+
+export async function fetchPublicBinaryV2(
+  startUrl: URL,
+  options: { timeoutMs: number; maxBytes: number; accept?: string; userAgent?: string },
+) {
+  const result = await boundedResponse(startUrl, {
+    ...options,
+    accept: options.accept || "application/pdf,application/octet-stream;q=0.8,*/*;q=0.1",
+  });
+  const buffer = Buffer.from(await result.response.arrayBuffer());
+  if (buffer.byteLength > options.maxBytes) {
+    throw new HotelScannerV2NetworkError("scanner_v2_resource_too_large", 422);
+  }
+  return { url: result.url, buffer, contentType: result.contentType };
 }
 
 export const HOTEL_SCANNER_V2_MAX_REDIRECTS = MAX_REDIRECTS;
