@@ -74,6 +74,50 @@ export type ScannerV2DocumentView = {
   error?: string;
 };
 
+const DOMAIN_LABELS = {
+  bg: {
+    accommodation: "Настаняване",
+    dining: "Ресторанти и барове",
+    gastronomy: "Ресторанти и барове",
+    wellness: "SPA / Medical",
+    spa: "SPA / Medical",
+    services: "Хотелски услуги",
+    amenities: "Хотелски услуги",
+    experiences: "Преживявания",
+    events: "Събития",
+    offers: "Оферти",
+    policy: "Правила",
+    policies: "Правила",
+    contact: "Контакти",
+  },
+  en: {
+    accommodation: "Accommodation",
+    dining: "Restaurants & bars",
+    gastronomy: "Restaurants & bars",
+    wellness: "SPA / Medical",
+    spa: "SPA / Medical",
+    services: "Hotel services",
+    amenities: "Hotel services",
+    experiences: "Experiences",
+    events: "Events",
+    offers: "Offers",
+    policy: "Policies",
+    policies: "Policies",
+    contact: "Contacts",
+  },
+} as const;
+
+function basisLabel(value: string, lang: "bg" | "en") {
+  const labels: Record<string, [string, string]> = {
+    deterministic_semantic_block_entity: ["Идентифициран от content block на официалната страница", "Identified from a content block on the official page"],
+    deterministic_json_ld_entity: ["Идентифициран от structured data (JSON-LD)", "Identified from structured data (JSON-LD)"],
+    deterministic_detail_resource: ["Открита dedicated detail страница", "Dedicated detail page discovered"],
+    deterministic_explicit_count_slot: ["Сайтът заявява бройка, но името още не е установено", "The site states a count, but this entity is not yet named"],
+    deterministic_logical_surface: ["Официална логическа страница на хотела", "Official logical hotel surface"],
+  };
+  return labels[value]?.[lang === "bg" ? 0 : 1] || value;
+}
+
 export default function HotelScannerV2Details({
   candidate,
   documents,
@@ -85,33 +129,41 @@ export default function HotelScannerV2Details({
 }) {
   if (!candidate) return null;
   const copy = lang === "bg" ? {
-    title: "Review evidence",
-    intro: "Пълният read-only evidence слой за приемателния тест. Това не е Approved Hotel Intelligence.",
-    inventory: "Expected inventory",
-    facts: "Извлечени и проверени факти",
-    conflicts: "Conflict evidence",
-    documents: "PDF ingestion",
+    factsTitle: "3. Извлечени данни",
+    factsHelp: "Това са нормализираните факти, извлечени от сайта и документите. Отвори категория, за да видиш стойността и точния източник.",
+    conflictsTitle: "4. Конфликти и несъответствия",
+    conflictsHelp: "Тук се показват само claims, които изискват човешко решение. Всяка страна сочи към конкретен публичен източник.",
+    documentsTitle: "Документи / PDF",
+    documentsHelp: "Показва кои публични документи са ingest-нати и към кои domains са отнесени.",
+    inventorySources: "Inventory source details",
+    inventoryHelp: "Технически provenance за това защо даден entity е включен в Expected inventory.",
     noItems: "Няма записи.",
     source: "Източник",
     sources: "Източници",
     status: "Статус",
-    basis: "Основание",
-    crawled: "прочетена",
-    discoveredOnly: "само открита",
+    basis: "Защо е включено",
+    crawled: "страницата е прочетена",
+    discoveredOnly: "само е открита",
+    facts: "факта",
+    openSource: "Отвори източника",
   } : {
-    title: "Review evidence",
-    intro: "Full read-only evidence layer for acceptance testing. This is not Approved Hotel Intelligence.",
-    inventory: "Expected inventory",
-    facts: "Extracted and verified facts",
-    conflicts: "Conflict evidence",
-    documents: "PDF ingestion",
+    factsTitle: "3. Extracted data",
+    factsHelp: "These are normalized facts extracted from the website and documents. Open a category to inspect each value and its exact source.",
+    conflictsTitle: "4. Conflicts & gaps",
+    conflictsHelp: "Only claims that require human resolution are shown here. Each side points to a concrete public source.",
+    documentsTitle: "Documents / PDF",
+    documentsHelp: "Shows which public documents were ingested and which domains they support.",
+    inventorySources: "Inventory source details",
+    inventoryHelp: "Technical provenance explaining why an entity is included in Expected inventory.",
     noItems: "No records.",
     source: "Source",
     sources: "Sources",
     status: "Status",
-    basis: "Basis",
-    crawled: "crawled",
+    basis: "Why included",
+    crawled: "page crawled",
     discoveredOnly: "discovered only",
+    facts: "facts",
+    openSource: "Open source",
   };
 
   const factsByCategory = new Map<string, ScannerV2FactView[]>();
@@ -120,114 +172,118 @@ export default function HotelScannerV2Details({
     if (!factsByCategory.has(category)) factsByCategory.set(category, []);
     factsByCategory.get(category)?.push(fact);
   }
+  const labels = DOMAIN_LABELS[lang];
 
   return (
-    <section className="rounded-2xl border border-white/5 bg-black/15 p-4">
-      <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-300">{copy.title}</h3>
-      <p className="mt-2 text-xs leading-5 text-neutral-500">{copy.intro}</p>
-      <div className="mt-4 space-y-3">
-        <ReviewDetails title={`${copy.inventory} · ${candidate.inventory?.domains?.reduce((sum, domain) => sum + Number(domain.expectedCount || 0), 0) || 0}`} open>
-          <div className="space-y-4">
-            {(candidate.inventory?.domains || []).map((domain) => (
-              <div key={domain.domain} className="rounded-xl border border-white/5 bg-black/20 p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <strong className="text-sm text-neutral-100">{domain.domain}</strong>
-                  <Badge>{domain.expectationState}</Badge>
-                  <span className="text-xs text-neutral-500">expected: {domain.expectedCount}</span>
-                  {domain.issues?.map((issue) => <Badge key={issue} warning>{issue}</Badge>)}
-                </div>
-                <div className="mt-3 grid gap-2 lg:grid-cols-2">
-                  {(domain.expectedItems || []).map((item) => (
-                    <div key={item.id} className="rounded-lg border border-white/5 px-3 py-2">
-                      <p className="text-xs font-semibold text-neutral-200">{item.nameHint || item.id}</p>
-                      <p className="mt-1 text-[11px] text-neutral-500">{copy.basis}: {item.basis} · {item.crawled ? copy.crawled : copy.discoveredOnly}</p>
-                      {item.url ? <p className="mt-1 break-all font-mono text-[10px] text-neutral-600">{item.url}</p> : null}
+    <div className="space-y-6">
+      <section className="v2-panel p-5 sm:p-6">
+        <h2 className="v2-section-title text-xl">{copy.factsTitle}</h2>
+        <p className="v2-muted mt-1 text-sm leading-6">{copy.factsHelp}</p>
+        <div className="mt-5 space-y-3">
+          {[...factsByCategory.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([category, facts]) => (
+            <ReviewDetails key={category} title={`${labels[category as keyof typeof labels] || category} · ${facts.length} ${copy.facts}`}>
+              <div className="space-y-2">
+                {facts.map((fact, index) => (
+                  <div key={`${category}:${fact.subject || "hotel"}:${fact.attribute || fact.label}:${index}`} className="v2-card-soft p-3 text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold">{fact.subject || "hotel"}</span>
+                      <span className="v2-muted font-mono text-[11px]">{fact.attribute || fact.label}</span>
+                      {fact.verification?.status ? <Badge value={fact.verification.status} /> : null}
                     </div>
-                  ))}
-                  {!domain.expectedItems?.length ? <p className="text-xs text-neutral-500">{copy.noItems}</p> : null}
-                </div>
+                    <p className="mt-2 leading-6">{fact.value}</p>
+                    <SourceUrls urls={fact.sourceUrls} label={copy.sources} openLabel={copy.openSource} />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </ReviewDetails>
+            </ReviewDetails>
+          ))}
+          {!candidate.facts?.length ? <p className="v2-muted text-sm">{copy.noItems}</p> : null}
+        </div>
+      </section>
 
-        <ReviewDetails title={`${copy.facts} · ${candidate.facts?.length || 0}`}>
-          <div className="space-y-4">
-            {[...factsByCategory.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([category, facts]) => (
-              <div key={category} className="rounded-xl border border-white/5 bg-black/20 p-3">
-                <div className="flex items-center gap-2"><strong className="text-sm text-neutral-100">{category}</strong><span className="text-xs text-neutral-500">{facts.length}</span></div>
-                <div className="mt-3 space-y-2">
-                  {facts.map((fact, index) => (
-                    <div key={`${category}:${fact.subject || "hotel"}:${fact.attribute || fact.label}:${index}`} className="rounded-lg border border-white/5 px-3 py-2 text-xs">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-neutral-200">{fact.subject || "hotel"}</span>
-                        <span className="font-mono text-[10px] text-neutral-500">{fact.attribute || fact.label}</span>
-                        {fact.verification?.status ? <Badge>{fact.verification.status}</Badge> : null}
-                      </div>
-                      <p className="mt-1 leading-5 text-neutral-300">{fact.value}</p>
-                      <SourceUrls urls={fact.sourceUrls} label={copy.sources} />
-                    </div>
-                  ))}
-                </div>
+      <section className="v2-panel p-5 sm:p-6">
+        <h2 className="v2-section-title text-xl">{copy.conflictsTitle}</h2>
+        <p className="v2-muted mt-1 text-sm leading-6">{copy.conflictsHelp}</p>
+        <div className="mt-5 space-y-3">
+          {(candidate.conflicts || []).map((conflict, index) => (
+            <div key={conflict.id || `${conflict.subject}:${conflict.attribute}:${index}`} className="v2-card p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <strong>{conflict.subject || "hotel"}</strong>
+                <span className="v2-muted font-mono text-xs">{conflict.attribute || conflict.topicLabel || conflict.topic}</span>
+                <span className="v2-pill v2-pill-warn">{conflict.state || "CONFLICT"}</span>
               </div>
-            ))}
-            {!candidate.facts?.length ? <p className="text-xs text-neutral-500">{copy.noItems}</p> : null}
-          </div>
-        </ReviewDetails>
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                {(conflict.claims || []).map((claim, claimIndex) => (
+                  <div key={`${claim.canonicalValue || claim.value}:${claimIndex}`} className="v2-card-soft p-3">
+                    <p className="text-sm leading-6">{claim.value || claim.canonicalValue}</p>
+                    <SourceUrls urls={claim.sourceUrls || []} label={copy.source} openLabel={copy.openSource} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          {!candidate.conflicts?.length ? <div className="v2-card-soft p-4"><span className="v2-pill v2-pill-good">OK</span><p className="v2-muted mt-2 text-sm">{copy.noItems}</p></div> : null}
+        </div>
+      </section>
 
-        <ReviewDetails title={`${copy.conflicts} · ${candidate.conflicts?.length || 0}`} open={Boolean(candidate.conflicts?.length)}>
-          <div className="space-y-3">
-            {(candidate.conflicts || []).map((conflict, index) => (
-              <div key={conflict.id || `${conflict.subject}:${conflict.attribute}:${index}`} className="rounded-xl border border-amber-300/15 bg-amber-300/[0.03] p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <strong className="text-sm text-amber-100">{conflict.subject || "hotel"}</strong>
-                  <span className="font-mono text-xs text-amber-100/70">{conflict.attribute || conflict.topicLabel || conflict.topic}</span>
-                  <Badge warning>{conflict.state || "CONFLICT"}</Badge>
-                </div>
-                <div className="mt-3 grid gap-2 lg:grid-cols-2">
-                  {(conflict.claims || []).map((claim, claimIndex) => (
-                    <div key={`${claim.canonicalValue || claim.value}:${claimIndex}`} className="rounded-lg border border-amber-300/10 px-3 py-2">
-                      <p className="text-xs leading-5 text-neutral-200">{claim.value || claim.canonicalValue}</p>
-                      <SourceUrls urls={claim.sourceUrls || []} label={copy.source} />
-                    </div>
-                  ))}
-                </div>
+      <section className="v2-panel p-5 sm:p-6">
+        <h2 className="v2-section-title text-xl">{copy.documentsTitle}</h2>
+        <p className="v2-muted mt-1 text-sm">{copy.documentsHelp}</p>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {(documents || []).map((document) => (
+            <div key={document.url} className="v2-card p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge value={document.status} warning={document.status !== "INGESTED"} />
+                <span className="v2-muted text-xs">{document.facts?.length || 0} {copy.facts}</span>
+                <span className="v2-muted text-xs">{document.domains?.join(" · ")}</span>
               </div>
-            ))}
-            {!candidate.conflicts?.length ? <p className="text-xs text-neutral-500">{copy.noItems}</p> : null}
-          </div>
-        </ReviewDetails>
+              <a href={document.url} target="_blank" rel="noreferrer" className="v2-source-link mt-3 block break-all text-xs">{document.url}</a>
+              {document.error ? <p className="mt-2 text-sm" style={{ color: "var(--v2-bad)" }}>{document.error}</p> : null}
+            </div>
+          ))}
+          {!documents?.length ? <p className="v2-muted text-sm">{copy.noItems}</p> : null}
+        </div>
+      </section>
 
-        <ReviewDetails title={`${copy.documents} · ${documents?.length || 0}`}>
-          <div className="space-y-2">
-            {(documents || []).map((document) => (
-              <div key={document.url} className="rounded-xl border border-white/5 bg-black/20 p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge warning={document.status !== "INGESTED"}>{document.status}</Badge>
-                  <span className="text-xs text-neutral-500">facts: {document.facts?.length || 0}</span>
-                  <span className="text-xs text-neutral-500">{document.domains?.join(", ")}</span>
-                </div>
-                <p className="mt-2 break-all font-mono text-[10px] text-neutral-500">{document.url}</p>
-                {document.error ? <p className="mt-2 text-xs text-rose-200">{document.error}</p> : null}
+      <details className="v2-details v2-panel p-5 sm:p-6">
+        <summary className="cursor-pointer font-bold">{copy.inventorySources}</summary>
+        <p className="v2-muted mt-2 text-sm">{copy.inventoryHelp}</p>
+        <div className="mt-4 space-y-4">
+          {(candidate.inventory?.domains || []).map((domain) => (
+            <div key={domain.domain} className="v2-card p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <strong>{labels[domain.domain as keyof typeof labels] || domain.domain}</strong>
+                <Badge value={domain.expectationState} warning={domain.expectationState === "CONFLICT"} />
+                <span className="v2-muted text-xs">expected: {domain.expectedCount}</span>
               </div>
-            ))}
-            {!documents?.length ? <p className="text-xs text-neutral-500">{copy.noItems}</p> : null}
-          </div>
-        </ReviewDetails>
-      </div>
-    </section>
+              <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                {(domain.expectedItems || []).map((item) => (
+                  <div key={item.id} className="v2-card-soft p-3">
+                    <p className="text-sm font-bold">{item.nameHint || (lang === "bg" ? "Неидентифициран entity" : "Unidentified entity")}</p>
+                    <p className="v2-muted mt-1 text-xs">{copy.basis}: {basisLabel(item.basis, lang)} · {item.crawled ? copy.crawled : copy.discoveredOnly}</p>
+                    {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="v2-source-link mt-2 block break-all text-xs">{item.url}</a> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </details>
+    </div>
   );
 }
 
-function ReviewDetails({ title, children, open = false }: { title: string; children: ReactNode; open?: boolean }) {
-  return <details open={open} className="group rounded-xl border border-white/5 bg-black/10 p-3"><summary className="cursor-pointer select-none text-xs font-semibold uppercase tracking-[0.12em] text-neutral-300">{title}</summary><div className="mt-3">{children}</div></details>;
+function ReviewDetails({ title, children }: { title: string; children: ReactNode }) {
+  return <details className="v2-details v2-card p-4"><summary className="cursor-pointer font-bold">{title}</summary><div className="mt-3">{children}</div></details>;
 }
 
-function Badge({ children, warning = false }: { children: ReactNode; warning?: boolean }) {
-  return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] ${warning ? "border-amber-300/20 bg-amber-300/5 text-amber-100" : "border-emerald-300/20 bg-emerald-300/5 text-emerald-100"}`}>{children}</span>;
+function Badge({ value, warning = false }: { value: string; warning?: boolean }) {
+  const upper = String(value || "").toUpperCase();
+  const cls = warning || upper.includes("CONFLICT") || upper.includes("FAILED") ? "v2-pill-warn" : upper.includes("VERIFIED") || upper.includes("INGESTED") || upper.includes("COMPLETE") ? "v2-pill-good" : "v2-pill-info";
+  return <span className={`v2-pill ${cls}`}>{value}</span>;
 }
 
-function SourceUrls({ urls, label }: { urls: string[]; label: string }) {
+function SourceUrls({ urls, label, openLabel }: { urls: string[]; label: string; openLabel: string }) {
   if (!urls?.length) return null;
-  return <div className="mt-2"><p className="text-[9px] uppercase tracking-[0.1em] text-neutral-600">{label}</p>{urls.slice(0, 6).map((url) => <p key={url} className="mt-1 break-all font-mono text-[10px] text-neutral-600">{url}</p>)}</div>;
+  return <div className="mt-3"><p className="v2-muted text-[10px] font-bold uppercase tracking-[0.1em]">{label}</p><div className="mt-1 space-y-1">{urls.slice(0, 6).map((url) => <a key={url} href={url} target="_blank" rel="noreferrer" className="v2-source-link block break-all text-xs" title={openLabel}>{url}</a>)}</div></div>;
 }
