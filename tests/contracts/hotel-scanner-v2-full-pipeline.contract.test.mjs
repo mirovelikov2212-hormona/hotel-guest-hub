@@ -38,8 +38,11 @@ test("domain extraction is inventory-bounded rather than inventory-authoritative
   assert.match(extractor, /You are NOT inventory authority/);
   assert.match(extractor, /never exceed the authoritative expected count/);
   assert.match(extractor, /boundFactsToInventory/);
-  assert.match(extractor, /deterministic_landing_entity/);
+  assert.match(extractor, /deterministic_semantic_block_entity/);
+  assert.match(extractor, /deterministic_json_ld_entity/);
   assert.match(extractor, /deterministic_explicit_count_slot/);
+  assert.match(extractor, /entityType: item\.entityType/);
+  assert.doesNotMatch(extractor, /deterministic_landing_entity/);
 });
 
 test("PDF ingestion is crawler-owned, bounded and fail-closed", async () => {
