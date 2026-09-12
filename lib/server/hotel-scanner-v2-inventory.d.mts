@@ -3,6 +3,7 @@ export type HotelScannerV2InventoryExpectationState = "DETERMINISTIC" | "CONFLIC
 export type HotelScannerV2ExpectedItem = {
   id: string;
   domain: string;
+  entityType: string;
   variantGroupId: string;
   nameHint: string;
   url: string;
@@ -19,6 +20,7 @@ export type HotelScannerV2DomainInventory = {
   expectedItems: HotelScannerV2ExpectedItem[];
   landingUrls: string[];
   detailUrls: string[];
+  supportingUrls: string[];
   issues: string[];
   evidence: {
     detailCount: number;
