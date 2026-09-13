@@ -21,6 +21,8 @@ test("Scanner V2 browser renderer uses Playwright and public-host SSRF guard", a
   assert.match(source, /resourceType === "document" && url\.origin !== requested\.origin/);
   assert.match(source, /MAX_BROWSER_REQUESTS\s*=\s*260/);
   assert.match(source, /serviceWorkers:\s*"block"/);
+  assert.match(source, /revealLazyContent/);
+  assert.match(source, /siblings\.length >= 2/);
 });
 
 test("Scanner V2 browser enrichment is fail-soft and preserves rendered cards separately", async () => {
@@ -30,6 +32,15 @@ test("Scanner V2 browser enrichment is fail-soft and preserves rendered cards se
   assert.match(source, /renderedContentBlocks/);
   assert.match(source, /browserRenderFailedUrls/);
   assert.match(source, /finally\s*\{\s*await renderer\.close\(\)/s);
+});
+
+test("multilingual landing variants cannot consume the whole browser render budget", async () => {
+  const source = await read("lib/server/hotel-scanner-v2-crawler-rendered.ts");
+  assert.match(source, /LANDING_DOMAINS/);
+  assert.match(source, /preferredLanguageRank/);
+  assert.match(source, /First guarantee one representative landing per hotel domain/);
+  assert.match(source, /allow one second language\/variant surface/);
+  assert.match(source, /Remaining budget goes to sparse\/client-rendered detail pages/);
 });
 
 test("Canonical structural inventory prefers rendered DOM blocks", async () => {
