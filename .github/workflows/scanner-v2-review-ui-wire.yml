@@ -1,0 +1,55 @@
+name: Temporary Scanner V2 Review UI Wiring
+
+on:
+  push:
+    branches:
+      - feat/hotel-lifecycle-v1-intelligence-review
+    paths:
+      - ".github/workflows/scanner-v2-review-ui-wire.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  wire-review-ui:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/hotel-lifecycle-v1-intelligence-review
+          fetch-depth: 0
+      - name: Patch Scanner V2 client
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('app/hotel-scanner-v2/HotelScannerV2Client.tsx')
+          text = path.read_text()
+          old_import = '''import HotelScannerV2Details, {
+            type ScannerV2CandidateView,
+            type ScannerV2DocumentView,
+          } from "./HotelScannerV2Details";'''
+          new_import = '''import type { ScannerV2CandidateView, ScannerV2DocumentView } from "./HotelScannerV2Details";
+          import HotelScannerV2ReviewWorkspace, { type ScannerV2ReviewSection } from "./HotelScannerV2ReviewWorkspace";'''
+          if old_import not in text:
+              raise SystemExit('expected Details import block not found')
+          text = text.replace(old_import, new_import, 1)
+          old_type = '  intelligenceCandidate?: ScannerV2CandidateView;\n  validationGate?:'
+          new_type = '  intelligenceCandidate?: ScannerV2CandidateView;\n  reviewSections?: ScannerV2ReviewSection[];\n  validationGate?:'
+          if old_type not in text:
+              raise SystemExit('expected ScanV2Result candidate field not found')
+          text = text.replace(old_type, new_type, 1)
+          old_call = '        <HotelScannerV2Details candidate={result.intelligenceCandidate} documents={result.documents?.documents} lang={lang} />'
+          new_call = '        <HotelScannerV2ReviewWorkspace sections={result.reviewSections} candidate={result.intelligenceCandidate} documents={result.documents?.documents} lang={lang} />'
+          if old_call not in text:
+              raise SystemExit('expected Details JSX call not found')
+          text = text.replace(old_call, new_call, 1)
+          path.write_text(text)
+          PY
+      - name: Commit UI wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/hotel-scanner-v2/HotelScannerV2Client.tsx
+          git commit -m "scanner v2: show canonical entity review workspace"
+          git push origin HEAD:feat/hotel-lifecycle-v1-intelligence-review
