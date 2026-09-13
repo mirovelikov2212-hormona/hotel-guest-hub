@@ -162,10 +162,13 @@ function projectAttributes(domain: string, item: HotelScannerV2ExpectedItem, fac
 function projectConflicts(item: HotelScannerV2ExpectedItem, conflicts: HotelScanVerificationConflict[]): HotelReviewCardConflictV2[] {
   return conflicts.filter((conflict) => conflictMatchesItem(conflict, item)).map((conflict) => ({
     attribute: clean(conflict.attribute, 120),
-    claims: (conflict.claims || []).map((claim) => ({
-      value: clean(claim.value || claim.canonicalValue, 800),
-      sourceUrls: unique(claim.sourceUrls || []).slice(0, 8),
-    })),
+    claims: (conflict.claims || []).map((claim) => {
+      const value = claim as typeof claim & { canonicalValue?: string };
+      return {
+        value: clean(claim.value || value.canonicalValue, 800),
+        sourceUrls: unique(claim.sourceUrls || []).slice(0, 8),
+      };
+    }),
   }));
 }
 
