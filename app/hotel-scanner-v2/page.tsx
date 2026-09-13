@@ -16,6 +16,7 @@ const COPY = {
     back: "← Control Panel",
     v1: "Scanner V1",
     preview: "Preview · без Production handoff",
+    build: "Build",
   },
   en: {
     eyebrow: "StayHub Intelligence",
@@ -24,6 +25,7 @@ const COPY = {
     back: "← Control Panel",
     v1: "Scanner V1",
     preview: "Preview · no Production handoff",
+    build: "Build",
   },
 } as const;
 
@@ -31,6 +33,7 @@ export default async function HotelScannerV2Page({ searchParams }: { searchParam
   const { lang: rawLang } = await searchParams;
   const lang = normalizeControlPlaneLang(rawLang);
   const copy = COPY[lang];
+  const buildSha = String(process.env.VERCEL_GIT_COMMIT_SHA || process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA || "local").slice(0, 8);
 
   const authority = await getCurrentPlatformAdminSession();
   if (!authority) {
@@ -47,7 +50,10 @@ export default async function HotelScannerV2Page({ searchParams }: { searchParam
               <p className="v2-accent text-xs font-bold uppercase tracking-[0.28em]">{copy.eyebrow}</p>
               <h1 className="v2-section-title mt-3 text-3xl sm:text-4xl">{copy.title}</h1>
               <p className="v2-muted mt-3 max-w-3xl text-sm leading-6">{copy.subtitle}</p>
-              <div className="mt-4"><span className="v2-pill v2-pill-info">{copy.preview}</span></div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="v2-pill v2-pill-info">{copy.preview}</span>
+                <span className="v2-pill font-mono">{copy.build} {buildSha}</span>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Link href={`/hotel-scanner?lang=${lang}`} className="v2-button text-xs">{copy.v1}</Link>
