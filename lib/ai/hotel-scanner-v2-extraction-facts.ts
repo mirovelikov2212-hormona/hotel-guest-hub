@@ -14,6 +14,7 @@ const NAMED_INVENTORY_BASES = new Set([
   "deterministic_semantic_block_entity",
   "deterministic_json_ld_entity",
   "canonical_section_entity",
+  "canonical_structural_entity",
 ]);
 
 const DETAIL_INVENTORY_BASES = new Set([
