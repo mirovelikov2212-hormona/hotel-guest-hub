@@ -39,20 +39,22 @@ test("Scanner V2 browser enrichment is concurrent, bounded and fail-soft", async
   assert.match(source, /finally\s*\{\s*await renderer\.close\(\)/s);
 });
 
-test("Canonical structural inventory prefers rendered DOM blocks", async () => {
+test("Canonical structural inventory can prefer rendered DOM blocks when browser worker is enabled", async () => {
   const source = await read("lib/server/hotel-scanner-v2-structural-inventory.mjs");
   assert.match(source, /renderedContentBlocks/);
   assert.match(source, /renderedBlocks\.length \? renderedBlocks : htmlBlocks/);
   assert.match(source, /rendered_structural_leaf_cluster/);
 });
 
-test("V2 intake uses browser-enriched crawler", async () => {
+test("Default V2 intake remains on stable HTTP crawler until durable job orchestration is enabled", async () => {
   const source = await read("lib/server/hotel-scanner-v2-intake.ts");
-  assert.match(source, /crawlPublicHotelWebsiteRenderedV2/);
-  assert.doesNotMatch(source, /await crawlPublicHotelWebsiteV2\(/);
+  assert.match(source, /crawlPublicHotelWebsiteV2/);
+  assert.match(source, /await crawlPublicHotelWebsiteV2\(/);
+  assert.doesNotMatch(source, /await crawlPublicHotelWebsiteRenderedV2\(/);
+  assert.match(source, /durable job orchestration/);
 });
 
-test("Pinned browser dependencies are present", async () => {
+test("Pinned browser dependencies are present for the experimental worker", async () => {
   const pkg = JSON.parse(await read("package.json"));
   assert.equal(pkg.dependencies["playwright-core"], "1.63.0");
   assert.equal(pkg.dependencies["@sparticuz/chromium"], "153.0.0");
