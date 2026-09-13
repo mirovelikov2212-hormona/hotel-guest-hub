@@ -13,6 +13,7 @@ import {
   buildHotelIntelligenceCandidateV2,
   type HotelIntelligenceCandidateV2,
 } from "@/lib/product-factory/hotel-intelligence-v2";
+import { buildHotelReviewSectionsV2 } from "@/lib/product-factory/hotel-intelligence-review-cards";
 import { buildHotelCompletenessV2 } from "@/lib/server/hotel-scanner-v2-completeness.mjs";
 import { discoverHotelIntakeV2 } from "@/lib/server/hotel-scanner-v2-intake";
 
@@ -82,6 +83,7 @@ export async function runHotelIntakePipelineV2Safe(input: {
       }
     : candidateBase;
 
+  const reviewSections = buildHotelReviewSectionsV2(intelligenceCandidate);
   const approvalEligible = intelligenceCandidate.validation.status === "READY_FOR_APPROVAL";
   const pipelineStatus = approvalEligible
     ? "READY_FOR_APPROVAL"
@@ -99,12 +101,15 @@ export async function runHotelIntakePipelineV2Safe(input: {
       inventory,
       crawlPolicy: discovery.evidence.crawlPolicy,
       failedPageUrls: discovery.evidence.discovery.failedPageUrls,
+      browserRenderedUrls: (discovery.evidence.discovery as { browserRenderedUrls?: string[] }).browserRenderedUrls || [],
+      browserRenderFailedUrls: (discovery.evidence.discovery as { browserRenderFailedUrls?: string[] }).browserRenderFailedUrls || [],
     },
     extraction,
     documents,
     verification: verification.summary,
     completeness,
     intelligenceCandidate,
+    reviewSections,
     approvedHotelIntelligence: null,
     validationGate: {
       downstreamHandoffAllowed: false as const,
