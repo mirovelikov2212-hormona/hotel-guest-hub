@@ -11,8 +11,9 @@ test("V2 intake discovery endpoint is separate from the accepted V1 scan route",
   assert.match(route, /projectHotelIntakeDiscoveryV2/);
   assert.match(route, /enforceControlPlaneSameOrigin/);
   assert.match(route, /getCurrentPlatformAdminSession/);
-  assert.match(intake, /crawlPublicHotelWebsiteV2/);
-  assert.match(intake, /buildHotelSiteMapV2/);
+  assert.match(intake, /crawlPublicHotelWebsiteRenderedV2/);
+  assert.doesNotMatch(intake, /await crawlPublicHotelWebsiteV2\(/);
+  assert.match(intake, /buildHotelSiteMapCanonicalV2/);
   assert.match(intake, /buildHotelInventoryCanonicalV2/);
   assert.doesNotMatch(intake, /buildHotelInventoryV2\(/);
 });
