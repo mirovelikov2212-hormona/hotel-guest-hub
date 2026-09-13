@@ -56,10 +56,11 @@ test("Scanner V2 PDF ingestion is serialized and performs only one bounded 429 r
   assert.match(ingestion, /mapWithConcurrency\(selected, DOCUMENT_CONCURRENCY/);
 });
 
-test("Scanner V2 route allows paced execution and exposes rate-limit failures explicitly", async () => {
+test("Scanner V2 preview benchmark has extended runtime and exposes rate-limit failures explicitly", async () => {
   const route = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2/route.ts");
 
-  assert.match(route, /maxDuration = 240/);
+  assert.match(route, /maxDuration = 800/);
+  assert.match(route, /durable job\/workflow/);
   assert.match(route, /scanner_v2_rate_limited/);
   assert.match(route, /rate limit\|tokens per min\|TPM/);
 });
