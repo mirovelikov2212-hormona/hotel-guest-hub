@@ -13,6 +13,7 @@ export type HotelScannerV2ContentBlock = {
   heading: string;
   text: string;
   links: string[];
+  sectionPath: string[];
 };
 
 export type HotelScannerV2PageStructure = {
