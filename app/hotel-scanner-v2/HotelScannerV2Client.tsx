@@ -3,10 +3,8 @@
 import { useState } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
-import HotelScannerV2Details, {
-  type ScannerV2CandidateView,
-  type ScannerV2DocumentView,
-} from "./HotelScannerV2Details";
+import type { ScannerV2CandidateView, ScannerV2DocumentView } from "./HotelScannerV2Details";
+import HotelScannerV2ReviewWorkspace, { type ScannerV2ReviewSection } from "./HotelScannerV2ReviewWorkspace";
 
 type DomainCoverage = {
   domain: string;
@@ -67,6 +65,7 @@ type ScanV2Result = {
     prerequisitesSatisfied: boolean;
   };
   intelligenceCandidate?: ScannerV2CandidateView;
+  reviewSections?: ScannerV2ReviewSection[];
   validationGate?: { downstreamHandoffAllowed: false; approvalEligible: boolean; blockingReasons: string[] };
   diagnostics?: { discoveryLatencyMs: number; extractionLatencyMs: number; verificationLatencyMs: number; totalLatencyMs: number };
 };
@@ -268,7 +267,7 @@ export default function HotelScannerV2Client({ lang }: { lang: ControlPlaneLang 
           </div>
         </section>
 
-        <HotelScannerV2Details candidate={result.intelligenceCandidate} documents={result.documents?.documents} lang={lang} />
+        <HotelScannerV2ReviewWorkspace sections={result.reviewSections} candidate={result.intelligenceCandidate} documents={result.documents?.documents} lang={lang} />
 
         <section className="v2-panel p-5 sm:p-6">
           <h2 className="v2-section-title text-xl">{copy.approval}</h2>
