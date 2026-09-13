@@ -120,3 +120,42 @@ test("external access conflicts are scoped to the same entity", () => {
   assert.equal(result.conflicts[0].subject, "nero");
   assert.equal(result.conflicts[0].attribute, "external_access");
 });
+
+test("typed policy semantics prevent heterogeneous clauses from becoming conflicts", () => {
+  const result = verifyHotelScanFactsV2([
+    { category: "policy", subject: "hotel", attribute: "check_in", label: "Check-in", value: "Check-in is after 15:00.", confidence: 1, sourceUrls: ["https://hotel.test/terms"] },
+    { category: "policy", subject: "hotel", attribute: "check_in", label: "Check-in", value: "Guests must present an ID card or passport at check-in.", confidence: 1, sourceUrls: ["https://hotel.test/en/terms"] },
+    { category: "policy", subject: "hotel", attribute: "check_out", label: "Check-out", value: "Check-out is until 12:00.", confidence: 1, sourceUrls: ["https://hotel.test/terms"] },
+    { category: "policy", subject: "hotel", attribute: "check_out", label: "Late check-out", value: "Late check-out is available on request and may incur an additional charge.", confidence: 1, sourceUrls: ["https://hotel.test/en/terms"] },
+    { category: "policy", subject: "hotel", attribute: "smoking_policy", label: "Smoking", value: "The hotel is non-smoking.", confidence: 1, sourceUrls: ["https://hotel.test/policy"] },
+    { category: "policy", subject: "hotel", attribute: "smoking_policy", label: "Smoking fee", value: "A cleaning fee of 200 EUR applies when the smoking policy is violated.", confidence: 1, sourceUrls: ["https://hotel.test/de/policy"] },
+    { category: "policy", subject: "hotel", attribute: "smoking_policy", label: "Smoking areas", value: "Smoking is allowed only on designated terraces and near the main entrance.", confidence: 1, sourceUrls: ["https://hotel.test/ro/policy"] },
+    { category: "policy", subject: "hotel", attribute: "external_access", label: "Management rights", value: "Management may refuse service or remove a guest who violates hotel rules.", confidence: 1, sourceUrls: ["https://hotel.test/policy"] },
+    { category: "policy", subject: "hotel", attribute: "external_access", label: "CCTV", value: "Public hotel areas are monitored by video surveillance cameras.", confidence: 1, sourceUrls: ["https://hotel.test/de/policy"] },
+    { category: "operations", subject: "hotel", attribute: "external_access", label: "EV charging", value: "The hotel parking offers electric vehicle charging stations at 22 kW.", confidence: 1, sourceUrls: ["https://hotel.test/faq"] },
+    { category: "policy", subject: "hotel", attribute: "quiet_hours", label: "Quiet hours", value: "Quiet hours are 15:00–16:00 and 22:00–08:00.", confidence: 1, sourceUrls: ["https://hotel.test/policy"] },
+    { category: "policy", subject: "hotel", attribute: "quiet_hours", label: "Noise conduct", value: "Guests must not gather noisily in corridors and public areas.", confidence: 1, sourceUrls: ["https://hotel.test/en/policy"] },
+  ]);
+
+  assert.equal(result.conflicts.length, 0);
+  assert.ok(result.facts.some((fact) => fact.attribute === "check_in_identity_requirement"));
+  assert.ok(result.facts.some((fact) => fact.attribute === "late_check_out"));
+  assert.ok(result.facts.some((fact) => fact.attribute === "smoking_violation_fee"));
+  assert.ok(result.facts.some((fact) => fact.attribute === "smoking_designated_area"));
+  assert.ok(result.facts.some((fact) => fact.attribute === "management_refusal_or_removal_right"));
+  assert.ok(result.facts.some((fact) => fact.attribute === "video_surveillance"));
+  assert.ok(result.facts.some((fact) => fact.attribute === "ev_charging"));
+  assert.ok(result.facts.some((fact) => fact.attribute === "noise_conduct_rule"));
+});
+
+test("pet fee is typed separately while contradictory allowance remains a real conflict", () => {
+  const result = verifyHotelScanFactsV2([
+    { category: "policy", subject: "hotel", attribute: "pet_policy", label: "Pets", value: "Small pets are allowed.", confidence: 1, sourceUrls: ["https://hotel.test/policy"] },
+    { category: "policy", subject: "hotel", attribute: "pet_policy", label: "Pet fee", value: "A fee of 75 EUR per pet per night applies.", confidence: 1, sourceUrls: ["https://hotel.test/de/policy"] },
+    { category: "policy", subject: "hotel", attribute: "pet_policy", label: "Pets", value: "Pets are not allowed.", confidence: 1, sourceUrls: ["https://hotel.test/faq"] },
+  ]);
+
+  assert.equal(result.conflicts.length, 1);
+  assert.equal(result.conflicts[0].attribute, "pet_policy");
+  assert.ok(result.facts.some((fact) => fact.attribute === "pet_fee"));
+});
