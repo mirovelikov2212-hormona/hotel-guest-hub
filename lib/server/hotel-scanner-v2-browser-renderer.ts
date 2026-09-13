@@ -86,7 +86,6 @@ async function renderedDomBlocks(page: Page): Promise<HotelScannerV2RenderedBloc
       return Boolean(text && text.length <= 4_000 && headingCount >= 1 && headingCount <= 4);
     };
 
-    // Generic CMS fallback: identify repeated sibling containers that each carry a local heading.
     for (const heading of Array.from(root.querySelectorAll(headingSelector)).slice(0, 700)) {
       let current = heading.parentElement;
       for (let depth = 0; current && current !== root && depth < 4; depth += 1, current = current.parentElement) {
@@ -155,17 +154,25 @@ async function renderedDomBlocks(page: Page): Promise<HotelScannerV2RenderedBloc
 
 export class HotelScannerV2BrowserRenderer {
   private browser: Browser | null = null;
+  private browserPromise: Promise<Browser> | null = null;
   private hostChecks = new Map<string, Promise<void>>();
 
   private async ensureBrowser() {
     if (this.browser) return this.browser;
-    chromium.setGraphicsMode = false;
-    this.browser = await playwrightChromium.launch({
-      args: [...chromium.args, "--disable-dev-shm-usage"],
-      executablePath: await chromium.executablePath(),
-      headless: true,
-    });
-    return this.browser;
+    if (!this.browserPromise) {
+      chromium.setGraphicsMode = false;
+      this.browserPromise = playwrightChromium.launch({
+        args: [...chromium.args, "--disable-dev-shm-usage"],
+        executablePath: await chromium.executablePath(),
+        headless: true,
+      }).then((browser) => {
+        this.browser = browser;
+        return browser;
+      }).finally(() => {
+        this.browserPromise = null;
+      });
+    }
+    return this.browserPromise;
   }
 
   private publicHost(url: URL) {
@@ -242,8 +249,11 @@ export class HotelScannerV2BrowserRenderer {
   }
 
   async close() {
+    const pending = this.browserPromise;
+    if (pending) await pending.catch(() => undefined);
     const browser = this.browser;
     this.browser = null;
+    this.browserPromise = null;
     this.hostChecks.clear();
     await browser?.close().catch(() => undefined);
   }
