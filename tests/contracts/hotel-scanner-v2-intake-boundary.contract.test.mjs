@@ -13,7 +13,8 @@ test("V2 intake discovery endpoint is separate from the accepted V1 scan route",
   assert.match(route, /getCurrentPlatformAdminSession/);
   assert.match(intake, /crawlPublicHotelWebsiteV2/);
   assert.match(intake, /buildHotelSiteMapV2/);
-  assert.match(intake, /buildHotelInventoryV2/);
+  assert.match(intake, /buildHotelInventoryCanonicalV2/);
+  assert.doesNotMatch(intake, /buildHotelInventoryV2\(/);
 });
 
 test("V2 discovery cannot create approved intelligence or hand off downstream", async () => {
