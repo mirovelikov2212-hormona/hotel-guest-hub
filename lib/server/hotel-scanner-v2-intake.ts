@@ -1,9 +1,13 @@
 import "server-only";
 
-import { type HotelScannerV2EvidenceBundle } from "@/lib/server/hotel-scanner-v2-crawler";
-import { crawlPublicHotelWebsiteRenderedV2 } from "@/lib/server/hotel-scanner-v2-crawler-rendered";
-import { buildHotelSiteMapCanonicalV2 } from "@/lib/server/hotel-scanner-v2-site-map-canonical.mjs";
-import type { HotelScannerV2SiteMap } from "@/lib/server/hotel-scanner-v2-site-map.mjs";
+import {
+  crawlPublicHotelWebsiteV2,
+  type HotelScannerV2EvidenceBundle,
+} from "@/lib/server/hotel-scanner-v2-crawler";
+import {
+  buildHotelSiteMapV2,
+  type HotelScannerV2SiteMap,
+} from "@/lib/server/hotel-scanner-v2-site-map.mjs";
 import { buildHotelInventoryCanonicalV2 } from "@/lib/server/hotel-scanner-v2-inventory-canonical.mjs";
 import type { HotelScannerV2Inventory } from "@/lib/server/hotel-scanner-v2-inventory.mjs";
 
@@ -43,8 +47,11 @@ export type HotelIntakeV2DiscoveryProjection = {
 };
 
 export async function discoverHotelIntakeV2(rawUrl: string): Promise<HotelIntakeV2DiscoveryResult> {
-  const evidence = await crawlPublicHotelWebsiteRenderedV2(rawUrl);
-  const siteMap = buildHotelSiteMapCanonicalV2(evidence);
+  // Stable default path. Browser rendering remains available as an experimental
+  // enrichment worker, but it must not hold the synchronous V2 request open.
+  // It will be reintroduced only behind durable job orchestration.
+  const evidence = await crawlPublicHotelWebsiteV2(rawUrl);
+  const siteMap = buildHotelSiteMapV2(evidence);
   const inventory = buildHotelInventoryCanonicalV2(siteMap);
   return { evidence, siteMap, inventory };
 }
