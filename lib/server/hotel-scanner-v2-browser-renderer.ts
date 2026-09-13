@@ -37,23 +37,41 @@ function bytes(value: string) {
   return Buffer.byteLength(value, "utf8");
 }
 
+async function revealLazyContent(page: Page) {
+  await page.evaluate(async () => {
+    const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const maxSteps = 12;
+    let previousHeight = 0;
+    for (let step = 0; step < maxSteps; step += 1) {
+      const height = Math.max(document.body?.scrollHeight || 0, document.documentElement?.scrollHeight || 0);
+      const nextY = Math.min(height, (step + 1) * Math.max(700, window.innerHeight * 0.8));
+      window.scrollTo(0, nextY);
+      await pause(70);
+      if (height === previousHeight && nextY >= height - window.innerHeight) break;
+      previousHeight = height;
+    }
+    window.scrollTo(0, 0);
+  }).catch(() => undefined);
+}
+
 async function renderedDomBlocks(page: Page): Promise<HotelScannerV2RenderedBlock[]> {
   const values = await page.evaluate(() => {
     const root = document.querySelector("main") || document.body;
     if (!root) return [];
     const excluded = "header,nav,footer,aside,[role='navigation'],[role='dialog'],[aria-hidden='true']";
+    const headingSelector = "h1,h2,h3,h4,h5,h6,[role='heading']";
     const selectors = ["article", "[role='article']", "[role='listitem']", "li", "[class*='card' i]", "[class*='tile' i]", "[class*='item' i]"].join(",");
-    const candidates = Array.from(root.querySelectorAll(selectors)).slice(0, 900);
+    const candidateSet = new Set<Element>(Array.from(root.querySelectorAll(selectors)).slice(0, 900));
     const result: Array<{ level: number; heading: string; text: string; links: string[]; sectionPath: string[] }> = [];
     const seen = new Set<string>();
 
     const clean = (value: unknown, max = 4_000) => String(value ?? "").normalize("NFKC").replace(/\s+/g, " ").trim().slice(0, max);
     const visible = (element: Element) => {
       const style = window.getComputedStyle(element);
-      return style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0";
+      return style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0" && element.getClientRects().length > 0;
     };
     const headingOf = (element: Element) => {
-      const heading = element.querySelector("h1,h2,h3,h4,h5,h6,[role='heading']");
+      const heading = element.querySelector(headingSelector);
       if (!heading) return null;
       const text = clean(heading.textContent, 280);
       if (!text) return null;
@@ -62,6 +80,27 @@ async function renderedDomBlocks(page: Page): Promise<HotelScannerV2RenderedBloc
       const tagLevel = /^h[1-6]$/.test(tag) ? Number(tag.slice(1)) : 0;
       return { text, level: ariaLevel || tagLevel || 4 };
     };
+    const compactCandidate = (element: Element) => {
+      const text = clean((element as HTMLElement).innerText || element.textContent, 4_100);
+      const headingCount = element.querySelectorAll(headingSelector).length;
+      return Boolean(text && text.length <= 4_000 && headingCount >= 1 && headingCount <= 4);
+    };
+
+    // Generic CMS fallback: identify repeated sibling containers that each carry a local heading.
+    for (const heading of Array.from(root.querySelectorAll(headingSelector)).slice(0, 700)) {
+      let current = heading.parentElement;
+      for (let depth = 0; current && current !== root && depth < 4; depth += 1, current = current.parentElement) {
+        if (current.closest(excluded) || !compactCandidate(current)) continue;
+        const parent = current.parentElement;
+        if (!parent || parent === root) continue;
+        const siblings = Array.from(parent.children).filter((child) => compactCandidate(child));
+        if (siblings.length >= 2 && siblings.length <= 24) {
+          candidateSet.add(current);
+          break;
+        }
+      }
+    }
+
     const sectionPathOf = (element: Element, ownHeading: string) => {
       const path: string[] = [];
       let current: Element | null = element.parentElement;
@@ -75,13 +114,19 @@ async function renderedDomBlocks(page: Page): Promise<HotelScannerV2RenderedBloc
       return path;
     };
 
+    const candidates = [...candidateSet].sort((left, right) => {
+      if (left === right) return 0;
+      const position = left.compareDocumentPosition(right);
+      return position & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+    });
+
     for (const element of candidates) {
       if (!(element instanceof HTMLElement) || element.closest(excluded) || !visible(element)) continue;
       const heading = headingOf(element);
       if (!heading) continue;
       const text = clean(element.innerText || element.textContent, 4_000);
       if (!text || text.length < heading.text.length || text.length > 4_000) continue;
-      const nestedHeadings = element.querySelectorAll("h1,h2,h3,h4,h5,h6,[role='heading']").length;
+      const nestedHeadings = element.querySelectorAll(headingSelector).length;
       if (nestedHeadings > 4) continue;
       const links = Array.from(element.querySelectorAll("a[href]"))
         .map((anchor) => (anchor as HTMLAnchorElement).href)
@@ -175,7 +220,8 @@ export class HotelScannerV2BrowserRenderer {
 
       await page.goto(requested.toString(), { waitUntil: "domcontentloaded", timeout: RENDER_TIMEOUT_MS });
       await page.waitForLoadState("networkidle", { timeout: NETWORK_IDLE_TIMEOUT_MS }).catch(() => undefined);
-      await page.waitForTimeout(350);
+      await revealLazyContent(page);
+      await page.waitForTimeout(250);
       const finalUrl = page.url();
       const final = new URL(finalUrl);
       if (final.origin !== requested.origin) throw new Error("scanner_v2_browser_cross_origin_navigation");
