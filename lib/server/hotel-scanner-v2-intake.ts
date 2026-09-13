@@ -8,10 +8,8 @@ import {
   buildHotelSiteMapV2,
   type HotelScannerV2SiteMap,
 } from "@/lib/server/hotel-scanner-v2-site-map.mjs";
-import {
-  buildHotelInventoryV2,
-  type HotelScannerV2Inventory,
-} from "@/lib/server/hotel-scanner-v2-inventory.mjs";
+import { buildHotelInventoryCanonicalV2 } from "@/lib/server/hotel-scanner-v2-inventory-canonical.mjs";
+import type { HotelScannerV2Inventory } from "@/lib/server/hotel-scanner-v2-inventory.mjs";
 
 export type HotelIntakeV2DiscoveryResult = {
   evidence: HotelScannerV2EvidenceBundle;
@@ -51,7 +49,7 @@ export type HotelIntakeV2DiscoveryProjection = {
 export async function discoverHotelIntakeV2(rawUrl: string): Promise<HotelIntakeV2DiscoveryResult> {
   const evidence = await crawlPublicHotelWebsiteV2(rawUrl);
   const siteMap = buildHotelSiteMapV2(evidence);
-  const inventory = buildHotelInventoryV2(siteMap);
+  const inventory = buildHotelInventoryCanonicalV2(siteMap);
   return { evidence, siteMap, inventory };
 }
 
