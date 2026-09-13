@@ -7,7 +7,10 @@ import { runHotelIntakePipelineV2 } from "@/lib/server/hotel-scanner-v2-pipeline
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 240;
+// Preview benchmark only. Scanner V2 is still a synchronous compatibility route;
+// production client UX will move to a durable job/workflow so the browser request
+// does not need to remain open for the entire crawl + extraction lifecycle.
+export const maxDuration = 800;
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
