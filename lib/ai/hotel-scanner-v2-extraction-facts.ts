@@ -13,6 +13,12 @@ const GENERIC_BUSINESS_EMAIL_LOCAL_PARTS = new Set([
 const NAMED_INVENTORY_BASES = new Set([
   "deterministic_semantic_block_entity",
   "deterministic_json_ld_entity",
+  "canonical_section_entity",
+]);
+
+const DETAIL_INVENTORY_BASES = new Set([
+  "deterministic_detail_resource",
+  "canonical_detail_entity",
 ]);
 
 function isPrivacyMinimalBusinessEmail(raw: string) {
@@ -84,7 +90,7 @@ export function boundHotelScannerV2FactsToInventory(
     .map((item) => entityKeyV2(item.nameHint))
     .filter(Boolean));
   const detailUrls = new Set(expectedItems
-    .filter((item) => item.basis === "deterministic_detail_resource")
+    .filter((item) => DETAIL_INVENTORY_BASES.has(item.basis))
     .flatMap((item) => item.urls));
   const anonymousSlotCount = expectedItems.filter((item) => item.basis === "deterministic_explicit_count_slot").length;
   const acceptedAnonymous = new Set<string>();
