@@ -34,6 +34,8 @@ const MAX_SITEMAP_DOCUMENTS = 24;
 const MAX_PAGE_BYTES = 1_500_000;
 const MAX_SITEMAP_BYTES = 1_000_000;
 const MAX_ROBOTS_BYTES = 200_000;
+// Bounds only the retained flat page text. It must never stop deterministic
+// page coverage: headings/content blocks/links remain available after this cap.
 const MAX_TOTAL_TEXT = 500_000;
 const CRAWL_BATCH_SIZE = 8;
 const FETCH_TIMEOUT_MS = 8_000;
@@ -391,8 +393,7 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
   const absorbPage = (page: HotelScannerV2PageEvidence | null) => {
     if (!page || pages.some((existing) => existing.url === page.url)) return;
     const remaining = Math.max(0, MAX_TOTAL_TEXT - totalText);
-    if (!remaining) return;
-    page.text = page.text.slice(0, remaining);
+    page.text = remaining ? page.text.slice(0, remaining) : "";
     totalText += page.text.length;
     pages.push(page);
     for (const link of page.links) { internalLinks.add(link); if (discoveredPages.size < MAX_DISCOVERED_PAGES) discoveredPages.add(link); }
@@ -414,7 +415,7 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
   };
 
   let initialPageAttempts = 0;
-  while (pages.length < MAX_INITIAL_PAGES && totalText < MAX_TOTAL_TEXT && initialPageAttempts < MAX_INITIAL_PAGE_ATTEMPTS) {
+  while (pages.length < MAX_INITIAL_PAGES && initialPageAttempts < MAX_INITIAL_PAGE_ATTEMPTS) {
     const candidates = orderedCandidates(discoveredPages, attempted, preferredLanguage).filter((url) => {
       const allowed = isHotelScannerRobotsAllowed(url, robotsState.policy);
       if (!allowed) robotsBlockedUrls.add(url);
@@ -432,7 +433,7 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
   }
 
   let coverageFollowupAttempts = 0;
-  while (pages.length < MAX_TOTAL_PAGES && totalText < MAX_TOTAL_TEXT && coverageFollowupAttempts < MAX_COVERAGE_FOLLOWUP_ATTEMPTS) {
+  while (pages.length < MAX_TOTAL_PAGES && coverageFollowupAttempts < MAX_COVERAGE_FOLLOWUP_ATTEMPTS) {
     const plan = buildHotelScannerCoveragePlanV2({
       pages,
       sitemapPageUrls: sitemap.pageUrls,
