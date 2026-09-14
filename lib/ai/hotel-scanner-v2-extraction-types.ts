@@ -2,7 +2,7 @@ import type { HotelScanFact } from "@/lib/ai/hotel-scanner";
 
 export type HotelScannerV2OutputLanguage = "bg" | "en";
 export type HotelScannerV2DomainExtractionStatus = "EXTRACTED" | "NO_EVIDENCE" | "SKIPPED" | "PARTIAL";
-export type HotelScannerV2ExtractionIssueCode = "AI_INCOMPLETE" | "AI_RATE_LIMITED" | "AI_ERROR";
+export type HotelScannerV2ExtractionIssueCode = "AI_INCOMPLETE" | "AI_RATE_LIMITED" | "AI_QUOTA_EXHAUSTED" | "AI_ERROR";
 
 export type HotelScannerV2ExtractionIssue = {
   domain: string;
