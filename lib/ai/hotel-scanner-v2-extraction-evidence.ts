@@ -1,6 +1,7 @@
 import type { HotelScannerV2EvidenceBundle } from "@/lib/server/hotel-scanner-v2-crawler";
 import type { HotelScannerV2SiteMap } from "@/lib/server/hotel-scanner-v2-site-map.mjs";
 import type { HotelScannerV2DomainInventory } from "@/lib/server/hotel-scanner-v2-inventory.mjs";
+import { selectHotelScannerPrimaryPageUrlsV2 } from "@/lib/ai/hotel-scanner-v2-source-selection.mjs";
 import {
   MAX_AI_EVIDENCE_CHARS,
   MAX_CONTENT_BLOCKS_PER_PAGE,
@@ -60,7 +61,12 @@ export function sourceUrlsForDomainV2(
     if (config.pageTypes.some((type) => types.has(type as never))) urls.add(resource.url);
   }
   if (config.domain === "contacts" && evidence.pages[0]?.url) urls.add(evidence.pages[0].url);
-  return uniqueV2([...urls]);
+
+  // Extraction must not treat translated variants of the same logical page as
+  // independent content. Select one deterministic representative per variant
+  // group. Other language versions remain in Site Map evidence and can be
+  // audited separately for translation inconsistencies.
+  return selectHotelScannerPrimaryPageUrlsV2(siteMap, uniqueV2([...urls]), evidence.canonicalUrl);
 }
 
 function compactPagePayload(page: HotelScannerV2EvidenceBundle["pages"][number]): HotelScannerV2PagePayload {
