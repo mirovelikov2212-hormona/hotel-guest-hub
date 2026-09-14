@@ -80,12 +80,30 @@ test("generic translated section headings are not hotel entities", () => {
   assert.deepEqual(gastronomy.expectedItems.map((item) => item.nameHint), realVenues);
 });
 
-test("primary accommodation landing is authoritative over thinner translated variants", () => {
-  const sixRooms = ["Economy Room", "Standard Room", "Studio", "One-Bedroom Apartment", "Grand Deluxe Apartment", "VIP Apartment"];
+test("Cyrillic marketing sentences are not promoted to gastronomy entities", () => {
+  const realVenues = ["Forum Restaurant", "NERO Dining Club", "Lobby Bar", "Nutri Bar", "Night Bar"];
   const siteMap = {
     resources: [
-      resource("https://hotel.test/rooms", "https://hotel.test/rooms", "accommodation", sixRooms, "bg"),
-      resource("https://hotel.test/ro/rooms", "https://hotel.test/rooms", "accommodation", ["Studio", "One-Bedroom Apartment", "Grand Deluxe Apartment", "VIP Apartment"], "ro"),
+      resource("https://hotel.test/gastronomy", "https://hotel.test/gastronomy", "gastronomy", [
+        ...realVenues,
+        "Всяко ястие разказва историята на тази земя",
+      ]),
+    ],
+  };
+
+  const gastronomy = buildCanonicalHotelEntityRegistryV2(siteMap).domains.get("gastronomy");
+  assert.equal(gastronomy.expectedCount, 5);
+  assert.deepEqual(gastronomy.expectedItems.map((item) => item.nameHint), realVenues);
+});
+
+test("richer valid accommodation sibling is authoritative and every entity retains the logical source family", () => {
+  const sixRooms = ["Economy Room", "Standard Room", "Studio", "One-Bedroom Apartment", "Grand Deluxe Apartment", "VIP Apartment"];
+  const rootUrl = "https://hotel.test/rooms";
+  const roUrl = "https://hotel.test/ro/rooms";
+  const siteMap = {
+    resources: [
+      resource(rootUrl, "https://hotel.test/rooms", "accommodation", sixRooms, "bg"),
+      resource(roUrl, "https://hotel.test/rooms", "accommodation", ["Studio", "One-Bedroom Apartment", "Grand Deluxe Apartment", "VIP Apartment"], "ro"),
     ],
   };
 
@@ -93,4 +111,37 @@ test("primary accommodation landing is authoritative over thinner translated var
   const accommodation = registry.domains.get("accommodation");
   assert.equal(accommodation.expectedCount, 6);
   assert.deepEqual(accommodation.expectedItems.map((item) => item.nameHint), sixRooms);
+  assert.deepEqual(accommodation.landingUrls, [rootUrl, roUrl]);
+  for (const item of accommodation.expectedItems) {
+    assert.deepEqual(item.urls, [rootUrl, roUrl]);
+    assert.deepEqual(item.languages, ["bg", "ro"]);
+  }
+});
+
+test("SPA doctor and team pages remain supporting evidence rather than expected guest-facing SPA entities", () => {
+  const spaDetail = (url, title, group) => ({
+    url,
+    title,
+    resourceType: "page",
+    variantGroupId: group,
+    crawled: true,
+    canonicalTarget: url,
+    languages: ["de"],
+    classification: { primaryType: "spa_detail", types: ["spa_detail", "spa"] },
+    inventoryHints: [],
+    structuralInventory: null,
+  });
+  const treatmentUrl = "https://hotel.test/de/healing/thermal-therapy";
+  const doctorsUrl = "https://hotel.test/de/healing/doctors";
+  const siteMap = {
+    resources: [
+      spaDetail(treatmentUrl, "Thermal Therapy", "hotel.test/healing/thermal-therapy"),
+      spaDetail(doctorsUrl, "Unsere Ärzte — Hotel", "hotel.test/healing/doctors"),
+    ],
+  };
+
+  const spa = buildCanonicalHotelEntityRegistryV2(siteMap).domains.get("spa");
+  assert.equal(spa.expectedCount, 1);
+  assert.equal(spa.expectedItems[0].nameHint, "Thermal Therapy");
+  assert.deepEqual(spa.supportingUrls, [doctorsUrl]);
 });
