@@ -35,13 +35,33 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function errorCode(error: unknown) {
+  const value = error as { code?: unknown; error?: { code?: unknown; type?: unknown } } | null;
+  return String(value?.code || value?.error?.code || value?.error?.type || "").trim().toLocaleLowerCase("en-US");
+}
+
+function isQuotaExhaustedError(error: unknown) {
+  const code = errorCode(error);
+  const message = errorMessage(error);
+  return [
+    "credit_balance_exhausted",
+    "organization_usage_limit_exceeded",
+    "organization_spend_limit_exceeded",
+    "project_spend_limit_exceeded",
+    "insufficient_quota",
+  ].includes(code)
+    || /no credits remaining|credit balance exhausted|insufficient quota|usage limit exceeded|spend limit exceeded/i.test(message);
+}
+
 function isRateLimitError(error: unknown) {
+  if (isQuotaExhaustedError(error)) return false;
   const status = errorStatus(error);
   const message = errorMessage(error);
   return status === 429 || /(?:^|\s)429(?:\s|$)|rate limit/i.test(message);
 }
 
 function isTransientAiError(error: unknown) {
+  if (isQuotaExhaustedError(error)) return false;
   const status = errorStatus(error);
   if (status === 408 || status === 425 || status === 429 || status >= 500) return true;
   const message = errorMessage(error);
@@ -65,9 +85,6 @@ function languageInstruction(outputLanguage: HotelScannerV2OutputLanguage) {
 }
 
 function outputTokenBudget(domain: string, expectedCount: number | null) {
-  // Policy pages/documents routinely contain many atomic operational claims even
-  // when the inventory contains only one or two source surfaces. Keep the same
-  // hard global cap, but do not size policy output by source-count alone.
   if (domain === "policies") return MAX_AI_OUTPUT_TOKENS;
   const expected = Math.max(1, Number(expectedCount || 0));
   return Math.min(MAX_AI_OUTPUT_TOKENS, Math.max(3_000, 1_200 + expected * 650));
@@ -81,11 +98,16 @@ function issueFromError(input: {
   sourceUrls: string[];
 }): HotelScannerV2ExtractionIssue {
   const message = errorMessage(input.error);
+  const code = isQuotaExhaustedError(input.error)
+    ? "AI_QUOTA_EXHAUSTED"
+    : isRateLimitError(input.error)
+      ? "AI_RATE_LIMITED"
+      : "AI_ERROR";
   return {
     domain: input.config.domain,
     chunkIndex: input.chunkIndex + 1,
     chunkCount: input.chunkCount,
-    code: isRateLimitError(input.error) ? "AI_RATE_LIMITED" : "AI_ERROR",
+    code,
     reason: cleanV2(message || "ai_request_failed", 240),
     sourceUrls: input.sourceUrls,
   };
