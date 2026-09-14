@@ -128,12 +128,13 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
 
   useEffect(() => {
     if (!runId || result || error) return;
+    const currentRunId = runId;
     let cancelled = false;
 
     async function poll() {
       while (!cancelled) {
         try {
-          const response = await fetch(`/api/control-plane/hotel-scanner/scan-v2-workflow/${encodeURIComponent(runId)}`, {
+          const response = await fetch(`/api/control-plane/hotel-scanner/scan-v2-workflow/${encodeURIComponent(currentRunId)}`, {
             method: "GET",
             cache: "no-store",
           });
