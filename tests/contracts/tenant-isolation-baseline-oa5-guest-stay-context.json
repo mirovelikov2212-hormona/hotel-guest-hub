@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "checkpoint": "oa5-guest-stay-context",
+  "baseCheckpoint": "oa4-unified-guest-timeline",
+  "expectedNeedsReview": 223,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "lib/server/unified-guest-timeline-read.ts",
+      "fromLine": 135,
+      "toLine": 146,
+      "table": "guest_communications",
+      "operation": "select"
+    }
+  ],
+  "additions": []
+}

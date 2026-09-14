@@ -8,11 +8,13 @@ import FactorySandboxCertificationPanel from "@/app/control-plane/factory/runs/[
 import FactorySandboxCredentialsPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxCredentialsPanel";
 import FactorySandboxEvidencePanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxEvidencePanel";
 import FactorySandboxPreflightPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactorySandboxPreflightPanel";
+import FactoryVersionManagementPanel from "@/app/control-plane/factory/runs/[onboardingRunId]/FactoryVersionManagementPanel";
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
 import { normalizeAdminNextTarget } from "@/lib/control-plane-next";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 import { getFactoryOnboardingProgress } from "@/lib/server/factory-onboarding-progress";
 import { getFactoryProductionAcceptanceProgress } from "@/lib/server/factory-production-acceptance-progress";
+import { getFactoryProductionVersionManagementSnapshot } from "@/lib/server/factory-production-version-management";
 import { getFactoryReleaseEvidence } from "@/lib/server/factory-release-evidence";
 import { getFactorySandboxPreflight } from "@/lib/server/factory-sandbox-preflight";
 import { probeFactorySandboxGenericStaffRuntime } from "@/lib/server/factory-sandbox-runtime-probe";
@@ -46,6 +48,13 @@ export default async function FactoryRunWorkspacePage({
 
   const progress = await getFactoryOnboardingProgress(onboardingRunId);
   if (!progress) notFound();
+
+  const versionManagementSnapshot = progress.production.active
+    ? await getFactoryProductionVersionManagementSnapshot({
+        authority,
+        productionHotelId: progress.production.hotelId,
+      })
+    : null;
 
   const preflight = progress.envelope && progress.native && progress.communications
     ? await getFactorySandboxPreflight(progress.envelope.projectionRunId)
@@ -130,6 +139,12 @@ export default async function FactoryRunWorkspacePage({
             publicSlug={progress.production.publicSlug}
             releaseEvidence={trustedEvidence[1]}
             initialProgress={productionAcceptanceProgress}
+          />
+        )}
+        {versionManagementSnapshot && (
+          <FactoryVersionManagementPanel
+            lang={lang}
+            initialSnapshot={versionManagementSnapshot}
           />
         )}
       </div>

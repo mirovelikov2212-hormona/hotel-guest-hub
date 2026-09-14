@@ -48,14 +48,17 @@
     "test:factory-disposable-proof": "node --test tests/contracts/factory-disposable-onboarding-proof.contract.test.mjs"
   },
   "dependencies": {
+    "@sparticuz/chromium": "153.0.0",
     "@supabase/supabase-js": "2.112.3",
     "@vercel/functions": "3.9.5",
     "next": "16.3.1",
     "openai": "6.49.0",
+    "playwright-core": "1.63.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "server-only": "^0.0.1",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "workflow": "4.8.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

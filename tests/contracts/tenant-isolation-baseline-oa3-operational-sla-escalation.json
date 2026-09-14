@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "checkpoint": "oa3-operational-sla-escalation",
+  "baseCheckpoint": "cm4-version-management-control-plane",
+  "expectedNeedsReview": 222,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "app/api/staff/requests/route.ts",
+      "fromLine": 170,
+      "toLine": 173,
+      "table": "guest_requests",
+      "operation": "update"
+    }
+  ],
+  "additions": []
+}

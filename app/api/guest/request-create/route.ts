@@ -36,6 +36,7 @@ import {
   runtimeCanaryRoutingErrorResponse,
 } from "@/lib/server/runtime-sandbox-canary-router";
 import { createApiStageTiming } from "@/lib/server/api-stage-timing";
+import { buildOperationalRequestSlaSnapshot } from "@/lib/server/operational-request-sla.mjs";
 
 const STAFF_ROLE_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
 
@@ -308,6 +309,13 @@ export async function POST(req: NextRequest) {
     const price = requestAuthority.price;
     const currency = requestAuthority.currency;
     const sourceRequestDef = requestAuthority.sourceRequestDef;
+    const authoritativeRequestDef = sourceRequestDef
+      ? (hotelConfig.requestDefs ?? []).find((def) => def.id === sourceRequestDef) ?? null
+      : null;
+    const operationalSla = buildOperationalRequestSlaSnapshot({
+      requestDef: authoritativeRequestDef,
+      sourceRequestDef,
+    });
     const authoritativeStaffLabels = requestAuthority.staffLabels;
     const relationalIds = resolveGuestRequestRelationalIds(hotelConfig, {
       roomNumber: room,
@@ -354,6 +362,7 @@ export async function POST(req: NextRequest) {
       price,
       currency,
       sourceRequestDef,
+      operationalSla,
       serviceTime,
       typeLabel,
       note,

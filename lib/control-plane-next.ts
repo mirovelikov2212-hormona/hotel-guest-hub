@@ -3,6 +3,8 @@ import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
 const ALLOWED_ADMIN_PATHS = [
   "/control-panel",
   "/hotel-factory",
+  "/hotel-scanner",
+  "/hotel-scanner-v2-workflow",
   "/control-plane",
 ] as const;
 

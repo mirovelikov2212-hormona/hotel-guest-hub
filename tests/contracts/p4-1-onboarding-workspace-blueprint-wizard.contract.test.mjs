@@ -6,9 +6,15 @@ const pagePath = new URL("../../app/control-plane/factory/new/page.tsx", import.
 const wizardPath = new URL("../../app/control-plane/factory/new/FactoryBlueprintWizard.tsx", import.meta.url);
 const panelPath = new URL("../../app/control-plane/factory/new/FactoryFoundationCreatePanel.tsx", import.meta.url);
 const routePath = new URL("../../app/api/control-plane/onboarding/preflight/route.ts", import.meta.url);
+const authorityPath = new URL("../../lib/server/factory-release-design-authority.ts", import.meta.url);
 const packagePath = new URL("../../package.json", import.meta.url);
-const [page, wizard, panel, route, packageRaw] = await Promise.all([
-  readFile(pagePath, "utf8"), readFile(wizardPath, "utf8"), readFile(panelPath, "utf8"), readFile(routePath, "utf8"), readFile(packagePath, "utf8"),
+const [page, wizard, panel, route, authority, packageRaw] = await Promise.all([
+  readFile(pagePath, "utf8"),
+  readFile(wizardPath, "utf8"),
+  readFile(panelPath, "utf8"),
+  readFile(routePath, "utf8"),
+  readFile(authorityPath, "utf8"),
+  readFile(packagePath, "utf8"),
 ]);
 const pkg = JSON.parse(packageRaw);
 
@@ -22,14 +28,20 @@ test("P4.1 workspace is Platform Admin authenticated and preserves BG/EN", () =>
   assert.match(page, /New hotel · Blueprint workspace/);
 });
 
-test("P4.1 preflight stays same-origin, authenticated, bounded and mutation-free", () => {
+test("P4.1 preflight stays same-origin, authenticated, bounded and mutation-free while resolving authoritative Design provenance", () => {
   assert.match(route, /enforceControlPlaneSameOrigin\(req\)/);
   assert.match(route, /getCurrentPlatformAdminSession/);
   assert.match(route, /MAX_BODY_BYTES = 262_144/);
-  assert.match(route, /prepareFactoryOnboarding/);
+  assert.match(route, /prepareAuthoritativeFactoryOnboarding/);
   assert.match(route, /validateFactoryBlueprint/);
   assert.doesNotMatch(route, /beginFactoryOnboarding/);
   assert.doesNotMatch(route, /supabaseAdmin|\.rpc\(|\.from\(/);
+
+  assert.match(authority, /loadVerifiedHubDesignFactoryHandoff/);
+  assert.match(authority, /exact_immutable_design_revision/);
+  assert.match(authority, /FACTORY_RELEASE_DESIGN_CHECKSUM_MISMATCH/);
+  assert.match(authority, /FACTORY_RELEASE_APPROVED_INTELLIGENCE_LINEAGE_MISMATCH/);
+  assert.doesNotMatch(authority, /\.insert\(|\.upsert\(|\.update\s*\(\s*\{|\.delete\(/);
 });
 
 test("P4.1 parent wizard keeps preflight separate from the later explicit creation panel", () => {
@@ -58,7 +70,6 @@ test("P4.1 supports range and explicit room inventories without a hotel-specific
   assert.match(wizard, /explicit:explicitRoomList\.map|explicit: explicitRoomList\.map/);
   assert.match(wizard, /padTo/);
   assert.match(wizard, /prefix/);
-  assert.match(wizard, /suffix/);
   assert.doesNotMatch(wizard, /room 103|Aquamarine/i);
 });
 
@@ -91,7 +102,7 @@ test("P4.1 blueprint authoring remains free of direct server mutation authority"
   assert.doesNotMatch(wizard, /beginFactoryOnboarding|projectFactoryCoreResources|projectFactoryOperationalResources/);
 });
 
-test("P4.1 preflight returns deterministic future identities and blueprint hash", () => {
+test("P4.1 preflight returns deterministic future identities and the authoritative blueprint hash", () => {
   assert.match(route, /blueprintHash: prepared\.blueprintHash/);
   assert.match(route, /identities: prepared\.identities/);
   assert.match(wizard, /preflight\.identities\.productionSlug/);

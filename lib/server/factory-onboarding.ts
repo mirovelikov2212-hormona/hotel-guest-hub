@@ -2,12 +2,10 @@ import "server-only";
 
 import { canMutateControlPlane, type PlatformAdminAuthority } from "@/lib/server/control-plane-auth";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
-import {
-  prepareFactoryOnboarding,
-  type PreparedFactoryOnboarding,
-} from "@/lib/product-factory/factory-onboarding-model.mjs";
+import type { PreparedFactoryOnboarding } from "@/lib/product-factory/factory-onboarding-model.mjs";
 import { prepareFactoryNativeContentVenues } from "@/lib/product-factory/factory-native-content-venues-model.mjs";
 import { prepareFactoryCommunications } from "@/lib/product-factory/factory-communications-model.mjs";
+import { prepareAuthoritativeFactoryOnboarding } from "@/lib/server/factory-release-design-authority";
 
 type FactoryOnboardingRpcRow = {
   onboarding_run_id: string;
@@ -37,15 +35,23 @@ export async function beginFactoryOnboarding(input: {
   authority: PlatformAdminAuthority;
   idempotencyKey: string;
   blueprint: Record<string, unknown>;
+  expectedBlueprintHash?: string;
 }): Promise<FactoryOnboardingResult> {
   if (!canMutateControlPlane(input.authority.role)) {
     throw new Error("P2_FACTORY_ADMIN_FORBIDDEN");
   }
 
-  const prepared = prepareFactoryOnboarding({
+  const prepared = await prepareAuthoritativeFactoryOnboarding({
     blueprint: input.blueprint,
     idempotencyKey: input.idempotencyKey,
   });
+  if (
+    input.expectedBlueprintHash
+    && prepared.blueprintHash !== String(input.expectedBlueprintHash).trim().toLowerCase()
+  ) {
+    throw new Error("P2_FACTORY_STALE_PREFLIGHT");
+  }
+
   const nativePrepared = prepareFactoryNativeContentVenues({ blueprint: prepared.blueprint });
   if (nativePrepared.blueprintHash !== prepared.blueprintHash) {
     throw new Error("P2_FACTORY_NATIVE_BLUEPRINT_HASH_DRIFT");
@@ -57,6 +63,8 @@ export async function beginFactoryOnboarding(input: {
 
   // Reviewed platform-authority write: the SECURITY DEFINER RPC rechecks the exact
   // active Platform Admin, owns the transaction, and enforces idempotency itself.
+  // Exact Design provenance has already been reconstructed and checksum-verified
+  // server-side; the browser-supplied handoff metadata is never persisted as authority.
   const { data, error } = await supabaseAdmin.rpc("begin_factory_onboarding_v1", {
     p_actor_admin_id: input.authority.adminId,
     p_idempotency_key: prepared.idempotencyKey,

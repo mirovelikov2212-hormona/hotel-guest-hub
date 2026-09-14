@@ -1,6 +1,6 @@
-
-import { requireStaffAccess } from "@/lib/staff-auth/guards";
+import GuestTimelineProvider from "@/components/staff/guest-timeline/GuestTimelineProvider";
 import ManagerPageContent from "@/components/staff/pages/ManagerPageContent";
+import { requireStaffAccess } from "@/lib/staff-auth/guards";
 
 export default async function StaffManagerScopedPage({
   params,
@@ -11,5 +11,9 @@ export default async function StaffManagerScopedPage({
 
   await requireStaffAccess(hotelSlug, "manager");
 
-  return <ManagerPageContent />;
+  return (
+    <GuestTimelineProvider hotelSlug={hotelSlug} role="manager">
+      <ManagerPageContent />
+    </GuestTimelineProvider>
+  );
 }

@@ -3,6 +3,7 @@ import "server-only";
 import type { PlatformAdminAuthority } from "@/lib/server/control-plane-auth";
 import { getFactoryPreviewRuntimeSmokeStatus } from "@/lib/server/factory-preview-runtime-smoke";
 import { getFactoryReleaseEvidence } from "@/lib/server/factory-release-evidence";
+import { verifyFactoryReleaseDesignRevision } from "@/lib/server/factory-release-design-authority";
 import { certifyFactorySandbox } from "@/lib/server/factory-sandbox-certification";
 import { getFactorySandboxPreflight } from "@/lib/server/factory-sandbox-preflight";
 import { probeFactorySandboxGenericStaffRuntime } from "@/lib/server/factory-sandbox-runtime-probe";
@@ -59,6 +60,14 @@ export async function certifyFactorySandboxFromTrustedEvidence(input: {
 
   const requiredChecks = preflight.requiredChecks as unknown as Record<string, unknown>;
   for (const key of REQUIRED_DATABASE_CHECKS) requireDatabaseCheck(requiredChecks, key);
+
+  // Exact persisted Sandbox config is the release artifact at this boundary.
+  // Reload it server-side and prove its immutable Design + Review + Scan lineage
+  // before accepting any runtime evidence or invoking the existing P2.5 authority.
+  const releaseDesign = await verifyFactoryReleaseDesignRevision({
+    hotelId: preflight.lineage.sandboxHotelId,
+    revisionId: preflight.lineage.sandboxRevisionId,
+  });
 
   const [releaseEvidence, genericStaffRuntime, smokeStatus] = await Promise.all([
     getFactoryReleaseEvidence(),
@@ -127,6 +136,10 @@ export async function certifyFactorySandboxFromTrustedEvidence(input: {
     source: "system_derived",
     envelopeProjectionRunId,
     smokeRunId,
+    releaseDesign: {
+      blueprintHash: releaseDesign.blueprintHash,
+      design: releaseDesign.design,
+    },
     preflight: {
       databaseStatus: preflight.databaseStatus,
       productionHotelId: preflight.lineage.productionHotelId,

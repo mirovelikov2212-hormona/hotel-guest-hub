@@ -1,0 +1,79 @@
+name: Hotel Scanner + Internal Tools Quality Gate
+
+on:
+  push:
+    paths:
+      - "lib/server/factory-hotel-scanner.ts"
+      - "lib/server/hotel-scanner-*"
+      - "lib/ai/hotel-*"
+      - "lib/product-factory/**"
+      - "app/api/control-plane/hotel-scanner/**"
+      - "components/internal-tools/**"
+      - "components/control-panel/ControlPanelThemeShell.tsx"
+      - "app/control-plane/**"
+      - "app/hotel-factory/**"
+      - "app/hotel-scanner/**"
+      - "app/hotel-scanner-v2/**"
+      - "app/design-studio/**"
+      - "app/internal-tools-brand.css"
+      - "app/globals.css"
+      - "tests/contracts/hotel-scanner-*.contract.test.mjs"
+      - "tests/contracts/hotel-intelligence-*.contract.test.mjs"
+      - "tests/contracts/hotel-technology-discovery-v1.contract.test.mjs"
+      - "tests/contracts/control-plane-tools-theme.contract.test.mjs"
+      - ".github/workflows/hotel-scanner-professional-regression.yml"
+  pull_request:
+    paths:
+      - "lib/server/factory-hotel-scanner.ts"
+      - "lib/server/hotel-scanner-*"
+      - "lib/ai/hotel-*"
+      - "lib/product-factory/**"
+      - "app/api/control-plane/hotel-scanner/**"
+      - "components/internal-tools/**"
+      - "components/control-panel/ControlPanelThemeShell.tsx"
+      - "app/control-plane/**"
+      - "app/hotel-factory/**"
+      - "app/hotel-scanner/**"
+      - "app/hotel-scanner-v2/**"
+      - "app/design-studio/**"
+      - "app/internal-tools-brand.css"
+      - "app/globals.css"
+      - "tests/contracts/hotel-scanner-*.contract.test.mjs"
+      - "tests/contracts/hotel-intelligence-*.contract.test.mjs"
+      - "tests/contracts/hotel-technology-discovery-v1.contract.test.mjs"
+      - "tests/contracts/control-plane-tools-theme.contract.test.mjs"
+      - ".github/workflows/hotel-scanner-professional-regression.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scanner-theme-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Scanner professional regression contracts
+        run: >-
+          node --test
+          tests/contracts/hotel-scanner-*.contract.test.mjs
+          tests/contracts/hotel-intelligence-*.contract.test.mjs
+          tests/contracts/hotel-technology-discovery-v1.contract.test.mjs
+      - name: Shared internal tools light-dark theme contract
+        run: node --test tests/contracts/control-plane-tools-theme.contract.test.mjs
+      - name: Blocking tenant isolation
+        run: npm run test:tenant-isolation
+      - name: Next.js build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key

@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import { canMutateControlPlane, type PlatformAdminAuthority } from "@/lib/server/control-plane-auth";
+import { verifyFactoryReleaseDesignRevision } from "@/lib/server/factory-release-design-authority";
 import { deriveFactoryProductionLiveActivationEvidence } from "@/lib/server/factory-production-live-activation-evidence";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
@@ -86,8 +87,13 @@ export async function activateFactoryProductionLive(input: {
   const expectedPublicSlug = trusted.publication.expectedPublicSlug;
   const certifiedDeploymentId = trusted.certification.deploymentId;
   const certifiedDeploymentSha = trusted.certification.deploymentSha;
+  const releaseDesign = await verifyFactoryReleaseDesignRevision({
+    hotelId: expectedProductionHotelId,
+    revisionId: expectedProductionRevisionId,
+  });
   const checks = {
     ...trusted.checks,
+    releaseDesign,
     evidence: {
       source: "server_derived_p2_6_4_v2",
       certification: trusted.certification,
@@ -120,6 +126,8 @@ export async function activateFactoryProductionLive(input: {
     }))
     .digest("hex");
 
+  // Last fail-closed authority boundary before LIVE: the exact certified revision must still
+  // resolve to the immutable Design -> Approved Intelligence -> Scan lineage persisted at onboarding.
   const { data, error } = await supabaseAdmin.rpc("activate_factory_production_live_v1", {
     p_actor_admin_id: input.authority.adminId,
     p_runtime_certification_run_id: runtimeCertificationRunId,
@@ -152,6 +160,7 @@ export async function activateFactoryProductionLive(input: {
     certifiedDeploymentId,
     certifiedDeploymentSha,
     activationHash,
+    releaseDesign,
     status: "live_pilot" as const,
     propertyLifecycle: "pilot" as const,
     productionActive: true as const,

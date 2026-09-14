@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "checkpoint": "hotel-scan-run-v1",
+  "baseCheckpoint": "hotel-intelligence-review-v1",
+  "expectedNeedsReview": 193,
+  "additions": [
+    {
+      "filePath": "lib/server/hotel-scan-runs.ts",
+      "line": 58,
+      "rpc": "create_hotel_scan_run_v1",
+      "tableExpression": "\"create_hotel_scan_run_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "same_origin_authenticated_control_plane_pre_hotel_evidence_append_uses_service_role_only_security_definer_rpc_that_rechecks_active_super_admin_or_operator; scan_run_has_no_hotel_id_because_it_exists_before_factory_hotel_creation_and_is_scoped_by_the_same_sha256_canonical_url_source_key_used_by_hotel_intelligence; rpc_enforces_bounded_schema_validated_evidence_technology_design_metadata_scanned_urls_timestamp_checksum_and_idempotency_then_appends_one_immutable_audit_traced_scan_run; direct_client_access_is_denied_by_rls_update_delete_are_blocked_and_the_entity_confers_no_readiness_certification_publication_factory_materialization_guest_staff_runtime_or_live_activation_authority"
+    }
+  ]
+}

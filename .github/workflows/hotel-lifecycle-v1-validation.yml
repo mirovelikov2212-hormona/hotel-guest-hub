@@ -1,0 +1,119 @@
+name: Hotel Lifecycle V1 Validation
+
+on:
+  pull_request:
+    paths:
+      - "lib/ai/hotel-intelligence-value-quality.mjs"
+      - "lib/ai/hotel-intelligence-value-quality.d.mts"
+      - "lib/ai/hotel-scanner-coverage.mjs"
+      - "lib/ai/hotel-scanner-coverage.d.mts"
+      - "lib/ai/hotel-scanner-conflicts.mjs"
+      - "lib/ai/hotel-scanner-conflicts.d.mts"
+      - "lib/ai/hotel-scanner-reconciliation.mjs"
+      - "lib/ai/hotel-scanner-reconciliation.d.mts"
+      - "lib/ai/hotel-scanner-rich-facts.ts"
+      - "lib/ai/hotel-technology-discovery.mjs"
+      - "lib/ai/hotel-technology-discovery.d.mts"
+      - "lib/ai/hotel-review-semantics-v2.mjs"
+      - "lib/ai/hotel-review-semantics-v2.d.mts"
+      - "lib/server/hotel-scanner-crawl-plan.mjs"
+      - "lib/server/hotel-scanner-crawl-plan.d.mts"
+      - "lib/server/hotel-scanner-public-technology.mjs"
+      - "lib/server/hotel-scanner-public-technology.d.mts"
+      - "lib/server/hotel-scan-run-payload.mjs"
+      - "lib/server/hotel-scan-run-payload.d.mts"
+      - "lib/server/hotel-scan-runs.ts"
+      - "lib/server/factory-hotel-scanner.ts"
+      - "app/api/control-plane/hotel-scanner/**"
+      - "lib/product-factory/hotel-intelligence-review.ts"
+      - "lib/server/hotel-intelligence-revisions.ts"
+      - "app/api/control-plane/hotel-intelligence/**"
+      - "lib/product-factory/hub-design-draft.ts"
+      - "lib/server/hub-design-draft-revisions.ts"
+      - "lib/server/factory-release-design-authority.ts"
+      - "lib/server/factory-onboarding.ts"
+      - "lib/server/factory-prepare-sandbox.ts"
+      - "lib/server/factory-trusted-sandbox-certification.ts"
+      - "lib/server/factory-production-readiness.ts"
+      - "lib/server/factory-production-publication.ts"
+      - "lib/server/factory-production-runtime-certification.ts"
+      - "lib/server/factory-production-live-activation.ts"
+      - "app/api/control-plane/design-studio/**"
+      - "app/api/control-plane/onboarding/**"
+      - "app/hotel-factory/from-design/**"
+      - "supabase/migrations/20260907152000_hotel_intelligence_review_v1.sql"
+      - "supabase/migrations/20260907193500_hotel_intelligence_scan_run_lineage_v1.sql"
+      - "tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs"
+      - "tests/contracts/hotel-technology-discovery-v1.contract.test.mjs"
+      - "tests/contracts/hotel-review-semantics-v2.contract.test.mjs"
+      - "tests/contracts/hotel-scan-run-v1.contract.test.mjs"
+      - "tests/contracts/hotel-intelligence-scan-run-lineage-v1.contract.test.mjs"
+      - "tests/contracts/hotel-intelligence-review-semantics-v2-integration.contract.test.mjs"
+      - "tests/contracts/hub-design-approved-intelligence-lineage.contract.test.mjs"
+      - "tests/contracts/design-revision-factory-handoff.contract.test.mjs"
+      - "tests/contracts/p2-1-factory-onboarding.contract.test.mjs"
+      - "tests/contracts/p4-1-onboarding-workspace-blueprint-wizard.contract.test.mjs"
+      - "tests/contracts/p4-10-trusted-sandbox-certification.contract.test.mjs"
+      - "tests/contracts/hotel-release-approved-design-lineage.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-hotel-release-design-lineage.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - "tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs"
+      - "tests/contracts/hotel-scanner-coverage-v1.contract.test.mjs"
+      - "tests/contracts/hotel-scanner-conflicts-v1.contract.test.mjs"
+      - "tests/contracts/hotel-scanner-reconciliation-v1.contract.test.mjs"
+      - "tests/contracts/hotel-intelligence-value-quality-v1.contract.test.mjs"
+      - "tests/contracts/hotel-intelligence-review-v1.contract.test.mjs"
+      - ".github/workflows/hotel-lifecycle-v1-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Hotel Scanner reconciliation contracts
+        run: node --test tests/contracts/hotel-scanner-reconciliation-v1.contract.test.mjs
+      - name: Hotel Intelligence value quality contracts
+        run: node --test tests/contracts/hotel-intelligence-value-quality-v1.contract.test.mjs
+      - name: Hotel Scanner coverage contracts
+        run: node --test tests/contracts/hotel-scanner-coverage-v1.contract.test.mjs
+      - name: Hotel Scanner conflict contracts
+        run: node --test tests/contracts/hotel-scanner-conflicts-v1.contract.test.mjs
+      - name: Hotel Scanner coverage-driven crawl plan contracts
+        run: node --test tests/contracts/hotel-scanner-coverage-crawl-plan-v1.contract.test.mjs
+      - name: Hotel Scanner public technology signal contracts
+        run: node --test tests/contracts/hotel-scanner-public-technology-v1.contract.test.mjs
+      - name: Hotel Technology discovery contracts
+        run: node --test tests/contracts/hotel-technology-discovery-v1.contract.test.mjs
+      - name: Review Semantics V2 contracts
+        run: node --test tests/contracts/hotel-review-semantics-v2.contract.test.mjs
+      - name: Hotel Scan Run contracts
+        run: node --test tests/contracts/hotel-scan-run-v1.contract.test.mjs
+      - name: Hotel Intelligence Scan Run lineage contracts
+        run: node --test tests/contracts/hotel-intelligence-scan-run-lineage-v1.contract.test.mjs
+      - name: Hotel Intelligence review contracts
+        run: node --test tests/contracts/hotel-intelligence-review-v1.contract.test.mjs
+      - name: HL5.2 Review Semantics V2 integration contracts
+        run: node --test tests/contracts/hotel-intelligence-review-semantics-v2-integration.contract.test.mjs
+      - name: Design approved intelligence lineage contracts
+        run: node --test tests/contracts/hub-design-approved-intelligence-lineage.contract.test.mjs
+      - name: Hotel Release approved Design lineage contracts
+        run: node --test tests/contracts/hotel-release-approved-design-lineage.contract.test.mjs
+      - name: Relevant Factory release boundary contracts
+        run: node --test tests/contracts/design-revision-factory-handoff.contract.test.mjs tests/contracts/p2-1-factory-onboarding.contract.test.mjs tests/contracts/p2-6-1-production-readiness.contract.test.mjs tests/contracts/p2-6-2-production-publication.contract.test.mjs tests/contracts/p2-6-3-production-runtime-certification.contract.test.mjs tests/contracts/p2-6-4-production-live-activation.contract.test.mjs tests/contracts/p4-1-onboarding-workspace-blueprint-wizard.contract.test.mjs tests/contracts/p4-10-trusted-sandbox-certification.contract.test.mjs
+      - name: Tenant isolation guard
+        run: npm run test:tenant-isolation
+      - name: Next.js build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key

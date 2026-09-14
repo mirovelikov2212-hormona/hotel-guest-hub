@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "checkpoint": "oa4-unified-guest-timeline",
+  "baseCheckpoint": "oa3-operational-sla-escalation",
+  "expectedNeedsReview": 223,
+  "removals": [],
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/unified-guest-timeline-read.ts",
+      "line": 135,
+      "table": "guest_communications",
+      "tableExpression": "\"guest_communications\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "server_only_authenticated_manager_or_reception_timeline_read_scoped_by_exact_hotel_id_and_stay_id_direct_guest_only_bounded_to_500_rows_and_selects_metadata_only_without_message_title_or_body"
+    }
+  ]
+}

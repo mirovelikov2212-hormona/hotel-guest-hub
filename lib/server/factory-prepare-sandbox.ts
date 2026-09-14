@@ -16,12 +16,11 @@ import {
   settleFactoryPreviewRuntimeSmoke,
   startFactoryPreviewRuntimeSmoke,
 } from "@/lib/server/factory-preview-runtime-smoke";
+import { verifyPersistedFactoryReleaseDesignBlueprint } from "@/lib/server/factory-release-design-authority";
 import { getFactorySandboxPreflight } from "@/lib/server/factory-sandbox-preflight";
 import { certifyFactorySandboxFromTrustedEvidence } from "@/lib/server/factory-trusted-sandbox-certification";
-import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
 
 export type FactorySandboxPreparationStage =
   | "core"
@@ -141,72 +140,46 @@ async function validateReviewedDesign(blueprint: Record<string, unknown>): Promi
     };
   }
 
-  const revisionId = String(handoff.sourceDesignRevisionId || "").trim().toLowerCase();
-  const revisionNo = Number(handoff.sourceDesignRevisionVersion);
-  const payloadChecksum = String(handoff.sourceDesignRevisionChecksum || "").trim().toLowerCase();
-  const sourcePackageChecksum = String(handoff.sourcePackageChecksum || "").trim().toLowerCase();
+  try {
+    const canonical = await verifyPersistedFactoryReleaseDesignBlueprint(blueprint);
+    const revisionId = String(canonical.sourceDesignRevisionId || canonical.revisionId || "").trim().toLowerCase();
+    const revisionNo = Number(canonical.sourceDesignRevisionVersion ?? canonical.revisionNo);
+    const payloadChecksum = String(canonical.sourceDesignRevisionChecksum || canonical.payloadChecksum || "").trim().toLowerCase();
+    const sourcePackageChecksum = String(canonical.sourcePackageChecksum || "").trim().toLowerCase();
 
-  if (
-    !UUID_PATTERN.test(revisionId)
-    || !Number.isInteger(revisionNo)
-    || revisionNo <= 0
-    || !SHA256_PATTERN.test(payloadChecksum)
-    || !SHA256_PATTERN.test(sourcePackageChecksum)
-  ) {
+    if (!revisionId || !Number.isInteger(revisionNo) || revisionNo <= 0 || !payloadChecksum || !sourcePackageChecksum) {
+      return {
+        design: null,
+        blockers: [blocker(
+          "DESIGN_HANDOFF_INVALID",
+          "The reviewed Design handoff identity or checksum contract is incomplete.",
+        )],
+      };
+    }
+
     return {
-      design: null,
-      blockers: [blocker(
-        "DESIGN_HANDOFF_INVALID",
-        "The reviewed Design handoff identity or checksum contract is incomplete.",
-      )],
+      design: {
+        reviewedAtFactory: true,
+        sourceDesignRevisionId: revisionId,
+        sourceDesignRevisionVersion: revisionNo,
+        sourceDesignRevisionChecksum: payloadChecksum,
+        sourcePackageChecksum,
+      },
+      blockers: [],
     };
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from("hub_design_draft_revisions")
-    .select("id,revision_no,status,payload_checksum,source_package_checksum,workspace_id,hub_design_workspaces!inner(current_revision_id)")
-    .eq("id", revisionId)
-    .maybeSingle();
-
-  if (error) throw new Error(`P4_PREPARE_SANDBOX_DESIGN_READ_FAILED:${error.message}`);
-  if (!data) {
-    return {
-      design: null,
-      blockers: [blocker("DESIGN_REVISION_NOT_FOUND", "The reviewed Design revision no longer exists.")],
-    };
-  }
-
-  const workspace = Array.isArray(data.hub_design_workspaces)
-    ? data.hub_design_workspaces[0]
-    : data.hub_design_workspaces;
-  const currentRevisionId = String(workspace?.current_revision_id || "").toLowerCase();
-  const mismatch =
-    Number(data.revision_no) !== revisionNo
-    || String(data.status || "") !== "draft"
-    || String(data.payload_checksum || "").toLowerCase() !== payloadChecksum
-    || String(data.source_package_checksum || "").toLowerCase() !== sourcePackageChecksum
-    || currentRevisionId !== revisionId;
-
-  if (mismatch) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || "");
+    if (message.includes("_READ_FAILED")) {
+      throw new Error(`P4_PREPARE_SANDBOX_DESIGN_READ_FAILED:${message}`);
+    }
     return {
       design: null,
       blockers: [blocker(
         "DESIGN_REVISION_DRIFT",
-        "The reviewed Factory handoff no longer matches the current immutable Design revision/checksums.",
+        "The reviewed Factory handoff no longer matches its exact immutable Design revision, checksums, or approved Intelligence lineage.",
       )],
     };
   }
-
-  return {
-    design: {
-      reviewedAtFactory: true,
-      sourceDesignRevisionId: revisionId,
-      sourceDesignRevisionVersion: revisionNo,
-      sourceDesignRevisionChecksum: payloadChecksum,
-      sourcePackageChecksum,
-    },
-    blockers: [],
-  };
 }
 
 function baseResult(input: {

@@ -6,6 +6,8 @@ import StaffCollapsiblePanel from "@/components/staff/StaffCollapsiblePanel";
 import GenericDepartmentPushControls from "@/components/staff/GenericDepartmentPushControls";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
 import { useStaffTabTitleAlert } from "@/components/staff/useStaffTabTitleAlert";
+import { evaluateOperationalRequestSla } from "@/lib/server/operational-request-sla.mjs";
+import type { OperationalRequestSlaPolicy } from "@/lib/server/operational-request-sla.mjs";
 
 type GenericDepartmentRequest = {
   id: string;
@@ -17,6 +19,9 @@ type GenericDepartmentRequest = {
   noteOriginal?: string | null;
   status: string;
   createdAtIso: string;
+  startedAtIso?: string | null;
+  resolvedAtIso?: string | null;
+  operationalSla?: OperationalRequestSlaPolicy | null;
   department: string;
   serviceTime: string;
   requiresBilling?: boolean;
@@ -48,7 +53,13 @@ export default function GenericDepartmentPageContent({
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
   const [requestOpenState, setRequestOpenState] = useState<Record<string, boolean>>({});
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const versionRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const { ready: soundReady, soundEnabled, toggleSound } = useStaffAlertSound({
     hotelSlug,
@@ -259,8 +270,24 @@ export default function GenericDepartmentPageContent({
         <section className="space-y-3">
           {visibleRequests.map((request) => {
             const open = isRequestOpen(request);
+            const slaEvidence = evaluateOperationalRequestSla({
+              status: request.status,
+              createdAtIso: request.createdAtIso,
+              startedAtIso: request.startedAtIso,
+              resolvedAtIso: request.resolvedAtIso,
+              now: new Date(nowMs),
+              policy: request.operationalSla ?? undefined,
+            });
+            const isOverdue = slaEvidence.escalationRequired;
             return (
-              <article key={request.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-sm">
+              <article
+                key={request.id}
+                className={`overflow-hidden rounded-2xl border shadow-sm ${
+                  isOverdue
+                    ? "border-rose-500/90 bg-rose-950/35 ring-2 ring-rose-500/30 animate-pulse"
+                    : "border-white/10 bg-white/5"
+                }`}
+              >
                 <button
                   type="button"
                   className="flex w-full items-start justify-between gap-4 p-4 text-left"
@@ -272,6 +299,11 @@ export default function GenericDepartmentPageContent({
                       <span className="rounded-lg bg-white/10 px-2 py-1 text-xs text-white/70">Room {request.room}</span>
                       <span className="rounded-lg bg-white/10 px-2 py-1 text-xs text-white/70">{request.status}</span>
                       {request.isTest ? <span className="rounded-lg bg-amber-300/10 px-2 py-1 text-xs text-amber-100">TEST</span> : null}
+                      {isOverdue ? (
+                        <span className="rounded-lg border border-rose-300/40 bg-rose-500/20 px-2 py-1 text-xs font-semibold text-rose-50">
+                          SLA · {slaEvidence.ageMinutes ?? 0} min
+                        </span>
+                      ) : null}
                     </span>
                     <span className="mt-3 block truncate text-lg font-medium text-white">{request.title}</span>
                     <span className="mt-1 block text-xs text-white/40">{new Date(request.createdAtIso).toLocaleString()}</span>

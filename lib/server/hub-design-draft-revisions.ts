@@ -9,8 +9,13 @@ import {
   normalizeCanonicalHotelSourceUrl,
   stableDesignDraftStringify,
   validateHubDesignDraftPayload,
+  type HubDesignApprovedIntelligenceLineage,
   type HubDesignDraftPayload,
 } from "@/lib/product-factory/hub-design-draft";
+import {
+  loadApprovedHotelIntelligenceEnvelope,
+  loadHotelIntelligenceWorkspaceByCanonicalUrl,
+} from "@/lib/server/hotel-intelligence-revisions";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export type HubDesignRevisionMetadata = {
@@ -59,36 +64,102 @@ function requireIntelligencePackage(value: unknown): HotelIntelligencePackage {
   return value as HotelIntelligencePackage;
 }
 
-export function prepareHubDesignRevision(input: { sourcePackage: unknown; payload: unknown }) {
+function approvedLineage(input: {
+  workspaceId: string;
+  revisionId: string;
+  revisionNo: number;
+  scanRunId: string;
+  scanEvidenceChecksum: string;
+  contentChecksum: string;
+}): HubDesignApprovedIntelligenceLineage {
+  return {
+    schemaVersion: "approved-hotel-intelligence-v1",
+    authority: "approved_hotel_intelligence_revision",
+    workspaceId: input.workspaceId,
+    revisionId: input.revisionId,
+    revisionNo: input.revisionNo,
+    scanRunId: input.scanRunId,
+    scanEvidenceChecksum: input.scanEvidenceChecksum,
+    contentChecksum: input.contentChecksum,
+  };
+}
+
+export function prepareHubDesignRevision(input: {
+  sourcePackage: unknown;
+  approvedIntelligence: HubDesignApprovedIntelligenceLineage;
+  payload: unknown;
+}) {
   const sourcePackage = requireIntelligencePackage(input.sourcePackage);
-  const payload = asHubDesignDraftPayload(input.payload);
-  if (!payload) {
+  const draftPayload = asHubDesignDraftPayload(input.payload);
+  if (!draftPayload) {
     const validation = validateHubDesignDraftPayload(input.payload);
     throw new Error(`HUB_DESIGN_PAYLOAD_INVALID:${validation.errors.join(",")}`);
   }
 
   const packageCanonicalUrl = normalizeCanonicalHotelSourceUrl(sourcePackage.source.canonicalUrl);
-  const payloadCanonicalUrl = normalizeCanonicalHotelSourceUrl(payload.source.canonicalUrl);
+  const payloadCanonicalUrl = normalizeCanonicalHotelSourceUrl(draftPayload.source.canonicalUrl);
   if (packageCanonicalUrl !== payloadCanonicalUrl) throw new Error("HUB_DESIGN_SOURCE_MISMATCH");
 
-  const hotelName = String(payload.source.hotelName || "").trim();
+  const hotelName = String(sourcePackage.hotelProfileLayer?.identity?.hotelName || "").trim();
   if (!hotelName) throw new Error("HUB_DESIGN_HOTEL_NAME_REQUIRED");
 
-  const validation = validateHubDesignDraftPayload(payload);
+  const payloadWithLineage: HubDesignDraftPayload = {
+    ...draftPayload,
+    source: {
+      canonicalUrl: packageCanonicalUrl,
+      hotelName,
+      packageSchemaVersion: "hotel-intelligence-v1",
+      approvedIntelligence: input.approvedIntelligence,
+    },
+  };
+  const validation = validateHubDesignDraftPayload(payloadWithLineage);
+  if (!validation.ok) {
+    throw new Error(`HUB_DESIGN_PAYLOAD_INVALID:${validation.errors.join(",")}`);
+  }
   const sourcePackageJson = JSON.parse(stableDesignDraftStringify(sourcePackage)) as HotelIntelligencePackage;
-  const payloadJson = JSON.parse(stableDesignDraftStringify(payload)) as HubDesignDraftPayload;
+  const payloadJson = JSON.parse(stableDesignDraftStringify(payloadWithLineage)) as HubDesignDraftPayload;
 
   return {
     sourceKey: buildHubDesignSourceKey(packageCanonicalUrl),
     canonicalUrl: packageCanonicalUrl,
     hotelName,
-    schemaVersion: payload.schemaVersion,
+    schemaVersion: payloadJson.schemaVersion,
     sourcePackageChecksum: sha256Hex(stableDesignDraftStringify(sourcePackageJson)),
     payloadChecksum: sha256Hex(stableDesignDraftStringify(payloadJson)),
     sourcePackageJson,
     payloadJson,
     validation,
   };
+}
+
+async function prepareAuthoritativeHubDesignRevision(payload: unknown) {
+  const draftPayload = asHubDesignDraftPayload(payload);
+  if (!draftPayload) {
+    const validation = validateHubDesignDraftPayload(payload);
+    throw new Error(`HUB_DESIGN_PAYLOAD_INVALID:${validation.errors.join(",")}`);
+  }
+
+  const canonicalUrl = normalizeCanonicalHotelSourceUrl(draftPayload.source.canonicalUrl);
+  const intelligenceWorkspace = await loadHotelIntelligenceWorkspaceByCanonicalUrl(canonicalUrl);
+  const approvedRevisionId = intelligenceWorkspace?.workspace.approvedRevisionId || null;
+  if (!intelligenceWorkspace || !approvedRevisionId) {
+    throw new Error("HUB_DESIGN_APPROVED_INTELLIGENCE_REQUIRED");
+  }
+
+  const approved = await loadApprovedHotelIntelligenceEnvelope(approvedRevisionId);
+  if (approved.lineage.workspaceId !== intelligenceWorkspace.workspace.id) {
+    throw new Error("HUB_DESIGN_APPROVED_INTELLIGENCE_WORKSPACE_MISMATCH");
+  }
+  const approvedCanonicalUrl = normalizeCanonicalHotelSourceUrl(approved.intelligencePackage.source.canonicalUrl);
+  if (approvedCanonicalUrl !== canonicalUrl) {
+    throw new Error("HUB_DESIGN_APPROVED_INTELLIGENCE_SOURCE_MISMATCH");
+  }
+
+  return prepareHubDesignRevision({
+    sourcePackage: approved.intelligencePackage,
+    approvedIntelligence: approvedLineage(approved.lineage),
+    payload: draftPayload,
+  });
 }
 
 function mapRevision(row: Record<string, unknown>): HubDesignRevisionMetadata {
@@ -156,10 +227,9 @@ export async function saveHubDesignDraftRevision(input: {
   actorAdminId: string;
   idempotencyKey: string;
   parentRevisionId: string | null;
-  sourcePackage: unknown;
   payload: unknown;
 }) {
-  const prepared = prepareHubDesignRevision({ sourcePackage: input.sourcePackage, payload: input.payload });
+  const prepared = await prepareAuthoritativeHubDesignRevision(input.payload);
   const { data, error } = await supabaseAdmin.rpc("save_hub_design_draft_revision_v1", {
     p_actor_admin_id: input.actorAdminId,
     p_source_key: prepared.sourceKey,
@@ -185,6 +255,7 @@ export async function saveHubDesignDraftRevision(input: {
     replayed: Boolean(row.replayed),
     payloadChecksum: prepared.payloadChecksum,
     sourcePackageChecksum: prepared.sourcePackageChecksum,
+    approvedIntelligence: prepared.payloadJson.source.approvedIntelligence,
   };
 }
 

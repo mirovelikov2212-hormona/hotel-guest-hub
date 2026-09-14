@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "checkpoint": "cm2-version-diff",
+  "baseCheckpoint": "cm1-post-live-version-transition",
+  "expectedNeedsReview": 204,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "lib/server/factory-production-version-readiness.ts",
+      "fromLine": 91,
+      "operation": "select",
+      "toLine": 92
+    },
+    {
+      "filePath": "lib/server/factory-production-version-readiness.ts",
+      "fromLine": 132,
+      "operation": "rpc",
+      "toLine": 184
+    }
+  ],
+  "additions": []
+}

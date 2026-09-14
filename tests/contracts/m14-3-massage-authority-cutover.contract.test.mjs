@@ -18,6 +18,14 @@ const staffRequest = readFileSync(
   new URL("../../lib/server/massage-staff-request.ts", import.meta.url),
   "utf8",
 );
+const snapshotCronRoute = readFileSync(
+  new URL("../../app/api/cron/massage-snapshot-sync/route.ts", import.meta.url),
+  "utf8",
+);
+const systemEventResolution = readFileSync(
+  new URL("../../lib/server/system-event-resolution.ts", import.meta.url),
+  "utf8",
+);
 
 test("M14.3.1 availability window RPC is tenant scoped, bounded and service-role only", () => {
   assert.match(migration, /get_massage_runtime_availability_window/);
@@ -117,4 +125,35 @@ test("M14.3.1 guest history remains backed by tenant/stay/device-scoped guest re
   assert.match(guestRoute, /isMassageBookingVisibleForStay/);
   assert.match(staffRequest, /stay_id: stayId/);
   assert.match(staffRequest, /stay_device_id: stayDeviceId/);
+});
+
+test("massage snapshot recovery closes only matching unresolved critical incidents and preserves history", () => {
+  assert.match(systemEventResolution, /\.from\("system_events"\)/);
+  assert.match(systemEventResolution, /\.update\(\{ resolved_at: resolvedAt \}\)/);
+  assert.match(systemEventResolution, /\.eq\("hotel_id", hotelId\)/);
+  assert.match(systemEventResolution, /\.eq\("severity", "critical"\)/);
+  assert.match(systemEventResolution, /\.eq\("source", input\.source\)/);
+  assert.match(systemEventResolution, /\.eq\("event_type", eventType\)/);
+  assert.match(systemEventResolution, /\.is\("resolved_at", null\)/);
+  assert.match(systemEventResolution, /\.lte\("created_at", resolvedAt\)/);
+  assert.match(systemEventResolution, /\.select\("id"\)/);
+  assert.doesNotMatch(systemEventResolution, /\.delete\(/);
+  assert.match(systemEventResolution, /catch \(error\)/);
+});
+
+test("massage snapshot recovery bookkeeping is best-effort and cannot turn a successful refresh into a snapshot failure", () => {
+  const refreshIndex = snapshotCronRoute.indexOf("snapshot = await refreshMassageCalendarSnapshot");
+  const snapshotFailureIndex = snapshotCronRoute.indexOf('primaryFailure = { stage: "snapshot", error }');
+  const recoveryIndex = snapshotCronRoute.indexOf("const recovery = await resolveOpenCriticalSystemEvents");
+  const reconciliationIndex = snapshotCronRoute.indexOf("reconciliation = await reconcilePendingMassageBookingAttempts");
+
+  assert.ok(refreshIndex >= 0, "snapshot refresh must remain present");
+  assert.ok(snapshotFailureIndex > refreshIndex, "snapshot failure boundary must follow the refresh attempt");
+  assert.ok(recoveryIndex > snapshotFailureIndex, "recovery bookkeeping must run outside the snapshot failure try/catch");
+  assert.ok(reconciliationIndex > recoveryIndex, "recovery bookkeeping must run before pending booking reconciliation");
+  assert.match(snapshotCronRoute, /if \(snapshot\) \{[\s\S]*resolveOpenCriticalSystemEvents/);
+  assert.match(snapshotCronRoute, /eventType: "massage_calendar_snapshot_refresh_failed"/);
+  assert.match(snapshotCronRoute, /eventType: "massage_calendar_snapshot_refresh_recovered"/);
+  assert.match(snapshotCronRoute, /if \(recovery\.resolvedCount > 0\)/);
+  assert.match(snapshotCronRoute, /\[massage-snapshot-recovery\] bookkeeping failed/);
 });

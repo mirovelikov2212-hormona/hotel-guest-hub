@@ -1,0 +1,167 @@
+/* StayHub internal tools brand identity
+   Source of truth: public StayHub marketing palette.
+   Primary ink: #0D1B2A · Accent: #9B86BD · Surface: #FFFFFF */
+
+.stayhub-tools-shell {
+  --stayhub-tools-ink: #0D1B2A;
+  --stayhub-tools-accent: #9B86BD;
+  --stayhub-tools-white: #FFFFFF;
+  --stayhub-tools-bg: #F7F5FA;
+  --stayhub-tools-soft: #F1EDF6;
+  --stayhub-tools-muted: #667085;
+  --stayhub-tools-border: #DCD4E8;
+  --stayhub-tools-accent-dark: #6F5A91;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] {
+  background: var(--stayhub-tools-bg) !important;
+  color: var(--stayhub-tools-ink) !important;
+  color-scheme: light;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .stayhub-tools-theme-toggle {
+  border-color: var(--stayhub-tools-border) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  color: var(--stayhub-tools-ink) !important;
+  box-shadow: 0 10px 28px rgba(13, 27, 42, 0.10) !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/90,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/80,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/70,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/60,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/50,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/40 {
+  background-color: var(--stayhub-tools-bg) !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-900,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-900\/90,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-900\/85,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-900\/80,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-900\/70,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-900\/60,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-900\/50 {
+  background-color: var(--stayhub-tools-white) !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-800,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-800\/50,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/20,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/30,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/40,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/50 {
+  background-color: var(--stayhub-tools-soft) !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-neutral-900,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-neutral-800,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-neutral-700,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-neutral-600,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-white\/5,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-white\/10,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-white\/15,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-white\/20 {
+  border-color: var(--stayhub-tools-border) !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-white,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-50,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-100,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-200,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-300 {
+  color: var(--stayhub-tools-ink) !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-400,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-500,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-600,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-700 {
+  color: var(--stayhub-tools-muted) !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-cyan-50,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-cyan-100,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-cyan-200,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-cyan-300,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-violet-50,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-violet-100,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-violet-200,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-violet-300,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-indigo-500,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-indigo-600,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-teal-500,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-teal-600 {
+  color: var(--stayhub-tools-accent-dark) !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-cyan-300\/5,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-cyan-300\/10,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-violet-300\/5,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-violet-300\/10,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-indigo-500\/10,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-teal-500\/10 {
+  background-color: rgba(155, 134, 189, 0.12) !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-cyan-300\/15,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-cyan-300\/20,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-cyan-300\/25,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-cyan-300\/40,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-violet-300\/15,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-violet-300\/20,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-violet-300\/25,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-violet-300\/35,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-violet-300\/40,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-violet-300\/45,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-indigo-500\/25,
+.stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-teal-500\/25 {
+  border-color: rgba(155, 134, 189, 0.40) !important;
+}
+
+/* Dark mode stays recognisably StayHub instead of becoming generic neutral black. */
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] {
+  background: #0D1B2A !important;
+  color: #FFFFFF !important;
+  color-scheme: dark;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .bg-neutral-950,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .bg-neutral-950\/90,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .bg-neutral-950\/80,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .bg-neutral-950\/70,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .bg-neutral-950\/60,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .bg-neutral-950\/50 {
+  background-color: #0D1B2A !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .bg-neutral-900,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .bg-neutral-900\/90,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .bg-neutral-900\/85,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .bg-neutral-900\/80 {
+  background-color: #14273A !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .border-neutral-800,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .border-neutral-700,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .border-white\/10,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .border-white\/15,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .border-white\/20 {
+  border-color: #34455A !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .text-cyan-100,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .text-cyan-200,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .text-cyan-300,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .text-violet-100,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .text-violet-200,
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .text-violet-300 {
+  color: #C8B9DF !important;
+}
+
+.stayhub-tools-shell[data-stayhub-tools-theme="dark"] .stayhub-tools-theme-toggle {
+  background: #14273A !important;
+  border-color: #536079 !important;
+  color: #FFFFFF !important;
+}
