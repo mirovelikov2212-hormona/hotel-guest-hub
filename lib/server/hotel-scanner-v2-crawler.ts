@@ -6,6 +6,7 @@ import {
   type HotelScannerRobotsPolicy,
 } from "@/lib/server/hotel-scanner-robots.mjs";
 import { isPublicBusinessCrawlUrl } from "@/lib/server/hotel-scanner-crawl-plan.mjs";
+import { buildHotelScannerCoveragePlanV2 } from "@/lib/server/hotel-scanner-v2-coverage.mjs";
 import { classifyHotelScannerPageV2 } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
 import {
   extractHotelPageStructureV2,
@@ -23,7 +24,9 @@ import {
 
 export { HotelScannerV2NetworkError as HotelScannerV2Error } from "@/lib/server/hotel-scanner-v2-network";
 
-const MAX_PAGES = 56;
+const MAX_INITIAL_PAGES = 56;
+const MAX_COVERAGE_FOLLOWUP_ATTEMPTS = 72;
+const MAX_TOTAL_PAGES = MAX_INITIAL_PAGES + MAX_COVERAGE_FOLLOWUP_ATTEMPTS;
 const MAX_DISCOVERED_PAGES = 2_000;
 const MAX_PUBLIC_DOCUMENTS = 200;
 const MAX_SITEMAP_DOCUMENTS = 24;
@@ -61,6 +64,19 @@ export type HotelScannerV2PublicDocument = {
   status: "discovered_not_ingested";
   discoveredBy: Array<"sitemap" | "page_link">;
 };
+export type HotelScannerV2CoverageSummary = {
+  schemaVersion: "hotel-scanner-v2-coverage-1";
+  coverageComplete: boolean;
+  discoveredRelevantCount: number;
+  fetchedRelevantCount: number;
+  pendingRelevantCount: number;
+  failedRelevantCount: number;
+  discoveredRelevantUrls: string[];
+  fetchedRelevantUrls: string[];
+  pendingRelevantUrls: string[];
+  failedRelevantUrls: string[];
+  nextBatch: string[];
+};
 export type HotelScannerV2EvidenceBundle = {
   requestedUrl: string;
   canonicalUrl: string;
@@ -73,6 +89,7 @@ export type HotelScannerV2EvidenceBundle = {
     internalLinkUrls: string[];
     navigationUrls: string[];
     failedPageUrls: string[];
+    coverage: HotelScannerV2CoverageSummary;
   };
   crawlPolicy: {
     publicBusinessBoundary: true;
@@ -350,15 +367,20 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
   const robotsBlockedUrls = new Set<string>();
   let totalText = firstPage.text.length;
 
-  while (pages.length < MAX_PAGES && totalText < MAX_TOTAL_TEXT) {
-    const candidates = orderedCandidates(discoveredPages, attempted, preferredLanguage).filter((url) => {
-      const allowed = isHotelScannerRobotsAllowed(url, robotsState.policy);
-      if (!allowed) robotsBlockedUrls.add(url);
-      return allowed;
-    });
-    if (!candidates.length) break;
+  const absorbPage = (page: HotelScannerV2PageEvidence | null) => {
+    if (!page || pages.some((existing) => existing.url === page.url)) return;
+    const remaining = Math.max(0, MAX_TOTAL_TEXT - totalText);
+    if (!remaining) return;
+    page.text = page.text.slice(0, remaining);
+    totalText += page.text.length;
+    pages.push(page);
+    for (const link of page.links) { internalLinks.add(link); if (discoveredPages.size < MAX_DISCOVERED_PAGES) discoveredPages.add(link); }
+    for (const link of page.navigationLinks) { navigation.add(link); if (discoveredPages.size < MAX_DISCOVERED_PAGES) discoveredPages.add(link); }
+    for (const alternate of page.languageAlternates) if (discoveredPages.size < MAX_DISCOVERED_PAGES) discoveredPages.add(alternate.url);
+    for (const documentUrl of page.documentUrls) if (pageDocuments.size < MAX_PUBLIC_DOCUMENTS) pageDocuments.add(documentUrl);
+  };
 
-    const batch = candidates.slice(0, Math.min(CRAWL_BATCH_SIZE, MAX_PAGES - pages.length));
+  const fetchBatch = async (batch: string[]) => {
     for (const url of batch) attempted.add(url);
     const fetched = await Promise.all(batch.map(async (url) => {
       try {
@@ -367,20 +389,50 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
         return buildPageEvidence(response.url, response.html);
       } catch { failedPageUrls.add(url); return null; }
     }));
+    for (const page of fetched) absorbPage(page);
+  };
 
-    for (const page of fetched) {
-      if (!page || pages.some((existing) => existing.url === page.url)) continue;
-      const remaining = Math.max(0, MAX_TOTAL_TEXT - totalText);
-      if (!remaining) break;
-      page.text = page.text.slice(0, remaining);
-      totalText += page.text.length;
-      pages.push(page);
-      for (const link of page.links) { internalLinks.add(link); if (discoveredPages.size < MAX_DISCOVERED_PAGES) discoveredPages.add(link); }
-      for (const link of page.navigationLinks) { navigation.add(link); if (discoveredPages.size < MAX_DISCOVERED_PAGES) discoveredPages.add(link); }
-      for (const alternate of page.languageAlternates) if (discoveredPages.size < MAX_DISCOVERED_PAGES) discoveredPages.add(alternate.url);
-      for (const documentUrl of page.documentUrls) if (pageDocuments.size < MAX_PUBLIC_DOCUMENTS) pageDocuments.add(documentUrl);
-    }
+  while (pages.length < MAX_INITIAL_PAGES && totalText < MAX_TOTAL_TEXT) {
+    const candidates = orderedCandidates(discoveredPages, attempted, preferredLanguage).filter((url) => {
+      const allowed = isHotelScannerRobotsAllowed(url, robotsState.policy);
+      if (!allowed) robotsBlockedUrls.add(url);
+      return allowed;
+    });
+    if (!candidates.length) break;
+    const batch = candidates.slice(0, Math.min(CRAWL_BATCH_SIZE, MAX_INITIAL_PAGES - pages.length));
+    await fetchBatch(batch);
   }
+
+  let coverageFollowupAttempts = 0;
+  while (pages.length < MAX_TOTAL_PAGES && totalText < MAX_TOTAL_TEXT && coverageFollowupAttempts < MAX_COVERAGE_FOLLOWUP_ATTEMPTS) {
+    const plan = buildHotelScannerCoveragePlanV2({
+      pages,
+      sitemapPageUrls: sitemap.pageUrls,
+      internalLinkUrls: [...internalLinks],
+      navigationUrls: [...navigation],
+      attemptedUrls: [...attempted],
+      failedUrls: [...failedPageUrls],
+      batchLimit: Math.min(CRAWL_BATCH_SIZE, MAX_COVERAGE_FOLLOWUP_ATTEMPTS - coverageFollowupAttempts),
+    });
+    const batch = plan.nextBatch.filter((url: string) => {
+      const allowed = isHotelScannerRobotsAllowed(url, robotsState.policy);
+      if (!allowed) robotsBlockedUrls.add(url);
+      return allowed;
+    });
+    if (!batch.length) break;
+    coverageFollowupAttempts += batch.length;
+    await fetchBatch(batch);
+  }
+
+  const coverage = buildHotelScannerCoveragePlanV2({
+    pages,
+    sitemapPageUrls: sitemap.pageUrls,
+    internalLinkUrls: [...internalLinks],
+    navigationUrls: [...navigation],
+    attemptedUrls: [...attempted],
+    failedUrls: [...failedPageUrls],
+    batchLimit: 0,
+  }) as HotelScannerV2CoverageSummary;
 
   const documents = new Map<string, Set<"sitemap" | "page_link">>();
   for (const url of sitemapDocuments) documents.set(url, new Set(["sitemap"]));
@@ -400,7 +452,7 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
     })),
     discovery: {
       sitemapPageUrls: sitemap.pageUrls, sitemapDocumentUrls: [...sitemapDocuments], internalLinkUrls: [...internalLinks],
-      navigationUrls: [...navigation], failedPageUrls: [...failedPageUrls].sort(),
+      navigationUrls: [...navigation], failedPageUrls: [...failedPageUrls].sort(), coverage,
     },
     crawlPolicy: {
       publicBusinessBoundary: true, robotsApplied: robotsState.found, robotsUrl: robotsState.url, robotsBlockedUrlCount: robotsBlockedUrls.size,
