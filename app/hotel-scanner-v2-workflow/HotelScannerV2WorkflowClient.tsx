@@ -3,12 +3,23 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
+import type { ScannerV2CandidateView, ScannerV2DocumentView } from "../hotel-scanner-v2/HotelScannerV2Details";
+import HotelScannerV2ReviewWorkspace, { type ScannerV2ReviewSection } from "../hotel-scanner-v2/HotelScannerV2ReviewWorkspace";
 
 type WorkflowStart = {
   ok?: boolean;
   runId?: string;
   status?: string;
   error?: string;
+};
+
+type DomainCoverage = {
+  domain: string;
+  status: string;
+  reason: string;
+  expected: number | null;
+  extracted: number;
+  missingItems: Array<{ id: string; nameHint: string; url: string; crawled: boolean }>;
 };
 
 type WorkflowResult = {
@@ -19,9 +30,22 @@ type WorkflowResult = {
     siteMap?: { counts?: { crawledPages?: number; resources?: number } };
     inventory?: { counts?: { expectedItems?: number } };
   };
+  documents?: {
+    documents?: ScannerV2DocumentView[];
+  };
   completeness?: {
+    status?: string;
+    domains?: DomainCoverage[];
     documents?: { discovered?: number; ingested?: number };
     conflicts?: { unresolved?: number };
+    blockingReasons?: string[];
+  };
+  intelligenceCandidate?: ScannerV2CandidateView;
+  reviewSections?: ScannerV2ReviewSection[];
+  validationGate?: {
+    downstreamHandoffAllowed?: false;
+    approvalEligible?: boolean;
+    blockingReasons?: string[];
   };
   diagnostics?: { totalLatencyMs?: number };
 };
@@ -46,7 +70,7 @@ const COPY = {
     run: "Workflow Run",
     status: "Статус",
     resume: "При refresh този run се възстановява автоматично.",
-    completed: "Сканирането завърши. Данните по-долу са резултатът от същия Scanner V2 pipeline, но изпълнен като durable workflow.",
+    completed: "Сканирането завърши. Данните по-долу са пълният резултат от същия Scanner V2 pipeline, изпълнен като durable workflow.",
     failed: "Workflow сканирането завърши с грешка.",
     newScan: "Ново сканиране",
     pipeline: "Pipeline статус",
@@ -56,6 +80,16 @@ const COPY = {
     pdf: "PDF",
     conflicts: "Конфликти",
     runtime: "Scanner runtime",
+    coverage: "2. Completeness по категории",
+    coverageHelp: "Тук вече се вижда защо Pipeline е INCOMPLETE: expected срещу extracted и конкретните липсващи entities.",
+    extracted: "Extracted",
+    missing: "Липсват",
+    approval: "5. Approval gate",
+    approvalHelp: "Workflow-ът остава evidence-only. Няма автоматичен handoff към Design Studio / Factory.",
+    eligible: "Готово за човешки approval",
+    blocked: "Блокирано",
+    blockers: "Blocking reasons",
+    noBlockers: "Няма blocking reasons.",
   },
   en: {
     title: "Scanner V2 · Durable Workflow test",
@@ -66,7 +100,7 @@ const COPY = {
     run: "Workflow Run",
     status: "Status",
     resume: "After refresh this run is restored automatically.",
-    completed: "The scan completed. The data below comes from the same Scanner V2 pipeline, executed as a durable workflow.",
+    completed: "The scan completed. The data below is the full result from the same Scanner V2 pipeline, executed as a durable workflow.",
     failed: "The workflow scan failed.",
     newScan: "New scan",
     pipeline: "Pipeline status",
@@ -76,6 +110,16 @@ const COPY = {
     pdf: "PDF",
     conflicts: "Conflicts",
     runtime: "Scanner runtime",
+    coverage: "2. Completeness by category",
+    coverageHelp: "This shows why the pipeline is INCOMPLETE: expected versus extracted and the concrete missing entities.",
+    extracted: "Extracted",
+    missing: "Missing",
+    approval: "5. Approval gate",
+    approvalHelp: "The workflow remains evidence-only. There is no automatic handoff to Design Studio / Factory.",
+    eligible: "Ready for human approval",
+    blocked: "Blocked",
+    blockers: "Blocking reasons",
+    noBlockers: "No blocking reasons.",
   },
 } as const;
 
@@ -91,6 +135,21 @@ function formatDuration(ms?: number) {
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;
   return `${minutes}m ${rest}s`;
+}
+
+function domainLabel(domain: string, lang: ControlPlaneLang) {
+  const labels: Record<string, [string, string]> = {
+    accommodation: ["Настаняване", "Accommodation"],
+    gastronomy: ["Ресторанти и барове", "Restaurants & bars"],
+    spa: ["SPA / Medical", "SPA / Medical"],
+    services: ["Хотелски услуги", "Hotel services"],
+    experiences: ["Преживявания", "Experiences"],
+    events: ["Събития", "Events"],
+    offers: ["Оферти", "Offers"],
+    policies: ["Правила", "Policies"],
+    contacts: ["Контакти", "Contacts"],
+  };
+  return labels[domain]?.[lang === "bg" ? 0 : 1] || domain;
 }
 
 export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPlaneLang }) {
@@ -230,6 +289,7 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
   }, [result, copy]);
 
   const active = Boolean(runId && !result && !error);
+  const blockers = result?.validationGate?.blockingReasons || result?.completeness?.blockingReasons || [];
 
   return (
     <div className="space-y-6">
@@ -279,23 +339,85 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
       ) : null}
 
       {result ? (
-        <section className="v2-panel p-5 sm:p-6">
-          <span className="v2-pill v2-pill-good">COMPLETED</span>
-          <p className="v2-muted mt-3 text-sm leading-6">{copy.completed}</p>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {metrics.map(([label, value]) => (
-              <div key={label} className="v2-card-soft p-4">
-                <p className="v2-muted text-xs font-bold uppercase tracking-[0.12em]">{label}</p>
-                <p className="mt-2 text-lg font-semibold">{value}</p>
+        <>
+          <section className="v2-panel p-5 sm:p-6">
+            <span className="v2-pill v2-pill-good">COMPLETED</span>
+            <p className="v2-muted mt-3 text-sm leading-6">{copy.completed}</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {metrics.map(([label, value]) => (
+                <div key={label} className="v2-card-soft p-4">
+                  <p className="v2-muted text-xs font-bold uppercase tracking-[0.12em]">{label}</p>
+                  <p className="mt-2 text-lg font-semibold">{value}</p>
+                </div>
+              ))}
+            </div>
+            {result.source?.canonicalUrl ? (
+              <a className="v2-source-link mt-5 inline-flex text-sm font-semibold" href={result.source.canonicalUrl} target="_blank" rel="noreferrer">
+                {result.source.canonicalUrl}
+              </a>
+            ) : null}
+          </section>
+
+          <section className="v2-panel p-5 sm:p-6">
+            <h2 className="v2-section-title text-xl">{copy.coverage}</h2>
+            <p className="v2-muted mt-1 max-w-4xl text-sm leading-6">{copy.coverageHelp}</p>
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              {(result.completeness?.domains || []).map((domain) => (
+                <article key={domain.domain} className="v2-card p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-bold">{domainLabel(domain.domain, lang)}</h3>
+                      <p className="v2-muted mt-1 text-xs font-mono">{domain.reason}</p>
+                    </div>
+                    <span className={`v2-pill ${domain.status === "COMPLETE" ? "v2-pill-good" : domain.status === "CONFLICT" ? "v2-pill-warn" : "v2-pill-info"}`}>{domain.status}</span>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                    <span className="v2-pill">{copy.extracted}: {domain.extracted}</span>
+                    <span className="v2-pill">{copy.expected}: {domain.expected ?? "?"}</span>
+                    <span className="v2-pill">{copy.missing}: {domain.missingItems?.length || 0}</span>
+                  </div>
+                  {domain.missingItems?.length ? (
+                    <div className="mt-4 space-y-2">
+                      {domain.missingItems.map((item) => (
+                        <div key={item.id} className="v2-card-soft p-3">
+                          <p className="text-sm font-semibold">{item.nameHint || item.id}</p>
+                          {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="v2-source-link mt-1 block break-all text-xs">{item.url}</a> : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <HotelScannerV2ReviewWorkspace
+            sections={result.reviewSections}
+            candidate={result.intelligenceCandidate}
+            documents={result.documents?.documents}
+            lang={lang}
+          />
+
+          <section className="v2-panel p-5 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="v2-section-title text-xl">{copy.approval}</h2>
+                <p className="v2-muted mt-1 max-w-4xl text-sm leading-6">{copy.approvalHelp}</p>
               </div>
-            ))}
-          </div>
-          {result.source?.canonicalUrl ? (
-            <a className="v2-source-link mt-5 inline-flex text-sm font-semibold" href={result.source.canonicalUrl} target="_blank" rel="noreferrer">
-              {result.source.canonicalUrl}
-            </a>
-          ) : null}
-        </section>
+              <span className={`v2-pill ${result.validationGate?.approvalEligible ? "v2-pill-good" : "v2-pill-bad"}`}>
+                {result.validationGate?.approvalEligible ? copy.eligible : copy.blocked}
+              </span>
+            </div>
+            <div className="mt-5">
+              <p className="v2-muted text-xs font-bold uppercase tracking-[0.14em]">{copy.blockers}</p>
+              {blockers.length ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {blockers.map((blocker) => <span key={blocker} className="v2-pill v2-pill-warn font-mono text-xs">{blocker}</span>)}
+                </div>
+              ) : <p className="v2-muted mt-2 text-sm">{copy.noBlockers}</p>}
+            </div>
+          </section>
+        </>
       ) : null}
     </div>
   );
