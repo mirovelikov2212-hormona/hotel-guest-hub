@@ -112,6 +112,21 @@ test("hreflang alternates with translated slugs count as the same covered logica
   assert.equal(plan.discoveredRelevantCount, plan.fetchedRelevantCount + plan.pendingRelevantCount);
 });
 
+test("successfully attempted redirect aliases count as read coverage even when only the canonical response page is retained", () => {
+  const requestedAlias = "https://hotel.example/hotel-policy";
+  const retainedCanonical = "https://hotel.example/hotel-rules";
+  const plan = buildHotelScannerCoveragePlanV2({
+    pages: [page(retainedCanonical, { title: "Hotel rules" })],
+    sitemapPageUrls: [requestedAlias, retainedCanonical],
+    attemptedUrls: [requestedAlias, retainedCanonical],
+    failedUrls: [],
+    batchLimit: 20,
+  });
+
+  assert.equal(plan.pendingRelevantCount, 0);
+  assert.equal(plan.coverageComplete, true);
+});
+
 test("booking actions and Cloudflare helper routes never become required hotel coverage", () => {
   const rooms = "https://hotel.example/en/rooms";
   const plan = buildHotelScannerCoveragePlanV2({
