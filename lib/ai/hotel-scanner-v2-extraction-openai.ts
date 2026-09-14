@@ -90,6 +90,20 @@ function outputTokenBudget(domain: string, expectedCount: number | null) {
   return Math.min(MAX_AI_OUTPUT_TOKENS, Math.max(3_000, 1_200 + expected * 650));
 }
 
+function compactRecoveryPages(pages: HotelScannerV2PagePayload[]) {
+  return pages.map((page) => ({
+    ...page,
+    headings: page.headings.slice(0, 40),
+    content_blocks: page.content_blocks.slice(0, 14).map((block) => ({
+      ...block,
+      text: cleanV2(block.text, 360),
+      links: block.links.slice(0, 4),
+    })),
+    json_ld_entities: page.json_ld_entities.slice(0, 24),
+    text: cleanV2(page.text, 3_600),
+  }));
+}
+
 function issueFromError(input: {
   error: unknown;
   config: HotelScannerV2DomainConfig;
@@ -124,8 +138,9 @@ export async function extractHotelScannerV2Chunk(input: {
 }): Promise<{ facts: HotelScanFact[]; issue: HotelScannerV2ExtractionIssue | null }> {
   const sourceUrls = uniqueV2(input.pages.map((page) => page.url));
   const allowedUrls = new Set(sourceUrls);
-  try {
-    const response = await withBoundedTransientRetry(() => getClient().responses.create({
+
+  async function requestExtraction(pages: HotelScannerV2PagePayload[], maxItems: number, recovery: boolean) {
+    return withBoundedTransientRetry(() => getClient().responses.create({
       model: input.model,
       store: false,
       max_output_tokens: outputTokenBudget(input.config.domain, input.expected.expectedCount),
@@ -142,6 +157,9 @@ export async function extractHotelScannerV2Chunk(input: {
         "Facts must be atomic: one subject + one attribute + one value.",
         "Preserve conflicting values separately. Do not reconcile them.",
         "Do not extract staff names, guest names, biographies, personal profiles or named-person email addresses.",
+        recovery
+          ? `Recovery pass after an output-limit cutoff: emit at most ${maxItems} highest-value facts. First cover each expected entity represented by this chunk, then prioritize hours, price, booking/access, duration/capacity and one concise description. Do not repeat equivalent facts.`
+          : `Return no more than ${maxItems} facts for this chunk.`,
         languageInstruction(input.outputLanguage),
         `category must be one of: ${input.config.categories.join(", ")}.`,
         `attribute must be one of: ${input.config.attributes.join(", ")}.`,
@@ -152,7 +170,7 @@ export async function extractHotelScannerV2Chunk(input: {
         CHUNK: { index: input.chunkIndex + 1, total: input.chunkCount },
         EXPECTED_INVENTORY: input.expected,
         ALLOWED_SOURCE_URLS: sourceUrls,
-        WEBSITE_EVIDENCE: input.pages,
+        WEBSITE_EVIDENCE: pages,
       }),
       text: {
         format: {
@@ -165,7 +183,7 @@ export async function extractHotelScannerV2Chunk(input: {
             properties: {
               facts: {
                 type: "array",
-                maxItems: 100,
+                maxItems,
                 items: {
                   type: "object",
                   additionalProperties: false,
@@ -187,6 +205,20 @@ export async function extractHotelScannerV2Chunk(input: {
         },
       },
     }));
+  }
+
+  try {
+    let response = await requestExtraction(input.pages, 100, false);
+    if (response.status === "incomplete") {
+      const reason = cleanV2((response as { incomplete_details?: { reason?: unknown } }).incomplete_details?.reason || "response_incomplete", 120);
+      if (/max[_\s-]?output|max[_\s-]?tokens?/i.test(reason)) {
+        // A dense page can legitimately contain more atomic facts than fit in a
+        // single response. Retry once with compact evidence and a smaller,
+        // priority-ordered fact set instead of letting entity coverage fluctuate
+        // between identical scans.
+        response = await requestExtraction(compactRecoveryPages(input.pages), 24, true);
+      }
+    }
 
     if (response.status === "incomplete") {
       const reason = (response as { incomplete_details?: { reason?: unknown } }).incomplete_details?.reason;
