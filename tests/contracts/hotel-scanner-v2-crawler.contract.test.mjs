@@ -10,6 +10,8 @@ test("V2 discovery crawler is deterministic and contains no AI extraction depend
   assert.match(crawler, /discoverSitemapResources/);
   assert.match(crawler, /sitemapDocumentUrls/);
   assert.match(crawler, /navigationLinks/);
+  assert.match(crawler, /contentLinks/);
+  assert.match(crawler, /contentUrls/);
   assert.match(crawler, /canonicalHint/);
   assert.match(crawler, /languageAlternates/);
   assert.match(crawler, /hreflang/);
@@ -34,6 +36,8 @@ test("V2 discovery crawler retains public-boundary, robots and isolated SSRF pro
   assert.match(crawler, /MAX_DISCOVERED_PAGES = 2_000/);
   assert.match(crawler, /MAX_PUBLIC_DOCUMENTS = 200/);
   assert.match(crawler, /MAX_INITIAL_PAGES = 56/);
+  assert.match(crawler, /MAX_INITIAL_PAGE_ATTEMPTS = 80/);
+  assert.match(crawler, /initialPageAttempts < MAX_INITIAL_PAGE_ATTEMPTS/);
   assert.match(crawler, /MAX_COVERAGE_FOLLOWUP_ATTEMPTS = 72/);
   assert.match(crawler, /MAX_TOTAL_PAGES = MAX_INITIAL_PAGES \+ MAX_COVERAGE_FOLLOWUP_ATTEMPTS/);
 });
