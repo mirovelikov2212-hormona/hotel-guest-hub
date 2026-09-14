@@ -138,14 +138,37 @@ function languageInstruction(outputLanguage: HotelScannerV2OutputLanguage) {
     : "Write human-readable labels and descriptions in English; preserve official entity names, prices, dates, times, phones and emails exactly.";
 }
 
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error || "");
+}
+
+function errorCode(error: unknown) {
+  const value = error as { code?: unknown; error?: { code?: unknown; type?: unknown } } | null;
+  return String(value?.code || value?.error?.code || value?.error?.type || "").trim().toLocaleLowerCase("en-US");
+}
+
+function isQuotaExhaustedError(error: unknown) {
+  const code = errorCode(error);
+  const message = errorMessage(error);
+  return [
+    "credit_balance_exhausted",
+    "organization_usage_limit_exceeded",
+    "organization_spend_limit_exceeded",
+    "project_spend_limit_exceeded",
+    "insufficient_quota",
+  ].includes(code)
+    || /no credits remaining|credit balance exhausted|insufficient quota|usage limit exceeded|spend limit exceeded/i.test(message);
+}
+
 function isRateLimitError(error: unknown) {
+  if (isQuotaExhaustedError(error)) return false;
   const status = Number((error as { status?: unknown } | null)?.status || 0);
-  const message = error instanceof Error ? error.message : String(error || "");
+  const message = errorMessage(error);
   return status === 429 || /\b429\b|rate limit|tokens per min|TPM/iu.test(message);
 }
 
 function retryDelayMs(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error || "");
+  const message = errorMessage(error);
   const seconds = Number(message.match(/try again in\s+([0-9.]+)s/iu)?.[1] || 0);
   const requested = seconds > 0 ? Math.ceil(seconds * 1_000) + 250 : 2_000;
   return Math.min(DOCUMENT_AI_RATE_LIMIT_MAX_DELAY_MS, Math.max(500, requested));
@@ -273,7 +296,7 @@ async function ingestOne(
       status: "FAILED",
       domains: document.domains,
       facts: [],
-      error: error instanceof Error ? error.message : String(error),
+      error: isQuotaExhaustedError(error) ? "document_ai_quota_exhausted" : errorMessage(error),
       latencyMs: Date.now() - startedAt,
     };
   }
