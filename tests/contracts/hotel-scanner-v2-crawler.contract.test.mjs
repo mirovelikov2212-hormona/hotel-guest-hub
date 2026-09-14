@@ -42,6 +42,15 @@ test("V2 discovery crawler retains public-boundary, robots and isolated SSRF pro
   assert.match(crawler, /MAX_TOTAL_PAGES = MAX_INITIAL_PAGES \+ MAX_COVERAGE_FOLLOWUP_ATTEMPTS/);
 });
 
+test("flat-text retention budget never stops deterministic page coverage", async () => {
+  const crawler = await readProjectFile("lib/server/hotel-scanner-v2-crawler.ts");
+
+  assert.match(crawler, /page\.text = remaining \? page\.text\.slice\(0, remaining\) : ""/);
+  assert.doesNotMatch(crawler, /if \(!remaining\) return/);
+  assert.doesNotMatch(crawler, /while \(pages\.length < MAX_INITIAL_PAGES && totalText < MAX_TOTAL_TEXT/);
+  assert.doesNotMatch(crawler, /while \(pages\.length < MAX_TOTAL_PAGES && totalText < MAX_TOTAL_TEXT/);
+});
+
 test("V2 crawler discovers PDF resources from both sitemap and page links", async () => {
   const crawler = await readProjectFile("lib/server/hotel-scanner-v2-crawler.ts");
 
