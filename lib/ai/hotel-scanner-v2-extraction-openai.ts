@@ -49,7 +49,11 @@ function languageInstruction(outputLanguage: HotelScannerV2OutputLanguage) {
     : "Write human-readable labels and descriptive values in English. Preserve official entity names, prices, times, emails and phone numbers exactly.";
 }
 
-function outputTokenBudget(expectedCount: number | null) {
+function outputTokenBudget(domain: string, expectedCount: number | null) {
+  // Policy pages/documents routinely contain many atomic operational claims even
+  // when the inventory contains only one or two source surfaces. Keep the same
+  // hard global cap, but do not size policy output by source-count alone.
+  if (domain === "policies") return MAX_AI_OUTPUT_TOKENS;
   const expected = Math.max(1, Number(expectedCount || 0));
   return Math.min(MAX_AI_OUTPUT_TOKENS, Math.max(3_000, 1_200 + expected * 650));
 }
@@ -87,7 +91,7 @@ export async function extractHotelScannerV2Chunk(input: {
     const response = await withBoundedRateLimitRetry(() => getClient().responses.create({
       model: input.model,
       store: false,
-      max_output_tokens: outputTokenBudget(input.expected.expectedCount),
+      max_output_tokens: outputTokenBudget(input.config.domain, input.expected.expectedCount),
       reasoning: { effort: "none" },
       instructions: [
         `You are the StayHub Production Hotel Scanner V2 ${input.config.domain} extractor.`,
