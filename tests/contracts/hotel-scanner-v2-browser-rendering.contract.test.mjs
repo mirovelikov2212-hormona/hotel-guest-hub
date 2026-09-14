@@ -39,10 +39,13 @@ test("Scanner V2 browser enrichment is concurrent, bounded and fail-soft", async
   assert.match(source, /finally\s*\{\s*await renderer\.close\(\)/s);
 });
 
-test("Canonical structural inventory can prefer rendered DOM blocks when browser worker is enabled", async () => {
+test("Canonical structural inventory prefers rendered DOM blocks and fills missing cards from raw HTML", async () => {
   const source = await read("lib/server/hotel-scanner-v2-structural-inventory.mjs");
   assert.match(source, /renderedContentBlocks/);
-  assert.match(source, /renderedBlocks\.length \? renderedBlocks : htmlBlocks/);
+  assert.match(source, /mergeEvidenceBlocks\(renderedBlocks, htmlBlocks\)/);
+  assert.match(source, /\[\["rendered", renderedBlocks\], \["html", htmlBlocks\]\]/);
+  assert.match(source, /record\.source === "rendered"/);
+  assert.match(source, /rendered_structural_leaf_block/);
   assert.match(source, /rendered_structural_leaf_cluster/);
 });
 
