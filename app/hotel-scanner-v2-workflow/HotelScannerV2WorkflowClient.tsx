@@ -22,6 +22,16 @@ type DomainCoverage = {
   missingItems: Array<{ id: string; nameHint: string; url: string; crawled: boolean }>;
 };
 
+type SiteCoverage = {
+  coverageComplete?: boolean;
+  discoveredRelevantCount?: number;
+  fetchedRelevantCount?: number;
+  pendingRelevantCount?: number;
+  failedRelevantCount?: number;
+  pendingRelevantUrls?: string[];
+  failedRelevantUrls?: string[];
+};
+
 type WorkflowResult = {
   ok?: boolean;
   pipelineStatus?: string;
@@ -29,6 +39,7 @@ type WorkflowResult = {
   discovery?: {
     siteMap?: { counts?: { crawledPages?: number; resources?: number } };
     inventory?: { counts?: { expectedItems?: number } };
+    coverage?: SiteCoverage;
   };
   documents?: {
     documents?: ScannerV2DocumentView[];
@@ -80,6 +91,16 @@ const COPY = {
     pdf: "PDF",
     conflicts: "Конфликти",
     runtime: "Scanner runtime",
+    siteCoverage: "1. Coverage на релевантните страници",
+    siteCoverageHelp: "Crawler-ът първо установява кои hotel pages са релевантни. Тук се вижда дали всички открити logical pages са реално прочетени преди extraction.",
+    discoveredRelevant: "Открити релевантни",
+    fetchedRelevant: "Прочетени релевантни",
+    pendingRelevant: "Чакат прочит",
+    failedRelevant: "Неуспешни",
+    coverageComplete: "Coverage complete",
+    coverageIncomplete: "Coverage incomplete",
+    pendingPages: "Непрочетени релевантни страници",
+    failedPages: "Неуспешни релевантни страници",
     coverage: "2. Completeness по категории",
     coverageHelp: "Тук вече се вижда защо Pipeline е INCOMPLETE: expected срещу extracted и конкретните липсващи entities.",
     extracted: "Extracted",
@@ -110,6 +131,16 @@ const COPY = {
     pdf: "PDF",
     conflicts: "Conflicts",
     runtime: "Scanner runtime",
+    siteCoverage: "1. Relevant page coverage",
+    siteCoverageHelp: "The crawler first establishes which hotel pages are relevant. This shows whether every discovered logical page was actually read before extraction.",
+    discoveredRelevant: "Relevant discovered",
+    fetchedRelevant: "Relevant fetched",
+    pendingRelevant: "Pending read",
+    failedRelevant: "Failed",
+    coverageComplete: "Coverage complete",
+    coverageIncomplete: "Coverage incomplete",
+    pendingPages: "Unread relevant pages",
+    failedPages: "Failed relevant pages",
     coverage: "2. Completeness by category",
     coverageHelp: "This shows why the pipeline is INCOMPLETE: expected versus extracted and the concrete missing entities.",
     extracted: "Extracted",
@@ -290,6 +321,7 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
 
   const active = Boolean(runId && !result && !error);
   const blockers = result?.validationGate?.blockingReasons || result?.completeness?.blockingReasons || [];
+  const siteCoverage = result?.discovery?.coverage;
 
   return (
     <div className="space-y-6">
@@ -355,6 +387,51 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
               <a className="v2-source-link mt-5 inline-flex text-sm font-semibold" href={result.source.canonicalUrl} target="_blank" rel="noreferrer">
                 {result.source.canonicalUrl}
               </a>
+            ) : null}
+          </section>
+
+          <section className="v2-panel p-5 sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="v2-section-title text-xl">{copy.siteCoverage}</h2>
+                <p className="v2-muted mt-1 max-w-4xl text-sm leading-6">{copy.siteCoverageHelp}</p>
+              </div>
+              <span className={`v2-pill ${siteCoverage?.coverageComplete ? "v2-pill-good" : "v2-pill-warn"}`}>
+                {siteCoverage?.coverageComplete ? copy.coverageComplete : copy.coverageIncomplete}
+              </span>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                [copy.discoveredRelevant, siteCoverage?.discoveredRelevantCount ?? 0],
+                [copy.fetchedRelevant, siteCoverage?.fetchedRelevantCount ?? 0],
+                [copy.pendingRelevant, siteCoverage?.pendingRelevantCount ?? 0],
+                [copy.failedRelevant, siteCoverage?.failedRelevantCount ?? 0],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="v2-card-soft p-4">
+                  <p className="v2-muted text-xs font-bold uppercase tracking-[0.12em]">{label}</p>
+                  <p className="mt-2 text-lg font-semibold">{value}</p>
+                </div>
+              ))}
+            </div>
+            {siteCoverage?.pendingRelevantUrls?.length ? (
+              <details className="v2-card-soft mt-4 p-4">
+                <summary className="cursor-pointer text-sm font-semibold">{copy.pendingPages} ({siteCoverage.pendingRelevantUrls.length})</summary>
+                <div className="mt-3 space-y-2">
+                  {siteCoverage.pendingRelevantUrls.map((pendingUrl) => (
+                    <a key={pendingUrl} href={pendingUrl} target="_blank" rel="noreferrer" className="v2-source-link block break-all text-xs">{pendingUrl}</a>
+                  ))}
+                </div>
+              </details>
+            ) : null}
+            {siteCoverage?.failedRelevantUrls?.length ? (
+              <details className="v2-card-soft mt-4 p-4">
+                <summary className="cursor-pointer text-sm font-semibold">{copy.failedPages} ({siteCoverage.failedRelevantUrls.length})</summary>
+                <div className="mt-3 space-y-2">
+                  {siteCoverage.failedRelevantUrls.map((failedUrl) => (
+                    <a key={failedUrl} href={failedUrl} target="_blank" rel="noreferrer" className="v2-source-link block break-all text-xs">{failedUrl}</a>
+                  ))}
+                </div>
+              </details>
             ) : null}
           </section>
 
