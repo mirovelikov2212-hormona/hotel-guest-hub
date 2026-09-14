@@ -10,6 +10,10 @@ import {
   type HotelScannerV2DomainConfig,
 } from "@/lib/ai/hotel-scanner-v2-extraction-config";
 import {
+  buildDeterministicPolicyFactsV2,
+  buildInventoryIdentityFactsV2,
+} from "@/lib/ai/hotel-scanner-v2-deterministic-facts";
+import {
   chunkPagePayloadsV2,
   expectedInventoryPayloadV2,
   pagePayloadsV2,
@@ -76,7 +80,20 @@ async function extractDomain(
     if (chunk.issue) issues.push(chunk.issue);
   }
 
-  const facts = boundHotelScannerV2FactsToInventory(config, mergeHotelScannerV2Facts(extracted), domainInventory);
+  // Entity existence comes from deterministic inventory/discovery, not from an
+  // LLM successfully echoing every name. AI enriches attributes; it is never
+  // inventory authority. Explicit policy polarity from a dedicated policy/FAQ
+  // block is also preserved deterministically so real cross-source conflicts do
+  // not appear/disappear between identical scans.
+  const deterministic = [
+    ...buildInventoryIdentityFactsV2(domainInventory),
+    ...(config.domain === "policies" ? buildDeterministicPolicyFactsV2(pages) : []),
+  ];
+  const facts = boundHotelScannerV2FactsToInventory(
+    config,
+    mergeHotelScannerV2Facts([...deterministic, ...extracted]),
+    domainInventory,
+  );
   return {
     domain: config.domain,
     status: issues.length ? "PARTIAL" : facts.length ? "EXTRACTED" : "NO_EVIDENCE",
