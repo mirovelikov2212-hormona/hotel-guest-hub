@@ -1,3 +1,4 @@
+import { hotelLiveContentTemporalState, parseHotelLiveContentValidity } from "@/lib/ai/hotel-scanner-live-content.mjs";
 import type { HotelScanVerificationConflict, VerifiedHotelScanFact } from "@/lib/ai/hotel-scanner-verification.mjs";
 import type { HotelIntelligenceCandidateV2 } from "@/lib/product-factory/hotel-intelligence-v2";
 import type { HotelScannerV2ExpectedItem } from "@/lib/server/hotel-scanner-v2-inventory.mjs";
@@ -179,6 +180,17 @@ function statusFor(attributes: HotelReviewCardAttributeV2[], conflicts: HotelRev
   return "SINGLE_SOURCE";
 }
 
+function isExpiredLiveReviewCard(domain: string, attributes: HotelReviewCardAttributeV2[], scannedAt: string) {
+  if (domain !== "events" && domain !== "offers") return false;
+  const dateEvidence = attributes
+    .filter((attribute) => ["date", "start_date", "end_date", "validity"].includes(attribute.attribute))
+    .map((attribute) => `${attribute.label} ${attribute.value}`)
+    .join(" | ");
+  if (!dateEvidence) return false;
+  const validity = parseHotelLiveContentValidity(dateEvidence);
+  return hotelLiveContentTemporalState(validity, scannedAt) === "expired";
+}
+
 export function buildHotelReviewSectionsV2(candidate: HotelIntelligenceCandidateV2): HotelReviewSectionV2[] {
   const sections: HotelReviewSectionV2[] = [];
   for (const domain of candidate.inventory.domains || []) {
@@ -199,10 +211,18 @@ export function buildHotelReviewSectionsV2(candidate: HotelIntelligenceCandidate
         attributes,
         conflicts,
       } satisfies HotelReviewEntityCardV2;
-    });
+    }).filter((card) => !isExpiredLiveReviewCard(domain.domain, card.attributes, candidate.source.scannedAt));
+
+    // The canonical inventory intentionally retains historical public evidence.
+    // The Hub-oriented Review projection shows only currently usable live
+    // events/offers, matching the existing daily Scanner Bridge expiry policy.
+    const liveDomain = domain.domain === "events" || domain.domain === "offers";
+    if (liveDomain && cards.length === 0) continue;
+    const expectedCount = liveDomain ? cards.length : domain.expectedCount;
+
     sections.push({
       domain: domain.domain,
-      expectedCount: domain.expectedCount,
+      expectedCount,
       cardCount: cards.length,
       verifiedCount: cards.filter((card) => card.status === "VERIFIED").length,
       conflictCount: cards.filter((card) => card.status === "CONFLICT").length,
