@@ -19,7 +19,7 @@ let client: OpenAI | null = null;
 function getClient() {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
   if (!apiKey) throw new Error("openai_api_key_missing");
-  if (!client) client = new OpenAI({ apiKey, timeout: 35_000, maxRetries: 0 });
+  if (!client) client = new OpenAI({ apiKey, timeout: 55_000, maxRetries: 0 });
   return client;
 }
 
@@ -27,17 +27,32 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function errorStatus(error: unknown) {
+  return Number((error as { status?: unknown } | null)?.status || 0);
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function isRateLimitError(error: unknown) {
-  const status = Number((error as { status?: unknown } | null)?.status || 0);
-  const message = error instanceof Error ? error.message : String(error);
+  const status = errorStatus(error);
+  const message = errorMessage(error);
   return status === 429 || /(?:^|\s)429(?:\s|$)|rate limit/i.test(message);
 }
 
-async function withBoundedRateLimitRetry<T>(operation: () => Promise<T>) {
+function isTransientAiError(error: unknown) {
+  const status = errorStatus(error);
+  if (status === 408 || status === 425 || status === 429 || status >= 500) return true;
+  const message = errorMessage(error);
+  return /timed?\s*out|timeout|ETIMEDOUT|ECONNRESET|ECONNABORTED|socket hang up|fetch failed|network error|connection reset/i.test(message);
+}
+
+async function withBoundedTransientRetry<T>(operation: () => Promise<T>) {
   try {
     return await operation();
   } catch (error) {
-    if (!isRateLimitError(error)) throw error;
+    if (!isTransientAiError(error)) throw error;
     await sleep(RATE_LIMIT_RETRY_DELAY_MS);
     return operation();
   }
@@ -65,7 +80,7 @@ function issueFromError(input: {
   chunkCount: number;
   sourceUrls: string[];
 }): HotelScannerV2ExtractionIssue {
-  const message = input.error instanceof Error ? input.error.message : String(input.error);
+  const message = errorMessage(input.error);
   return {
     domain: input.config.domain,
     chunkIndex: input.chunkIndex + 1,
@@ -88,7 +103,7 @@ export async function extractHotelScannerV2Chunk(input: {
   const sourceUrls = uniqueV2(input.pages.map((page) => page.url));
   const allowedUrls = new Set(sourceUrls);
   try {
-    const response = await withBoundedRateLimitRetry(() => getClient().responses.create({
+    const response = await withBoundedTransientRetry(() => getClient().responses.create({
       model: input.model,
       store: false,
       max_output_tokens: outputTokenBudget(input.config.domain, input.expected.expectedCount),
