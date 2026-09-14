@@ -6,7 +6,8 @@ import {
   refreshMassageCalendarSnapshot,
 } from "@/lib/server/massage-snapshot";
 import { listMassageExternalReadHotels } from "@/lib/server/massage-external-source";
-import { logSystemError } from "@/lib/server/system-events";
+import { resolveOpenCriticalSystemEvents } from "@/lib/server/system-event-resolution";
+import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -108,6 +109,40 @@ export async function GET(req: NextRequest) {
       });
     } catch (error) {
       primaryFailure = { stage: "snapshot", error };
+    }
+
+    if (snapshot) {
+      try {
+        const recovery = await resolveOpenCriticalSystemEvents({
+          hotelId: hotel.id,
+          source: "massage",
+          eventType: "massage_calendar_snapshot_refresh_failed",
+          resolvedThrough: snapshot.refreshedAt,
+        });
+
+        if (recovery.resolvedCount > 0) {
+          await logSystemEvent({
+            hotelId: hotel.id,
+            severity: "info",
+            source: "massage",
+            eventType: "massage_calendar_snapshot_refresh_recovered",
+            message: "Massage calendar snapshot refresh recovered after a critical failure.",
+            metadata: {
+              hotelSlug: hotel.slug,
+              reason: "cron",
+              resolvedCount: recovery.resolvedCount,
+              snapshotId: snapshot.snapshotId,
+              sourceRevision: snapshot.sourceRevision,
+              refreshedAt: snapshot.refreshedAt,
+            },
+          });
+        }
+      } catch (error) {
+        console.error("[massage-snapshot-recovery] bookkeeping failed", {
+          hotelSlug: hotel.slug,
+          error,
+        });
+      }
     }
 
     try {
