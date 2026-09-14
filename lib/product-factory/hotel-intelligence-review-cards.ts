@@ -193,7 +193,9 @@ export function buildHotelReviewSectionsV2(candidate: HotelIntelligenceCandidate
         entityType: item.entityType,
         name: clean(item.nameHint, 320) || "Unidentified entity",
         status: statusFor(attributes, conflicts),
-        sourceUrls: unique([item.url, ...(item.urls || []), ...factSources]).slice(0, 8),
+        // Language variants are audit evidence, not separate client-facing sources.
+        // Show only the authoritative item URL plus URLs that actually supplied facts.
+        sourceUrls: unique([item.url, ...factSources]).slice(0, 8),
         attributes,
         conflicts,
       } satisfies HotelReviewEntityCardV2;
