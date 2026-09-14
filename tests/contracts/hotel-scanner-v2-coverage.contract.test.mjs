@@ -46,6 +46,7 @@ test("links discovered from a relevant landing page are coverage candidates even
       page(root),
       page(landing, {
         title: "Restaurants and bars",
+        contentLinks: [opaqueVenue],
         links: [opaqueVenue],
       }),
     ],
@@ -56,6 +57,27 @@ test("links discovered from a relevant landing page are coverage candidates even
 
   assert.ok(plan.pendingRelevantUrls.includes(opaqueVenue));
   assert.ok(plan.nextBatch.includes(opaqueVenue));
+});
+
+test("global navigation noise does not become required hotel coverage", () => {
+  const landing = "https://hotel.example/dining";
+  const venue = "https://hotel.example/venues/nero";
+  const genericAbout = "https://hotel.example/about";
+  const privacy = "https://hotel.example/privacy";
+  const plan = buildHotelScannerCoveragePlanV2({
+    pages: [page(landing, {
+      title: "Restaurants and bars",
+      contentLinks: [venue],
+      links: [venue, genericAbout, privacy],
+      navigationLinks: [genericAbout, privacy],
+    })],
+    navigationUrls: [genericAbout, privacy],
+    batchLimit: 20,
+  });
+
+  assert.ok(plan.pendingRelevantUrls.includes(venue));
+  assert.ok(!plan.pendingRelevantUrls.includes(genericAbout));
+  assert.ok(!plan.pendingRelevantUrls.includes(privacy));
 });
 
 test("language variants of the same logical page do not create fake incomplete coverage", () => {
