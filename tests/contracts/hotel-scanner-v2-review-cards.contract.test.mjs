@@ -13,6 +13,15 @@ test("Scanner V2 projects review cards from canonical inventory, not arbitrary f
   assert.match(source, /statusFor/);
 });
 
+test("Hub review reuses the canonical live-content expiry semantics for dated events and offers", async () => {
+  const source = await read("lib/product-factory/hotel-intelligence-review-cards.ts");
+  assert.match(source, /parseHotelLiveContentValidity/);
+  assert.match(source, /hotelLiveContentTemporalState/);
+  assert.match(source, /isExpiredLiveReviewCard/);
+  assert.match(source, /candidate\.source\.scannedAt/);
+  assert.match(source, /domain\.domain === "events" \|\| domain\.domain === "offers"/);
+});
+
 test("safe pipeline exposes reviewSections beside immutable candidate evidence", async () => {
   const source = await read("lib/server/hotel-scanner-v2-pipeline-safe.ts");
   assert.match(source, /buildHotelReviewSectionsV2/);
