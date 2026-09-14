@@ -27,6 +27,21 @@ test("Scanner V2 web extraction has bounded input and output budgets", async () 
   assert.match(extractor, /maxOutputTokensPerRequest/);
 });
 
+test("Scanner V2 distinguishes exhausted API quota from transient 429 rate limits", async () => {
+  const openai = await readProjectFile("lib/ai/hotel-scanner-v2-extraction-openai.ts");
+  const types = await readProjectFile("lib/ai/hotel-scanner-v2-extraction-types.ts");
+  const ingestion = await readProjectFile("lib/ai/hotel-scanner-v2-document-ingestion.ts");
+
+  assert.match(types, /AI_QUOTA_EXHAUSTED/);
+  assert.match(openai, /credit_balance_exhausted/);
+  assert.match(openai, /organization_usage_limit_exceeded/);
+  assert.match(openai, /project_spend_limit_exceeded/);
+  assert.match(openai, /if \(isQuotaExhaustedError\(error\)\) return false/);
+  assert.match(openai, /\? "AI_QUOTA_EXHAUSTED"/);
+  assert.match(ingestion, /document_ai_quota_exhausted/);
+  assert.match(ingestion, /if \(isQuotaExhaustedError\(error\)\) return false/);
+});
+
 test("Scanner V2 treats incomplete AI chunks as visible partial extraction instead of 502", async () => {
   const openai = await readProjectFile("lib/ai/hotel-scanner-v2-extraction-openai.ts");
   const extractor = await readProjectFile("lib/ai/hotel-scanner-v2-domain-extractors-safe.ts");
