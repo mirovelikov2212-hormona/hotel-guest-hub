@@ -6,7 +6,7 @@ import {
   resolveAuthorizedSurveyScope,
   type GuestSurveyRow,
 } from "@/lib/server/day3-surveys";
-import { hasBulgarianLetters, translateGuestTextToBulgarian } from "@/lib/server/staff-translation";
+import { translateGuestTextToBulgarian } from "@/lib/server/staff-translation";
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
@@ -24,14 +24,29 @@ function isSurveyRole(value: string): value is Extract<StaffRole, "manager" | "r
   return value === "manager" || value === "reception";
 }
 
-function shouldBackfillBulgarianText(original: string | null, translated: unknown, metadata: Record<string, unknown>) {
+function shouldBackfillBulgarianText(
+  original: string | null,
+  translated: unknown,
+  metadata: Record<string, unknown>,
+  sourceLanguage: unknown,
+) {
   const raw = String(original || "").trim();
-  if (!raw || hasBulgarianLetters(raw)) return false;
-  if (metadata.staff_translation_attempted_at) return false;
+  if (!raw) return false;
+
+  // Script detection cannot reliably distinguish Bulgarian from Russian or
+  // Macedonian. The survey already carries the authoritative guest locale, so
+  // use it instead of treating arbitrary Cyrillic as Bulgarian.
+  const source = String(sourceLanguage || "").trim().toLowerCase();
+  if (source.startsWith("bg")) return false;
 
   const current = String(translated || "").trim();
-  if (!current) return true;
-  return current === raw || !hasBulgarianLetters(current);
+  if (current && current !== raw) return false;
+
+  // A previous backfill attempt that still returned the original text should
+  // not call the translation provider on every staff refresh.
+  if (metadata.staff_translation_attempted_at) return false;
+
+  return !current || current === raw;
 }
 
 async function backfillMissingSurveyTranslations(rows: GuestSurveyRow[]) {
@@ -43,9 +58,9 @@ async function backfillMissingSurveyTranslations(rows: GuestSurveyRow[]) {
         : {};
 
       return (
-        shouldBackfillBulgarianText(row.improvement_text, metadata.improvement_text_bg, metadata) ||
-        shouldBackfillBulgarianText(row.problem_text, metadata.problem_text_bg, metadata) ||
-        shouldBackfillBulgarianText(row.resolution_note, metadata.resolution_note_bg, metadata)
+        shouldBackfillBulgarianText(row.improvement_text, row.improvement_text_bg, metadata, row.language) ||
+        shouldBackfillBulgarianText(row.problem_text, row.problem_text_bg, metadata, row.language) ||
+        shouldBackfillBulgarianText(row.resolution_note, row.resolution_note_bg, metadata, row.language)
       );
     })
     .slice(0, 6);
@@ -61,27 +76,27 @@ async function backfillMissingSurveyTranslations(rows: GuestSurveyRow[]) {
     const sourceLanguage = String(row.language || "unknown");
 
     const [improvementBg, problemBg, resolutionNoteBg] = await Promise.all([
-      shouldBackfillBulgarianText(row.improvement_text, metadata.improvement_text_bg, metadata)
+      shouldBackfillBulgarianText(row.improvement_text, row.improvement_text_bg, metadata, row.language)
         ? translateGuestTextToBulgarian(row.improvement_text, {
             sourceLanguage,
             context: "Backfill Day 3 hotel guest survey improvement answer for Manager/Reception staff.",
             maxLength: 1000,
           })
-        : Promise.resolve(String(metadata.improvement_text_bg || row.improvement_text || "")),
-      shouldBackfillBulgarianText(row.problem_text, metadata.problem_text_bg, metadata)
+        : Promise.resolve(String(row.improvement_text_bg || row.improvement_text || "")),
+      shouldBackfillBulgarianText(row.problem_text, row.problem_text_bg, metadata, row.language)
         ? translateGuestTextToBulgarian(row.problem_text, {
             sourceLanguage,
             context: "Backfill Day 3 hotel guest survey problem answer for Manager/Reception staff.",
             maxLength: 1000,
           })
-        : Promise.resolve(String(metadata.problem_text_bg || row.problem_text || "")),
-      shouldBackfillBulgarianText(row.resolution_note, metadata.resolution_note_bg, metadata)
+        : Promise.resolve(String(row.problem_text_bg || row.problem_text || "")),
+      shouldBackfillBulgarianText(row.resolution_note, row.resolution_note_bg, metadata, row.language)
         ? translateGuestTextToBulgarian(row.resolution_note, {
             sourceLanguage,
             context: "Backfill Day 3 hotel guest survey resolution note for Manager/Reception staff.",
             maxLength: 1000,
           })
-        : Promise.resolve(String(metadata.resolution_note_bg || row.resolution_note || "")),
+        : Promise.resolve(String(row.resolution_note_bg || row.resolution_note || "")),
     ]);
 
     const nextMetadata = {
