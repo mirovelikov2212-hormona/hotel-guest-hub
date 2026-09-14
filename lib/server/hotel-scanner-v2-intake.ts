@@ -27,6 +27,7 @@ export type HotelIntakeV2DiscoveryProjection = {
     scannedAt: string;
   };
   crawlPolicy: HotelScannerV2EvidenceBundle["crawlPolicy"];
+  coverage: HotelScannerV2EvidenceBundle["discovery"]["coverage"];
   siteMap: HotelScannerV2SiteMap;
   inventory: HotelScannerV2Inventory;
   validationGate: {
@@ -40,6 +41,9 @@ export type HotelIntakeV2DiscoveryProjection = {
     discoveredInternalLinkCount: number;
     discoveredNavigationLinkCount: number;
     discoveredDocumentCount: number;
+    discoveredRelevantPageCount: number;
+    pendingRelevantPageCount: number;
+    failedRelevantPageCount: number;
     deterministicInventoryDomainCount: number;
     unknownExpectationDomainCount: number;
     expectedInventoryItemCount: number;
@@ -63,6 +67,8 @@ export function projectHotelIntakeDiscoveryV2(
   const blockingReasons = ["domain_extraction_pending", "cross_source_verification_pending"];
   if (inventory.documents.length) blockingReasons.push("document_ingestion_pending");
   if (inventory.counts.unknownExpectationDomains) blockingReasons.push("inventory_expectation_unresolved");
+  if (!evidence.discovery.coverage.coverageComplete) blockingReasons.push("relevant_site_coverage_incomplete");
+  if (evidence.discovery.coverage.failedRelevantCount) blockingReasons.push("relevant_site_pages_failed");
 
   return {
     schemaVersion: "hotel-intake-v2",
@@ -74,6 +80,7 @@ export function projectHotelIntakeDiscoveryV2(
       scannedAt: evidence.scannedAt,
     },
     crawlPolicy: evidence.crawlPolicy,
+    coverage: evidence.discovery.coverage,
     siteMap,
     inventory,
     validationGate: {
@@ -87,6 +94,9 @@ export function projectHotelIntakeDiscoveryV2(
       discoveredInternalLinkCount: evidence.discovery.internalLinkUrls.length,
       discoveredNavigationLinkCount: evidence.discovery.navigationUrls.length,
       discoveredDocumentCount: evidence.publicDocuments.length,
+      discoveredRelevantPageCount: evidence.discovery.coverage.discoveredRelevantCount,
+      pendingRelevantPageCount: evidence.discovery.coverage.pendingRelevantCount,
+      failedRelevantPageCount: evidence.discovery.coverage.failedRelevantCount,
       deterministicInventoryDomainCount: inventory.counts.deterministicDomains,
       unknownExpectationDomainCount: inventory.counts.unknownExpectationDomains,
       expectedInventoryItemCount: inventory.counts.expectedItems,
