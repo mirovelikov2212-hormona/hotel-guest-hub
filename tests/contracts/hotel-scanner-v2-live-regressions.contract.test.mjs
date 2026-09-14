@@ -60,6 +60,47 @@ test("rendered structural inventory is enriched by raw HTML cards that were not 
   assert.equal(inventory.candidates.filter((item) => item.basis === "structural_leaf_block").length, 2);
 });
 
+test("canonical accommodation authority keeps richer semantic evidence when DOM is only partially rendered", () => {
+  const sixRooms = [
+    "Economy Room",
+    "Standard Room",
+    "Studio",
+    "One-Bedroom Apartment",
+    "Grand Deluxe Apartment",
+    "VIP Apartment",
+  ];
+  const resource = {
+    url: "https://hotel.test/rooms",
+    resourceType: "page",
+    variantGroupId: "hotel.test/rooms",
+    crawled: true,
+    languages: ["en"],
+    classification: { primaryType: "accommodation", types: ["accommodation"] },
+    structuralInventory: {
+      domain: "accommodation",
+      expectedCount: 4,
+      identifiedCount: 4,
+      candidates: sixRooms.slice(2).map((name) => ({ name, entityType: "room_type" })),
+      basis: "rendered_structural_leaf_cluster",
+      confidence: "HIGH",
+    },
+    inventoryHints: [{
+      domain: "accommodation",
+      expectedCount: 6,
+      explicitCount: null,
+      identifiedCount: 6,
+      candidates: sixRooms.map((name) => ({ name, entityType: "room_type" })),
+      basis: "semantic_section_cluster",
+      confidence: "MEDIUM",
+    }],
+  };
+
+  const accommodation = buildCanonicalHotelEntityRegistryV2({ resources: [resource] }).domains.get("accommodation");
+  assert.ok(accommodation);
+  assert.equal(accommodation.expectedCount, 6);
+  assert.deepEqual(accommodation.expectedItems.map((item) => item.nameHint), sixRooms);
+});
+
 test("canonical gastronomy authority rejects thematic headings and prefers structural venue cards", () => {
   const realVenues = [
     "Forum Restaurant",
@@ -98,6 +139,19 @@ test("canonical gastronomy authority rejects thematic headings and prefers struc
   assert.ok(gastronomy.expectedItems.every((item) => !/кулинар/i.test(item.nameHint)));
 });
 
+test("deterministic facts keep entity identity and explicit pet-policy polarity outside AI authority", async () => {
+  const source = await readFile(new URL("../../lib/ai/hotel-scanner-v2-deterministic-facts.ts", import.meta.url), "utf8");
+  const extractor = await readFile(new URL("../../lib/ai/hotel-scanner-v2-domain-extractors-safe.ts", import.meta.url), "utf8");
+
+  assert.match(source, /buildInventoryIdentityFactsV2/);
+  assert.match(source, /buildDeterministicPolicyFactsV2/);
+  assert.match(source, /PET_HEADING/);
+  assert.match(source, /PET_ALLOWED/);
+  assert.match(source, /PET_PROHIBITED/);
+  assert.match(extractor, /buildInventoryIdentityFactsV2\(domainInventory\)/);
+  assert.match(extractor, /config\.domain === "policies" \? buildDeterministicPolicyFactsV2\(pages\)/);
+});
+
 test("OpenAI extraction retries exactly one bounded transient failure with extended timeout", async () => {
   const source = await readFile(new URL("../../lib/ai/hotel-scanner-v2-extraction-openai.ts", import.meta.url), "utf8");
 
@@ -110,4 +164,13 @@ test("OpenAI extraction retries exactly one bounded transient failure with exten
   assert.match(source, /ECONNRESET/);
   assert.match(source, /async function withBoundedTransientRetry<[\s\S]*?catch \(error\)[\s\S]*?await sleep\(RATE_LIMIT_RETRY_DELAY_MS\);\s*return operation\(\);\s*}/);
   assert.doesNotMatch(source, /withBoundedTransientRetry<[\s\S]*?while\s*\(/);
+});
+
+test("dense AI output cutoff gets one compact priority recovery pass", async () => {
+  const source = await readFile(new URL("../../lib/ai/hotel-scanner-v2-extraction-openai.ts", import.meta.url), "utf8");
+
+  assert.match(source, /compactRecoveryPages/);
+  assert.match(source, /Recovery pass after an output-limit cutoff/);
+  assert.match(source, /requestExtraction\(compactRecoveryPages\(input\.pages\), 24, true\)/);
+  assert.match(source, /max[_\\s-]?output/);
 });
