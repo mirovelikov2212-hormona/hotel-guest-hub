@@ -15,7 +15,11 @@ test("Scanner V2 web extraction has bounded input and output budgets", async () 
   assert.match(config, /MAX_CONTENT_BLOCK_TEXT_CHARS = 700/);
   assert.match(config, /DOMAIN_CONCURRENCY = 2/);
   assert.match(evidence, /chunkPagePayloadsV2/);
-  assert.match(openai, /withBoundedRateLimitRetry/);
+  assert.match(openai, /withBoundedTransientRetry/);
+  assert.match(openai, /isTransientAiError/);
+  assert.match(openai, /isRateLimitError/);
+  assert.match(openai, /await sleep\(RATE_LIMIT_RETRY_DELAY_MS\);\s*return operation\(\);/s);
+  assert.doesNotMatch(openai, /withBoundedTransientRetry<[\s\S]*?while\s*\(/);
   assert.match(openai, /outputTokenBudget/);
   assert.match(openai, /This is one bounded evidence chunk/);
   assert.match(extractor, /aiRequestCount/);
