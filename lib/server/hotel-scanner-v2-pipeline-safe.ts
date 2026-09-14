@@ -21,6 +21,13 @@ function extractionBlockingReasons(extraction: Awaited<ReturnType<typeof extract
   return [...new Set(extraction.issues.map((issue) => `${issue.domain}_extraction_${issue.code.toLocaleLowerCase("en-US")}`))];
 }
 
+function coverageBlockingReasons(coverage: { coverageComplete: boolean; failedRelevantCount: number }) {
+  const reasons: string[] = [];
+  if (!coverage.coverageComplete) reasons.push("relevant_site_coverage_incomplete");
+  if (coverage.failedRelevantCount > 0) reasons.push("relevant_site_pages_failed");
+  return reasons;
+}
+
 export async function runHotelIntakePipelineV2Safe(input: {
   url: string;
   outputLanguage: HotelScannerV2OutputLanguage;
@@ -72,24 +79,28 @@ export async function runHotelIntakePipelineV2Safe(input: {
   });
 
   const extractionBlockers = extractionBlockingReasons(extraction);
-  const intelligenceCandidate: HotelIntelligenceCandidateV2 = extractionBlockers.length
+  const coverageBlockers = coverageBlockingReasons(discovery.evidence.discovery.coverage);
+  const scannerBlockers = [...new Set([...extractionBlockers, ...coverageBlockers])];
+  const intelligenceCandidate: HotelIntelligenceCandidateV2 = scannerBlockers.length
     ? {
         ...candidateBase,
         validation: {
           ...candidateBase.validation,
           status: "BLOCKED",
-          blockingReasons: [...new Set([...candidateBase.validation.blockingReasons, ...extractionBlockers])],
+          blockingReasons: [...new Set([...candidateBase.validation.blockingReasons, ...scannerBlockers])],
         },
       }
     : candidateBase;
 
   const reviewSections = buildHotelReviewSectionsV2(intelligenceCandidate);
   const approvalEligible = intelligenceCandidate.validation.status === "READY_FOR_APPROVAL";
-  const pipelineStatus = approvalEligible
-    ? "READY_FOR_APPROVAL"
-    : completeness.status === "CONFLICT_REVIEW_REQUIRED"
-      ? "CONFLICT_REVIEW_REQUIRED"
-      : "INCOMPLETE";
+  const pipelineStatus = !discovery.evidence.discovery.coverage.coverageComplete
+    ? "INCOMPLETE"
+    : approvalEligible
+      ? "READY_FOR_APPROVAL"
+      : completeness.status === "CONFLICT_REVIEW_REQUIRED"
+        ? "CONFLICT_REVIEW_REQUIRED"
+        : "INCOMPLETE";
 
   return {
     schemaVersion: "hotel-intake-pipeline-v2" as const,
@@ -100,6 +111,7 @@ export async function runHotelIntakePipelineV2Safe(input: {
       siteMap: discovery.siteMap,
       inventory,
       crawlPolicy: discovery.evidence.crawlPolicy,
+      coverage: discovery.evidence.discovery.coverage,
       failedPageUrls: discovery.evidence.discovery.failedPageUrls,
       browserRenderedUrls: (discovery.evidence.discovery as { browserRenderedUrls?: string[] }).browserRenderedUrls || [],
       browserRenderFailedUrls: (discovery.evidence.discovery as { browserRenderFailedUrls?: string[] }).browserRenderFailedUrls || [],
