@@ -49,7 +49,9 @@ function looksLikeNoTranslationNeeded(value: string, targetLanguage: StaffTransl
   if (/^[\d\s:.,/+\-€]+$/.test(text)) return true;
 
   const source = normalizeLanguage(sourceLanguage);
-  if (targetLanguage === "bg") return hasBulgarianLetters(text);
+  if (targetLanguage === "bg") {
+    return source.startsWith("bg");
+  }
   if (targetLanguage === "en") return source.startsWith("en") && !hasBulgarianLetters(text);
   if (targetLanguage === "de") return source.startsWith("de") && !hasBulgarianLetters(text);
 
