@@ -51,7 +51,15 @@ test("Workflow Preview resumes a run after refresh and polls independently from 
   assert.match(source, /localStorage\.setItem/);
   assert.match(source, /scan-v2-workflow/);
   assert.match(source, /2500/);
-  assert.match(source, /encodeURIComponent\(runId\)/);
+  assert.match(source, /const currentRunId = runId/);
+  assert.match(source, /encodeURIComponent\(currentRunId\)/);
+});
+
+test("Workflow callbacks are not intercepted by the existing staff middleware", async () => {
+  const middleware = await readProjectFile("middleware.ts");
+
+  assert.match(middleware, /matcher:\s*\["\/",\s*"\/staff\/:path\*"\]/);
+  assert.doesNotMatch(middleware, /\.well-known\/workflow/);
 });
 
 test("Stable synchronous Scanner V2 remains available as an isolated fallback", async () => {
