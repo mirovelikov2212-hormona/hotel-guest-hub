@@ -93,3 +93,44 @@ test("language variants of the same logical page do not create fake incomplete c
   assert.equal(plan.pendingRelevantCount, 0);
   assert.equal(plan.coverageComplete, true);
 });
+
+test("hreflang alternates with translated slugs count as the same covered logical source", () => {
+  const english = "https://hotel.example/en/spa/prices";
+  const german = "https://hotel.example/de/spa/preise";
+  const plan = buildHotelScannerCoveragePlanV2({
+    pages: [page(english, {
+      title: "SPA prices",
+      languageAlternates: [{ language: "de", url: german }],
+    })],
+    sitemapPageUrls: [english, german],
+    attemptedUrls: [english],
+    batchLimit: 20,
+  });
+
+  assert.equal(plan.pendingRelevantCount, 0);
+  assert.equal(plan.coverageComplete, true);
+  assert.equal(plan.discoveredRelevantCount, plan.fetchedRelevantCount + plan.pendingRelevantCount);
+});
+
+test("booking actions and Cloudflare helper routes never become required hotel coverage", () => {
+  const rooms = "https://hotel.example/en/rooms";
+  const plan = buildHotelScannerCoveragePlanV2({
+    pages: [page(rooms, {
+      title: "Rooms",
+      contentLinks: [
+        "https://hotel.example/book/vip/add",
+        "https://hotel.example/en/book-now",
+        "https://hotel.example/cdn-cgi/l/email-protection",
+      ],
+    })],
+    sitemapPageUrls: [
+      "https://hotel.example/book/vip/add",
+      "https://hotel.example/cdn-cgi/l/email-protection",
+    ],
+    batchLimit: 20,
+  });
+
+  assert.equal(plan.pendingRelevantCount, 0);
+  assert.equal(plan.coverageComplete, true);
+  assert.ok(plan.pendingRelevantUrls.every((url) => !/\/book\/|cdn-cgi/i.test(url)));
+});
