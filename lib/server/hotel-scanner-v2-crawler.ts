@@ -25,6 +25,7 @@ import {
 export { HotelScannerV2NetworkError as HotelScannerV2Error } from "@/lib/server/hotel-scanner-v2-network";
 
 const MAX_INITIAL_PAGES = 56;
+const MAX_INITIAL_PAGE_ATTEMPTS = 80;
 const MAX_COVERAGE_FOLLOWUP_ATTEMPTS = 72;
 const MAX_TOTAL_PAGES = MAX_INITIAL_PAGES + MAX_COVERAGE_FOLLOWUP_ATTEMPTS;
 const MAX_DISCOVERED_PAGES = 2_000;
@@ -49,6 +50,7 @@ export type HotelScannerV2PageEvidence = {
   description: string;
   text: string;
   links: string[];
+  contentLinks: string[];
   navigationLinks: string[];
   documentUrls: string[];
   canonicalHint: string;
@@ -149,17 +151,34 @@ function anchorUrls(html: string, base: URL, max = 500) {
   return urls;
 }
 
-function navigationUrls(html: string, base: URL) {
+function regionAnchorUrls(html: string, base: URL, regionPattern: RegExp, max = 500) {
   const urls: string[] = [];
   const seen = new Set<string>();
-  for (const region of html.matchAll(/<(nav|header)\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
-    for (const url of anchorUrls(region[2], base, 180)) {
+  for (const region of html.matchAll(regionPattern)) {
+    const body = region[2] || "";
+    for (const url of anchorUrls(body, base, max)) {
       if (seen.has(url)) continue;
-      seen.add(url); urls.push(url);
-      if (urls.length >= 240) return urls;
+      seen.add(url);
+      urls.push(url);
+      if (urls.length >= max) return urls;
     }
   }
   return urls;
+}
+
+function navigationUrls(html: string, base: URL) {
+  return regionAnchorUrls(html, base, /<(nav|header)\b[^>]*>([\s\S]*?)<\/\1>/gi, 240);
+}
+
+function contentUrls(html: string, base: URL, allLinks: string[]) {
+  const mainLinks = regionAnchorUrls(html, base, /<(main)\b[^>]*>([\s\S]*?)<\/\1>/gi, 500);
+  if (mainLinks.length) return mainLinks;
+
+  const chrome = new Set([
+    ...navigationUrls(html, base),
+    ...regionAnchorUrls(html, base, /<(footer)\b[^>]*>([\s\S]*?)<\/\1>/gi, 240),
+  ]);
+  return allLinks.filter((url) => !chrome.has(url));
 }
 
 function linkTags(html: string) { return [...html.matchAll(/<link\b[^>]*>/gi)].map((match) => match[0]); }
@@ -192,6 +211,7 @@ function languageAlternates(html: string, base: URL) {
 function buildPageEvidence(url: URL, html: string): HotelScannerV2PageEvidence {
   const structure = extractHotelPageStructureV2(html);
   const allLinks = anchorUrls(html, url, 500);
+  const pageNavigationLinks = navigationUrls(html, url);
   return {
     url: canonicalizeHotelIntakeUrl(url.toString()),
     title: firstMatch(html, [/<title[^>]*>([\s\S]*?)<\/title>/i]),
@@ -202,7 +222,8 @@ function buildPageEvidence(url: URL, html: string): HotelScannerV2PageEvidence {
     ]),
     text: htmlText(html),
     links: allLinks.filter((link) => !/\.pdf$/i.test(new URL(link).pathname)),
-    navigationLinks: navigationUrls(html, url),
+    contentLinks: contentUrls(html, url, allLinks).filter((link) => !/\.pdf$/i.test(new URL(link).pathname)),
+    navigationLinks: pageNavigationLinks,
     documentUrls: allLinks.filter((link) => /\.pdf$/i.test(new URL(link).pathname)).slice(0, MAX_PUBLIC_DOCUMENTS),
     canonicalHint: canonicalHint(html, url),
     language: inferHotelPageLanguage(url.toString()),
@@ -392,14 +413,21 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
     for (const page of fetched) absorbPage(page);
   };
 
-  while (pages.length < MAX_INITIAL_PAGES && totalText < MAX_TOTAL_TEXT) {
+  let initialPageAttempts = 0;
+  while (pages.length < MAX_INITIAL_PAGES && totalText < MAX_TOTAL_TEXT && initialPageAttempts < MAX_INITIAL_PAGE_ATTEMPTS) {
     const candidates = orderedCandidates(discoveredPages, attempted, preferredLanguage).filter((url) => {
       const allowed = isHotelScannerRobotsAllowed(url, robotsState.policy);
       if (!allowed) robotsBlockedUrls.add(url);
       return allowed;
     });
     if (!candidates.length) break;
-    const batch = candidates.slice(0, Math.min(CRAWL_BATCH_SIZE, MAX_INITIAL_PAGES - pages.length));
+    const batch = candidates.slice(0, Math.min(
+      CRAWL_BATCH_SIZE,
+      MAX_INITIAL_PAGES - pages.length,
+      MAX_INITIAL_PAGE_ATTEMPTS - initialPageAttempts,
+    ));
+    if (!batch.length) break;
+    initialPageAttempts += batch.length;
     await fetchBatch(batch);
   }
 
