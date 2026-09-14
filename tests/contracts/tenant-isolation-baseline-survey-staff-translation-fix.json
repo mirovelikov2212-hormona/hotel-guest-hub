@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "checkpoint": "survey-staff-translation-fix",
+  "baseCheckpoint": "oa5-guest-stay-context",
+  "expectedNeedsReview": 223,
+  "removals": [],
+  "relocations": [
+    {
+      "filePath": "app/api/staff/surveys/route.ts",
+      "fromLine": 95,
+      "toLine": 110,
+      "table": "guest_surveys",
+      "operation": "update"
+    }
+  ],
+  "additions": []
+}
