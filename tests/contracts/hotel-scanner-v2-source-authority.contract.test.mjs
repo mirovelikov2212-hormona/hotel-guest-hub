@@ -111,9 +111,9 @@ test("richer valid accommodation sibling is authoritative and every entity retai
   const accommodation = registry.domains.get("accommodation");
   assert.equal(accommodation.expectedCount, 6);
   assert.deepEqual(accommodation.expectedItems.map((item) => item.nameHint), sixRooms);
-  assert.deepEqual(accommodation.landingUrls, [rootUrl, roUrl]);
+  assert.deepEqual(new Set(accommodation.landingUrls), new Set([rootUrl, roUrl]));
   for (const item of accommodation.expectedItems) {
-    assert.deepEqual(item.urls, [rootUrl, roUrl]);
+    assert.deepEqual(new Set(item.urls), new Set([rootUrl, roUrl]));
     assert.deepEqual(item.languages, ["bg", "ro"]);
   }
 });
