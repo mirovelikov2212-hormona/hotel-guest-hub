@@ -1,6 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { start } from "workflow/api";
 
+import { canMutateControlPlane } from "@/lib/server/control-plane-auth";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 import { hotelScannerV2Workflow } from "@/workflows/hotel-scanner-v2-workflow";
@@ -24,6 +26,7 @@ export async function POST(request: NextRequest) {
 
   const authority = await getCurrentPlatformAdminSession();
   if (!authority) return json({ ok: false, error: "unauthorized" }, 401);
+  if (!canMutateControlPlane(authority.role)) return json({ ok: false, error: "forbidden" }, 403);
 
   const body = (await request.json().catch(() => ({}))) as { url?: unknown; lang?: unknown };
   const url = String(body?.url || "").trim();
@@ -31,7 +34,7 @@ export async function POST(request: NextRequest) {
   if (!url) return json({ ok: false, error: "missing_url" }, 400);
 
   try {
-    const run = await start(hotelScannerV2Workflow, [{ url, outputLanguage }]);
+    const run = await start(hotelScannerV2Workflow, [{ url, outputLanguage, actorAdminId: authority.adminId, scanRunId: randomUUID() }]);
     return json(
       {
         ok: true,

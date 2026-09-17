@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "checkpoint": "native-hotel-intelligence-v2",
+  "baseCheckpoint": "survey-staff-translation-fix",
+  "expectedNeedsReview": 229,
+  "additions": [
+    {
+      "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
+      "line": 15,
+      "tableExpression": "\"hotel_scan_runs_v2\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "table": "hotel_scan_runs_v2",
+      "provenance": "Platform-source evidence only, accessed through authenticated Control Plane operations or the authorized scanner workflow. Exact server-derived UUID read; semantic and envelope SHA-256, canonical text and actor/source lineage verified. Sync retries also bind authenticated actor, original URL and language. No hotel/guest/staff runtime rows; RLS and revoked grants deny direct client access."
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
+      "line": 31,
+      "tableExpression": "\"hotel_intelligence_reviews_v2\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "table": "hotel_intelligence_reviews_v2",
+      "provenance": "Authenticated platform-admin exact revision or scan UUID lookup. Historical review_text and review_checksum are verified against scan/evidence/envelope lineage and never reprojected. One immutable review per scan; platform-source evidence only, no tenant runtime tables or direct client grants."
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
+      "line": 48,
+      "tableExpression": "\"import_hotel_intelligence_review_v2\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "rpc": "import_hotel_intelligence_review_v2",
+      "provenance": "Same-origin mutable-role Control Plane import or authorized scanner persistence. Server builds snapshot only on first import from verified stored evidence; browser accepts identifiers only. Service-role-only RPC rechecks active super_admin/operator, locks scan, verifies both scan digests and exact snapshot lineage, stores review_text/review_checksum once, and audits. Repeated imports return the immutable winner."
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
+      "line": 89,
+      "tableExpression": "\"create_hotel_scan_run_v2\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "rpc": "create_hotel_scan_run_v2",
+      "provenance": "Shared server-only persistence for sync and durable scans. Session admin and server-issued UUID; sync UUID derives cryptographically from actor/key. Service-role-only RPC rechecks active mutator, serializes scan ID, computes and verifies semantic/envelope digests, and binds original URL/language/key. Sync races return the immutable winner; durable retries retain exact envelope equality. Evidence/audit insertion only."
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
+      "line": 114,
+      "tableExpression": "\"approve_hotel_intelligence_v2\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "rpc": "approve_hotel_intelligence_v2",
+      "provenance": "Explicit authenticated same-origin human approval. Server reads and verifies persisted review snapshot and both scan digests without rerunning projectors. Service-role-only RPC rechecks active role, serializes actor/idempotency key, locks exact review, verifies evidence/review checksums, readiness and revision. Composite FK binds immutable audited receipt to exact review/scan/evidence/review checksum. No Factory, LIVE or operational mutation."
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
+      "line": 129,
+      "tableExpression": "\"hotel_intelligence_approvals_v2\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "table": "hotel_intelligence_approvals_v2",
+      "provenance": "Authenticated platform-admin exact approval UUID read. Receipt must bind reloaded immutable review/scan, evidence_checksum, review_checksum, approver/time and validated idempotency key. Stored snapshot readiness and checksums verified without reprojection; source evidence makes no tenant ownership claim or automatic activation."
+    }
+  ]
+}

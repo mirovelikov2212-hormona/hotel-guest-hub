@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
 import type { ScannerV2CandidateView, ScannerV2DocumentView } from "./HotelScannerV2Details";
@@ -177,18 +177,26 @@ export default function HotelScannerV2Client({ lang }: { lang: ControlPlaneLang 
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ScanV2Result | null>(null);
+  const scanRequest = useRef<{ url: string; lang: ControlPlaneLang; key: string } | null>(null);
 
   async function scan() {
     if (!url.trim() || loading) return;
     setLoading(true);
     setResult(null);
     try {
+      // Retain the key after an uncertain response; a deliberate new scan after
+      // success, or a different URL/language, starts a new request identity.
+      if (!scanRequest.current || scanRequest.current.url !== url.trim() || scanRequest.current.lang !== lang) {
+        scanRequest.current = { url: url.trim(), lang, key: crypto.randomUUID() };
+      }
       const response = await fetch("/api/control-plane/hotel-scanner/scan-v2", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": scanRequest.current.key },
         body: JSON.stringify({ url: url.trim(), lang }),
       });
-      setResult((await response.json().catch(() => ({}))) as ScanV2Result);
+      const responseResult = (await response.json().catch(() => ({}))) as ScanV2Result;
+      setResult(responseResult);
+      if (response.ok && responseResult.ok) scanRequest.current = null;
     } catch {
       setResult({ ok: false, error: "network_error" });
     } finally {

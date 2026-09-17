@@ -1,9 +1,12 @@
 import { FatalError } from "workflow";
 
 import type { HotelScannerV2OutputLanguage } from "@/lib/ai/hotel-scanner-v2-domain-extractors-safe";
-import { runHotelIntakePipelineV2 } from "@/lib/server/hotel-scanner-v2-pipeline";
+import { persistHotelScannerV2Result } from "@/lib/server/hotel-intelligence-persistence-v2";
+import { runHotelIntakePipelineV2, type HotelIntakePipelineV2Result } from "@/lib/server/hotel-scanner-v2-pipeline";
 
 export type HotelScannerV2WorkflowInput = {
+  scanRunId: string;
+  actorAdminId: string;
   url: string;
   outputLanguage: HotelScannerV2OutputLanguage;
 };
@@ -41,8 +44,16 @@ async function runStableScannerPipelineStep(input: HotelScannerV2WorkflowInput) 
   }
 }
 
+async function persistScannerResultStep(input: HotelScannerV2WorkflowInput, result: HotelIntakePipelineV2Result) {
+  "use step";
+
+  return persistHotelScannerV2Result({ result, scanRunId: input.scanRunId, actorAdminId: input.actorAdminId, outputLanguage: input.outputLanguage });
+}
+
 export async function hotelScannerV2Workflow(input: HotelScannerV2WorkflowInput) {
   "use workflow";
 
-  return runStableScannerPipelineStep(input);
+  const result = await runStableScannerPipelineStep(input);
+  const persistence = await persistScannerResultStep(input, result);
+  return { ...result, persistence };
 }

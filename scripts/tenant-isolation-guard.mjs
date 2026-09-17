@@ -74,6 +74,7 @@ const milestoneDeltaPaths = [
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-oa4-unified-guest-timeline.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-oa5-guest-stay-context.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-survey-staff-translation-fix.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-native-hotel-intelligence-v2.json"),
 ];
 
 const baseBaseline = JSON.parse(await readFile(baselinePath, "utf8"));
