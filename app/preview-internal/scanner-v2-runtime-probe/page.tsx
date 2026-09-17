@@ -111,19 +111,21 @@ export default function ScannerV2RuntimeProbePage() {
   }, []);
 
   return (
-    <main style={{ maxWidth: 960, margin: "40px auto", padding: 24, fontFamily: "system-ui, sans-serif" }}>
-      <h1 style={{ fontSize: 28, fontWeight: 800 }}>Scanner V2 · Preview Runtime Probe</h1>
-      <p style={{ marginTop: 12, fontSize: 17 }}>{state.message}</p>
-      {state.runId ? <p style={{ marginTop: 12 }}><strong>Run ID:</strong> <code>{state.runId}</code></p> : null}
-      {state.scanRunId ? <p style={{ marginTop: 8 }}><strong>Scan ID:</strong> <code>{state.scanRunId}</code></p> : null}
-      <p style={{ marginTop: 16 }}><strong>Phase:</strong> {state.phase.toUpperCase()}</p>
-      {state.result ? (
-        <pre style={{ marginTop: 24, whiteSpace: "pre-wrap", overflowWrap: "anywhere", padding: 18, border: "1px solid #ccc", borderRadius: 12 }}>
-          {JSON.stringify(state.result, null, 2)}
-        </pre>
-      ) : null}
-      {state.phase === "done" ? <p style={{ marginTop: 18, fontWeight: 700 }}>Можеш да ми изпратиш screenshot на този екран.</p> : null}
-      {state.phase === "error" ? <p style={{ marginTop: 18, fontWeight: 700 }}>Изпрати ми screenshot на грешката.</p> : null}
+    <main style={{ minHeight: "100vh", background: "#ffffff", color: "#111827", padding: "40px 24px" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto", fontFamily: "system-ui, sans-serif" }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: "#111827" }}>Scanner V2 · Preview Runtime Probe</h1>
+        <p style={{ marginTop: 12, fontSize: 17, color: "#374151" }}>{state.message}</p>
+        {state.runId ? <p style={{ marginTop: 12, color: "#111827" }}><strong>Run ID:</strong> <code>{state.runId}</code></p> : null}
+        {state.scanRunId ? <p style={{ marginTop: 8, color: "#111827" }}><strong>Scan ID:</strong> <code>{state.scanRunId}</code></p> : null}
+        <p style={{ marginTop: 16, color: "#111827" }}><strong>Phase:</strong> {state.phase.toUpperCase()}</p>
+        {state.result ? (
+          <pre style={{ marginTop: 24, whiteSpace: "pre-wrap", overflowWrap: "anywhere", padding: 18, border: "1px solid #d1d5db", borderRadius: 12, background: "#f9fafb", color: "#111827" }}>
+            {JSON.stringify(state.result, null, 2)}
+          </pre>
+        ) : null}
+        {state.phase === "done" ? <p style={{ marginTop: 18, fontWeight: 700, color: "#065f46" }}>Можеш да ми изпратиш screenshot на този екран.</p> : null}
+        {state.phase === "error" ? <p style={{ marginTop: 18, fontWeight: 700, color: "#b91c1c" }}>Изпрати ми screenshot на грешката.</p> : null}
+      </div>
     </main>
   );
 }
