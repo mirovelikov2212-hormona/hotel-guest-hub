@@ -12,7 +12,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const TEST_BRANCH = "feat/hotel-lifecycle-v1-intelligence-review";
-const TEST_ACTOR_ADMIN_ID = "889d6de0-7b02-45d9-83b5-d140f8937cd6";
+// This is public.platform_admins.id for scanner-preview@stayhub.test in the isolated Preview DB.
+// It is intentionally NOT auth.users.id / platform_admins.auth_user_id.
+const TEST_ACTOR_ADMIN_ID = "bba95be1-80ce-4eaf-bc51-b8aa0cc98e23";
 const TEST_URL = "https://pavelbanyagrand.com/";
 
 function json(body: Record<string, unknown>, status = 200) {
