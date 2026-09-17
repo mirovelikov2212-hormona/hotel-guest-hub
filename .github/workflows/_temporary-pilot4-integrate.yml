@@ -1,0 +1,94 @@
+name: Temporary Pilot 4 integrator
+
+on:
+  push:
+    branches:
+      - feat/hotel-lifecycle-v1-intelligence-review
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temporary-pilot4-integration
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    if: ${{ !contains(github.event.head_commit.message, '[pilot4-applied]') && !contains(github.event.head_commit.message, '[pilot4-workflow-cleanup]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/hotel-lifecycle-v1-intelligence-review
+          fetch-depth: 0
+
+      - name: Guard exact pre-patch tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = "feat/hotel-lifecycle-v1-intelligence-review"
+          test "$(git hash-object app/api/control-plane/hotel-scanner/scan-v2-workflow/route.ts)" = "23f14834b25f5beb0ecc1bd06eb8ee8812ca4034"
+          test "$(git hash-object app/api/control-plane/hotel-scanner/scan-v2/route.ts)" = "72c0060051ec49ccd40642cf78ba6ef507e8f2f0"
+          test "$(git hash-object app/hotel-scanner-v2/HotelScannerV2Client.tsx)" = "c0f3839e20db0d1c2a5975819ee135acbe709eca"
+          test "$(git hash-object scripts/tenant-isolation-guard.mjs)" = "510fbce134e2d6ecb03da51b4b7a864dbd08ef54"
+          test "$(git hash-object workflows/hotel-scanner-v2-workflow.ts)" = "b98ca9009c823da88df1abb9a3e8b3c5dfe4d54e"
+          test ! -e app/api/control-plane/hotel-intelligence/v2/route.ts
+          test ! -e lib/server/hotel-intelligence-persistence-v2.ts
+          test ! -e lib/server/hotel-scan-envelope-v2.ts
+          test ! -e supabase/migrations/20260916120000_native_hotel_intelligence_v2.sql
+
+      - name: Reconstruct reviewed final patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .pilot4/chunk-*.txt | base64 -d | gzip -d > /tmp/pilot4-final.patch
+          test "$(sha256sum /tmp/pilot4-final.patch | cut -d' ' -f1)" = "029f285ba2c45e049eb5df2c96bc700c259efd8f0e4e280af0d11ac6d328784f"
+          git apply --check /tmp/pilot4-final.patch
+          git apply /tmp/pilot4-final.patch
+          git diff --check
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: V2 contract tests
+        run: node --test tests/contracts/hotel-intelligence-v2-api.contract.test.mjs tests/contracts/hotel-intelligence-v2-authority-hardening.contract.test.mjs tests/contracts/hotel-intelligence-v2-persistence.contract.test.mjs tests/contracts/hotel-intelligence-v2-service.contract.test.mjs
+
+      - name: Tenant isolation
+        run: npm run test:tenant-isolation
+
+      - name: Production-style build
+        run: npm run build
+
+      - name: Commit validated Pilot 4 stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "stayhub-pilot4-bot"
+          git config user.email "stayhub-pilot4-bot@users.noreply.github.com"
+          git add \
+            app/api/control-plane/hotel-intelligence/v2/route.ts \
+            app/api/control-plane/hotel-scanner/scan-v2-workflow/route.ts \
+            app/api/control-plane/hotel-scanner/scan-v2/route.ts \
+            app/hotel-scanner-v2/HotelScannerV2Client.tsx \
+            lib/server/hotel-intelligence-persistence-v2.ts \
+            lib/server/hotel-scan-envelope-v2.ts \
+            scripts/tenant-isolation-guard.mjs \
+            supabase/migrations/20260916120000_native_hotel_intelligence_v2.sql \
+            tests/contracts/hotel-intelligence-v2-api.contract.test.mjs \
+            tests/contracts/hotel-intelligence-v2-authority-hardening.contract.test.mjs \
+            tests/contracts/hotel-intelligence-v2-persistence.contract.test.mjs \
+            tests/contracts/hotel-intelligence-v2-service.contract.test.mjs \
+            tests/contracts/tenant-isolation-baseline-native-hotel-intelligence-v2.json \
+            tests/helpers/hotel-intelligence-v2-fixture.mjs \
+            tests/helpers/v2-bridge-module.mjs \
+            workflows/hotel-scanner-v2-workflow.ts
+          git diff --cached --stat
+          git commit -m "feat(scanner-v2): integrate native V2 authority [pilot4-applied]"
+          git push origin HEAD:feat/hotel-lifecycle-v1-intelligence-review
