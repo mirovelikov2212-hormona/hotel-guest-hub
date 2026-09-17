@@ -103,7 +103,25 @@ async function runEnrichmentStep(
 async function persistScannerResultStep(input: HotelScannerV2WorkflowInput, result: HotelIntakePipelineV2Result) {
   "use step";
 
-  return persistHotelScannerV2Result({ result, scanRunId: input.scanRunId, actorAdminId: input.actorAdminId, outputLanguage: input.outputLanguage });
+  try {
+    return await persistHotelScannerV2Result({
+      result,
+      scanRunId: input.scanRunId,
+      actorAdminId: input.actorAdminId,
+      outputLanguage: input.outputLanguage,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    // Authorization/identity failures are deterministic and cannot become valid
+    // by repeating the same database call. Stop immediately instead of burning
+    // the default 3 workflow retries.
+    if (message.includes("V2_ADMIN_")) {
+      throw new FatalError(message);
+    }
+
+    throw error;
+  }
 }
 
 export async function hotelScannerV2Workflow(input: HotelScannerV2WorkflowInput) {
