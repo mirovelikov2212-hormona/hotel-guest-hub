@@ -64,6 +64,10 @@ jobs:
         run: npm run test:tenant-isolation
 
       - name: Production-style build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://build-only.invalid.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: build-only-placeholder
+          SUPABASE_SERVICE_ROLE_KEY: build-only-placeholder
         run: npm run build
 
       - name: Commit validated Pilot 4 stack
