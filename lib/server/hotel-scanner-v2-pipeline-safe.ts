@@ -8,6 +8,7 @@ import {
 import {
   applyDocumentIngestionToInventoryV2,
   ingestHotelDocumentsV2,
+  type HotelScannerV2DocumentIngestionResult,
 } from "@/lib/ai/hotel-scanner-v2-document-ingestion";
 import {
   buildHotelIntelligenceCandidateV2,
@@ -15,7 +16,10 @@ import {
 } from "@/lib/product-factory/hotel-intelligence-v2";
 import { buildHotelReviewSectionsV2 } from "@/lib/product-factory/hotel-intelligence-review-cards";
 import { buildHotelCompletenessV2 } from "@/lib/server/hotel-scanner-v2-completeness.mjs";
-import { discoverHotelIntakeV2 } from "@/lib/server/hotel-scanner-v2-intake";
+import {
+  discoverHotelIntakeV2,
+  type HotelIntakeV2DiscoveryResult,
+} from "@/lib/server/hotel-scanner-v2-intake";
 
 function extractionBlockingReasons(extraction: Awaited<ReturnType<typeof extractHotelDomainsV2>>) {
   return [...new Set(extraction.issues.map((issue) => `${issue.domain}_extraction_${issue.code.toLocaleLowerCase("en-US")}`))];
@@ -28,14 +32,43 @@ function coverageBlockingReasons(coverage: { coverageComplete: boolean; failedRe
   return reasons;
 }
 
-export async function runHotelIntakePipelineV2Safe(input: {
-  url: string;
+function extractionQuotaExhausted(extraction: Awaited<ReturnType<typeof extractHotelDomainsV2>>) {
+  return extraction.issues.some((issue) => issue.code === "AI_QUOTA_EXHAUSTED");
+}
+
+function quotaBlockedDocuments(
+  discovery: HotelIntakeV2DiscoveryResult,
+): HotelScannerV2DocumentIngestionResult {
+  const model = String(process.env.OPENAI_HOTEL_SCANNER_MODEL || "gpt-5.6-luna").trim();
+  const documents = discovery.inventory.documents.map((document) => ({
+    url: document.url,
+    status: "FAILED" as const,
+    domains: document.domains,
+    facts: [],
+    error: "document_ai_quota_exhausted",
+    latencyMs: 0,
+  }));
+  return {
+    schemaVersion: "hotel-document-ingestion-v2",
+    documents,
+    facts: [],
+    diagnostics: {
+      model,
+      discoveredDocumentCount: documents.length,
+      ingestedDocumentCount: 0,
+      failedDocumentCount: documents.length,
+      skippedDocumentCount: 0,
+    },
+  };
+}
+
+export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
+  discovery: HotelIntakeV2DiscoveryResult;
   outputLanguage: HotelScannerV2OutputLanguage;
+  discoveryLatencyMs?: number;
 }) {
-  const startedAt = Date.now();
-  const discoveryStartedAt = Date.now();
-  const discovery = await discoverHotelIntakeV2(input.url);
-  const discoveryLatencyMs = Date.now() - discoveryStartedAt;
+  const discovery = input.discovery;
+  const discoveryLatencyMs = Math.max(0, Number(input.discoveryLatencyMs || 0));
 
   const extractionStartedAt = Date.now();
   const extraction = await extractHotelDomainsV2({
@@ -47,11 +80,16 @@ export async function runHotelIntakePipelineV2Safe(input: {
   const extractionLatencyMs = Date.now() - extractionStartedAt;
 
   const documentStartedAt = Date.now();
-  const documents = await ingestHotelDocumentsV2({
-    inventory: discovery.inventory,
-    canonicalUrl: discovery.evidence.canonicalUrl,
-    outputLanguage: input.outputLanguage,
-  });
+  // A permanent billing/quota failure is global for the API key. Once web
+  // extraction proves the quota is exhausted, do not fan out more paid PDF
+  // requests that can only fail with the same 429.
+  const documents = extractionQuotaExhausted(extraction)
+    ? quotaBlockedDocuments(discovery)
+    : await ingestHotelDocumentsV2({
+        inventory: discovery.inventory,
+        canonicalUrl: discovery.evidence.canonicalUrl,
+        outputLanguage: input.outputLanguage,
+      });
   const documentLatencyMs = Date.now() - documentStartedAt;
 
   const inventory = applyDocumentIngestionToInventoryV2(discovery.inventory, documents);
@@ -133,7 +171,21 @@ export async function runHotelIntakePipelineV2Safe(input: {
       extractionLatencyMs,
       documentLatencyMs,
       verificationLatencyMs,
-      totalLatencyMs: Date.now() - startedAt,
+      totalLatencyMs: discoveryLatencyMs + extractionLatencyMs + documentLatencyMs + verificationLatencyMs,
     },
   };
+}
+
+export async function runHotelIntakePipelineV2Safe(input: {
+  url: string;
+  outputLanguage: HotelScannerV2OutputLanguage;
+}) {
+  const discoveryStartedAt = Date.now();
+  const discovery = await discoverHotelIntakeV2(input.url);
+  const discoveryLatencyMs = Date.now() - discoveryStartedAt;
+  return runHotelIntakePipelineV2FromDiscoverySafe({
+    discovery,
+    outputLanguage: input.outputLanguage,
+    discoveryLatencyMs,
+  });
 }
