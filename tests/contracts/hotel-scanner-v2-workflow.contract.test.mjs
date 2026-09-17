@@ -12,24 +12,49 @@ test("Scanner V2 durable workflow dependency and Next integration are pinned", a
   assert.match(nextConfig, /export default withWorkflow\(nextConfig\)/);
 });
 
-test("Scanner V2 workflow wraps the accepted stable pipeline in a durable step", async () => {
+test("Scanner V2 workflow checkpoints discovery separately from paid enrichment", async () => {
   const source = await readProjectFile("workflows/hotel-scanner-v2-workflow.ts");
 
   assert.match(source, /"use workflow"/);
   assert.match(source, /"use step"/);
-  assert.match(source, /runHotelIntakePipelineV2/);
+  assert.match(source, /runDiscoveryCheckpointStep/);
+  assert.match(source, /discoverHotelIntakeV2/);
+  assert.match(source, /runEnrichmentStep/);
+  assert.match(source, /runHotelIntakePipelineV2FromDiscovery/);
   assert.match(source, /FatalError/);
+  assert.doesNotMatch(source, /runHotelIntakePipelineV2\(/);
   assert.doesNotMatch(source, /crawlPublicHotelWebsiteRenderedV2/);
 });
 
-test("Scanner V2 workflow start route returns a run id without owning the scan lifetime", async () => {
+test("Scanner V2 durable workflow pauses on exhausted credits and resumes enrichment without recrawling", async () => {
+  const workflow = await readProjectFile("workflows/hotel-scanner-v2-workflow.ts");
+  const resumeRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-workflow/resume/route.ts");
+
+  assert.match(workflow, /defineHook/);
+  assert.match(workflow, /scannerV2QuotaResumeHook/);
+  assert.match(workflow, /AI_QUOTA_EXHAUSTED/);
+  assert.match(workflow, /document_ai_quota_exhausted/);
+  assert.match(workflow, /scanner_v2_workflow_waiting_for_billing/);
+  assert.match(workflow, /for await \(const event of resumeEvents\)/);
+  assert.match(workflow, /retry_after_billing/);
+  assert.match(workflow, /runEnrichmentStep\(input, checkpoint, attempt\)/);
+  assert.match(resumeRoute, /enforceControlPlaneSameOrigin/);
+  assert.match(resumeRoute, /getCurrentPlatformAdminSession/);
+  assert.match(resumeRoute, /canMutateControlPlane/);
+  assert.match(resumeRoute, /scannerV2QuotaResumeHook\.resume/);
+  assert.match(resumeRoute, /retry_after_billing/);
+});
+
+test("Scanner V2 workflow start route returns both durable run id and scan lineage id", async () => {
   const source = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-workflow/route.ts");
 
   assert.match(source, /import \{ start \} from "workflow\/api"/);
   assert.match(source, /enforceControlPlaneSameOrigin/);
   assert.match(source, /getCurrentPlatformAdminSession/);
+  assert.match(source, /const scanRunId = randomUUID\(\)/);
   assert.match(source, /start\(hotelScannerV2Workflow/);
   assert.match(source, /runId: run\.runId/);
+  assert.match(source, /scanRunId/);
   assert.match(source, /202/);
 });
 
