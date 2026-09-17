@@ -42,6 +42,22 @@ test("Scanner V2 distinguishes exhausted API quota from transient 429 rate limit
   assert.match(ingestion, /if \(isQuotaExhaustedError\(error\)\) return false/);
 });
 
+test("Scanner V2 fails fast globally after the first exhausted-credit response", async () => {
+  const extractor = await readProjectFile("lib/ai/hotel-scanner-v2-domain-extractors-safe.ts");
+  const pipeline = await readProjectFile("lib/server/hotel-scanner-v2-pipeline-safe.ts");
+
+  assert.match(extractor, /GlobalAiQuotaGate/);
+  assert.match(extractor, /quotaGate\.isExhausted\(\)/);
+  assert.match(extractor, /chunk\.issue\.code === "AI_QUOTA_EXHAUSTED"/);
+  assert.match(extractor, /quotaGate\.exhaust\(\)/);
+  assert.match(extractor, /global_ai_quota_exhausted_before_domain_request/);
+  assert.match(extractor, /requestCount \+= 1/);
+  assert.match(pipeline, /extractionQuotaExhausted/);
+  assert.match(pipeline, /quotaBlockedDocuments/);
+  assert.match(pipeline, /document_ai_quota_exhausted/);
+  assert.match(pipeline, /extractionQuotaExhausted\(extraction\)[\s\S]*?quotaBlockedDocuments\(discovery\)[\s\S]*?: await ingestHotelDocumentsV2/s);
+});
+
 test("Scanner V2 treats incomplete AI chunks as visible partial extraction instead of 502", async () => {
   const openai = await readProjectFile("lib/ai/hotel-scanner-v2-extraction-openai.ts");
   const extractor = await readProjectFile("lib/ai/hotel-scanner-v2-domain-extractors-safe.ts");
@@ -59,7 +75,7 @@ test("Scanner V2 paces web extraction before PDF ingestion instead of overlappin
   const pipeline = await readProjectFile("lib/server/hotel-scanner-v2-pipeline-safe.ts");
 
   assert.match(pipeline, /const extraction = await extractHotelDomainsV2/);
-  assert.match(pipeline, /const documents = await ingestHotelDocumentsV2/);
+  assert.match(pipeline, /await ingestHotelDocumentsV2/);
   assert.doesNotMatch(pipeline, /Promise\.all\(\[\s*extractHotelDomainsV2/);
   assert.match(pipeline, /documentLatencyMs/);
 });
