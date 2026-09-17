@@ -32,6 +32,26 @@ import type {
 
 export type { HotelScannerV2OutputLanguage } from "@/lib/ai/hotel-scanner-v2-extraction-types";
 
+type GlobalAiQuotaGate = {
+  isExhausted: () => boolean;
+  exhaust: () => void;
+};
+
+function quotaGateIssue(
+  config: HotelScannerV2DomainConfig,
+  sourceUrls: string[],
+  chunkCount: number,
+) {
+  return {
+    domain: config.domain,
+    chunkIndex: 1,
+    chunkCount: Math.max(1, chunkCount),
+    code: "AI_QUOTA_EXHAUSTED" as const,
+    reason: "global_ai_quota_exhausted_before_domain_request",
+    sourceUrls,
+  };
+}
+
 async function extractDomain(
   config: HotelScannerV2DomainConfig,
   evidence: HotelScannerV2EvidenceBundle,
@@ -39,6 +59,7 @@ async function extractDomain(
   inventory: HotelScannerV2Inventory,
   outputLanguage: HotelScannerV2OutputLanguage,
   model: string,
+  quotaGate: GlobalAiQuotaGate,
 ): Promise<HotelScannerV2DomainExtraction> {
   const domainInventory = inventory.domains.find((entry) => entry.domain === config.domain);
   if (domainInventory?.expectationState === "ABSENT" && !config.propertyWide) {
@@ -65,19 +86,35 @@ async function extractDomain(
   const startedAt = Date.now();
   const extracted: HotelScanFact[] = [];
   const issues = [] as HotelScannerV2DomainExtraction["issues"];
+  let requestCount = 0;
 
-  for (let index = 0; index < chunks.length; index += 1) {
-    const chunk = await extractHotelScannerV2Chunk({
-      config,
-      pages: chunks[index],
-      expected,
-      outputLanguage,
-      model,
-      chunkIndex: index,
-      chunkCount: chunks.length,
-    });
-    extracted.push(...chunk.facts);
-    if (chunk.issue) issues.push(chunk.issue);
+  if (quotaGate.isExhausted()) {
+    issues.push(quotaGateIssue(config, sourceUrls, chunks.length));
+  } else {
+    for (let index = 0; index < chunks.length; index += 1) {
+      if (quotaGate.isExhausted()) {
+        issues.push(quotaGateIssue(config, sourceUrls, chunks.length));
+        break;
+      }
+      requestCount += 1;
+      const chunk = await extractHotelScannerV2Chunk({
+        config,
+        pages: chunks[index],
+        expected,
+        outputLanguage,
+        model,
+        chunkIndex: index,
+        chunkCount: chunks.length,
+      });
+      extracted.push(...chunk.facts);
+      if (chunk.issue) {
+        issues.push(chunk.issue);
+        if (chunk.issue.code === "AI_QUOTA_EXHAUSTED") {
+          quotaGate.exhaust();
+          break;
+        }
+      }
+    }
   }
 
   // Entity existence comes from deterministic inventory/discovery, not from an
@@ -101,7 +138,7 @@ async function extractDomain(
     sourceUrls,
     expectedCount: domainInventory?.expectationState === "UNKNOWN" ? null : domainInventory?.expectedCount ?? null,
     latencyMs: Date.now() - startedAt,
-    requestCount: chunks.length,
+    requestCount,
     issues,
   };
 }
@@ -127,8 +164,13 @@ export async function extractHotelDomainsV2(input: {
   outputLanguage: HotelScannerV2OutputLanguage;
 }): Promise<HotelScannerV2ExtractionResult> {
   const model = String(process.env.OPENAI_HOTEL_SCANNER_MODEL || "gpt-5.6-luna").trim();
+  let quotaExhausted = false;
+  const quotaGate: GlobalAiQuotaGate = {
+    isExhausted: () => quotaExhausted,
+    exhaust: () => { quotaExhausted = true; },
+  };
   const domains = await mapWithConcurrency(HOTEL_SCANNER_V2_DOMAIN_CONFIGS, DOMAIN_CONCURRENCY, (config) =>
-    extractDomain(config, input.evidence, input.siteMap, input.inventory, input.outputLanguage, model));
+    extractDomain(config, input.evidence, input.siteMap, input.inventory, input.outputLanguage, model, quotaGate));
   const facts = domains.flatMap((domain) => domain.facts);
   const issues = domains.flatMap((domain) => domain.issues);
 
