@@ -10,6 +10,12 @@ type ProbeState = {
   result?: unknown;
 };
 
+type SavedRun = {
+  runId: string;
+  scanRunId: string;
+};
+
+const STORAGE_KEY = "stayhub_scanner_v2_runtime_probe";
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function ScannerV2RuntimeProbePage() {
@@ -32,8 +38,51 @@ export default function ScannerV2RuntimeProbePage() {
       return body;
     }
 
+    async function poll(saved: SavedRun) {
+      setState({
+        phase: "scan",
+        message: "Workflow работи. Discovery → AI enrichment → PDF → verification → persistence…",
+        runId: saved.runId,
+        scanRunId: saved.scanRunId,
+      });
+
+      for (;;) {
+        const polled = await request("status", { runId: saved.runId });
+        if (cancelled) return;
+        if (polled.status === "completed") {
+          setState({
+            phase: "done",
+            message: "Runtime тестът завърши успешно.",
+            runId: saved.runId,
+            scanRunId: saved.scanRunId,
+            result: polled.result,
+          });
+          return;
+        }
+        if (["failed", "cancelled"].includes(polled.status)) {
+          throw new Error(`workflow_${polled.status}`);
+        }
+        setState({
+          phase: "scan",
+          message: `Workflow статус: ${polled.status}. Продължавам да следя…`,
+          runId: saved.runId,
+          scanRunId: saved.scanRunId,
+        });
+        await sleep(2500);
+      }
+    }
+
     async function run() {
       try {
+        const savedRaw = window.sessionStorage.getItem(STORAGE_KEY);
+        if (savedRaw) {
+          const saved = JSON.parse(savedRaw) as SavedRun;
+          if (saved.runId && saved.scanRunId) {
+            await poll(saved);
+            return;
+          }
+        }
+
         setState({ phase: "credit", message: "Проверявам OpenAI credit balance с минимална заявка…" });
         const credit = await request("credit");
         if (cancelled) return;
@@ -45,37 +94,9 @@ export default function ScannerV2RuntimeProbePage() {
         const started = await request("start");
         if (cancelled) return;
 
-        setState({
-          phase: "scan",
-          message: "Workflow работи. Discovery → AI enrichment → PDF → verification → persistence…",
-          runId: started.runId,
-          scanRunId: started.scanRunId,
-        });
-
-        for (;;) {
-          await sleep(2500);
-          if (cancelled) return;
-          const polled = await request("status", { runId: started.runId });
-          if (polled.status === "completed") {
-            setState({
-              phase: "done",
-              message: "Runtime тестът завърши успешно.",
-              runId: started.runId,
-              scanRunId: started.scanRunId,
-              result: polled.result,
-            });
-            return;
-          }
-          if (["failed", "cancelled"].includes(polled.status)) {
-            throw new Error(`workflow_${polled.status}`);
-          }
-          setState({
-            phase: "scan",
-            message: `Workflow статус: ${polled.status}. Продължавам да следя…`,
-            runId: started.runId,
-            scanRunId: started.scanRunId,
-          });
-        }
+        const saved = { runId: started.runId, scanRunId: started.scanRunId } as SavedRun;
+        window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+        await poll(saved);
       } catch (error) {
         if (cancelled) return;
         setState({
