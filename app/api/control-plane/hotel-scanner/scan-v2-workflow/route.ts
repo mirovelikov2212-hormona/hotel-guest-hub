@@ -34,12 +34,14 @@ export async function POST(request: NextRequest) {
   if (!url) return json({ ok: false, error: "missing_url" }, 400);
 
   try {
-    const run = await start(hotelScannerV2Workflow, [{ url, outputLanguage, actorAdminId: authority.adminId, scanRunId: randomUUID() }]);
+    const scanRunId = randomUUID();
+    const run = await start(hotelScannerV2Workflow, [{ url, outputLanguage, actorAdminId: authority.adminId, scanRunId }]);
     return json(
       {
         ok: true,
         mode: "durable_workflow",
         runId: run.runId,
+        scanRunId,
         status: await run.status,
       },
       202,
