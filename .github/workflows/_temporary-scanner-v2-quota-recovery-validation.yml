@@ -1,0 +1,33 @@
+name: Temporary Scanner V2 quota recovery validation
+
+on:
+  push:
+    branches:
+      - feat/hotel-lifecycle-v1-intelligence-review
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Scanner V2 quota and workflow contracts
+        run: node --test tests/contracts/hotel-scanner-v2-ai-budget.contract.test.mjs tests/contracts/hotel-scanner-v2-workflow.contract.test.mjs
+
+      - name: Tenant isolation
+        run: npm run test:tenant-isolation
