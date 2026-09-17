@@ -1,6 +1,9 @@
 import "server-only";
 
-import { runHotelIntakePipelineV2Safe } from "@/lib/server/hotel-scanner-v2-pipeline-safe";
+import {
+  runHotelIntakePipelineV2FromDiscoverySafe,
+  runHotelIntakePipelineV2Safe,
+} from "@/lib/server/hotel-scanner-v2-pipeline-safe";
 
 // Contract markers delegated to the safe runtime:
 // discoverHotelIntakeV2 -> extractHotelDomainsV2 -> ingestHotelDocumentsV2 -> applyDocumentIngestionToInventoryV2
@@ -11,3 +14,4 @@ import { runHotelIntakePipelineV2Safe } from "@/lib/server/hotel-scanner-v2-pipe
 export type HotelIntakePipelineV2Result = Awaited<ReturnType<typeof runHotelIntakePipelineV2Safe>>;
 
 export const runHotelIntakePipelineV2 = runHotelIntakePipelineV2Safe;
+export const runHotelIntakePipelineV2FromDiscovery = runHotelIntakePipelineV2FromDiscoverySafe;
