@@ -207,3 +207,38 @@ test("deterministic list-only service existence is complete when the site provid
   assert.equal(result.domains[0].content.status, "COMPLETE");
   assert.equal(result.status, "READY_FOR_HUMAN_REVIEW");
 });
+
+
+test("deterministic list-only service existence can complete without duplicate AI identity fact", () => {
+  const url = "https://hotel.test/services";
+  const serviceItem = {
+    id: "service:wifi",
+    domain: "services",
+    entityType: "service",
+    variantGroupId: "hotel.test/services#wifi",
+    nameHint: "Wi-Fi",
+    url,
+    urls: [url],
+    languages: ["en"],
+    crawled: true,
+    basis: "canonical_service_text_entity",
+  };
+  const result = buildHotelCompletenessV2({
+    inventory: {
+      domains: [{
+        domain: "services",
+        expectationState: "DETERMINISTIC",
+        expectedCount: 1,
+        expectedItems: [serviceItem],
+      }],
+      documents: [],
+    },
+    profile: { facts: [] },
+    conflicts: [],
+  });
+
+  assert.equal(result.domains[0].inventory.status, "COMPLETE");
+  assert.equal(result.domains[0].inventory.extracted, 1);
+  assert.equal(result.domains[0].content.status, "COMPLETE");
+  assert.equal(result.status, "READY_FOR_HUMAN_REVIEW");
+});
