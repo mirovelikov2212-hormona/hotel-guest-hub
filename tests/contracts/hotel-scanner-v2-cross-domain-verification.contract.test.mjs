@@ -62,3 +62,22 @@ test("different quiet-hour windows are a conflict across language documents", ()
   assert.equal(result.conflicts.length, 1);
   assert.equal(result.conflicts[0].attribute, "quiet_hours");
 });
+
+
+test("address claims with nested geographic specificity are compatible rather than conflicting", () => {
+  const result = verifyHotelScanFactsV2([
+    fact("location", "hotel", "address", "8240 Sunny Beach, Bulgaria", "https://hotel.test/policy-a"),
+    fact("contact", "hotel", "address", "Sunny Beach, Bulgaria", "https://hotel.test/policy-b"),
+    fact("location", "hotel", "address", "Bulgaria", "https://hotel.test/report"),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+});
+
+test("genuinely different addresses remain a cross-source conflict", () => {
+  const result = verifyHotelScanFactsV2([
+    fact("location", "hotel", "address", "8240 Sunny Beach, Bulgaria", "https://hotel.test/policy-a"),
+    fact("contact", "hotel", "address", "9007 Golden Sands, Bulgaria", "https://hotel.test/policy-b"),
+  ]);
+  assert.equal(result.conflicts.length, 1);
+  assert.equal(result.conflicts[0].attribute, "address");
+});
