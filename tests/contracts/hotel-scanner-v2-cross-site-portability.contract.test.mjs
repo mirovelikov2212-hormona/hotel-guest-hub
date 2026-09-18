@@ -464,3 +464,24 @@ test("multifunctional playground is a sports facility, while a children's playgr
     "kids_facility",
   );
 });
+
+
+test("supporting hotel page can establish a corroborated water-facility cluster", () => {
+  const input = page(
+    "https://resort-example.test/about-us",
+    "About Us",
+    ["About Us", "Facilities"],
+    [{ level: 2, heading: "Facilities", text: "The impressive Main Pool, Kids Pool and Jacuzzi welcome hotel guests.", links: [] }],
+  );
+  input.text = "The impressive Main Pool, Kids Pool and Jacuzzi welcome hotel guests.";
+  const classification = classifyHotelScannerPageV2(input);
+  const hints = deriveHotelPageInventoryHintsV2(input, classification);
+  const experiences = hints.find((hint) => hint.domain === "experiences");
+
+  assert.ok(experiences);
+  assert.deepEqual(
+    experiences.candidates.map((candidate) => candidate.name).sort(),
+    ["Children's Pool", "Jacuzzi", "Main Pool"].sort(),
+  );
+  assert.ok(experiences.candidates.every((candidate) => candidate.basis === "deterministic_facility_text"));
+});
