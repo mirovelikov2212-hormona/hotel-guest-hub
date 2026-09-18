@@ -20,7 +20,6 @@ const NAMED_INVENTORY_BASES = new Set([
 const DETAIL_INVENTORY_BASES = new Set([
   "deterministic_detail_resource",
   "canonical_detail_entity",
-  "canonical_linked_detail_entity",
 ]);
 
 function isPrivacyMinimalBusinessEmail(raw: string) {
