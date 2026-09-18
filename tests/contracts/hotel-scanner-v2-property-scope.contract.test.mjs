@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   deriveHotelPropertyScopeV2,
   isHotelPropertyDocumentUrlInScopeV2,
+  isHotelPropertyOperationalContentUrlV2,
   isHotelPropertyPageUrlInScopeV2,
 } from "../../lib/server/hotel-scanner-v2-property-scope.mjs";
 
@@ -72,5 +73,46 @@ test("sitemap documents outside property root require property identity, while d
       { directlyLinkedFromProperty: true },
     ),
     true,
+  );
+});
+
+
+test("article-like chain content under a property path is outside operational scope", () => {
+  const scope = deriveHotelPropertyScopeV2("https://chain.test/arycanda-kirman-premium");
+
+  assert.equal(
+    isHotelPropertyOperationalContentUrlV2(
+      "https://chain.test/arycanda-kirman-premium/en/main-restaurant",
+      scope,
+    ),
+    true,
+  );
+  assert.equal(
+    isHotelPropertyOperationalContentUrlV2(
+      "https://chain.test/arycanda-kirman-premium/en/child-aquapark",
+      scope,
+    ),
+    true,
+  );
+  assert.equal(
+    isHotelPropertyOperationalContentUrlV2(
+      "https://chain.test/arycanda-kirman-premium/de/beste-familienhotels-mit-aquapark-in-antalya-2026-calyptus-vs-leodikya",
+      scope,
+    ),
+    false,
+  );
+  assert.equal(
+    isHotelPropertyOperationalContentUrlV2(
+      "https://chain.test/arycanda-kirman-premium/de/eine-neue-ara-der-gastfreundschaft-im-sidemarin-kirman-premium-unser-robote",
+      scope,
+    ),
+    false,
+  );
+  assert.equal(
+    isHotelPropertyOperationalContentUrlV2(
+      "https://chain.test/arycanda-kirman-premium/de/news",
+      scope,
+    ),
+    false,
   );
 });
