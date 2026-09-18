@@ -148,21 +148,36 @@ test("non-facility room-view facts and non-ingested sources cannot expand canoni
 });
 
 test("verified document entity is completeness evidence after successful ingestion", () => {
+  const baseline = inventory();
+  baseline.domains = baseline.domains.map((domain) => domain.domain === "experiences"
+    ? {
+        ...domain,
+        expectationState: "ABSENT",
+        expectedCount: 0,
+        expectedItems: [],
+        landingUrls: [],
+        detailUrls: [],
+        supportingUrls: [],
+      }
+    : domain);
+  baseline.counts.expectedItems = 0;
+  baseline.counts.deterministicDomains = 0;
+
+  const kidsPoolFact = fact("amenities", "facility", "Kids pool.");
   const reconciled = reconcileHotelInventoryWithVerifiedFactsV2(
-    inventory(),
-    [fact("amenities", "facility", "Kids pool.")],
+    baseline,
+    [kidsPoolFact],
     { ingestedDocumentUrls: ["https://hotel.test/files/fact-sheet.pdf"] },
   );
 
   const result = buildHotelCompletenessV2({
     inventory: reconciled,
-    profile: {
-      facts: [fact("amenities", "facility", "Kids pool.")],
-    },
+    profile: { facts: [kidsPoolFact] },
     conflicts: [],
   });
 
   const experiences = result.domains.find((domain) => domain.domain === "experiences");
   assert.equal(experiences.inventory.status, "COMPLETE");
   assert.equal(experiences.content.status, "COMPLETE");
+  assert.equal(experiences.expected, 1);
 });
