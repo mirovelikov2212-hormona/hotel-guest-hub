@@ -18,12 +18,6 @@ const NAMED_INVENTORY_BASES = new Set([
   "canonical_structural_entity",
 ]);
 
-const DETAIL_INVENTORY_BASES = new Set([
-  "deterministic_detail_resource",
-  "canonical_detail_entity",
-  "canonical_linked_detail_entity",
-]);
-
 function isPrivacyMinimalBusinessEmail(raw: string) {
   const value = cleanV2(raw, 200).toLocaleLowerCase("en-US");
   const match = value.match(/^([^@]+)@([^@]+)$/);
