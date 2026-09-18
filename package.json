@@ -45,7 +45,8 @@
     "test:p4-12": "node --test tests/contracts/p4-12-runtime-config-materialization.contract.test.mjs",
     "test:shared-guest-runtime": "node --test tests/contracts/shared-guest-runtime-genericization.contract.test.mjs",
     "test:reception-custom-department-visibility": "node --test tests/contracts/reception-custom-department-visibility.contract.test.mjs",
-    "test:factory-disposable-proof": "node --test tests/contracts/factory-disposable-onboarding-proof.contract.test.mjs"
+    "test:factory-disposable-proof": "node --test tests/contracts/factory-disposable-onboarding-proof.contract.test.mjs",
+    "prebuild": "node --test tests/contracts/hotel-scanner-v2-content-completeness.contract.test.mjs tests/contracts/hotel-scanner-v2-presentation-quality.contract.test.mjs tests/contracts/hotel-scanner-v2-review-cards.contract.test.mjs tests/contracts/hotel-scanner-v2-workflow.contract.test.mjs tests/contracts/hotel-scanner-v2-full-pipeline.contract.test.mjs"
   },
   "dependencies": {
     "@sparticuz/chromium": "153.0.0",
