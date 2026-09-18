@@ -1,18 +1,35 @@
 export type HotelScannerV2CompletenessStatus = "READY_FOR_HUMAN_REVIEW" | "INCOMPLETE" | "CONFLICT_REVIEW_REQUIRED";
 
+export type HotelScannerV2MissingItem = {
+  id: string;
+  nameHint: string;
+  url: string;
+  crawled: boolean;
+};
+
 export type HotelScannerV2DomainCompleteness = {
   domain: string;
   status: "COMPLETE" | "INCOMPLETE" | "NOT_APPLICABLE";
   reason: string;
   expected: number | null;
   extracted: number;
-  missingItems: Array<{
-    id: string;
-    nameHint: string;
-    url: string;
-    crawled: boolean;
-  }>;
+  missingItems: HotelScannerV2MissingItem[];
   extractedItemIds: string[];
+  inventory: {
+    status: "COMPLETE" | "INCOMPLETE" | "NOT_APPLICABLE";
+    reason: string;
+    expected: number | null;
+    extracted: number;
+    missingItems: HotelScannerV2MissingItem[];
+    extractedItemIds: string[];
+  };
+  content: {
+    status: "COMPLETE" | "INCOMPLETE" | "NOT_APPLICABLE";
+    reason: string;
+    detailed: number;
+    totalEntities: number;
+    missingDetailItems: HotelScannerV2MissingItem[];
+  };
   blocking: boolean;
 };
 
