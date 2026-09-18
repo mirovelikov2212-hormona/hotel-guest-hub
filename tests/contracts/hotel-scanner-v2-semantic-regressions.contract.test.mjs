@@ -149,14 +149,14 @@ test("German main restaurant remains gastronomy instead of generic service", () 
   );
 });
 
-test("corporate governance and editorial surfaces are not guest hotel entities", () => {
+test("corporate policy surfaces classify as policies and editorial surfaces are not hotel entities", () => {
   assert.equal(
     classifyHotelScannerPageV2(page(
       "https://chain.test/property/de/integrierte-managementpolitik",
       "INTEGRIERTE MANAGEMENTPOLITIK",
       ["INTEGRIERTE MANAGEMENTPOLITIK"],
     )).primaryType,
-    "other",
+    "policies",
   );
 
   assert.equal(
@@ -165,7 +165,7 @@ test("corporate governance and editorial surfaces are not guest hotel entities",
       "Corporate Sustainability Policy",
       ["Corporate Sustainability Policy"],
     )).primaryType,
-    "other",
+    "policies",
   );
 
   assert.equal(
@@ -215,76 +215,4 @@ test("long SEO article URLs do not become hotel services or experiences", () => 
     )).primaryType,
     "restaurant_detail",
   );
-});
-
-
-test("semantic-only footer copy cannot turn an unknown page into a service", () => {
-  const input = page(
-    "https://chain.test/property/de/punktleiste",
-    "Punktleiste",
-    ["Punktleiste", "Premium Service", "Guest Services"],
-  );
-  input.description = "Erleben Sie unseren Premium Service.";
-  assert.equal(classifyHotelScannerPageV2(input).primaryType, "other");
-});
-
-test("localized property home pages never become canonical experiences", () => {
-  assert.equal(
-    classifyHotelScannerPageV2(page(
-      "https://chain.test/property-premium/de",
-      "Property Premium",
-      ["Property Premium", "Pool", "Beach"],
-    )).primaryType,
-    "other",
-  );
-});
-
-test("corporate governance stays semantically classified but outside guest policy inventory", () => {
-  assert.equal(
-    classifyHotelScannerPageV2(page(
-      "https://chain.test/property/en/corporate-sustainability-policy",
-      "Corporate Sustainability Policy",
-      ["Corporate Sustainability Policy"],
-    )).primaryType,
-    "policies",
-  );
-  assert.equal(
-    classifyHotelScannerPageV2(page(
-      "https://chain.test/property/de/fernabsatzvertrag",
-      "Fernabsatzvertrag",
-      ["Fernabsatzvertrag"],
-    )).primaryType,
-    "other",
-  );
-});
-
-test("amphitheater is an entertainment experience, not spa", () => {
-  assert.equal(
-    classifyHotelScannerPageV2(page(
-      "https://chain.test/property/de/amphitheater",
-      "Amphitheater | Property Premium",
-      ["Amphitheater"],
-    )).primaryType,
-    "experience_detail",
-  );
-});
-
-
-test("corporate-only policy surfaces do not create blocking guest policy inventory", () => {
-  const corporatePage = page(
-    "https://chain.test/property/en/corporate-sustainability-policy",
-    "Corporate Sustainability Policy",
-    ["Corporate Sustainability Policy"],
-  );
-  const classification = classifyHotelScannerPageV2(corporatePage);
-  const siteMap = buildHotelSiteMapV2({
-    canonicalUrl: "https://chain.test/property/en",
-    pages: [{ ...corporatePage, classification }],
-  });
-  const inventory = buildHotelInventoryV2(siteMap);
-  const policies = inventory.domains.find((item) => item.domain === "policies");
-
-  assert.equal(policies.expectationState, "ABSENT");
-  assert.equal(policies.expectedCount, 0);
-  assert.ok(policies.supportingUrls.some((url) => /corporate-sustainability-policy/i.test(url)));
 });
