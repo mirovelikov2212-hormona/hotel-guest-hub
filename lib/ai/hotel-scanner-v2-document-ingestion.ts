@@ -204,7 +204,7 @@ async function ingestOne(
     let byteCount = 0;
     let inputFile:
       | { type: "input_file"; filename: string; file_data: string }
-      | { type: "input_file"; filename: string; file_url: string };
+      | { type: "input_file"; file_url: string };
 
     try {
       const fetched = await fetchPublicBinaryV2(new URL(document.url), {
@@ -244,7 +244,6 @@ async function ingestOne(
       byteCount = probed.contentLength;
       inputFile = {
         type: "input_file",
-        filename: filenameForUrl(probed.url.toString()),
         file_url: probed.url.toString(),
       };
     }
