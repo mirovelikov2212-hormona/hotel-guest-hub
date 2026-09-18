@@ -5,6 +5,7 @@ import { start } from "workflow/api";
 import { canMutateControlPlane } from "@/lib/server/control-plane-auth";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
+import { createScannerV2WorkflowAccessToken } from "@/lib/server/hotel-scanner-v2-workflow-access";
 import { hotelScannerV2Workflow } from "@/workflows/hotel-scanner-v2-workflow";
 
 export const runtime = "nodejs";
@@ -36,12 +37,18 @@ export async function POST(request: NextRequest) {
   try {
     const scanRunId = randomUUID();
     const run = await start(hotelScannerV2Workflow, [{ url, outputLanguage, actorAdminId: authority.adminId, scanRunId }]);
+    const runAccessToken = createScannerV2WorkflowAccessToken({
+      actorAdminId: authority.adminId,
+      runId: run.runId,
+      scanRunId,
+    });
     return json(
       {
         ok: true,
         mode: "durable_workflow",
         runId: run.runId,
         scanRunId,
+        runAccessToken,
         status: await run.status,
       },
       202,
