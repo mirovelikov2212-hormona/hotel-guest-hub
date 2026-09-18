@@ -121,7 +121,14 @@ export function boundHotelScannerV2FactsToInventory(
   }
 
   const result: HotelScanFact[] = [];
-  for (const fact of facts) {
+  const factSlices = facts.flatMap((fact) => {
+    const sourceUrls = Array.isArray(fact.sourceUrls) ? fact.sourceUrls : [];
+    return sourceUrls.length > 1
+      ? sourceUrls.map((sourceUrl) => ({ ...fact, sourceUrls: [sourceUrl] } as HotelScanFact))
+      : [fact];
+  });
+
+  for (const fact of factSlices) {
     const enriched = fact as HotelScanFact & { subject?: string; attribute?: string };
     const ownership = bindHotelScannerFactToOwnerV2(fact, expectedItems);
     const boundFact = ownership.fact;
@@ -155,5 +162,5 @@ export function boundHotelScannerV2FactsToInventory(
       result.push(boundFact);
     }
   }
-  return result;
+  return mergeHotelScannerV2Facts(result);
 }
