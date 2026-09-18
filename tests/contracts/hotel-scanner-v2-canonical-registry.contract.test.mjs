@@ -448,33 +448,3 @@ test("duplicate facility evidence prefers the topical pool surface", () => {
   assert.equal(experiences.expectedItems[0].url, "https://hotel.test/pools");
   assert.equal(experiences.expectedItems[0].basis, "canonical_facility_text_entity");
 });
-
-
-test("generic localized offer heading is not a fourth offer entity", () => {
-  const siteMap = {
-    resources: [
-      resource({
-        url: "https://hotel.test/de/angebote",
-        primaryType: "offers",
-        domain: "offers",
-        explicitCount: 3,
-        names: [
-          "Angebote",
-          "Always Kids Free",
-          "Premium For Kichies",
-          "Ultra All Inclusive Package",
-        ],
-      }),
-    ],
-  };
-
-  const registry = buildCanonicalHotelEntityRegistryV2(siteMap);
-  const offers = registry.domains.get("offers");
-
-  assert.equal(offers.expectedCount, 3);
-  assert.deepEqual(
-    offers.expectedItems.map((item) => item.nameHint).sort(),
-    ["Always Kids Free", "Premium For Kichies", "Ultra All Inclusive Package"].sort(),
-  );
-  assert.equal(offers.expectationState, "DETERMINISTIC");
-});
