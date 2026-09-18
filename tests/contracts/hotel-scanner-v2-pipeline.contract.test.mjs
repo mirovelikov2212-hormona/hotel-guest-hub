@@ -205,3 +205,59 @@ test("V2 pending documents block validation even when entity inventory is comple
   assert.equal(completeness.status, "INCOMPLETE");
   assert.ok(completeness.blockingReasons.includes("documents_pending_ingestion"));
 });
+
+
+test("guest-facing policy documents activate policy inventory while corporate policies remain documents", () => {
+  const inventory = buildHotelInventoryV2({
+    resources: [
+      {
+        url: "https://hotel.test/files/Hotel-Rules.pdf",
+        title: "",
+        resourceType: "pdf",
+        variantGroupId: "hotel.test/files/hotel-rules.pdf",
+        languages: ["en"],
+      },
+      {
+        url: "https://hotel.test/files/Employee-Policy.pdf",
+        title: "",
+        resourceType: "pdf",
+        variantGroupId: "hotel.test/files/employee-policy.pdf",
+        languages: ["en"],
+      },
+      {
+        url: "https://hotel.test/files/Environmental-Policy.pdf",
+        title: "",
+        resourceType: "pdf",
+        variantGroupId: "hotel.test/files/environmental-policy.pdf",
+        languages: ["en"],
+      },
+    ],
+  });
+
+  const policies = inventory.domains.find((domain) => domain.domain === "policies");
+  const hotelRules = inventory.documents.find((document) => /Hotel-Rules/i.test(document.url));
+  const employeePolicy = inventory.documents.find((document) => /Employee-Policy/i.test(document.url));
+  const environmentalPolicy = inventory.documents.find((document) => /Environmental-Policy/i.test(document.url));
+
+  assert.equal(policies.expectationState, "DETERMINISTIC");
+  assert.equal(policies.expectedCount, 1);
+  assert.equal(policies.expectedItems[0].basis, "deterministic_document_policy");
+  assert.ok(hotelRules.domains.includes("policies"));
+  assert.deepEqual(employeePolicy.domains, ["documents"]);
+  assert.deepEqual(environmentalPolicy.domains, ["documents"]);
+});
+
+test("Turkish guest rules PDF is recognized as operational policy", () => {
+  const inventory = buildHotelInventoryV2({
+    resources: [{
+      url: "https://hotel.test/dosyalar/Otel-Kurallari.pdf",
+      title: "",
+      resourceType: "pdf",
+      variantGroupId: "hotel.test/dosyalar/otel-kurallari.pdf",
+      languages: ["tr"],
+    }],
+  });
+  const policies = inventory.domains.find((domain) => domain.domain === "policies");
+  assert.equal(policies.expectedCount, 1);
+  assert.ok(inventory.documents[0].domains.includes("policies"));
+});
