@@ -106,6 +106,10 @@ export type HotelScannerV2EvidenceBundle = {
     robotsApplied: boolean;
     robotsUrl: string;
     robotsBlockedUrlCount: number;
+    propertyScope: {
+      mode: "ORIGIN" | "PATH_ROOT";
+      rootPath: string;
+    };
   };
 };
 
