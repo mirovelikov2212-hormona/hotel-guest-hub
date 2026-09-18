@@ -231,6 +231,13 @@ test("guest-facing policy documents activate policy inventory while corporate po
         variantGroupId: "hotel.test/files/environmental-policy.pdf",
         languages: ["en"],
       },
+      {
+        url: "https://hotel.test/files/Health-and-Safety-Policy.pdf",
+        title: "",
+        resourceType: "pdf",
+        variantGroupId: "hotel.test/files/health-and-safety-policy.pdf",
+        languages: ["en"],
+      },
     ],
   });
 
@@ -238,6 +245,7 @@ test("guest-facing policy documents activate policy inventory while corporate po
   const hotelRules = inventory.documents.find((document) => /Hotel-Rules/i.test(document.url));
   const employeePolicy = inventory.documents.find((document) => /Employee-Policy/i.test(document.url));
   const environmentalPolicy = inventory.documents.find((document) => /Environmental-Policy/i.test(document.url));
+  const healthSafetyPolicy = inventory.documents.find((document) => /Health-and-Safety-Policy/i.test(document.url));
 
   assert.equal(policies.expectationState, "DETERMINISTIC");
   assert.equal(policies.expectedCount, 1);
@@ -245,6 +253,7 @@ test("guest-facing policy documents activate policy inventory while corporate po
   assert.ok(hotelRules.domains.includes("policies"));
   assert.deepEqual(employeePolicy.domains, ["documents"]);
   assert.deepEqual(environmentalPolicy.domains, ["documents"]);
+  assert.deepEqual(healthSafetyPolicy.domains, ["documents"]);
 });
 
 test("Turkish guest rules PDF is recognized as operational policy", () => {
