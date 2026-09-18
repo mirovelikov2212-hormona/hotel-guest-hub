@@ -124,3 +124,86 @@ test("real cross-source conflicts remain visible and block approval after comple
   assert.ok(result.blockingReasons.includes("unresolved_cross_source_conflicts"));
   assert.equal(result.prerequisitesSatisfied, false);
 });
+
+
+test("localized detail facts on the same canonical page satisfy content completeness", () => {
+  const url = "https://hotel.test/rooms/family-room";
+  const detailItem = {
+    id: "room:family",
+    domain: "accommodation",
+    entityType: "room_type",
+    variantGroupId: "hotel.test/rooms/family-room",
+    nameHint: "Family Room",
+    url,
+    urls: [url],
+    languages: ["en", "bg"],
+    crawled: true,
+    basis: "canonical_detail_entity",
+  };
+  const result = buildHotelCompletenessV2({
+    inventory: {
+      domains: [{
+        domain: "accommodation",
+        expectationState: "DETERMINISTIC",
+        expectedCount: 1,
+        expectedItems: [detailItem],
+      }],
+      documents: [],
+    },
+    profile: {
+      facts: [
+        { category: "accommodation", subject: "Family Room", attribute: "room_type", label: "Room type", value: "Family Room", confidence: 1, sourceUrls: [url] },
+        { category: "accommodation", subject: "Фамилна стая", attribute: "capacity", label: "Капацитет", value: "2 възрастни + 2 деца", confidence: 1, sourceUrls: [url] },
+        { category: "accommodation", subject: "Фамилна стая", attribute: "description", label: "Описание", value: "Просторно помещение", confidence: 1, sourceUrls: [url] },
+      ],
+    },
+    conflicts: [],
+  });
+
+  assert.equal(result.domains[0].inventory.status, "COMPLETE");
+  assert.equal(result.domains[0].content.status, "COMPLETE");
+  assert.equal(result.status, "READY_FOR_HUMAN_REVIEW");
+});
+
+test("deterministic list-only service existence is complete when the site provides no richer detail page", () => {
+  const url = "https://hotel.test/services";
+  const serviceItem = {
+    id: "service:exchange",
+    domain: "services",
+    entityType: "service",
+    variantGroupId: "hotel.test/services#currency-exchange",
+    nameHint: "Currency Exchange",
+    url,
+    urls: [url],
+    languages: ["en"],
+    crawled: true,
+    basis: "canonical_service_text_entity",
+  };
+  const result = buildHotelCompletenessV2({
+    inventory: {
+      domains: [{
+        domain: "services",
+        expectationState: "DETERMINISTIC",
+        expectedCount: 1,
+        expectedItems: [serviceItem],
+      }],
+      documents: [],
+    },
+    profile: {
+      facts: [{
+        category: "services",
+        subject: "Currency Exchange",
+        attribute: "service",
+        label: "Service",
+        value: "Currency Exchange",
+        confidence: 1,
+        sourceUrls: [url],
+      }],
+    },
+    conflicts: [],
+  });
+
+  assert.equal(result.domains[0].inventory.status, "COMPLETE");
+  assert.equal(result.domains[0].content.status, "COMPLETE");
+  assert.equal(result.status, "READY_FOR_HUMAN_REVIEW");
+});
