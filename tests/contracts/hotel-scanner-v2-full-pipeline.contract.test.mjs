@@ -67,3 +67,13 @@ test("multi-source facts are bound per source before final merge", async () => {
   assert.match(facts, /bindHotelScannerFactToOwnerV2\(fact, expectedItems\)/);
   assert.match(facts, /return mergeHotelScannerV2Facts\(result\)/);
 });
+
+
+test("large PDF ingestion falls back to public file_url instead of oversized base64", async () => {
+  const source = await readProjectFile("lib/ai/hotel-scanner-v2-document-ingestion.ts");
+  assert.match(source, /MAX_INLINE_DOCUMENT_BYTES = 10_000_000/);
+  assert.match(source, /MAX_REMOTE_DOCUMENT_BYTES = 50_000_000/);
+  assert.match(source, /code !== "scanner_v2_resource_too_large"/);
+  assert.match(source, /probePublicResourceV2/);
+  assert.match(source, /file_url: probed\.url\.toString\(\)/);
+});
