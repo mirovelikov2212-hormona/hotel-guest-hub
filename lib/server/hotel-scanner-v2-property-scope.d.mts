@@ -27,3 +27,11 @@ export function filterHotelPropertyPageUrlsV2(
   values?: string[],
   scope?: HotelPropertyScopeV2,
 ): string[];
+
+
+export function isLikelyHotelEditorialUrlV2(rawUrl: string): boolean;
+
+export function isHotelPropertyOperationalContentUrlV2(
+  rawUrl: string,
+  scope?: HotelPropertyScopeV2,
+): boolean;
