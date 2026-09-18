@@ -151,6 +151,9 @@ export async function extractHotelScannerV2Chunk(input: {
         "Use ONLY WEBSITE_EVIDENCE and EXPECTED_INVENTORY. Never browse, use outside knowledge, add an entity because it seems likely, or hide a contradiction.",
         "This is one bounded evidence chunk. Extract only facts supported by this chunk; later code merges chunks deterministically.",
         "For named EXPECTED_INVENTORY items, extract facts only for those entities or exact property-wide facts supported by the supplied pages.",
+        "For every fact about a named EXPECTED_INVENTORY item, subject MUST equal that item's exact nameHint. Never translate, paraphrase or replace subject; it is the deterministic join key.",
+        "When display_name is an allowed attribute, emit at most one display_name per named expected item represented by this evidence chunk. display_name is presentation metadata only: write it in OUTPUT_LANGUAGE, translate generic descriptive titles, preserve hotel names, trademarks and product brands, and omit a repeated hotel/property suffix when it is not part of the entity brand.",
+        "Never use display_name to invent an entity, satisfy inventory coverage, or reconcile a factual conflict.",
         "For unnamed deterministic count slots, identify names only when explicitly present in the evidence and never exceed the authoritative expected count.",
         "If an expected item has no supporting content, emit no invented fact for it. Completeness will report it as missing.",
         "Every fact must cite exact URLs from ALLOWED_SOURCE_URLS.",
@@ -158,7 +161,7 @@ export async function extractHotelScannerV2Chunk(input: {
         "Preserve conflicting values separately. Do not reconcile them.",
         "Do not extract staff names, guest names, biographies, personal profiles or named-person email addresses.",
         recovery
-          ? `Recovery pass after an output-limit cutoff: emit at most ${maxItems} highest-value facts. First cover each expected entity represented by this chunk, then prioritize hours, price, booking/access, duration/capacity and one concise description. Do not repeat equivalent facts.`
+          ? `Recovery pass after an output-limit cutoff: emit at most ${maxItems} highest-value facts. First cover each expected entity represented by this chunk with its display_name when allowed, then prioritize hours, price, booking/access, duration/capacity and one concise description. Do not repeat equivalent facts.`
           : `Return no more than ${maxItems} facts for this chunk.`,
         languageInstruction(input.outputLanguage),
         `category must be one of: ${input.config.categories.join(", ")}.`,
