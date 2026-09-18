@@ -116,3 +116,73 @@ test("CMS category paths remain landing surfaces even when the archive title nam
   assert.equal(classification.primaryType, "experiences");
   assert.ok(!classification.types.includes("experience_detail"));
 });
+
+
+test("game and meeting rooms never become accommodation room types", () => {
+  assert.equal(
+    classifyHotelScannerPageV2(page(
+      "https://chain.test/property/en/game-room",
+      "Game Room",
+      ["Game Room"],
+    )).primaryType,
+    "experience_detail",
+  );
+
+  assert.equal(
+    classifyHotelScannerPageV2(page(
+      "https://chain.test/property/en/meeting-room",
+      "Meeting Room",
+      ["Meeting Room"],
+    )).primaryType,
+    "service_detail",
+  );
+});
+
+test("German main restaurant remains gastronomy instead of generic service", () => {
+  assert.equal(
+    classifyHotelScannerPageV2(page(
+      "https://chain.test/property/de/hauptrestaurant",
+      "Hauptrestaurant",
+      ["Hauptrestaurant"],
+    )).primaryType,
+    "restaurant_detail",
+  );
+});
+
+test("corporate policy surfaces classify as policies and editorial surfaces are not hotel entities", () => {
+  assert.equal(
+    classifyHotelScannerPageV2(page(
+      "https://chain.test/property/de/integrierte-managementpolitik",
+      "INTEGRIERTE MANAGEMENTPOLITIK",
+      ["INTEGRIERTE MANAGEMENTPOLITIK"],
+    )).primaryType,
+    "policies",
+  );
+
+  assert.equal(
+    classifyHotelScannerPageV2(page(
+      "https://chain.test/property/en/corporate-sustainability-policy",
+      "Corporate Sustainability Policy",
+      ["Corporate Sustainability Policy"],
+    )).primaryType,
+    "policies",
+  );
+
+  assert.equal(
+    classifyHotelScannerPageV2(page(
+      "https://chain.test/property/tr/haberler",
+      "Haberler",
+      ["Haberler"],
+    )).primaryType,
+    "other",
+  );
+
+  assert.equal(
+    classifyHotelScannerPageV2(page(
+      "https://chain.test/property/de/konzepte",
+      "Konzepte",
+      ["Konzepte"],
+    )).primaryType,
+    "other",
+  );
+});
