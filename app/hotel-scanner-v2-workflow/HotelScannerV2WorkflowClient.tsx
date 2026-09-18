@@ -9,6 +9,8 @@ import HotelScannerV2ReviewWorkspace, { type ScannerV2ReviewSection } from "../h
 type WorkflowStart = {
   ok?: boolean;
   runId?: string;
+  scanRunId?: string;
+  runAccessToken?: string;
   status?: string;
   error?: string;
 };
@@ -73,10 +75,10 @@ const STORAGE_KEY = "stayhub_scanner_v2_workflow_run";
 
 const COPY = {
   bg: {
-    title: "Scanner V2 · Durable Workflow тест",
-    help: "Този екран тества новия execution модел. Бутонът стартира background job и не чака цялото сканиране в една HTTP заявка.",
+    title: "Ново сканиране",
+    help: "Scanner V2 работи като durable background workflow: Discovery се checkpoint-ва отделно, AI enrichment и persistence продължават без браузърът да държи една дълга HTTP заявка.",
     url: "Официален хотелски сайт",
-    start: "Стартирай Workflow scan",
+    start: "Сканирай с V2",
     starting: "Стартиране…",
     run: "Workflow Run",
     status: "Статус",
@@ -113,10 +115,10 @@ const COPY = {
     noBlockers: "Няма blocking reasons.",
   },
   en: {
-    title: "Scanner V2 · Durable Workflow test",
-    help: "This screen tests the new execution model. The button starts a background job instead of keeping one HTTP request open for the entire scan.",
+    title: "New scan",
+    help: "Scanner V2 runs as a durable background workflow: Discovery is checkpointed separately, while AI enrichment and persistence continue without one long browser HTTP request.",
     url: "Official hotel website",
-    start: "Start Workflow scan",
+    start: "Scan with V2",
     starting: "Starting…",
     run: "Workflow Run",
     status: "Status",
@@ -187,6 +189,8 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
   const copy = COPY[lang];
   const [url, setUrl] = useState("https://pavelbanyagrand.com/");
   const [runId, setRunId] = useState<string | null>(null);
+  const [scanRunId, setScanRunId] = useState<string | null>(null);
+  const [runAccessToken, setRunAccessToken] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("idle");
   const [starting, setStarting] = useState(false);
   const [result, setResult] = useState<WorkflowResult | null>(null);
@@ -198,9 +202,11 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
-      const saved = JSON.parse(raw) as { runId?: string; url?: string };
-      if (saved.runId) {
+      const saved = JSON.parse(raw) as { runId?: string; scanRunId?: string; runAccessToken?: string; url?: string };
+      if (saved.runId && saved.scanRunId && saved.runAccessToken) {
         setRunId(saved.runId);
+        setScanRunId(saved.scanRunId);
+        setRunAccessToken(saved.runAccessToken);
         setUrl(saved.url || "https://pavelbanyagrand.com/");
         setStatus("restoring");
         setPollStartedAt(Date.now());
@@ -217,8 +223,10 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
   }, [pollStartedAt, result, error]);
 
   useEffect(() => {
-    if (!runId || result || error) return;
+    if (!runId || !scanRunId || !runAccessToken || result || error) return;
     const currentRunId = runId;
+    const currentScanRunId = scanRunId;
+    const currentRunAccessToken = runAccessToken;
     let cancelled = false;
 
     async function poll() {
@@ -227,6 +235,10 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
           const response = await fetch(`/api/control-plane/hotel-scanner/scan-v2-workflow/${encodeURIComponent(currentRunId)}`, {
             method: "GET",
             cache: "no-store",
+            headers: {
+              "X-Scanner-Scan-Run-Id": currentScanRunId,
+              "X-Scanner-Workflow-Token": currentRunAccessToken,
+            },
           });
           const body = (await response.json().catch(() => ({}))) as WorkflowPoll;
           if (cancelled) return;
@@ -258,7 +270,7 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
     return () => {
       cancelled = true;
     };
-  }, [runId, result, error]);
+  }, [runId, scanRunId, runAccessToken, result, error]);
 
   async function startScan() {
     if (!url.trim() || starting || (runId && !result && !error)) return;
@@ -275,16 +287,23 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
         body: JSON.stringify({ url: url.trim(), lang }),
       });
       const body = (await response.json().catch(() => ({}))) as WorkflowStart;
-      if (!response.ok || !body.ok || !body.runId) {
+      if (!response.ok || !body.ok || !body.runId || !body.scanRunId || !body.runAccessToken) {
         setError(body.error || "scanner_v2_workflow_start_failed");
         setStatus("failed");
         return;
       }
 
       setRunId(body.runId);
+      setScanRunId(body.scanRunId);
+      setRunAccessToken(body.runAccessToken);
       setStatus(body.status || "running");
       setPollStartedAt(Date.now());
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ runId: body.runId, url: url.trim() }));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        runId: body.runId,
+        scanRunId: body.scanRunId,
+        runAccessToken: body.runAccessToken,
+        url: url.trim(),
+      }));
     } catch {
       setError("network_error");
       setStatus("failed");
@@ -296,6 +315,8 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
   function reset() {
     window.localStorage.removeItem(STORAGE_KEY);
     setRunId(null);
+    setScanRunId(null);
+    setRunAccessToken(null);
     setStatus("idle");
     setResult(null);
     setError(null);
