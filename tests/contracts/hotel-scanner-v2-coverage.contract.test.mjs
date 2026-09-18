@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildHotelScannerCoveragePlanV2 } from "../../lib/server/hotel-scanner-v2-coverage.mjs";
+import { buildHotelScannerCoverageBlockingReasonsV2 } from "../../lib/server/hotel-scanner-v2-coverage-validation.mjs";
 
 function page(url, extra = {}) {
   return { url, title: "", description: "", headings: [], links: [], navigationLinks: [], ...extra };
@@ -148,4 +149,86 @@ test("booking actions and Cloudflare helper routes never become required hotel c
   assert.equal(plan.pendingRelevantCount, 0);
   assert.equal(plan.coverageComplete, true);
   assert.ok(plan.pendingRelevantUrls.every((url) => !/\/book\/|cdn-cgi/i.test(url)));
+});
+
+
+test("failed child route is superseded only by a complete canonical parent entity", () => {
+  const failedChild = "https://hotel.example/activities/animation";
+  const result = buildHotelScannerCoverageBlockingReasonsV2({
+    coverage: {
+      coverageComplete: false,
+      pendingRelevantUrls: [failedChild],
+      failedRelevantUrls: [failedChild],
+    },
+    inventory: {
+      domains: [{
+        domain: "experiences",
+        expectedItems: [{
+          id: "experience:animation",
+          url: "https://hotel.example/activities",
+          urls: ["https://hotel.example/activities"],
+        }],
+      }],
+    },
+    completeness: {
+      domains: [{ domain: "experiences", status: "COMPLETE" }],
+    },
+  });
+
+  assert.deepEqual(result.reasons, []);
+  assert.deepEqual(result.nonBlockingFailedUrls, [failedChild]);
+  assert.equal(result.coverageSatisfied, true);
+});
+
+test("failed child route remains blocking when no complete parent entity owns it", () => {
+  const failedChild = "https://hotel.example/activities/animation";
+  const result = buildHotelScannerCoverageBlockingReasonsV2({
+    coverage: {
+      coverageComplete: false,
+      pendingRelevantUrls: [failedChild],
+      failedRelevantUrls: [failedChild],
+    },
+    inventory: {
+      domains: [{
+        domain: "experiences",
+        expectedItems: [{
+          id: "experience:aquapark",
+          url: "https://hotel.example/aqua-park",
+          urls: ["https://hotel.example/aqua-park"],
+        }],
+      }],
+    },
+    completeness: {
+      domains: [{ domain: "experiences", status: "COMPLETE" }],
+    },
+  });
+
+  assert.ok(result.reasons.includes("relevant_site_coverage_incomplete"));
+  assert.ok(result.reasons.includes("relevant_site_pages_failed"));
+  assert.deepEqual(result.blockingFailedUrls, [failedChild]);
+});
+
+test("unread policy and FAQ sources always remain blocking", () => {
+  const urls = [
+    "https://hotel.example/hotel-policy",
+    "https://hotel.example/faq",
+  ];
+  const result = buildHotelScannerCoverageBlockingReasonsV2({
+    coverage: {
+      coverageComplete: false,
+      pendingRelevantUrls: urls,
+      failedRelevantUrls: urls,
+    },
+    inventory: {
+      domains: [
+        { domain: "policies", expectedItems: [{ url: "https://hotel.example", urls: ["https://hotel.example"] }] },
+      ],
+    },
+    completeness: {
+      domains: [{ domain: "policies", status: "COMPLETE" }],
+    },
+  });
+
+  assert.equal(result.blockingFailedUrls.length, 2);
+  assert.ok(result.reasons.includes("relevant_site_pages_failed"));
 });
