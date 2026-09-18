@@ -55,6 +55,17 @@ const ENTITY_DEFINING_ATTRIBUTES = new Set([
   "experience", "activity", "attraction", "event", "offer",
 ]);
 
+const META_ATTRIBUTES = new Set(["display_name"]);
+
+const CANONICAL_REVIEW_ATTRIBUTES: Record<string, string> = {
+  hours: "opening_hours",
+  booking: "reservation",
+  access: "external_access",
+  experience_access: "external_access",
+  experience_booking: "reservation",
+  duration: "session_duration",
+};
+
 const ATTRIBUTE_PRIORITY: Record<string, string[]> = {
   accommodation: ["size", "area", "capacity", "occupancy", "guests", "bed", "bed_type", "view", "meal_inclusion", "price", "booking"],
   gastronomy: ["venue_type", "cuisine", "opening_hours", "meal", "reservation_required", "reservation", "external_access", "dress_code", "price"],
@@ -87,6 +98,11 @@ function factAttribute(fact: VerifiedHotelScanFact) {
   return clean(fact.attribute, 100).toLocaleLowerCase("en-US");
 }
 
+function reviewAttribute(fact: VerifiedHotelScanFact) {
+  const attribute = factAttribute(fact);
+  return CANONICAL_REVIEW_ATTRIBUTES[attribute] || attribute;
+}
+
 function factSubjectKey(fact: VerifiedHotelScanFact) {
   return key(fact.subject);
 }
@@ -113,7 +129,7 @@ function dedicatedBasis(item: HotelScannerV2ExpectedItem) {
 function matchesItem(fact: VerifiedHotelScanFact, item: HotelScannerV2ExpectedItem) {
   const itemName = clean(item.nameHint, 320);
   const entity = factEntityKey(fact);
-  if (itemName && entity && sameEntityName(entity, itemName)) return true;
+  if (itemName && entity) return sameEntityName(entity, itemName);
   if (itemName && sameEntityName(fact.subject, itemName)) return true;
   if (ENTITY_DEFINING_ATTRIBUTES.has(factAttribute(fact)) && itemName && sameEntityName(fact.value, itemName)) return true;
   if (!dedicatedBasis(item)) return false;
@@ -138,26 +154,56 @@ function attributeRank(domain: string, attribute: string) {
   return index === -1 ? 10_000 : index;
 }
 
+function projectedDisplayName(domain: string, item: HotelScannerV2ExpectedItem, facts: VerifiedHotelScanFact[]) {
+  const candidates = facts
+    .filter((fact) => factAllowedForDomain(fact, domain) && factAttribute(fact) === "display_name" && matchesItem(fact, item))
+    .sort((left, right) => Number(right.confidence || 0) - Number(left.confidence || 0)
+      || clean(left.value, 320).localeCompare(clean(right.value, 320), "en"));
+  return clean(candidates[0]?.value, 320);
+}
+
 function projectAttributes(domain: string, item: HotelScannerV2ExpectedItem, facts: VerifiedHotelScanFact[]) {
-  const values = facts.filter((fact) => matchesItem(fact, item) && factAllowedForDomain(fact, domain));
-  const seen = new Set<string>();
-  return values.filter((fact) => {
-    const attribute = factAttribute(fact);
-    if (ENTITY_DEFINING_ATTRIBUTES.has(attribute) && item.nameHint && sameEntityName(fact.value, item.nameHint)) return false;
-    const dedupe = `${attribute}|${key(fact.value)}`;
-    if (!attribute || seen.has(dedupe)) return false;
-    seen.add(dedupe);
-    return true;
-  }).sort((left, right) => attributeRank(domain, factAttribute(left)) - attributeRank(domain, factAttribute(right)) || factAttribute(left).localeCompare(factAttribute(right)))
+  const groups = new Map<string, VerifiedHotelScanFact[]>();
+  for (const fact of facts) {
+    if (!matchesItem(fact, item) || !factAllowedForDomain(fact, domain)) continue;
+    const rawAttribute = factAttribute(fact);
+    if (!rawAttribute || META_ATTRIBUTES.has(rawAttribute)) continue;
+    if (ENTITY_DEFINING_ATTRIBUTES.has(rawAttribute) && item.nameHint && sameEntityName(fact.value, item.nameHint)) continue;
+    const attribute = reviewAttribute(fact);
+    if (!groups.has(attribute)) groups.set(attribute, []);
+    groups.get(attribute)?.push(fact);
+  }
+
+  return [...groups.entries()]
+    .sort(([left], [right]) => attributeRank(domain, left) - attributeRank(domain, right) || left.localeCompare(right))
     .slice(0, 10)
-    .map((fact) => ({
-      attribute: factAttribute(fact),
-      label: clean(fact.label, 180) || factAttribute(fact),
-      value: clean(fact.value, 800),
-      verificationStatus: clean(fact.verification?.status || "SINGLE_SOURCE", 40),
-      independentSourceCount: Number(fact.verification?.independentSourceCount || 1),
-      sourceUrls: unique([...(fact.sourceUrls || []), ...(fact.verification?.sourceUrls || [])]).slice(0, 8),
-    }));
+    .map(([attribute, groupedFacts]) => {
+      const seenValues = new Set<string>();
+      const values = groupedFacts.flatMap((fact) => {
+        const value = clean(fact.value, 800);
+        const signature = key(value);
+        if (!value || !signature || seenValues.has(signature)) return [];
+        seenValues.add(signature);
+        return [{ value, label: clean(fact.label, 180) }];
+      });
+      const repeated = values.length > 1;
+      const renderedValues = values.map(({ value, label }) => {
+        if (!repeated || !label || key(label) === key(attribute)) return value;
+        return `${label}: ${value}`;
+      });
+      const verificationStatus = groupedFacts.some((fact) => clean(fact.verification?.status, 40) === "VERIFIED")
+        ? "VERIFIED"
+        : "SINGLE_SOURCE";
+      return {
+        attribute,
+        label: clean(groupedFacts[0]?.label, 180) || attribute,
+        value: repeated ? `• ${renderedValues.join("\n• ")}` : renderedValues[0] || "",
+        verificationStatus,
+        independentSourceCount: Math.max(1, ...groupedFacts.map((fact) => Number(fact.verification?.independentSourceCount || 1))),
+        sourceUrls: unique(groupedFacts.flatMap((fact) => [...(fact.sourceUrls || []), ...(fact.verification?.sourceUrls || [])])).slice(0, 8),
+      };
+    })
+    .filter((attribute) => Boolean(attribute.value));
 }
 
 function projectConflicts(item: HotelScannerV2ExpectedItem, conflicts: HotelScanVerificationConflict[]): HotelReviewCardConflictV2[] {
@@ -199,11 +245,12 @@ export function buildHotelReviewSectionsV2(candidate: HotelIntelligenceCandidate
       const attributes = projectAttributes(domain.domain, item, candidate.facts || []);
       const conflicts = projectConflicts(item, candidate.conflicts || []);
       const factSources = attributes.flatMap((attribute) => attribute.sourceUrls);
+      const displayName = projectedDisplayName(domain.domain, item, candidate.facts || []);
       return {
         id: item.id,
         domain: domain.domain,
         entityType: item.entityType,
-        name: clean(item.nameHint, 320) || "Unidentified entity",
+        name: displayName || clean(item.nameHint, 320) || "Unidentified entity",
         status: statusFor(attributes, conflicts),
         // Language variants are audit evidence, not separate client-facing sources.
         // Show only the authoritative item URL plus URLs that actually supplied facts.
