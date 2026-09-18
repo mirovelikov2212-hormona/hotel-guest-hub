@@ -50,13 +50,17 @@ test("PDF ingestion is crawler-owned, bounded and fail-closed", async () => {
   const network = await readProjectFile("lib/server/hotel-scanner-v2-network.ts");
 
   assert.match(ingestion, /MAX_DOCUMENTS_PER_SCAN = 16/);
-  assert.match(ingestion, /MAX_DOCUMENT_BYTES = 10_000_000/);
+  assert.match(ingestion, /MAX_INLINE_DOCUMENT_BYTES = 10_000_000/);
+  assert.match(ingestion, /MAX_REMOTE_DOCUMENT_BYTES = 50_000_000/);
   assert.match(ingestion, /fetchPublicBinaryV2/);
+  assert.match(ingestion, /probePublicResourceV2/);
   assert.match(ingestion, /%PDF-/);
   assert.match(ingestion, /document_cross_origin_redirect/);
   assert.match(ingestion, /type: "input_file"/);
   assert.match(ingestion, /file_data: `data:application\/pdf;base64,\$\{fetched\.buffer\.toString\("base64"\)\}`/);
+  assert.match(ingestion, /file_url: probed\.url\.toString\(\)/);
   assert.match(network, /fetchPublicBinaryV2/);
+  assert.match(network, /probePublicResourceV2/);
 });
 
 
