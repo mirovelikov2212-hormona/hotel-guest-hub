@@ -428,9 +428,9 @@ test("pool landing decomposes umbrella copy into real water facilities", () => {
     "https://resort-example.test/pools",
     "Pools",
     ["Pools", "Pools for Relaxation and Fun"],
-    [{ level: 2, heading: "Pools for Relaxation and Fun", text: "Main Pool, Children's Pool and Jacuzzi for hotel guests.", links: [] }],
+    [{ level: 2, heading: "Pools for Relaxation and Fun", text: "Main Pool, Children’s Pool and Jacuzzi for hotel guests.", links: [] }],
   );
-  input.text = "The Main Pool is next to the Children's Pool and Jacuzzi.";
+  input.text = "The Main Pool is next to the Children’s Pool and Jacuzzi.";
   const classification = classifyHotelScannerPageV2(input);
   const hints = deriveHotelPageInventoryHintsV2(input, classification);
   const experiences = hints.find((hint) => hint.domain === "experiences");
