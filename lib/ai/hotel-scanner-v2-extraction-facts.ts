@@ -62,10 +62,31 @@ export function mergeHotelScannerV2Facts(values: HotelScanFact[]) {
   const merged = new Map<string, HotelScanFact>();
   for (const fact of values) {
     const enriched = fact as HotelScanFact & { subject?: string; attribute?: string };
-    const key = `${cleanV2(fact.category, 80).toLocaleLowerCase("en-US")}|${entityKeyV2(enriched.subject)}|${cleanV2(enriched.attribute, 80).toLocaleLowerCase("en-US")}|${entityKeyV2(fact.value)}`;
+    const category = cleanV2(fact.category, 80).toLocaleLowerCase("en-US");
+    const attribute = cleanV2(enriched.attribute, 80).toLocaleLowerCase("en-US");
+    const subject = entityKeyV2(enriched.subject);
+    const key = attribute === "display_name"
+      ? `${category}|${subject}|display_name`
+      : `${category}|${subject}|${attribute}|${entityKeyV2(fact.value)}`;
     const existing = merged.get(key);
     if (!existing) {
       merged.set(key, fact);
+      continue;
+    }
+    if (attribute === "display_name") {
+      const currentConfidence = Number(existing.confidence || 0);
+      const nextConfidence = Number(fact.confidence || 0);
+      const currentValue = cleanV2(existing.value, 600);
+      const nextValue = cleanV2(fact.value, 600);
+      const preferred = nextConfidence > currentConfidence
+        || (nextConfidence === currentConfidence && nextValue.localeCompare(currentValue, "en") < 0)
+        ? fact
+        : existing;
+      merged.set(key, {
+        ...preferred,
+        confidence: Math.max(currentConfidence, nextConfidence),
+        sourceUrls: uniqueV2([...(existing.sourceUrls || []), ...(fact.sourceUrls || [])]).slice(0, 8),
+      } as HotelScanFact);
       continue;
     }
     merged.set(key, {
