@@ -23,7 +23,7 @@ function page(url, title, headings = [], text = "") {
   };
 }
 
-test("generic services path yields to strong semantic dining and spa evidence", () => {
+test("generic services path yields to strong semantic dining spa and recreation evidence", () => {
   assert.equal(
     classifyHotelScannerPageV2(page("https://hotel.test/en/services/nero-dining", "NERO Dining Club", ["NERO Dining Club"])).primaryType,
     "restaurant_detail",
@@ -34,7 +34,7 @@ test("generic services path yields to strong semantic dining and spa evidence", 
   );
   assert.equal(
     classifyHotelScannerPageV2(page("https://hotel.test/en/services/kids-corner", "Kids Corner", ["Kids Corner"])).primaryType,
-    "service_detail",
+    "experience_detail",
   );
 });
 
