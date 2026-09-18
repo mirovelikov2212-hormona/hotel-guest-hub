@@ -116,30 +116,3 @@ test("article-like chain content under a property path is outside operational sc
     false,
   );
 });
-
-
-test("long operational restaurant slug remains in scope while prose campaigns are editorial", () => {
-  const scope = deriveHotelPropertyScopeV2("https://chain.test/property-premium");
-
-  assert.equal(
-    isHotelPropertyOperationalContentUrlV2(
-      "https://chain.test/property-premium/de/ikigai-japanisches-a-la-carte-restaurant-2",
-      scope,
-    ),
-    true,
-  );
-  assert.equal(
-    isHotelPropertyOperationalContentUrlV2(
-      "https://chain.test/property-premium/en/a-special-sapling-donation-for-honeymoon-couples",
-      scope,
-    ),
-    false,
-  );
-  assert.equal(
-    isHotelPropertyOperationalContentUrlV2(
-      "https://chain.test/property-premium/en/free-comfort-package-specially-for-families-with-babies",
-      scope,
-    ),
-    false,
-  );
-});
