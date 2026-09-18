@@ -55,6 +55,8 @@ test("Scanner V2 workflow start route returns both durable run id and scan linea
   assert.match(source, /start\(hotelScannerV2Workflow/);
   assert.match(source, /runId: run\.runId/);
   assert.match(source, /scanRunId/);
+  assert.match(source, /createScannerV2WorkflowAccessToken/);
+  assert.match(source, /runAccessToken/);
   assert.match(source, /202/);
 });
 
@@ -63,6 +65,10 @@ test("Scanner V2 workflow status route reads durable status and final return val
 
   assert.match(source, /import \{ getRun \} from "workflow\/api"/);
   assert.match(source, /getCurrentPlatformAdminSession/);
+  assert.match(source, /verifyScannerV2WorkflowAccessToken/);
+  assert.match(source, /X-Scanner-Scan-Run-Id/);
+  assert.match(source, /X-Scanner-Workflow-Token/);
+  assert.match(source, /workflow_run_forbidden/);
   assert.match(source, /await run\.status/);
   assert.match(source, /status === "completed"/);
   assert.match(source, /await run\.returnValue/);
@@ -77,7 +83,31 @@ test("Workflow Preview resumes a run after refresh and polls independently from 
   assert.match(source, /scan-v2-workflow/);
   assert.match(source, /2500/);
   assert.match(source, /const currentRunId = runId/);
+  assert.match(source, /runAccessToken/);
+  assert.match(source, /X-Scanner-Scan-Run-Id/);
+  assert.match(source, /X-Scanner-Workflow-Token/);
   assert.match(source, /encodeURIComponent\(currentRunId\)/);
+});
+
+
+test("Primary Scanner V2 UI uses the durable workflow client while sync route remains fallback-only", async () => {
+  const page = await readProjectFile("app/hotel-scanner-v2/page.tsx");
+  const syncRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2/route.ts");
+
+  assert.match(page, /HotelScannerV2WorkflowClient/);
+  assert.doesNotMatch(page, /<HotelScannerV2Client/);
+  assert.match(syncRoute, /runHotelIntakePipelineV2/);
+  assert.doesNotMatch(syncRoute, /workflow\/api/);
+});
+
+test("Durable Scanner V2 workflow access token is HMAC-bound to actor, scan and run ids", async () => {
+  const source = await readProjectFile("lib/server/hotel-scanner-v2-workflow-access.ts");
+
+  assert.match(source, /createHmac\("sha256"/);
+  assert.match(source, /actorAdminId/);
+  assert.match(source, /scanRunId/);
+  assert.match(source, /runId/);
+  assert.match(source, /timingSafeEqual/);
 });
 
 test("Workflow callbacks are not intercepted by the existing staff middleware", async () => {
