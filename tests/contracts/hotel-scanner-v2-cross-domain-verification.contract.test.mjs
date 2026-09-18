@@ -81,3 +81,20 @@ test("genuinely different addresses remain a cross-source conflict", () => {
   assert.equal(result.conflicts.length, 1);
   assert.equal(result.conflicts[0].attribute, "address");
 });
+
+
+test("translated country-only location is compatible with a more specific address", () => {
+  const result = verifyHotelScanFactsV2([
+    fact("location", "hotel", "address", "8240 Sunny Beach, Bulgaria", "https://hotel.test/policy-a"),
+    fact("location", "hotel", "address", "България", "https://hotel.test/report-bg"),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+});
+
+test("Turkish country name is compatible with an English Turkey address", () => {
+  const result = verifyHotelScanFactsV2([
+    fact("location", "hotel", "address", "Antalya, Turkey", "https://hotel.test/contact-en"),
+    fact("location", "hotel", "address", "Türkiye", "https://hotel.test/policy-tr"),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+});
