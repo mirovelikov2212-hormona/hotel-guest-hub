@@ -242,3 +242,37 @@ test("deterministic list-only service existence can complete without duplicate A
   assert.equal(result.domains[0].content.status, "COMPLETE");
   assert.equal(result.status, "READY_FOR_HUMAN_REVIEW");
 });
+
+
+test("deterministic water facility text counts as existence evidence", () => {
+  const url = "https://hotel.test/pools";
+  const pool = {
+    id: "experience:main-pool",
+    domain: "experiences",
+    entityType: "pool",
+    variantGroupId: "hotel.test/pools#main-pool",
+    nameHint: "Main Pool",
+    url,
+    urls: [url],
+    languages: ["en"],
+    crawled: true,
+    basis: "canonical_facility_text_entity",
+  };
+  const result = buildHotelCompletenessV2({
+    inventory: {
+      domains: [{
+        domain: "experiences",
+        expectationState: "DETERMINISTIC",
+        expectedCount: 1,
+        expectedItems: [pool],
+      }],
+      documents: [],
+    },
+    profile: { facts: [] },
+    conflicts: [],
+  });
+
+  assert.equal(result.domains[0].inventory.status, "COMPLETE");
+  assert.equal(result.domains[0].content.status, "COMPLETE");
+  assert.equal(result.status, "READY_FOR_HUMAN_REVIEW");
+});
