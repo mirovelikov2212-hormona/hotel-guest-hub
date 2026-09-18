@@ -80,9 +80,12 @@ const ENTITY_LABELS: Record<string, [string, string]> = {
 const ATTRIBUTE_LABELS: Record<string, [string, string]> = {
   size: ["Размер", "Size"], area: ["Площ", "Area"], capacity: ["Капацитет", "Capacity"], occupancy: ["Капацитет", "Occupancy"],
   guests: ["Гости", "Guests"], bed: ["Легло", "Bed"], bed_type: ["Легло", "Bed"], view: ["Гледка", "View"], price: ["Цена", "Price"],
+  description: ["Описание", "Description"], treatment: ["Терапии / процедури", "Treatments / procedures"], treatment_category: ["Категории процедури", "Treatment categories"],
+  technology: ["Технология", "Technology"], facility: ["Съоръжения", "Facilities"], service: ["Услуги", "Services"], amenity: ["Удобства", "Amenities"],
+  session_duration: ["Продължителност", "Duration"], recommended_stay: ["Препоръчителен курс", "Recommended course"],
   opening_hours: ["Работно време", "Opening hours"], cuisine: ["Кухня", "Cuisine"], reservation_required: ["Резервация", "Reservation"], reservation: ["Резервация", "Reservation"],
   external_access: ["Достъп за външни гости", "External guest access"], date: ["Дата", "Date"], start_date: ["Начало", "Starts"], end_date: ["Край", "Ends"], validity: ["Валидност", "Validity"],
-  phone: ["Телефон", "Phone"], email: ["Имейл", "Email"], address: ["Адрес", "Address"], website: ["Уебсайт", "Website"], social_profile: ["Социален профил", "Social profile"],
+  phone: ["Телефон", "Phone"], email: ["Имейл", "Email"], address: ["Адрес", "Address"], website: ["Уебсайт", "Website"], social_profile: ["Социални профили", "Social profiles"],
   check_in: ["Настаняване", "Check-in"], check_out: ["Освобождаване", "Check-out"], quiet_hours: ["Часове за тишина", "Quiet hours"], pet_policy: ["Домашни любимци", "Pet policy"], pet_fee: ["Такса за домашен любимец", "Pet fee"], smoking_policy: ["Пушене", "Smoking policy"], dress_code: ["Дрескод", "Dress code"],
 };
 
@@ -221,15 +224,15 @@ export default function HotelScannerV2ReviewWorkspace({
 
 function EntityCard({ card, lang, copy }: { card: ScannerV2ReviewCard; lang: "bg" | "en"; copy: Record<string, string> }) {
   const statusLabel = card.status === "VERIFIED" ? copy.verified : card.status === "SINGLE_SOURCE" ? copy.single : card.status === "CONFLICT" ? copy.conflict : copy.missing;
-  return <article className="v2-card flex min-h-52 flex-col p-4">
+  return <article className="v2-card flex min-h-52 min-w-0 flex-col overflow-hidden p-4">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h4 className="text-base font-bold leading-6">{card.name}</h4><span className="v2-muted mt-1 block text-xs">{entityTypeLabel(card.entityType, lang)}</span></div>
       <StatusPill value={statusLabel} warning={card.status === "CONFLICT"} good={card.status === "VERIFIED"} />
     </div>
     {card.attributes.length ? <dl className="mt-4 space-y-2">
-      {card.attributes.slice(0, 7).map((attribute, index) => <div key={`${attribute.attribute}:${attribute.value}:${index}`} className="grid grid-cols-[minmax(90px,0.8fr)_1.5fr] gap-3 border-t pt-2" style={{ borderColor: "var(--v2-line)" }}>
-        <dt className="v2-muted text-xs font-semibold">{attributeLabel(attribute.attribute, attribute.label, lang)}</dt>
-        <dd className="text-sm leading-5">{attribute.value}</dd>
+      {card.attributes.slice(0, 7).map((attribute, index) => <div key={`${attribute.attribute}:${attribute.value}:${index}`} className="grid min-w-0 grid-cols-[minmax(90px,0.8fr)_minmax(0,1.5fr)] gap-3 border-t pt-2" style={{ borderColor: "var(--v2-line)" }}>
+        <dt className="v2-muted min-w-0 text-xs font-semibold">{attributeLabel(attribute.attribute, attribute.label, lang)}</dt>
+        <dd className="min-w-0 whitespace-pre-line text-sm leading-5" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{attribute.value}</dd>
       </div>)}
     </dl> : <p className="v2-muted mt-4 text-sm">{copy.noDetails}</p>}
     {card.conflicts.length ? <div className="v2-help mt-4" style={{ borderColor: "var(--v2-warn)" }}><strong>{copy.conflict}</strong><p className="v2-muted mt-1 text-xs">{card.conflicts.map((conflict) => conflict.attribute).join(" · ")}</p></div> : null}
@@ -260,5 +263,5 @@ function shortSource(rawUrl: string) {
 function SourceLinks({ urls, label }: { urls: string[]; label: string }) {
   const unique = [...new Set((urls || []).filter(Boolean))].slice(0, 4);
   if (!unique.length) return null;
-  return <div className="mt-3"><p className="v2-muted text-[10px] font-bold uppercase tracking-wide">{label}</p><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">{unique.map((url) => <a key={url} href={url} target="_blank" rel="noreferrer" className="v2-source-link text-xs">{url.toLowerCase().includes(".pdf") ? "PDF · " : "Web · "}{shortSource(url)}</a>)}</div></div>;
+  return <div className="mt-3 min-w-0"><p className="v2-muted text-[10px] font-bold uppercase tracking-wide">{label}</p><div className="mt-1 flex min-w-0 flex-wrap gap-x-3 gap-y-1">{unique.map((url) => <a key={url} href={url} target="_blank" rel="noreferrer" className="v2-source-link max-w-full break-all text-xs">{url.toLowerCase().includes(".pdf") ? "PDF · " : "Web · "}{shortSource(url)}</a>)}</div></div>;
 }
