@@ -9,6 +9,7 @@ import {
   type ApprovalRowV2, type ReviewRowV2, type ScanRowV2, type SyncScanRequestV2, type HotelIntelligenceReviewV2,
 } from "@/lib/server/hotel-scan-envelope-v2";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { compactHotelScannerResultForPersistenceV2 } from "@/lib/server/hotel-scanner-v2-persistence-projection.mjs";
 
 async function findScan(scanRunId: string) {
   assertV2Uuid(scanRunId);
@@ -85,7 +86,8 @@ export async function loadPersistedSyncScannerV2Result(input: { actorAdminId: st
 // strict envelope equality; synchronous races reuse the first immutable winner
 // only when the authenticated actor and original request binding agree.
 export async function persistHotelScannerV2Result(input: Parameters<typeof prepareHotelScanEnvelopeV2>[0]) {
-  const prepared = prepareHotelScanEnvelopeV2(input);
+  const persistedResult = compactHotelScannerResultForPersistenceV2(input.result);
+  const prepared = prepareHotelScanEnvelopeV2({ ...input, result: persistedResult });
   const { data, error } = await supabaseAdmin.rpc("create_hotel_scan_run_v2", {
     p_actor_admin_id: input.actorAdminId, p_scan_run_id: input.scanRunId, p_envelope_text: prepared.envelopeText,
   });
