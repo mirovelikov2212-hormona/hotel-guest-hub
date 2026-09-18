@@ -406,3 +406,45 @@ test("generic Pool detail title recovers Premium Pool identity from its route", 
   assert.equal(experiences.expectedItems[0].entityType, "pool");
   assert.equal(experiences.expectedItems[0].basis, "canonical_detail_entity");
 });
+
+
+test("duplicate facility evidence prefers the topical pool surface", () => {
+  const make = (url, variantGroupId) => ({
+    url,
+    resourceType: "page",
+    crawled: true,
+    variantGroupId,
+    languages: ["en"],
+    title: "",
+    classification: { primaryType: "experiences", types: ["experiences"], confidence: 1, signals: [] },
+    inventoryHints: [{
+      domain: "experiences",
+      expectedCount: 1,
+      explicitCount: null,
+      identifiedCount: 1,
+      confidence: "MEDIUM",
+      consistency: "CONSISTENT",
+      candidates: [{
+        name: "Jacuzzi",
+        entityType: "water_facility",
+        basis: "deterministic_facility_text",
+        score: 9,
+        links: [],
+      }],
+    }],
+  });
+
+  const registry = buildCanonicalHotelEntityRegistryV2({
+    resources: [
+      make("https://hotel.test/", "hotel.test/"),
+      make("https://hotel.test/about-us", "hotel.test/about-us"),
+      make("https://hotel.test/pools", "hotel.test/pools"),
+    ],
+  });
+  const experiences = registry.domains.get("experiences");
+
+  assert.equal(experiences.expectedCount, 1);
+  assert.equal(experiences.expectedItems[0].nameHint, "Jacuzzi");
+  assert.equal(experiences.expectedItems[0].url, "https://hotel.test/pools");
+  assert.equal(experiences.expectedItems[0].basis, "canonical_facility_text_entity");
+});
