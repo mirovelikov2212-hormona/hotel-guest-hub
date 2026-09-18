@@ -4,6 +4,7 @@ export type HotelPropertyScopeV2 = {
   rootSegments: string[];
   rootPath: string;
   identityTokens: string[];
+  primaryIdentityToken: string;
 };
 
 export function deriveHotelPropertyScopeV2(
