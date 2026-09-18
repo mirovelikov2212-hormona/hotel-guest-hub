@@ -16,6 +16,12 @@ import {
 } from "@/lib/server/hotel-scanner-v2-page-structure.mjs";
 import { canonicalizeHotelIntakeUrl, inferHotelPageLanguage } from "@/lib/server/hotel-scanner-v2-site-map.mjs";
 import {
+  deriveHotelPropertyScopeV2,
+  isHotelPropertyDocumentUrlInScopeV2,
+  isHotelPropertyPageUrlInScopeV2,
+  type HotelPropertyScopeV2,
+} from "@/lib/server/hotel-scanner-v2-property-scope.mjs";
+import {
   fetchPublicHtmlV2,
   fetchPublicTextV2,
   HotelScannerV2NetworkError,
@@ -210,10 +216,22 @@ function languageAlternates(html: string, base: URL) {
   return result;
 }
 
-function buildPageEvidence(url: URL, html: string): HotelScannerV2PageEvidence {
+function buildPageEvidence(url: URL, html: string, propertyScope: HotelPropertyScopeV2): HotelScannerV2PageEvidence {
   const structure = extractHotelPageStructureV2(html);
   const allLinks = anchorUrls(html, url, 500);
-  const pageNavigationLinks = navigationUrls(html, url);
+  const allNavigationLinks = navigationUrls(html, url);
+  const pageLinks = allLinks.filter((link) => !/\.pdf$/i.test(new URL(link).pathname) && isHotelPropertyPageUrlInScopeV2(link, propertyScope));
+  const pageNavigationLinks = allNavigationLinks.filter((link) => isHotelPropertyPageUrlInScopeV2(link, propertyScope));
+  const pageDocumentUrls = allLinks
+    .filter((link) => /\.pdf$/i.test(new URL(link).pathname))
+    .filter((link) => isHotelPropertyDocumentUrlInScopeV2(link, propertyScope, { directlyLinkedFromProperty: true }))
+    .slice(0, MAX_PUBLIC_DOCUMENTS);
+  const pageCanonicalHint = canonicalHint(html, url);
+  const scopedCanonicalHint = pageCanonicalHint && isHotelPropertyPageUrlInScopeV2(pageCanonicalHint, propertyScope)
+    ? pageCanonicalHint
+    : "";
+  const alternates = languageAlternates(html, url)
+    .filter((item) => isHotelPropertyPageUrlInScopeV2(item.url, propertyScope));
   return {
     url: canonicalizeHotelIntakeUrl(url.toString()),
     title: firstMatch(html, [/<title[^>]*>([\s\S]*?)<\/title>/i]),
@@ -223,13 +241,13 @@ function buildPageEvidence(url: URL, html: string): HotelScannerV2PageEvidence {
       /<meta\b[^>]*\bcontent=["']([^"']*)["'][^>]*\bname=["']description["'][^>]*>/i,
     ]),
     text: htmlText(html),
-    links: allLinks.filter((link) => !/\.pdf$/i.test(new URL(link).pathname)),
-    contentLinks: contentUrls(html, url, allLinks).filter((link) => !/\.pdf$/i.test(new URL(link).pathname)),
+    links: pageLinks,
+    contentLinks: contentUrls(html, url, pageLinks).filter((link) => isHotelPropertyPageUrlInScopeV2(link, propertyScope)),
     navigationLinks: pageNavigationLinks,
-    documentUrls: allLinks.filter((link) => /\.pdf$/i.test(new URL(link).pathname)).slice(0, MAX_PUBLIC_DOCUMENTS),
-    canonicalHint: canonicalHint(html, url),
+    documentUrls: pageDocumentUrls,
+    canonicalHint: scopedCanonicalHint,
     language: inferHotelPageLanguage(url.toString()),
-    languageAlternates: languageAlternates(html, url),
+    languageAlternates: alternates,
     headings: structure.headings,
     jsonLdEntities: structure.jsonLdEntities,
     contentBlocks: structure.contentBlocks,
@@ -257,7 +275,7 @@ function sitemapLocs(xml: string) {
   return result;
 }
 
-async function discoverSitemapResources(baseUrl: URL, canonicalOrigin: string, robotsState: RobotsState) {
+async function discoverSitemapResources(baseUrl: URL, canonicalOrigin: string, robotsState: RobotsState, propertyScope: HotelPropertyScopeV2) {
   const pageUrls = new Set<string>();
   const documentUrls = new Set<string>();
   const roots = new Set<string>([new URL("/sitemap.xml", baseUrl).toString(), new URL("/sitemap_index.xml", baseUrl).toString()]);
@@ -295,8 +313,12 @@ async function discoverSitemapResources(baseUrl: URL, canonicalOrigin: string, r
         }
         if (!isHotelScannerRobotsAllowed(normalized, robotsState.policy)) continue;
         if (/\.pdf$/i.test(url.pathname)) {
-          if (documentUrls.size < MAX_PUBLIC_DOCUMENTS) documentUrls.add(normalized);
-        } else if (!/\.(?:jpe?g|png|gif|webp|svg|zip|docx?|xlsx?|pptx?)$/i.test(url.pathname)) {
+          if (documentUrls.size < MAX_PUBLIC_DOCUMENTS
+            && isHotelPropertyDocumentUrlInScopeV2(normalized, propertyScope)) {
+            documentUrls.add(normalized);
+          }
+        } else if (!/\.(?:jpe?g|png|gif|webp|svg|zip|docx?|xlsx?|pptx?)$/i.test(url.pathname)
+          && isHotelPropertyPageUrlInScopeV2(normalized, propertyScope)) {
           pageUrls.add(normalized);
         }
         if (pageUrls.size >= MAX_DISCOVERED_PAGES) break;
@@ -376,8 +398,9 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
   const robotsState = canonicalOrigin === requested.origin ? requestedRobots : await fetchRobotsState(first.url);
   if (!isHotelScannerRobotsAllowed(first.url.toString(), robotsState.policy)) throw new HotelScannerV2NetworkError("scanner_v2_robots_disallowed", 403);
 
-  const sitemap = await discoverSitemapResources(first.url, canonicalOrigin, robotsState).catch(() => ({ pageUrls: [], documentUrls: [] }));
-  const firstPage = buildPageEvidence(first.url, first.html);
+  const propertyScope = deriveHotelPropertyScopeV2(requested.toString(), first.url.toString());
+  const sitemap = await discoverSitemapResources(first.url, canonicalOrigin, robotsState, propertyScope).catch(() => ({ pageUrls: [], documentUrls: [] }));
+  const firstPage = buildPageEvidence(first.url, first.html, propertyScope);
   const preferredLanguage = firstPage.language || inferHotelPageLanguage(firstPage.url);
   const pages: HotelScannerV2PageEvidence[] = [firstPage];
   const attempted = new Set<string>([firstPage.url]);
@@ -408,7 +431,8 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
       try {
         const response = await fetchPublicHtmlV2(new URL(url), { timeoutMs: FETCH_TIMEOUT_MS, maxBytes: MAX_PAGE_BYTES, userAgent: USER_AGENT });
         if (response.url.origin !== canonicalOrigin) { failedPageUrls.add(url); return null; }
-        return buildPageEvidence(response.url, response.html);
+        if (!isHotelPropertyPageUrlInScopeV2(response.url.toString(), propertyScope)) return null;
+        return buildPageEvidence(response.url, response.html, propertyScope);
       } catch { failedPageUrls.add(url); return null; }
     }));
     for (const page of fetched) absorbPage(page);
@@ -484,7 +508,14 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
       navigationUrls: [...navigation], failedPageUrls: [...failedPageUrls].sort(), coverage,
     },
     crawlPolicy: {
-      publicBusinessBoundary: true, robotsApplied: robotsState.found, robotsUrl: robotsState.url, robotsBlockedUrlCount: robotsBlockedUrls.size,
+      publicBusinessBoundary: true,
+      robotsApplied: robotsState.found,
+      robotsUrl: robotsState.url,
+      robotsBlockedUrlCount: robotsBlockedUrls.size,
+      propertyScope: {
+        mode: propertyScope.mode,
+        rootPath: propertyScope.rootPath,
+      },
     },
   };
 }
