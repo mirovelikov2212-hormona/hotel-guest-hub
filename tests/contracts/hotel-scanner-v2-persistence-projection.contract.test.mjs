@@ -111,16 +111,54 @@ test("large Scanner V2 persistence keeps review evidence and drops irrelevant cr
   assert.deepEqual(projected.intelligenceCandidate, input.intelligenceCandidate);
 
   assert.deepEqual(projected.discovery.siteMap.persistenceProjection, {
-    version: "hotel-site-map-persistence-v1",
+    version: "hotel-site-map-persistence-v2",
     originalResourceCount: 700,
     retainedResourceCount: projected.discovery.siteMap.resources.length,
     originalRelationCount: 2,
     retainedRelationCount: 1,
+    relationPolicy: "canonical_and_document_only",
+    resourcePolicy: "review_evidence_without_inventory_hints",
   });
+  assert.ok(projected.discovery.siteMap.resources.every((item) => !("inventoryHint" in item) && !("inventoryHints" in item)));
+  assert.ok(projected.discovery.siteMap.relations.every((relation) => ["canonical", "document_link"].includes(relation.kind)));
 });
 
 test("large-site persistence projection is wired before immutable scan envelope preparation", async () => {
   const persistence = await readProjectFile("lib/server/hotel-intelligence-persistence-v2.ts");
   assert.match(persistence, /compactHotelScannerResultForPersistenceV2\(input\.result\)/);
   assert.match(persistence, /prepareHotelScanEnvelopeV2\(\{ \.\.\.input, result: persistedResult \}\)/);
+});
+
+
+test("large Scanner V2 persistence drops dense internal-link graphs", () => {
+  const input = resultWithResources(700);
+  input.discovery.siteMap.relations = [];
+
+  for (let index = 0; index < 250; index += 1) {
+    input.discovery.siteMap.relations.push({
+      kind: "internal_link",
+      fromUrl: "https://hotel.test/",
+      toUrl: `https://hotel.test/noise-${index + 10}`,
+    });
+    input.discovery.siteMap.relations.push({
+      kind: "navigation",
+      fromUrl: "https://hotel.test/rooms",
+      toUrl: `https://hotel.test/noise-${index + 260}`,
+    });
+  }
+  input.discovery.siteMap.relations.push({
+    kind: "document_link",
+    fromUrl: "https://hotel.test/",
+    toUrl: "https://hotel.test/files/facts.pdf",
+  });
+
+  const projected = compactHotelScannerResultForPersistenceV2(input);
+
+  assert.equal(projected.discovery.siteMap.persistenceProjection.originalRelationCount, 501);
+  assert.equal(projected.discovery.siteMap.persistenceProjection.retainedRelationCount, 1);
+  assert.deepEqual(projected.discovery.siteMap.relations, [{
+    kind: "document_link",
+    fromUrl: "https://hotel.test/",
+    toUrl: "https://hotel.test/files/facts.pdf",
+  }]);
 });
