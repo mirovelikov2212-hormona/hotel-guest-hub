@@ -105,3 +105,14 @@ test("sitemap-only generic services URLs do not create authoritative service ent
   assert.equal(services.expectedCount, 0);
   assert.equal(services.expectationState, "UNKNOWN");
 });
+
+
+test("CMS category paths remain landing surfaces even when the archive title names a hotel object", () => {
+  const classification = classifyHotelScannerPageV2(page(
+    "https://hotel.test/category/aqua-park",
+    "Aqua Park Archives - Hotel Test",
+    ["Aqua Park Archives"],
+  ));
+  assert.equal(classification.primaryType, "experiences");
+  assert.ok(!classification.types.includes("experience_detail"));
+});
