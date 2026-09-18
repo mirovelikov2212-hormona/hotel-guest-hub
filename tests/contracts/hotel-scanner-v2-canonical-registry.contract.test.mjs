@@ -384,3 +384,25 @@ test("generic multilingual aquapark labels merge into one canonical facility", (
   assert.equal(experiences.expectedItems[0].url, "https://hotel.test/aqua-park");
   assert.deepEqual(experiences.expectedItems[0].languages.sort(), ["bg", "en"]);
 });
+
+
+test("generic Pool detail title recovers Premium Pool identity from its route", () => {
+  const detail = {
+    url: "https://hotel.test/premium/pools/premium-pool",
+    resourceType: "page",
+    crawled: true,
+    variantGroupId: "hotel.test/premium/pools/premium-pool",
+    title: "Pool - Hotel Test",
+    languages: ["en"],
+    classification: { primaryType: "experience_detail", types: ["experience_detail", "experiences"], confidence: 1, signals: [] },
+    inventoryHints: [],
+  };
+
+  const registry = buildCanonicalHotelEntityRegistryV2({ resources: [detail] });
+  const experiences = registry.domains.get("experiences");
+
+  assert.equal(experiences.expectedCount, 1);
+  assert.equal(experiences.expectedItems[0].nameHint, "Premium Pool");
+  assert.equal(experiences.expectedItems[0].entityType, "pool");
+  assert.equal(experiences.expectedItems[0].basis, "canonical_detail_entity");
+});
