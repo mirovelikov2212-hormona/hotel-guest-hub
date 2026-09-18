@@ -216,3 +216,55 @@ test("long SEO article URLs do not become hotel services or experiences", () => 
     "restaurant_detail",
   );
 });
+
+
+test("semantic-only footer copy cannot turn an unknown page into a service", () => {
+  const input = page(
+    "https://chain.test/property/de/punktleiste",
+    "Punktleiste",
+    ["Punktleiste", "Premium Service", "Guest Services"],
+  );
+  input.description = "Erleben Sie unseren Premium Service.";
+  assert.equal(classifyHotelScannerPageV2(input).primaryType, "other");
+});
+
+test("localized property home pages never become canonical experiences", () => {
+  assert.equal(
+    classifyHotelScannerPageV2(page(
+      "https://chain.test/property-premium/de",
+      "Property Premium",
+      ["Property Premium", "Pool", "Beach"],
+    )).primaryType,
+    "other",
+  );
+});
+
+test("corporate governance and distance-sales surfaces stay outside guest policies", () => {
+  assert.equal(
+    classifyHotelScannerPageV2(page(
+      "https://chain.test/property/en/corporate-sustainability-policy",
+      "Corporate Sustainability Policy",
+      ["Corporate Sustainability Policy"],
+    )).primaryType,
+    "other",
+  );
+  assert.equal(
+    classifyHotelScannerPageV2(page(
+      "https://chain.test/property/de/fernabsatzvertrag",
+      "Fernabsatzvertrag",
+      ["Fernabsatzvertrag"],
+    )).primaryType,
+    "other",
+  );
+});
+
+test("amphitheater is an entertainment experience, not spa", () => {
+  assert.equal(
+    classifyHotelScannerPageV2(page(
+      "https://chain.test/property/de/amphitheater",
+      "Amphitheater | Property Premium",
+      ["Amphitheater"],
+    )).primaryType,
+    "experience_detail",
+  );
+});
