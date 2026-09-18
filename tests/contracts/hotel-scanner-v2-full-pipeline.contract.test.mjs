@@ -58,3 +58,12 @@ test("PDF ingestion is crawler-owned, bounded and fail-closed", async () => {
   assert.match(ingestion, /file_data: `data:application\/pdf;base64,\$\{fetched\.buffer\.toString\("base64"\)\}`/);
   assert.match(network, /fetchPublicBinaryV2/);
 });
+
+
+test("multi-source facts are bound per source before final merge", async () => {
+  const facts = await readProjectFile("lib/ai/hotel-scanner-v2-extraction-facts.ts");
+  assert.match(facts, /const factSlices = facts\.flatMap/);
+  assert.match(facts, /sourceUrls\.map\(\(sourceUrl\) => \(\{ \.\.\.fact, sourceUrls: \[sourceUrl\] \}/);
+  assert.match(facts, /bindHotelScannerFactToOwnerV2\(fact, expectedItems\)/);
+  assert.match(facts, /return mergeHotelScannerV2Facts\(result\)/);
+});
