@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import HotelScannerV2Client from "./HotelScannerV2Client";
+import HotelScannerV2WorkflowClient from "../hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient";
 import { normalizeControlPlaneLang } from "@/lib/control-plane-i18n";
 import { normalizeAdminNextTarget } from "@/lib/control-plane-next";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
@@ -64,7 +64,7 @@ export default async function HotelScannerV2Page({ searchParams }: { searchParam
           <Link href={`/control-panel?lang=${lang}`} className="v2-source-link mt-6 inline-flex text-sm font-semibold">{copy.back}</Link>
         </header>
 
-        <HotelScannerV2Client lang={lang} />
+        <HotelScannerV2WorkflowClient lang={lang} />
       </div>
     </main>
   );
