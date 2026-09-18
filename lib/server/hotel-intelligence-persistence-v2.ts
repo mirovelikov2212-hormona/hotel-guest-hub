@@ -88,6 +88,21 @@ export async function loadPersistedSyncScannerV2Result(input: { actorAdminId: st
 export async function persistHotelScannerV2Result(input: Parameters<typeof prepareHotelScanEnvelopeV2>[0]) {
   const persistedResult = compactHotelScannerResultForPersistenceV2(input.result);
   const prepared = prepareHotelScanEnvelopeV2({ ...input, result: persistedResult });
+  const projection = (persistedResult.discovery.siteMap as typeof persistedResult.discovery.siteMap & {
+    persistenceProjection?: {
+      version: string;
+      originalResourceCount: number;
+      retainedResourceCount: number;
+      originalRelationCount: number;
+      retainedRelationCount: number;
+    };
+  }).persistenceProjection;
+  console.log("scanner_v2_persistence_prepared", {
+    scanRunId: input.scanRunId,
+    envelopeBytes: Buffer.byteLength(prepared.envelopeText, "utf8"),
+    evidenceBytes: Buffer.byteLength(prepared.evidenceText, "utf8"),
+    persistenceProjection: projection || null,
+  });
   const { data, error } = await supabaseAdmin.rpc("create_hotel_scan_run_v2", {
     p_actor_admin_id: input.actorAdminId, p_scan_run_id: input.scanRunId, p_envelope_text: prepared.envelopeText,
   });
