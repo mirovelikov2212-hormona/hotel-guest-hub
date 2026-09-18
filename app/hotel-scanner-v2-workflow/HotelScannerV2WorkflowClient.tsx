@@ -15,13 +15,29 @@ type WorkflowStart = {
   error?: string;
 };
 
+type MissingCoverageItem = { id: string; nameHint: string; url: string; crawled: boolean };
+
 type DomainCoverage = {
   domain: string;
   status: string;
   reason: string;
   expected: number | null;
   extracted: number;
-  missingItems: Array<{ id: string; nameHint: string; url: string; crawled: boolean }>;
+  missingItems: MissingCoverageItem[];
+  inventory?: {
+    status: string;
+    reason: string;
+    expected: number | null;
+    extracted: number;
+    missingItems: MissingCoverageItem[];
+  };
+  content?: {
+    status: string;
+    reason: string;
+    detailed: number;
+    totalEntities: number;
+    missingDetailItems: MissingCoverageItem[];
+  };
 };
 
 type SiteCoverage = {
@@ -104,9 +120,11 @@ const COPY = {
     pendingPages: "Непрочетени релевантни страници",
     failedPages: "Неуспешни релевантни страници",
     coverage: "2. Completeness по категории",
-    coverageHelp: "Тук вече се вижда защо Pipeline е INCOMPLETE: expected срещу extracted и конкретните липсващи entities.",
-    extracted: "Extracted",
-    missing: "Липсват",
+    coverageHelp: "Inventory показва дали са намерени всички очаквани entities. Content показва дали намерените entities имат реални детайли. COMPLETE се дава само когато и двете са пълни.",
+    extracted: "Намерени entities",
+    missing: "Липсващи entities",
+    withDetails: "С детайли",
+    missingDetails: "Без детайли",
     approval: "5. Approval gate",
     approvalHelp: "Workflow-ът остава evidence-only. Няма автоматичен handoff към Design Studio / Factory.",
     eligible: "Готово за човешки approval",
@@ -144,9 +162,11 @@ const COPY = {
     pendingPages: "Unread relevant pages",
     failedPages: "Failed relevant pages",
     coverage: "2. Completeness by category",
-    coverageHelp: "This shows why the pipeline is INCOMPLETE: expected versus extracted and the concrete missing entities.",
-    extracted: "Extracted",
-    missing: "Missing",
+    coverageHelp: "Inventory shows whether every expected entity was found. Content shows whether found entities have real details. COMPLETE requires both layers to be complete.",
+    extracted: "Entities found",
+    missing: "Missing entities",
+    withDetails: "With details",
+    missingDetails: "Missing details",
     approval: "5. Approval gate",
     approvalHelp: "The workflow remains evidence-only. There is no automatic handoff to Design Studio / Factory.",
     eligible: "Ready for human approval",
@@ -460,23 +480,50 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
             <h2 className="v2-section-title text-xl">{copy.coverage}</h2>
             <p className="v2-muted mt-1 max-w-4xl text-sm leading-6">{copy.coverageHelp}</p>
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
-              {(result.completeness?.domains || []).map((domain) => (
+              {(result.completeness?.domains || []).map((domain) => {
+                const inventoryLayer = domain.inventory || {
+                  status: domain.status,
+                  reason: domain.reason,
+                  expected: domain.expected,
+                  extracted: domain.extracted,
+                  missingItems: domain.missingItems || [],
+                };
+                const contentLayer = domain.content || {
+                  status: domain.status,
+                  reason: domain.reason,
+                  detailed: domain.extracted,
+                  totalEntities: domain.extracted,
+                  missingDetailItems: [],
+                };
+                return (
                 <article key={domain.domain} className="v2-card p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h3 className="font-bold">{domainLabel(domain.domain, lang)}</h3>
                       <p className="v2-muted mt-1 text-xs font-mono">{domain.reason}</p>
                     </div>
-                    <span className={`v2-pill ${domain.status === "COMPLETE" ? "v2-pill-good" : domain.status === "CONFLICT" ? "v2-pill-warn" : "v2-pill-info"}`}>{domain.status}</span>
+                    <span className={`v2-pill ${domain.status === "COMPLETE" ? "v2-pill-good" : domain.status === "NOT_APPLICABLE" ? "v2-pill-info" : "v2-pill-warn"}`}>{domain.status}</span>
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                    <span className="v2-pill">{copy.extracted}: {domain.extracted}</span>
-                    <span className="v2-pill">{copy.expected}: {domain.expected ?? "?"}</span>
-                    <span className="v2-pill">{copy.missing}: {domain.missingItems?.length || 0}</span>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    <div className="v2-card-soft p-3">
+                      <p className="v2-muted text-[10px] font-bold uppercase tracking-[0.12em]">Inventory</p>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                        <span className="v2-pill">{copy.extracted}: {inventoryLayer.extracted}/{inventoryLayer.expected ?? "?"}</span>
+                        <span className="v2-pill">{copy.missing}: {inventoryLayer.missingItems?.length || 0}</span>
+                      </div>
+                    </div>
+                    <div className="v2-card-soft p-3">
+                      <p className="v2-muted text-[10px] font-bold uppercase tracking-[0.12em]">Content</p>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                        <span className="v2-pill">{copy.withDetails}: {contentLayer.detailed}/{contentLayer.totalEntities}</span>
+                        <span className="v2-pill">{copy.missingDetails}: {contentLayer.missingDetailItems?.length || 0}</span>
+                      </div>
+                    </div>
                   </div>
-                  {domain.missingItems?.length ? (
+                  {inventoryLayer.missingItems?.length ? (
                     <div className="mt-4 space-y-2">
-                      {domain.missingItems.map((item) => (
+                      <p className="v2-muted text-xs font-bold">{copy.missing}</p>
+                      {inventoryLayer.missingItems.map((item) => (
                         <div key={item.id} className="v2-card-soft p-3">
                           <p className="text-sm font-semibold">{item.nameHint || item.id}</p>
                           {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="v2-source-link mt-1 block break-all text-xs">{item.url}</a> : null}
@@ -484,9 +531,20 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
                       ))}
                     </div>
                   ) : null}
+                  {contentLayer.missingDetailItems?.length ? (
+                    <div className="mt-4 space-y-2">
+                      <p className="v2-muted text-xs font-bold">{copy.missingDetails}</p>
+                      {contentLayer.missingDetailItems.map((item) => (
+                        <div key={`detail:${item.id}`} className="v2-card-soft p-3">
+                          <p className="text-sm font-semibold">{item.nameHint || item.id}</p>
+                          {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="v2-source-link mt-1 block break-all text-xs">{item.url}</a> : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </article>
-              ))}
-            </div>
+                );
+              })}            </div>
           </section>
 
           <HotelScannerV2ReviewWorkspace
