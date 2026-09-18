@@ -54,10 +54,13 @@ test("one mixed landing page contributes independent service and destination-exp
   assert.deepEqual(resource.inventoryHints.map((hint) => hint.domain).sort(), ["experiences", "services"]);
 
   assert.equal(services.expectationState, "DETERMINISTIC");
-  assert.deepEqual(services.expectedItems.map((item) => item.nameHint).sort(), ["Fitness Centre", "Hair Salon", "Kids Corner"]);
+  assert.deepEqual(services.expectedItems.map((item) => item.nameHint).sort(), ["Hair Salon"]);
 
   assert.equal(experiences.expectationState, "DETERMINISTIC");
-  assert.deepEqual(experiences.expectedItems.map((item) => item.nameHint).sort(), ["Historical Routes", "Natural Landmarks"]);
+  assert.deepEqual(
+    experiences.expectedItems.map((item) => item.nameHint).sort(),
+    ["Fitness Centre", "Historical Routes", "Kids Corner", "Natural Landmarks"].sort(),
+  );
 
   const overlap = services.expectedItems
     .map((item) => item.nameHint)
