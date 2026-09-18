@@ -229,3 +229,54 @@ test("translated category labels never become gastronomy venues when real detail
   assert.ok(gastronomy.expectedItems.some((item) => item.nameHint === "Asian Restaurant Hinode"));
   assert.ok(gastronomy.expectedItems.some((item) => item.nameHint === "Italian Restaurant Toscana"));
 });
+
+
+test("landing shorthand merges into a richer canonical detail name", () => {
+  const landing = resource({
+    url: "https://hotel.test/dining",
+    primaryType: "gastronomy",
+    domain: "gastronomy",
+    names: ["Asian Restaurant"],
+    variantGroupId: "hotel.test/dining",
+  });
+  const detail = {
+    url: "https://hotel.test/dining/hinode",
+    resourceType: "page",
+    crawled: true,
+    variantGroupId: "hotel.test/dining/hinode",
+    title: "Asian Restaurant Hinode - Hotel Test",
+    languages: ["en"],
+    classification: { primaryType: "restaurant_detail", types: ["restaurant_detail", "gastronomy"], confidence: 1, signals: [] },
+    inventoryHints: [],
+  };
+  const registry = buildCanonicalHotelEntityRegistryV2({ resources: [landing, detail] });
+  const gastronomy = registry.domains.get("gastronomy");
+
+  assert.equal(gastronomy.expectedCount, 1);
+  assert.equal(gastronomy.expectedItems[0].nameHint, "Asian Restaurant Hinode");
+});
+
+test("HTML-encoded landing entity merges with its canonical detail page", () => {
+  const landing = resource({
+    url: "https://hotel.test/activities",
+    primaryType: "experiences",
+    domain: "experiences",
+    names: ["Shows &#038; Parties"],
+    variantGroupId: "hotel.test/activities",
+  });
+  const detail = {
+    url: "https://hotel.test/activities/shows-parties",
+    resourceType: "page",
+    crawled: true,
+    variantGroupId: "hotel.test/activities/shows-parties",
+    title: "Shows & Parties - Hotel Test",
+    languages: ["en"],
+    classification: { primaryType: "experience_detail", types: ["experience_detail", "experiences"], confidence: 1, signals: [] },
+    inventoryHints: [],
+  };
+  const registry = buildCanonicalHotelEntityRegistryV2({ resources: [landing, detail] });
+  const experiences = registry.domains.get("experiences");
+
+  assert.equal(experiences.expectedCount, 1);
+  assert.equal(experiences.expectedItems[0].nameHint, "Shows & Parties");
+});
