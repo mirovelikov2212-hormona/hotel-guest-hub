@@ -186,3 +186,33 @@ test("corporate policy surfaces classify as policies and editorial surfaces are 
     "other",
   );
 });
+
+
+test("long SEO article URLs do not become hotel services or experiences", () => {
+  assert.equal(
+    classifyHotelScannerPageV2(page(
+      "https://chain.test/property/de/antalya-urlaub-2026-5-premium-erlebnisse-die-sie-nicht-verpassen-sollten",
+      "Antalya Urlaub 2026: 5 Premium-Erlebnisse",
+      ["Antalya Urlaub 2026: 5 Premium-Erlebnisse"],
+    )).primaryType,
+    "other",
+  );
+
+  assert.equal(
+    classifyHotelScannerPageV2(page(
+      "https://chain.test/property/de/eine-neue-ara-der-gastfreundschaft-im-sidemarin-kirman-premium-unser-robote",
+      "Eine Neue Ära der Gastfreundschaft",
+      ["Eine Neue Ära der Gastfreundschaft"],
+    )).primaryType,
+    "other",
+  );
+
+  assert.equal(
+    classifyHotelScannerPageV2(page(
+      "https://chain.test/property/en/main-restaurant",
+      "Main Restaurant",
+      ["Main Restaurant"],
+    )).primaryType,
+    "restaurant_detail",
+  );
+});
