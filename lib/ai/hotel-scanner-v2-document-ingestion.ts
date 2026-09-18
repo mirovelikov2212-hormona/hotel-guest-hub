@@ -3,12 +3,13 @@ import OpenAI from "openai";
 import type { HotelScanFact } from "@/lib/ai/hotel-scanner";
 import type { HotelScannerV2Inventory } from "@/lib/server/hotel-scanner-v2-inventory.mjs";
 import type { HotelScannerV2OutputLanguage } from "@/lib/ai/hotel-scanner-v2-domain-extractors";
-import { fetchPublicBinaryV2 } from "@/lib/server/hotel-scanner-v2-network";
+import { fetchPublicBinaryV2, probePublicResourceV2 } from "@/lib/server/hotel-scanner-v2-network";
 
 let client: OpenAI | null = null;
 
 const MAX_DOCUMENTS_PER_SCAN = 16;
-const MAX_DOCUMENT_BYTES = 10_000_000;
+const MAX_INLINE_DOCUMENT_BYTES = 10_000_000;
+const MAX_REMOTE_DOCUMENT_BYTES = 50_000_000;
 const DOCUMENT_TIMEOUT_MS = 10_000;
 const DOCUMENT_CONCURRENCY = 1;
 const DOCUMENT_AI_RATE_LIMIT_RETRIES = 1;
@@ -200,17 +201,52 @@ async function ingestOne(
 ): Promise<HotelScannerV2DocumentResult> {
   const startedAt = Date.now();
   try {
-    const fetched = await fetchPublicBinaryV2(new URL(document.url), {
-      timeoutMs: DOCUMENT_TIMEOUT_MS,
-      maxBytes: MAX_DOCUMENT_BYTES,
-      accept: "application/pdf,application/octet-stream;q=0.8,*/*;q=0.1",
-      userAgent: USER_AGENT,
-    });
-    if (fetched.url.origin !== canonicalOrigin) {
-      return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_cross_origin_redirect", latencyMs: Date.now() - startedAt };
-    }
-    if (!isPdf(fetched.buffer)) {
-      return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_not_pdf", byteCount: fetched.buffer.byteLength, latencyMs: Date.now() - startedAt };
+    let byteCount = 0;
+    let inputFile:
+      | { type: "input_file"; filename: string; file_data: string }
+      | { type: "input_file"; filename: string; file_url: string };
+
+    try {
+      const fetched = await fetchPublicBinaryV2(new URL(document.url), {
+        timeoutMs: DOCUMENT_TIMEOUT_MS,
+        maxBytes: MAX_INLINE_DOCUMENT_BYTES,
+        accept: "application/pdf,application/octet-stream;q=0.8,*/*;q=0.1",
+        userAgent: USER_AGENT,
+      });
+      if (fetched.url.origin !== canonicalOrigin) {
+        return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_cross_origin_redirect", latencyMs: Date.now() - startedAt };
+      }
+      if (!isPdf(fetched.buffer)) {
+        return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_not_pdf", byteCount: fetched.buffer.byteLength, latencyMs: Date.now() - startedAt };
+      }
+      byteCount = fetched.buffer.byteLength;
+      inputFile = {
+        type: "input_file",
+        filename: filenameForUrl(document.url),
+        file_data: `data:application/pdf;base64,${fetched.buffer.toString("base64")}`,
+      };
+    } catch (error) {
+      const code = String((error as { code?: unknown } | null)?.code || "");
+      if (code !== "scanner_v2_resource_too_large") throw error;
+
+      const probed = await probePublicResourceV2(new URL(document.url), {
+        timeoutMs: DOCUMENT_TIMEOUT_MS,
+        maxBytes: MAX_REMOTE_DOCUMENT_BYTES,
+        accept: "application/pdf,application/octet-stream;q=0.8,*/*;q=0.1",
+        userAgent: USER_AGENT,
+      });
+      if (probed.url.origin !== canonicalOrigin) {
+        return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_cross_origin_redirect", latencyMs: Date.now() - startedAt };
+      }
+      if (!/application\/pdf/iu.test(probed.contentType) && !/\.pdf$/iu.test(probed.url.pathname)) {
+        return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_not_pdf", byteCount: probed.contentLength, latencyMs: Date.now() - startedAt };
+      }
+      byteCount = probed.contentLength;
+      inputFile = {
+        type: "input_file",
+        filename: filenameForUrl(probed.url.toString()),
+        file_url: probed.url.toString(),
+      };
     }
 
     const response = await withDocumentRateLimitRetry(() => getClient().responses.create({
@@ -237,11 +273,7 @@ async function ingestOne(
             type: "input_text",
             text: JSON.stringify({ SOURCE_URL: document.url, INFERRED_DOMAINS: document.domains, OUTPUT_LANGUAGE: outputLanguage }),
           },
-          {
-            type: "input_file",
-            filename: filenameForUrl(document.url),
-            file_data: `data:application/pdf;base64,${fetched.buffer.toString("base64")}`,
-          },
+          inputFile,
         ],
       }],
       text: {
@@ -278,7 +310,7 @@ async function ingestOne(
     }));
 
     if (response.status === "incomplete") {
-      return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_ai_incomplete", byteCount: fetched.buffer.byteLength, latencyMs: Date.now() - startedAt };
+      return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_ai_incomplete", byteCount, latencyMs: Date.now() - startedAt };
     }
     const outputText = String(response.output_text || "").trim();
     const facts = outputText ? parseFacts(outputText, document.url) : [];
@@ -287,7 +319,7 @@ async function ingestOne(
       status: "INGESTED",
       domains: document.domains,
       facts,
-      byteCount: fetched.buffer.byteLength,
+      byteCount,
       latencyMs: Date.now() - startedAt,
     };
   } catch (error) {
