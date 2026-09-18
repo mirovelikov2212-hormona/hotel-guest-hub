@@ -98,3 +98,13 @@ test("Turkish country name is compatible with an English Turkey address", () => 
   ]);
   assert.equal(result.conflicts.length, 0);
 });
+
+
+test("descriptive resort position is not an address conflict", () => {
+  const result = verifyHotelScanFactsV2([
+    fact("location", "hotel", "address", "8240 Sunny Beach, Bulgaria", "https://hotel.test/contact"),
+    fact("location", "hotel", "address", "Слънчев бряг, България; северната част на курорта.", "https://hotel.test/report"),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  assert.ok(result.facts.some((item) => item.attribute === "location_description"));
+});
