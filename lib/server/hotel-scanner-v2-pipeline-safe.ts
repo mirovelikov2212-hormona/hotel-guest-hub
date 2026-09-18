@@ -16,8 +16,7 @@ import {
 } from "@/lib/product-factory/hotel-intelligence-v2";
 import { buildHotelReviewSectionsV2 } from "@/lib/product-factory/hotel-intelligence-review-cards";
 import { buildHotelCompletenessV2 } from "@/lib/server/hotel-scanner-v2-completeness.mjs";
-import { classifyHotelScannerPageV2, hotelScannerPageTypeDomain } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
-import { canonicalizeHotelIntakeUrl } from "@/lib/server/hotel-scanner-v2-site-map.mjs";
+import { buildHotelScannerCoverageBlockingReasonsV2 } from "@/lib/server/hotel-scanner-v2-coverage-validation.mjs";
 import {
   discoverHotelIntakeV2,
   type HotelIntakeV2DiscoveryResult,
@@ -25,61 +24,6 @@ import {
 
 function extractionBlockingReasons(extraction: Awaited<ReturnType<typeof extractHotelDomainsV2>>) {
   return [...new Set(extraction.issues.map((issue) => `${issue.domain}_extraction_${issue.code.toLocaleLowerCase("en-US")}`))];
-}
-
-function urlDescendsFrom(candidateUrl: string, parentUrl: string) {
-  try {
-    const candidate = new URL(canonicalizeHotelIntakeUrl(candidateUrl));
-    const parent = new URL(canonicalizeHotelIntakeUrl(parentUrl));
-    if (candidate.origin !== parent.origin) return false;
-    const parentPath = parent.pathname.replace(/\/+$/, "") || "/";
-    const candidatePath = candidate.pathname.replace(/\/+$/, "") || "/";
-    return parentPath !== "/" && candidatePath.startsWith(`${parentPath}/`);
-  } catch {
-    return false;
-  }
-}
-
-function coverageBlockingReasons(
-  coverage: {
-    coverageComplete: boolean;
-    failedRelevantCount: number;
-    pendingRelevantUrls?: string[];
-    failedRelevantUrls?: string[];
-  },
-  inventory: HotelIntakeV2DiscoveryResult["inventory"],
-  completeness: ReturnType<typeof buildHotelCompletenessV2>,
-) {
-  const pending = Array.isArray(coverage.pendingRelevantUrls) ? coverage.pendingRelevantUrls : [];
-  const failed = new Set(Array.isArray(coverage.failedRelevantUrls) ? coverage.failedRelevantUrls : []);
-  const nonFailedPending = pending.filter((url) => !failed.has(url));
-  const completenessByDomain = new Map(completeness.domains.map((domain) => [domain.domain, domain]));
-  const inventoryByDomain = new Map(inventory.domains.map((domain) => [domain.domain, domain]));
-
-  const blockingFailed = [...failed].filter((url) => {
-    const classification = classifyHotelScannerPageV2({ url });
-    const domain = hotelScannerPageTypeDomain(classification.primaryType);
-    if (["policies", "faq", "contacts"].includes(domain)) return true;
-
-    const domainCompleteness = completenessByDomain.get(domain);
-    if (!domainCompleteness || domainCompleteness.status !== "COMPLETE") return true;
-
-    const expectedItems = inventoryByDomain.get(domain)?.expectedItems || [];
-    // A failed child route is non-blocking only after the canonical parent
-    // entity has complete inventory + content evidence. This preserves
-    // fail-closed behavior for unknown/unread pages while allowing stale CMS
-    // child routes (e.g. /aqua-park/adults-area) to be superseded by the
-    // authoritative entity page already read and verified.
-    return !expectedItems.some((item) => {
-      const parents = [...(item.urls || []), item.url].filter(Boolean);
-      return parents.some((parentUrl) => urlDescendsFrom(url, parentUrl));
-    });
-  });
-
-  const reasons: string[] = [];
-  if (nonFailedPending.length || blockingFailed.length) reasons.push("relevant_site_coverage_incomplete");
-  if (blockingFailed.length) reasons.push("relevant_site_pages_failed");
-  return reasons;
 }
 
 function extractionQuotaExhausted(extraction: Awaited<ReturnType<typeof extractHotelDomainsV2>>) {
@@ -167,7 +111,12 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
   });
 
   const extractionBlockers = extractionBlockingReasons(extraction);
-  const coverageBlockers = coverageBlockingReasons(discovery.evidence.discovery.coverage, inventory, completeness);
+  const coverageValidation = buildHotelScannerCoverageBlockingReasonsV2({
+    coverage: discovery.evidence.discovery.coverage,
+    inventory,
+    completeness,
+  });
+  const coverageBlockers = coverageValidation.reasons;
   const scannerBlockers = [...new Set([...extractionBlockers, ...coverageBlockers])];
   const intelligenceCandidate: HotelIntelligenceCandidateV2 = scannerBlockers.length
     ? {
