@@ -165,6 +165,8 @@ test("failed child route is superseded only by a complete canonical parent entit
         domain: "experiences",
         expectedItems: [{
           id: "experience:animation",
+          nameHint: "Animation",
+          basis: "canonical_section_entity",
           url: "https://hotel.example/activities",
           urls: ["https://hotel.example/activities"],
         }],
@@ -193,6 +195,8 @@ test("failed child route remains blocking when no complete parent entity owns it
         domain: "experiences",
         expectedItems: [{
           id: "experience:aquapark",
+          nameHint: "Aqua Park",
+          basis: "canonical_linked_detail_entity",
           url: "https://hotel.example/aqua-park",
           urls: ["https://hotel.example/aqua-park"],
         }],
