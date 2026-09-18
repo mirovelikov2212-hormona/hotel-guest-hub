@@ -67,6 +67,7 @@ test("landing structure establishes only semantically valid accommodation, dinin
 
   const accommodation = inventory.domains.find((item) => item.domain === "accommodation");
   const gastronomy = inventory.domains.find((item) => item.domain === "gastronomy");
+  const services = inventory.domains.find((item) => item.domain === "services");
   const experiences = inventory.domains.find((item) => item.domain === "experiences");
 
   assert.equal(accommodation.expectationState, "DETERMINISTIC");
@@ -74,10 +75,15 @@ test("landing structure establishes only semantically valid accommodation, dinin
   assert.equal(gastronomy.expectationState, "DETERMINISTIC");
   assert.equal(gastronomy.expectedCount, 5);
   assert.equal(experiences.expectationState, "DETERMINISTIC");
-  assert.equal(experiences.expectedCount, 4);
+  assert.equal(services.expectationState, "DETERMINISTIC");
+  assert.deepEqual(
+    services.expectedItems.map((item) => item.nameHint).sort(),
+    ["Concept Store", "Hair Salon & Barbershop", "Pharmacy"].sort(),
+  );
+  assert.equal(experiences.expectedCount, 7);
   assert.deepEqual(
     experiences.expectedItems.map((item) => item.nameHint).sort(),
-    ["Historical Routes", "Natural Landmarks", "Tourism & Trails", "Traditions"].sort(),
+    ["Children's Corner", "Fitness Centre", "Game Hall", "Historical Routes", "Natural Landmarks", "Tourism & Trails", "Traditions"].sort(),
   );
 });
 
