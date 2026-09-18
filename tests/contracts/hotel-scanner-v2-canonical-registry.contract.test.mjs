@@ -280,3 +280,77 @@ test("HTML-encoded landing entity merges with its canonical detail page", () => 
   assert.equal(experiences.expectedCount, 1);
   assert.equal(experiences.expectedItems[0].nameHint, "Shows & Parties");
 });
+
+
+test("translated landing room cards are superseded by complete canonical detail children", () => {
+  const landing = resource({
+    url: "https://hotel.test/bg/rooms",
+    primaryType: "accommodation",
+    domain: "accommodation",
+    names: ["Единична стая", "Двойна стая", "Фамилна стая"],
+    variantGroupId: "hotel.test/rooms",
+  });
+  landing.languages = ["bg"];
+
+  const details = [
+    ["single-room", "Single Room"],
+    ["double-room", "Double Room"],
+    ["family-room", "Family Room"],
+  ].map(([slug, title]) => ({
+    url: `https://hotel.test/rooms/${slug}`,
+    resourceType: "page",
+    crawled: true,
+    variantGroupId: `hotel.test/rooms/${slug}`,
+    title: `${title} - Hotel Test`,
+    languages: ["en"],
+    classification: { primaryType: "room_detail", types: ["room_detail", "accommodation"], confidence: 1, signals: [] },
+    inventoryHints: [],
+  }));
+
+  const registry = buildCanonicalHotelEntityRegistryV2({ resources: [landing, ...details] });
+  const accommodation = registry.domains.get("accommodation");
+
+  assert.equal(accommodation.expectedCount, 3);
+  assert.deepEqual(
+    accommodation.expectedItems.map((item) => item.nameHint).sort(),
+    ["Double Room", "Family Room", "Single Room"].sort(),
+  );
+  assert.ok(accommodation.expectedItems.every((item) => item.basis === "canonical_detail_entity"));
+});
+
+test("CMS taxonomy archive pages never become canonical detail entities", () => {
+  const archive = {
+    url: "https://hotel.test/category/aqua-park",
+    resourceType: "page",
+    crawled: true,
+    variantGroupId: "hotel.test/category/aqua-park",
+    title: "Aqua Park Archives - Hotel Test",
+    languages: ["en"],
+    classification: { primaryType: "experience_detail", types: ["experience_detail", "experiences"], confidence: 1, signals: [] },
+    inventoryHints: [],
+  };
+  const canonical = {
+    url: "https://hotel.test/aqua-park",
+    resourceType: "page",
+    crawled: true,
+    variantGroupId: "hotel.test/aqua-park",
+    title: "Aqua Park - Hotel Test",
+    languages: ["en"],
+    classification: { primaryType: "experiences", types: ["experiences"], confidence: 1, signals: [] },
+    inventoryHints: [{
+      domain: "experiences",
+      expectedCount: 1,
+      identifiedCount: 1,
+      consistency: "CONSISTENT",
+      confidence: "MEDIUM",
+      candidates: [{ name: "Aqua Park", entityType: "aquapark", basis: "semantic_content_block", score: 7, links: [] }],
+    }],
+  };
+
+  const registry = buildCanonicalHotelEntityRegistryV2({ resources: [archive, canonical] });
+  const experiences = registry.domains.get("experiences");
+
+  assert.equal(experiences.expectedCount, 1);
+  assert.equal(experiences.expectedItems[0].nameHint, "Aqua Park");
+  assert.ok(!experiences.expectedItems.some((item) => /archive/i.test(item.nameHint)));
+});
