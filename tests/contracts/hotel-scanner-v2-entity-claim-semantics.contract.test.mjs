@@ -65,7 +65,7 @@ test("explicit dining count remains authority without filling slots from generic
   assert.deepEqual(hint.candidates.map((candidate) => candidate.name).sort(), ["Forum Restaurant", "NERO"]);
 });
 
-test("destination experiences exclude on-property amenity blocks", () => {
+test("hotel experiences include on-property recreation and destination activities", () => {
   const page = pageFromHtml(
     "https://hotel.test/en/experiences",
     "Experiences",
@@ -82,7 +82,10 @@ test("destination experiences exclude on-property amenity blocks", () => {
   const classification = classifyHotelScannerPageV2(page);
   const hint = deriveHotelPageInventoryHintV2(page, classification);
 
-  assert.deepEqual(hint.candidates.map((candidate) => candidate.name).sort(), ["Historical Routes", "Natural Landmarks"]);
+  assert.deepEqual(
+    hint.candidates.map((candidate) => candidate.name).sort(),
+    ["Fitness Centre", "Historical Routes", "Kids Corner", "Natural Landmarks"].sort(),
+  );
 });
 
 test("claim semantics separate early and late options from standard check-in and checkout", () => {
