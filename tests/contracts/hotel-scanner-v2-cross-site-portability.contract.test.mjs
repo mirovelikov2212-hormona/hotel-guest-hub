@@ -230,3 +230,107 @@ test("canonical registry can resolve an entity to a linked crawled detail family
   assert.equal(experiences.expectedItems[0].url, "https://resort-example.test/aqua-park");
   assert.ok(experiences.detailUrls.includes("https://resort-example.test/aqua-park"));
 });
+
+
+test("Turkish resort surfaces normalize common hotel objects", () => {
+  const input = page(
+    "https://resort-example.test/tr/aktiviteler",
+    "Aktiviteler",
+    ["Aktiviteler", "Açık Havuz", "Çocuk Kulübü", "Fitness", "Aquapark"],
+    [
+      { level: 2, heading: "Açık Havuz", text: "Otel misafirleri için açık yüzme havuzu.", links: ["/tr/aktiviteler/havuz"] },
+      { level: 2, heading: "Çocuk Kulübü", text: "Çocuklar için oyun ve eğlence alanı.", links: ["/tr/aktiviteler/cocuk-kulubu"] },
+      { level: 2, heading: "Fitness", text: "Otel bünyesinde spor salonu.", links: ["/tr/spor/fitness"] },
+      { level: 2, heading: "Aquapark", text: "Su kaydırakları ve aile eğlencesi.", links: ["/tr/aquapark"] },
+    ],
+  );
+  const classification = classifyHotelScannerPageV2(input);
+  const hints = deriveHotelPageInventoryHintsV2(input, classification);
+  const experiences = hints.find((hint) => hint.domain === "experiences");
+
+  assert.equal(classification.primaryType, "experiences");
+  assert.ok(experiences);
+  assert.deepEqual(
+    experiences.candidates.map((candidate) => candidate.name).sort(),
+    ["Aquapark", "Açık Havuz", "Fitness", "Çocuk Kulübü"].sort(),
+  );
+  assert.deepEqual(
+    new Set(experiences.candidates.map((candidate) => candidate.entityType)),
+    new Set(["aquapark", "pool", "sports_facility", "kids_facility"]),
+  );
+});
+
+test("Turkish dining labels remain gastronomy entities", () => {
+  const input = page(
+    "https://resort-example.test/tr/restoranlar",
+    "Restoranlar",
+    ["Restoranlar", "Ana Restoran", "Havuz Bar", "Lobi Bar"],
+    [
+      { level: 2, heading: "Ana Restoran", text: "Açık büfe kahvaltı, öğle ve akşam yemeği.", links: [] },
+      { level: 2, heading: "Havuz Bar", text: "İçecek ve atıştırmalık servisi.", links: [] },
+      { level: 2, heading: "Lobi Bar", text: "İçecek servisi ve akşam buluşmaları.", links: [] },
+    ],
+  );
+  const classification = classifyHotelScannerPageV2(input);
+  const hints = deriveHotelPageInventoryHintsV2(input, classification);
+  const gastronomy = hints.find((hint) => hint.domain === "gastronomy");
+
+  assert.equal(classification.primaryType, "gastronomy");
+  assert.equal(gastronomy.expectedCount, 3);
+  assert.deepEqual(gastronomy.candidates.map((candidate) => candidate.name).sort(), ["Ana Restoran", "Havuz Bar", "Lobi Bar"].sort());
+});
+
+test("FAQ questions describe facts but never become service inventory entities", () => {
+  const input = page(
+    "https://resort-example.test/services",
+    "Services",
+    ["Services", "Otopark var mı?", "Havalimanı transferi sunuyor mu?", "Laundry"],
+    [
+      { level: 2, heading: "Otopark var mı?", text: "Guests can use the hotel parking area.", links: [] },
+      { level: 2, heading: "Havalimanı transferi sunuyor mu?", text: "Airport transfer can be arranged.", links: [] },
+      { level: 2, heading: "Laundry", text: "Paid laundry service is available.", links: [] },
+    ],
+  );
+  const classification = classifyHotelScannerPageV2(input);
+  const hints = deriveHotelPageInventoryHintsV2(input, classification);
+  const services = hints.find((hint) => hint.domain === "services");
+
+  assert.equal(classification.primaryType, "services");
+  assert.ok(services);
+  assert.deepEqual(services.candidates.map((candidate) => candidate.name), ["Laundry"]);
+});
+
+test("standalone resort pools are recreation, not SPA", () => {
+  const input = page(
+    "https://resort-example.test/tr/havuzlar",
+    "Havuzlar",
+    ["Havuzlar", "Açık Havuz", "Çocuk Havuzu"],
+    [
+      { level: 2, heading: "Açık Havuz", text: "Açık hava yüzme havuzu.", links: [] },
+      { level: 2, heading: "Çocuk Havuzu", text: "Çocuklar için sığ havuz.", links: [] },
+    ],
+  );
+  const classification = classifyHotelScannerPageV2(input);
+  const hints = deriveHotelPageInventoryHintsV2(input, classification);
+
+  assert.equal(classification.primaryType, "experiences");
+  assert.ok(hints.some((hint) => hint.domain === "experiences"));
+  assert.ok(!hints.some((hint) => hint.domain === "spa"));
+});
+
+test("awards and certificates never become hotel events even when a year is present", () => {
+  const input = page(
+    "https://resort-example.test/awards",
+    "Awards",
+    ["Awards", "HolidayCheck 2026", "Travelife Gold Certificate"],
+    [
+      { level: 2, heading: "HolidayCheck 2026", text: "Guest recognition award for 2026.", links: [] },
+      { level: 2, heading: "Travelife Gold Certificate", text: "Sustainability certification.", links: [] },
+    ],
+  );
+  const classification = classifyHotelScannerPageV2(input);
+  const hints = deriveHotelPageInventoryHintsV2(input, classification);
+
+  assert.equal(classification.primaryType, "other");
+  assert.ok(!hints.some((hint) => hint.domain === "events"));
+});
