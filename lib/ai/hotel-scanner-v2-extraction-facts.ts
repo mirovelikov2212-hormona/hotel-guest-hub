@@ -2,6 +2,7 @@ import type { HotelScanFact } from "@/lib/ai/hotel-scanner";
 import type { HotelScannerV2DomainInventory } from "@/lib/server/hotel-scanner-v2-inventory.mjs";
 import type { HotelScannerV2DomainConfig } from "@/lib/ai/hotel-scanner-v2-extraction-config";
 import { cleanV2, entityKeyV2, uniqueV2 } from "@/lib/ai/hotel-scanner-v2-extraction-evidence";
+import { bindHotelScannerFactToOwnerV2 } from "@/lib/ai/hotel-scanner-v2-fact-ownership.mjs";
 
 const GENERIC_BUSINESS_EMAIL_LOCAL_PARTS = new Set([
   "info", "contact", "contacts", "hello", "office", "hotel", "reception", "frontdesk", "frontoffice",
@@ -112,9 +113,6 @@ export function boundHotelScannerV2FactsToInventory(
     .filter((item) => NAMED_INVENTORY_BASES.has(item.basis))
     .map((item) => entityKeyV2(item.nameHint))
     .filter(Boolean));
-  const detailUrls = new Set(expectedItems
-    .filter((item) => DETAIL_INVENTORY_BASES.has(item.basis))
-    .flatMap((item) => item.urls));
   const anonymousSlotCount = expectedItems.filter((item) => item.basis === "deterministic_explicit_count_slot").length;
   const acceptedAnonymous = new Set<string>();
 
@@ -131,24 +129,36 @@ export function boundHotelScannerV2FactsToInventory(
   const result: HotelScanFact[] = [];
   for (const fact of facts) {
     const enriched = fact as HotelScanFact & { subject?: string; attribute?: string };
-    const entity = factEntity(fact);
-    if (fact.sourceUrls.some((url) => detailUrls.has(url))) {
-      result.push(fact);
+    const ownership = bindHotelScannerFactToOwnerV2(fact, expectedItems);
+    const boundFact = ownership.fact;
+    const entity = factEntity(boundFact);
+
+    if (ownership.owner) {
+      result.push(boundFact);
       continue;
     }
+
+    if (ownership.ambiguous) {
+      // A source page shared by multiple canonical entities is not enough to
+      // choose an owner. Keep the fact only when its own entity identity is
+      // already a named deterministic inventory member.
+      if (entity && namedLandingKeys.has(entity)) result.push(boundFact);
+      continue;
+    }
+
     if (entity && namedLandingKeys.has(entity)) {
-      result.push(fact);
+      result.push(boundFact);
       continue;
     }
     if (entity && anonymousSlotCount > 0) {
       if (acceptedAnonymous.has(entity) || acceptedAnonymous.size < anonymousSlotCount) {
         acceptedAnonymous.add(entity);
-        result.push(fact);
+        result.push(boundFact);
       }
       continue;
     }
     if (!entity && enriched.attribute && result.some((accepted) => entityKeyV2((accepted as HotelScanFact & { subject?: string }).subject) === entityKeyV2(enriched.subject))) {
-      result.push(fact);
+      result.push(boundFact);
     }
   }
   return result;
