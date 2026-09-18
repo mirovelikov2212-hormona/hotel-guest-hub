@@ -18,6 +18,7 @@ import { canonicalizeHotelIntakeUrl, inferHotelPageLanguage } from "@/lib/server
 import {
   deriveHotelPropertyScopeV2,
   isHotelPropertyDocumentUrlInScopeV2,
+  isHotelPropertyOperationalContentUrlV2,
   isHotelPropertyPageUrlInScopeV2,
   type HotelPropertyScopeV2,
 } from "@/lib/server/hotel-scanner-v2-property-scope.mjs";
@@ -224,18 +225,21 @@ function buildPageEvidence(url: URL, html: string, propertyScope: HotelPropertyS
   const structure = extractHotelPageStructureV2(html);
   const allLinks = anchorUrls(html, url, 500);
   const allNavigationLinks = navigationUrls(html, url);
-  const pageLinks = allLinks.filter((link) => !/\.pdf$/i.test(new URL(link).pathname) && isHotelPropertyPageUrlInScopeV2(link, propertyScope));
-  const pageNavigationLinks = allNavigationLinks.filter((link) => isHotelPropertyPageUrlInScopeV2(link, propertyScope));
+  const pageLinks = allLinks.filter((link) =>
+    !/\.pdf$/i.test(new URL(link).pathname)
+    && isHotelPropertyOperationalContentUrlV2(link, propertyScope));
+  const pageNavigationLinks = allNavigationLinks.filter((link) =>
+    isHotelPropertyOperationalContentUrlV2(link, propertyScope));
   const pageDocumentUrls = allLinks
     .filter((link) => /\.pdf$/i.test(new URL(link).pathname))
     .filter((link) => isHotelPropertyDocumentUrlInScopeV2(link, propertyScope, { directlyLinkedFromProperty: true }))
     .slice(0, MAX_PUBLIC_DOCUMENTS);
   const pageCanonicalHint = canonicalHint(html, url);
-  const scopedCanonicalHint = pageCanonicalHint && isHotelPropertyPageUrlInScopeV2(pageCanonicalHint, propertyScope)
+  const scopedCanonicalHint = pageCanonicalHint && isHotelPropertyOperationalContentUrlV2(pageCanonicalHint, propertyScope)
     ? pageCanonicalHint
     : "";
   const alternates = languageAlternates(html, url)
-    .filter((item) => isHotelPropertyPageUrlInScopeV2(item.url, propertyScope));
+    .filter((item) => isHotelPropertyOperationalContentUrlV2(item.url, propertyScope));
   return {
     url: canonicalizeHotelIntakeUrl(url.toString()),
     title: firstMatch(html, [/<title[^>]*>([\s\S]*?)<\/title>/i]),
@@ -322,7 +326,7 @@ async function discoverSitemapResources(baseUrl: URL, canonicalOrigin: string, r
             documentUrls.add(normalized);
           }
         } else if (!/\.(?:jpe?g|png|gif|webp|svg|zip|docx?|xlsx?|pptx?)$/i.test(url.pathname)
-          && isHotelPropertyPageUrlInScopeV2(normalized, propertyScope)) {
+          && isHotelPropertyOperationalContentUrlV2(normalized, propertyScope)) {
           pageUrls.add(normalized);
         }
         if (pageUrls.size >= MAX_DISCOVERED_PAGES) break;
@@ -435,7 +439,7 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
       try {
         const response = await fetchPublicHtmlV2(new URL(url), { timeoutMs: FETCH_TIMEOUT_MS, maxBytes: MAX_PAGE_BYTES, userAgent: USER_AGENT });
         if (response.url.origin !== canonicalOrigin) { failedPageUrls.add(url); return null; }
-        if (!isHotelPropertyPageUrlInScopeV2(response.url.toString(), propertyScope)) return null;
+        if (!isHotelPropertyOperationalContentUrlV2(response.url.toString(), propertyScope)) return null;
         return buildPageEvidence(response.url, response.html, propertyScope);
       } catch { failedPageUrls.add(url); return null; }
     }));
