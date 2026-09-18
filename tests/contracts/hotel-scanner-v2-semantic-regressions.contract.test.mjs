@@ -149,14 +149,14 @@ test("German main restaurant remains gastronomy instead of generic service", () 
   );
 });
 
-test("corporate policy surfaces classify as policies and editorial surfaces are not hotel entities", () => {
+test("corporate governance and editorial surfaces are not guest hotel entities", () => {
   assert.equal(
     classifyHotelScannerPageV2(page(
       "https://chain.test/property/de/integrierte-managementpolitik",
       "INTEGRIERTE MANAGEMENTPOLITIK",
       ["INTEGRIERTE MANAGEMENTPOLITIK"],
     )).primaryType,
-    "policies",
+    "other",
   );
 
   assert.equal(
@@ -165,7 +165,7 @@ test("corporate policy surfaces classify as policies and editorial surfaces are 
       "Corporate Sustainability Policy",
       ["Corporate Sustainability Policy"],
     )).primaryType,
-    "policies",
+    "other",
   );
 
   assert.equal(
