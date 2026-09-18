@@ -17,6 +17,7 @@ import {
 import { buildHotelReviewSectionsV2 } from "@/lib/product-factory/hotel-intelligence-review-cards";
 import { buildHotelCompletenessV2 } from "@/lib/server/hotel-scanner-v2-completeness.mjs";
 import { buildHotelScannerCoverageBlockingReasonsV2 } from "@/lib/server/hotel-scanner-v2-coverage-validation.mjs";
+import { reconcileHotelInventoryWithVerifiedFactsV2 } from "@/lib/server/hotel-scanner-v2-inventory-reconcile.mjs";
 import {
   discoverHotelIntakeV2,
   type HotelIntakeV2DiscoveryResult,
@@ -86,9 +87,18 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
       });
   const documentLatencyMs = Date.now() - documentStartedAt;
 
-  const inventory = applyDocumentIngestionToInventoryV2(discovery.inventory, documents);
+  const ingestedInventory = applyDocumentIngestionToInventoryV2(discovery.inventory, documents);
   const verificationStartedAt = Date.now();
   const verification = verifyHotelScanFactsV2([...extraction.facts, ...documents.facts]);
+  const inventory = reconcileHotelInventoryWithVerifiedFactsV2(
+    ingestedInventory,
+    verification.facts,
+    {
+      ingestedDocumentUrls: documents.documents
+        .filter((document) => document.status === "INGESTED")
+        .map((document) => document.url),
+    },
+  );
   const completeness = buildHotelCompletenessV2({
     inventory,
     profile: { facts: verification.facts },
