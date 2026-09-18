@@ -334,3 +334,89 @@ test("awards and certificates never become hotel events even when a year is pres
   assert.equal(classification.primaryType, "other");
   assert.ok(!hints.some((hint) => hint.domain === "events"));
 });
+
+
+test("list-style service pages recover operational hotel services without promoting navigation cards", () => {
+  const input = {
+    url: "https://resort-example.test/services",
+    title: "Services",
+    description: "",
+    text: "24/7 Reception Desk Washing & Ironing Souvenir shop Exchange Desk Wi-Fi Parking ROOMS DINING ENTERTAINMENT AQUA-PARK POOLS SPORTS",
+    headings: [{ level: 1, text: "Services" }, { level: 2, text: "AQUA-PARK" }, { level: 2, text: "SPORTS" }],
+    contentBlocks: [
+      { level: 2, heading: "AQUA-PARK", text: "Guests favourite attraction.", links: ["/aqua-park"] },
+      { level: 2, heading: "SPORTS", text: "Move your body and spirit.", links: ["/sports"] },
+    ],
+    jsonLdEntities: [],
+  };
+  const classification = classifyHotelScannerPageV2(input);
+  const hints = deriveHotelPageInventoryHintsV2(input, classification);
+  const services = hints.find((hint) => hint.domain === "services");
+
+  assert.equal(classification.primaryType, "services");
+  assert.deepEqual(
+    services.candidates.map((candidate) => candidate.name).sort(),
+    ["24/7 Reception", "Currency Exchange", "Laundry & Ironing", "Parking", "Souvenir Shop", "Wi-Fi"].sort(),
+  );
+  assert.ok(!services.candidates.some((candidate) => /aqua|sport/i.test(candidate.name)));
+});
+
+test("specific hotel object title overrides a broad activities container", () => {
+  const input = page(
+    "https://resort-example.test/activities/beauty-saloon",
+    "Beauty Saloon - Resort Example",
+    ["Beauty Saloon"],
+    [{ level: 1, heading: "Beauty Saloon", text: "Beauty and personal care services.", links: [] }],
+  );
+  const classification = classifyHotelScannerPageV2(input);
+  assert.equal(classification.primaryType, "service_detail");
+  assert.ok(classification.types.includes("services"));
+});
+
+test("dedicated aquapark page owns its adult and child subpages as one facility", () => {
+  const aqua = page(
+    "https://resort-example.test/aqua-park",
+    "Aqua Park - Resort Example",
+    ["Aqua Park", "Aquapark for Adults", "Aquapark for Children"],
+    [
+      { level: 2, heading: "Aquapark for Adults", text: "Slides for adults.", links: ["/aqua-park/adults-area"] },
+      { level: 2, heading: "Aquapark for Children", text: "Slides for children.", links: ["/aqua-park/children-area"] },
+    ],
+  );
+  const adults = page(
+    "https://resort-example.test/aqua-park/adults-area",
+    "Aqua Park Adults area - Resort Example",
+    ["Aqua Park Adults area"],
+    [{ level: 1, heading: "Aqua Park Adults area", text: "Open and closed slides.", links: [] }],
+  );
+  const children = page(
+    "https://resort-example.test/aqua-park/children-area",
+    "Aqua Park Children area - Resort Example",
+    ["Aqua Park Children area"],
+    [{ level: 1, heading: "Aqua Park Children area", text: "Children slides and water fun.", links: [] }],
+  );
+
+  const registry = buildCanonicalHotelEntityRegistryV2({
+    resources: [resourceFromPage(aqua), resourceFromPage(adults), resourceFromPage(children)],
+  });
+  const experiences = registry.domains.get("experiences");
+
+  assert.equal(experiences.expectedCount, 1);
+  assert.equal(experiences.expectedItems[0].entityType, "aquapark");
+  assert.equal(experiences.expectedItems[0].url, "https://resort-example.test/aqua-park");
+});
+
+test("hotel brand phrases containing Beach Club are not hotel beach entities", () => {
+  const input = page(
+    "https://resort-example.test/",
+    "Resort Example",
+    ["Resort Example Beach Club", "A Refreshing Escape at Resort Example Beach Club Hotel"],
+    [
+      { level: 2, heading: "Resort Example Beach Club", text: "Welcome to the hotel.", links: [] },
+      { level: 2, heading: "A Refreshing Escape at Resort Example Beach Club Hotel", text: "Enjoy your stay.", links: [] },
+    ],
+  );
+  const classification = classifyHotelScannerPageV2(input);
+  const hints = deriveHotelPageInventoryHintsV2(input, classification);
+  assert.ok(!hints.some((hint) => hint.domain === "experiences"));
+});
