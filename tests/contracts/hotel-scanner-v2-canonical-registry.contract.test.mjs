@@ -354,3 +354,33 @@ test("CMS taxonomy archive pages never become canonical detail entities", () => 
   assert.equal(experiences.expectedItems[0].nameHint, "Aqua Park");
   assert.ok(!experiences.expectedItems.some((item) => /archive/i.test(item.nameHint)));
 });
+
+
+test("generic multilingual aquapark labels merge into one canonical facility", () => {
+  const activities = resource({
+    url: "https://hotel.test/activities",
+    primaryType: "experiences",
+    domain: "experiences",
+    names: ["Аквапарк"],
+    variantGroupId: "hotel.test/activities",
+  });
+  activities.languages = ["bg"];
+
+  const aqua = resource({
+    url: "https://hotel.test/aqua-park",
+    primaryType: "experiences",
+    domain: "experiences",
+    names: ["Aqua Park"],
+    variantGroupId: "hotel.test/aqua-park",
+  });
+  aqua.title = "Aqua Park - Hotel Test";
+  aqua.languages = ["en"];
+
+  const registry = buildCanonicalHotelEntityRegistryV2({ resources: [activities, aqua] });
+  const experiences = registry.domains.get("experiences");
+
+  assert.equal(experiences.expectedCount, 1);
+  assert.equal(experiences.expectedItems[0].entityType, "aquapark");
+  assert.equal(experiences.expectedItems[0].url, "https://hotel.test/aqua-park");
+  assert.deepEqual(experiences.expectedItems[0].languages.sort(), ["bg", "en"]);
+});
