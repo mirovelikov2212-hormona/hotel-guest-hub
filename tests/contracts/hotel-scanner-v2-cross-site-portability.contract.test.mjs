@@ -4,6 +4,7 @@ import test from "node:test";
 import { classifyHotelScannerPageV2 } from "../../lib/server/hotel-scanner-v2-page-classifier.mjs";
 import { deriveHotelPageInventoryHintsV2 } from "../../lib/server/hotel-scanner-v2-landing-inventory.mjs";
 import { buildCanonicalHotelEntityRegistryV2 } from "../../lib/server/hotel-scanner-v2-canonical-registry.mjs";
+import { classifyCommonHotelObjectV2 } from "../../lib/server/hotel-scanner-v2-hospitality-taxonomy.mjs";
 
 function page(url, title, headings, contentBlocks) {
   return {
@@ -419,4 +420,47 @@ test("hotel brand phrases containing Beach Club are not hotel beach entities", (
   const classification = classifyHotelScannerPageV2(input);
   const hints = deriveHotelPageInventoryHintsV2(input, classification);
   assert.ok(!hints.some((hint) => hint.domain === "experiences"));
+});
+
+
+test("pool landing decomposes umbrella copy into real water facilities", () => {
+  const input = page(
+    "https://resort-example.test/pools",
+    "Pools",
+    ["Pools", "Pools for Relaxation and Fun"],
+    [{ level: 2, heading: "Pools for Relaxation and Fun", text: "Main Pool, Children's Pool and Jacuzzi for hotel guests.", links: [] }],
+  );
+  input.text = "The Main Pool is next to the Children's Pool and Jacuzzi.";
+  const classification = classifyHotelScannerPageV2(input);
+  const hints = deriveHotelPageInventoryHintsV2(input, classification);
+  const experiences = hints.find((hint) => hint.domain === "experiences");
+
+  assert.equal(classification.primaryType, "experiences");
+  assert.deepEqual(
+    experiences.candidates.map((candidate) => candidate.name).sort(),
+    ["Children's Pool", "Jacuzzi", "Main Pool"].sort(),
+  );
+  assert.ok(!experiences.candidates.some((candidate) => /relaxation and fun/i.test(candidate.name)));
+});
+
+test("named resort destinations ending in Beach are destinations, not hotel beach facilities", () => {
+  assert.deepEqual(
+    classifyCommonHotelObjectV2("Sunny Beach", "Sunny Beach is a resort destination.", "experiences"),
+    { domain: "experiences", entityType: "destination" },
+  );
+  assert.deepEqual(
+    classifyCommonHotelObjectV2("Private Beach", "Private Beach for hotel guests.", "experiences"),
+    { domain: "experiences", entityType: "beach" },
+  );
+});
+
+test("multifunctional playground is a sports facility, while a children's playground remains kids", () => {
+  assert.equal(
+    classifyCommonHotelObjectV2("Multifunctional playground", "Tennis and football", "experiences").entityType,
+    "sports_facility",
+  );
+  assert.equal(
+    classifyCommonHotelObjectV2("Children's playground", "Play area for young guests", "experiences").entityType,
+    "kids_facility",
+  );
 });
