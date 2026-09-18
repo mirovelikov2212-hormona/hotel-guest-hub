@@ -171,6 +171,24 @@ export async function fetchPublicTextV2(
   return { url: result.url, text: result.text, contentType: result.contentType };
 }
 
+
+export async function probePublicResourceV2(
+  startUrl: URL,
+  options: { timeoutMs: number; maxBytes: number; accept?: string; userAgent?: string },
+) {
+  const result = await boundedResponse(startUrl, {
+    ...options,
+    accept: options.accept || "application/pdf,application/octet-stream;q=0.8,*/*;q=0.1",
+  });
+  const contentLength = Number(result.response.headers.get("content-length") || 0);
+  await result.response.body?.cancel().catch(() => {});
+  return {
+    url: result.url,
+    contentType: result.contentType,
+    contentLength: Number.isFinite(contentLength) ? contentLength : 0,
+  };
+}
+
 export async function fetchPublicBinaryV2(
   startUrl: URL,
   options: { timeoutMs: number; maxBytes: number; accept?: string; userAgent?: string },
