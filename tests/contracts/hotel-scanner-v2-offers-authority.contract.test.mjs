@@ -214,6 +214,7 @@ test("crawler delegation is bounded and cannot recursively widen the property cr
   assert.match(crawler, /delegatedOfferTargets/);
   assert.match(crawler, /absorbPage\(page, false\)/);
   assert.match(crawler, /deriveHotelPageInventoryHintsV2/);
+  assert.match(crawler, /isHotelPropertyPageUrlInScopeV2\(normalized, propertyScope\)\) continue/);
   assert.match(crawler, /kind: "direct_content_link"/);
 });
 
