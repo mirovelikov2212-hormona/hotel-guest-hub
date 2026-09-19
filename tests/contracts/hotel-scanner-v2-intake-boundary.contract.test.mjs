@@ -11,9 +11,12 @@ test("V2 intake discovery endpoint is separate from the accepted V1 scan route",
   assert.match(route, /projectHotelIntakeDiscoveryV2/);
   assert.match(route, /enforceControlPlaneSameOrigin/);
   assert.match(route, /getCurrentPlatformAdminSession/);
-  assert.match(intake, /crawlPublicHotelWebsiteV2/);
-  assert.match(intake, /await crawlPublicHotelWebsiteV2\(/);
-  assert.doesNotMatch(intake, /await crawlPublicHotelWebsiteRenderedV2\(/);
+  assert.match(intake, /export async function discoverHotelIntakeV2[\s\S]*?crawlPublicHotelWebsiteV2\(rawUrl\)/);
+  assert.match(intake, /export async function discoverHotelIntakeRenderedV2[\s\S]*?crawlPublicHotelWebsiteRenderedV2\(rawUrl\)/);
+  const stableStart = intake.indexOf("export async function discoverHotelIntakeV2");
+  const renderedStart = intake.indexOf("export async function discoverHotelIntakeRenderedV2");
+  const stableBody = intake.slice(stableStart, renderedStart);
+  assert.doesNotMatch(stableBody, /crawlPublicHotelWebsiteRenderedV2/);
   assert.match(intake, /buildHotelSiteMapV2/);
   assert.match(intake, /buildHotelInventoryCanonicalV2/);
   assert.doesNotMatch(intake, /buildHotelInventoryV2\(/);
