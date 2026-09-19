@@ -225,8 +225,7 @@ export class HotelScannerV2BrowserRenderer {
         }
       });
 
-      await page.goto(requested.toString(), { waitUntil: "domcontentloaded", timeout: RENDER_TIMEOUT_MS });
-      await page.waitForLoadState("networkidle", { timeout: NETWORK_IDLE_TIMEOUT_MS }).catch(() => undefined);
+      // Treat the first committed document response as navigation success. Some\n      // hotel sites keep DOMContentLoaded blocked behind slow third-party scripts;\n      // that must not discard otherwise usable rendered DOM evidence.\n      await page.goto(requested.toString(), { waitUntil: "commit", timeout: RENDER_TIMEOUT_MS });\n      await page.waitForLoadState("domcontentloaded", { timeout: RENDER_TIMEOUT_MS }).catch(() => undefined);\n      await page.waitForLoadState("networkidle", { timeout: NETWORK_IDLE_TIMEOUT_MS }).catch(() => undefined);
       await revealLazyContent(page);
       await page.waitForTimeout(250);
       const finalUrl = page.url();

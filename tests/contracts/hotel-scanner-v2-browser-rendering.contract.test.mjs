@@ -23,6 +23,9 @@ test("Scanner V2 browser renderer uses Playwright and public-host SSRF guard", a
   assert.match(source, /resourceType === "document" && url\.origin !== requested\.origin/);
   assert.match(source, /MAX_BROWSER_REQUESTS\s*=\s*260/);
   assert.match(source, /serviceWorkers:\s*"block"/);
+  assert.match(source, /waitUntil:\s*"commit"/);
+  assert.match(source, /waitForLoadState\("domcontentloaded"/);
+  assert.match(source, /waitForLoadState\("networkidle"/);
   assert.match(source, /browserPromise/);
 });
 
