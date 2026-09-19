@@ -10,6 +10,7 @@ import {
   type HotelScannerV2DomainConfig,
 } from "@/lib/ai/hotel-scanner-v2-extraction-config";
 import {
+  buildDeterministicOfferDetailFactsV2,
   buildDeterministicPolicyFactsV2,
   buildInventoryIdentityFactsV2,
 } from "@/lib/ai/hotel-scanner-v2-deterministic-facts";
@@ -124,6 +125,7 @@ async function extractDomain(
   // not appear/disappear between identical scans.
   const deterministic = [
     ...buildInventoryIdentityFactsV2(domainInventory),
+    ...(config.domain === "offers" ? buildDeterministicOfferDetailFactsV2(pages, domainInventory) : []),
     ...(config.domain === "policies" ? buildDeterministicPolicyFactsV2(pages) : []),
   ];
   const facts = boundHotelScannerV2FactsToInventory(

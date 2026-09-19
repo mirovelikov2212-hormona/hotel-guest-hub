@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildHotelCompletenessV2 } from "../../lib/server/hotel-scanner-v2-completeness.mjs";
+import { readProjectFile } from "../helpers/source-contract.mjs";
 
 function item(id, name, url) {
   return {
@@ -275,4 +276,28 @@ test("deterministic water facility text counts as existence evidence", () => {
   assert.equal(result.domains[0].inventory.status, "COMPLETE");
   assert.equal(result.domains[0].content.status, "COMPLETE");
   assert.equal(result.status, "READY_FOR_HUMAN_REVIEW");
+});
+
+
+test("offer detail fallback preserves substantive crawled source content before completeness", async () => {
+  const deterministic = await readProjectFile("lib/ai/hotel-scanner-v2-deterministic-facts.ts");
+  const extractor = await readProjectFile("lib/ai/hotel-scanner-v2-domain-extractors-safe.ts");
+  assert.match(deterministic, /export function buildDeterministicOfferDetailFactsV2/);
+  assert.match(deterministic, /attribute: "description"/);
+  assert.match(deterministic, /sourceUrls: \[page\.url\]/);
+  assert.match(extractor, /buildDeterministicOfferDetailFactsV2\(pages, domainInventory\)/);
+});
+
+test("identity-only offer evidence stays incomplete while a sourced detail description completes it", () => {
+  const url = "https://hotel.test/en/exclusive-benefit";
+  const item = {
+    id: "offers:benefit", domain: "offers", entityType: "offer",
+    variantGroupId: "hotel.test/exclusive-benefit", nameHint: "Exclusive Benefit",
+    url, urls: [url], languages: ["en"], crawled: true, basis: "canonical_detail_entity",
+  };
+  const inventory = { domains: [{ domain: "offers", expectationState: "DETERMINISTIC", expectedCount: 1, expectedItems: [item] }], documents: [] };
+  const identity = { category: "offers", subject: "Exclusive Benefit", attribute: "offer", label: "Offer", value: "Exclusive Benefit", confidence: 1, sourceUrls: [url] };
+  assert.equal(buildHotelCompletenessV2({ inventory, profile: { facts: [identity] }, conflicts: [] }).domains[0].content.status, "INCOMPLETE");
+  const description = { category: "offers", subject: "Exclusive Benefit", attribute: "description", label: "Offer detail", value: "A sourced benefit description with booking conditions and included services.", confidence: 0.99, sourceUrls: [url] };
+  assert.equal(buildHotelCompletenessV2({ inventory, profile: { facts: [identity, description] }, conflicts: [] }).domains[0].content.status, "COMPLETE");
 });

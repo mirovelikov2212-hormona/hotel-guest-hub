@@ -127,6 +127,39 @@ test("explicit offer-detail CTA links outrank unrelated linked cards on an Offer
   ].sort());
 });
 
+test("Offers extraction keeps late CTA cards beyond the first 24 anchors in a content block", () => {
+  const noise = Array.from({ length: 18 }, (_, index) => `<a href="/info-${index}">Info ${index}</a>`).join("");
+  const cards = Array.from({ length: 7 }, (_, index) =>
+    `<a href="/en/offer-${index + 1}">Exclusive Benefit ${index + 1} <span>DETAILED REVIEW</span></a>`).join("");
+  const structure = extractHotelPageStructureV2(`<main><h1>Offers</h1>${noise}${cards}</main>`);
+  const hints = deriveHotelPageInventoryHintsV2({
+    url: "https://hotel.test/property/en/offers",
+    title: "Offers",
+    description: "",
+    text: "Offers",
+    ...structure,
+  }, { primaryType: "offers", types: ["offers"], confidence: 1, signals: [] });
+  const offers = hints.find((hint) => hint.domain === "offers");
+  assert.equal(offers?.expectedCount, 7);
+  assert.equal(offers?.candidates.length, 7);
+});
+
+test("Offers landing authority prefers richer named membership over a smaller exact-count localization", () => {
+  const rich = offerLanding("https://hotel.test/property/en/offers", "en", [
+    "Benefit One", "Benefit Two", "Benefit Three", "Benefit Four", "Benefit Five", "Benefit Six", "Benefit Seven",
+  ]);
+  rich.inventoryHints[0].explicitCount = null;
+  rich.inventoryHints[0].expectedCount = 7;
+  const smaller = offerLanding("https://hotel.test/property/de/angebote", "de", [
+    "Vorteil Eins", "Vorteil Zwei", "Vorteil Drei", "Vorteil Vier", "Vorteil Fünf", "Vorteil Sechs",
+  ]);
+  const inventory = buildHotelInventoryV2({ resources: [rich, smaller] });
+  const offers = inventory.domains.find((domain) => domain.domain === "offers");
+  assert.equal(offers?.expectedCount, 7);
+  assert.equal(offers?.evidence.landingIdentifiedCount, 7);
+  assert.deepEqual(offers?.evidence.observedLandingCounts, [6, 7]);
+});
+
 test("an authoritative Offers landing accepts linked campaign cards without offer keywords in their titles", () => {
   const page = {
     url: "https://hotel.test/property/en/offers",

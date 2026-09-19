@@ -45,6 +45,61 @@ export function buildInventoryIdentityFactsV2(domainInventory: HotelScannerV2Dom
   return result;
 }
 
+
+function normalizedUrl(value: unknown) {
+  try {
+    const url = new URL(clean(value, 2_048));
+    url.hash = "";
+    if (url.pathname !== "/") url.pathname = url.pathname.replace(/\/+$/u, "");
+    return url.toString();
+  } catch {
+    return clean(value, 2_048);
+  }
+}
+
+function substantiveOfferDetailText(page: HotelScannerV2PagePayload) {
+  const blockText = (page.content_blocks || [])
+    .map((block) => clean(block?.text, 1_200))
+    .find((value) => value.length >= 120);
+  if (blockText) return blockText;
+
+  const description = clean(page.description, 700);
+  if (description.length >= 100) return description;
+
+  const pageText = clean(page.text, 1_200);
+  return pageText.length >= 240 ? pageText : "";
+}
+
+export function buildDeterministicOfferDetailFactsV2(
+  pages: HotelScannerV2PagePayload[],
+  domainInventory: HotelScannerV2DomainInventory | undefined,
+) {
+  if (domainInventory?.domain !== "offers") return [] as HotelScanFact[];
+
+  const byUrl = new Map((pages || []).map((page) => [normalizedUrl(page.url), page]));
+  const result: HotelScanFact[] = [];
+  for (const item of domainInventory.expectedItems || []) {
+    if (!item?.crawled || !["canonical_detail_entity", "canonical_linked_detail_entity"].includes(String(item?.basis || ""))) continue;
+    const candidateUrls = [item.url, ...(item.urls || [])].map(normalizedUrl).filter(Boolean);
+    const page = candidateUrls.map((url) => byUrl.get(url)).find(Boolean);
+    if (!page) continue;
+
+    const value = substantiveOfferDetailText(page);
+    const subject = clean(item.nameHint, 240);
+    if (!value || !subject) continue;
+    result.push({
+      category: "offers",
+      subject,
+      attribute: "description",
+      label: "Offer detail",
+      value,
+      confidence: 0.99,
+      sourceUrls: [page.url],
+    } as HotelScanFact);
+  }
+  return result;
+}
+
 const PET_HEADING = /(?:pet(?:s| policy)?|domestic animals?|домашн(?:и|ите)?\s+любимц|haustier|animale\s+de\s+companie|domácí\s+mazlíč|домашн(?:ие|их)?\s+животн|миленич)/iu;
 const PET_ALLOWED = /(?:allow(?:s|ed)?|permit(?:s|ted)?|accept(?:s|ed)?|welcome|допуска|разрешава|позволява|erlaubt|gestattet|willkommen|permise|acceptate|povoleny|přijímáme|разрешены|допускаются)/iu;
 const PET_PROHIBITED = /(?:no\s+pets?|not\s+(?:allowed|permitted|accepted)|prohibit(?:ed)?|forbidden|не\s+се\s+допуск|не\s+се\s+разреш|забран|nicht\s+(?:erlaubt|gestattet)|verboten|nu\s+(?:sunt\s+)?permise|interzis|nejsou\s+povoleny|zakáz|не\s+допускаются|запрещ)/iu;
