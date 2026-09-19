@@ -180,3 +180,23 @@ test("German pet negation and redundant 24-hour PM notation normalize without hi
   ]);
   assert.equal(realConflict.conflicts.length, 1);
 });
+
+
+test("district-and-province address labels are locality components, not competing full addresses", () => {
+  const result = verifyHotelScanFactsV2([
+    { category: "location", subject: "hotel", attribute: "address", label: "Адрес", value: "Okurcalar Karaburun Mevkii", confidence: 1, sourceUrls: ["https://hotel.test/docs/a.pdf"] },
+    { category: "location", subject: "hotel", attribute: "address", label: "Район и провинция", value: "Alanya / Antalya", confidence: 1, sourceUrls: ["https://hotel.test/docs/b.pdf"] },
+    { category: "location", subject: "hotel", attribute: "address", label: "Адрес", value: "Okurcalar Karaburun Mevki, 07415 Alanya / Antalya", confidence: 1, sourceUrls: ["https://hotel.test/docs/c.pdf"] },
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  assert.ok(result.facts.some((item) => item.attribute === "city_region"));
+});
+
+test("district-and-province typing does not suppress a genuine checkout disagreement", () => {
+  const result = verifyHotelScanFactsV2([
+    fact("operations", "hotel", "check_out", "12:00", "https://hotel.test/docs/a.pdf"),
+    fact("operations", "hotel", "check_out", "13:00", "https://hotel.test/docs/b.pdf"),
+  ]);
+  assert.equal(result.conflicts.length, 1);
+  assert.equal(result.conflicts[0].attribute, "check_out");
+});
