@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "checkpoint": "scanner-v2-persistence-relocation",
+  "baseCheckpoint": "native-hotel-intelligence-v2",
+  "expectedNeedsReview": 229,
+  "relocations": [
+    {
+      "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
+      "fromLine": 15,
+      "toLine": 16,
+      "table": "hotel_scan_runs_v2",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
+      "fromLine": 31,
+      "toLine": 32,
+      "table": "hotel_intelligence_reviews_v2",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
+      "fromLine": 48,
+      "toLine": 49,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
+      "fromLine": 89,
+      "toLine": 106,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
+      "fromLine": 114,
+      "toLine": 131,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
+      "fromLine": 129,
+      "toLine": 146,
+      "table": "hotel_intelligence_approvals_v2",
+      "operation": "select"
+    }
+  ]
+}
