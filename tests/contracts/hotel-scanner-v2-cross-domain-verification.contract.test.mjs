@@ -220,6 +220,16 @@ test("slash-separated district/province label normalizes to a locality component
   assert.ok(result.facts.some((item) => item.attribute === "city_region"));
 });
 
+test("slash-separated region/province labels are locality components rather than competing full addresses", () => {
+  const result = verifyHotelScanFactsV2([
+    { category: "location", subject: "hotel", attribute: "address", label: "Адрес", value: "Coastal District Mevkii", confidence: 1, sourceUrls: ["https://hotel.test/docs/a.pdf"] },
+    { category: "location", subject: "hotel", attribute: "address", label: "Област/провинция", value: "District / Province", confidence: 1, sourceUrls: ["https://hotel.test/docs/b.pdf"] },
+    { category: "location", subject: "hotel", attribute: "address", label: "Адрес", value: "Coastal District Mevki, 07415 District / Province", confidence: 1, sourceUrls: ["https://hotel.test/docs/c.pdf"] },
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  assert.ok(result.facts.some((item) => item.attribute === "city_region"));
+});
+
 test("slash-separated locality typing still preserves a genuine checkout disagreement", () => {
   const result = verifyHotelScanFactsV2([
     { category: "location", subject: "hotel", attribute: "address", label: "Район/провинция", value: "Alanya / Antalya", confidence: 1, sourceUrls: ["https://hotel.test/docs/location.pdf"] },

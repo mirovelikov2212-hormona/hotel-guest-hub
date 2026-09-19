@@ -373,11 +373,13 @@ test("Offers extraction keeps a late authoritative CTA beyond the 24KB semantic-
 });
 
 
-test("Offers extraction keeps an authoritative CTA deep in a long but bounded landing section", () => {
+test("Offers extraction keeps an authoritative CTA beyond the legacy 512KB link window", () => {
   const firstSix = Array.from({ length: 6 }, (_, index) =>
     `<a href="/en/offer-${index + 1}">Exclusive Benefit ${index + 1} <span>DETAILED REVIEW</span></a>`
   ).join("");
-  const filler = `<div>${"long descriptive markup ".repeat(9000)}</div>`;
+  const filler = `<div>${"long descriptive markup ".repeat(30000)}</div>`;
+  assert.ok(Buffer.byteLength(filler, "utf8") > 512_000);
+  assert.ok(Buffer.byteLength(filler, "utf8") < 1_500_000);
   const seventh = `<a href="/en/offer-7">Website Reservation Privileges <span>DETAILED REVIEW</span></a>`;
   const html = `<main><h1>Offers</h1>${firstSix}${filler}${seventh}</main>`;
 
