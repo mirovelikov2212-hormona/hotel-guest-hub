@@ -59,6 +59,25 @@ test("Bulgarian plural pet prohibition is normalized as prohibited", () => {
   assert.equal(result.facts[0].verification.status, "VERIFIED");
 });
 
+test("German pet prohibition corroborates another-language prohibition", () => {
+  const result = verifyHotelScanFacts([
+    fact({ value: "Haustiere sind nicht erlaubt", sourceUrls: ["https://hotel.test/docs/pets-de.pdf"] }),
+    fact({ value: "Pets are not allowed.", sourceUrls: ["https://hotel.test/docs/pets-en.pdf"] }),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  assert.equal(result.facts.length, 1);
+  assert.equal(result.facts[0].verification.status, "VERIFIED");
+});
+
+test("redundant PM on an already-24-hour time is canonicalized as the valid 24-hour clock", () => {
+  const result = verifyHotelScanFacts([
+    fact({ category: "operations", attribute: "check_out", label: "Check-out", value: "13:00 PM", sourceUrls: ["https://hotel.test/docs/checkout-en.pdf"] }),
+    fact({ category: "operations", attribute: "check_out", label: "Check-out", value: "13:00", sourceUrls: ["https://hotel.test/docs/checkout-de.pdf"] }),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  assert.equal(result.facts.length, 1);
+});
+
 test("semantic wording variants of the same check-in time corroborate instead of becoming a fake conflict", () => {
   const result = verifyHotelScanFacts([
     fact({ category: "operations", attribute: "check_in", label: "Check-in", value: "Check-in след 15:00 часа", sourceUrls: ["https://hotel.test/en/faq"] }),

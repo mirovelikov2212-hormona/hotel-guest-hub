@@ -140,3 +140,43 @@ test("V2 verifier reconciles pm clock notation and Bulgarian pet negation", () =
   assert.equal(result.conflicts.length, 0);
 });
 
+
+
+test("composite city-region labels are components rather than competing full addresses", () => {
+  const result = verifyHotelScanFactsV2([
+    { category: "location", subject: "hotel", attribute: "address", label: "Адрес", value: "Karaburun Mevkii", confidence: 1, sourceUrls: ["https://hotel.test/docs/a.pdf"] },
+    { category: "location", subject: "hotel", attribute: "address", label: "Град и регион", value: "Alanya / Antalya", confidence: 1, sourceUrls: ["https://hotel.test/docs/b.pdf"] },
+    { category: "location", subject: "hotel", attribute: "address", label: "Адрес", value: "Karaburun Mevki, 07415 Alanya / Antalya", confidence: 1, sourceUrls: ["https://hotel.test/docs/c.pdf"] },
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  assert.ok(result.facts.some((item) => item.attribute === "city_region"));
+});
+
+test("hotel-region labels in translated reports are locality components", () => {
+  const result = verifyHotelScanFactsV2([
+    { category: "location", subject: "hotel", attribute: "address", label: "Регион на хотелите", value: "Region Antalya, Türkiye", confidence: 1, sourceUrls: ["https://hotel.test/docs/report-a.pdf"] },
+    { category: "location", subject: "hotel", attribute: "address", label: "Регион на хотелите", value: "Регион Анталия, Турция", confidence: 1, sourceUrls: ["https://hotel.test/docs/report-b.pdf"] },
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  assert.ok(result.facts.every((item) => item.attribute === "city_region"));
+});
+
+test("German pet negation and redundant 24-hour PM notation normalize without hiding a real checkout conflict", () => {
+  const pets = verifyHotelScanFactsV2([
+    fact("policy", "hotel", "pet_policy", "Haustiere sind nicht erlaubt", "https://hotel.test/docs/pets-de.pdf"),
+    fact("policy", "hotel", "pet_policy", "Pets are not allowed", "https://hotel.test/docs/pets-en.pdf"),
+  ]);
+  assert.equal(pets.conflicts.length, 0);
+
+  const sameTime = verifyHotelScanFactsV2([
+    fact("operations", "hotel", "check_out", "13:00 PM", "https://hotel.test/docs/checkout-en.pdf"),
+    fact("operations", "hotel", "check_out", "13:00", "https://hotel.test/docs/checkout-de.pdf"),
+  ]);
+  assert.equal(sameTime.conflicts.length, 0);
+
+  const realConflict = verifyHotelScanFactsV2([
+    fact("operations", "hotel", "check_out", "12:00", "https://hotel.test/docs/checkout-a.pdf"),
+    fact("operations", "hotel", "check_out", "13:00 PM", "https://hotel.test/docs/checkout-b.pdf"),
+  ]);
+  assert.equal(realConflict.conflicts.length, 1);
+});
