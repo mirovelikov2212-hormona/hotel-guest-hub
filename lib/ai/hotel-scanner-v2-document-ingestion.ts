@@ -190,6 +190,7 @@ function isRemoteFileUrlFetchError(error: unknown) {
   const message = errorMessage(error);
   if (status !== 400) return false;
   return /unable to download content from the provided url/iu.test(message)
+    || /error while downloading file/iu.test(message)
     || /(?:file_url|provided url).*(?:download|fetch|timeout)/iu.test(message)
     || /(?:download|fetch|timeout).*(?:file_url|provided url)/iu.test(message);
 }

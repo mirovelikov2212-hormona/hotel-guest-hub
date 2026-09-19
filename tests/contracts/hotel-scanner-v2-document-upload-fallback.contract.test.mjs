@@ -74,3 +74,13 @@ test("inline PDF response timeout reuses the validated local bytes through one u
   assert.match(ingestion, /DOCUMENT_AI_RATE_LIMIT_RETRIES = 1/);
   assert.doesNotMatch(ingestion, /pavelbanya|kirmanpremium|arycanda|evrika/iu);
 });
+
+
+test("generic OpenAI 400 download failure is recognized as a remote file_url transport error", async () => {
+  const ingestion = await readProjectFile("lib/ai/hotel-scanner-v2-document-ingestion.ts");
+  assert.match(ingestion, /error while downloading file/);
+  assert.match(ingestion, /status !== 400/);
+  assert.match(ingestion, /"file_url" in inputFile && \(remoteFetchFailure \|\| remoteTimeout\)/);
+  assert.match(ingestion, /timeoutMs: DOCUMENT_UPLOAD_FALLBACK_TIMEOUT_MS/);
+  assert.doesNotMatch(ingestion, /kirmanpremium|arycanda|evrika|pavelbanya/iu);
+});
