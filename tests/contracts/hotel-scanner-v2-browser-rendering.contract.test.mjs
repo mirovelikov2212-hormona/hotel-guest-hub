@@ -30,7 +30,7 @@ test("Scanner V2 browser renderer uses Playwright and public-host SSRF guard", a
   assert.match(source, /contextPromise/);
   assert.match(source, /ensureContext/);
   assert.match(source, /const context = await this\.ensureContext\(\)/);
-  assert.match(source, /await page\?\.close\(\)/);
+  assert.match(source, /await page\.close\(\)/);
 });
 
 test("Scanner V2 browser enrichment is concurrent, bounded and fail-soft", async () => {
