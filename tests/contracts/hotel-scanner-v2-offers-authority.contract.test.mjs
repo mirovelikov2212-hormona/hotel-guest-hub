@@ -5,6 +5,7 @@ import { buildCanonicalHotelEntityRegistryV2 } from "../../lib/server/hotel-scan
 import { buildHotelInventoryV2 } from "../../lib/server/hotel-scanner-v2-inventory.mjs";
 import { deriveHotelPageInventoryHintsV2 } from "../../lib/server/hotel-scanner-v2-landing-inventory.mjs";
 import { buildHotelSiteMapV2 } from "../../lib/server/hotel-scanner-v2-site-map.mjs";
+import { classifyHotelScannerPageV2 } from "../../lib/server/hotel-scanner-v2-page-classifier.mjs";
 import { readProjectFile } from "../helpers/source-contract.mjs";
 
 function offerHint(names, count = names.length) {
@@ -50,6 +51,36 @@ function offerDetail(index, title = `Shared Campaign ${index}`) {
     inventoryHints: [],
   };
 }
+
+test("explicit localized hotel landing paths outrank long CMS SEO titles", () => {
+  const cases = [
+    ["https://hotel.test/property/en/offers", "Exclusive Holiday Offers and Privileges Designed for an Unforgettable Premium Hotel Stay", "offers"],
+    ["https://hotel.test/property/de/angebote", "Exklusive Urlaubsvorteile und Angebote für einen unvergesslichen Aufenthalt in unserem Premium Hotel", "offers"],
+    ["https://hotel.test/property/tr/teklifler", "Premium Otel Konaklamanız İçin Size Özel Ayrıcalıklar ve Tatil Teklifleri Burada", "offers"],
+    ["https://hotel.test/property/en/rooms", "Discover Our Comfortable Rooms and Suites for Your Perfect Premium Holiday Experience", "accommodation"],
+    ["https://hotel.test/property/en/gastronomy", "Discover Exceptional Restaurants Bars and Culinary Experiences Throughout Your Premium Hotel Stay", "gastronomy"],
+  ];
+
+  for (const [url, title, expected] of cases) {
+    const classified = classifyHotelScannerPageV2({
+      url,
+      title,
+      description: "",
+      headings: [{ level: 1, text: title }],
+      contentBlocks: [],
+      links: [],
+      navigationLinks: [],
+      documentUrls: [],
+      canonicalHint: "",
+      language: "en",
+      languageAlternates: [],
+      jsonLdEntities: [],
+      text: title,
+    });
+    assert.equal(classified.primaryType, expected, url);
+    assert.ok(classified.signals.some((signal) => signal.startsWith("landing_path_authority:")), url);
+  }
+});
 
 test("an authoritative Offers landing accepts linked campaign cards without offer keywords in their titles", () => {
   const page = {
