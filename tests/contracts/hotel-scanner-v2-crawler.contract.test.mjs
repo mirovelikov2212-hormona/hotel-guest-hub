@@ -60,3 +60,9 @@ test("V2 crawler discovers PDF resources from both sitemap and page links", asyn
   assert.match(crawler, /provenance\.add\("page_link"\)/);
   assert.match(crawler, /status: "discovered_not_ingested"/);
 });
+test("persisted coverage diagnostics expose the next deterministic wave instead of forcing nextBatch empty", async () => {
+  const crawler = await readProjectFile("lib/server/hotel-scanner-v2-crawler.ts");
+
+  assert.match(crawler, /batchLimit: CRAWL_BATCH_SIZE/);
+  assert.doesNotMatch(crawler, /failedUrls: \[\.\.\.failedPageUrls\],[\s\S]{0,120}batchLimit: 0/);
+});

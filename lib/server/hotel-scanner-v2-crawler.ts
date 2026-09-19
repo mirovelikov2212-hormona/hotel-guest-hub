@@ -569,7 +569,9 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
     navigationUrls: [...navigation],
     attemptedUrls: [...attempted],
     failedUrls: [...failedPageUrls],
-    batchLimit: 0,
+    // Preserve the next deterministic wave in the persisted diagnostics. A
+    // zero batch limit made an exhausted crawl look as if no next work existed.
+    batchLimit: CRAWL_BATCH_SIZE,
   }) as HotelScannerV2CoverageSummary;
 
   const documents = new Map<string, Set<"sitemap" | "page_link">>();

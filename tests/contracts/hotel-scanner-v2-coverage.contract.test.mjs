@@ -60,6 +60,51 @@ test("links discovered from a relevant landing page are coverage candidates even
   assert.ok(plan.nextBatch.includes(opaqueVenue));
 });
 
+test("opaque child links inherit required coverage only from authoritative inventory landings", () => {
+  const landing = "https://hotel.example/rooms";
+  const room = "https://hotel.example/superior-room";
+  const article = "https://hotel.example/summer-guide-with-many-editorial-words";
+  const plan = buildHotelScannerCoveragePlanV2({
+    pages: [
+      page(landing, {
+        title: "Rooms",
+        contentLinks: [room],
+        links: [room],
+      }),
+      page("https://hotel.example/offers/premium-honeymoon", {
+        title: "Premium Honeymoon Privileges",
+        contentLinks: [article],
+        links: [article],
+      }),
+    ],
+    attemptedUrls: [landing, "https://hotel.example/offers/premium-honeymoon"],
+    batchLimit: 20,
+  });
+
+  assert.ok(plan.pendingRelevantUrls.includes(room));
+  assert.ok(plan.nextBatch.includes(room));
+  assert.ok(!plan.pendingRelevantUrls.includes(article));
+});
+
+test("detail pages may still discover child URLs that are independently typed hotel surfaces", () => {
+  const detail = "https://hotel.example/spa/massage";
+  const policies = "https://hotel.example/hotel-policy";
+  const plan = buildHotelScannerCoveragePlanV2({
+    pages: [
+      page(detail, {
+        title: "Massage",
+        contentLinks: [policies],
+        links: [policies],
+      }),
+    ],
+    attemptedUrls: [detail],
+    batchLimit: 20,
+  });
+
+  assert.ok(plan.pendingRelevantUrls.includes(policies));
+  assert.ok(plan.nextBatch.includes(policies));
+});
+
 test("global navigation noise does not become required hotel coverage", () => {
   const landing = "https://hotel.example/dining";
   const venue = "https://hotel.example/venues/nero";
