@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 
 import type { HotelScanFact } from "@/lib/ai/hotel-scanner";
 import type { HotelScannerV2Inventory } from "@/lib/server/hotel-scanner-v2-inventory.mjs";
@@ -11,6 +11,7 @@ const MAX_DOCUMENTS_PER_SCAN = 16;
 const MAX_INLINE_DOCUMENT_BYTES = 10_000_000;
 const MAX_REMOTE_DOCUMENT_BYTES = 50_000_000;
 const DOCUMENT_TIMEOUT_MS = 10_000;
+const DOCUMENT_UPLOAD_FALLBACK_TIMEOUT_MS = 45_000;
 const DOCUMENT_CONCURRENCY = 1;
 const DOCUMENT_AI_RATE_LIMIT_RETRIES = 1;
 const DOCUMENT_AI_RATE_LIMIT_MAX_DELAY_MS = 12_000;
@@ -39,6 +40,11 @@ export type HotelScannerV2DocumentResult = {
   error?: string;
   latencyMs: number;
 };
+
+type DocumentInputFile =
+  | { type: "input_file"; filename: string; file_data: string }
+  | { type: "input_file"; file_url: string }
+  | { type: "input_file"; file_id: string };
 
 export type HotelScannerV2DocumentIngestionResult = {
   schemaVersion: "hotel-document-ingestion-v2";
@@ -168,6 +174,16 @@ function isRateLimitError(error: unknown) {
   return status === 429 || /\b429\b|rate limit|tokens per min|TPM/iu.test(message);
 }
 
+function isRemoteFileUrlFetchError(error: unknown) {
+  if (isQuotaExhaustedError(error) || isRateLimitError(error)) return false;
+  const status = Number((error as { status?: unknown } | null)?.status || 0);
+  const message = errorMessage(error);
+  if (status !== 400) return false;
+  return /unable to download content from the provided url/iu.test(message)
+    || /(?:file_url|provided url).*(?:download|fetch|timeout)/iu.test(message)
+    || /(?:download|fetch|timeout).*(?:file_url|provided url)/iu.test(message);
+}
+
 function retryDelayMs(error: unknown) {
   const message = errorMessage(error);
   const seconds = Number(message.match(/try again in\s+([0-9.]+)s/iu)?.[1] || 0);
@@ -202,9 +218,7 @@ async function ingestOne(
   const startedAt = Date.now();
   try {
     let byteCount = 0;
-    let inputFile:
-      | { type: "input_file"; filename: string; file_data: string }
-      | { type: "input_file"; file_url: string };
+    let inputFile: DocumentInputFile;
 
     try {
       const fetched = await fetchPublicBinaryV2(new URL(document.url), {
@@ -248,7 +262,7 @@ async function ingestOne(
       };
     }
 
-    const response = await withDocumentRateLimitRetry(() => getClient().responses.create({
+    const createResponse = (fileInput: DocumentInputFile) => withDocumentRateLimitRetry(() => getClient().responses.create({
       model,
       store: false,
       max_output_tokens: 7_000,
@@ -272,7 +286,7 @@ async function ingestOne(
             type: "input_text",
             text: JSON.stringify({ SOURCE_URL: document.url, INFERRED_DOMAINS: document.domains, OUTPUT_LANGUAGE: outputLanguage }),
           },
-          inputFile,
+          fileInput,
         ],
       }],
       text: {
@@ -307,6 +321,38 @@ async function ingestOne(
         },
       },
     }));
+
+    let response: Awaited<ReturnType<typeof createResponse>>;
+    try {
+      response = await createResponse(inputFile);
+    } catch (error) {
+      if (!("file_url" in inputFile) || !isRemoteFileUrlFetchError(error)) throw error;
+
+      const fetched = await fetchPublicBinaryV2(new URL(inputFile.file_url), {
+        timeoutMs: DOCUMENT_UPLOAD_FALLBACK_TIMEOUT_MS,
+        maxBytes: MAX_REMOTE_DOCUMENT_BYTES,
+        accept: "application/pdf,application/octet-stream;q=0.8,*/*;q=0.1",
+        userAgent: USER_AGENT,
+      });
+      if (fetched.url.origin !== canonicalOrigin) {
+        return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_cross_origin_redirect", latencyMs: Date.now() - startedAt };
+      }
+      if (!isPdf(fetched.buffer)) {
+        return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_not_pdf", byteCount: fetched.buffer.byteLength, latencyMs: Date.now() - startedAt };
+      }
+
+      byteCount = fetched.buffer.byteLength;
+      const openai = getClient();
+      const uploaded = await openai.files.create({
+        file: await toFile(fetched.buffer, filenameForUrl(fetched.url.toString()), { type: "application/pdf" }),
+        purpose: "user_data",
+      });
+      try {
+        response = await createResponse({ type: "input_file", file_id: uploaded.id });
+      } finally {
+        await openai.files.delete(uploaded.id).catch(() => {});
+      }
+    }
 
     if (response.status === "incomplete") {
       return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_ai_incomplete", byteCount, latencyMs: Date.now() - startedAt };
