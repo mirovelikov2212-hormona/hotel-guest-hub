@@ -13,6 +13,7 @@ export type HotelScannerV2ContentBlock = {
   heading: string;
   text: string;
   links: string[];
+  linkItems: Array<{ href: string; text: string }>;
   sectionPath: string[];
 };
 

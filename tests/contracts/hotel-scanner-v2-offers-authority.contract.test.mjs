@@ -5,6 +5,7 @@ import { buildCanonicalHotelEntityRegistryV2 } from "../../lib/server/hotel-scan
 import { buildHotelInventoryV2 } from "../../lib/server/hotel-scanner-v2-inventory.mjs";
 import { deriveHotelPageInventoryHintsV2 } from "../../lib/server/hotel-scanner-v2-landing-inventory.mjs";
 import { buildHotelSiteMapV2 } from "../../lib/server/hotel-scanner-v2-site-map.mjs";
+import { extractHotelPageStructureV2 } from "../../lib/server/hotel-scanner-v2-page-structure.mjs";
 import { classifyHotelScannerPageV2 } from "../../lib/server/hotel-scanner-v2-page-classifier.mjs";
 import { readProjectFile } from "../helpers/source-contract.mjs";
 
@@ -80,6 +81,50 @@ test("explicit localized hotel landing paths outrank long CMS SEO titles", () =>
     assert.equal(classified.primaryType, expected, url);
     assert.ok(classified.signals.some((signal) => signal.startsWith("landing_path_authority:")), url);
   }
+});
+
+test("explicit offer-detail CTA links outrank unrelated linked cards on an Offers landing", () => {
+  const html = `
+    <main>
+      <h1>Offers</h1>
+      <section>
+        <a href="/en/heated-pool-privilege">A Heated Pool Privilege Special for Little Guests! <span>DETAILED REVIEW</span></a>
+        <a href="/en/two-children-stay-free">Two Children up to 12.99 Years Stay Free! <span>DETAILED REVIEW</span></a>
+      </section>
+      <section>
+        <h2>Concepts</h2>
+        <a href="/en/premium-family">Premium Family</a>
+        <a href="/en/ultra-all-inclusive">Ultra All Inclusive</a>
+      </section>
+    </main>
+  `;
+  const structure = extractHotelPageStructureV2(html);
+  const hints = deriveHotelPageInventoryHintsV2({
+    url: "https://hotel.test/property/en/offers",
+    title: "Offers",
+    description: "",
+    text: "Offers",
+    ...structure,
+  }, {
+    primaryType: "offers",
+    types: ["offers"],
+    confidence: 1,
+    signals: [],
+  });
+  const offers = hints.find((hint) => hint.domain === "offers");
+
+  assert.ok(offers);
+  assert.equal(offers.expectedCount, 2);
+  assert.equal(offers.confidence, "HIGH");
+  assert.deepEqual(offers.candidates.map((candidate) => candidate.name).sort(), [
+    "A Heated Pool Privilege Special for Little Guests!",
+    "Two Children up to 12.99 Years Stay Free!",
+  ].sort());
+  assert.ok(offers.candidates.every((candidate) => candidate.basis === "authoritative_offer_detail_link"));
+  assert.deepEqual(offers.candidates.map((candidate) => candidate.links[0]).sort(), [
+    "/en/heated-pool-privilege",
+    "/en/two-children-stay-free",
+  ].sort());
 });
 
 test("an authoritative Offers landing accepts linked campaign cards without offer keywords in their titles", () => {
