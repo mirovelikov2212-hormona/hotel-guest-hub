@@ -84,3 +84,15 @@ test("generic OpenAI 400 download failure is recognized as a remote file_url tra
   assert.match(ingestion, /timeoutMs: DOCUMENT_UPLOAD_FALLBACK_TIMEOUT_MS/);
   assert.doesNotMatch(ingestion, /kirmanpremium|arycanda|evrika|pavelbanya/iu);
 });
+
+
+test("large PDF extraction has bounded but realistic transport and structured-output budgets", async () => {
+  const ingestion = await readProjectFile("lib/ai/hotel-scanner-v2-document-ingestion.ts");
+  assert.match(ingestion, /DOCUMENT_UPLOAD_FALLBACK_TIMEOUT_MS = 90_000/);
+  assert.match(ingestion, /DOCUMENT_AI_REQUEST_TIMEOUT_MS = 90_000/);
+  assert.match(ingestion, /DOCUMENT_MAX_OUTPUT_TOKENS = 12_000/);
+  assert.match(ingestion, /new OpenAI\(\{ apiKey, timeout: DOCUMENT_AI_REQUEST_TIMEOUT_MS, maxRetries: 0 \}\)/);
+  assert.match(ingestion, /max_output_tokens: DOCUMENT_MAX_OUTPUT_TOKENS/);
+  assert.match(ingestion, /DOCUMENT_AI_RATE_LIMIT_RETRIES = 1/);
+  assert.doesNotMatch(ingestion, /kirmanpremium|arycanda|evrika|pavelbanya/iu);
+});

@@ -12,7 +12,9 @@ const MAX_INLINE_DOCUMENT_BYTES = 10_000_000;
 const MAX_REMOTE_DOCUMENT_BYTES = 50_000_000;
 const DOCUMENT_TIMEOUT_MS = 10_000;
 const DOCUMENT_REMOTE_PROBE_TIMEOUT_MS = 25_000;
-const DOCUMENT_UPLOAD_FALLBACK_TIMEOUT_MS = 45_000;
+const DOCUMENT_UPLOAD_FALLBACK_TIMEOUT_MS = 90_000;
+const DOCUMENT_AI_REQUEST_TIMEOUT_MS = 90_000;
+const DOCUMENT_MAX_OUTPUT_TOKENS = 12_000;
 const DOCUMENT_CONCURRENCY = 1;
 const DOCUMENT_AI_RATE_LIMIT_RETRIES = 1;
 const DOCUMENT_AI_RATE_LIMIT_MAX_DELAY_MS = 12_000;
@@ -63,7 +65,7 @@ export type HotelScannerV2DocumentIngestionResult = {
 function getClient() {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
   if (!apiKey) throw new Error("openai_api_key_missing");
-  if (!client) client = new OpenAI({ apiKey, timeout: 45_000, maxRetries: 0 });
+  if (!client) client = new OpenAI({ apiKey, timeout: DOCUMENT_AI_REQUEST_TIMEOUT_MS, maxRetries: 0 });
   return client;
 }
 
@@ -279,7 +281,7 @@ async function ingestOne(
     const createResponse = (fileInput: DocumentInputFile) => withDocumentRateLimitRetry(() => getClient().responses.create({
       model,
       store: false,
-      max_output_tokens: 7_000,
+      max_output_tokens: DOCUMENT_MAX_OUTPUT_TOKENS,
       reasoning: { effort: "none" },
       instructions: [
         "You are the StayHub Production Hotel Scanner V2 document ingestion extractor.",
