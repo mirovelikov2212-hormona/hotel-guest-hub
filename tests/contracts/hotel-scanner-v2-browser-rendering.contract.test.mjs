@@ -7,7 +7,7 @@ const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), "utf8
 test("Scanner V2 browser render policy is bounded and landing-first", async () => {
   const source = await read("lib/server/hotel-scanner-v2-render-policy.mjs");
   assert.match(source, /HOTEL_SCANNER_V2_MAX_BROWSER_RENDERS\s*=\s*8/);
-  assert.match(source, /HOTEL_SCANNER_V2_BROWSER_RENDER_CONCURRENCY\s*=\s*3/);
+  assert.match(source, /HOTEL_SCANNER_V2_BROWSER_RENDER_CONCURRENCY\s*=\s*2/);
   assert.match(source, /HOTEL_SCANNER_V2_BROWSER_RENDER_WALL_MS\s*=\s*70_000/);
   assert.match(source, /LANDING_TYPES/);
   assert.match(source, /authoritative_domain_landing/);
@@ -27,6 +27,10 @@ test("Scanner V2 browser renderer uses Playwright and public-host SSRF guard", a
   assert.match(source, /waitForLoadState\("domcontentloaded"/);
   assert.match(source, /waitForLoadState\("networkidle"/);
   assert.match(source, /browserPromise/);
+  assert.match(source, /contextPromise/);
+  assert.match(source, /ensureContext/);
+  assert.match(source, /const context = await this\.ensureContext\(\)/);
+  assert.match(source, /await page\?\.close\(\)/);
 });
 
 test("Scanner V2 browser enrichment is concurrent, bounded and fail-soft", async () => {
@@ -35,6 +39,8 @@ test("Scanner V2 browser enrichment is concurrent, bounded and fail-soft", async
   assert.match(source, /HotelScannerV2BrowserRenderer/);
   assert.match(source, /renderedContentBlocks/);
   assert.match(source, /browserRenderFailedUrls/);
+  assert.match(source, /browserRenderFailures/);
+  assert.match(source, /scanner_v2_browser_render_failed/);
   assert.match(source, /browserRenderSkippedBudgetUrls/);
   assert.match(source, /runConcurrent/);
   assert.match(source, /HOTEL_SCANNER_V2_BROWSER_RENDER_CONCURRENCY/);

@@ -155,6 +155,8 @@ async function renderedDomBlocks(page: Page): Promise<HotelScannerV2RenderedBloc
 export class HotelScannerV2BrowserRenderer {
   private browser: Browser | null = null;
   private browserPromise: Promise<Browser> | null = null;
+  private context: BrowserContext | null = null;
+  private contextPromise: Promise<BrowserContext> | null = null;
   private hostChecks = new Map<string, Promise<void>>();
 
   private async ensureBrowser() {
@@ -175,6 +177,27 @@ export class HotelScannerV2BrowserRenderer {
     return this.browserPromise;
   }
 
+  private async ensureContext() {
+    if (this.context) return this.context;
+    if (!this.contextPromise) {
+      this.contextPromise = this.ensureBrowser()
+        .then((browser) => browser.newContext({
+          userAgent: USER_AGENT,
+          viewport: { width: 1280, height: 900 },
+          serviceWorkers: "block",
+          ignoreHTTPSErrors: false,
+        }))
+        .then((context) => {
+          this.context = context;
+          return context;
+        })
+        .finally(() => {
+          this.contextPromise = null;
+        });
+    }
+    return this.contextPromise;
+  }
+
   private publicHost(url: URL) {
     const key = `${url.protocol}//${url.host}`;
     let check = this.hostChecks.get(key);
@@ -188,16 +211,10 @@ export class HotelScannerV2BrowserRenderer {
   async render(rawUrl: string): Promise<HotelScannerV2RenderedPage> {
     const requested = new URL(rawUrl);
     await this.publicHost(requested);
-    const browser = await this.ensureBrowser();
-    let context: BrowserContext | null = null;
+    const context = await this.ensureContext();
+    let page: Page | null = null;
     try {
-      context = await browser.newContext({
-        userAgent: USER_AGENT,
-        viewport: { width: 1280, height: 900 },
-        serviceWorkers: "block",
-        ignoreHTTPSErrors: false,
-      });
-      const page = await context.newPage();
+      page = await context.newPage();
       let requestCount = 0;
       await page.route("**/*", async (route) => {
         const request = route.request();
@@ -248,13 +265,20 @@ export class HotelScannerV2BrowserRenderer {
         blocks,
       };
     } finally {
-      await context?.close().catch(() => undefined);
+      await page?.close().catch(() => undefined);
     }
   }
 
   async close() {
-    const pending = this.browserPromise;
-    if (pending) await pending.catch(() => undefined);
+    const pendingContext = this.contextPromise;
+    if (pendingContext) await pendingContext.catch(() => undefined);
+    const context = this.context;
+    this.context = null;
+    this.contextPromise = null;
+    await context?.close().catch(() => undefined);
+
+    const pendingBrowser = this.browserPromise;
+    if (pendingBrowser) await pendingBrowser.catch(() => undefined);
     const browser = this.browser;
     this.browser = null;
     this.browserPromise = null;

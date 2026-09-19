@@ -22,6 +22,7 @@ type BrowserEnrichedEvidenceBundle = HotelScannerV2EvidenceBundle & {
   discovery: HotelScannerV2EvidenceBundle["discovery"] & {
     browserRenderedUrls?: string[];
     browserRenderFailedUrls?: string[];
+    browserRenderFailures?: Array<{ url: string; error: string }>;
     browserRenderSkippedBudgetUrls?: string[];
     browserRenderLatencyMs?: number;
   };
@@ -35,6 +36,12 @@ const RENDER_DISCOVERED_FETCH_TIMEOUT_MS = 8_000;
 const RENDER_DISCOVERED_MAX_PAGE_BYTES = 1_500_000;
 const RENDER_USER_AGENT_TOKEN = "stayhub-hotel-scanner";
 const RENDER_USER_AGENT = "StayHub-Hotel-Scanner/2.0 (+https://stayhub.app)";
+
+function browserRenderFailureReason(error: unknown) {
+  const name = String((error as { name?: unknown })?.name || "Error").replace(/\s+/g, " ").trim().slice(0, 80);
+  const message = String((error as { message?: unknown })?.message || error || "unknown").replace(/\s+/g, " ").trim().slice(0, 320);
+  return `${name}:${message}`;
+}
 
 function jsonLdKey(value: { name?: string; types?: string[] }) {
   return `${String(value?.name || "").toLocaleLowerCase("en-US")}|${(value?.types || []).join(",").toLocaleLowerCase("en-US")}`;
@@ -190,6 +197,7 @@ export async function crawlPublicHotelWebsiteRenderedV2(rawUrl: string): Promise
   const renderer = new HotelScannerV2BrowserRenderer();
   const browserRenderedUrls: string[] = [];
   const browserRenderFailedUrls: string[] = [];
+  const browserRenderFailures: Array<{ url: string; error: string }> = [];
   const browserRenderSkippedBudgetUrls: string[] = [];
   const schedule = buildRenderSchedule(base.pages);
   const startedAt = Date.now();
@@ -227,8 +235,11 @@ export async function crawlPublicHotelWebsiteRenderedV2(rawUrl: string): Promise
           renderReason: decision.reason,
         };
         browserRenderedUrls.push(page.url);
-      } catch {
+      } catch (error) {
         browserRenderFailedUrls.push(page.url);
+        const failure = { url: page.url, error: browserRenderFailureReason(error) };
+        browserRenderFailures.push(failure);
+        console.warn("scanner_v2_browser_render_failed", failure);
         base.pages[index] = { ...page, renderMode: "http", renderReason: `${decision.reason}:browser_render_failed` };
       }
     });
@@ -238,12 +249,13 @@ export async function crawlPublicHotelWebsiteRenderedV2(rawUrl: string): Promise
 
   const renderedOfferDetails = await fetchRenderedDiscoveredOfferDetails(base);
   const browserRenderLatencyMs = Date.now() - startedAt;
-  base.discovery = { ...base.discovery, browserRenderedUrls, browserRenderFailedUrls, browserRenderSkippedBudgetUrls, browserRenderLatencyMs };
+  base.discovery = { ...base.discovery, browserRenderedUrls, browserRenderFailedUrls, browserRenderFailures, browserRenderSkippedBudgetUrls, browserRenderLatencyMs };
   console.info("scanner_v2_browser_render_summary", {
     scheduled: schedule.size,
     concurrency: HOTEL_SCANNER_V2_BROWSER_RENDER_CONCURRENCY,
     rendered: browserRenderedUrls.length,
     failed: browserRenderFailedUrls.length,
+    failures: browserRenderFailures,
     skippedBudget: browserRenderSkippedBudgetUrls.length,
     renderedOfferDetails,
     latencyMs: browserRenderLatencyMs,
