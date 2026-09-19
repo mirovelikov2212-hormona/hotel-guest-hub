@@ -337,3 +337,14 @@ test("Offers authority hardening remains hotel-agnostic", async () => {
   ]);
   assert.doesNotMatch(files.join("\n"), /kirmanpremium|arycanda|evrika/iu);
 });
+
+
+test("durable browser enrichment can reveal a same-origin offer detail outside the property root without widening recursively", async () => {
+  const rendered = await readProjectFile("lib/server/hotel-scanner-v2-crawler-rendered.ts");
+  assert.match(rendered, /renderedOfferDelegationTargets/);
+  assert.match(rendered, /isHotelPropertyPageUrlInScopeV2\(target, propertyScope\)/);
+  assert.match(rendered, /parsed\.origin !== new URL\(page\.url\)\.origin/);
+  assert.match(rendered, /kind: "direct_content_link"/);
+  assert.match(rendered, /MAX_RENDER_DISCOVERED_OFFER_DETAILS = 24/);
+  assert.doesNotMatch(rendered, /kirmanpremium|arycanda|evrika/iu);
+});

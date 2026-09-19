@@ -1,9 +1,7 @@
 import "server-only";
 
-import {
-  crawlPublicHotelWebsiteV2,
-  type HotelScannerV2EvidenceBundle,
-} from "@/lib/server/hotel-scanner-v2-crawler";
+import type { HotelScannerV2EvidenceBundle } from "@/lib/server/hotel-scanner-v2-crawler";
+import { crawlPublicHotelWebsiteRenderedV2 } from "@/lib/server/hotel-scanner-v2-crawler-rendered";
 import {
   buildHotelSiteMapV2,
   type HotelScannerV2SiteMap,
@@ -51,10 +49,10 @@ export type HotelIntakeV2DiscoveryProjection = {
 };
 
 export async function discoverHotelIntakeV2(rawUrl: string): Promise<HotelIntakeV2DiscoveryResult> {
-  // Stable default path. Browser rendering remains available as an experimental
-  // enrichment worker, but it must not hold the synchronous V2 request open.
-  // It will be reintroduced only behind durable job orchestration.
-  const evidence = await crawlPublicHotelWebsiteV2(rawUrl);
+  // Durable workflow orchestration is now the primary Scanner V2 path, so the
+  // bounded landing-first browser enrichment can safely participate in discovery.
+  // The synchronous compatibility route remains isolated from this workflow path.
+  const evidence = await crawlPublicHotelWebsiteRenderedV2(rawUrl);
   const siteMap = buildHotelSiteMapV2(evidence);
   const inventory = buildHotelInventoryCanonicalV2(siteMap);
   return { evidence, siteMap, inventory };

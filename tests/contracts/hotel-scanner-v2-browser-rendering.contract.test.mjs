@@ -49,12 +49,22 @@ test("Canonical structural inventory prefers rendered DOM blocks and fills missi
   assert.match(source, /rendered_structural_leaf_cluster/);
 });
 
-test("Default V2 intake remains on stable HTTP crawler until durable job orchestration is enabled", async () => {
+test("Durable V2 intake enables bounded browser enrichment after workflow orchestration", async () => {
   const source = await read("lib/server/hotel-scanner-v2-intake.ts");
-  assert.match(source, /crawlPublicHotelWebsiteV2/);
-  assert.match(source, /await crawlPublicHotelWebsiteV2\(/);
-  assert.doesNotMatch(source, /await crawlPublicHotelWebsiteRenderedV2\(/);
-  assert.match(source, /durable job orchestration/);
+  assert.match(source, /crawlPublicHotelWebsiteRenderedV2/);
+  assert.match(source, /await crawlPublicHotelWebsiteRenderedV2\(/);
+  assert.match(source, /Durable workflow orchestration/);
+});
+
+test("Rendered landing selection recognizes nested language segments and rehydrates new offer details", async () => {
+  const source = await read("lib/server/hotel-scanner-v2-crawler-rendered.ts");
+  assert.match(source, /parts\.find\(\(part\) => LANGUAGE_SEGMENT\.test\(part\)\)/);
+  assert.match(source, /deriveHotelPageInventoryHintsV2/);
+  assert.match(source, /renderedOfferDelegationTargets/);
+  assert.match(source, /fetchRenderedDiscoveredOfferDetails/);
+  assert.match(source, /isHotelScannerRobotsAllowed/);
+  assert.match(source, /buildPageEvidence/);
+  assert.match(source, /MAX_RENDER_DISCOVERED_OFFER_DETAILS\s*=\s*24/);
 });
 
 test("Pinned browser dependencies are present for the experimental worker", async () => {

@@ -230,7 +230,7 @@ function languageAlternates(html: string, base: URL) {
   return result;
 }
 
-function buildPageEvidence(
+export function buildPageEvidence(
   url: URL,
   html: string,
   propertyScope: HotelPropertyScopeV2,

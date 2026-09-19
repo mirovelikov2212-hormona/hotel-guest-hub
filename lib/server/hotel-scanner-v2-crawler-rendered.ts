@@ -1,10 +1,15 @@
 import "server-only";
 
+import { buildHotelScannerRobotsPolicy, isHotelScannerRobotsAllowed } from "@/lib/server/hotel-scanner-robots.mjs";
 import { HotelScannerV2BrowserRenderer, type HotelScannerV2RenderedBlock } from "@/lib/server/hotel-scanner-v2-browser-renderer";
-import { crawlPublicHotelWebsiteV2, type HotelScannerV2EvidenceBundle, type HotelScannerV2PageEvidence } from "@/lib/server/hotel-scanner-v2-crawler";
+import { buildPageEvidence, crawlPublicHotelWebsiteV2, type HotelScannerV2EvidenceBundle, type HotelScannerV2PageEvidence } from "@/lib/server/hotel-scanner-v2-crawler";
+import { deriveHotelPageInventoryHintsV2 } from "@/lib/server/hotel-scanner-v2-landing-inventory.mjs";
+import { fetchPublicHtmlV2, fetchPublicTextV2 } from "@/lib/server/hotel-scanner-v2-network";
 import { classifyHotelScannerPageV2 } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
 import { extractHotelPageStructureV2 } from "@/lib/server/hotel-scanner-v2-page-structure.mjs";
+import { deriveHotelPropertyScopeV2, isHotelPropertyPageUrlInScopeV2 } from "@/lib/server/hotel-scanner-v2-property-scope.mjs";
 import { browserRenderDecisionV2, HOTEL_SCANNER_V2_BROWSER_RENDER_CONCURRENCY, HOTEL_SCANNER_V2_BROWSER_RENDER_WALL_MS, HOTEL_SCANNER_V2_MAX_BROWSER_RENDERS } from "@/lib/server/hotel-scanner-v2-render-policy.mjs";
+import { canonicalizeHotelIntakeUrl } from "@/lib/server/hotel-scanner-v2-site-map.mjs";
 
 type BrowserEnrichedPageEvidence = HotelScannerV2PageEvidence & {
   renderMode?: "http" | "browser";
@@ -25,6 +30,11 @@ type BrowserEnrichedEvidenceBundle = HotelScannerV2EvidenceBundle & {
 type RenderCandidate = { index: number; landingDomain: string; languageRank: number; reason: string };
 const LANDING_DOMAINS = new Set(["accommodation", "gastronomy", "spa", "services", "experiences", "events", "offers"]);
 const LANGUAGE_SEGMENT = /^(?:bg|en|de|ro|mk|ru|cs|cz|fr|it|es|tr|pl|nl|el|hu|sr|hr|sk|sl)$/iu;
+const MAX_RENDER_DISCOVERED_OFFER_DETAILS = 24;
+const RENDER_DISCOVERED_FETCH_TIMEOUT_MS = 8_000;
+const RENDER_DISCOVERED_MAX_PAGE_BYTES = 1_500_000;
+const RENDER_USER_AGENT_TOKEN = "stayhub-hotel-scanner";
+const RENDER_USER_AGENT = "StayHub-Hotel-Scanner/2.0 (+https://stayhub.app)";
 
 function jsonLdKey(value: { name?: string; types?: string[] }) {
   return `${String(value?.name || "").toLocaleLowerCase("en-US")}|${(value?.types || []).join(",").toLocaleLowerCase("en-US")}`;
@@ -45,8 +55,9 @@ function mergeJsonLd(left: HotelScannerV2PageEvidence["jsonLdEntities"], right: 
 function preferredLanguageRank(rawUrl: string) {
   try {
     const parts = new URL(rawUrl).pathname.split("/").filter(Boolean);
-    if (!parts.length || !LANGUAGE_SEGMENT.test(parts[0])) return 0;
-    return parts[0].toLocaleLowerCase("en-US") === "en" ? 1 : 2;
+    const language = parts.find((part) => LANGUAGE_SEGMENT.test(part)) || "";
+    if (!language) return 2;
+    return language.toLocaleLowerCase("en-US") === "en" ? 0 : 1;
   } catch { return 3; }
 }
 
@@ -79,6 +90,88 @@ function buildRenderSchedule(pages: BrowserEnrichedPageEvidence[]) {
     scheduled.add(candidate.index);
   }
   return scheduled;
+}
+
+function renderedOfferDelegationTargets(page: BrowserEnrichedPageEvidence, propertyScope: ReturnType<typeof deriveHotelPropertyScopeV2>) {
+  const classification = classifyHotelScannerPageV2(page);
+  if (classification.primaryType !== "offers") return [] as string[];
+
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const hint of deriveHotelPageInventoryHintsV2(page, classification).filter((value) => value?.domain === "offers")) {
+    for (const candidate of Array.isArray(hint?.candidates) ? hint.candidates : []) {
+      for (const href of Array.isArray(candidate?.links) ? candidate.links : []) {
+        const target = canonicalizeHotelIntakeUrl(href, page.url);
+        if (!target || seen.has(target)) continue;
+        let parsed: URL;
+        try { parsed = new URL(target); } catch { continue; }
+        if (/\.pdf$/iu.test(parsed.pathname)) continue;
+        if (isHotelPropertyPageUrlInScopeV2(target, propertyScope)) continue;
+        if (parsed.origin !== new URL(page.url).origin) continue;
+        seen.add(target);
+        result.push(target);
+        if (result.length >= MAX_RENDER_DISCOVERED_OFFER_DETAILS) return result;
+      }
+    }
+  }
+  return result;
+}
+
+async function renderedRobotsPolicy(baseUrl: string) {
+  const origin = new URL(baseUrl);
+  const robotsUrl = new URL("/robots.txt", origin);
+  const robots = await fetchPublicTextV2(robotsUrl, {
+    timeoutMs: 3_000,
+    maxBytes: 200_000,
+    userAgent: RENDER_USER_AGENT,
+  }).catch(() => null);
+  return buildHotelScannerRobotsPolicy(robots?.text || "", RENDER_USER_AGENT_TOKEN);
+}
+
+async function fetchRenderedDiscoveredOfferDetails(base: BrowserEnrichedEvidenceBundle) {
+  const propertyScope = deriveHotelPropertyScopeV2(base.requestedUrl, base.canonicalUrl);
+  const existingPages = new Set(base.pages.map((page) => canonicalizeHotelIntakeUrl(page.url)).filter(Boolean));
+  const targets = new Map<string, string>();
+
+  for (const page of base.pages) {
+    if (page.renderMode !== "browser") continue;
+    const revealed = renderedOfferDelegationTargets(page, propertyScope);
+    if (!revealed.length) continue;
+    page.delegatedOfferDetailUrls = [...new Set([...(page.delegatedOfferDetailUrls || []), ...revealed])];
+    for (const target of revealed) {
+      if (targets.size >= MAX_RENDER_DISCOVERED_OFFER_DETAILS) break;
+      if (!existingPages.has(target) && !targets.has(target)) targets.set(target, page.url);
+    }
+  }
+  if (!targets.size) return { discovered: 0, fetched: 0, failed: 0 };
+
+  const policy = await renderedRobotsPolicy(base.canonicalUrl);
+  let fetched = 0;
+  let failed = 0;
+  for (const [target, sourceUrl] of targets) {
+    try {
+      if (!isHotelScannerRobotsAllowed(target, policy)) { failed += 1; continue; }
+      const response = await fetchPublicHtmlV2(new URL(target), {
+        timeoutMs: RENDER_DISCOVERED_FETCH_TIMEOUT_MS,
+        maxBytes: RENDER_DISCOVERED_MAX_PAGE_BYTES,
+        userAgent: RENDER_USER_AGENT,
+      });
+      if (response.url.origin !== new URL(base.canonicalUrl).origin) { failed += 1; continue; }
+      const page = buildPageEvidence(response.url, response.html, propertyScope, {
+        domain: "offers",
+        sourceUrl,
+        kind: "direct_content_link",
+      });
+      if (!existingPages.has(page.url)) {
+        base.pages.push(page);
+        existingPages.add(page.url);
+        fetched += 1;
+      }
+    } catch {
+      failed += 1;
+    }
+  }
+  return { discovered: targets.size, fetched, failed };
 }
 
 async function runConcurrent(items: number[], worker: (index: number) => Promise<void>) {
@@ -143,6 +236,7 @@ export async function crawlPublicHotelWebsiteRenderedV2(rawUrl: string): Promise
     await renderer.close();
   }
 
+  const renderedOfferDetails = await fetchRenderedDiscoveredOfferDetails(base);
   const browserRenderLatencyMs = Date.now() - startedAt;
   base.discovery = { ...base.discovery, browserRenderedUrls, browserRenderFailedUrls, browserRenderSkippedBudgetUrls, browserRenderLatencyMs };
   console.info("scanner_v2_browser_render_summary", {
@@ -151,6 +245,7 @@ export async function crawlPublicHotelWebsiteRenderedV2(rawUrl: string): Promise
     rendered: browserRenderedUrls.length,
     failed: browserRenderFailedUrls.length,
     skippedBudget: browserRenderSkippedBudgetUrls.length,
+    renderedOfferDetails,
     latencyMs: browserRenderLatencyMs,
   });
   return base;
