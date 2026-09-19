@@ -29,3 +29,21 @@ test("PDF upload fallback stays generic and does not encode a hotel property", a
   assert.match(ingestion, /function isRemoteFileUrlFetchError\(error: unknown\)/);
   assert.match(ingestion, /status !== 400/);
 });
+
+
+test("initial PDF network timeout falls back to a bounded metadata probe and remote file_url", async () => {
+  const ingestion = await readProjectFile("lib/ai/hotel-scanner-v2-document-ingestion.ts");
+  assert.match(ingestion, /const DOCUMENT_REMOTE_PROBE_TIMEOUT_MS = 25_000;/);
+  assert.match(ingestion, /function isDocumentNetworkTimeout\(error: unknown\)/);
+  assert.match(ingestion, /const timedOut = isDocumentNetworkTimeout\(error\);/);
+  assert.match(ingestion, /code !== "scanner_v2_resource_too_large" && !timedOut/);
+  assert.match(ingestion, /timeoutMs: timedOut \? DOCUMENT_REMOTE_PROBE_TIMEOUT_MS : DOCUMENT_TIMEOUT_MS/);
+  assert.match(ingestion, /file_url: probed\.url\.toString\(\)/);
+});
+
+test("document timeout recovery stays bounded and property-agnostic", async () => {
+  const ingestion = await readProjectFile("lib/ai/hotel-scanner-v2-document-ingestion.ts");
+  assert.match(ingestion, /const DOCUMENT_REMOTE_PROBE_TIMEOUT_MS = 25_000;/);
+  assert.match(ingestion, /const DOCUMENT_UPLOAD_FALLBACK_TIMEOUT_MS = 45_000;/);
+  assert.doesNotMatch(ingestion, /kirmanpremium|arycanda|evrika/iu);
+});

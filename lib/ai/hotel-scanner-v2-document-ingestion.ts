@@ -11,6 +11,7 @@ const MAX_DOCUMENTS_PER_SCAN = 16;
 const MAX_INLINE_DOCUMENT_BYTES = 10_000_000;
 const MAX_REMOTE_DOCUMENT_BYTES = 50_000_000;
 const DOCUMENT_TIMEOUT_MS = 10_000;
+const DOCUMENT_REMOTE_PROBE_TIMEOUT_MS = 25_000;
 const DOCUMENT_UPLOAD_FALLBACK_TIMEOUT_MS = 45_000;
 const DOCUMENT_CONCURRENCY = 1;
 const DOCUMENT_AI_RATE_LIMIT_RETRIES = 1;
@@ -174,6 +175,15 @@ function isRateLimitError(error: unknown) {
   return status === 429 || /\b429\b|rate limit|tokens per min|TPM/iu.test(message);
 }
 
+function isDocumentNetworkTimeout(error: unknown) {
+  const name = String((error as { name?: unknown } | null)?.name || "");
+  const code = String((error as { code?: unknown } | null)?.code || "");
+  const message = errorMessage(error);
+  return ["TimeoutError", "AbortError"].includes(name)
+    || /(?:timeout|timed out|aborted due to timeout)/iu.test(message)
+    || /(?:ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT|UND_ERR_HEADERS_TIMEOUT|UND_ERR_BODY_TIMEOUT)/iu.test(code);
+}
+
 function isRemoteFileUrlFetchError(error: unknown) {
   if (isQuotaExhaustedError(error) || isRateLimitError(error)) return false;
   const status = Number((error as { status?: unknown } | null)?.status || 0);
@@ -241,10 +251,11 @@ async function ingestOne(
       };
     } catch (error) {
       const code = String((error as { code?: unknown } | null)?.code || "");
-      if (code !== "scanner_v2_resource_too_large") throw error;
+      const timedOut = isDocumentNetworkTimeout(error);
+      if (code !== "scanner_v2_resource_too_large" && !timedOut) throw error;
 
       const probed = await probePublicResourceV2(new URL(document.url), {
-        timeoutMs: DOCUMENT_TIMEOUT_MS,
+        timeoutMs: timedOut ? DOCUMENT_REMOTE_PROBE_TIMEOUT_MS : DOCUMENT_TIMEOUT_MS,
         maxBytes: MAX_REMOTE_DOCUMENT_BYTES,
         accept: "application/pdf,application/octet-stream;q=0.8,*/*;q=0.1",
         userAgent: USER_AGENT,
