@@ -228,6 +228,7 @@ async function ingestOne(
   const startedAt = Date.now();
   try {
     let byteCount = 0;
+    let inlineBuffer: Buffer | null = null;
     let inputFile: DocumentInputFile;
 
     try {
@@ -244,6 +245,7 @@ async function ingestOne(
         return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_not_pdf", byteCount: fetched.buffer.byteLength, latencyMs: Date.now() - startedAt };
       }
       byteCount = fetched.buffer.byteLength;
+      inlineBuffer = fetched.buffer;
       inputFile = {
         type: "input_file",
         filename: filenameForUrl(document.url),
@@ -339,28 +341,40 @@ async function ingestOne(
     } catch (error) {
       const remoteFetchFailure = isRemoteFileUrlFetchError(error);
       const remoteTimeout = isDocumentNetworkTimeout(error);
-      if (!("file_url" in inputFile) || (!remoteFetchFailure && !remoteTimeout)) throw error;
 
-      // One bounded transport fallback only: if OpenAI cannot fetch the remote
-      // PDF or times out while doing so, download it through the scanner's
-      // public-network guard, upload it once, and retry extraction by file_id.
-      const fetched = await fetchPublicBinaryV2(new URL(inputFile.file_url), {
-        timeoutMs: DOCUMENT_UPLOAD_FALLBACK_TIMEOUT_MS,
-        maxBytes: MAX_REMOTE_DOCUMENT_BYTES,
-        accept: "application/pdf,application/octet-stream;q=0.8,*/*;q=0.1",
-        userAgent: USER_AGENT,
-      });
-      if (fetched.url.origin !== canonicalOrigin) {
-        return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_cross_origin_redirect", latencyMs: Date.now() - startedAt };
-      }
-      if (!isPdf(fetched.buffer)) {
-        return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_not_pdf", byteCount: fetched.buffer.byteLength, latencyMs: Date.now() - startedAt };
+      let fallbackBuffer: Buffer | null = null;
+      let fallbackFilename = filenameForUrl(document.url);
+
+      if ("file_url" in inputFile && (remoteFetchFailure || remoteTimeout)) {
+        // One bounded transport fallback: fetch through the scanner's guarded
+        // network layer, then retry extraction once by uploaded file_id.
+        const fetched = await fetchPublicBinaryV2(new URL(inputFile.file_url), {
+          timeoutMs: DOCUMENT_UPLOAD_FALLBACK_TIMEOUT_MS,
+          maxBytes: MAX_REMOTE_DOCUMENT_BYTES,
+          accept: "application/pdf,application/octet-stream;q=0.8,*/*;q=0.1",
+          userAgent: USER_AGENT,
+        });
+        if (fetched.url.origin !== canonicalOrigin) {
+          return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_cross_origin_redirect", latencyMs: Date.now() - startedAt };
+        }
+        if (!isPdf(fetched.buffer)) {
+          return { url: document.url, status: "FAILED", domains: document.domains, facts: [], error: "document_not_pdf", byteCount: fetched.buffer.byteLength, latencyMs: Date.now() - startedAt };
+        }
+        byteCount = fetched.buffer.byteLength;
+        fallbackBuffer = fetched.buffer;
+        fallbackFilename = filenameForUrl(fetched.url.toString());
+      } else if ("file_data" in inputFile && remoteTimeout && inlineBuffer) {
+        // The PDF is already safely downloaded and validated. If the inline
+        // Responses request itself times out, reuse those exact bytes once via
+        // Files API instead of redownloading or adding an unbounded AI retry.
+        fallbackBuffer = inlineBuffer;
+      } else {
+        throw error;
       }
 
-      byteCount = fetched.buffer.byteLength;
       const openai = getClient();
       const uploaded = await openai.files.create({
-        file: await toFile(fetched.buffer, filenameForUrl(fetched.url.toString()), { type: "application/pdf" }),
+        file: await toFile(fallbackBuffer, fallbackFilename, { type: "application/pdf" }),
         purpose: "user_data",
       });
       try {

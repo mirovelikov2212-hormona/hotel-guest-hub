@@ -60,3 +60,15 @@ test("remote PDF timeout uses the existing single bounded upload fallback instea
   assert.match(ingestion, /DOCUMENT_AI_RATE_LIMIT_RETRIES = 1/);
   assert.doesNotMatch(ingestion, /kirmanpremium|arycanda|evrika/iu);
 });
+
+
+test("inline PDF response timeout reuses the validated local bytes through one uploaded file_id fallback", async () => {
+  const ingestion = await readProjectFile("lib/ai/hotel-scanner-v2-document-ingestion.ts");
+  assert.match(ingestion, /let inlineBuffer: Buffer \| null = null;/);
+  assert.match(ingestion, /inlineBuffer = fetched\.buffer;/);
+  assert.match(ingestion, /"file_data" in inputFile && remoteTimeout && inlineBuffer/);
+  assert.match(ingestion, /fallbackBuffer = inlineBuffer;/);
+  assert.match(ingestion, /createResponse\(\{ type: "input_file", file_id: uploaded\.id \}\)/);
+  assert.match(ingestion, /DOCUMENT_AI_RATE_LIMIT_RETRIES = 1/);
+  assert.doesNotMatch(ingestion, /pavelbanya|kirmanpremium|arycanda|evrika/iu);
+});
