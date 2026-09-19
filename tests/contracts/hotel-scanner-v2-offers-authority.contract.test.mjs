@@ -348,3 +348,26 @@ test("durable browser enrichment can reveal a same-origin offer detail outside t
   assert.match(rendered, /MAX_RENDER_DISCOVERED_OFFER_DETAILS = 24/);
   assert.doesNotMatch(rendered, /kirmanpremium|arycanda|evrika/iu);
 });
+
+
+test("Offers extraction keeps a late authoritative CTA beyond the 24KB semantic-text window", () => {
+  const firstSix = Array.from({ length: 6 }, (_, index) =>
+    `<a href="/en/offer-${index + 1}">Exclusive Benefit ${index + 1} <span>DETAILED REVIEW</span></a>`
+  ).join("");
+  const filler = `<div>${"descriptive hotel content ".repeat(1400)}</div>`;
+  const seventh = `<a href="/en/offer-7">Website Reservation Privileges <span>DETAILED REVIEW</span></a>`;
+  const html = `<main><h1>Offers</h1>${firstSix}${filler}${seventh}</main>`;
+
+  const structure = extractHotelPageStructureV2(html);
+  const hints = deriveHotelPageInventoryHintsV2({
+    url: "https://hotel.test/property/en/offers",
+    title: "Offers",
+    description: "",
+    text: "Offers",
+    ...structure,
+  }, { primaryType: "offers", types: ["offers"], confidence: 1, signals: [] });
+  const offers = hints.find((hint) => hint.domain === "offers");
+
+  assert.equal(offers?.expectedCount, 7);
+  assert.ok(offers?.candidates.some((candidate) => candidate.name === "Website Reservation Privileges"));
+});
