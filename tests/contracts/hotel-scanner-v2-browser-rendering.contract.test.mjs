@@ -75,10 +75,11 @@ test("Pinned browser dependencies are present for the experimental worker", asyn
   assert.equal(pkg.dependencies["@sparticuz/chromium"], "153.0.0");
 });
 
-test("Vercel tracing includes Playwright metadata and Chromium binaries", async () => {
+test("Vercel tracing includes Playwright metadata and Chromium binaries for sync and durable workflow execution", async () => {
   const source = await read("next.config.ts");
   assert.match(source, /serverExternalPackages:\s*\["playwright-core",\s*"@sparticuz\/chromium"\]/);
   assert.match(source, /node_modules\/playwright-core\/browsers\.json/);
   assert.match(source, /node_modules\/@sparticuz\/chromium\/bin\/\*\*/);
   assert.match(source, /\/api\/control-plane\/hotel-scanner\/scan-v2/);
+  assert.match(source, /\/\.well-known\/workflow\/v1\/step/);
 });
