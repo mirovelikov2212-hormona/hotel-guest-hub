@@ -337,8 +337,13 @@ async function ingestOne(
     try {
       response = await createResponse(inputFile);
     } catch (error) {
-      if (!("file_url" in inputFile) || !isRemoteFileUrlFetchError(error)) throw error;
+      const remoteFetchFailure = isRemoteFileUrlFetchError(error);
+      const remoteTimeout = isDocumentNetworkTimeout(error);
+      if (!("file_url" in inputFile) || (!remoteFetchFailure && !remoteTimeout)) throw error;
 
+      // One bounded transport fallback only: if OpenAI cannot fetch the remote
+      // PDF or times out while doing so, download it through the scanner's
+      // public-network guard, upload it once, and retry extraction by file_id.
       const fetched = await fetchPublicBinaryV2(new URL(inputFile.file_url), {
         timeoutMs: DOCUMENT_UPLOAD_FALLBACK_TIMEOUT_MS,
         maxBytes: MAX_REMOTE_DOCUMENT_BYTES,
