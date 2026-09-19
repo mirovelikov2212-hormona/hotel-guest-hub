@@ -137,3 +137,26 @@ test("Workflow Preview remains evidence-only with no downstream production hando
   assert.doesNotMatch(combined, /factory-handoff|approvedHotelIntelligence\s*:/);
   assert.match(combined, /без Production handoff|no Production handoff/);
 });
+
+
+test("Scanner V2 workflow exposes a protected cancel route for stuck durable runs", async () => {
+  const source = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-workflow/[runId]/cancel/route.ts");
+  assert.match(source, /import \{ getRun \} from "workflow\/api"/);
+  assert.match(source, /enforceControlPlaneSameOrigin/);
+  assert.match(source, /canMutateControlPlane/);
+  assert.match(source, /verifyScannerV2WorkflowAccessToken/);
+  assert.match(source, /X-Scanner-Scan-Run-Id/);
+  assert.match(source, /X-Scanner-Workflow-Token/);
+  assert.match(source, /await run\.cancel\(\)/);
+  assert.match(source, /scanner_v2_workflow_cancel_failed/);
+});
+
+test("Workflow Preview can cancel a stuck active run and release the scan form", async () => {
+  const source = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
+  assert.match(source, /async function cancelCurrentRun\(\)/);
+  assert.match(source, /scan-v2-workflow\/\$\{encodeURIComponent\(runId\)\}\/cancel/);
+  assert.match(source, /method: "POST"/);
+  assert.match(source, /copy\.cancelRun/);
+  assert.match(source, /copy\.cancellingRun/);
+  assert.match(source, /reset\(\)/);
+});

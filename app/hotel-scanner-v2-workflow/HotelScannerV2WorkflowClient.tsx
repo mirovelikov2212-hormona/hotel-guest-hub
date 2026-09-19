@@ -102,6 +102,8 @@ const COPY = {
     completed: "Сканирането завърши. Данните по-долу са пълният резултат от същия Scanner V2 pipeline, изпълнен като durable workflow.",
     failed: "Workflow сканирането завърши с грешка.",
     newScan: "Ново сканиране",
+    cancelRun: "Прекрати текущия run",
+    cancellingRun: "Прекратяване…",
     pipeline: "Pipeline статус",
     pages: "Прочетени страници",
     resources: "Открити ресурси",
@@ -144,6 +146,8 @@ const COPY = {
     completed: "The scan completed. The data below is the full result from the same Scanner V2 pipeline, executed as a durable workflow.",
     failed: "The workflow scan failed.",
     newScan: "New scan",
+    cancelRun: "Cancel current run",
+    cancellingRun: "Cancelling…",
     pipeline: "Pipeline status",
     pages: "Crawled pages",
     resources: "Discovered resources",
@@ -213,6 +217,7 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
   const [runAccessToken, setRunAccessToken] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("idle");
   const [starting, setStarting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [result, setResult] = useState<WorkflowResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pollStartedAt, setPollStartedAt] = useState<number | null>(null);
@@ -332,6 +337,32 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
     }
   }
 
+  async function cancelCurrentRun() {
+    if (!runId || !scanRunId || !runAccessToken || cancelling) return;
+    setCancelling(true);
+    setStatus("cancelling");
+    try {
+      const response = await fetch(`/api/control-plane/hotel-scanner/scan-v2-workflow/${encodeURIComponent(runId)}/cancel`, {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "X-Scanner-Scan-Run-Id": scanRunId,
+          "X-Scanner-Workflow-Token": runAccessToken,
+        },
+      });
+      const body = (await response.json().catch(() => ({}))) as WorkflowPoll;
+      if (!response.ok || body.ok === false) {
+        setStatus(body.error || "cancel_failed");
+        return;
+      }
+      reset();
+    } catch {
+      setStatus("cancel_failed");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   function reset() {
     window.localStorage.removeItem(STORAGE_KEY);
     setRunId(null);
@@ -397,6 +428,11 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
             <div className="flex flex-wrap items-center gap-2">
               <span className={`v2-pill ${result ? "v2-pill-good" : error ? "v2-pill-bad" : "v2-pill-info"}`}>{copy.status}: {status}</span>
               <span className="v2-pill">{formatDuration(elapsedMs)}</span>
+              {active ? (
+                <button type="button" onClick={() => void cancelCurrentRun()} disabled={cancelling} className="v2-button text-xs">
+                  {cancelling ? copy.cancellingRun : copy.cancelRun}
+                </button>
+              ) : null}
               {(result || error) ? <button type="button" onClick={reset} className="v2-button text-xs">{copy.newScan}</button> : null}
             </div>
           </div>
