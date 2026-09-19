@@ -48,6 +48,15 @@ test("Scanner V2 browser enrichment is concurrent, bounded and fail-soft", async
   assert.match(source, /finally\s*\{\s*await renderer\.close\(\)/s);
 });
 
+
+test("Browser render schedule preserves semantic priority and renders offers before page-index order", async () => {
+  const source = await read("lib/server/hotel-scanner-v2-crawler-rendered.ts");
+  assert.match(source, /LANDING_RENDER_PRIORITY\s*=\s*\["offers",\s*"accommodation",\s*"gastronomy",\s*"spa"/);
+  assert.match(source, /for \(const domain of LANDING_RENDER_PRIORITY\)/);
+  assert.match(source, /runConcurrent\(\[\.\.\.schedule\],/);
+  assert.doesNotMatch(source, /\[\.\.\.schedule\]\.sort\(/);
+});
+
 test("Canonical structural inventory prefers rendered DOM blocks and fills missing cards from raw HTML", async () => {
   const source = await read("lib/server/hotel-scanner-v2-structural-inventory.mjs");
   assert.match(source, /renderedContentBlocks/);

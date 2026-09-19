@@ -29,7 +29,8 @@ type BrowserEnrichedEvidenceBundle = HotelScannerV2EvidenceBundle & {
 };
 
 type RenderCandidate = { index: number; landingDomain: string; languageRank: number; reason: string };
-const LANDING_DOMAINS = new Set(["accommodation", "gastronomy", "spa", "services", "experiences", "events", "offers"]);
+const LANDING_RENDER_PRIORITY = ["offers", "accommodation", "gastronomy", "spa", "services", "experiences", "events"] as const;
+const LANDING_DOMAINS = new Set<string>(LANDING_RENDER_PRIORITY);
 const LANGUAGE_SEGMENT = /^(?:bg|en|de|ro|mk|ru|cs|cz|fr|it|es|tr|pl|nl|el|hu|sr|hr|sk|sl)$/iu;
 const MAX_RENDER_DISCOVERED_OFFER_DETAILS = 24;
 const RENDER_DISCOVERED_FETCH_TIMEOUT_MS = 8_000;
@@ -88,7 +89,7 @@ function buildRenderSchedule(pages: BrowserEnrichedPageEvidence[]) {
     groups.set(candidate.landingDomain, values);
   }
   for (const values of groups.values()) values.sort((a, b) => a.languageRank - b.languageRank || a.index - b.index);
-  for (const domain of LANDING_DOMAINS) {
+  for (const domain of LANDING_RENDER_PRIORITY) {
     const candidate = groups.get(domain)?.[0];
     if (candidate && scheduled.size < HOTEL_SCANNER_V2_MAX_BROWSER_RENDERS) scheduled.add(candidate.index);
   }
@@ -207,7 +208,7 @@ export async function crawlPublicHotelWebsiteRenderedV2(rawUrl: string): Promise
   }
 
   try {
-    await runConcurrent([...schedule].sort((a, b) => a - b), async (index) => {
+    await runConcurrent([...schedule], async (index) => {
       const page = base.pages[index];
       const primaryType = classifyHotelScannerPageV2(page).primaryType;
       const decision = browserRenderDecisionV2({ primaryType, page, renderedCount: 0 });
