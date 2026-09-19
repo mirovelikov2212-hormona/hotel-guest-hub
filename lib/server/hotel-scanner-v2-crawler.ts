@@ -8,6 +8,7 @@ import {
 import { isPublicBusinessCrawlUrl } from "@/lib/server/hotel-scanner-crawl-plan.mjs";
 import { buildHotelScannerCoveragePlanV2 } from "@/lib/server/hotel-scanner-v2-coverage.mjs";
 import { classifyHotelScannerPageV2 } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
+import { deriveHotelPageInventoryHintsV2 } from "@/lib/server/hotel-scanner-v2-landing-inventory.mjs";
 import {
   extractHotelPageStructureV2,
   type HotelScannerV2ContentBlock,
@@ -37,6 +38,7 @@ const MAX_COVERAGE_FOLLOWUP_ATTEMPTS = 72;
 const MAX_TOTAL_PAGES = MAX_INITIAL_PAGES + MAX_COVERAGE_FOLLOWUP_ATTEMPTS;
 const MAX_DISCOVERED_PAGES = 2_000;
 const MAX_PUBLIC_DOCUMENTS = 200;
+const MAX_DELEGATED_OFFER_PAGES = 24;
 const MAX_SITEMAP_DOCUMENTS = 24;
 const MAX_PAGE_BYTES = 1_500_000;
 const MAX_SITEMAP_BYTES = 1_000_000;
@@ -53,6 +55,11 @@ const USER_AGENT = "StayHub-Hotel-Scanner/2.0 (+https://stayhub.app)";
 const LANGUAGE_SEGMENT = /^(?:bg|en|de|ro|ru|cs|cz|fr|it|es|pl|tr|el|sr|mk|uk|hu|nl|pt)$/iu;
 
 export type HotelScannerV2LanguageAlternate = { language: string; url: string };
+export type HotelScannerV2DelegatedAuthority = {
+  domain: "offers";
+  sourceUrl: string;
+  kind: "direct_content_link";
+};
 export type HotelScannerV2PageEvidence = {
   url: string;
   title: string;
@@ -68,6 +75,8 @@ export type HotelScannerV2PageEvidence = {
   headings: HotelScannerV2Heading[];
   jsonLdEntities: HotelScannerV2JsonLdEntity[];
   contentBlocks: HotelScannerV2ContentBlock[];
+  delegatedOfferDetailUrls: string[];
+  delegatedAuthority: HotelScannerV2DelegatedAuthority | null;
 };
 export type HotelScannerV2PublicDocument = {
   url: string;
@@ -221,9 +230,15 @@ function languageAlternates(html: string, base: URL) {
   return result;
 }
 
-function buildPageEvidence(url: URL, html: string, propertyScope: HotelPropertyScopeV2): HotelScannerV2PageEvidence {
+function buildPageEvidence(
+  url: URL,
+  html: string,
+  propertyScope: HotelPropertyScopeV2,
+  delegatedAuthority: HotelScannerV2DelegatedAuthority | null = null,
+): HotelScannerV2PageEvidence {
   const structure = extractHotelPageStructureV2(html);
   const allLinks = anchorUrls(html, url, 500);
+  const allContentLinks = contentUrls(html, url, allLinks);
   const allNavigationLinks = navigationUrls(html, url);
   const pageLinks = allLinks.filter((link) =>
     !/\.pdf$/i.test(new URL(link).pathname)
@@ -240,7 +255,8 @@ function buildPageEvidence(url: URL, html: string, propertyScope: HotelPropertyS
     : "";
   const alternates = languageAlternates(html, url)
     .filter((item) => isHotelPropertyOperationalContentUrlV2(item.url, propertyScope));
-  return {
+
+  const baseEvidence: HotelScannerV2PageEvidence = {
     url: canonicalizeHotelIntakeUrl(url.toString()),
     title: firstMatch(html, [/<title[^>]*>([\s\S]*?)<\/title>/i]),
     description: firstMatch(html, [
@@ -250,7 +266,7 @@ function buildPageEvidence(url: URL, html: string, propertyScope: HotelPropertyS
     ]),
     text: htmlText(html),
     links: pageLinks,
-    contentLinks: contentUrls(html, url, pageLinks).filter((link) => isHotelPropertyPageUrlInScopeV2(link, propertyScope)),
+    contentLinks: allContentLinks.filter((link) => isHotelPropertyPageUrlInScopeV2(link, propertyScope)),
     navigationLinks: pageNavigationLinks,
     documentUrls: pageDocumentUrls,
     canonicalHint: scopedCanonicalHint,
@@ -259,7 +275,34 @@ function buildPageEvidence(url: URL, html: string, propertyScope: HotelPropertyS
     headings: structure.headings,
     jsonLdEntities: structure.jsonLdEntities,
     contentBlocks: structure.contentBlocks,
+    delegatedOfferDetailUrls: [],
+    delegatedAuthority,
   };
+
+  if (!delegatedAuthority && isHotelPropertyPageUrlInScopeV2(baseEvidence.url, propertyScope)) {
+    const classification = classifyHotelScannerPageV2(baseEvidence);
+    if (classification.primaryType === "offers") {
+      const offerHints = deriveHotelPageInventoryHintsV2(baseEvidence, classification)
+        .filter((hint) => hint?.domain === "offers");
+      const delegated = new Set<string>();
+      for (const hint of offerHints) {
+        for (const candidate of Array.isArray(hint?.candidates) ? hint.candidates : []) {
+          for (const href of Array.isArray(candidate?.links) ? candidate.links : []) {
+            const normalized = normalizedInternalUrl(href, url);
+            if (!normalized || /\.pdf$/iu.test(new URL(normalized).pathname)) continue;
+            if (isHotelPropertyPageUrlInScopeV2(normalized, propertyScope)) continue;
+            delegated.add(normalized);
+            if (delegated.size >= MAX_DELEGATED_OFFER_PAGES) break;
+          }
+          if (delegated.size >= MAX_DELEGATED_OFFER_PAGES) break;
+        }
+        if (delegated.size >= MAX_DELEGATED_OFFER_PAGES) break;
+      }
+      baseEvidence.delegatedOfferDetailUrls = [...delegated];
+    }
+  }
+
+  return baseEvidence;
 }
 
 async function fetchRobotsState(baseUrl: URL): Promise<RobotsState> {
@@ -421,12 +464,13 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
   const robotsBlockedUrls = new Set<string>();
   let totalText = firstPage.text.length;
 
-  const absorbPage = (page: HotelScannerV2PageEvidence | null) => {
+  const absorbPage = (page: HotelScannerV2PageEvidence | null, expandDiscovery = true) => {
     if (!page || pages.some((existing) => existing.url === page.url)) return;
     const remaining = Math.max(0, MAX_TOTAL_TEXT - totalText);
     page.text = remaining ? page.text.slice(0, remaining) : "";
     totalText += page.text.length;
     pages.push(page);
+    if (!expandDiscovery) return;
     for (const link of page.links) { internalLinks.add(link); if (discoveredPages.size < MAX_DISCOVERED_PAGES) discoveredPages.add(link); }
     for (const link of page.navigationLinks) { navigation.add(link); if (discoveredPages.size < MAX_DISCOVERED_PAGES) discoveredPages.add(link); }
     for (const alternate of page.languageAlternates) if (discoveredPages.size < MAX_DISCOVERED_PAGES) discoveredPages.add(alternate.url);
@@ -484,6 +528,39 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
     coverageFollowupAttempts += batch.length;
     await fetchBatch(batch);
   }
+
+  const delegatedOfferTargets = new Map<string, string>();
+  for (const page of pages) {
+    for (const target of page.delegatedOfferDetailUrls || []) {
+      if (delegatedOfferTargets.size >= MAX_DELEGATED_OFFER_PAGES) break;
+      if (!delegatedOfferTargets.has(target)) delegatedOfferTargets.set(target, page.url);
+    }
+    if (delegatedOfferTargets.size >= MAX_DELEGATED_OFFER_PAGES) break;
+  }
+
+  const delegatedEntries = [...delegatedOfferTargets.entries()]
+    .filter(([target]) => !attempted.has(target))
+    .slice(0, MAX_DELEGATED_OFFER_PAGES);
+  for (const [target] of delegatedEntries) attempted.add(target);
+  const delegatedPages = await Promise.all(delegatedEntries.map(async ([target, sourceUrl]) => {
+    try {
+      if (!isHotelScannerRobotsAllowed(target, robotsState.policy)) {
+        robotsBlockedUrls.add(target);
+        return null;
+      }
+      const response = await fetchPublicHtmlV2(new URL(target), { timeoutMs: FETCH_TIMEOUT_MS, maxBytes: MAX_PAGE_BYTES, userAgent: USER_AGENT });
+      if (response.url.origin !== canonicalOrigin) return null;
+      return buildPageEvidence(response.url, response.html, propertyScope, {
+        domain: "offers",
+        sourceUrl,
+        kind: "direct_content_link",
+      });
+    } catch {
+      failedPageUrls.add(target);
+      return null;
+    }
+  }));
+  for (const page of delegatedPages) absorbPage(page, false);
 
   const coverage = buildHotelScannerCoveragePlanV2({
     pages,

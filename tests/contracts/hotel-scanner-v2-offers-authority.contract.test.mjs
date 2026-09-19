@@ -1,0 +1,229 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { buildCanonicalHotelEntityRegistryV2 } from "../../lib/server/hotel-scanner-v2-canonical-registry.mjs";
+import { buildHotelInventoryV2 } from "../../lib/server/hotel-scanner-v2-inventory.mjs";
+import { deriveHotelPageInventoryHintsV2 } from "../../lib/server/hotel-scanner-v2-landing-inventory.mjs";
+import { buildHotelSiteMapV2 } from "../../lib/server/hotel-scanner-v2-site-map.mjs";
+import { readProjectFile } from "../helpers/source-contract.mjs";
+
+function offerHint(names, count = names.length) {
+  return {
+    domain: "offers",
+    expectedCount: count,
+    explicitCount: count,
+    identifiedCount: names.length,
+    confidence: "HIGH",
+    consistency: count === names.length ? "CONSISTENT" : "PARTIAL",
+    candidates: names.map((name, index) => ({
+      name,
+      entityType: "offer",
+      basis: "authoritative_offer_card",
+      score: 8,
+      links: [`https://hotel.test/en/shared-campaign-${index + 1}`],
+    })),
+  };
+}
+
+function offerLanding(url, language, names, variantGroupId = "hotel.test/property/offers") {
+  return {
+    url,
+    resourceType: "page",
+    crawled: true,
+    variantGroupId,
+    title: language === "de" ? "Angebote" : language === "tr" ? "Teklifler" : "Offers",
+    languages: [language],
+    classification: { primaryType: "offers", types: ["offers"], confidence: 1, signals: [] },
+    inventoryHints: [offerHint(names)],
+  };
+}
+
+function offerDetail(index, title = `Shared Campaign ${index}`) {
+  return {
+    url: `https://hotel.test/en/shared-campaign-${index}`,
+    resourceType: "page",
+    crawled: true,
+    variantGroupId: `hotel.test/shared-campaign-${index}`,
+    title,
+    languages: ["en"],
+    classification: { primaryType: "offer_detail", types: ["offer_detail", "offers"], confidence: 1, signals: ["delegated_offer_detail"] },
+    inventoryHints: [],
+  };
+}
+
+test("an authoritative Offers landing accepts linked campaign cards without offer keywords in their titles", () => {
+  const page = {
+    url: "https://hotel.test/property/en/offers",
+    title: "Offers",
+    description: "",
+    text: "Offers",
+    contentBlocks: [
+      { heading: "Private Reformer Pilates Lesson Throughout Your Holiday", text: "", links: ["/en/pilates-privilege"] },
+      { heading: "Two Children Stay Free", text: "", links: ["/en/two-children-stay-free"] },
+      { heading: "Website Reservation Privileges", text: "", links: ["/en/website-reservation-privileges"] },
+    ],
+    jsonLdEntities: [],
+  };
+  const hints = deriveHotelPageInventoryHintsV2(page, {
+    primaryType: "offers",
+    types: ["offers"],
+    confidence: 1,
+    signals: [],
+  });
+  const offers = hints.find((hint) => hint.domain === "offers");
+
+  assert.ok(offers);
+  assert.equal(offers.expectedCount, 3);
+  assert.deepEqual(
+    offers.candidates.map((candidate) => candidate.name).sort(),
+    [
+      "Private Reformer Pilates Lesson Throughout Your Holiday",
+      "Two Children Stay Free",
+      "Website Reservation Privileges",
+    ].sort(),
+  );
+  assert.ok(offers.candidates.every((candidate) => candidate.basis === "authoritative_offer_card"));
+});
+
+test("localized Offers landing URLs collapse to one logical landing family without hreflang", () => {
+  const base = {
+    description: "",
+    text: "",
+    links: [],
+    contentLinks: [],
+    navigationLinks: [],
+    documentUrls: [],
+    canonicalHint: "",
+    languageAlternates: [],
+    headings: [],
+    jsonLdEntities: [],
+    contentBlocks: [],
+    delegatedOfferDetailUrls: [],
+    delegatedAuthority: null,
+  };
+  const siteMap = buildHotelSiteMapV2({
+    canonicalUrl: "https://hotel.test/property/en/offers",
+    pages: [
+      { ...base, url: "https://hotel.test/property/en/offers", title: "Offers", language: "en" },
+      { ...base, url: "https://hotel.test/property/de/angebote", title: "Angebote", language: "de" },
+      { ...base, url: "https://hotel.test/property/tr/teklifler", title: "Teklifler", language: "tr" },
+    ],
+  });
+  const landings = siteMap.resources.filter((resource) => resource.classification.primaryType === "offers");
+  assert.equal(landings.length, 3);
+  assert.equal(new Set(landings.map((resource) => resource.variantGroupId)).size, 1);
+});
+
+test("delegated same-origin leaf evidence is deterministically an offer detail with explicit provenance", () => {
+  const siteMap = buildHotelSiteMapV2({
+    canonicalUrl: "https://hotel.test/property/en/offers",
+    pages: [{
+      url: "https://hotel.test/en/private-pilates-privilege",
+      title: "Private Reformer Pilates Lesson Throughout Your Holiday",
+      description: "",
+      text: "",
+      links: [],
+      contentLinks: [],
+      navigationLinks: [],
+      documentUrls: [],
+      canonicalHint: "",
+      language: "en",
+      languageAlternates: [],
+      headings: [],
+      jsonLdEntities: [],
+      contentBlocks: [],
+      delegatedOfferDetailUrls: [],
+      delegatedAuthority: {
+        domain: "offers",
+        sourceUrl: "https://hotel.test/property/en/offers",
+        kind: "direct_content_link",
+      },
+    }],
+  });
+
+  const detail = siteMap.resources.find((resource) => resource.url === "https://hotel.test/en/private-pilates-privilege");
+  assert.equal(detail.classification.primaryType, "offer_detail");
+  assert.ok(detail.classification.signals.includes("delegated_offer_detail"));
+  assert.equal(detail.delegatedAuthority.domain, "offers");
+  assert.ok(siteMap.relations.some((relation) =>
+    relation.kind === "delegated_offer_detail"
+    && relation.fromUrl === "https://hotel.test/property/en/offers"
+    && relation.toUrl === detail.url));
+});
+
+test("localized count variance is audit evidence, not a blocking Offers conflict", () => {
+  const richest = [
+    "Heated Pool Privilege",
+    "Honeymoon Privileges",
+    "Sapling Donation",
+    "Private Pilates Lesson",
+    "Baby Comfort Package",
+    "Children Stay Free",
+    "Website Reservation Privileges",
+  ];
+  const inventory = buildHotelInventoryV2({
+    resources: [
+      offerLanding("https://hotel.test/property/en/offers", "en", richest),
+      offerLanding("https://hotel.test/property/de/angebote", "de", richest.slice(0, 4)),
+      offerLanding("https://hotel.test/property/tr/teklifler", "tr", richest.slice(0, 3)),
+    ],
+  });
+  const offers = inventory.domains.find((domain) => domain.domain === "offers");
+
+  assert.equal(offers.expectationState, "DETERMINISTIC");
+  assert.equal(offers.expectedCount, 7);
+  assert.deepEqual(offers.evidence.observedLandingCounts, [3, 4, 7]);
+  assert.equal(offers.evidence.authority, "LOCALIZED_OFFER_LANDING_FAMILY");
+  assert.ok(offers.issues.includes("localized_offer_inventory_variance"));
+  assert.ok(!offers.issues.includes("landing_inventory_count_conflict"));
+});
+
+test("property Offers landing owns membership while directly linked details own content", () => {
+  const names = [
+    "Heated Pool Privilege",
+    "Honeymoon Privileges",
+    "Sapling Donation",
+    "Private Pilates Lesson",
+  ];
+  const en = offerLanding("https://hotel.test/property/en/offers", "en", names);
+  const de = offerLanding("https://hotel.test/property/de/angebote", "de", names.slice(0, 3));
+  const details = names.map((name, index) => offerDetail(index + 1, `Localized Detail Title ${index + 1}`));
+  const stray = {
+    ...offerDetail(99, "Unlisted Global Campaign"),
+    url: "https://hotel.test/en/unlisted-global-campaign",
+    variantGroupId: "hotel.test/unlisted-global-campaign",
+  };
+
+  const registry = buildCanonicalHotelEntityRegistryV2({ resources: [en, de, ...details, stray] });
+  const offers = registry.domains.get("offers");
+
+  assert.equal(offers.expectationState, "DETERMINISTIC");
+  assert.equal(offers.expectedCount, 4);
+  assert.equal(offers.evidence.authority, "PROPERTY_OFFERS_LANDING");
+  assert.deepEqual(offers.evidence.observedLandingCounts, [3, 4]);
+  assert.ok(offers.issues.includes("localized_offer_inventory_variance"));
+  assert.ok(!offers.expectedItems.some((item) => item.nameHint === "Unlisted Global Campaign"));
+  assert.ok(offers.supportingUrls.includes("https://hotel.test/en/unlisted-global-campaign"));
+  assert.ok(offers.expectedItems.every((item) =>
+    item.basis === "canonical_detail_entity" || item.basis === "canonical_linked_detail_entity"));
+});
+
+test("crawler delegation is bounded and cannot recursively widen the property crawl", async () => {
+  const crawler = await readProjectFile("lib/server/hotel-scanner-v2-crawler.ts");
+  assert.match(crawler, /const MAX_DELEGATED_OFFER_PAGES = 24;/);
+  assert.match(crawler, /delegatedOfferTargets/);
+  assert.match(crawler, /absorbPage\(page, false\)/);
+  assert.match(crawler, /deriveHotelPageInventoryHintsV2/);
+  assert.match(crawler, /kind: "direct_content_link"/);
+});
+
+test("Offers authority hardening remains hotel-agnostic", async () => {
+  const files = await Promise.all([
+    readProjectFile("lib/server/hotel-scanner-v2-crawler.ts"),
+    readProjectFile("lib/server/hotel-scanner-v2-site-map.mjs"),
+    readProjectFile("lib/server/hotel-scanner-v2-landing-inventory.mjs"),
+    readProjectFile("lib/server/hotel-scanner-v2-inventory.mjs"),
+    readProjectFile("lib/server/hotel-scanner-v2-canonical-registry.mjs"),
+  ]);
+  assert.doesNotMatch(files.join("\n"), /kirmanpremium|arycanda|evrika/iu);
+});
