@@ -27,6 +27,38 @@ test("contradictory official pet policies fail closed as one conflict group", ()
   assert.ok(result.facts.every((item) => item.verification.status === "CONFLICT"));
 });
 
+test("12-hour clock values canonicalize to the same 24-hour operational time", () => {
+  const result = verifyHotelScanFacts([
+    fact({ category: "operations", attribute: "check_in", label: "Check-in", value: "Check-in is 2:00 pm.", sourceUrls: ["https://hotel.test/docs/checkin-en.pdf"] }),
+    fact({ category: "operations", attribute: "check_in", label: "Check-in", value: "Check-in is 14:00.", sourceUrls: ["https://hotel.test/docs/checkin-de.pdf"] }),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  assert.equal(result.facts.length, 1);
+  assert.equal(result.facts[0].verification.status, "VERIFIED");
+
+  const midnight = verifyHotelScanFacts([
+    fact({ category: "operations", attribute: "check_in", label: "Check-in", value: "12:00 am", sourceUrls: ["https://hotel.test/docs/a.pdf"] }),
+    fact({ category: "operations", attribute: "check_in", label: "Check-in", value: "00:00", sourceUrls: ["https://hotel.test/docs/b.pdf"] }),
+  ]);
+  assert.equal(midnight.conflicts.length, 0);
+
+  const noon = verifyHotelScanFacts([
+    fact({ category: "operations", attribute: "check_out", label: "Check-out", value: "12:00 pm", sourceUrls: ["https://hotel.test/docs/c.pdf"] }),
+    fact({ category: "operations", attribute: "check_out", label: "Check-out", value: "12:00", sourceUrls: ["https://hotel.test/docs/d.pdf"] }),
+  ]);
+  assert.equal(noon.conflicts.length, 0);
+});
+
+test("Bulgarian plural pet prohibition is normalized as prohibited", () => {
+  const result = verifyHotelScanFacts([
+    fact({ value: "Не са разрешени", sourceUrls: ["https://hotel.test/docs/pets-bg.pdf"] }),
+    fact({ value: "Pets are not allowed.", sourceUrls: ["https://hotel.test/docs/pets-en.pdf"] }),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  assert.equal(result.facts.length, 1);
+  assert.equal(result.facts[0].verification.status, "VERIFIED");
+});
+
 test("semantic wording variants of the same check-in time corroborate instead of becoming a fake conflict", () => {
   const result = verifyHotelScanFacts([
     fact({ category: "operations", attribute: "check_in", label: "Check-in", value: "Check-in след 15:00 часа", sourceUrls: ["https://hotel.test/en/faq"] }),

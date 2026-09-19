@@ -108,3 +108,35 @@ test("descriptive resort position is not an address conflict", () => {
   assert.equal(result.conflicts.length, 0);
   assert.ok(result.facts.some((item) => item.attribute === "location_description"));
 });
+
+test("address components extracted under one generic address attribute are typed before conflict grouping", () => {
+  const result = verifyHotelScanFactsV2([
+    { category: "location", subject: "hotel", attribute: "address", label: "Адрес", value: "Karaburun Mevkii", confidence: 1, sourceUrls: ["https://hotel.test/docs/location-a.pdf"] },
+    { category: "location", subject: "hotel", attribute: "address", label: "Град", value: "Alanya / Antalya", confidence: 1, sourceUrls: ["https://hotel.test/docs/location-b.pdf"] },
+    { category: "location", subject: "hotel", attribute: "address", label: "Пощенски код", value: "07415", confidence: 1, sourceUrls: ["https://hotel.test/docs/location-c.pdf"] },
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  assert.ok(result.facts.some((item) => item.attribute === "address"));
+  assert.ok(result.facts.some((item) => item.attribute === "city_region"));
+  assert.ok(result.facts.some((item) => item.attribute === "postal_code"));
+});
+
+test("different standard checkout times remain a real conflict after clock normalization", () => {
+  const result = verifyHotelScanFactsV2([
+    fact("operations", "hotel", "check_out", "12:00", "https://hotel.test/docs/checkout-a.pdf"),
+    fact("operations", "hotel", "check_out", "13:00", "https://hotel.test/docs/checkout-b.pdf"),
+  ]);
+  assert.equal(result.conflicts.length, 1);
+  assert.equal(result.conflicts[0].attribute, "check_out");
+});
+
+test("V2 verifier reconciles pm clock notation and Bulgarian pet negation", () => {
+  const result = verifyHotelScanFactsV2([
+    fact("operations", "hotel", "check_in", "Check-in time is 2:00 pm.", "https://hotel.test/docs/checkin-en.pdf"),
+    fact("operations", "hotel", "check_in", "14:00 Uhr", "https://hotel.test/docs/checkin-de.pdf"),
+    fact("policy", "hotel", "pet_policy", "Не са разрешени", "https://hotel.test/docs/pets-bg.pdf"),
+    fact("policy", "hotel", "pet_policy", "Pets are not allowed.", "https://hotel.test/docs/pets-en.pdf"),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+});
+
