@@ -301,3 +301,83 @@ test("identity-only offer evidence stays incomplete while a sourced detail descr
   const description = { category: "offers", subject: "Exclusive Benefit", attribute: "description", label: "Offer detail", value: "A sourced benefit description with booking conditions and included services.", confidence: 0.99, sourceUrls: [url] };
   assert.equal(buildHotelCompletenessV2({ inventory, profile: { facts: [identity, description] }, conflicts: [] }).domains[0].content.status, "COMPLETE");
 });
+
+
+test("group headings on a shared landing surface are content-covered only when multiple concrete siblings have substantive detail", () => {
+  const url = "https://hotel.test/experiences/pools";
+  const group = {
+    id: "experience:pool-group", domain: "experiences", entityType: "experience",
+    variantGroupId: "hotel.test/experiences/pools#pool-group", nameHint: "Indoor and outdoor pools",
+    url, urls: [url], languages: ["en"], crawled: true, basis: "canonical_section_entity",
+  };
+  const indoor = {
+    ...group, id: "experience:indoor", variantGroupId: "hotel.test/experiences/pools#indoor",
+    nameHint: "Indoor mineral pool", basis: "canonical_structural_entity",
+  };
+  const outdoor = {
+    ...group, id: "experience:outdoor", variantGroupId: "hotel.test/experiences/pools#outdoor",
+    nameHint: "Outdoor pool", basis: "canonical_structural_entity",
+  };
+  const identityFact = (name) => ({
+    category: "experiences", subject: name, attribute: "experience", label: "Experience",
+    value: name, confidence: 1, sourceUrls: [url],
+  });
+  const detailFact = (name, value) => ({
+    category: "experiences", subject: name, attribute: "description", label: "Description",
+    value, confidence: 1, sourceUrls: [url],
+  });
+
+  const result = buildHotelCompletenessV2({
+    inventory: {
+      domains: [{
+        domain: "experiences", expectationState: "DETERMINISTIC", expectedCount: 3,
+        expectedItems: [group, indoor, outdoor],
+      }],
+      documents: [],
+    },
+    profile: { facts: [
+      identityFact("Indoor and outdoor pools"),
+      identityFact("Indoor mineral pool"),
+      identityFact("Outdoor pool"),
+      detailFact("Indoor mineral pool", "Mineral pool with temperature and opening-hour detail."),
+      detailFact("Outdoor pool", "Outdoor swimming pool with depth and seasonal access detail."),
+    ] },
+    conflicts: [],
+  });
+
+  assert.equal(result.domains[0].inventory.status, "COMPLETE");
+  assert.equal(result.domains[0].content.status, "COMPLETE");
+  assert.equal(result.domains[0].content.detailed, 3);
+});
+
+test("a group heading is not auto-completed by only one detailed sibling", () => {
+  const url = "https://hotel.test/events";
+  const group = {
+    id: "event:group", domain: "events", entityType: "event",
+    variantGroupId: "hotel.test/events#special-events", nameHint: "Special events",
+    url, urls: [url], languages: ["en"], crawled: true, basis: "deterministic_semantic_block_entity",
+  };
+  const event = {
+    ...group, id: "event:one", variantGroupId: "hotel.test/events#event-one",
+    nameHint: "Health Weekend", basis: "deterministic_landing_entity",
+  };
+  const result = buildHotelCompletenessV2({
+    inventory: {
+      domains: [{
+        domain: "events", expectationState: "DETERMINISTIC", expectedCount: 2,
+        expectedItems: [group, event],
+      }],
+      documents: [],
+    },
+    profile: { facts: [
+      { category: "events", subject: "Special events", attribute: "event", label: "Event", value: "Special events", confidence: 1, sourceUrls: [url] },
+      { category: "events", subject: "Health Weekend", attribute: "event", label: "Event", value: "Health Weekend", confidence: 1, sourceUrls: [url] },
+      { category: "events", subject: "Health Weekend", attribute: "description", label: "Description", value: "A concrete weekend programme.", confidence: 1, sourceUrls: [url] },
+    ] },
+    conflicts: [],
+  });
+
+  assert.equal(result.domains[0].content.status, "INCOMPLETE");
+  assert.equal(result.domains[0].content.missingDetailItems.length, 1);
+  assert.equal(result.domains[0].content.missingDetailItems[0].id, "event:group");
+});
