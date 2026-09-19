@@ -373,6 +373,29 @@ test("Offers extraction keeps a late authoritative CTA beyond the 24KB semantic-
 });
 
 
+test("Offers extraction keeps authoritative CTAs after more than 64 unrelated anchors", () => {
+  const noise = Array.from({ length: 80 }, (_, index) =>
+    `<a href="/en/info-${index + 1}">Info ${index + 1}</a>`
+  ).join("");
+  const cards = Array.from({ length: 7 }, (_, index) =>
+    `<a href="/en/offer-${index + 1}">Exclusive Benefit ${index + 1} <span>DETAILED REVIEW</span></a>`
+  ).join("");
+  const html = `<main><h1>Offers</h1>${noise}${cards}</main>`;
+
+  const structure = extractHotelPageStructureV2(html);
+  const hints = deriveHotelPageInventoryHintsV2({
+    url: "https://hotel.test/property/en/offers",
+    title: "Offers",
+    description: "",
+    text: "Offers",
+    ...structure,
+  }, { primaryType: "offers", types: ["offers"], confidence: 1, signals: [] });
+  const offers = hints.find((hint) => hint.domain === "offers");
+
+  assert.equal(offers?.expectedCount, 7);
+  assert.ok(offers?.candidates.some((candidate) => candidate.name === "Exclusive Benefit 7"));
+});
+
 test("Offers extraction keeps an authoritative CTA beyond the legacy 512KB link window", () => {
   const firstSix = Array.from({ length: 6 }, (_, index) =>
     `<a href="/en/offer-${index + 1}">Exclusive Benefit ${index + 1} <span>DETAILED REVIEW</span></a>`
