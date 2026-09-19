@@ -87,8 +87,10 @@ test("one service persists scanner results; durable persistence follows checkpoi
     const s = read(p); assert.match(s, /persistHotelScannerV2Result/); assert.doesNotMatch(s, /createHotelScanRun\(|approveHotelIntelligence/);
   }
   const workflow = read("workflows/hotel-scanner-v2-workflow.ts");
-  assert.match(workflow, /await runStableScannerPipelineStep\(input\)/);
+  assert.match(workflow, /const checkpoint = await runDiscoveryCheckpointStep\(input\)/);
+  assert.match(workflow, /let result = await runEnrichmentStep\(input, checkpoint, attempt\)/);
   assert.match(workflow, /persistScannerResultStep/);
+  assert.doesNotMatch(workflow, /runStableScannerPipelineStep/);
 });
 test("V2 SQL authority is additive, immutable, restricted, checksum-bound and serialized", () => {
   const sql = read("supabase/migrations/20260916120000_native_hotel_intelligence_v2.sql");

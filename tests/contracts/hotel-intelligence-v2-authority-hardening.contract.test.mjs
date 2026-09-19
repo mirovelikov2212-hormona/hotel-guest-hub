@@ -377,8 +377,10 @@ test("browser supplies only URL/language plus a retained retry key; durable work
   assert.match(client, /body: JSON.stringify\(\{ url: url.trim\(\), lang \}\)/);
   assert.match(client, /if \(response.ok && responseResult.ok\) scanRequest.current = null/);
   const workflow = read("workflows/hotel-scanner-v2-workflow.ts");
-  assert.match(workflow, /await runStableScannerPipelineStep\(input\)/);
+  assert.match(workflow, /const checkpoint = await runDiscoveryCheckpointStep\(input\)/);
+  assert.match(workflow, /let result = await runEnrichmentStep\(input, checkpoint, attempt\)/);
   assert.match(workflow, /await persistScannerResultStep\(input, result\)/);
+  assert.doesNotMatch(workflow, /runStableScannerPipelineStep/);
   assert.doesNotMatch(workflow, /deriveSyncScanRunIdV2|syncRequest|randomUUID/);
 });
 
