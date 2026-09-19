@@ -192,6 +192,14 @@ test("district-and-province address labels are locality components, not competin
   assert.ok(result.facts.some((item) => item.attribute === "city_region"));
 });
 
+test("Bulgarian district label survives NFKD normalization of й", () => {
+  const result = verifyHotelScanFactsV2([
+    { category: "location", subject: "hotel", attribute: "address", label: "Район и провинция", value: "Alanya / Antalya", confidence: 1, sourceUrls: ["https://hotel.test/docs/a.pdf"] },
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  assert.equal(result.facts[0].attribute, "city_region");
+});
+
 test("district-and-province typing does not suppress a genuine checkout disagreement", () => {
   const result = verifyHotelScanFactsV2([
     fact("operations", "hotel", "check_out", "12:00", "https://hotel.test/docs/a.pdf"),

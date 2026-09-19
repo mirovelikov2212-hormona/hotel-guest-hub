@@ -49,11 +49,13 @@ test("Canonical structural inventory prefers rendered DOM blocks and fills missi
   assert.match(source, /rendered_structural_leaf_cluster/);
 });
 
-test("Durable V2 intake enables bounded browser enrichment after workflow orchestration", async () => {
+test("V2 intake keeps HTTP-only discovery and exposes a separate durable rendered path", async () => {
   const source = await read("lib/server/hotel-scanner-v2-intake.ts");
+  assert.match(source, /discoverHotelIntakeV2/);
+  assert.match(source, /crawlPublicHotelWebsiteV2/);
+  assert.match(source, /discoverHotelIntakeRenderedV2/);
   assert.match(source, /crawlPublicHotelWebsiteRenderedV2/);
-  assert.match(source, /await crawlPublicHotelWebsiteRenderedV2\(/);
-  assert.match(source, /Durable workflow orchestration/);
+  assert.match(source, /durable workflow discovery/);
 });
 
 test("Rendered landing selection recognizes nested language segments and rehydrates new offer details", async () => {

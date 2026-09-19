@@ -1,6 +1,9 @@
 import "server-only";
 
-import type { HotelScannerV2EvidenceBundle } from "@/lib/server/hotel-scanner-v2-crawler";
+import {
+  crawlPublicHotelWebsiteV2,
+  type HotelScannerV2EvidenceBundle,
+} from "@/lib/server/hotel-scanner-v2-crawler";
 import { crawlPublicHotelWebsiteRenderedV2 } from "@/lib/server/hotel-scanner-v2-crawler-rendered";
 import {
   buildHotelSiteMapV2,
@@ -48,14 +51,22 @@ export type HotelIntakeV2DiscoveryProjection = {
   };
 };
 
-export async function discoverHotelIntakeV2(rawUrl: string): Promise<HotelIntakeV2DiscoveryResult> {
-  // Durable workflow orchestration is now the primary Scanner V2 path, so the
-  // bounded landing-first browser enrichment can safely participate in discovery.
-  // The synchronous compatibility route remains isolated from this workflow path.
-  const evidence = await crawlPublicHotelWebsiteRenderedV2(rawUrl);
+async function finalizeDiscovery(evidence: HotelScannerV2EvidenceBundle): Promise<HotelIntakeV2DiscoveryResult> {
   const siteMap = buildHotelSiteMapV2(evidence);
   const inventory = buildHotelInventoryCanonicalV2(siteMap);
   return { evidence, siteMap, inventory };
+}
+
+export async function discoverHotelIntakeV2(rawUrl: string): Promise<HotelIntakeV2DiscoveryResult> {
+  // Stable HTTP-only discovery remains available to the lightweight intake
+  // endpoint and synchronous compatibility path.
+  return finalizeDiscovery(await crawlPublicHotelWebsiteV2(rawUrl));
+}
+
+export async function discoverHotelIntakeRenderedV2(rawUrl: string): Promise<HotelIntakeV2DiscoveryResult> {
+  // Browser enrichment is deliberately limited to durable workflow discovery,
+  // where its bounded wall-clock budget cannot hold a normal request open.
+  return finalizeDiscovery(await crawlPublicHotelWebsiteRenderedV2(rawUrl));
 }
 
 export function projectHotelIntakeDiscoveryV2(

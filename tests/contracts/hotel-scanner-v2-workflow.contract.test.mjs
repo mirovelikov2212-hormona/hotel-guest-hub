@@ -18,7 +18,8 @@ test("Scanner V2 workflow checkpoints discovery separately from paid enrichment"
   assert.match(source, /"use workflow"/);
   assert.match(source, /"use step"/);
   assert.match(source, /runDiscoveryCheckpointStep/);
-  assert.match(source, /discoverHotelIntakeV2/);
+  assert.match(source, /discoverHotelIntakeRenderedV2/);
+  assert.doesNotMatch(source, /discoverHotelIntakeV2\(input\.url\)/);
   assert.match(source, /runEnrichmentStep/);
   assert.match(source, /runHotelIntakePipelineV2FromDiscovery/);
   assert.match(source, /FatalError/);

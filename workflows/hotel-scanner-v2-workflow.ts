@@ -7,7 +7,7 @@ import {
   type HotelIntakePipelineV2Result,
 } from "@/lib/server/hotel-scanner-v2-pipeline";
 import {
-  discoverHotelIntakeV2,
+  discoverHotelIntakeRenderedV2,
   type HotelIntakeV2DiscoveryResult,
 } from "@/lib/server/hotel-scanner-v2-intake";
 
@@ -45,7 +45,7 @@ async function runDiscoveryCheckpointStep(input: HotelScannerV2WorkflowInput): P
     outputLanguage: input.outputLanguage,
   });
 
-  const discovery = await discoverHotelIntakeV2(input.url);
+  const discovery = await discoverHotelIntakeRenderedV2(input.url);
   const discoveryLatencyMs = Date.now() - startedAt;
   console.log("scanner_v2_workflow_discovery_completed", {
     url: input.url,
