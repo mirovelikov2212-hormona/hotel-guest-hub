@@ -212,9 +212,8 @@ export class HotelScannerV2BrowserRenderer {
     const requested = new URL(rawUrl);
     await this.publicHost(requested);
     const context = await this.ensureContext();
-    let page: Page | null = null;
+    const page = await context.newPage();
     try {
-      page = await context.newPage();
       let requestCount = 0;
       await page.route("**/*", async (route) => {
         const request = route.request();
@@ -265,7 +264,7 @@ export class HotelScannerV2BrowserRenderer {
         blocks,
       };
     } finally {
-      await page?.close().catch(() => undefined);
+      await page.close().catch(() => undefined);
     }
   }
 
