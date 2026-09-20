@@ -53,6 +53,7 @@ test("Inventory Authority V3 counts gastronomy from operational structural block
     <h2>What makes this a special gourmet hotel?</h2><p>Our restaurants, wine and cuisine create memorable moments.</p>
     <h2>Award-winning culinary moments</h2><p>Our Grill & Dine is recommended by leading guides.</p>
     <h2>Perfect getaway</h2><p>Book one of our packages.</p>
+    <h2>Your Gourmet Hotel in Austria</h2><p>Opening hours: daily. Gourmet cuisine and menu.</p>
   </main>`;
   const root = page("https://hotel.test/dining", "Gourmet Hotel | Test Resort", html);
   const siteMap = buildHotelSiteMapV2(evidence([root]));
@@ -69,7 +70,11 @@ test("Inventory Authority V3 counts gastronomy from operational structural block
 
 test("Inventory Authority V3 counts accommodation from canonical detail families and ignores experience pages", () => {
   const pages = [
-    page("https://hotel.test/rooms", "Rooms & Suites | Test Resort", "<main><h1>Rooms & Suites</h1></main>"),
+    page(
+      "https://hotel.test/rooms",
+      "Rooms & Suites | Test Resort",
+      "<main><h1>Rooms & Suites</h1><h2>100m2 from 1.220 € per room</h2><p>Luxury suite details.</p><h2>Compare rooms</h2><p>Find the best room.</p></main>",
+    ),
     ...Array.from({ length: 19 }, (_, index) =>
       page(
         `https://hotel.test/rooms/room-${index + 1}`,
@@ -89,6 +94,7 @@ test("Inventory Authority V3 counts accommodation from canonical detail families
   assert.equal(accommodation.expectationState, "DETERMINISTIC");
   assert.equal(accommodation.expectedCount, 19);
   assert.equal(accommodation.evidence.authority, "CANONICAL_DETAIL_FAMILY");
+  assert.ok(!accommodation.expectedItems.some((item) => /100m2|compare rooms/i.test(item.nameHint)));
   assert.ok(!accommodation.expectedItems.some((item) => /experience/i.test(item.url)));
   assert.equal(accommodation.issues.length, 0);
 });
