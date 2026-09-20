@@ -3,6 +3,7 @@ import "server-only";
 import type { HotelIntelligenceItem, HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
 import { buildInventoryIdentityFactsV2 } from "@/lib/ai/hotel-scanner-v2-deterministic-facts";
 import type { HotelIntakeV2DiscoveryResult } from "@/lib/server/hotel-scanner-v2-intake";
+import type { HotelScannerV2DomainInventory } from "@/lib/server/hotel-scanner-v2-inventory.mjs";
 import { classifyHotelScannerPageV2, hotelScannerPageTypeDomain } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
 import {
   applyHotelInventoryAuthorityV3,
@@ -362,8 +363,8 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
   return {
     sourcePackage,
     components: inventory.domains
-      .filter((domain: { domain: string }) => CORE_DOMAINS.includes(domain.domain as (typeof CORE_DOMAINS)[number]))
-      .map((domain: any) => {
+      .filter((domain: HotelScannerV2DomainInventory) => CORE_DOMAINS.includes(domain.domain as (typeof CORE_DOMAINS)[number]))
+      .map((domain: HotelScannerV2DomainInventory) => {
         const rawComponentItems = (domain.expectedItems || []).map((item) => ({
           name: clean(item.nameHint, 240),
           hours: domain.domain === "gastronomy" ? openingHoursForItem(discovery, item) : "",
