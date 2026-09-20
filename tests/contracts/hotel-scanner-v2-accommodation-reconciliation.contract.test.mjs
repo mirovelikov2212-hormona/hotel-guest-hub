@@ -69,3 +69,15 @@ test("canonical accommodation keeps review blocking when richer named supersets 
   assert.equal(accommodation.expectedCount, CORE_ROOMS.length);
   assert.ok(accommodation.issues.includes("canonical_entity_count_exceeds_explicit_count"));
 });
+
+
+test("accommodation container headings are not promoted as room types", () => {
+  const inventory = buildHotelInventoryCanonicalV2(accommodationSiteMap([
+    [...CORE_ROOMS, "Zimmer & Suiten im Salzburger Land"],
+  ]));
+  const accommodation = inventory.domains.find((domain) => domain.domain === "accommodation");
+
+  assert.ok(accommodation);
+  assert.equal(accommodation.expectedCount, CORE_ROOMS.length);
+  assert.deepEqual(accommodation.expectedItems.map((item) => item.nameHint).sort(), [...CORE_ROOMS].sort());
+});
