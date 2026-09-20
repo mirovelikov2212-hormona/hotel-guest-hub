@@ -1,7 +1,7 @@
 export type HotelScannerV2StructuralInventoryCandidate = {
   name: string;
   entityType: string;
-  basis: "structural_leaf_block";
+  basis: "structural_leaf_block" | "rendered_structural_leaf_block";
   score: number;
   links: string[];
   section: string;
@@ -13,7 +13,7 @@ export type HotelScannerV2StructuralInventoryEvidence = {
   expectedCount: number;
   identifiedCount: number;
   candidates: HotelScannerV2StructuralInventoryCandidate[];
-  basis: "structural_leaf_cluster";
+  basis: "structural_leaf_cluster" | "rendered_structural_leaf_cluster";
   confidence: "HIGH" | "MEDIUM";
   sectionGroup: string;
 };

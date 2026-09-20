@@ -1,5 +1,6 @@
 import type { HotelScannerV2PageClassification } from "./hotel-scanner-v2-page-classifier.mjs";
 import type { HotelScannerV2PageInventoryHint } from "./hotel-scanner-v2-landing-inventory.mjs";
+import type { HotelScannerV2StructuralInventoryEvidence } from "./hotel-scanner-v2-structural-inventory.mjs";
 
 export type HotelScannerV2DiscoverySource = {
   kind: string;
@@ -20,6 +21,7 @@ export type HotelScannerV2SiteResource = {
   classification: HotelScannerV2PageClassification;
   inventoryHint: HotelScannerV2PageInventoryHint | null;
   inventoryHints: HotelScannerV2PageInventoryHint[];
+  structuralInventory: HotelScannerV2StructuralInventoryEvidence | null;
   variantGroupId: string;
 };
 
