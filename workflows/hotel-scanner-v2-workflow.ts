@@ -8,8 +8,10 @@ import {
 } from "@/lib/server/hotel-scanner-v2-pipeline";
 import {
   discoverHotelIntakeRenderedV2,
+  resumeHotelIntakeRenderedV3,
   type HotelIntakeV2DiscoveryResult,
 } from "@/lib/server/hotel-scanner-v2-intake";
+import type { HotelScannerV2EvidenceBundle } from "@/lib/server/hotel-scanner-v2-crawler";
 
 export type HotelScannerV2WorkflowInput = {
   scanRunId: string;
@@ -17,6 +19,8 @@ export type HotelScannerV2WorkflowInput = {
   url: string;
   outputLanguage: HotelScannerV2OutputLanguage;
   inventoryAuthority?: Record<string, unknown>;
+  discoveryCheckpoint?: HotelScannerV2EvidenceBundle;
+  discoveryCheckpointLatencyMs?: number;
 };
 
 type ScannerV2DiscoveryCheckpoint = {
@@ -43,16 +47,22 @@ async function runDiscoveryCheckpointStep(input: HotelScannerV2WorkflowInput): P
   console.log("scanner_v2_workflow_discovery_started", {
     url: input.url,
     outputLanguage: input.outputLanguage,
+    resumedFromQuickCheckpoint: Boolean(input.discoveryCheckpoint),
+    checkpointPageCount: input.discoveryCheckpoint?.pages?.length || 0,
   });
 
-  const discovery = await discoverHotelIntakeRenderedV2(input.url);
-  const discoveryLatencyMs = Date.now() - startedAt;
+  const discovery = input.discoveryCheckpoint
+    ? await resumeHotelIntakeRenderedV3(input.discoveryCheckpoint)
+    : await discoverHotelIntakeRenderedV2(input.url);
+  const discoveryLatencyMs = Math.max(0, Number(input.discoveryCheckpointLatencyMs || 0))
+    + (Date.now() - startedAt);
   console.log("scanner_v2_workflow_discovery_completed", {
     url: input.url,
     discoveryLatencyMs,
     pageCount: discovery.evidence.pages.length,
     resourceCount: discovery.siteMap.resources.length,
     inventorySnapshotId: discovery.evidence.v3InventorySnapshot?.snapshotId || "",
+    resumedFromQuickCheckpoint: Boolean(input.discoveryCheckpoint),
   });
   return { discovery, discoveryLatencyMs };
 }
