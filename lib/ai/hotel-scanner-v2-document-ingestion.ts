@@ -426,6 +426,57 @@ async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker:
   return results;
 }
 
+const MAX_POLICY_DOCUMENTS_PER_SCAN = 4;
+const POLICY_FAQ_DOCUMENT = /(?:hotel[-_ ]?rules?|house[-_ ]?rules?|guest[-_ ]?rules?|polic(?:y|ies)|terms[-_ ]?(?:and|&)?[-_ ]?conditions|faq|frequently[-_ ]?asked|haufige[-_ ]?fragen|richtlinien|bedingungen|kurallar?|kosullar?|koşullar?|правила|политик|условия|често[-_ ]?задавани)/iu;
+
+function isPolicyFaqDocument(document: HotelScannerV2Inventory["documents"][number]) {
+  if ((document.domains || []).includes("policies")) return true;
+  try {
+    return POLICY_FAQ_DOCUMENT.test(decodeURIComponent(new URL(document.url).pathname));
+  } catch {
+    return POLICY_FAQ_DOCUMENT.test(String(document.url || ""));
+  }
+}
+
+export async function ingestHotelPolicyDocumentsV2(input: {
+  inventory: HotelScannerV2Inventory;
+  canonicalUrl: string;
+  outputLanguage: HotelScannerV2OutputLanguage;
+}): Promise<HotelScannerV2DocumentIngestionResult> {
+  const model = String(process.env.OPENAI_HOTEL_SCANNER_MODEL || "gpt-5.6-luna").trim();
+  const canonicalOrigin = new URL(input.canonicalUrl).origin;
+  const policyDocuments = input.inventory.documents.filter(isPolicyFaqDocument);
+  const selected = policyDocuments.slice(0, MAX_POLICY_DOCUMENTS_PER_SCAN);
+  const selectedUrls = new Set(selected.map((document) => document.url));
+  const ingested = await mapWithConcurrency(selected, Math.min(2, DOCUMENT_CONCURRENCY + 1), (document) =>
+    ingestOne(document, canonicalOrigin, input.outputLanguage, model));
+  const byUrl = new Map(ingested.map((document) => [document.url, document]));
+  const documents = input.inventory.documents.map((document) => {
+    const result = byUrl.get(document.url);
+    if (result) return result;
+    return {
+      url: document.url,
+      status: "SKIPPED_MANUAL" as const,
+      domains: document.domains,
+      facts: [] as HotelScanFact[],
+      error: selectedUrls.has(document.url) ? "policy_document_not_processed" : "manual_onboarding_document",
+      latencyMs: 0,
+    };
+  });
+  return {
+    schemaVersion: "hotel-document-ingestion-v2",
+    documents,
+    facts: ingested.flatMap((document) => document.facts),
+    diagnostics: {
+      model,
+      discoveredDocumentCount: input.inventory.documents.length,
+      ingestedDocumentCount: ingested.filter((document) => document.status === "INGESTED").length,
+      failedDocumentCount: ingested.filter((document) => document.status === "FAILED").length,
+      skippedDocumentCount: documents.filter((document) => document.status === "SKIPPED_MANUAL").length,
+    },
+  };
+}
+
 export async function ingestHotelDocumentsV2(input: {
   inventory: HotelScannerV2Inventory;
   canonicalUrl: string;
