@@ -446,14 +446,21 @@ async function runConcurrent(items: number[], worker: (index: number) => Promise
   await Promise.all(Array.from({ length: Math.min(HOTEL_SCANNER_V2_BROWSER_RENDER_CONCURRENCY, items.length) }, () => run()));
 }
 
-export async function crawlPublicHotelWebsiteRenderedV2(rawUrl: string): Promise<HotelScannerV2EvidenceBundle> {
-  const base = await crawlPublicHotelWebsiteV2(rawUrl) as BrowserEnrichedEvidenceBundle;
+export async function enrichHotelEvidenceRenderedV3(
+  input: HotelScannerV2EvidenceBundle,
+): Promise<HotelScannerV2EvidenceBundle> {
+  const base = input as BrowserEnrichedEvidenceBundle;
   const renderer = new HotelScannerV2BrowserRenderer();
   const browserRenderedUrls: string[] = [];
   const browserRenderFailedUrls: string[] = [];
   const browserRenderFailures: Array<{ url: string; error: string }> = [];
   const browserRenderSkippedBudgetUrls: string[] = [];
   const schedule = buildRenderSchedule(base.pages);
+  // A Quick checkpoint may already contain browser evidence. Reuse it rather
+  // than hitting the same public page a second time during Deep continuation.
+  for (let index = 0; index < base.pages.length; index += 1) {
+    if (base.pages[index]?.renderMode === "browser") schedule.delete(index);
+  }
   const startedAt = Date.now();
 
   for (let index = 0; index < base.pages.length; index += 1) {
@@ -505,7 +512,26 @@ export async function crawlPublicHotelWebsiteRenderedV2(rawUrl: string): Promise
 
   const renderedOfferDetails = await fetchRenderedDiscoveredOfferDetails(base);
   const browserRenderLatencyMs = Date.now() - startedAt;
-  base.discovery = { ...base.discovery, browserRenderedUrls, browserRenderFailedUrls, browserRenderFailures, browserRenderSkippedBudgetUrls, browserRenderLatencyMs };
+  base.discovery = {
+    ...base.discovery,
+    browserRenderedUrls: uniqueStrings([
+      ...(base.discovery.browserRenderedUrls || []),
+      ...browserRenderedUrls,
+    ]),
+    browserRenderFailedUrls: uniqueStrings([
+      ...(base.discovery.browserRenderFailedUrls || []),
+      ...browserRenderFailedUrls,
+    ]),
+    browserRenderFailures: [
+      ...(base.discovery.browserRenderFailures || []),
+      ...browserRenderFailures,
+    ],
+    browserRenderSkippedBudgetUrls: uniqueStrings([
+      ...(base.discovery.browserRenderSkippedBudgetUrls || []),
+      ...browserRenderSkippedBudgetUrls,
+    ]),
+    browserRenderLatencyMs: Number(base.discovery.browserRenderLatencyMs || 0) + browserRenderLatencyMs,
+  };
   console.info("scanner_v2_browser_render_summary", {
     scheduled: schedule.size,
     concurrency: HOTEL_SCANNER_V2_BROWSER_RENDER_CONCURRENCY,
@@ -517,6 +543,10 @@ export async function crawlPublicHotelWebsiteRenderedV2(rawUrl: string): Promise
     latencyMs: browserRenderLatencyMs,
   });
   return refreshV3InventorySnapshot(base);
+}
+
+export async function crawlPublicHotelWebsiteRenderedV2(rawUrl: string): Promise<HotelScannerV2EvidenceBundle> {
+  return enrichHotelEvidenceRenderedV3(await crawlPublicHotelWebsiteV2(rawUrl));
 }
 
 export type { BrowserEnrichedPageEvidence, BrowserEnrichedEvidenceBundle };
