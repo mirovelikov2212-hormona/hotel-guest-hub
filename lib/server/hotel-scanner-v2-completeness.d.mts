@@ -1,4 +1,4 @@
-export type HotelScannerV2CompletenessStatus = "READY_FOR_HUMAN_REVIEW" | "INCOMPLETE" | "CONFLICT_REVIEW_REQUIRED";
+export type HotelScannerV2CompletenessStatus = "READY_FOR_ONBOARDING" | "READY_FOR_HUMAN_REVIEW" | "INCOMPLETE" | "CONFLICT_REVIEW_REQUIRED";
 
 export type HotelScannerV2MissingItem = {
   id: string;
@@ -9,14 +9,14 @@ export type HotelScannerV2MissingItem = {
 
 export type HotelScannerV2DomainCompleteness = {
   domain: string;
-  status: "COMPLETE" | "INCOMPLETE" | "NOT_APPLICABLE";
+  status: "COMPLETE" | "ONBOARDING_REQUIRED" | "NOT_DISCOVERED" | "INCOMPLETE" | "NOT_APPLICABLE";
   reason: string;
   expected: number | null;
   extracted: number;
   missingItems: HotelScannerV2MissingItem[];
   extractedItemIds: string[];
   inventory: {
-    status: "COMPLETE" | "INCOMPLETE" | "NOT_APPLICABLE";
+    status: "COMPLETE" | "ONBOARDING_REQUIRED" | "NOT_DISCOVERED" | "INCOMPLETE" | "NOT_APPLICABLE";
     reason: string;
     expected: number | null;
     extracted: number;
@@ -24,7 +24,7 @@ export type HotelScannerV2DomainCompleteness = {
     extractedItemIds: string[];
   };
   content: {
-    status: "COMPLETE" | "ONBOARDING_REQUIRED" | "INCOMPLETE" | "NOT_APPLICABLE";
+    status: "COMPLETE" | "ONBOARDING_REQUIRED" | "NOT_DISCOVERED" | "INCOMPLETE" | "NOT_APPLICABLE";
     reason: string;
     detailed: number;
     totalEntities: number;
