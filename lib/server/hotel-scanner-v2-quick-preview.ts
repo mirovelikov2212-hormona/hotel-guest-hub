@@ -34,6 +34,7 @@ function sameEntityName(left: unknown, right: unknown) {
   return a === b || (Math.min(a.length, b.length) >= 6 && (a.includes(b) || b.includes(a)));
 }
 const HOURS_LABEL = /(?:opening\s+hours?|opening\s+times?|öffnungszeiten|oeffnungszeiten|работно\s+време|program|orar|otev[ií]rac[ií]\s+doba|часы\s+работы)/iu;
+const HOURS_STOP_LABEL = /(?:\bdress\s*code\b|\bdresscode\b|\bspeisekarte\b|\bgetränkekarte\b|\bgetraenkekarte\b|\bbar(?:-?\s*)?karte\b|\bmenu\b|\bmenü\b|\breservierung\b|\breservation\b|\bbook\s+a\s+table\b|\bzur\s+(?:speise|bar|getränke|getraenke)karte\b)/iu;
 const TIME_RANGE = /\b\d{1,2}(?::|\.)\d{2}\s*(?:-|–|—|to|bis|до)\s*\d{1,2}(?::|\.)\d{2}\b/giu;
 
 function hoursFromText(value: unknown) {
@@ -41,7 +42,9 @@ function hoursFromText(value: unknown) {
   if (!text) return "";
   const marker = text.search(HOURS_LABEL);
   if (marker >= 0) {
-    const slice = text.slice(marker, marker + 220);
+    let slice = text.slice(marker, marker + 220);
+    const stop = slice.search(HOURS_STOP_LABEL);
+    if (stop > 12) slice = slice.slice(0, stop);
     const nextSentence = slice.search(/[.!?](?=\s+[A-ZА-ЯÄÖÜ])/u);
     return clean(nextSentence > 20 ? slice.slice(0, nextSentence + 1) : slice, 220);
   }
@@ -180,15 +183,21 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
     sourcePackage,
     components: discovery.inventory.domains
       .filter((domain) => CORE_DOMAINS.includes(domain.domain as (typeof CORE_DOMAINS)[number]))
-      .map((domain) => ({
-        domain: domain.domain,
-        count: domain.expectedCount,
-        state: domain.expectationState,
-        items: (domain.expectedItems || []).map((item) => ({
+      .map((domain) => {
+        const componentItems = (domain.expectedItems || []).map((item) => ({
           name: clean(item.nameHint, 240),
           hours: domain.domain === "gastronomy" ? openingHoursForItem(discovery, item) : "",
-        })).filter((item) => item.name),
-      })),
+        })).filter((item) => item.name);
+        const contactMethodCount = contacts.phones.length + contacts.emails.length + contacts.addresses.length;
+        return {
+          domain: domain.domain,
+          count: domain.domain === "contacts" ? contactMethodCount : domain.expectedCount,
+          state: domain.expectationState,
+          namedCount: domain.domain === "contacts" ? contactMethodCount : componentItems.length,
+          needsOnboarding: domain.domain !== "contacts" && domain.expectedCount > componentItems.length,
+          items: componentItems,
+        };
+      }),
     contacts,
     documents: summarizeHotelScannerV2Documents(discovery),
     diagnostics: {
