@@ -154,3 +154,14 @@ test("quick client preview can recover SPA and experience names from authority-p
   assert.match(preview, /page\.headings/);
   assert.doesNotMatch(preview, /rejectedNoiseCount\s*>\s*0/);
 });
+
+
+test("quick preview hides events and rejects FAQ questions as experiences", async () => {
+  const preview = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
+
+  assert.match(preview, /CORE_DOMAINS = \["accommodation", "gastronomy", "spa", "services", "experiences", "offers", "contacts"\]/);
+  assert.doesNotMatch(preview, /CORE_DOMAINS = \[[^\]]*"events"/);
+  assert.match(preview, /PREVIEW_QUESTION_HEADING/);
+  assert.match(preview, /PREVIEW_QUESTION_HEADING\.test\(heading\)/);
+  assert.match(preview, /fahrrad\[-\\s\]\?erlebnisse|fahrrad/);
+});
