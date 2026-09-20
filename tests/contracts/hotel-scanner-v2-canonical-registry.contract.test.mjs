@@ -117,6 +117,62 @@ test("room detail slugs recover identity, merge language variants, and ignore un
   assert.ok(!accommodation.expectedItems.some((item) => /room details|zimmer details|compare|vergleich/iu.test(item.nameHint)));
 });
 
+test("complete canonical room details supersede contradictory weak landing counts", () => {
+  const landing = resource({
+    url: "https://hotel.test/rooms",
+    primaryType: "accommodation",
+    domain: "accommodation",
+    names: ["Double Room", "Family Room", "Panorama Suite"],
+    explicitCount: 2,
+    variantGroupId: "hotel.test/rooms",
+  });
+  const details = [
+    ["double-room", "Double Room"],
+    ["family-room", "Family Room"],
+    ["panorama-suite", "Panorama Suite"],
+  ].map(([slug, title]) => ({
+    url: `https://hotel.test/rooms/${slug}`,
+    resourceType: "page",
+    crawled: true,
+    variantGroupId: `hotel.test/rooms/${slug}`,
+    title: `${title} - Hotel Test`,
+    languages: ["en"],
+    classification: { primaryType: "room_detail", types: ["room_detail", "accommodation"], confidence: 1, signals: [] },
+    inventoryHints: [],
+  }));
+
+  const registry = buildCanonicalHotelEntityRegistryV2({ resources: [landing, ...details] });
+  const accommodation = registry.domains.get("accommodation");
+  assert.equal(accommodation.expectedCount, 3);
+  assert.equal(accommodation.expectationState, "DETERMINISTIC");
+  assert.ok(!accommodation.issues.some((issue) => issue.includes("canonical_entity_count_exceeds_explicit_count")));
+});
+
+test("gastronomy aliases with a distinctive shared identity merge into one canonical venue", () => {
+  const landing = resource({
+    url: "https://hotel.test/dining",
+    primaryType: "gastronomy",
+    domain: "gastronomy",
+    names: ["Sirloin | Grill & Dine"],
+    variantGroupId: "hotel.test/dining",
+  });
+  const detail = {
+    url: "https://hotel.test/dining/sirloin-steakhouse",
+    resourceType: "page",
+    crawled: true,
+    variantGroupId: "hotel.test/dining/sirloin-steakhouse",
+    title: "Sirloin Steakhouse - Hotel Test",
+    languages: ["en"],
+    classification: { primaryType: "restaurant_detail", types: ["restaurant_detail", "gastronomy"], confidence: 1, signals: [] },
+    inventoryHints: [],
+  };
+
+  const registry = buildCanonicalHotelEntityRegistryV2({ resources: [landing, detail] });
+  const gastronomy = registry.domains.get("gastronomy");
+  assert.equal(gastronomy.expectedCount, 1);
+  assert.equal(gastronomy.expectedItems[0].nameHint, "Sirloin | Grill & Dine");
+});
+
 test("canonical registry keeps authoritative hotel entities and rejects policy contamination", () => {
   const siteMap = {
     resources: [
