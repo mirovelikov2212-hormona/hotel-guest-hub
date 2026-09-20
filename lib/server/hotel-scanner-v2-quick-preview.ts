@@ -186,13 +186,19 @@ function previewEvidenceHeadings(discovery: HotelIntakeV2DiscoveryResult, domain
   return unique(result, 24);
 }
 
-function previewItemsForDomain(discovery: HotelIntakeV2DiscoveryResult, domain: string, expectedItems: Array<{ nameHint?: string; url?: string; urls?: string[] }>) {
+function previewItemsForDomain(
+  discovery: HotelIntakeV2DiscoveryResult,
+  domain: string,
+  expectedItems: Array<{ nameHint?: string; url?: string; urls?: string[] }>,
+  options: { allowEvidenceExpansion?: boolean } = {},
+) {
   const base = expectedItems.map((item) => ({
     name: clean(item.nameHint, 240),
     hours: domain === "gastronomy" ? openingHoursForItem(discovery, item) : "",
   })).filter((item) => item.name && clientPreviewNameAllowed(domain, item.name));
 
   if (domain !== "spa" && domain !== "experiences") return base;
+  if (options.allowEvidenceExpansion === false) return base;
 
   const evidenceNames = previewEvidenceHeadings(discovery, domain);
   const spaFacilities = domain === "spa" ? previewSpaTextFacilities(discovery) : [];
@@ -369,13 +375,24 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
           name: clean(item.nameHint, 240),
           hours: domain.domain === "gastronomy" ? openingHoursForItem(discovery, item) : "",
         })).filter((item) => item.name);
-        const componentItems = previewItemsForDomain(discovery, domain.domain, domain.expectedItems || []);
+        const domainHasV3Authority = Boolean(
+          authority
+          && authority.domains.some((entry) => entry.domain === domain.domain),
+        );
+        const componentItems = previewItemsForDomain(
+          discovery,
+          domain.domain,
+          domain.expectedItems || [],
+          { allowEvidenceExpansion: !domainHasV3Authority },
+        );
         const contactMethodCount = contacts.phones.length + contacts.emails.length + contacts.addresses.length;
         return {
           domain: domain.domain,
           count: domain.domain === "contacts"
             ? contactMethodCount
-            : componentItems.length || domain.expectedCount,
+            : domainHasV3Authority
+              ? domain.expectedCount
+              : componentItems.length || domain.expectedCount,
           state: domain.expectationState,
           namedCount: domain.domain === "contacts" ? contactMethodCount : componentItems.length,
           needsOnboarding: domain.domain !== "contacts"
