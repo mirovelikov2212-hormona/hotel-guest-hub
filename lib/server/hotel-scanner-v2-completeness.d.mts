@@ -16,7 +16,7 @@ export type HotelScannerV2DomainCompleteness = {
   missingItems: HotelScannerV2MissingItem[];
   extractedItemIds: string[];
   inventory: {
-    status: "COMPLETE" | "INCOMPLETE" | "NOT_APPLICABLE";
+    status: "COMPLETE" | "ONBOARDING_REQUIRED" | "NOT_APPLICABLE";
     reason: string;
     expected: number | null;
     extracted: number;
@@ -46,6 +46,11 @@ export type HotelScannerV2Completeness = {
   conflicts: {
     unresolved: number;
     inventory: number;
+  };
+  onboarding: {
+    domainCount: number;
+    domains: string[];
+    missingDetailCount: number;
   };
   blockingReasons: string[];
   prerequisitesSatisfied: boolean;
