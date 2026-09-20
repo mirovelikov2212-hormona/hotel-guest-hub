@@ -144,6 +144,33 @@ test("Offers extraction keeps late CTA cards beyond the first 24 anchors in a co
   assert.equal(offers?.candidates.length, 7);
 });
 
+test("render-only Offers cards participate in authoritative inventory and delegation hints", () => {
+  const renderedContentBlocks = Array.from({ length: 7 }, (_, index) => ({
+    level: 3,
+    heading: index === 6 ? "Website Reservation Privileges" : `Exclusive Benefit ${index + 1}`,
+    text: index === 6 ? "Website Reservation Privileges" : `Exclusive Benefit ${index + 1}`,
+    links: [index === 6 ? "https://hotel.test/en/website-reservation-privileges" : `https://hotel.test/en/offer-${index + 1}`],
+    sectionPath: ["Offers"],
+    sourceKind: "rendered_dom_card",
+  }));
+  const hints = deriveHotelPageInventoryHintsV2({
+    url: "https://hotel.test/property/en/offers",
+    title: "Offers",
+    description: "",
+    text: "Offers",
+    contentBlocks: [],
+    renderedContentBlocks,
+    jsonLdEntities: [],
+  }, { primaryType: "offers", types: ["offers"], confidence: 1, signals: [] });
+  const offers = hints.find((hint) => hint.domain === "offers");
+
+  assert.ok(offers);
+  assert.equal(offers.expectedCount, 7);
+  assert.ok(offers.candidates.some((candidate) =>
+    candidate.name === "Website Reservation Privileges"
+    && candidate.links.includes("https://hotel.test/en/website-reservation-privileges")));
+});
+
 test("Offers landing authority prefers richer named membership over a smaller exact-count localization", () => {
   const rich = offerLanding("https://hotel.test/property/en/offers", "en", [
     "Benefit One", "Benefit Two", "Benefit Three", "Benefit Four", "Benefit Five", "Benefit Six", "Benefit Seven",
