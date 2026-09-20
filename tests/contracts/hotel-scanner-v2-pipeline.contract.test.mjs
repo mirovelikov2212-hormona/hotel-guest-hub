@@ -191,7 +191,7 @@ test("V2 completeness reports 4/5 detail entities as INCOMPLETE instead of READY
   assert.equal(completeness.approvedHotelIntelligenceEligible, false);
 });
 
-test("V2 pending documents block validation even when entity inventory is complete", () => {
+test("V2 non-policy documents are manual onboarding inventory and do not block validation", () => {
   const pages = gastronomyPages(5);
   const siteMap = buildHotelSiteMapV2({
     canonicalUrl: "https://hotel.test/en",
@@ -201,9 +201,10 @@ test("V2 pending documents block validation even when entity inventory is comple
   const inventory = buildHotelInventoryV2(siteMap);
   const completeness = buildHotelCompletenessV2({ inventory, profile: { facts: diningFacts(5) }, conflicts: [] });
 
-  assert.equal(completeness.documents.pending, 1);
-  assert.equal(completeness.status, "INCOMPLETE");
-  assert.ok(completeness.blockingReasons.includes("documents_pending_ingestion"));
+  assert.equal(inventory.documents[0].ingestionStatus, "MANUAL");
+  assert.equal(completeness.documents.pending, 0);
+  assert.equal(completeness.documents.manual, 1);
+  assert.ok(!completeness.blockingReasons.includes("documents_pending_ingestion"));
 });
 
 
@@ -247,9 +248,8 @@ test("guest-facing policy documents activate policy inventory while corporate po
   const environmentalPolicy = inventory.documents.find((document) => /Environmental-Policy/i.test(document.url));
   const healthSafetyPolicy = inventory.documents.find((document) => /Health-and-Safety-Policy/i.test(document.url));
 
-  assert.equal(policies.expectationState, "DETERMINISTIC");
-  assert.equal(policies.expectedCount, 1);
-  assert.equal(policies.expectedItems[0].basis, "deterministic_document_policy");
+  assert.equal(policies.expectationState, "ABSENT");
+  assert.equal(policies.expectedCount, 0);
   assert.ok(hotelRules.domains.includes("policies"));
   assert.deepEqual(employeePolicy.domains, ["documents"]);
   assert.deepEqual(environmentalPolicy.domains, ["documents"]);
@@ -267,6 +267,6 @@ test("Turkish guest rules PDF is recognized as operational policy", () => {
     }],
   });
   const policies = inventory.domains.find((domain) => domain.domain === "policies");
-  assert.equal(policies.expectedCount, 1);
+  assert.equal(policies.expectedCount, 0);
   assert.ok(inventory.documents[0].domains.includes("policies"));
 });
