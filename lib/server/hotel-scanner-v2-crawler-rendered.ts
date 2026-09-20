@@ -38,6 +38,7 @@ const RENDER_DISCOVERED_MAX_PAGE_BYTES = 1_500_000;
 const RENDER_USER_AGENT_TOKEN = "stayhub-hotel-scanner";
 const RENDER_USER_AGENT = "StayHub-Hotel-Scanner/2.0 (+https://stayhub.app)";
 const QUICK_PREVIEW_MAX_BROWSER_RENDERS = 4;
+const QUICK_PREVIEW_MAX_AUTHORITY_FETCHES = 4;
 const QUICK_PREVIEW_BROWSER_CONCURRENCY = 4;
 const QUICK_PREVIEW_BROWSER_WALL_MS = 35_000;
 const QUICK_PREVIEW_DOMAIN_PRIORITY = ["accommodation", "gastronomy", "services", "experiences", "spa", "offers"] as const;
@@ -200,6 +201,75 @@ function pathDepth(rawUrl: string) {
   catch { return 99; }
 }
 
+function quickAuthorityCandidateScore(rawUrl: string, domain: string, requestedLanguage: string) {
+  const primaryType = classifyHotelScannerPageV2({ url: rawUrl }).primaryType;
+  if (hotelScannerPageTypeDomain(primaryType) !== domain) return -1;
+  const language = pathLanguage(rawUrl);
+  const languageScore = requestedLanguage && language === requestedLanguage ? 40 : language === "en" ? 25 : language ? 15 : 20;
+  const landingScore = primaryType === domain ? 80 : 35;
+  const depthScore = Math.max(0, 30 - pathDepth(rawUrl) * 3);
+  const inventoryAuthorityScore = domain === "accommodation"
+    && /(?:compare|comparison|zimmer[-_]?vergleich|room[-_]?types?|all[-_]?rooms|uebersicht|übersicht)/iu.test(rawUrl)
+    ? 90
+    : 0;
+  return languageScore + landingScore + depthScore + inventoryAuthorityScore;
+}
+
+async function ensureQuickPreviewDomainPages(
+  base: BrowserEnrichedEvidenceBundle,
+  domains: string[],
+) {
+  const requestedLanguage = pathLanguage(base.requestedUrl);
+  const existingUrls = new Set(base.pages.map((page) => canonicalizeHotelIntakeUrl(page.url)).filter(Boolean));
+  const existingDomains = new Set(base.pages.map((page) =>
+    hotelScannerPageTypeDomain(classifyHotelScannerPageV2(page).primaryType)).filter(Boolean));
+  const missingDomains = [...new Set(domains)].filter((domain) => !existingDomains.has(domain));
+  if (!missingDomains.length) return;
+
+  const discoveredUrls = uniqueStrings([
+    ...(base.discovery.navigationUrls || []),
+    ...(base.discovery.internalLinkUrls || []),
+    ...(base.discovery.sitemapPageUrls || []),
+  ]).filter((url) => !existingUrls.has(canonicalizeHotelIntakeUrl(url)));
+
+  const targets = missingDomains.slice(0, QUICK_PREVIEW_MAX_AUTHORITY_FETCHES).map((domain) => {
+    const ranked = discoveredUrls
+      .map((url) => ({ url, score: quickAuthorityCandidateScore(url, domain, requestedLanguage) }))
+      .filter((candidate) => candidate.score >= 0)
+      .sort((left, right) => right.score - left.score || left.url.localeCompare(right.url));
+    return ranked[0] ? { domain, url: ranked[0].url } : null;
+  }).filter((value): value is { domain: string; url: string } => Boolean(value));
+
+  if (!targets.length) return;
+  const policy = await renderedRobotsPolicy(base.canonicalUrl);
+  const propertyScope = deriveHotelPropertyScopeV2(base.requestedUrl, base.canonicalUrl);
+  const origin = new URL(base.canonicalUrl).origin;
+  const fetched = await Promise.all(targets.map(async ({ domain, url }) => {
+    try {
+      if (!isHotelScannerRobotsAllowed(url, policy)) return null;
+      const response = await fetchPublicHtmlV2(new URL(url), {
+        timeoutMs: RENDER_DISCOVERED_FETCH_TIMEOUT_MS,
+        maxBytes: RENDER_DISCOVERED_MAX_PAGE_BYTES,
+        userAgent: RENDER_USER_AGENT,
+      });
+      if (response.url.origin !== origin) return null;
+      if (!isHotelPropertyPageUrlInScopeV2(response.url.toString(), propertyScope)) return null;
+      return { domain, page: buildPageEvidence(response.url, response.html, propertyScope) };
+    } catch {
+      return null;
+    }
+  }));
+
+  const added: string[] = [];
+  for (const result of fetched) {
+    if (!result || existingUrls.has(result.page.url)) continue;
+    base.pages.push(result.page);
+    existingUrls.add(result.page.url);
+    added.push(`${result.domain}:${result.page.url}`);
+  }
+  if (added.length) console.info("scanner_v2_quick_authority_fetch", { added });
+}
+
 function quickPreviewRenderSchedule(
   base: BrowserEnrichedEvidenceBundle,
   domains: string[],
@@ -246,6 +316,7 @@ export async function enrichHotelEvidenceQuickRenderedV2(
   domains: string[],
 ): Promise<HotelScannerV2EvidenceBundle> {
   const base = input as BrowserEnrichedEvidenceBundle;
+  await ensureQuickPreviewDomainPages(base, domains);
   const schedule = quickPreviewRenderSchedule(base, domains);
   if (!schedule.size) return base;
 
