@@ -5,9 +5,10 @@ import {
   extractHotelDomainsV2,
   type HotelScannerV2OutputLanguage,
 } from "@/lib/ai/hotel-scanner-v2-domain-extractors-safe";
+import { buildInventoryIdentityFactsV2 } from "@/lib/ai/hotel-scanner-v2-deterministic-facts";
 import {
   applyDocumentIngestionToInventoryV2,
-  deferHotelDocumentsToManualOnboardingV2,
+  ingestHotelPolicyDocumentsV2,
 } from "@/lib/ai/hotel-scanner-v2-document-ingestion";
 import {
   buildHotelIntelligenceCandidateV2,
@@ -40,23 +41,37 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
     siteMap: discovery.siteMap,
     inventory: discovery.inventory,
     outputLanguage: input.outputLanguage,
+    domains: ["policies"],
   });
   const extractionLatencyMs = Date.now() - extractionStartedAt;
 
   const documentStartedAt = Date.now();
-  // Scanner V2 does not download or AI-ingest public PDFs.
-  // The hotel supplies current authoritative documents during onboarding.
-  const documents = deferHotelDocumentsToManualOnboardingV2(discovery.inventory);
+  // Only durable policy/FAQ documents are read. Menus, brochures, offers and
+  // other temporary PDFs remain manual onboarding inventory.
+  const documents = await ingestHotelPolicyDocumentsV2({
+    inventory: discovery.inventory,
+    canonicalUrl: discovery.evidence.canonicalUrl,
+    outputLanguage: input.outputLanguage,
+  });
   const documentLatencyMs = Date.now() - documentStartedAt;
 
   const ingestedInventory = applyDocumentIngestionToInventoryV2(discovery.inventory, documents);
+  const deterministicCoreFacts = discovery.inventory.domains
+    .filter((domain) => !["policies", "contacts"].includes(domain.domain))
+    .flatMap((domain) => buildInventoryIdentityFactsV2(domain));
   const verificationStartedAt = Date.now();
-  const verification = verifyHotelScanFactsV2(extraction.facts);
+  const verification = verifyHotelScanFactsV2([
+    ...deterministicCoreFacts,
+    ...extraction.facts,
+    ...documents.facts,
+  ]);
   const inventory = reconcileHotelInventoryWithVerifiedFactsV2(
     ingestedInventory,
     verification.facts,
     {
-      ingestedDocumentUrls: [],
+      ingestedDocumentUrls: documents.documents
+        .filter((document) => document.status === "INGESTED")
+        .map((document) => document.url),
     },
   );
   const completeness = buildHotelCompletenessV2({
