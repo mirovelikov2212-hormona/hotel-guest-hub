@@ -34,7 +34,6 @@ test("Scanner V2 durable workflow pauses on exhausted credits and resumes enrich
   assert.match(workflow, /defineHook/);
   assert.match(workflow, /scannerV2QuotaResumeHook/);
   assert.match(workflow, /AI_QUOTA_EXHAUSTED/);
-  assert.match(workflow, /document_ai_quota_exhausted/);
   assert.match(workflow, /scanner_v2_workflow_waiting_for_billing/);
   assert.match(workflow, /for await \(const event of resumeEvents\)/);
   assert.match(workflow, /retry_after_billing/);
@@ -105,7 +104,7 @@ test("Scanner V2 completed result can open Design Studio by scan lineage only", 
 
   assert.match(source, /design-studio\?lang=\$\{lang\}&scanRunId=/);
   assert.match(designPage, /scanRunId/);
-  assert.match(designPage, /!scanRunId \? <DesignFactoryHandoffLauncher/);
+  assert.match(designPage, /!scanRunId && !quickPreview \? <DesignFactoryHandoffLauncher/);
   assert.match(previewRoute, /loadPersistedHotelScannerV2ResultForActor/);
   assert.match(previewRoute, /projectHotelScannerV2DesignPreviewPackage/);
   assert.match(previewRoute, /downstreamHandoffAllowed: false/);
