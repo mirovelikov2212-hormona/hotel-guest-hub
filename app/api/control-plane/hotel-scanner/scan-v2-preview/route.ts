@@ -41,7 +41,16 @@ export async function POST(request: NextRequest) {
     const discovery = await discoverHotelIntakeQuickV2(url);
     const preview = buildHotelScannerV2QuickPreview(discovery);
     const snapshot = discovery.evidence.v3InventorySnapshot;
-    const inventoryAuthority = snapshot ? projectHotelInventoryAuthorityV3(snapshot) : null;
+    const structuralCrawl = discovery.evidence.discovery.structuralCrawl;
+    const authorityEligible = Boolean(
+      snapshot
+      && structuralCrawl?.inventoryClosed
+      && !structuralCrawl?.safetyCapReached
+      && snapshot.status !== "ONTOLOGY_CONFLICT"
+    );
+    const inventoryAuthority = authorityEligible && snapshot
+      ? projectHotelInventoryAuthorityV3(snapshot)
+      : null;
     const inventoryAuthorityToken = inventoryAuthority
       ? createHotelInventoryAuthorityTokenV3({
           actorAdminId: authority.adminId,
@@ -58,6 +67,7 @@ export async function POST(request: NextRequest) {
         ? summarizeHotelInventoryAuthorityV3(inventoryAuthority)
         : preview.inventoryAuthority || null,
       inventoryAuthorityToken,
+      inventoryAuthorityEligible: authorityEligible,
     });
   } catch (error) {
     console.error("scanner_v2_quick_preview_failed", { error: error instanceof Error ? error.message : String(error) });
