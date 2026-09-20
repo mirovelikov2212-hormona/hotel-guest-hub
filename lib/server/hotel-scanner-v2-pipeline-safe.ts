@@ -5,7 +5,10 @@ import {
   extractHotelDomainsV2,
   type HotelScannerV2OutputLanguage,
 } from "@/lib/ai/hotel-scanner-v2-domain-extractors-safe";
-import { buildInventoryIdentityFactsV2 } from "@/lib/ai/hotel-scanner-v2-deterministic-facts";
+import {
+  buildDeterministicContactFactsV2,
+  buildInventoryIdentityFactsV2,
+} from "@/lib/ai/hotel-scanner-v2-deterministic-facts";
 import {
   applyDocumentIngestionToInventoryV2,
   deferHotelDocumentsToManualOnboardingV2,
@@ -66,9 +69,14 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
   const deterministicCoreFacts = discovery.inventory.domains
     .filter((domain) => !["policies", "contacts"].includes(domain.domain))
     .flatMap((domain) => buildInventoryIdentityFactsV2(domain));
+  const deterministicContactFacts = buildDeterministicContactFactsV2(
+    discovery.evidence.pages,
+    discovery.evidence.canonicalUrl,
+  );
   const verificationStartedAt = Date.now();
   const verification = verifyHotelScanFactsV2([
     ...deterministicCoreFacts,
+    ...deterministicContactFacts,
     ...extraction.facts,
     ...documents.facts,
   ]);
