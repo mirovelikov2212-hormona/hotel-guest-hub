@@ -58,7 +58,7 @@ function detail(name, value) {
   };
 }
 
-test("entity inventory can be complete while content completeness remains blocking", () => {
+test("entity inventory can be ready while missing details move to onboarding", () => {
   const result = buildHotelCompletenessV2({
     inventory: inventory(),
     profile: { facts: [identity("Room A"), identity("Room B")] },
@@ -68,12 +68,14 @@ test("entity inventory can be complete while content completeness remains blocki
   const domain = result.domains[0];
   assert.equal(domain.inventory.status, "COMPLETE");
   assert.equal(domain.inventory.extracted, 2);
-  assert.equal(domain.content.status, "INCOMPLETE");
+  assert.equal(domain.content.status, "ONBOARDING_REQUIRED");
   assert.equal(domain.content.detailed, 0);
   assert.equal(domain.content.missingDetailItems.length, 2);
-  assert.equal(domain.status, "INCOMPLETE");
-  assert.equal(result.status, "INCOMPLETE");
-  assert.ok(result.blockingReasons.includes("domain_content_incomplete"));
+  assert.equal(domain.status, "COMPLETE");
+  assert.equal(result.status, "READY_FOR_HUMAN_REVIEW");
+  assert.equal(result.prerequisitesSatisfied, true);
+  assert.ok(!result.blockingReasons.includes("domain_content_incomplete"));
+  assert.deepEqual(result.onboarding.domains, ["accommodation"]);
 });
 
 test("domain becomes complete only after every discovered entity has real detail content", () => {
@@ -288,7 +290,7 @@ test("offer detail fallback preserves substantive crawled source content before 
   assert.match(extractor, /buildDeterministicOfferDetailFactsV2\(pages, domainInventory\)/);
 });
 
-test("identity-only offer evidence stays incomplete while a sourced detail description completes it", () => {
+test("identity-only offer evidence moves to onboarding while a sourced detail description completes it", () => {
   const url = "https://hotel.test/en/exclusive-benefit";
   const item = {
     id: "offers:benefit", domain: "offers", entityType: "offer",
@@ -297,7 +299,7 @@ test("identity-only offer evidence stays incomplete while a sourced detail descr
   };
   const inventory = { domains: [{ domain: "offers", expectationState: "DETERMINISTIC", expectedCount: 1, expectedItems: [item] }], documents: [] };
   const identity = { category: "offers", subject: "Exclusive Benefit", attribute: "offer", label: "Offer", value: "Exclusive Benefit", confidence: 1, sourceUrls: [url] };
-  assert.equal(buildHotelCompletenessV2({ inventory, profile: { facts: [identity] }, conflicts: [] }).domains[0].content.status, "INCOMPLETE");
+  assert.equal(buildHotelCompletenessV2({ inventory, profile: { facts: [identity] }, conflicts: [] }).domains[0].content.status, "ONBOARDING_REQUIRED");
   const description = { category: "offers", subject: "Exclusive Benefit", attribute: "description", label: "Offer detail", value: "A sourced benefit description with booking conditions and included services.", confidence: 0.99, sourceUrls: [url] };
   assert.equal(buildHotelCompletenessV2({ inventory, profile: { facts: [identity, description] }, conflicts: [] }).domains[0].content.status, "COMPLETE");
 });
@@ -377,7 +379,8 @@ test("a group heading is not auto-completed by only one detailed sibling", () =>
     conflicts: [],
   });
 
-  assert.equal(result.domains[0].content.status, "INCOMPLETE");
+  assert.equal(result.domains[0].content.status, "ONBOARDING_REQUIRED");
+  assert.equal(result.domains[0].status, "COMPLETE");
   assert.equal(result.domains[0].content.missingDetailItems.length, 1);
   assert.equal(result.domains[0].content.missingDetailItems[0].id, "event:group");
 });
