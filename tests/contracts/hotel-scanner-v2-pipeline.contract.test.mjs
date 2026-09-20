@@ -270,3 +270,26 @@ test("Turkish guest rules PDF is recognized as operational policy", () => {
   assert.equal(policies.expectedCount, 0);
   assert.ok(inventory.documents[0].domains.includes("policies"));
 });
+
+
+test("deterministic contact signals create Contacts inventory without AI", async () => {
+  const crawler = await readProjectFile("lib/server/hotel-scanner-v2-crawler.ts");
+  const siteMap = await readProjectFile("lib/server/hotel-scanner-v2-site-map.mjs");
+  const inventory = await readProjectFile("lib/server/hotel-scanner-v2-inventory-canonical.mjs");
+  const facts = await readProjectFile("lib/ai/hotel-scanner-v2-deterministic-facts.ts");
+
+  assert.match(crawler, /extractHotelContactSignalsV2/);
+  assert.match(crawler, /mailto:/);
+  assert.match(crawler, /tel:/);
+  assert.match(crawler, /contactSignals:/);
+  assert.match(siteMap, /contactSignals:/);
+  assert.match(inventory, /DETERMINISTIC_CONTACT_SIGNALS/);
+  assert.match(facts, /buildDeterministicContactFactsV2/);
+});
+
+test("missing entity details are onboarding work and do not block Scanner inventory readiness", async () => {
+  const completeness = await readProjectFile("lib/server/hotel-scanner-v2-completeness.mjs");
+  assert.match(completeness, /ONBOARDING_REQUIRED/);
+  assert.match(completeness, /manual_onboarding_details_pending/);
+  assert.doesNotMatch(completeness, /blockingReasons\.push\("domain_content_incomplete"\)/);
+});
