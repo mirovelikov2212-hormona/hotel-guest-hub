@@ -111,6 +111,15 @@ test("Scanner V2 completed result can open Design Studio by scan lineage only", 
   assert.match(previewRoute, /downstreamHandoffAllowed: false/);
 });
 
+test("Workflow Preview treats transient status transport failures as reconnecting, not terminal failure", async () => {
+  const source = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
+
+  assert.match(source, /Never turn a recoverable polling error/);
+  assert.match(source, /setStatus\("reconnecting"\)/);
+  assert.match(source, /\[400, 401, 403\]\.includes\(response\.status\)/);
+  assert.doesNotMatch(source, /body\.ok === false \|\| body\.status === "failed"/);
+});
+
 test("Workflow Preview resumes a run after refresh and polls independently from the start request", async () => {
   const source = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
 

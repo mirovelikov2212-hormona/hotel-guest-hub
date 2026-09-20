@@ -271,19 +271,35 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
           const body = (await response.json().catch(() => ({}))) as WorkflowPoll;
           if (cancelled) return;
 
-          setStatus(body.status || (body.ok === false ? "failed" : "running"));
-
           if (body.status === "completed" && body.result) {
+            setStatus("completed");
             setResult(body.result);
             setError(null);
             window.localStorage.removeItem(STORAGE_KEY);
             return;
           }
 
-          if (body.ok === false || body.status === "failed" || body.status === "cancelled") {
+          if (body.status === "failed" || body.status === "cancelled") {
+            setStatus(body.status);
             setError(body.error || "scanner_v2_workflow_failed");
             window.localStorage.removeItem(STORAGE_KEY);
             return;
+          }
+
+          if (!response.ok || body.ok === false) {
+            // Workflow status transport can fail transiently while the durable run
+            // continues in the background. Never turn a recoverable polling error
+            // into a terminal FAILED state.
+            if ([400, 401, 403].includes(response.status)) {
+              setStatus("failed");
+              setError(body.error || "scanner_v2_workflow_access_failed");
+              window.localStorage.removeItem(STORAGE_KEY);
+              return;
+            }
+            setStatus("reconnecting");
+          } else {
+            setStatus(body.status || "running");
+            setError(null);
           }
         } catch {
           if (cancelled) return;
