@@ -5,7 +5,7 @@ import { HotelScannerV2BrowserRenderer, type HotelScannerV2RenderedBlock } from 
 import { buildPageEvidence, crawlPublicHotelWebsiteV2, type HotelScannerV2EvidenceBundle, type HotelScannerV2PageEvidence } from "@/lib/server/hotel-scanner-v2-crawler";
 import { deriveHotelPageInventoryHintsV2 } from "@/lib/server/hotel-scanner-v2-landing-inventory.mjs";
 import { fetchPublicHtmlV2, fetchPublicTextV2 } from "@/lib/server/hotel-scanner-v2-network";
-import { classifyHotelScannerPageV2 } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
+import { classifyHotelScannerPageV2, hotelScannerPageTypeDomain } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
 import { extractHotelPageStructureV2 } from "@/lib/server/hotel-scanner-v2-page-structure.mjs";
 import { deriveHotelPropertyScopeV2, isHotelPropertyPageUrlInScopeV2 } from "@/lib/server/hotel-scanner-v2-property-scope.mjs";
 import { browserRenderDecisionV2, HOTEL_SCANNER_V2_BROWSER_RENDER_CONCURRENCY, HOTEL_SCANNER_V2_BROWSER_RENDER_WALL_MS, HOTEL_SCANNER_V2_MAX_BROWSER_RENDERS } from "@/lib/server/hotel-scanner-v2-render-policy.mjs";
@@ -37,6 +37,10 @@ const RENDER_DISCOVERED_FETCH_TIMEOUT_MS = 8_000;
 const RENDER_DISCOVERED_MAX_PAGE_BYTES = 1_500_000;
 const RENDER_USER_AGENT_TOKEN = "stayhub-hotel-scanner";
 const RENDER_USER_AGENT = "StayHub-Hotel-Scanner/2.0 (+https://stayhub.app)";
+const QUICK_PREVIEW_MAX_BROWSER_RENDERS = 4;
+const QUICK_PREVIEW_BROWSER_CONCURRENCY = 4;
+const QUICK_PREVIEW_BROWSER_WALL_MS = 35_000;
+const QUICK_PREVIEW_DOMAIN_PRIORITY = ["accommodation", "gastronomy", "services", "experiences", "spa", "offers"] as const;
 
 function browserRenderFailureReason(error: unknown) {
   const name = String((error as { name?: unknown })?.name || "Error").replace(/\s+/g, " ").trim().slice(0, 80);
@@ -180,6 +184,151 @@ async function fetchRenderedDiscoveredOfferDetails(base: BrowserEnrichedEvidence
     }
   }
   return { discovered: targets.size, fetched, failed };
+}
+
+function pathLanguage(rawUrl: string) {
+  try {
+    const parts = new URL(rawUrl).pathname.split("/").filter(Boolean);
+    return String(parts.find((part) => LANGUAGE_SEGMENT.test(part)) || "").toLocaleLowerCase("en-US");
+  } catch {
+    return "";
+  }
+}
+
+function pathDepth(rawUrl: string) {
+  try { return new URL(rawUrl).pathname.split("/").filter(Boolean).length; }
+  catch { return 99; }
+}
+
+function quickPreviewRenderSchedule(
+  base: BrowserEnrichedEvidenceBundle,
+  domains: string[],
+) {
+  const requestedLanguage = pathLanguage(base.requestedUrl);
+  const requested = new Set(domains);
+  const selected = new Set<number>();
+
+  for (const domain of QUICK_PREVIEW_DOMAIN_PRIORITY) {
+    if (!requested.has(domain) || selected.size >= QUICK_PREVIEW_MAX_BROWSER_RENDERS) continue;
+    const candidates = base.pages
+      .map((page, index) => {
+        const primaryType = classifyHotelScannerPageV2(page).primaryType;
+        const pageDomain = hotelScannerPageTypeDomain(primaryType);
+        if (pageDomain !== domain) return null;
+        const language = pathLanguage(page.url);
+        const languageRank = requestedLanguage && language === requestedLanguage
+          ? 0
+          : language === "en"
+            ? 1
+            : language
+              ? 2
+              : 3;
+        const landingRank = primaryType === domain ? 0 : 1;
+        const structureRank = -(Array.isArray(page.contentBlocks) ? page.contentBlocks.length : 0);
+        return { index, languageRank, landingRank, depth: pathDepth(page.url), structureRank };
+      })
+      .filter((value): value is NonNullable<typeof value> => Boolean(value))
+      .sort((left, right) =>
+        left.languageRank - right.languageRank
+        || left.landingRank - right.landingRank
+        || left.depth - right.depth
+        || left.structureRank - right.structureRank
+        || left.index - right.index);
+    const candidate = candidates[0];
+    if (candidate) selected.add(candidate.index);
+  }
+
+  return selected;
+}
+
+export async function enrichHotelEvidenceQuickRenderedV2(
+  input: HotelScannerV2EvidenceBundle,
+  domains: string[],
+): Promise<HotelScannerV2EvidenceBundle> {
+  const base = input as BrowserEnrichedEvidenceBundle;
+  const schedule = quickPreviewRenderSchedule(base, domains);
+  if (!schedule.size) return base;
+
+  const renderer = new HotelScannerV2BrowserRenderer();
+  const browserRenderedUrls: string[] = [];
+  const browserRenderFailedUrls: string[] = [];
+  const browserRenderFailures: Array<{ url: string; error: string }> = [];
+  const startedAt = Date.now();
+
+  try {
+    let cursor = 0;
+    const indices = [...schedule];
+    async function worker() {
+      while (cursor < indices.length) {
+        const index = indices[cursor++];
+        if (Date.now() - startedAt >= QUICK_PREVIEW_BROWSER_WALL_MS) return;
+        const page = base.pages[index];
+        try {
+          const rendered = await renderer.render(page.url);
+          const structure = rendered.html ? extractHotelPageStructureV2(rendered.html) : null;
+          const renderedText = rendered.text.trim();
+          base.pages[index] = {
+            ...page,
+            text: renderedText.length >= 400 ? renderedText : page.text,
+            headings: structure?.headings?.length ? structure.headings : page.headings,
+            jsonLdEntities: structure ? mergeJsonLd(page.jsonLdEntities, structure.jsonLdEntities) : page.jsonLdEntities,
+            contentBlocks: structure?.contentBlocks?.length ? structure.contentBlocks : page.contentBlocks,
+            renderedContentBlocks: rendered.blocks,
+            renderMode: "browser",
+            renderReason: "quick_preview_targeted_authority",
+          };
+          browserRenderedUrls.push(page.url);
+        } catch (error) {
+          const failure = { url: page.url, error: browserRenderFailureReason(error) };
+          browserRenderFailedUrls.push(page.url);
+          browserRenderFailures.push(failure);
+          base.pages[index] = {
+            ...page,
+            renderMode: "http",
+            renderReason: "quick_preview_targeted_render_failed",
+          };
+        }
+      }
+    }
+    await Promise.all(Array.from(
+      { length: Math.min(QUICK_PREVIEW_BROWSER_CONCURRENCY, indices.length) },
+      () => worker(),
+    ));
+  } finally {
+    await renderer.close();
+  }
+
+  base.discovery = {
+    ...base.discovery,
+    browserRenderedUrls: uniqueStrings([
+      ...(base.discovery.browserRenderedUrls || []),
+      ...browserRenderedUrls,
+    ]),
+    browserRenderFailedUrls: uniqueStrings([
+      ...(base.discovery.browserRenderFailedUrls || []),
+      ...browserRenderFailedUrls,
+    ]),
+    browserRenderFailures: [
+      ...(base.discovery.browserRenderFailures || []),
+      ...browserRenderFailures,
+    ],
+    browserRenderLatencyMs: Date.now() - startedAt,
+  };
+
+  console.info("scanner_v2_quick_render_summary", {
+    requestedDomains: domains,
+    scheduled: schedule.size,
+    concurrency: QUICK_PREVIEW_BROWSER_CONCURRENCY,
+    rendered: browserRenderedUrls.length,
+    failed: browserRenderFailedUrls.length,
+    latencyMs: Date.now() - startedAt,
+  });
+
+  return base;
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.filter(Boolean))];
 }
 
 async function runConcurrent(items: number[], worker: (index: number) => Promise<void>) {

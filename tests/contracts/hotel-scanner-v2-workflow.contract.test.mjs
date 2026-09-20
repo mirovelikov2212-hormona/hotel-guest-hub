@@ -205,14 +205,22 @@ test("Workflow Preview can cancel a stuck active run and release the scan form",
 });
 
 
-test("Quick Client Preview is deterministic, HTTP-only and can open Design Studio before deep verification", async () => {
+test("Quick Client Preview uses targeted DOM authority without waiting for full deep verification", async () => {
   const route = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-preview/route.ts");
+  const intake = await readProjectFile("lib/server/hotel-scanner-v2-intake.ts");
+  const rendered = await readProjectFile("lib/server/hotel-scanner-v2-crawler-rendered.ts");
   const projector = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
   const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
   const designPage = await readProjectFile("app/design-studio/page.tsx");
 
-  assert.match(route, /discoverHotelIntakeV2/);
+  assert.match(route, /discoverHotelIntakeQuickV2/);
   assert.doesNotMatch(route, /discoverHotelIntakeRenderedV2|OpenAI|ingestHotelDocumentsV2/);
+  assert.match(intake, /selectHotelIntakeQuickRenderDomainsV2/);
+  assert.match(intake, /enrichHotelEvidenceQuickRenderedV2/);
+  assert.match(rendered, /QUICK_PREVIEW_MAX_BROWSER_RENDERS = 4/);
+  assert.match(rendered, /QUICK_PREVIEW_BROWSER_CONCURRENCY = 4/);
+  assert.match(rendered, /QUICK_PREVIEW_BROWSER_WALL_MS = 35_000/);
+  assert.match(rendered, /quick_preview_targeted_authority/);
   assert.match(projector, /CORE_DOMAINS/);
   assert.match(projector, /restaurant_menu/);
   assert.match(projector, /offers_packages/);

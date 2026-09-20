@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { canMutateControlPlane } from "@/lib/server/control-plane-auth";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
-import { discoverHotelIntakeV2 } from "@/lib/server/hotel-scanner-v2-intake";
+import { discoverHotelIntakeQuickV2 } from "@/lib/server/hotel-scanner-v2-intake";
 import { buildHotelScannerV2QuickPreview } from "@/lib/server/hotel-scanner-v2-quick-preview";
 
 export const runtime = "nodejs";
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
   const startedAt = Date.now();
   try {
-    const discovery = await discoverHotelIntakeV2(url);
+    const discovery = await discoverHotelIntakeQuickV2(url);
     return json({
       ok: true,
       mode: "quick_preview",

@@ -4,7 +4,10 @@ import {
   crawlPublicHotelWebsiteV2,
   type HotelScannerV2EvidenceBundle,
 } from "@/lib/server/hotel-scanner-v2-crawler";
-import { crawlPublicHotelWebsiteRenderedV2 } from "@/lib/server/hotel-scanner-v2-crawler-rendered";
+import {
+  crawlPublicHotelWebsiteRenderedV2,
+  enrichHotelEvidenceQuickRenderedV2,
+} from "@/lib/server/hotel-scanner-v2-crawler-rendered";
 import {
   buildHotelSiteMapV2,
   type HotelScannerV2SiteMap,
@@ -55,6 +58,44 @@ async function finalizeDiscovery(evidence: HotelScannerV2EvidenceBundle): Promis
   const siteMap = buildHotelSiteMapV2(evidence);
   const inventory = buildHotelInventoryCanonicalV2(siteMap);
   return { evidence, siteMap, inventory };
+}
+
+const QUICK_PREVIEW_CORE_DOMAINS = ["accommodation", "gastronomy", "services", "experiences", "spa", "offers"] as const;
+
+export function selectHotelIntakeQuickRenderDomainsV2(result: HotelIntakeV2DiscoveryResult) {
+  const resources = Array.isArray(result.siteMap.resources) ? result.siteMap.resources : [];
+  return QUICK_PREVIEW_CORE_DOMAINS.filter((domain) => {
+    const inventory = result.inventory.domains.find((entry) => entry.domain === domain);
+    const authority = String((inventory?.evidence as { authority?: unknown } | undefined)?.authority || "");
+    const hasDomainPage = resources.some((resource) =>
+      resource?.classification?.primaryType === domain
+      || String(resource?.classification?.primaryType || "").endsWith("_detail")
+        && String(resource?.classification?.types || "").includes(domain));
+
+    if (!hasDomainPage) return false;
+    if (!inventory) return true;
+    if (["CONFLICT", "UNKNOWN"].includes(inventory.expectationState)) return true;
+    if (inventory.expectedCount === 0) return true;
+
+    // HTTP-only HTML can look deterministic while still lacking the client-rendered
+    // structural overview. Core domains without a strong canonical/structural authority
+    // get one targeted DOM render before the client sees the count.
+    return ![
+      "STRUCTURAL_OPERATIONAL_LANDING",
+      "CANONICAL_DETAIL_FAMILY",
+      "CANONICAL_DETAIL_FAMILY_FALLBACK",
+    ].includes(authority);
+  }).slice(0, 4);
+}
+
+export async function discoverHotelIntakeQuickV2(rawUrl: string): Promise<HotelIntakeV2DiscoveryResult> {
+  const evidence = await crawlPublicHotelWebsiteV2(rawUrl);
+  const initial = await finalizeDiscovery(evidence);
+  const domains = selectHotelIntakeQuickRenderDomainsV2(initial);
+  if (!domains.length) return initial;
+
+  const enriched = await enrichHotelEvidenceQuickRenderedV2(evidence, domains);
+  return finalizeDiscovery(enriched);
 }
 
 export async function discoverHotelIntakeV2(rawUrl: string): Promise<HotelIntakeV2DiscoveryResult> {
