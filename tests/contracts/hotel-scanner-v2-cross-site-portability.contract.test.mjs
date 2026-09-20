@@ -69,8 +69,9 @@ test("known gastronomy route beats verbose SEO titles and branded culinary block
   const culinaryPage = page(
     "https://alpine-example.test/de/mountain-cuisine/gourmethotel-in-austria",
     "Gourmethotel in Austria | Alpine Mountain Resort",
-    ["ALPINE Genuss-Kulinarik", "IN-ROOM DINING"],
+    ["& Restaurants", "ALPINE Genuss-Kulinarik", "IN-ROOM DINING"],
     [
+      { level: 2, heading: "& Restaurants", text: "Culinary overview.", links: [] },
       { level: 2, heading: "ALPINE Genuss-Kulinarik", text: "Regional cuisine, breakfast menu and dinner.", links: [] },
       { level: 2, heading: "IN-ROOM DINING", text: "Breakfast, dinner and à la carte menu via room service.", links: [] },
     ],
@@ -85,6 +86,22 @@ test("known gastronomy route beats verbose SEO titles and branded culinary block
     ["ALPINE Genuss-Kulinarik", "IN-ROOM DINING"].sort(),
   );
   assert.ok(!gastronomy.expectedItems.some((item) => /gourmet\s*hotel|gourmethotel/iu.test(item.nameHint)));
+});
+
+test("named gastronomy detail pages stay atomic even when marketing subheadings contain culinary language", () => {
+  const named = page(
+    "https://alpine-example.test/de/mountain-cuisine/cellar-bar",
+    "Cellar Bar | Alpine Mountain Resort",
+    ["Cellar Bar", "A place to celebrate", "More than a classic wine hotel"],
+    [
+      { level: 2, heading: "A place to celebrate", text: "Wine, menu and private dining.", links: [] },
+      { level: 2, heading: "More than a classic wine hotel", text: "Wine tasting and dinner.", links: [] },
+    ],
+  );
+  const classification = classifyHotelScannerPageV2(named);
+  const hints = deriveHotelPageInventoryHintsV2(named, classification);
+  assert.equal(classification.primaryType, "restaurant_detail");
+  assert.equal(hints.length, 0);
 });
 
 test("activity route authority prevents repeated spa or dining chrome from leaking into the wrong domain", () => {
