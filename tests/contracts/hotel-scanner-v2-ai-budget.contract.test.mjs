@@ -53,9 +53,9 @@ test("Scanner V2 fails fast globally after the first exhausted-credit response",
   assert.match(extractor, /global_ai_quota_exhausted_before_domain_request/);
   assert.match(extractor, /requestCount \+= 1/);
   assert.match(pipeline, /extractionQuotaExhausted/);
-  assert.match(pipeline, /quotaBlockedDocuments/);
-  assert.match(pipeline, /document_ai_quota_exhausted/);
-  assert.match(pipeline, /extractionQuotaExhausted\(extraction\)[\s\S]*?quotaBlockedDocuments\(discovery\)[\s\S]*?: await ingestHotelDocumentsV2/s);
+  assert.match(pipeline, /deferHotelDocumentsToManualOnboardingV2/);
+  assert.match(pipeline, /ingestHotelPolicyDocumentsV2/);
+  assert.match(pipeline, /extractionQuotaExhausted\(extraction\)[\s\S]*?deferHotelDocumentsToManualOnboardingV2\(discovery\.inventory\)[\s\S]*?: await ingestHotelPolicyDocumentsV2/s);
 });
 
 test("Scanner V2 treats incomplete AI chunks as visible partial extraction instead of 502", async () => {
@@ -71,24 +71,27 @@ test("Scanner V2 treats incomplete AI chunks as visible partial extraction inste
   assert.match(pipeline, /status: "BLOCKED"/);
 });
 
-test("Scanner V2 paces web extraction before PDF ingestion instead of overlapping AI stages", async () => {
+test("Scanner V2 runs policy web extraction before selective policy-PDF verification", async () => {
   const pipeline = await readProjectFile("lib/server/hotel-scanner-v2-pipeline-safe.ts");
 
   assert.match(pipeline, /const extraction = await extractHotelDomainsV2/);
-  assert.match(pipeline, /await ingestHotelDocumentsV2/);
+  assert.match(pipeline, /domains: \["policies"\]/);
+  assert.match(pipeline, /await ingestHotelPolicyDocumentsV2/);
+  assert.doesNotMatch(pipeline, /await ingestHotelDocumentsV2/);
   assert.doesNotMatch(pipeline, /Promise\.all\(\[\s*extractHotelDomainsV2/);
   assert.match(pipeline, /documentLatencyMs/);
 });
 
-test("Scanner V2 PDF ingestion is serialized and performs only one bounded 429 retry", async () => {
+test("Scanner V2 policy-PDF verification is tightly bounded and performs only one bounded 429 retry", async () => {
   const ingestion = await readProjectFile("lib/ai/hotel-scanner-v2-document-ingestion.ts");
 
-  assert.match(ingestion, /DOCUMENT_CONCURRENCY = 1/);
+  assert.match(ingestion, /MAX_POLICY_DOCUMENTS_PER_SCAN = 4/);
   assert.match(ingestion, /DOCUMENT_AI_RATE_LIMIT_RETRIES = 1/);
   assert.match(ingestion, /DOCUMENT_AI_RATE_LIMIT_MAX_DELAY_MS = 12_000/);
   assert.match(ingestion, /withDocumentRateLimitRetry/);
-  assert.match(ingestion, /try again in\\s\+\(\[0-9\.\]\+\)s/);
-  assert.match(ingestion, /mapWithConcurrency\(selected, DOCUMENT_CONCURRENCY/);
+  assert.match(ingestion, /POLICY_FAQ_DOCUMENT/);
+  assert.match(ingestion, /ingestHotelPolicyDocumentsV2/);
+  assert.match(ingestion, /SKIPPED_MANUAL/);
 });
 
 test("Scanner V2 preview benchmark has extended runtime and exposes rate-limit failures explicitly", async () => {
