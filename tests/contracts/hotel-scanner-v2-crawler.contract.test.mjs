@@ -37,7 +37,8 @@ test("V2 discovery crawler retains public-boundary, robots and isolated SSRF pro
   assert.match(crawler, /MAX_PUBLIC_DOCUMENTS = 200/);
   assert.match(crawler, /MAX_INITIAL_PAGES = 56/);
   assert.match(crawler, /MAX_INITIAL_PAGE_ATTEMPTS = 80/);
-  assert.match(crawler, /initialPageAttempts < MAX_INITIAL_PAGE_ATTEMPTS/);
+  assert.match(crawler, /initialPageAttempts < maxInitialPageAttempts/);
+  assert.match(crawler, /options\.maxInitialPageAttempts \?\? MAX_INITIAL_PAGE_ATTEMPTS/);
   assert.match(crawler, /MAX_COVERAGE_FOLLOWUP_ATTEMPTS = 72/);
   assert.match(crawler, /MAX_TOTAL_PAGES = MAX_INITIAL_PAGES \+ MAX_COVERAGE_FOLLOWUP_ATTEMPTS/);
 });
