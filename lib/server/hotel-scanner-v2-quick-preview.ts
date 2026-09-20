@@ -4,6 +4,11 @@ import type { HotelIntelligenceItem, HotelIntelligencePackage } from "@/lib/prod
 import { buildInventoryIdentityFactsV2 } from "@/lib/ai/hotel-scanner-v2-deterministic-facts";
 import type { HotelIntakeV2DiscoveryResult } from "@/lib/server/hotel-scanner-v2-intake";
 import { classifyHotelScannerPageV2, hotelScannerPageTypeDomain } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
+import {
+  applyHotelInventoryAuthorityV3,
+  projectHotelInventoryAuthorityV3,
+  summarizeHotelInventoryAuthorityV3,
+} from "@/lib/server/hotel-scanner-v3-canonical-inventory.mjs";
 
 const CORE_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "experiences", "offers", "contacts"] as const;
 
@@ -248,10 +253,22 @@ function quickContacts(discovery: HotelIntakeV2DiscoveryResult) {
   };
 }
 
+function v3InventoryAuthority(discovery: HotelIntakeV2DiscoveryResult) {
+  const snapshot = discovery.evidence.v3InventorySnapshot;
+  if (!snapshot || snapshot.schemaVersion !== "hotel-scanner-v3-canonical-inventory-1") return null;
+  return projectHotelInventoryAuthorityV3(snapshot);
+}
+
+function authorityInventory(discovery: HotelIntakeV2DiscoveryResult) {
+  const authority = v3InventoryAuthority(discovery);
+  return authority ? applyHotelInventoryAuthorityV3(discovery.inventory, authority) : discovery.inventory;
+}
+
 function itemize(discovery: HotelIntakeV2DiscoveryResult): HotelIntelligenceItem[] {
-  const facts = discovery.inventory.domains
-    .filter((domain) => CORE_DOMAINS.includes(domain.domain as (typeof CORE_DOMAINS)[number]))
-    .flatMap((domain) => buildInventoryIdentityFactsV2(domain));
+  const inventory = authorityInventory(discovery);
+  const facts = inventory.domains
+    .filter((domain: { domain: string }) => CORE_DOMAINS.includes(domain.domain as (typeof CORE_DOMAINS)[number]))
+    .flatMap((domain: Parameters<typeof buildInventoryIdentityFactsV2>[0]) => buildInventoryIdentityFactsV2(domain));
   return facts.map((fact, index) => ({
     ...fact,
     id: `quick-preview-${index + 1}`,
@@ -294,12 +311,14 @@ export function summarizeHotelScannerV2Documents(discovery: HotelIntakeV2Discove
     .filter((item) => item.count > 0);
 }
 export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2DiscoveryResult) {
+  const authority = v3InventoryAuthority(discovery);
+  const inventory = authority ? applyHotelInventoryAuthorityV3(discovery.inventory, authority) : discovery.inventory;
   const items = itemize(discovery);
   const canonicalUrl = discovery.evidence.canonicalUrl;
-  const rooms = discovery.inventory.domains.find((domain) => domain.domain === "accommodation")?.expectedItems || [];
-  const venues = discovery.inventory.domains.find((domain) => domain.domain === "gastronomy")?.expectedItems || [];
-  const spa = discovery.inventory.domains.find((domain) => domain.domain === "spa")?.expectedItems || [];
-  const services = discovery.inventory.domains.find((domain) => domain.domain === "services")?.expectedItems || [];
+  const rooms = inventory.domains.find((domain: { domain: string }) => domain.domain === "accommodation")?.expectedItems || [];
+  const venues = inventory.domains.find((domain: { domain: string }) => domain.domain === "gastronomy")?.expectedItems || [];
+  const spa = inventory.domains.find((domain: { domain: string }) => domain.domain === "spa")?.expectedItems || [];
+  const services = inventory.domains.find((domain: { domain: string }) => domain.domain === "services")?.expectedItems || [];
   const contacts = quickContacts(discovery);
   const name = hotelName(discovery);
   const sourceUrls = unique([canonicalUrl, ...items.flatMap((item) => item.sourceUrls)]);
@@ -342,9 +361,9 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
   };
   return {
     sourcePackage,
-    components: discovery.inventory.domains
-      .filter((domain) => CORE_DOMAINS.includes(domain.domain as (typeof CORE_DOMAINS)[number]))
-      .map((domain) => {
+    components: inventory.domains
+      .filter((domain: { domain: string }) => CORE_DOMAINS.includes(domain.domain as (typeof CORE_DOMAINS)[number]))
+      .map((domain: any) => {
         const rawComponentItems = (domain.expectedItems || []).map((item) => ({
           name: clean(item.nameHint, 240),
           hours: domain.domain === "gastronomy" ? openingHoursForItem(discovery, item) : "",
@@ -365,10 +384,12 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
       }),
     contacts,
     documents: summarizeHotelScannerV2Documents(discovery),
+    inventoryAuthority: authority ? summarizeHotelInventoryAuthorityV3(authority) : null,
     diagnostics: {
       pageCount: discovery.evidence.pages.length,
       resourceCount: discovery.siteMap.counts.resources,
-      expectedItems: discovery.inventory.counts.expectedItems,
+      expectedItems: inventory.counts.expectedItems,
+      inventorySnapshotId: authority?.snapshotId || "",
     },
   };
 }
