@@ -46,3 +46,33 @@ test("Scanner V3 DOM evidence is attached to both HTTP and rendered crawl paths"
   assert.match(lists, /repeated_dom_siblings/);
   assert.match(lists, /page\?\.v3Structure\?\.repeatedStructures/);
 });
+
+
+test("Scanner V3 M3 adaptive closure drives the crawler by default with V2 loops only as fallback", async () => {
+  const crawler = await readProjectFile("lib/server/hotel-scanner-v2-crawler.ts");
+  const frontier = await readProjectFile("lib/server/hotel-scanner-v3-frontier.mjs");
+
+  assert.match(crawler, /buildHotelScannerAdaptivePlanV3/);
+  assert.match(crawler, /useStructuralAdaptiveCrawl\s*=\s*options\.useStructuralAdaptiveCrawl\s*!==\s*false/);
+  assert.match(crawler, /hotel-scanner-v3-adaptive-crawl-1/);
+  assert.match(crawler, /SAFETY_CAP/);
+  assert.match(crawler, /inventoryClosed:\s*finalPlan\.inventoryClosed/);
+  assert.match(crawler, /else\s*\{\s*while \(pages\.length < maxInitialPages/s);
+
+  assert.match(frontier, /SAMPLE_TERMINALITY/);
+  assert.match(frontier, /EXPAND_ALL/);
+  assert.match(frontier, /CLOSED_INFERRED_LEAF/);
+  assert.match(frontier, /CLOSED_EXPANDED/);
+  assert.match(frontier, /INVENTORY_BLOCKED/);
+  assert.match(frontier, /INVENTORY_CLOSED/);
+  assert.match(frontier, /sitemap_branch/);
+  assert.match(frontier, /page_content/);
+});
+
+test("Scanner V3 M3 frontier remains hotel and domain agnostic", async () => {
+  const frontier = await readProjectFile("lib/server/hotel-scanner-v3-frontier.mjs");
+
+  assert.doesNotMatch(frontier, /edelweiss|bahia|kirman|pavel|grand resort/iu);
+  assert.doesNotMatch(frontier, /\b(?:accommodation|gastronomy|restaurant|restaurants|spa|wellness|room|rooms)\b/iu);
+  assert.doesNotMatch(frontier, /OpenAI|chat\.completions|responses\.create/iu);
+});
