@@ -32,6 +32,36 @@ function resourceFromPage(input) {
   };
 }
 
+test("composite branded core routes receive their semantic hotel-domain priority", () => {
+  const cases = [
+    ["https://alpine-example.test/en/accommodations-offers/rooms-suites", "Rooms & Suites", "accommodation"],
+    ["https://alpine-example.test/en/accommodations-offers/rooms-suites/top-suite-superior", "Top Suite Superior", "room_detail"],
+    ["https://alpine-example.test/en/mountain-cuisine/gourmet-hotel-austria", "Mountain Cuisine & Restaurants", "restaurant_detail"],
+    ["https://alpine-example.test/en/mountain-spa/spa-hotel-austria", "Mountain Spa", "spa_detail"],
+    ["https://alpine-example.test/de/aktiv/golf", "Golfhotel", "experience_detail"],
+    ["https://alpine-example.test/de/aktiv/yoga", "Yogahotel", "experience_detail"],
+  ];
+  for (const [url, title, expected] of cases) {
+    const classified = classifyHotelScannerPageV2(page(url, title, [title], []));
+    assert.equal(classified.primaryType, expected, url);
+  }
+});
+
+test("activity route authority prevents repeated spa or dining chrome from leaking into the wrong domain", () => {
+  const hiking = page(
+    "https://alpine-example.test/de/aktiv/wanderhotel-salzburger-land",
+    "Wanderhotel im Salzburger Land",
+    ["Wanderhotel im Salzburger Land", "Mountain Spa", "Restaurant"],
+    [{ level: 2, heading: "Der Sinnesweg nahe der Alm", text: "Five elements, hiking trail and nature experience.", links: [] }],
+  );
+  const classified = classifyHotelScannerPageV2(hiking);
+  const hints = deriveHotelPageInventoryHintsV2(hiking, classified);
+
+  assert.equal(classified.primaryType, "experience_detail");
+  assert.ok(!hints.some((hint) => hint.domain === "gastronomy"));
+  assert.ok(!hints.some((hint) => hint.domain === "spa"));
+});
+
 test("canonical registry works on a structurally different hotel without benchmark-specific names", () => {
   const roomPage = page(
     "https://alpine-example.test/stay",

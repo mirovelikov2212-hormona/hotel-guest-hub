@@ -134,6 +134,14 @@ test("operation-region reporting labels are locality components and punctuation 
   assert.equal(result.conflicts.length, 0);
 });
 
+test("German street spelling and country-prefixed postal codes normalize as the same address", () => {
+  const result = verifyHotelScanFactsV2([
+    fact("location", "hotel", "address", "Unterbergstraße 65, A-5611 Grossarl", "https://hotel.test/contact"),
+    fact("location", "hotel", "address", "Unterbergstrasse 65, 5611 Grossarl", "https://hotel.test/guide.pdf"),
+  ]);
+  assert.equal(result.conflicts.length, 0);
+});
+
 test("different standard checkout times remain a real conflict after clock normalization", () => {
   const result = verifyHotelScanFactsV2([
     fact("operations", "hotel", "check_out", "12:00", "https://hotel.test/docs/checkout-a.pdf"),

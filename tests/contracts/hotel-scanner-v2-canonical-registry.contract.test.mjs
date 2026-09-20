@@ -40,6 +40,35 @@ const dining = [
   "Night Bar (Caligula)",
 ];
 
+test("placeholder offer detail titles never duplicate a named offer linked to the same URL", () => {
+  const landing = resource({
+    url: "https://hotel.test/en/offers",
+    primaryType: "offers",
+    domain: "offers",
+    names: ["My favourite place"],
+    variantGroupId: "hotel.test/offers",
+  });
+  landing.inventoryHints[0].candidates[0].links = ["https://hotel.test/booking/packages/34257?lang=en"];
+
+  const placeholderDetail = {
+    url: "https://hotel.test/booking/packages/34257?lang=en",
+    resourceType: "page",
+    crawled: true,
+    variantGroupId: "hotel.test/booking/packages/34257",
+    title: "loading...",
+    languages: ["en"],
+    classification: { primaryType: "offer_detail", types: ["offer_detail", "offers"], confidence: 1, signals: [] },
+    inventoryHints: [],
+  };
+
+  const registry = buildCanonicalHotelEntityRegistryV2({ resources: [landing, placeholderDetail] });
+  const offers = registry.domains.get("offers");
+
+  assert.equal(offers.expectedCount, 1);
+  assert.equal(offers.expectedItems[0].nameHint, "My favourite place");
+  assert.equal(offers.expectedItems[0].url, "https://hotel.test/booking/packages/34257?lang=en");
+});
+
 test("canonical registry keeps authoritative hotel entities and rejects policy contamination", () => {
   const siteMap = {
     resources: [
