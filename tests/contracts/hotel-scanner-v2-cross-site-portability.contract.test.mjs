@@ -47,6 +47,46 @@ test("composite branded core routes receive their semantic hotel-domain priority
   }
 });
 
+test("explicit experience route cannot become accommodation just because the title contains Suite", () => {
+  const classified = classifyHotelScannerPageV2(page(
+    "https://alpine-example.test/en/experiences/private-suite/wellness-for-groups",
+    "Penthouse Suite",
+    ["Penthouse Suite"],
+    [],
+  ));
+  assert.equal(classified.primaryType, "experience_detail");
+});
+
+test("known gastronomy route beats verbose SEO titles and branded culinary blocks remain Hub components", () => {
+  const wine = classifyHotelScannerPageV2(page(
+    "https://alpine-example.test/de/mountain-cuisine/winebar-cellar/wine-hotel-austria",
+    "Winebar Cellar & Tasting | Alpine Mountain Resort Austria",
+    ["Winebar Cellar & Tasting"],
+    [],
+  ));
+  assert.equal(wine.primaryType, "restaurant_detail");
+
+  const culinaryPage = page(
+    "https://alpine-example.test/de/mountain-cuisine/gourmethotel-in-austria",
+    "Gourmethotel in Austria | Alpine Mountain Resort",
+    ["ALPINE Genuss-Kulinarik", "IN-ROOM DINING"],
+    [
+      { level: 2, heading: "ALPINE Genuss-Kulinarik", text: "Regional cuisine, breakfast menu and dinner.", links: [] },
+      { level: 2, heading: "IN-ROOM DINING", text: "Breakfast, dinner and à la carte menu via room service.", links: [] },
+    ],
+  );
+  const resource = resourceFromPage(culinaryPage);
+  const registry = buildCanonicalHotelEntityRegistryV2({ resources: [resource] });
+  const gastronomy = registry.domains.get("gastronomy");
+
+  assert.equal(gastronomy.expectedCount, 2);
+  assert.deepEqual(
+    gastronomy.expectedItems.map((item) => item.nameHint).sort(),
+    ["ALPINE Genuss-Kulinarik", "IN-ROOM DINING"].sort(),
+  );
+  assert.ok(!gastronomy.expectedItems.some((item) => /gourmet\s*hotel|gourmethotel/iu.test(item.nameHint)));
+});
+
 test("activity route authority prevents repeated spa or dining chrome from leaking into the wrong domain", () => {
   const hiking = page(
     "https://alpine-example.test/de/aktiv/wanderhotel-salzburger-land",
