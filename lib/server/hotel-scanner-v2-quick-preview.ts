@@ -5,7 +5,7 @@ import { buildInventoryIdentityFactsV2 } from "@/lib/ai/hotel-scanner-v2-determi
 import type { HotelIntakeV2DiscoveryResult } from "@/lib/server/hotel-scanner-v2-intake";
 import { classifyHotelScannerPageV2, hotelScannerPageTypeDomain } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
 
-const CORE_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "experiences", "events", "offers", "contacts"] as const;
+const CORE_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "experiences", "offers", "contacts"] as const;
 
 function clean(value: unknown, max = 500) {
   const text = String(value ?? "").normalize("NFKC").replace(/\s+/g, " ").trim();
@@ -115,7 +115,8 @@ function openingHoursForItem(discovery: HotelIntakeV2DiscoveryResult, item: { na
 
 const SPA_PREVIEW_HEADING = /(?:adults?\s*only.*(?:spa|wellness)|family.*spa|mountain\s+spa|day\s+spa|beauty.*spa|saunen?|sauna|ruher[aä]ume?|relaxation\s+rooms?|pools?|behandlungen|treatments?|massagen?|massage|hamam|hammam|kosmetik|rituale?|therap(?:y|ies)|k[oö]rperbehandlungen|gesichtsbehandlungen|packungen)/iu;
 const EXPERIENCE_PREVIEW_HEADING = /(?:e-?trial|trial[-\s]?park|single\s+trail|bike\s+trail|mountain\s*bik|hiking|wander|kletter|climb|tennis|golf|fitness|gym|playground|kids?\s+(?:club|area)|aqua\s*park|water\s*park|rutschenpark|ski(?:ing)?|langlauf|toboggan|rodel)/iu;
-const PREVIEW_GENERIC_HEADING = /^(?:spa|wellness|experiences?|activities|aktiv(?:it[aä]ten)?|angebote|offers?|mehr\s+lesen|weniger\s+lesen|faq|fragen\s*&\s*antworten)$/iu;
+const PREVIEW_GENERIC_HEADING = /^(?:spa|wellness|experiences?|activities|aktiv(?:it[aä]ten)?|fahrrad[-\s]?erlebnisse|angebote|offers?|mehr\s+lesen|weniger\s+lesen|faq|fragen\s*&\s*antworten)$/iu;
+const PREVIEW_QUESTION_HEADING = /\?$|^(?:was|wann|warum|wie|wo|welche[rsnm]?|welcher|welches|gibt\s+es|eignet\s+sich|kann\s+man|für\s+wen|fuer\s+wen|ist\s+es|sind\s+|does\s+|do\s+|is\s+|are\s+|can\s+|which\s+|what\s+|when\s+|where\s+|why\s+|how\s+)/iu;
 
 function previewEvidenceHeadings(discovery: HotelIntakeV2DiscoveryResult, domain: "spa" | "experiences") {
   const result: string[] = [];
@@ -129,7 +130,7 @@ function previewEvidenceHeadings(discovery: HotelIntakeV2DiscoveryResult, domain
       ...(page.headings || []).map((heading) => clean(heading.text, 240)),
     ];
     for (const heading of headings) {
-      if (!heading || PREVIEW_GENERIC_HEADING.test(heading) || !pattern.test(heading)) continue;
+      if (!heading || PREVIEW_GENERIC_HEADING.test(heading) || PREVIEW_QUESTION_HEADING.test(heading) || !pattern.test(heading)) continue;
       if (entityKey(heading) === pageTitle) continue;
       if (!clientPreviewNameAllowed(domain, heading)) continue;
       result.push(heading);
