@@ -27,19 +27,19 @@
     {
       "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
       "fromLine": 89,
-      "toLine": 106,
+      "toLine": 122,
       "operation": "rpc"
     },
     {
       "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
       "fromLine": 114,
-      "toLine": 131,
+      "toLine": 147,
       "operation": "rpc"
     },
     {
       "filePath": "lib/server/hotel-intelligence-persistence-v2.ts",
       "fromLine": 129,
-      "toLine": 146,
+      "toLine": 162,
       "table": "hotel_intelligence_approvals_v2",
       "operation": "select"
     }
