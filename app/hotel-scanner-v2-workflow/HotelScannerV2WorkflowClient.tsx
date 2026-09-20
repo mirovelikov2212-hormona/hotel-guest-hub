@@ -493,8 +493,6 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
   const metrics = useMemo(() => {
     if (!result) return [];
     const counts = result.discovery?.siteMap?.counts;
-    const inventory = result.discovery?.inventory?.counts;
-    const docs = result.completeness?.documents;
     return [
       [copy.pages, String(counts?.crawledPages ?? 0)],
       [copy.resources, String(counts?.resources ?? 0)],
