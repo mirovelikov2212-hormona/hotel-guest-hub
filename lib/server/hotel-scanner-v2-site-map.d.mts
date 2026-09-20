@@ -22,6 +22,11 @@ export type HotelScannerV2SiteResource = {
   inventoryHint: HotelScannerV2PageInventoryHint | null;
   inventoryHints: HotelScannerV2PageInventoryHint[];
   structuralInventory: HotelScannerV2StructuralInventoryEvidence | null;
+  contactSignals: {
+    phones: string[];
+    emails: string[];
+    addresses: string[];
+  };
   variantGroupId: string;
 };
 
