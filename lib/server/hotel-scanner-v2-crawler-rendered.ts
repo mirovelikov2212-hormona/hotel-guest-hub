@@ -7,6 +7,7 @@ import { deriveHotelPageInventoryHintsV2 } from "@/lib/server/hotel-scanner-v2-l
 import { fetchPublicHtmlV2, fetchPublicTextV2 } from "@/lib/server/hotel-scanner-v2-network";
 import { classifyHotelScannerPageV2, hotelScannerPageTypeDomain } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
 import { extractHotelPageStructureV2 } from "@/lib/server/hotel-scanner-v2-page-structure.mjs";
+import { extractHotelDomStructureV3 } from "@/lib/server/hotel-scanner-v3-dom-structure.mjs";
 import { deriveHotelPropertyScopeV2, isHotelPropertyPageUrlInScopeV2 } from "@/lib/server/hotel-scanner-v2-property-scope.mjs";
 import { browserRenderDecisionV2, HOTEL_SCANNER_V2_BROWSER_RENDER_CONCURRENCY, HOTEL_SCANNER_V2_BROWSER_RENDER_WALL_MS, HOTEL_SCANNER_V2_MAX_BROWSER_RENDERS } from "@/lib/server/hotel-scanner-v2-render-policy.mjs";
 import { canonicalizeHotelIntakeUrl } from "@/lib/server/hotel-scanner-v2-site-map.mjs";
@@ -63,6 +64,21 @@ function mergeJsonLd(left: HotelScannerV2PageEvidence["jsonLdEntities"], right: 
     result.push(value);
   }
   return result.slice(0, 300);
+}
+
+function richerV3Structure(
+  current: HotelScannerV2PageEvidence["v3Structure"],
+  rendered: HotelScannerV2PageEvidence["v3Structure"],
+) {
+  if (!rendered) return current;
+  if (!current) return rendered;
+  const currentItems = Number(current.counts?.repeatedItems || 0);
+  const renderedItems = Number(rendered.counts?.repeatedItems || 0);
+  const currentGroups = Number(current.counts?.repeatedStructures || 0);
+  const renderedGroups = Number(rendered.counts?.repeatedStructures || 0);
+  return renderedItems > currentItems || (renderedItems === currentItems && renderedGroups > currentGroups)
+    ? rendered
+    : current;
 }
 
 function preferredLanguageRank(rawUrl: string) {
@@ -337,6 +353,7 @@ export async function enrichHotelEvidenceQuickRenderedV2(
         try {
           const rendered = await renderer.render(page.url);
           const structure = rendered.html ? extractHotelPageStructureV2(rendered.html) : null;
+          const renderedV3Structure = rendered.html ? extractHotelDomStructureV3(rendered.html, page.url) : null;
           const renderedText = rendered.text.trim();
           base.pages[index] = {
             ...page,
@@ -344,6 +361,7 @@ export async function enrichHotelEvidenceQuickRenderedV2(
             headings: structure?.headings?.length ? structure.headings : page.headings,
             jsonLdEntities: structure ? mergeJsonLd(page.jsonLdEntities, structure.jsonLdEntities) : page.jsonLdEntities,
             contentBlocks: structure?.contentBlocks?.length ? structure.contentBlocks : page.contentBlocks,
+            v3Structure: richerV3Structure(page.v3Structure, renderedV3Structure || undefined),
             renderedContentBlocks: rendered.blocks,
             renderMode: "browser",
             renderReason: "quick_preview_targeted_authority",
@@ -444,6 +462,7 @@ export async function crawlPublicHotelWebsiteRenderedV2(rawUrl: string): Promise
       try {
         const rendered = await renderer.render(page.url);
         const structure = rendered.html ? extractHotelPageStructureV2(rendered.html) : null;
+        const renderedV3Structure = rendered.html ? extractHotelDomStructureV3(rendered.html, page.url) : null;
         const renderedText = rendered.text.trim();
         base.pages[index] = {
           ...page,
@@ -451,6 +470,7 @@ export async function crawlPublicHotelWebsiteRenderedV2(rawUrl: string): Promise
           headings: structure?.headings?.length ? structure.headings : page.headings,
           jsonLdEntities: structure ? mergeJsonLd(page.jsonLdEntities, structure.jsonLdEntities) : page.jsonLdEntities,
           contentBlocks: structure?.contentBlocks?.length ? structure.contentBlocks : page.contentBlocks,
+          v3Structure: richerV3Structure(page.v3Structure, renderedV3Structure || undefined),
           renderedContentBlocks: rendered.blocks,
           renderMode: "browser",
           renderReason: decision.reason,
