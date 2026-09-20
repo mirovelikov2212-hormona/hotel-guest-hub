@@ -98,6 +98,19 @@ test("Scanner V2 durable workflow never serializes the full multi-megabyte resul
   assert.match(projection, /compactSourceUrls/);
 });
 
+test("Scanner V2 completed result can open Design Studio by scan lineage only", async () => {
+  const source = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
+  const designPage = await readProjectFile("app/design-studio/page.tsx");
+  const previewRoute = await readProjectFile("app/api/control-plane/design-studio/preview-source/route.ts");
+
+  assert.match(source, /design-studio\?lang=\$\{lang\}&scanRunId=/);
+  assert.match(designPage, /scanRunId/);
+  assert.match(designPage, /!scanRunId \? <DesignFactoryHandoffLauncher/);
+  assert.match(previewRoute, /loadPersistedHotelScannerV2ResultForActor/);
+  assert.match(previewRoute, /projectHotelScannerV2DesignPreviewPackage/);
+  assert.match(previewRoute, /downstreamHandoffAllowed: false/);
+});
+
 test("Workflow Preview resumes a run after refresh and polls independently from the start request", async () => {
   const source = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
 

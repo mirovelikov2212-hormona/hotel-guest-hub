@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
@@ -133,6 +134,7 @@ const COPY = {
     blocked: "Блокирано",
     blockers: "Blocking reasons",
     noBlockers: "Няма blocking reasons.",
+    designStudio: "Отвори в Design Studio",
   },
   en: {
     title: "New scan",
@@ -177,6 +179,7 @@ const COPY = {
     blocked: "Blocked",
     blockers: "Blocking reasons",
     noBlockers: "No blocking reasons.",
+    designStudio: "Open in Design Studio",
   },
 } as const;
 
@@ -464,6 +467,13 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
               <a className="v2-source-link mt-5 inline-flex text-sm font-semibold" href={result.source.canonicalUrl} target="_blank" rel="noreferrer">
                 {result.source.canonicalUrl}
               </a>
+            ) : null}
+            {scanRunId ? (
+              <div className="mt-5">
+                <Link href={`/design-studio?lang=${lang}&scanRunId=${encodeURIComponent(scanRunId)}`} className="v2-button inline-flex text-sm">
+                  {copy.designStudio}
+                </Link>
+              </div>
             ) : null}
           </section>
 

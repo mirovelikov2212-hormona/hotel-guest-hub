@@ -51,6 +51,14 @@ type WorkspaceSnapshot = {
   currentPayload: HubDesignDraftPayload | null;
 };
 type DraftDiff = { changedPaths: string[]; changeCount: number; truncated: boolean };
+type PreviewAuthority = {
+  mode: "scanner_v2_review_preview";
+  scanRunId: string;
+  reviewId: string;
+  approvalEligible: boolean;
+  blockingReasons: string[];
+  downstreamHandoffAllowed: false;
+};
 
 const PRESETS: Record<HubExperiencePreset, string> = {
   boutique: "Boutique editorial",
@@ -96,6 +104,9 @@ const COPY = {
     noVersions: "Още няма записана revision.",
     source: "Източник",
     destination: "CTA destination",
+    previewOnly: "PREVIEW ONLY · Scanner V2 Review",
+    previewOnlyHelp: "Този Hub може да се редактира и показва пред клиент, но не може да се запише като authoritative Design Revision или да продължи към Factory преди human approval.",
+    approvalRequired: "Approval required",
   },
   en: {
     title: "Hub Experience Builder V3",
@@ -127,6 +138,9 @@ const COPY = {
     noVersions: "No revision has been saved yet.",
     source: "Source",
     destination: "CTA destination",
+    previewOnly: "PREVIEW ONLY · Scanner V2 Review",
+    previewOnlyHelp: "This Hub can be edited and shown as a client preview, but it cannot be saved as an authoritative Design Revision or handed to Factory before human approval.",
+    approvalRequired: "Approval required",
   },
 } as const;
 
@@ -147,10 +161,11 @@ function withPromotionDestination(promo: HubPromotionDraft): EditablePromotion {
   return { ...promo, ctaDestination: candidate.ctaDestination || "page-services" };
 }
 
-export default function VersionedDesignStudioClient({ lang }: { lang: ControlPlaneLang }) {
+export default function VersionedDesignStudioClient({ lang, scanRunId }: { lang: ControlPlaneLang; scanRunId?: string }) {
   const language: "bg" | "en" = lang === "en" ? "en" : "bg";
   const copy = COPY[language];
   const [pkg, setPkg] = useState<HotelIntelligencePackage | null>(null);
+  const [previewAuthority, setPreviewAuthority] = useState<PreviewAuthority | null>(null);
   const [panel, setPanel] = useState<Panel>("structure");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -160,6 +175,23 @@ export default function VersionedDesignStudioClient({ lang }: { lang: ControlPla
   const [activeScreen, setActiveScreen] = useState("home");
 
   useEffect(() => {
+    let cancelled = false;
+    if (scanRunId) {
+      setError("");
+      void fetch(`/api/control-plane/design-studio/preview-source?scanRunId=${encodeURIComponent(scanRunId)}`, { cache: "no-store" })
+        .then(async (response) => {
+          const body = await response.json() as { ok?: boolean; sourcePackage?: HotelIntelligencePackage; authority?: PreviewAuthority; error?: string };
+          if (!response.ok || !body.ok || !body.sourcePackage || !body.authority) throw new Error(body.error || "design_preview_source_load_failed");
+          if (cancelled) return;
+          setPreviewAuthority(body.authority);
+          setPkg(body.sourcePackage);
+        })
+        .catch((reason) => {
+          if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason));
+        });
+      return () => { cancelled = true; };
+    }
+
     const raw = window.sessionStorage.getItem(PACKAGE_STORAGE_KEY);
     if (!raw) return;
     try {
@@ -168,7 +200,8 @@ export default function VersionedDesignStudioClient({ lang }: { lang: ControlPla
     } catch {
       window.sessionStorage.removeItem(PACKAGE_STORAGE_KEY);
     }
-  }, []);
+    return () => { cancelled = true; };
+  }, [scanRunId]);
 
   const proposal = useMemo(() => pkg ? buildHubDesignProposal(pkg, language) : null, [pkg, language]);
   const generated = useMemo(() => pkg ? buildHubExperienceBlueprint(pkg, language) : null, [pkg, language]);
@@ -261,12 +294,17 @@ export default function VersionedDesignStudioClient({ lang }: { lang: ControlPla
   useEffect(() => {
     if (!pkg || !proposal || !generated) return;
     setError("");
+    if (previewAuthority?.mode === "scanner_v2_review_preview") {
+      setSnapshot(null);
+      applyGeneratedBlueprint();
+      return;
+    }
     void loadWorkspace(pkg, true).catch((reason) => {
       applyGeneratedBlueprint();
       setError(reason instanceof Error ? reason.message : String(reason));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pkg?.source.canonicalUrl, proposal?.hotelName, generated?.schemaVersion]);
+  }, [pkg?.source.canonicalUrl, proposal?.hotelName, generated?.schemaVersion, previewAuthority?.mode]);
 
   const allSections = useMemo(() => {
     if (!proposal) return manualSections;
@@ -343,7 +381,7 @@ export default function VersionedDesignStudioClient({ lang }: { lang: ControlPla
   }) : [], [proposal, navigation, promotionEnabled, promotions, offers, messages, modules.length, primaryColor, backgroundColor]);
 
   async function saveRevision() {
-    if (!pkg || !payload || !validation.ok) return;
+    if (previewAuthority || !pkg || !payload || !validation.ok) return;
     setBusy(true); setError(""); setNotice(""); setDiff(null);
     try {
       const response = await fetch("/api/control-plane/design-studio/drafts", {
@@ -447,7 +485,7 @@ export default function VersionedDesignStudioClient({ lang }: { lang: ControlPla
   }
 
   if (!pkg || !proposal || !generated) {
-    return <section className="rounded-[2rem] border border-white/10 bg-neutral-900/80 p-7"><h2 className="text-2xl font-semibold">{copy.noPackage}</h2><p className="mt-2 text-sm text-neutral-400">{copy.noPackageHelp}</p><Link href={`/hotel-scanner?lang=${lang}`} className="mt-5 inline-flex rounded-xl border border-cyan-300/20 px-4 py-3 text-sm text-cyan-100">{copy.scanner}</Link></section>;
+    return <section className="rounded-[2rem] border border-white/10 bg-neutral-900/80 p-7"><h2 className="text-2xl font-semibold">{copy.noPackage}</h2><p className="mt-2 text-sm text-neutral-400">{copy.noPackageHelp}</p><Link href={`/hotel-scanner-v2-workflow?lang=${lang}`} className="mt-5 inline-flex rounded-xl border border-cyan-300/20 px-4 py-3 text-sm text-cyan-100">{copy.scanner}</Link></section>;
   }
 
   const pageSectionChoices = visibleSections;
@@ -460,13 +498,20 @@ export default function VersionedDesignStudioClient({ lang }: { lang: ControlPla
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="max-w-4xl"><p className="text-xs font-semibold uppercase tracking-[0.24em] text-violet-300/70">StayHub Design Intelligence</p><h2 className="mt-2 text-3xl font-semibold">{copy.title}</h2><p className="mt-2 text-sm leading-6 text-neutral-400">{copy.subtitle}</p><p className="mt-2 text-xs text-neutral-600">{copy.source}: {pkg.source.canonicalUrl}</p></div>
         <div className="flex flex-wrap gap-2">
-          <span className="rounded-full border border-amber-300/20 px-3 py-2 text-[10px] font-semibold uppercase text-amber-100">DRAFT · {currentRevision ? `r${currentRevision.revisionNo}` : "unsaved"}</span>
-          <button type="button" onClick={saveRevision} disabled={busy || !validation.ok} className="min-h-11 rounded-xl border border-emerald-300/25 bg-emerald-300/[0.06] px-4 text-xs font-semibold text-emerald-100 disabled:opacity-40">{busy ? copy.saving : copy.save}</button>
+          <span className="rounded-full border border-amber-300/20 px-3 py-2 text-[10px] font-semibold uppercase text-amber-100">{previewAuthority ? copy.previewOnly : `DRAFT · ${currentRevision ? `r${currentRevision.revisionNo}` : "unsaved"}`}</span>
+          <button type="button" onClick={saveRevision} disabled={Boolean(previewAuthority) || busy || !validation.ok} className="min-h-11 rounded-xl border border-emerald-300/25 bg-emerald-300/[0.06] px-4 text-xs font-semibold text-emerald-100 disabled:opacity-40">{previewAuthority ? copy.approvalRequired : busy ? copy.saving : copy.save}</button>
           <button type="button" onClick={applyGeneratedBlueprint} className="min-h-11 rounded-xl border border-white/10 px-3 text-xs text-neutral-400">{copy.reset}</button>
         </div>
       </div>
 
-      {(notice || error) && <div className={`mt-4 rounded-2xl border p-3 text-xs ${error ? "border-rose-300/20 text-rose-200" : "border-emerald-300/20 text-emerald-200"}`}>{error || notice}</div>}
+      {previewAuthority ? (
+        <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/[0.04] p-4">
+          <p className="text-sm font-semibold text-amber-100">{copy.previewOnly}</p>
+          <p className="mt-2 max-w-4xl text-xs leading-5 text-neutral-400">{copy.previewOnlyHelp}</p>
+          <p className="mt-2 font-mono text-[10px] text-neutral-600">scan {previewAuthority.scanRunId.slice(0, 8)} · review {previewAuthority.reviewId.slice(0, 8)}</p>
+        </div>
+      ) : null}
+      {(notice || error) && <div className={`mt-4 rounded-2xl border p-3 text-xs ${error ? "border-rose-300/20 text-rose-200" : "border-emerald-300/20 text-emerald-200"}`}>{error || notice}</div>
 
       <div className="mt-5 flex gap-2 overflow-x-auto pb-2">
         {(["structure", "pages", "campaigns", "navigation", "survey", "style", "versions", "qa"] as Panel[]).map((id) => <button key={id} type="button" onClick={() => setPanel(id)} className={`min-h-11 shrink-0 rounded-xl border px-4 text-xs font-semibold ${panel === id ? "border-violet-300/30 bg-violet-300/[0.08] text-violet-100" : "border-white/5 text-neutral-500"}`}>{copy[id]}</button>)}

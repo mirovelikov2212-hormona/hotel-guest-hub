@@ -89,3 +89,21 @@ test("Design hardening reuses existing revision and Factory authorities without 
   assertNotContains(authority, "production-live-activation");
   assertNotContains(authority, "publish_hotel_config_revision");
 });
+
+
+test("Scanner V2 Review may feed Design preview without becoming Design or Factory authority", async () => {
+  const client = await readProjectFile("app/design-studio/VersionedDesignStudioClient.tsx");
+  const route = await readProjectFile("app/api/control-plane/design-studio/preview-source/route.ts");
+  const projector = await readProjectFile("lib/server/hotel-scanner-v2-design-preview.ts");
+
+  assertContains(client, "scanner_v2_review_preview");
+  assertContains(client, "PREVIEW ONLY · Scanner V2 Review");
+  assertContains(client, "Boolean(previewAuthority) || busy || !validation.ok");
+  assertContains(route, "loadPersistedHotelScannerV2ResultForActor");
+  assertContains(route, "downstreamHandoffAllowed: false");
+  assertContains(projector, "PREVIEW_CATEGORIES");
+  assertContains(projector, 'gastronomy: "dining"');
+  assertContains(projector, 'spa: "wellness"');
+  assertNotContains(route, "saveHubDesignDraftRevision");
+  assertNotContains(route, "approvePersistedHotelIntelligenceV2");
+});

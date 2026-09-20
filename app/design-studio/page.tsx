@@ -29,10 +29,11 @@ const COPY = {
 export default async function DesignStudioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lang?: string }>;
+  searchParams: Promise<{ lang?: string; scanRunId?: string }>;
 }) {
-  const { lang: rawLang } = await searchParams;
+  const { lang: rawLang, scanRunId: rawScanRunId } = await searchParams;
   const lang = normalizeControlPlaneLang(rawLang);
+  const scanRunId = /^[a-f0-9]{8}-[a-f0-9-]{27}$/iu.test(String(rawScanRunId || "").trim()) ? String(rawScanRunId).trim() : undefined;
   const copy = COPY[lang];
 
   const authority = await getCurrentPlatformAdminSession();
@@ -54,7 +55,7 @@ export default async function DesignStudioPage({
               <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-400">{copy.subtitle}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Link href={`/hotel-scanner?lang=${lang}`} className="rounded-2xl border border-violet-300/20 bg-violet-300/5 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:border-violet-300/45">{copy.scanner}</Link>
+              <Link href={`/hotel-scanner-v2-workflow?lang=${lang}`} className="rounded-2xl border border-violet-300/20 bg-violet-300/5 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:border-violet-300/45">{copy.scanner}</Link>
               <Link href="/design-studio?lang=bg" className={`rounded-2xl border px-3 py-2 text-xs font-semibold ${lang === "bg" ? "border-neutral-100 bg-neutral-100 text-neutral-950" : "border-white/10 text-neutral-400"}`}>BG</Link>
               <Link href="/design-studio?lang=en" className={`rounded-2xl border px-3 py-2 text-xs font-semibold ${lang === "en" ? "border-neutral-100 bg-neutral-100 text-neutral-950" : "border-white/10 text-neutral-400"}`}>EN</Link>
             </div>
@@ -62,8 +63,8 @@ export default async function DesignStudioPage({
           <Link href={`/control-panel?lang=${lang}`} className="mt-6 inline-flex text-sm font-semibold text-violet-200 transition hover:text-violet-100">{copy.back}</Link>
         </header>
 
-        <VersionedDesignStudioClient lang={lang} />
-        <DesignFactoryHandoffLauncher lang={lang} />
+        <VersionedDesignStudioClient lang={lang} scanRunId={scanRunId} />
+        {!scanRunId ? <DesignFactoryHandoffLauncher lang={lang} /> : null}
       </div>
     </main>
   );
