@@ -94,7 +94,18 @@ type QuickPreview = {
   mode?: "quick_preview";
   runtimeMs?: number;
   sourcePackage?: HotelIntelligencePackage;
-  components?: Array<{ domain: string; count: number; state: string }>;
+  components?: Array<{
+    domain: string;
+    count: number;
+    state: string;
+    items?: Array<{ name: string; hours?: string }>;
+  }>;
+  contacts?: {
+    phones?: string[];
+    emails?: string[];
+    addresses?: string[];
+    website?: string;
+  };
   documents?: Array<{ kind: string; bg: string; en: string; onboarding: boolean; count: number }>;
   diagnostics?: { pageCount?: number; resourceCount?: number; expectedItems?: number };
   error?: string;
@@ -149,14 +160,26 @@ const COPY = {
     noBlockers: "Няма blocking reasons.",
     designStudio: "Отвори в Design Studio",
     quickTitle: "Quick Client Preview",
-    quickHelp: "Основните Hub компоненти са намерени без PDF четене и без да чакаш Deep Verification.",
+    quickHelp: "Основните компоненти на бъдещия Hub са готови за преглед. Отвори всяка карта, за да видиш какво е намерено.",
     quickLoading: "Подготвям бързия preview…",
     quickFailed: "Quick Preview не успя, но Deep Verification продължава.",
     quickDesign: "Виж визуално в Design Studio",
     documentsFound: "Намерени документи",
     onboardingLater: "добавяме при onboarding",
     verifiedLater: "проверяваме за конфликти",
-    deepRunning: "Deep Verification продължава във фонов режим",
+    deepRunning: "Пълната проверка продължава във фонов режим",
+    found: "Намерени",
+    notFound: "Не е открито на сайта",
+    openCard: "Виж съдържанието",
+    hours: "Работно време",
+    hoursMissing: "Работно време не е открито на сайта",
+    onboardingReady: "Сканирането е готово за onboarding.",
+    onboardingHelp: "Намерените компоненти са готови. Описания, цени, снимки и други детайли могат да се допълнят ръчно при onboarding.",
+    onboardingSection: "Следваща стъпка: onboarding",
+    manualSetup: "Детайлите се допълват при onboarding",
+    needsReview: "Нужна е проверка",
+    discoveredOnSite: "Намерено на сайта",
+    technical: "Технически детайли",
   },
   en: {
     title: "New scan",
@@ -203,14 +226,26 @@ const COPY = {
     noBlockers: "No blocking reasons.",
     designStudio: "Open in Design Studio",
     quickTitle: "Quick Client Preview",
-    quickHelp: "Core Hub components were found without PDF parsing and without waiting for Deep Verification.",
+    quickHelp: "The core components of the future Hub are ready to review. Open each card to see what was found.",
     quickLoading: "Preparing quick preview…",
     quickFailed: "Quick Preview failed, but Deep Verification continues.",
     quickDesign: "Open visual Design Studio preview",
     documentsFound: "Discovered documents",
     onboardingLater: "add during onboarding",
     verifiedLater: "verify for conflicts",
-    deepRunning: "Deep Verification continues in the background",
+    deepRunning: "Full verification continues in the background",
+    found: "Found",
+    notFound: "Not found on the website",
+    openCard: "View contents",
+    hours: "Opening hours",
+    hoursMissing: "Opening hours were not found on the website",
+    onboardingReady: "The scan is ready for onboarding.",
+    onboardingHelp: "The discovered components are ready. Descriptions, prices, images and other details can be completed manually during onboarding.",
+    onboardingSection: "Next step: onboarding",
+    manualSetup: "Details are completed during onboarding",
+    needsReview: "Needs review",
+    discoveredOnSite: "Found on the website",
+    technical: "Technical details",
   },
 } as const;
 
@@ -506,11 +541,42 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
             <>
               <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {(quickPreview.components || []).map((component) => (
-                  <div key={component.domain} className="v2-card-soft p-4">
-                    <p className="v2-muted text-xs font-bold uppercase tracking-[0.12em]">{domainLabel(component.domain, lang)}</p>
-                    <p className="mt-2 text-2xl font-semibold">{component.count}</p>
-                    <p className="v2-muted mt-1 text-[10px] font-mono">{component.state}</p>
-                  </div>
+                  <details key={component.domain} className="v2-card-soft group p-4">
+                    <summary className="cursor-pointer list-none">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="v2-muted text-xs font-bold uppercase tracking-[0.12em]">{domainLabel(component.domain, lang)}</p>
+                          <p className="mt-2 text-2xl font-semibold">{component.count}</p>
+                          <p className="v2-muted mt-1 text-xs">{component.count ? `${copy.found}: ${component.count}` : copy.notFound}</p>
+                        </div>
+                        <span className="v2-muted text-xs">{copy.openCard}</span>
+                      </div>
+                    </summary>
+                    <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--v2-line)" }}>
+                      {component.domain === "contacts" ? (
+                        <div className="space-y-2 text-sm">
+                          {(quickPreview.contacts?.phones || []).map((phone) => <p key={`phone:${phone}`}><strong>{lang === "bg" ? "Телефон" : "Phone"}:</strong> {phone}</p>)}
+                          {(quickPreview.contacts?.emails || []).map((email) => <p key={`email:${email}`}><strong>Email:</strong> {email}</p>)}
+                          {(quickPreview.contacts?.addresses || []).map((address) => <p key={`address:${address}`}><strong>{lang === "bg" ? "Адрес" : "Address"}:</strong> {address}</p>)}
+                          {quickPreview.contacts?.website ? <p className="break-all"><strong>Web:</strong> {quickPreview.contacts.website}</p> : null}
+                          {!quickPreview.contacts?.phones?.length && !quickPreview.contacts?.emails?.length && !quickPreview.contacts?.addresses?.length
+                            ? <p className="v2-muted">{copy.notFound}</p>
+                            : null}
+                        </div>
+                      ) : component.items?.length ? (
+                        <div className="space-y-2">
+                          {component.items.map((item, index) => (
+                            <div key={`${component.domain}:${item.name}:${index}`} className="v2-card p-3">
+                              <p className="text-sm font-semibold">{item.name}</p>
+                              {component.domain === "gastronomy" ? (
+                                <p className="v2-muted mt-1 text-xs">{item.hours ? `${copy.hours}: ${item.hours}` : copy.hoursMissing}</p>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      ) : <p className="v2-muted text-sm">{copy.notFound}</p>}
+                    </div>
+                  </details>
                 ))}
               </div>
               {(quickPreview.documents || []).length ? (
@@ -575,8 +641,9 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
       {result ? (
         <>
           <section className="v2-panel p-5 sm:p-6">
-            <span className="v2-pill v2-pill-good">COMPLETED</span>
-            <p className="v2-muted mt-3 text-sm leading-6">{copy.completed}</p>
+            <span className="v2-pill v2-pill-good">{lang === "bg" ? "ГОТОВО" : "READY"}</span>
+            <h2 className="mt-3 text-xl font-bold">{copy.onboardingReady}</h2>
+            <p className="v2-muted mt-2 text-sm leading-6">{copy.onboardingHelp}</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {metrics.map(([label, value]) => (
                 <div key={label} className="v2-card-soft p-4">
@@ -600,54 +667,9 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
           </section>
 
           <section className="v2-panel p-5 sm:p-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="v2-section-title text-xl">{copy.siteCoverage}</h2>
-                <p className="v2-muted mt-1 max-w-4xl text-sm leading-6">{copy.siteCoverageHelp}</p>
-              </div>
-              <span className={`v2-pill ${siteCoverage?.coverageComplete ? "v2-pill-good" : "v2-pill-warn"}`}>
-                {siteCoverage?.coverageComplete ? copy.coverageComplete : copy.coverageIncomplete}
-              </span>
-            </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                [copy.discoveredRelevant, siteCoverage?.discoveredRelevantCount ?? 0],
-                [copy.fetchedRelevant, siteCoverage?.fetchedRelevantCount ?? 0],
-                [copy.pendingRelevant, siteCoverage?.pendingRelevantCount ?? 0],
-                [copy.failedRelevant, siteCoverage?.failedRelevantCount ?? 0],
-              ].map(([label, value]) => (
-                <div key={String(label)} className="v2-card-soft p-4">
-                  <p className="v2-muted text-xs font-bold uppercase tracking-[0.12em]">{label}</p>
-                  <p className="mt-2 text-lg font-semibold">{value}</p>
-                </div>
-              ))}
-            </div>
-            {siteCoverage?.pendingRelevantUrls?.length ? (
-              <details className="v2-card-soft mt-4 p-4">
-                <summary className="cursor-pointer text-sm font-semibold">{copy.pendingPages} ({siteCoverage.pendingRelevantUrls.length})</summary>
-                <div className="mt-3 space-y-2">
-                  {siteCoverage.pendingRelevantUrls.map((pendingUrl) => (
-                    <a key={pendingUrl} href={pendingUrl} target="_blank" rel="noreferrer" className="v2-source-link block break-all text-xs">{pendingUrl}</a>
-                  ))}
-                </div>
-              </details>
-            ) : null}
-            {siteCoverage?.failedRelevantUrls?.length ? (
-              <details className="v2-card-soft mt-4 p-4">
-                <summary className="cursor-pointer text-sm font-semibold">{copy.failedPages} ({siteCoverage.failedRelevantUrls.length})</summary>
-                <div className="mt-3 space-y-2">
-                  {siteCoverage.failedRelevantUrls.map((failedUrl) => (
-                    <a key={failedUrl} href={failedUrl} target="_blank" rel="noreferrer" className="v2-source-link block break-all text-xs">{failedUrl}</a>
-                  ))}
-                </div>
-              </details>
-            ) : null}
-          </section>
-
-          <section className="v2-panel p-5 sm:p-6">
-            <h2 className="v2-section-title text-xl">{copy.coverage}</h2>
-            <p className="v2-muted mt-1 max-w-4xl text-sm leading-6">{copy.coverageHelp}</p>
-            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <h2 className="v2-section-title text-xl">{copy.onboardingSection}</h2>
+            <p className="v2-muted mt-1 max-w-4xl text-sm leading-6">{copy.onboardingHelp}</p>
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
               {(result.completeness?.domains || []).map((domain) => {
                 const inventoryLayer = domain.inventory || {
                   status: domain.status,
@@ -656,63 +678,34 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
                   extracted: domain.extracted,
                   missingItems: domain.missingItems || [],
                 };
-                const contentLayer = domain.content || {
-                  status: domain.status,
-                  reason: domain.reason,
-                  detailed: domain.extracted,
-                  totalEntities: domain.extracted,
-                  missingDetailItems: [],
-                };
+                const inventoryReady = inventoryLayer.status === "COMPLETE";
+                const notDiscovered = domain.status === "NOT_APPLICABLE";
+                const label = notDiscovered ? copy.notFound : inventoryReady ? copy.discoveredOnSite : copy.needsReview;
                 return (
-                <article key={domain.domain} className="v2-card p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h3 className="font-bold">{domainLabel(domain.domain, lang)}</h3>
-                      <p className="v2-muted mt-1 text-xs font-mono">{domain.reason}</p>
-                    </div>
-                    <span className={`v2-pill ${domain.status === "COMPLETE" ? "v2-pill-good" : domain.status === "NOT_APPLICABLE" ? "v2-pill-info" : "v2-pill-warn"}`}>{domain.status}</span>
-                  </div>
-                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                    <div className="v2-card-soft p-3">
-                      <p className="v2-muted text-[10px] font-bold uppercase tracking-[0.12em]">Inventory</p>
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                        <span className="v2-pill">{copy.extracted}: {inventoryLayer.extracted}/{inventoryLayer.expected ?? "?"}</span>
-                        <span className="v2-pill">{copy.missing}: {inventoryLayer.missingItems?.length || 0}</span>
+                  <article key={domain.domain} className="v2-card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="font-bold">{domainLabel(domain.domain, lang)}</h3>
+                        <p className="v2-muted mt-1 text-sm">
+                          {notDiscovered ? copy.notFound : `${copy.found}: ${inventoryLayer.extracted}/${inventoryLayer.expected ?? "?"}`}
+                        </p>
                       </div>
+                      <span className={`v2-pill ${inventoryReady ? "v2-pill-good" : notDiscovered ? "v2-pill-info" : "v2-pill-warn"}`}>{label}</span>
                     </div>
-                    <div className="v2-card-soft p-3">
-                      <p className="v2-muted text-[10px] font-bold uppercase tracking-[0.12em]">Content</p>
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                        <span className="v2-pill">{copy.withDetails}: {contentLayer.detailed}/{contentLayer.totalEntities}</span>
-                        <span className="v2-pill">{copy.missingDetails}: {contentLayer.missingDetailItems?.length || 0}</span>
+                    {!notDiscovered && inventoryReady && domain.content?.status === "ONBOARDING_REQUIRED" ? (
+                      <p className="v2-muted mt-3 text-xs">{copy.manualSetup}</p>
+                    ) : null}
+                    {inventoryLayer.missingItems?.length ? (
+                      <div className="mt-3 space-y-2">
+                        {inventoryLayer.missingItems.map((item) => (
+                          <p key={item.id} className="v2-card-soft p-2 text-xs">{item.nameHint || item.url || item.id}</p>
+                        ))}
                       </div>
-                    </div>
-                  </div>
-                  {inventoryLayer.missingItems?.length ? (
-                    <div className="mt-4 space-y-2">
-                      <p className="v2-muted text-xs font-bold">{copy.missing}</p>
-                      {inventoryLayer.missingItems.map((item) => (
-                        <div key={item.id} className="v2-card-soft p-3">
-                          <p className="text-sm font-semibold">{item.nameHint || item.id}</p>
-                          {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="v2-source-link mt-1 block break-all text-xs">{item.url}</a> : null}
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                  {contentLayer.missingDetailItems?.length ? (
-                    <div className="mt-4 space-y-2">
-                      <p className="v2-muted text-xs font-bold">{copy.missingDetails}</p>
-                      {contentLayer.missingDetailItems.map((item) => (
-                        <div key={`detail:${item.id}`} className="v2-card-soft p-3">
-                          <p className="text-sm font-semibold">{item.nameHint || item.id}</p>
-                          {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="v2-source-link mt-1 block break-all text-xs">{item.url}</a> : null}
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </article>
+                    ) : null}
+                  </article>
                 );
-              })}            </div>
+              })}
+            </div>
           </section>
 
           <HotelScannerV2ReviewWorkspace
@@ -722,25 +715,18 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
             lang={lang}
           />
 
-          <section className="v2-panel p-5 sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="v2-section-title text-xl">{copy.approval}</h2>
-                <p className="v2-muted mt-1 max-w-4xl text-sm leading-6">{copy.approvalHelp}</p>
-              </div>
-              <span className={`v2-pill ${result.validationGate?.approvalEligible ? "v2-pill-good" : "v2-pill-bad"}`}>
-                {result.validationGate?.approvalEligible ? copy.eligible : copy.blocked}
-              </span>
-            </div>
-            <div className="mt-5">
-              <p className="v2-muted text-xs font-bold uppercase tracking-[0.14em]">{copy.blockers}</p>
-              {blockers.length ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {blockers.map((blocker) => <span key={blocker} className="v2-pill v2-pill-warn font-mono text-xs">{blocker}</span>)}
+          <details className="v2-details v2-panel p-5 sm:p-6">
+            <summary className="cursor-pointer font-bold">{copy.technical}</summary>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {metrics.map(([label, value]) => (
+                <div key={`tech:${label}`} className="v2-card-soft p-3">
+                  <p className="v2-muted text-[10px] font-bold uppercase tracking-[0.12em]">{label}</p>
+                  <p className="mt-2 text-sm font-semibold">{value}</p>
                 </div>
-              ) : <p className="v2-muted mt-2 text-sm">{copy.noBlockers}</p>}
+              ))}
             </div>
-          </section>
+            <p className="v2-muted mt-4 text-xs">{blockers.length ? blockers.join(" · ") : copy.noBlockers}</p>
+          </details>
         </>
       ) : null}
     </div>
