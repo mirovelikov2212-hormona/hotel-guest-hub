@@ -128,6 +128,13 @@ type QuickPreview = {
     domains?: Array<{ domain: string; count: number; status?: string }>;
   } | null;
   inventoryAuthorityToken?: string;
+  workflow?: (WorkflowStart & { reusedDiscovery?: boolean }) | null;
+  checkpoint?: {
+    reusable?: boolean;
+    bytes?: number;
+    maxInlineBytes?: number;
+    fallbackRequired?: boolean;
+  };
   error?: string;
 };
 
@@ -421,6 +428,7 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
     setElapsedMs(0);
 
     let inventoryAuthorityToken = "";
+    let quickWorkflow: (WorkflowStart & { reusedDiscovery?: boolean }) | null = null;
     try {
       const quickResponse = await fetch("/api/control-plane/hotel-scanner/scan-v2-preview", {
         method: "POST",
@@ -434,6 +442,7 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
       setQuickPreview(quickBody);
       setQuickPreviewError(null);
       inventoryAuthorityToken = String(quickBody.inventoryAuthorityToken || "");
+      quickWorkflow = quickBody.workflow || null;
     } catch (reason) {
       setQuickPreviewError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -441,9 +450,29 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
     }
 
     try {
-      // M5 deliberately avoids two concurrent crawlers hitting the same hotel.
-      // Quick discovery completes first and signs its canonical inventory. The
-      // durable deep workflow then uses that exact snapshot as inventory authority.
+      if (
+        quickWorkflow?.runId
+        && quickWorkflow.scanRunId
+        && quickWorkflow.runAccessToken
+      ) {
+        // M6: the preview route already started Deep Verification with the same
+        // discovery evidence. No second crawl of the hotel is needed.
+        setRunId(quickWorkflow.runId);
+        setScanRunId(quickWorkflow.scanRunId);
+        setRunAccessToken(quickWorkflow.runAccessToken);
+        setStatus(quickWorkflow.status || "running");
+        setPollStartedAt(Date.now());
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          runId: quickWorkflow.runId,
+          scanRunId: quickWorkflow.scanRunId,
+          runAccessToken: quickWorkflow.runAccessToken,
+          url: url.trim(),
+        }));
+        return;
+      }
+
+      // Fallback for an oversized/failed checkpoint handoff. It is sequential,
+      // bounded and robots-aware; the scanners are never run concurrently.
       const response = await fetch("/api/control-plane/hotel-scanner/scan-v2-workflow", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
