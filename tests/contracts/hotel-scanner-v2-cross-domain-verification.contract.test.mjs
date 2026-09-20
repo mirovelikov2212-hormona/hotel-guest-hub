@@ -122,12 +122,16 @@ test("address components extracted under one generic address attribute are typed
 });
 
 test("operation-region reporting labels are locality components and punctuation does not create address conflicts", () => {
+  const typed = verifyHotelScanFactsV2([
+    { category: "location", subject: "hotel", attribute: "address", label: "Регион на дейност", value: "Регион Анталия, Турция.", confidence: 0.99, sourceUrls: ["https://hotel.test/docs/report-bg.pdf"] },
+  ]);
+  assert.ok(typed.facts.some((item) => item.attribute === "city_region"));
+
   const result = verifyHotelScanFactsV2([
     { category: "location", subject: "Kirman Premium", attribute: "address", label: "Регион на дейност", value: "Регион Анталия, Турция.", confidence: 0.99, sourceUrls: ["https://hotel.test/docs/report-bg.pdf"] },
     { category: "location", subject: "Kirman Premium", attribute: "address", label: "Адрес", value: "Анталия, Турция", confidence: 0.98, sourceUrls: ["https://hotel.test/docs/location-bg.pdf"] },
   ]);
   assert.equal(result.conflicts.length, 0);
-  assert.ok(result.facts.some((item) => item.attribute === "city_region"));
 });
 
 test("different standard checkout times remain a real conflict after clock normalization", () => {
