@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildHotelStructuralInventoryGraphV3 } from "../../lib/server/hotel-scanner-v3-structural-inventory.mjs";
+import { canonicalizeHotelIntakeUrl } from "../../lib/server/hotel-scanner-v2-site-map.mjs";
 
 function page(url, title, blocks = [], extra = {}) {
   const contentLinks = blocks.flatMap((block) => (block.linkItems || []).map((item) => new URL(item.href, url).toString()));
@@ -181,6 +182,6 @@ test("V3 roles distinguish navigation/list/detail structure without hotel ontolo
 
   const graph = buildHotelStructuralInventoryGraphV3(evidence);
   const roles = new Map(graph.roles.map((item) => [item.url, item.role]));
-  assert.equal(roles.get(group), "HYBRID");
-  assert.equal(roles.get(`${group}one/`), "DETAIL");
+  assert.equal(roles.get(canonicalizeHotelIntakeUrl(group)), "HYBRID");
+  assert.equal(roles.get(canonicalizeHotelIntakeUrl(`${group}one/`)), "DETAIL");
 });
