@@ -131,8 +131,11 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
 
   const reviewSections = buildHotelReviewSectionsV2(intelligenceCandidate);
   const approvalEligible = intelligenceCandidate.validation.status === "READY_FOR_APPROVAL";
-  const pipelineStatus = coverageBlockers.length
-    ? "INCOMPLETE"
+  // Scanner completion and final Hotel Intelligence approval are separate.
+  // Coverage/inventory warnings remain in the internal validation gate and
+  // onboarding workspace; they do not turn a successful client scan into a failure.
+  const pipelineStatus = completeness.status === "READY_FOR_ONBOARDING"
+    ? "READY_FOR_ONBOARDING"
     : approvalEligible
       ? "READY_FOR_APPROVAL"
       : completeness.status === "CONFLICT_REVIEW_REQUIRED"
