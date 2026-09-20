@@ -29,11 +29,12 @@ const COPY = {
 export default async function DesignStudioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lang?: string; scanRunId?: string }>;
+  searchParams: Promise<{ lang?: string; scanRunId?: string; preview?: string }>;
 }) {
-  const { lang: rawLang, scanRunId: rawScanRunId } = await searchParams;
+  const { lang: rawLang, scanRunId: rawScanRunId, preview: rawPreview } = await searchParams;
   const lang = normalizeControlPlaneLang(rawLang);
   const scanRunId = /^[a-f0-9]{8}-[a-f0-9-]{27}$/iu.test(String(rawScanRunId || "").trim()) ? String(rawScanRunId).trim() : undefined;
+  const quickPreview = rawPreview === "quick";
   const copy = COPY[lang];
 
   const authority = await getCurrentPlatformAdminSession();
@@ -63,8 +64,8 @@ export default async function DesignStudioPage({
           <Link href={`/control-panel?lang=${lang}`} className="mt-6 inline-flex text-sm font-semibold text-violet-200 transition hover:text-violet-100">{copy.back}</Link>
         </header>
 
-        <VersionedDesignStudioClient lang={lang} scanRunId={scanRunId} />
-        {!scanRunId ? <DesignFactoryHandoffLauncher lang={lang} /> : null}
+        <VersionedDesignStudioClient lang={lang} scanRunId={scanRunId} quickPreview={quickPreview} />
+        {!scanRunId && !quickPreview ? <DesignFactoryHandoffLauncher lang={lang} /> : null}
       </div>
     </main>
   );
