@@ -55,6 +55,11 @@ const USER_AGENT = "StayHub-Hotel-Scanner/2.0 (+https://stayhub.app)";
 const LANGUAGE_SEGMENT = /^(?:bg|en|de|ro|ru|cs|cz|fr|it|es|pl|tr|el|sr|mk|uk|hu|nl|pt)$/iu;
 
 export type HotelScannerV2LanguageAlternate = { language: string; url: string };
+export type HotelScannerV2ContactSignals = {
+  phones: string[];
+  emails: string[];
+  addresses: string[];
+};
 export type HotelScannerV2DelegatedAuthority = {
   domain: "offers";
   sourceUrl: string;
@@ -75,6 +80,7 @@ export type HotelScannerV2PageEvidence = {
   headings: HotelScannerV2Heading[];
   jsonLdEntities: HotelScannerV2JsonLdEntity[];
   contentBlocks: HotelScannerV2ContentBlock[];
+  contactSignals: HotelScannerV2ContactSignals;
   delegatedOfferDetailUrls: string[];
   delegatedAuthority: HotelScannerV2DelegatedAuthority | null;
 };
@@ -210,6 +216,67 @@ function contentUrls(html: string, base: URL, allLinks: string[]) {
   return allLinks.filter((url) => !chrome.has(url));
 }
 
+function uniqueContactText(values: string[], max = 20) {
+  return [...new Set(values.map((value) => cleanText(value, 500)).filter(Boolean))].slice(0, max);
+}
+
+function contactAddress(value: unknown) {
+  if (typeof value === "string") return cleanText(value, 500);
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  return cleanText([
+    record.streetAddress,
+    record.postalCode,
+    record.addressLocality,
+    record.addressRegion,
+    typeof record.addressCountry === "object" && record.addressCountry
+      ? (record.addressCountry as Record<string, unknown>).name
+      : record.addressCountry,
+  ].filter(Boolean).join(", "), 500);
+}
+
+function collectJsonLdContactSignals(value: unknown, result: HotelScannerV2ContactSignals, depth = 0) {
+  if (depth > 10 || value === null || value === undefined) return;
+  if (Array.isArray(value)) {
+    for (const item of value.slice(0, 250)) collectJsonLdContactSignals(item, result, depth + 1);
+    return;
+  }
+  if (typeof value !== "object") return;
+  const record = value as Record<string, unknown>;
+  const phone = cleanText(record.telephone, 160);
+  const email = cleanText(record.email, 240).replace(/^mailto:/iu, "");
+  const address = contactAddress(record.address);
+  if (phone) result.phones.push(phone);
+  if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email)) result.emails.push(email);
+  if (address) result.addresses.push(address);
+  for (const child of Object.values(record)) collectJsonLdContactSignals(child, result, depth + 1);
+}
+
+export function extractHotelContactSignalsV2(html = ""): HotelScannerV2ContactSignals {
+  const source = String(html || "");
+  const result: HotelScannerV2ContactSignals = { phones: [], emails: [], addresses: [] };
+
+  for (const match of source.matchAll(/<a\b[^>]*\bhref\s*=\s*["']tel:([^"'?#]+)[^"']*["'][^>]*>/giu)) {
+    const value = cleanText(decodeURIComponent(String(match[1] || "").replace(/\+/g, " ")), 160);
+    if (value.replace(/\D/g, "").length >= 6) result.phones.push(value);
+  }
+  for (const match of source.matchAll(/<a\b[^>]*\bhref\s*=\s*["']mailto:([^"'?]+)[^"']*["'][^>]*>/giu)) {
+    const value = cleanText(decodeURIComponent(String(match[1] || "")), 240).toLocaleLowerCase("en-US");
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(value)) result.emails.push(value);
+  }
+  for (const match of source.matchAll(/<script\b[^>]*\btype\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/giu)) {
+    const raw = String(match[1] || "").trim();
+    if (!raw || raw.length > 500_000) continue;
+    try { collectJsonLdContactSignals(JSON.parse(raw), result); } catch {}
+  }
+
+  return {
+    phones: uniqueContactText(result.phones),
+    emails: uniqueContactText(result.emails),
+    addresses: uniqueContactText(result.addresses),
+  };
+}
+
 function linkTags(html: string) { return [...html.matchAll(/<link\b[^>]*>/gi)].map((match) => match[0]); }
 function tagAttribute(tag: string, name: string) {
   return cleanText(tag.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`, "i"))?.[1] || "", 2_048);
@@ -282,6 +349,7 @@ export function buildPageEvidence(
     headings: structure.headings,
     jsonLdEntities: structure.jsonLdEntities,
     contentBlocks: structure.contentBlocks,
+    contactSignals: extractHotelContactSignalsV2(html),
     delegatedOfferDetailUrls: [],
     delegatedAuthority,
   };
