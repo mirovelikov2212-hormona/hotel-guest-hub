@@ -39,3 +39,10 @@ test("client review workspace is website-like and keeps evidence secondary", asy
   assert.match(source, /Реални проблеми и несъответствия|Real website issues/);
   assert.match(source, /card\.conflicts\.length/);
 });
+
+
+test("review workspace presents missing details as onboarding work", async () => {
+  const source = await read("app/hotel-scanner-v2/HotelScannerV2ReviewWorkspace.tsx");
+  assert.match(source, /Onboarding настройка|Onboarding setup/);
+  assert.match(source, /За onboarding|For onboarding/);
+});
