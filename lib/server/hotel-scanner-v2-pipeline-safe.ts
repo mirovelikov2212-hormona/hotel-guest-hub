@@ -83,7 +83,9 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
   // Only durable policy/FAQ documents are read. Menus, brochures, offers and
   // other temporary PDFs remain manual onboarding inventory.
   const documents = extractionQuotaExhausted(extraction)
-    ? deferHotelDocumentsToManualOnboardingV2(authorityInventory)
+    // Document/manual-onboarding inventory is unchanged by V3 operational
+    // authority, so preserve the established fail-fast quota path exactly.
+    ? deferHotelDocumentsToManualOnboardingV2(discovery.inventory)
     : await ingestHotelPolicyDocumentsV2({
         inventory: authorityInventory,
         canonicalUrl: discovery.evidence.canonicalUrl,
