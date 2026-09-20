@@ -45,7 +45,8 @@ function clientPreviewNameAllowed(domain: string, value: unknown) {
   if (domain === "spa"
     && ((/[|]/u.test(name) && /(?:spa|wellness|massage|beauty|treatment|behandlung)/iu.test(name))
       || (/(?:^|\s)(?:hotel|resort|wellnesshotel|spahotel)(?:\s|$)/iu.test(name)
-        && /(?:spa|wellness)/iu.test(name)))) return false;
+        && /(?:spa|wellness)/iu.test(name))
+      || /^faq\b|^fragen\s*&\s*antworten\b|\bmomente?\b|\binsider\s+deals?\b/iu.test(name))) return false;
   if (domain === "offers"
     && /^(?:holiday\s+offers?(?:\s+in\s+.+)?|my\s+favo(?:u)?rite\s+place\s*:?.*|offers?(?:\s+in\s+.+)?|angebote(?:\s+im\s+.+)?)$/iu.test(name)) return false;
   return true;
@@ -118,6 +119,46 @@ const EXPERIENCE_PREVIEW_HEADING = /(?:e-?trial|trial[-\s]?park|single\s+trail|b
 const PREVIEW_GENERIC_HEADING = /^(?:spa|wellness|experiences?|activities|aktiv(?:it[aä]ten)?|fahrrad[-\s]?erlebnisse|angebote|offers?|mehr\s+lesen|weniger\s+lesen|faq|fragen\s*&\s*antworten)$/iu;
 const PREVIEW_QUESTION_HEADING = /\?$|^(?:was|wann|warum|wie|wo|welche[rsnm]?|welcher|welches|gibt\s+es|eignet\s+sich|kann\s+man|für\s+wen|fuer\s+wen|ist\s+es|sind\s+|does\s+|do\s+|is\s+|are\s+|can\s+|which\s+|what\s+|when\s+|where\s+|why\s+|how\s+)/iu;
 
+const SPA_TEXT_FACILITY_PATTERNS = Object.freeze([
+  /\b(?:Adults?\s+Only|Family|Beauty)\s+(?:Mountain\s+)?Spa\b/giu,
+  /\bDay\s+Spa\b/giu,
+  /\b(?:Panorama|Bio|Finnische|Finnish|Textil|Family)\s+Sauna\b/giu,
+  /\bDampfbad\b/giu,
+  /\bInfrarot(?:[-\s]+(?:Liegen|Sauna|Kabine|Cabin))?\b/giu,
+  /\bSaunaterrasse\b/giu,
+  /\bRuheraum\s+[A-ZÄÖÜ][\p{L}\p{N}’'&-]{2,32}\b/gu,
+  /\b(?:Infinity\s+Pool|Sportpool|Hallenbad|Family\s+Whirlpool|Babyschwimmbad|Kinderpool|Solebecken|Tauchbecken|Whirlpool\s+Indoor)\b/giu,
+  /\b(?:Indoor|Outdoor)\s+Pool\b/giu,
+  /\b(?:1000\s+und\s+1\s+Nacht\s+)?Hamam\b/giu,
+  /\b(?:Massagen?|Massages?)\b/giu,
+  /\b(?:Beauty\s+Treatments?|Spa\s+Treatments?|Behandlungen)\b/giu,
+]);
+
+function previewSpaTextFacilities(discovery: HotelIntakeV2DiscoveryResult) {
+  const names: string[] = [];
+  for (const page of discovery.evidence.pages || []) {
+    const classification = classifyHotelScannerPageV2(page);
+    if (hotelScannerPageTypeDomain(classification.primaryType) !== "spa") continue;
+    const texts = [
+      clean(page.text, 20_000),
+      ...(page.contentBlocks || []).map((block) => clean(block.text, 4_000)),
+    ];
+    for (const text of texts) {
+      if (!text) continue;
+      for (const pattern of SPA_TEXT_FACILITY_PATTERNS) {
+        pattern.lastIndex = 0;
+        for (const match of text.matchAll(pattern)) {
+          const name = clean(match[0], 120);
+          if (!name || PREVIEW_QUESTION_HEADING.test(name) || !clientPreviewNameAllowed("spa", name)) continue;
+          names.push(name);
+        }
+      }
+    }
+  }
+  return unique(names, 24);
+}
+
+
 function previewEvidenceHeadings(discovery: HotelIntakeV2DiscoveryResult, domain: "spa" | "experiences") {
   const result: string[] = [];
   const pattern = domain === "spa" ? SPA_PREVIEW_HEADING : EXPERIENCE_PREVIEW_HEADING;
@@ -148,8 +189,12 @@ function previewItemsForDomain(discovery: HotelIntakeV2DiscoveryResult, domain: 
   if (domain !== "spa" && domain !== "experiences") return base;
 
   const evidenceNames = previewEvidenceHeadings(discovery, domain);
-  const merged = [...base];
-  for (const name of evidenceNames) {
+  const spaFacilities = domain === "spa" ? previewSpaTextFacilities(discovery) : [];
+  const detailedSpa = spaFacilities.length >= 4;
+  const merged = base.filter((item) =>
+    !(domain === "spa" && detailedSpa && /^(?:saunen?|ruher[aä]ume?|pools?)$/iu.test(item.name)));
+  for (const name of [...spaFacilities, ...evidenceNames]) {
+    if (domain === "spa" && detailedSpa && /^(?:saunen?|ruher[aä]ume?|pools?)$/iu.test(name)) continue;
     if (merged.some((item) => sameEntityName(item.name, name))) continue;
     merged.push({ name, hours: "" });
   }
