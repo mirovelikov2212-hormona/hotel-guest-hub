@@ -462,6 +462,19 @@ const TYPE_PRIORITY = Object.freeze({
   other: 100,
 });
 
+const INVENTORY_AUTHORITY_PATH = /(?:^|\/)(?:compare|comparison|room-compare|room-comparison|all-rooms|room-types?|zimmer-vergleich|zimmervergleich|zimmer-uebersicht|zimmerubersicht|zimmerübersicht|uebersicht|übersicht)(?:\/|$)/iu;
+
+function inventoryAuthorityBoost(rawUrl: string) {
+  const type = classifyHotelScannerPageV2({ url: rawUrl }).primaryType;
+  if (!["accommodation", "room_detail"].includes(type)) return 0;
+  try {
+    const path = decodeURIComponent(new URL(rawUrl).pathname);
+    return INVENTORY_AUTHORITY_PATH.test(path) ? 360 : 0;
+  } catch {
+    return 0;
+  }
+}
+
 function semanticPathKey(rawUrl: string) {
   try {
     const url = new URL(rawUrl);
@@ -507,7 +520,7 @@ function orderedCandidates(urls: Iterable<string>, attempted: Set<string>, prefe
     const ranked = group.sort((left, right) => languageScore(right, preferredLanguage) - languageScore(left, preferredLanguage) || left.localeCompare(right));
     ranked.forEach((url, index) => {
       const duplicate = attemptedKeys.has(key) || index > 0;
-      const score = basePriority(url) + languageScore(url, preferredLanguage) - (duplicate ? duplicatePenalty(url) : 0);
+      const score = basePriority(url) + inventoryAuthorityBoost(url) + languageScore(url, preferredLanguage) - (duplicate ? duplicatePenalty(url) : 0);
       scored.push({ url, score });
     });
   }
