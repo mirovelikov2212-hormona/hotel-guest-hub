@@ -204,3 +204,23 @@ test("Workflow Preview can cancel a stuck active run and release the scan form",
   assert.match(source, /copy\.cancellingRun/);
   assert.match(source, /reset\(\)/);
 });
+
+
+test("Quick Client Preview is deterministic, HTTP-only and can open Design Studio before deep verification", async () => {
+  const route = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-preview/route.ts");
+  const projector = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
+  const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
+  const designPage = await readProjectFile("app/design-studio/page.tsx");
+
+  assert.match(route, /discoverHotelIntakeV2/);
+  assert.doesNotMatch(route, /discoverHotelIntakeRenderedV2|OpenAI|ingestHotelDocumentsV2/);
+  assert.match(projector, /CORE_DOMAINS/);
+  assert.match(projector, /restaurant_menu/);
+  assert.match(projector, /offers_packages/);
+  assert.match(projector, /policies_faq/);
+  assert.match(client, /scan-v2-preview/);
+  assert.match(client, /preview=quick/);
+  assert.match(client, /PACKAGE_STORAGE_KEY/);
+  assert.match(designPage, /quickPreview/);
+  assert.match(designPage, /!scanRunId && !quickPreview/);
+});
