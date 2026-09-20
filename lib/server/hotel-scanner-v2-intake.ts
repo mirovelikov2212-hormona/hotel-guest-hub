@@ -97,6 +97,7 @@ export async function discoverHotelIntakeQuickV2(rawUrl: string): Promise<HotelI
     maxInitialPages: 28,
     maxInitialPageAttempts: 40,
     maxCoverageFollowupAttempts: 0,
+    maxStructuralAdaptiveAttempts: 48,
     includeDelegatedOfferDetails: false,
   });
   const initial = await finalizeDiscovery(evidence);
