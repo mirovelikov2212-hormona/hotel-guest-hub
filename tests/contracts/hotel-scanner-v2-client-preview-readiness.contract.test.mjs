@@ -142,3 +142,16 @@ test("reception is not labeled 24/7 unless the source explicitly says so", () =>
   const explicit = extractOperationalServiceLabelsV2("Our reception is open 24/7 for hotel guests.");
   assert.ok(explicit.some((item) => item.name === "24/7 Reception"));
 });
+
+
+test("quick client preview can recover SPA and experience names from authority-page headings", async () => {
+  const preview = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
+
+  assert.match(preview, /SPA_PREVIEW_HEADING/);
+  assert.match(preview, /EXPERIENCE_PREVIEW_HEADING/);
+  assert.match(preview, /previewEvidenceHeadings/);
+  assert.match(preview, /previewItemsForDomain/);
+  assert.match(preview, /page\.contentBlocks/);
+  assert.match(preview, /page\.headings/);
+  assert.doesNotMatch(preview, /rejectedNoiseCount\s*>\s*0/);
+});
