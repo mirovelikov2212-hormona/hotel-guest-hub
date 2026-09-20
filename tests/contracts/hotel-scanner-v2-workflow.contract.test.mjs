@@ -77,6 +77,7 @@ test("Scanner V2 workflow status route returns a bounded persisted projection an
   assert.doesNotMatch(source, /await run\.returnValue/);
   assert.match(source, /status === "failed"/);
   assert.match(source, /scanner_v2_workflow_transport_recovered_from_persistence/);
+  assert.match(source, /V2_SCAN_FORBIDDEN/);
   assert.match(source, /recovered: true/);
 });
 
