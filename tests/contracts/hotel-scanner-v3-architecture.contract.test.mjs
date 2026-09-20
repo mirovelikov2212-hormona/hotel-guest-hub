@@ -76,3 +76,37 @@ test("Scanner V3 M3 frontier remains hotel and domain agnostic", async () => {
   assert.doesNotMatch(frontier, /\b(?:accommodation|gastronomy|restaurant|restaurants|spa|wellness|room|rooms)\b/iu);
   assert.doesNotMatch(frontier, /OpenAI|chat\.completions|responses\.create/iu);
 });
+
+
+test("Scanner V3 M4 ontology classifies families but cannot determine structural counts", async () => {
+  const ontology = await readProjectFile("lib/server/hotel-scanner-v3-ontology.mjs");
+  const canonical = await readProjectFile("lib/server/hotel-scanner-v3-canonical-inventory.mjs");
+
+  assert.match(ontology, /classifyHotelStructuralFamilyV3/);
+  assert.match(ontology, /HOTEL_SCANNER_V3_OPERATIONAL_DOMAINS/);
+  assert.match(ontology, /UNKNOWN/);
+  assert.doesNotMatch(ontology, /expectedCount|inventoryCount|entityCount\s*=/);
+  assert.doesNotMatch(ontology, /edelweiss|bahia|kirman|pavel|grand resort/iu);
+  assert.doesNotMatch(ontology, /OpenAI|chat\.completions|responses\.create/iu);
+
+  assert.match(canonical, /buildHotelStructuralInventoryGraphV3/);
+  assert.match(canonical, /classifyHotelStructuralFamiliesV3/);
+  assert.match(canonical, /structuralEntities:\s*entities\.length/);
+  assert.match(canonical, /hotelScannerV3LogicalUrlKey/);
+  assert.match(canonical, /cross_family_domain_conflict/);
+  assert.match(canonical, /inventory-v3:/);
+  assert.match(canonical, /applyHotelInventoryEnrichmentV3/);
+  assert.match(canonical, /compareHotelInventorySnapshotsV3/);
+  assert.doesNotMatch(canonical, /edelweiss|bahia|kirman|pavel|grand resort/iu);
+  assert.doesNotMatch(canonical, /OpenAI|chat\.completions|responses\.create/iu);
+});
+
+test("Scanner V3 M4 canonical snapshot is attached before and after browser enrichment", async () => {
+  const crawler = await readProjectFile("lib/server/hotel-scanner-v2-crawler.ts");
+  const rendered = await readProjectFile("lib/server/hotel-scanner-v2-crawler-rendered.ts");
+
+  assert.match(crawler, /v3InventorySnapshot/);
+  assert.match(crawler, /buildHotelInventorySnapshotV3/);
+  assert.match(rendered, /refreshV3InventorySnapshot/);
+  assert.match(rendered, /return refreshV3InventorySnapshot\(base\)/);
+});
