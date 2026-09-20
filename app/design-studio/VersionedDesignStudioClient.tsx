@@ -52,9 +52,9 @@ type WorkspaceSnapshot = {
 };
 type DraftDiff = { changedPaths: string[]; changeCount: number; truncated: boolean };
 type PreviewAuthority = {
-  mode: "scanner_v2_review_preview";
-  scanRunId: string;
-  reviewId: string;
+  mode: "scanner_v2_review_preview" | "scanner_v2_quick_preview";
+  scanRunId?: string;
+  reviewId?: string;
   approvalEligible: boolean;
   blockingReasons: string[];
   downstreamHandoffAllowed: false;
@@ -161,7 +161,7 @@ function withPromotionDestination(promo: HubPromotionDraft): EditablePromotion {
   return { ...promo, ctaDestination: candidate.ctaDestination || "page-services" };
 }
 
-export default function VersionedDesignStudioClient({ lang, scanRunId }: { lang: ControlPlaneLang; scanRunId?: string }) {
+export default function VersionedDesignStudioClient({ lang, scanRunId, quickPreview = false }: { lang: ControlPlaneLang; scanRunId?: string; quickPreview?: boolean }) {
   const language: "bg" | "en" = lang === "en" ? "en" : "bg";
   const copy = COPY[language];
   const [pkg, setPkg] = useState<HotelIntelligencePackage | null>(null);
@@ -196,12 +196,22 @@ export default function VersionedDesignStudioClient({ lang, scanRunId }: { lang:
     if (!raw) return;
     try {
       const parsed = JSON.parse(raw) as HotelIntelligencePackage;
-      if (parsed?.schemaVersion === "hotel-intelligence-v1") setPkg(parsed);
+      if (parsed?.schemaVersion === "hotel-intelligence-v1") {
+        setPkg(parsed);
+        if (quickPreview) {
+          setPreviewAuthority({
+            mode: "scanner_v2_quick_preview",
+            approvalEligible: false,
+            blockingReasons: ["quick_preview_only", "manual_onboarding_required"],
+            downstreamHandoffAllowed: false,
+          });
+        }
+      }
     } catch {
       window.sessionStorage.removeItem(PACKAGE_STORAGE_KEY);
     }
     return () => { cancelled = true; };
-  }, [scanRunId]);
+  }, [scanRunId, quickPreview]);
 
   const proposal = useMemo(() => pkg ? buildHubDesignProposal(pkg, language) : null, [pkg, language]);
   const generated = useMemo(() => pkg ? buildHubExperienceBlueprint(pkg, language) : null, [pkg, language]);
@@ -294,7 +304,7 @@ export default function VersionedDesignStudioClient({ lang, scanRunId }: { lang:
   useEffect(() => {
     if (!pkg || !proposal || !generated) return;
     setError("");
-    if (previewAuthority?.mode === "scanner_v2_review_preview") {
+    if (previewAuthority) {
       setSnapshot(null);
       applyGeneratedBlueprint();
       return;
@@ -508,7 +518,7 @@ export default function VersionedDesignStudioClient({ lang, scanRunId }: { lang:
         <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/[0.04] p-4">
           <p className="text-sm font-semibold text-amber-100">{copy.previewOnly}</p>
           <p className="mt-2 max-w-4xl text-xs leading-5 text-neutral-400">{copy.previewOnlyHelp}</p>
-          <p className="mt-2 font-mono text-[10px] text-neutral-600">scan {previewAuthority.scanRunId.slice(0, 8)} · review {previewAuthority.reviewId.slice(0, 8)}</p>
+          <p className="mt-2 font-mono text-[10px] text-neutral-600">{previewAuthority.scanRunId && previewAuthority.reviewId ? `scan ${previewAuthority.scanRunId.slice(0, 8)} · review ${previewAuthority.reviewId.slice(0, 8)}` : "quick client preview · no production authority"}</p>
         </div>
       ) : null}
       {(notice || error) && <div className={`mt-4 rounded-2xl border p-3 text-xs ${error ? "border-rose-300/20 text-rose-200" : "border-emerald-300/20 text-emerald-200"}`}>{error || notice}</div>}
