@@ -64,32 +64,41 @@ const QUICK_PREVIEW_CORE_DOMAINS = ["accommodation", "gastronomy", "services", "
 
 export function selectHotelIntakeQuickRenderDomainsV2(result: HotelIntakeV2DiscoveryResult) {
   const resources = Array.isArray(result.siteMap.resources) ? result.siteMap.resources : [];
-  return QUICK_PREVIEW_CORE_DOMAINS.filter((domain) => {
+  const hasDomainPage = (domain: string) => resources.some((resource) =>
+    resource?.classification?.primaryType === domain
+    || String(resource?.classification?.primaryType || "").endsWith("_detail")
+      && String(resource?.classification?.types || "").includes(domain));
+
+  const selected: string[] = [];
+  for (const domain of ["accommodation", "gastronomy"]) {
+    if (hasDomainPage(domain)) selected.push(domain);
+  }
+
+  for (const domain of QUICK_PREVIEW_CORE_DOMAINS) {
+    if (selected.length >= 4 || selected.includes(domain) || !hasDomainPage(domain)) continue;
     const inventory = result.inventory.domains.find((entry) => entry.domain === domain);
     const authority = String((inventory?.evidence as { authority?: unknown } | undefined)?.authority || "");
-    const hasDomainPage = resources.some((resource) =>
-      resource?.classification?.primaryType === domain
-      || String(resource?.classification?.primaryType || "").endsWith("_detail")
-        && String(resource?.classification?.types || "").includes(domain));
+    const ambiguous = !inventory
+      || ["CONFLICT", "UNKNOWN"].includes(inventory.expectationState)
+      || inventory.expectedCount === 0
+      || ![
+        "STRUCTURAL_OPERATIONAL_LANDING",
+        "CANONICAL_DETAIL_FAMILY",
+        "CANONICAL_DETAIL_FAMILY_FALLBACK",
+      ].includes(authority);
+    if (ambiguous) selected.push(domain);
+  }
 
-    if (!hasDomainPage) return false;
-    if (!inventory) return true;
-    if (["CONFLICT", "UNKNOWN"].includes(inventory.expectationState)) return true;
-    if (inventory.expectedCount === 0) return true;
-
-    // HTTP-only HTML can look deterministic while still lacking the client-rendered
-    // structural overview. Core domains without a strong canonical/structural authority
-    // get one targeted DOM render before the client sees the count.
-    return ![
-      "STRUCTURAL_OPERATIONAL_LANDING",
-      "CANONICAL_DETAIL_FAMILY",
-      "CANONICAL_DETAIL_FAMILY_FALLBACK",
-    ].includes(authority);
-  }).slice(0, 4);
+  return selected.slice(0, 4);
 }
 
 export async function discoverHotelIntakeQuickV2(rawUrl: string): Promise<HotelIntakeV2DiscoveryResult> {
-  const evidence = await crawlPublicHotelWebsiteV2(rawUrl);
+  const evidence = await crawlPublicHotelWebsiteV2(rawUrl, {
+    maxInitialPages: 28,
+    maxInitialPageAttempts: 40,
+    maxCoverageFollowupAttempts: 0,
+    includeDelegatedOfferDetails: false,
+  });
   const initial = await finalizeDiscovery(evidence);
   const domains = selectHotelIntakeQuickRenderDomainsV2(initial);
   if (!domains.length) return initial;
