@@ -8,7 +8,8 @@ test("Scanner V2 pipeline follows discovery to validation in explicit stages", a
 
   assert.match(pipeline, /discoverHotelIntakeV2/);
   assert.match(pipeline, /extractHotelDomainsV2/);
-  assert.match(pipeline, /ingestHotelDocumentsV2/);
+  assert.match(pipeline, /ingestHotelPolicyDocumentsV2/);
+  assert.doesNotMatch(pipeline, /ingestHotelDocumentsV2/);
   assert.match(pipeline, /applyDocumentIngestionToInventoryV2/);
   assert.match(pipeline, /verifyHotelScanFacts/);
   assert.match(pipeline, /buildHotelCompletenessV2/);
@@ -45,11 +46,13 @@ test("domain extraction is inventory-bounded rather than inventory-authoritative
   assert.doesNotMatch(extractor, /deterministic_landing_entity/);
 });
 
-test("PDF ingestion is crawler-owned, bounded and fail-closed", async () => {
+test("PDF AI is reserved for bounded Policies / FAQ verification while temporary documents remain manual", async () => {
   const ingestion = await readProjectFile("lib/ai/hotel-scanner-v2-document-ingestion.ts");
   const network = await readProjectFile("lib/server/hotel-scanner-v2-network.ts");
 
-  assert.match(ingestion, /MAX_DOCUMENTS_PER_SCAN = 16/);
+  assert.match(ingestion, /MAX_POLICY_DOCUMENTS_PER_SCAN = 4/);
+  assert.match(ingestion, /ingestHotelPolicyDocumentsV2/);
+  assert.match(ingestion, /SKIPPED_MANUAL/);
   assert.match(ingestion, /MAX_INLINE_DOCUMENT_BYTES = 10_000_000/);
   assert.match(ingestion, /MAX_REMOTE_DOCUMENT_BYTES = 50_000_000/);
   assert.match(ingestion, /fetchPublicBinaryV2/);
