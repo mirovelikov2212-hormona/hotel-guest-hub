@@ -5,6 +5,11 @@ import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 import { discoverHotelIntakeQuickV2 } from "@/lib/server/hotel-scanner-v2-intake";
 import { buildHotelScannerV2QuickPreview } from "@/lib/server/hotel-scanner-v2-quick-preview";
+import {
+  projectHotelInventoryAuthorityV3,
+  summarizeHotelInventoryAuthorityV3,
+} from "@/lib/server/hotel-scanner-v3-canonical-inventory.mjs";
+import { createHotelInventoryAuthorityTokenV3 } from "@/lib/server/hotel-scanner-v3-authority-token";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,11 +39,25 @@ export async function POST(request: NextRequest) {
   const startedAt = Date.now();
   try {
     const discovery = await discoverHotelIntakeQuickV2(url);
+    const preview = buildHotelScannerV2QuickPreview(discovery);
+    const snapshot = discovery.evidence.v3InventorySnapshot;
+    const inventoryAuthority = snapshot ? projectHotelInventoryAuthorityV3(snapshot) : null;
+    const inventoryAuthorityToken = inventoryAuthority
+      ? createHotelInventoryAuthorityTokenV3({
+          actorAdminId: authority.adminId,
+          requestedUrl: url,
+          authority: inventoryAuthority,
+        })
+      : "";
     return json({
       ok: true,
       mode: "quick_preview",
       runtimeMs: Date.now() - startedAt,
-      ...buildHotelScannerV2QuickPreview(discovery),
+      ...preview,
+      inventoryAuthority: inventoryAuthority
+        ? summarizeHotelInventoryAuthorityV3(inventoryAuthority)
+        : preview.inventoryAuthority || null,
+      inventoryAuthorityToken,
     });
   } catch (error) {
     console.error("scanner_v2_quick_preview_failed", { error: error instanceof Error ? error.message : String(error) });
