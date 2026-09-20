@@ -17,6 +17,7 @@ import {
 } from "@/lib/server/hotel-scanner-v2-page-structure.mjs";
 import { extractHotelDomStructureV3 } from "@/lib/server/hotel-scanner-v3-dom-structure.mjs";
 import { buildHotelScannerAdaptivePlanV3 } from "@/lib/server/hotel-scanner-v3-frontier.mjs";
+import { buildHotelInventorySnapshotV3 } from "@/lib/server/hotel-scanner-v3-canonical-inventory.mjs";
 import { canonicalizeHotelIntakeUrl, inferHotelPageLanguage } from "@/lib/server/hotel-scanner-v2-site-map.mjs";
 import {
   deriveHotelPropertyScopeV2,
@@ -151,6 +152,7 @@ export type HotelScannerV2EvidenceBundle = {
   canonicalUrl: string;
   scannedAt: string;
   pages: HotelScannerV2PageEvidence[];
+  v3InventorySnapshot?: ReturnType<typeof buildHotelInventorySnapshotV3>;
   publicDocuments: HotelScannerV2PublicDocument[];
   discovery: {
     sitemapPageUrls: string[];
@@ -816,9 +818,19 @@ export async function crawlPublicHotelWebsiteV2(
   }
 
   const canonicalUrl = planningCanonicalUrl;
+  const v3InventorySnapshot = buildHotelInventorySnapshotV3({
+    requestedUrl: canonicalizeHotelIntakeUrl(requested.toString()),
+    canonicalUrl,
+    pages,
+    discovery: {
+      sitemapPageUrls: sitemap.pageUrls,
+      internalLinkUrls: [...internalLinks],
+      navigationUrls: [...navigation],
+    },
+  });
 
   return {
-    requestedUrl: canonicalizeHotelIntakeUrl(requested.toString()), canonicalUrl, scannedAt: new Date().toISOString(), pages,
+    requestedUrl: canonicalizeHotelIntakeUrl(requested.toString()), canonicalUrl, scannedAt: new Date().toISOString(), pages, v3InventorySnapshot,
     publicDocuments: [...documents.entries()].slice(0, MAX_PUBLIC_DOCUMENTS).map(([url, provenance]) => ({
       url, kind: "pdf" as const, status: "discovered_not_ingested" as const, discoveredBy: [...provenance],
     })),
