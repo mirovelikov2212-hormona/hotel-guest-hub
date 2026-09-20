@@ -7,7 +7,7 @@ import {
 } from "@/lib/server/hotel-scanner-robots.mjs";
 import { isPublicBusinessCrawlUrl } from "@/lib/server/hotel-scanner-crawl-plan.mjs";
 import { buildHotelScannerCoveragePlanV2 } from "@/lib/server/hotel-scanner-v2-coverage.mjs";
-import { classifyHotelScannerPageV2 } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
+import { classifyHotelScannerPageV2, hotelScannerPageTypeDomain } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
 import { deriveHotelPageInventoryHintsV2 } from "@/lib/server/hotel-scanner-v2-landing-inventory.mjs";
 import {
   extractHotelPageStructureV2,
@@ -849,4 +849,275 @@ export async function crawlPublicHotelWebsiteV2(
       },
     },
   };
+}
+
+
+export type HotelScannerV3ResumeOptions = {
+  maxAdaptiveAttempts?: number;
+  maxSupportAttempts?: number;
+};
+
+/**
+ * Resume public discovery from an existing Quick checkpoint.
+ *
+ * The checkpoint's already-read pages are authoritative crawl history: this
+ * function never intentionally fetches them again. It only advances the V3
+ * structural frontier and then reads bounded policy/FAQ/contact support pages
+ * needed by Deep Verification. robots.txt and the public-business/property
+ * boundaries are re-evaluated before any new request.
+ */
+export async function continuePublicHotelWebsiteV3(
+  seed: HotelScannerV2EvidenceBundle,
+  options: HotelScannerV3ResumeOptions = {},
+): Promise<HotelScannerV2EvidenceBundle> {
+  const requested = await validatePublicHotelUrlV2(seed.requestedUrl || seed.canonicalUrl);
+  const canonical = new URL(seed.canonicalUrl || requested.toString());
+  const robotsState = await fetchRobotsState(canonical);
+  if (!isHotelScannerRobotsAllowed(canonical.toString(), robotsState.policy)) {
+    throw new HotelScannerV2NetworkError("scanner_v2_robots_disallowed", 403);
+  }
+
+  const propertyScope = deriveHotelPropertyScopeV2(seed.requestedUrl || requested.toString(), seed.canonicalUrl || canonical.toString());
+  const canonicalOrigin = canonical.origin;
+  const pages: HotelScannerV2PageEvidence[] = [...(seed.pages || [])];
+  const attempted = new Set<string>([
+    ...pages.map((page) => page.url),
+    ...((seed.discovery?.coverage?.fetchedRelevantUrls || []) as string[]),
+    ...((seed.discovery?.failedPageUrls || []) as string[]),
+  ].map((url) => canonicalizeHotelIntakeUrl(url)).filter(Boolean));
+  const failedPageUrls = new Set<string>((seed.discovery?.failedPageUrls || []).map((url) => canonicalizeHotelIntakeUrl(url)).filter(Boolean));
+  const robotsBlockedUrls = new Set<string>();
+  const internalLinks = new Set<string>(seed.discovery?.internalLinkUrls || []);
+  const navigation = new Set<string>(seed.discovery?.navigationUrls || []);
+  const pageDocuments = new Set<string>(
+    (seed.publicDocuments || [])
+      .filter((document) => document.discoveredBy?.includes("page_link"))
+      .map((document) => document.url),
+  );
+  const sitemapDocuments = new Set<string>(
+    (seed.publicDocuments || [])
+      .filter((document) => document.discoveredBy?.includes("sitemap"))
+      .map((document) => document.url),
+  );
+  let totalText = pages.reduce((sum, page) => sum + String(page.text || "").length, 0);
+
+  const absorbPage = (page: HotelScannerV2PageEvidence | null) => {
+    if (!page || pages.some((existing) => existing.url === page.url)) return;
+    const remaining = Math.max(0, MAX_TOTAL_TEXT - totalText);
+    page.text = remaining ? page.text.slice(0, remaining) : "";
+    totalText += page.text.length;
+    pages.push(page);
+    for (const link of page.links || []) internalLinks.add(link);
+    for (const link of page.navigationLinks || []) navigation.add(link);
+    for (const documentUrl of page.documentUrls || []) {
+      if (pageDocuments.size < MAX_PUBLIC_DOCUMENTS) pageDocuments.add(documentUrl);
+    }
+  };
+
+  const fetchBatch = async (batch: string[]) => {
+    const uniqueBatch = [...new Set(batch.map((url) => canonicalizeHotelIntakeUrl(url)).filter(Boolean))]
+      .filter((url) => !attempted.has(url));
+    for (const url of uniqueBatch) attempted.add(url);
+
+    const fetched = await Promise.all(uniqueBatch.map(async (url) => {
+      if (!isHotelScannerRobotsAllowed(url, robotsState.policy)) {
+        robotsBlockedUrls.add(url);
+        return null;
+      }
+      try {
+        const response = await fetchPublicHtmlV2(new URL(url), {
+          timeoutMs: FETCH_TIMEOUT_MS,
+          maxBytes: MAX_PAGE_BYTES,
+          userAgent: USER_AGENT,
+        });
+        if (response.url.origin !== canonicalOrigin) {
+          failedPageUrls.add(url);
+          return null;
+        }
+        if (!isHotelPropertyOperationalContentUrlV2(response.url.toString(), propertyScope)) return null;
+        return buildPageEvidence(response.url, response.html, propertyScope);
+      } catch {
+        failedPageUrls.add(url);
+        return null;
+      }
+    }));
+    for (const page of fetched) absorbPage(page);
+    return uniqueBatch.length;
+  };
+
+  const maxAdaptiveAttempts = Math.max(0, Math.min(
+    MAX_V3_ADAPTIVE_ATTEMPTS,
+    Math.trunc(options.maxAdaptiveAttempts ?? 40),
+  ));
+  let adaptiveAttempts = 0;
+  let adaptiveWaves = 0;
+  let adaptivePlan = buildHotelScannerAdaptivePlanV3({
+    requestedUrl: seed.requestedUrl,
+    canonicalUrl: seed.canonicalUrl,
+    pages,
+    discovery: {
+      sitemapPageUrls: seed.discovery?.sitemapPageUrls || [],
+      internalLinkUrls: [...internalLinks],
+      navigationUrls: [...navigation],
+    },
+  }, {
+    attemptedUrls: [...attempted],
+    unavailableUrls: [...failedPageUrls, ...robotsBlockedUrls],
+    batchLimit: CRAWL_BATCH_SIZE,
+  });
+
+  while (
+    adaptiveAttempts < maxAdaptiveAttempts
+    && adaptiveWaves < MAX_V3_ADAPTIVE_WAVES
+    && adaptivePlan.nextBatch.length
+  ) {
+    const remaining = maxAdaptiveAttempts - adaptiveAttempts;
+    const batch = adaptivePlan.nextBatch.slice(0, Math.min(CRAWL_BATCH_SIZE, remaining));
+    if (!batch.length) break;
+    adaptiveWaves += 1;
+    adaptiveAttempts += await fetchBatch(batch);
+    adaptivePlan = buildHotelScannerAdaptivePlanV3({
+      requestedUrl: seed.requestedUrl,
+      canonicalUrl: seed.canonicalUrl,
+      pages,
+      discovery: {
+        sitemapPageUrls: seed.discovery?.sitemapPageUrls || [],
+        internalLinkUrls: [...internalLinks],
+        navigationUrls: [...navigation],
+      },
+    }, {
+      attemptedUrls: [...attempted],
+      unavailableUrls: [...failedPageUrls, ...robotsBlockedUrls],
+      batchLimit: CRAWL_BATCH_SIZE,
+    });
+  }
+
+  const maxSupportAttempts = Math.max(0, Math.min(32, Math.trunc(options.maxSupportAttempts ?? 20)));
+  let supportAttempts = 0;
+  const supportDomains = new Set(["policies", "faq", "contacts"]);
+  while (supportAttempts < maxSupportAttempts) {
+    const plan = buildHotelScannerCoveragePlanV2({
+      pages,
+      sitemapPageUrls: seed.discovery?.sitemapPageUrls || [],
+      internalLinkUrls: [...internalLinks],
+      navigationUrls: [...navigation],
+      attemptedUrls: [...attempted],
+      failedUrls: [...failedPageUrls],
+      batchLimit: 96,
+    });
+    const pendingSupport = (plan.pendingRelevantUrls || []).filter((url: string) => {
+      const result = classifyHotelScannerPageV2({ url });
+      return supportDomains.has(hotelScannerPageTypeDomain(result.primaryType));
+    }).filter((url: string) => !attempted.has(canonicalizeHotelIntakeUrl(url)));
+
+    if (!pendingSupport.length) break;
+    const batch = pendingSupport.slice(0, Math.min(
+      CRAWL_BATCH_SIZE,
+      maxSupportAttempts - supportAttempts,
+    ));
+    if (!batch.length) break;
+    supportAttempts += await fetchBatch(batch);
+  }
+
+  adaptivePlan = buildHotelScannerAdaptivePlanV3({
+    requestedUrl: seed.requestedUrl,
+    canonicalUrl: seed.canonicalUrl,
+    pages,
+    discovery: {
+      sitemapPageUrls: seed.discovery?.sitemapPageUrls || [],
+      internalLinkUrls: [...internalLinks],
+      navigationUrls: [...navigation],
+    },
+  }, {
+    attemptedUrls: [...attempted],
+    unavailableUrls: [...failedPageUrls, ...robotsBlockedUrls],
+    batchLimit: CRAWL_BATCH_SIZE,
+  });
+
+  const safetyCapReached = adaptiveAttempts >= maxAdaptiveAttempts
+    && adaptivePlan.nextBatch.length > 0;
+  const structuralCrawl: HotelScannerV3StructuralCrawlSummary = {
+    schemaVersion: "hotel-scanner-v3-adaptive-crawl-1",
+    enabled: true,
+    stopReason: safetyCapReached ? "SAFETY_CAP" : adaptivePlan.stopReason,
+    safetyCapReached,
+    attempts: Number(seed.discovery?.structuralCrawl?.attempts || 0) + adaptiveAttempts,
+    waves: Number(seed.discovery?.structuralCrawl?.waves || 0) + adaptiveWaves,
+    inventoryClosed: adaptivePlan.inventoryClosed,
+    hasStructuralInventory: adaptivePlan.hasStructuralInventory,
+    totalFamilies: adaptivePlan.closure.totalFamilies,
+    closedFamilies: adaptivePlan.closure.closedFamilies,
+    openFamilies: adaptivePlan.closure.openFamilies,
+    blockedFamilies: adaptivePlan.closure.blockedFamilies,
+    inferredLeafMembers: adaptivePlan.closure.inferredLeafMembers,
+    pendingRequiredMembers: adaptivePlan.closure.pendingRequiredMembers,
+    familyStates: adaptivePlan.closure.states.map((state: any) => ({
+      familyId: String(state.familyId || ""),
+      sourceUrl: String(state.sourceUrl || ""),
+      status: String(state.status || ""),
+      mode: String(state.mode || ""),
+      totalMembers: Number(state.totalMembers || 0),
+      requiredMemberCount: Number(state.requiredMemberCount || 0),
+      verifiedRequiredMembers: Number(state.verifiedRequiredMembers || 0),
+      pendingRequiredMembers: Number(state.pendingRequiredMembers || 0),
+      blockedRequiredMembers: Number(state.blockedRequiredMembers || 0),
+      inferredLeafMembers: Number(state.inferredLeafMembers || 0),
+    })),
+    nextBatch: adaptivePlan.nextBatch,
+  };
+
+  const coverage = buildHotelScannerCoveragePlanV2({
+    pages,
+    sitemapPageUrls: seed.discovery?.sitemapPageUrls || [],
+    internalLinkUrls: [...internalLinks],
+    navigationUrls: [...navigation],
+    attemptedUrls: [...attempted],
+    failedUrls: [...failedPageUrls],
+    batchLimit: CRAWL_BATCH_SIZE,
+  }) as HotelScannerV2CoverageSummary;
+
+  const documentMap = new Map<string, Set<"sitemap" | "page_link">>();
+  for (const document of seed.publicDocuments || []) {
+    const set = documentMap.get(document.url) || new Set<"sitemap" | "page_link">();
+    for (const source of document.discoveredBy || []) set.add(source);
+    documentMap.set(document.url, set);
+  }
+  for (const url of sitemapDocuments) {
+    const set = documentMap.get(url) || new Set<"sitemap" | "page_link">();
+    set.add("sitemap");
+    documentMap.set(url, set);
+  }
+  for (const url of pageDocuments) {
+    const set = documentMap.get(url) || new Set<"sitemap" | "page_link">();
+    set.add("page_link");
+    documentMap.set(url, set);
+  }
+
+  const resumed: HotelScannerV2EvidenceBundle = {
+    ...seed,
+    pages,
+    publicDocuments: [...documentMap.entries()].slice(0, MAX_PUBLIC_DOCUMENTS).map(([url, sources]) => ({
+      url,
+      kind: "pdf" as const,
+      status: "discovered_not_ingested" as const,
+      discoveredBy: [...sources],
+    })),
+    discovery: {
+      ...seed.discovery,
+      internalLinkUrls: [...internalLinks],
+      navigationUrls: [...navigation],
+      failedPageUrls: [...failedPageUrls].sort(),
+      coverage,
+      structuralCrawl,
+    },
+    crawlPolicy: {
+      ...seed.crawlPolicy,
+      robotsApplied: robotsState.found,
+      robotsUrl: robotsState.url,
+      robotsBlockedUrlCount: Number(seed.crawlPolicy?.robotsBlockedUrlCount || 0) + robotsBlockedUrls.size,
+    },
+  };
+
+  resumed.v3InventorySnapshot = buildHotelInventorySnapshotV3(resumed);
+  return resumed;
 }
