@@ -4,6 +4,7 @@ import test from "node:test";
 import { buildHotelCompletenessV2 } from "../../lib/server/hotel-scanner-v2-completeness.mjs";
 import { classifyHotelScannerPageV2, hotelScannerPageTypeDomain } from "../../lib/server/hotel-scanner-v2-page-classifier.mjs";
 import { deriveHotelPageInventoryHintsV2 } from "../../lib/server/hotel-scanner-v2-landing-inventory.mjs";
+import { extractOperationalServiceLabelsV2 } from "../../lib/server/hotel-scanner-v2-hospitality-taxonomy.mjs";
 import { readProjectFile } from "../helpers/source-contract.mjs";
 
 test("inclusive-services compound paths classify as hotel services without AI", () => {
@@ -130,4 +131,14 @@ test("client preview normalizes repeated contacts and filters container/SEO name
   assert.match(preview, /preferredPhoneDisplay/);
   assert.match(preview, /clientPreviewNameAllowed/);
   assert.match(preview, /rejectedNoiseCount/);
+});
+
+
+test("reception is not labeled 24/7 unless the source explicitly says so", () => {
+  const regular = extractOperationalServiceLabelsV2("Skipass pickup at the reception.");
+  assert.ok(regular.some((item) => item.name === "Reception"));
+  assert.ok(!regular.some((item) => item.name === "24/7 Reception"));
+
+  const explicit = extractOperationalServiceLabelsV2("Our reception is open 24/7 for hotel guests.");
+  assert.ok(explicit.some((item) => item.name === "24/7 Reception"));
 });
