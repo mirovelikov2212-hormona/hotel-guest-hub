@@ -34,7 +34,7 @@ export type HotelScannerV2DocumentInventory = {
   url: string;
   variantGroupId: string;
   domains: string[];
-  ingestionStatus: "PENDING" | "INGESTED";
+  ingestionStatus: "PENDING" | "INGESTED" | "MANUAL";
 };
 
 export type HotelScannerV2Inventory = {
@@ -47,6 +47,7 @@ export type HotelScannerV2Inventory = {
     unknownExpectationDomains: number;
     expectedItems: number;
     pendingDocuments: number;
+    manualDocuments?: number;
   };
 };
 
