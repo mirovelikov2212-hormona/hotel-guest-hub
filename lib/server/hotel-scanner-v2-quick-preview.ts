@@ -3,6 +3,7 @@ import "server-only";
 import type { HotelIntelligenceItem, HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
 import { buildInventoryIdentityFactsV2 } from "@/lib/ai/hotel-scanner-v2-deterministic-facts";
 import type { HotelIntakeV2DiscoveryResult } from "@/lib/server/hotel-scanner-v2-intake";
+import { classifyHotelScannerPageV2, hotelScannerPageTypeDomain } from "@/lib/server/hotel-scanner-v2-page-classifier";
 
 const CORE_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "experiences", "events", "offers", "contacts"] as const;
 
@@ -41,6 +42,10 @@ function clientPreviewNameAllowed(domain: string, value: unknown) {
     && /^(?:rooms?\s*(?:&|and)\s*suites?)(?:\s+(?:in|at)\s+.+)?$|^zimmer\s*(?:&|und)\s*suiten(?:\s+im\s+.+)?$/iu.test(name)) return false;
   if (domain === "experiences"
     && /(?:^|\s)(?:hotel|resort|ferienhotel|urlaubshotel|bikehotel|skihotel|wellnesshotel)(?:\s|$)/iu.test(name)) return false;
+  if (domain === "spa"
+    && ((/[|]/u.test(name) && /(?:spa|wellness|massage|beauty|treatment|behandlung)/iu.test(name))
+      || (/(?:^|\s)(?:hotel|resort|wellnesshotel|spahotel)(?:\s|$)/iu.test(name)
+        && /(?:spa|wellness)/iu.test(name)))) return false;
   if (domain === "offers"
     && /^(?:holiday\s+offers?(?:\s+in\s+.+)?|my\s+favo(?:u)?rite\s+place\s*:?.*|offers?(?:\s+in\s+.+)?|angebote(?:\s+im\s+.+)?)$/iu.test(name)) return false;
   return true;
@@ -106,6 +111,48 @@ function openingHoursForItem(discovery: HotelIntakeV2DiscoveryResult, item: { na
     if (hours) return hours;
   }
   return "";
+}
+
+const SPA_PREVIEW_HEADING = /(?:adults?\s*only.*(?:spa|wellness)|family.*spa|mountain\s+spa|day\s+spa|beauty.*spa|saunen?|sauna|ruher[aä]ume?|relaxation\s+rooms?|pools?|behandlungen|treatments?|massagen?|massage|hamam|hammam|kosmetik|rituale?|therap(?:y|ies)|k[oö]rperbehandlungen|gesichtsbehandlungen|packungen)/iu;
+const EXPERIENCE_PREVIEW_HEADING = /(?:e-?trial|trial[-\s]?park|single\s+trail|bike\s+trail|mountain\s*bik|hiking|wander|kletter|climb|tennis|golf|fitness|gym|playground|kids?\s+(?:club|area)|aqua\s*park|water\s*park|rutschenpark|ski(?:ing)?|langlauf|toboggan|rodel)/iu;
+const PREVIEW_GENERIC_HEADING = /^(?:spa|wellness|experiences?|activities|aktiv(?:it[aä]ten)?|angebote|offers?|mehr\s+lesen|weniger\s+lesen|faq|fragen\s*&\s*antworten)$/iu;
+
+function previewEvidenceHeadings(discovery: HotelIntakeV2DiscoveryResult, domain: "spa" | "experiences") {
+  const result: string[] = [];
+  const pattern = domain === "spa" ? SPA_PREVIEW_HEADING : EXPERIENCE_PREVIEW_HEADING;
+  for (const page of discovery.evidence.pages || []) {
+    const classification = classifyHotelScannerPageV2(page);
+    if (hotelScannerPageTypeDomain(classification.primaryType) !== domain) continue;
+    const pageTitle = entityKey(clean(page.title, 240).split(/\s+[|]\s+/u)[0] || "");
+    const headings = [
+      ...(page.contentBlocks || []).map((block) => clean(block.heading, 240)),
+      ...(page.headings || []).map((heading) => clean(heading.text, 240)),
+    ];
+    for (const heading of headings) {
+      if (!heading || PREVIEW_GENERIC_HEADING.test(heading) || !pattern.test(heading)) continue;
+      if (entityKey(heading) === pageTitle) continue;
+      if (!clientPreviewNameAllowed(domain, heading)) continue;
+      result.push(heading);
+    }
+  }
+  return unique(result, 24);
+}
+
+function previewItemsForDomain(discovery: HotelIntakeV2DiscoveryResult, domain: string, expectedItems: Array<{ nameHint?: string; url?: string; urls?: string[] }>) {
+  const base = expectedItems.map((item) => ({
+    name: clean(item.nameHint, 240),
+    hours: domain === "gastronomy" ? openingHoursForItem(discovery, item) : "",
+  })).filter((item) => item.name && clientPreviewNameAllowed(domain, item.name));
+
+  if (domain !== "spa" && domain !== "experiences") return base;
+
+  const evidenceNames = previewEvidenceHeadings(discovery, domain);
+  const merged = [...base];
+  for (const name of evidenceNames) {
+    if (merged.some((item) => sameEntityName(item.name, name))) continue;
+    merged.push({ name, hours: "" });
+  }
+  return merged.slice(0, 24);
 }
 
 function quickContacts(discovery: HotelIntakeV2DiscoveryResult) {
@@ -256,8 +303,7 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
           name: clean(item.nameHint, 240),
           hours: domain.domain === "gastronomy" ? openingHoursForItem(discovery, item) : "",
         })).filter((item) => item.name);
-        const componentItems = rawComponentItems.filter((item) => clientPreviewNameAllowed(domain.domain, item.name));
-        const rejectedNoiseCount = rawComponentItems.length - componentItems.length;
+        const componentItems = previewItemsForDomain(discovery, domain.domain, domain.expectedItems || []);
         const contactMethodCount = contacts.phones.length + contacts.emails.length + contacts.addresses.length;
         return {
           domain: domain.domain,
@@ -267,7 +313,7 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
           state: domain.expectationState,
           namedCount: domain.domain === "contacts" ? contactMethodCount : componentItems.length,
           needsOnboarding: domain.domain !== "contacts"
-            && (rejectedNoiseCount > 0 || domain.expectedCount > rawComponentItems.length),
+            && domain.expectedCount > rawComponentItems.length,
           items: componentItems,
         };
       }),
