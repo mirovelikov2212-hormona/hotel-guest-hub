@@ -496,12 +496,8 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
     const inventory = result.discovery?.inventory?.counts;
     const docs = result.completeness?.documents;
     return [
-      [copy.pipeline, result.pipelineStatus || "—"],
       [copy.pages, String(counts?.crawledPages ?? 0)],
       [copy.resources, String(counts?.resources ?? 0)],
-      [copy.expected, String(inventory?.expectedItems ?? 0)],
-      [copy.pdf, `${docs?.ingested ?? 0}/${docs?.discovered ?? 0}`],
-      [copy.conflicts, String(result.completeness?.conflicts?.unresolved ?? 0)],
       [copy.runtime, formatDuration(result.diagnostics?.totalLatencyMs)],
     ];
   }, [result, copy]);
@@ -706,7 +702,7 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
                   missingItems: domain.missingItems || [],
                 };
                 const inventoryReady = inventoryLayer.status === "COMPLETE";
-                const notDiscovered = domain.status === "NOT_APPLICABLE";
+                const notDiscovered = domain.status === "NOT_DISCOVERED";
                 const label = notDiscovered ? copy.notFound : inventoryReady ? copy.discoveredOnSite : copy.needsReview;
                 return (
                   <article key={domain.domain} className="v2-card p-4">
