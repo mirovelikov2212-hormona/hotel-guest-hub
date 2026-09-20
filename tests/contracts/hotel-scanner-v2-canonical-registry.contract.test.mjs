@@ -148,7 +148,7 @@ test("complete canonical room details supersede contradictory weak landing count
   assert.ok(!accommodation.issues.some((issue) => issue.includes("canonical_entity_count_exceeds_explicit_count")));
 });
 
-test("gastronomy aliases with a distinctive shared identity merge into one canonical venue", () => {
+test("gastronomy detail family is canonical when no structural overview exists", () => {
   const landing = resource({
     url: "https://hotel.test/dining",
     primaryType: "gastronomy",
@@ -170,7 +170,7 @@ test("gastronomy aliases with a distinctive shared identity merge into one canon
   const registry = buildCanonicalHotelEntityRegistryV2({ resources: [landing, detail] });
   const gastronomy = registry.domains.get("gastronomy");
   assert.equal(gastronomy.expectedCount, 1);
-  assert.equal(gastronomy.expectedItems[0].nameHint, "Sirloin | Grill & Dine");
+  assert.equal(gastronomy.expectedItems[0].nameHint, "Sirloin Steakhouse");
 });
 
 test("canonical registry keeps authoritative hotel entities and rejects policy contamination", () => {
