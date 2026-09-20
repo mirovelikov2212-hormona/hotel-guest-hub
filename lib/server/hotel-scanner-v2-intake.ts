@@ -60,7 +60,7 @@ async function finalizeDiscovery(evidence: HotelScannerV2EvidenceBundle): Promis
   return { evidence, siteMap, inventory };
 }
 
-const QUICK_PREVIEW_CORE_DOMAINS = ["accommodation", "gastronomy", "services", "experiences", "spa", "offers"] as const;
+const QUICK_PREVIEW_CORE_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "experiences", "offers"] as const;
 
 export function selectHotelIntakeQuickRenderDomainsV2(result: HotelIntakeV2DiscoveryResult) {
   const resources = Array.isArray(result.siteMap.resources) ? result.siteMap.resources : [];
@@ -75,7 +75,7 @@ export function selectHotelIntakeQuickRenderDomainsV2(result: HotelIntakeV2Disco
   }
 
   for (const domain of QUICK_PREVIEW_CORE_DOMAINS) {
-    if (selected.length >= 4 || selected.includes(domain) || !hasDomainPage(domain)) continue;
+    if (selected.length >= 6 || selected.includes(domain) || !hasDomainPage(domain)) continue;
     const inventory = result.inventory.domains.find((entry) => entry.domain === domain);
     const authority = String((inventory?.evidence as { authority?: unknown } | undefined)?.authority || "");
     const ambiguous = !inventory
@@ -89,7 +89,7 @@ export function selectHotelIntakeQuickRenderDomainsV2(result: HotelIntakeV2Disco
     if (ambiguous) selected.push(domain);
   }
 
-  return selected.slice(0, 4);
+  return selected.slice(0, 6);
 }
 
 export async function discoverHotelIntakeQuickV2(rawUrl: string): Promise<HotelIntakeV2DiscoveryResult> {
