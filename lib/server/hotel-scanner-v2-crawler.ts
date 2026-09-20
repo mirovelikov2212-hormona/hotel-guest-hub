@@ -243,8 +243,8 @@ function collectJsonLdContactSignals(value: unknown, result: HotelScannerV2Conta
   }
   if (typeof value !== "object") return;
   const record = value as Record<string, unknown>;
-  const phone = cleanText(record.telephone, 160);
-  const email = cleanText(record.email, 240).replace(/^mailto:/iu, "");
+  const phone = cleanText(String(record.telephone ?? ""), 160);
+  const email = cleanText(String(record.email ?? ""), 240).replace(/^mailto:/iu, "");
   const address = contactAddress(record.address);
   if (phone) result.phones.push(phone);
   if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email)) result.emails.push(email);
