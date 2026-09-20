@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       snapshot
       && structuralCrawl?.inventoryClosed
       && !structuralCrawl?.safetyCapReached
-      && snapshot.status !== "ONTOLOGY_CONFLICT"
+      && snapshot.status === "READY"
     );
     const inventoryAuthority = authorityEligible && snapshot
       ? projectHotelInventoryAuthorityV3(snapshot)
