@@ -221,7 +221,7 @@ async function ensureQuickPreviewDomainPages(
 ) {
   const requestedLanguage = pathLanguage(base.requestedUrl);
   const existingUrls = new Set(base.pages.map((page) => canonicalizeHotelIntakeUrl(page.url)).filter(Boolean));
-  const existingDomains = new Set(base.pages.map((page) =>
+  const existingDomains = new Set<string>(base.pages.map((page) =>
     hotelScannerPageTypeDomain(classifyHotelScannerPageV2(page).primaryType)).filter(Boolean));
   const missingDomains = [...new Set(domains)].filter((domain) => !existingDomains.has(domain));
   if (!missingDomains.length) return;
