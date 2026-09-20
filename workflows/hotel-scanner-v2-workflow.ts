@@ -16,6 +16,7 @@ export type HotelScannerV2WorkflowInput = {
   actorAdminId: string;
   url: string;
   outputLanguage: HotelScannerV2OutputLanguage;
+  inventoryAuthority?: Record<string, unknown>;
 };
 
 type ScannerV2DiscoveryCheckpoint = {
@@ -51,6 +52,7 @@ async function runDiscoveryCheckpointStep(input: HotelScannerV2WorkflowInput): P
     discoveryLatencyMs,
     pageCount: discovery.evidence.pages.length,
     resourceCount: discovery.siteMap.resources.length,
+    inventorySnapshotId: discovery.evidence.v3InventorySnapshot?.snapshotId || "",
   });
   return { discovery, discoveryLatencyMs };
 }
@@ -74,6 +76,7 @@ async function runEnrichmentStep(
       discovery: checkpoint.discovery,
       outputLanguage: input.outputLanguage,
       discoveryLatencyMs: checkpoint.discoveryLatencyMs,
+      inventoryAuthority: input.inventoryAuthority,
     });
     console.log("scanner_v2_workflow_enrichment_completed", {
       url: input.url,
