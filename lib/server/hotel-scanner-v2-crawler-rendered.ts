@@ -37,11 +37,11 @@ const RENDER_DISCOVERED_FETCH_TIMEOUT_MS = 8_000;
 const RENDER_DISCOVERED_MAX_PAGE_BYTES = 1_500_000;
 const RENDER_USER_AGENT_TOKEN = "stayhub-hotel-scanner";
 const RENDER_USER_AGENT = "StayHub-Hotel-Scanner/2.0 (+https://stayhub.app)";
-const QUICK_PREVIEW_MAX_BROWSER_RENDERS = 4;
-const QUICK_PREVIEW_MAX_AUTHORITY_FETCHES = 4;
+const QUICK_PREVIEW_MAX_BROWSER_RENDERS = 6;
+const QUICK_PREVIEW_MAX_AUTHORITY_FETCHES = 6;
 const QUICK_PREVIEW_BROWSER_CONCURRENCY = 4;
-const QUICK_PREVIEW_BROWSER_WALL_MS = 35_000;
-const QUICK_PREVIEW_DOMAIN_PRIORITY = ["accommodation", "gastronomy", "services", "experiences", "spa", "offers"] as const;
+const QUICK_PREVIEW_BROWSER_WALL_MS = 55_000;
+const QUICK_PREVIEW_DOMAIN_PRIORITY = ["accommodation", "gastronomy", "spa", "services", "experiences", "offers"] as const;
 
 function browserRenderFailureReason(error: unknown) {
   const name = String((error as { name?: unknown })?.name || "Error").replace(/\s+/g, " ").trim().slice(0, 80);
