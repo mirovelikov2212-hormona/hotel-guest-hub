@@ -6,6 +6,7 @@ import { canMutateControlPlane } from "@/lib/server/control-plane-auth";
 import { enforceControlPlaneSameOrigin } from "@/lib/server/control-plane-origin";
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 import { createScannerV2WorkflowAccessToken } from "@/lib/server/hotel-scanner-v2-workflow-access";
+import { verifyHotelInventoryAuthorityTokenV3 } from "@/lib/server/hotel-scanner-v3-authority-token";
 import { hotelScannerV2Workflow } from "@/workflows/hotel-scanner-v2-workflow";
 
 export const runtime = "nodejs";
@@ -29,14 +30,36 @@ export async function POST(request: NextRequest) {
   if (!authority) return json({ ok: false, error: "unauthorized" }, 401);
   if (!canMutateControlPlane(authority.role)) return json({ ok: false, error: "forbidden" }, 403);
 
-  const body = (await request.json().catch(() => ({}))) as { url?: unknown; lang?: unknown };
+  const body = (await request.json().catch(() => ({}))) as {
+    url?: unknown;
+    lang?: unknown;
+    inventoryAuthorityToken?: unknown;
+  };
   const url = String(body?.url || "").trim();
   const outputLanguage = String(body?.lang || "bg").trim().toLocaleLowerCase("en-US") === "en" ? "en" : "bg";
+  const inventoryAuthorityToken = String(body?.inventoryAuthorityToken || "").trim();
   if (!url) return json({ ok: false, error: "missing_url" }, 400);
 
   try {
+    const inventoryAuthority = inventoryAuthorityToken
+      ? verifyHotelInventoryAuthorityTokenV3({
+          actorAdminId: authority.adminId,
+          requestedUrl: url,
+          token: inventoryAuthorityToken,
+        })
+      : null;
+    if (inventoryAuthorityToken && !inventoryAuthority) {
+      return json({ ok: false, error: "invalid_inventory_authority" }, 409);
+    }
+
     const scanRunId = randomUUID();
-    const run = await start(hotelScannerV2Workflow, [{ url, outputLanguage, actorAdminId: authority.adminId, scanRunId }]);
+    const run = await start(hotelScannerV2Workflow, [{
+      url,
+      outputLanguage,
+      actorAdminId: authority.adminId,
+      scanRunId,
+      inventoryAuthority: inventoryAuthority || undefined,
+    }]);
     const runAccessToken = createScannerV2WorkflowAccessToken({
       actorAdminId: authority.adminId,
       runId: run.runId,
