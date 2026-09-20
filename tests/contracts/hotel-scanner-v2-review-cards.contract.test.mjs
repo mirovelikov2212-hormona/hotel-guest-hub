@@ -32,7 +32,7 @@ test("safe pipeline exposes reviewSections beside immutable candidate evidence",
 
 test("client review workspace is website-like and keeps evidence secondary", async () => {
   const source = await read("app/hotel-scanner-v2/HotelScannerV2ReviewWorkspace.tsx");
-  assert.match(source, /one real entity = one card|един реален обект = една карта/i);
+  assert.match(source, /Onboarding настройка|Onboarding setup/i);
   assert.match(source, /EntityCard/);
   assert.match(source, /SourceLinks/);
   assert.match(source, /Пълно техническо доказателство|Full technical evidence/);
