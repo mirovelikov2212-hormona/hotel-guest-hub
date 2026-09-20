@@ -1,12 +1,14 @@
 import "server-only";
 
 import {
+  continuePublicHotelWebsiteV3,
   crawlPublicHotelWebsiteV2,
   type HotelScannerV2EvidenceBundle,
 } from "@/lib/server/hotel-scanner-v2-crawler";
 import {
   crawlPublicHotelWebsiteRenderedV2,
   enrichHotelEvidenceQuickRenderedV2,
+  enrichHotelEvidenceRenderedV3,
 } from "@/lib/server/hotel-scanner-v2-crawler-rendered";
 import {
   buildHotelSiteMapV2,
@@ -118,6 +120,17 @@ export async function discoverHotelIntakeRenderedV2(rawUrl: string): Promise<Hot
   // Browser enrichment is deliberately limited to durable workflow discovery,
   // where its bounded wall-clock budget cannot hold a normal request open.
   return finalizeDiscovery(await crawlPublicHotelWebsiteRenderedV2(rawUrl));
+}
+
+export async function resumeHotelIntakeRenderedV3(
+  checkpoint: HotelScannerV2EvidenceBundle,
+): Promise<HotelIntakeV2DiscoveryResult> {
+  // Continue from Quick evidence instead of crawling the hotel from the root a
+  // second time. Only unresolved structural/support frontier pages are fetched;
+  // existing HTTP/browser evidence is reused.
+  const continued = await continuePublicHotelWebsiteV3(checkpoint);
+  const enriched = await enrichHotelEvidenceRenderedV3(continued);
+  return finalizeDiscovery(enriched);
 }
 
 export function projectHotelIntakeDiscoveryV2(
