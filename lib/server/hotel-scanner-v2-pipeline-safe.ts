@@ -8,6 +8,7 @@ import {
 import { buildInventoryIdentityFactsV2 } from "@/lib/ai/hotel-scanner-v2-deterministic-facts";
 import {
   applyDocumentIngestionToInventoryV2,
+  deferHotelDocumentsToManualOnboardingV2,
   ingestHotelPolicyDocumentsV2,
 } from "@/lib/ai/hotel-scanner-v2-document-ingestion";
 import {
@@ -25,6 +26,10 @@ import {
 
 function extractionBlockingReasons(extraction: Awaited<ReturnType<typeof extractHotelDomainsV2>>) {
   return [...new Set(extraction.issues.map((issue) => `${issue.domain}_extraction_${issue.code.toLocaleLowerCase("en-US")}`))];
+}
+
+function extractionQuotaExhausted(extraction: Awaited<ReturnType<typeof extractHotelDomainsV2>>) {
+  return extraction.issues.some((issue) => issue.code === "AI_QUOTA_EXHAUSTED");
 }
 
 export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
@@ -48,11 +53,13 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
   const documentStartedAt = Date.now();
   // Only durable policy/FAQ documents are read. Menus, brochures, offers and
   // other temporary PDFs remain manual onboarding inventory.
-  const documents = await ingestHotelPolicyDocumentsV2({
-    inventory: discovery.inventory,
-    canonicalUrl: discovery.evidence.canonicalUrl,
-    outputLanguage: input.outputLanguage,
-  });
+  const documents = extractionQuotaExhausted(extraction)
+    ? deferHotelDocumentsToManualOnboardingV2(discovery.inventory)
+    : await ingestHotelPolicyDocumentsV2({
+        inventory: discovery.inventory,
+        canonicalUrl: discovery.evidence.canonicalUrl,
+        outputLanguage: input.outputLanguage,
+      });
   const documentLatencyMs = Date.now() - documentStartedAt;
 
   const ingestedInventory = applyDocumentIngestionToInventoryV2(discovery.inventory, documents);
