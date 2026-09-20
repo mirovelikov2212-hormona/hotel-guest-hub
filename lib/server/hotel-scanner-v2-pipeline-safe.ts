@@ -26,6 +26,12 @@ import {
   discoverHotelIntakeV2,
   type HotelIntakeV2DiscoveryResult,
 } from "@/lib/server/hotel-scanner-v2-intake";
+import {
+  applyHotelInventoryAuthorityV3,
+  compareHotelInventorySnapshotsV3,
+  projectHotelInventoryAuthorityV3,
+  summarizeHotelInventoryAuthorityV3,
+} from "@/lib/server/hotel-scanner-v3-canonical-inventory.mjs";
 
 function extractionBlockingReasons(extraction: Awaited<ReturnType<typeof extractHotelDomainsV2>>) {
   return [...new Set(extraction.issues.map((issue) => `${issue.domain}_extraction_${issue.code.toLocaleLowerCase("en-US")}`))];
@@ -39,15 +45,35 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
   discovery: HotelIntakeV2DiscoveryResult;
   outputLanguage: HotelScannerV2OutputLanguage;
   discoveryLatencyMs?: number;
+  inventoryAuthority?: Record<string, unknown>;
 }) {
   const discovery = input.discovery;
   const discoveryLatencyMs = Math.max(0, Number(input.discoveryLatencyMs || 0));
+  const observedSnapshot = discovery.evidence.v3InventorySnapshot;
+  const observedAuthority = observedSnapshot
+    ? projectHotelInventoryAuthorityV3(observedSnapshot)
+    : null;
+  const inventoryAuthority = input.inventoryAuthority || observedAuthority;
+  const authorityInventory = inventoryAuthority
+    ? applyHotelInventoryAuthorityV3(discovery.inventory, inventoryAuthority)
+    : discovery.inventory;
+  const inventoryDelta = input.inventoryAuthority && observedSnapshot
+    ? compareHotelInventorySnapshotsV3(input.inventoryAuthority, observedSnapshot)
+    : {
+        schemaVersion: "hotel-scanner-v3-inventory-delta-1",
+        changed: false,
+        previousSnapshotId: String((inventoryAuthority as { snapshotId?: unknown } | null)?.snapshotId || ""),
+        nextSnapshotId: String(observedSnapshot?.snapshotId || ""),
+        addedEntityIds: [],
+        removedEntityIds: [],
+        domainChangedEntityIds: [],
+      };
 
   const extractionStartedAt = Date.now();
   const extraction = await extractHotelDomainsV2({
     evidence: discovery.evidence,
     siteMap: discovery.siteMap,
-    inventory: discovery.inventory,
+    inventory: authorityInventory,
     outputLanguage: input.outputLanguage,
     domains: ["policies"],
   });
@@ -57,16 +83,16 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
   // Only durable policy/FAQ documents are read. Menus, brochures, offers and
   // other temporary PDFs remain manual onboarding inventory.
   const documents = extractionQuotaExhausted(extraction)
-    ? deferHotelDocumentsToManualOnboardingV2(discovery.inventory)
+    ? deferHotelDocumentsToManualOnboardingV2(authorityInventory)
     : await ingestHotelPolicyDocumentsV2({
-        inventory: discovery.inventory,
+        inventory: authorityInventory,
         canonicalUrl: discovery.evidence.canonicalUrl,
         outputLanguage: input.outputLanguage,
       });
   const documentLatencyMs = Date.now() - documentStartedAt;
 
-  const ingestedInventory = applyDocumentIngestionToInventoryV2(discovery.inventory, documents);
-  const deterministicCoreFacts = discovery.inventory.domains
+  const ingestedInventory = applyDocumentIngestionToInventoryV2(authorityInventory, documents);
+  const deterministicCoreFacts = authorityInventory.domains
     .filter((domain) => !["policies", "contacts"].includes(domain.domain))
     .flatMap((domain) => buildInventoryIdentityFactsV2(domain));
   const deterministicContactFacts = buildDeterministicContactFactsV2(
@@ -80,7 +106,7 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
     ...extraction.facts,
     ...documents.facts,
   ]);
-  const inventory = reconcileHotelInventoryWithVerifiedFactsV2(
+  const reconciledInventory = reconcileHotelInventoryWithVerifiedFactsV2(
     ingestedInventory,
     verification.facts,
     {
@@ -89,6 +115,13 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
         .map((document) => document.url),
     },
   );
+  // Operational entity identity/counts remain locked to the signed canonical
+  // inventory authority. Deep extraction may enrich those entities, but may not
+  // silently add/remove them. A changed deep structural snapshot is reported as
+  // an explicit inventory delta for review.
+  const inventory = inventoryAuthority
+    ? applyHotelInventoryAuthorityV3(reconciledInventory, inventoryAuthority)
+    : reconciledInventory;
   const completeness = buildHotelCompletenessV2({
     inventory,
     profile: { facts: verification.facts },
@@ -117,7 +150,10 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
     completeness,
   });
   const coverageBlockers = coverageValidation.reasons;
-  const scannerBlockers = [...new Set([...extractionBlockers, ...coverageBlockers])];
+  const authorityBlockers = inventoryDelta.changed
+    ? ["inventory_authority_delta_requires_review"]
+    : [];
+  const scannerBlockers = [...new Set([...extractionBlockers, ...coverageBlockers, ...authorityBlockers])];
   const intelligenceCandidate: HotelIntelligenceCandidateV2 = scannerBlockers.length
     ? {
         ...candidateBase,
@@ -155,6 +191,13 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
       failedPageUrls: discovery.evidence.discovery.failedPageUrls,
       browserRenderedUrls: (discovery.evidence.discovery as { browserRenderedUrls?: string[] }).browserRenderedUrls || [],
       browserRenderFailedUrls: (discovery.evidence.discovery as { browserRenderFailedUrls?: string[] }).browserRenderFailedUrls || [],
+      structuralCrawl: discovery.evidence.discovery.structuralCrawl,
+    },
+    canonicalInventory: {
+      authority: inventoryAuthority ? summarizeHotelInventoryAuthorityV3(inventoryAuthority) : null,
+      observed: observedAuthority ? summarizeHotelInventoryAuthorityV3(observedAuthority) : null,
+      delta: inventoryDelta,
+      authorityLocked: Boolean(input.inventoryAuthority),
     },
     extraction,
     documents,
