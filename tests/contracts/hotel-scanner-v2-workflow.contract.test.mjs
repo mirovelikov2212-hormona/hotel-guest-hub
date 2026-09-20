@@ -216,6 +216,10 @@ test("Quick Client Preview uses targeted DOM authority without waiting for full 
   assert.match(route, /discoverHotelIntakeQuickV2/);
   assert.doesNotMatch(route, /discoverHotelIntakeRenderedV2|OpenAI|ingestHotelDocumentsV2/);
   assert.match(intake, /selectHotelIntakeQuickRenderDomainsV2/);
+  assert.match(intake, /\["accommodation", "gastronomy"\]/);
+  assert.match(intake, /maxInitialPages: 28/);
+  assert.match(intake, /maxCoverageFollowupAttempts: 0/);
+  assert.match(intake, /includeDelegatedOfferDetails: false/);
   assert.match(intake, /enrichHotelEvidenceQuickRenderedV2/);
   assert.match(rendered, /QUICK_PREVIEW_MAX_BROWSER_RENDERS = 4/);
   assert.match(rendered, /QUICK_PREVIEW_BROWSER_CONCURRENCY = 4/);
@@ -230,4 +234,18 @@ test("Quick Client Preview uses targeted DOM authority without waiting for full 
   assert.match(client, /PACKAGE_STORAGE_KEY/);
   assert.match(designPage, /quickPreview/);
   assert.match(designPage, /!scanRunId && !quickPreview/);
+});
+
+
+test("Quick crawl budget is isolated from the full Scanner V2 crawl", async () => {
+  const crawler = await readProjectFile("lib/server/hotel-scanner-v2-crawler.ts");
+  const intake = await readProjectFile("lib/server/hotel-scanner-v2-intake.ts");
+
+  assert.match(crawler, /HotelScannerV2CrawlOptions/);
+  assert.match(crawler, /options\.maxInitialPages \?\? MAX_INITIAL_PAGES/);
+  assert.match(crawler, /options\.maxCoverageFollowupAttempts \?\? MAX_COVERAGE_FOLLOWUP_ATTEMPTS/);
+  assert.match(crawler, /includeDelegatedOfferDetails !== false/);
+  assert.match(intake, /maxInitialPages: 28/);
+  assert.match(intake, /maxInitialPageAttempts: 40/);
+  assert.match(intake, /maxCoverageFollowupAttempts: 0/);
 });
