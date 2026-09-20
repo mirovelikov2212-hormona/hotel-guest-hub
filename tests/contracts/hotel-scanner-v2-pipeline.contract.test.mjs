@@ -141,7 +141,7 @@ test("V2 landing page can deterministically establish five semantic venues witho
   assert.ok(gastronomy.expectedItems.every((item) => item.basis === "deterministic_semantic_block_entity"));
 });
 
-test("V2 landing completeness reports 4/5 unique venues as INCOMPLETE", () => {
+test("V2 landing completeness routes 4/5 unique venues to onboarding", () => {
   const siteMap = buildHotelSiteMapV2({
     canonicalUrl: "https://hotel.test/en/gastronomy",
     pages: [landingGastronomyPage(5)],
@@ -152,11 +152,11 @@ test("V2 landing completeness reports 4/5 unique venues as INCOMPLETE", () => {
 
   assert.equal(gastronomy.expected, 5);
   assert.equal(gastronomy.extracted, 4);
-  assert.equal(gastronomy.status, "INCOMPLETE");
-  assert.equal(completeness.status, "INCOMPLETE");
+  assert.equal(gastronomy.status, "ONBOARDING_REQUIRED");
+  assert.equal(completeness.status, "READY_FOR_ONBOARDING");
 });
 
-test("V2 explicit count with only four identified venues stays partial and incomplete, not a fake conflict", () => {
+test("V2 explicit count with only four identified venues stays partial onboarding work, not a fake conflict", () => {
   const siteMap = buildHotelSiteMapV2({
     canonicalUrl: "https://hotel.test/en/gastronomy",
     pages: [landingGastronomyPage(4)],
@@ -173,12 +173,12 @@ test("V2 explicit count with only four identified venues stays partial and incom
   assert.ok(gastronomy.expectedItems.some((item) => item.basis === "deterministic_explicit_count_slot"));
   assert.equal(coverage.expected, 5);
   assert.equal(coverage.extracted, 4);
-  assert.equal(coverage.status, "INCOMPLETE");
-  assert.equal(completeness.status, "INCOMPLETE");
+  assert.equal(coverage.status, "ONBOARDING_REQUIRED");
+  assert.equal(completeness.status, "READY_FOR_ONBOARDING");
   assert.ok(!completeness.blockingReasons.includes("inventory_expectation_conflict"));
 });
 
-test("V2 completeness reports 4/5 detail entities as INCOMPLETE instead of READY", () => {
+test("V2 completeness reports 4/5 detail entities as onboarding work instead of scanner failure", () => {
   const pages = gastronomyPages(5);
   const siteMap = buildHotelSiteMapV2({ canonicalUrl: "https://hotel.test/en", pages });
   const inventory = buildHotelInventoryV2(siteMap);
@@ -187,8 +187,8 @@ test("V2 completeness reports 4/5 detail entities as INCOMPLETE instead of READY
 
   assert.equal(gastronomy.expected, 5);
   assert.equal(gastronomy.extracted, 4);
-  assert.equal(gastronomy.status, "INCOMPLETE");
-  assert.equal(completeness.status, "INCOMPLETE");
+  assert.equal(gastronomy.status, "ONBOARDING_REQUIRED");
+  assert.equal(completeness.status, "READY_FOR_ONBOARDING");
   assert.equal(completeness.approvedHotelIntelligenceEligible, false);
 });
 
