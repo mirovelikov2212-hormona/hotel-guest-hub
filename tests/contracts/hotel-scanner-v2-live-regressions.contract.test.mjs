@@ -134,7 +134,7 @@ test("canonical gastronomy authority rejects thematic headings and prefers struc
   const gastronomy = buildCanonicalHotelEntityRegistryV2({ resources: [translated, root] }).domains.get("gastronomy");
   assert.ok(gastronomy);
   assert.equal(gastronomy.expectedCount, 5);
-  assert.equal(gastronomy.evidence.authority, "STRUCTURAL");
+  assert.equal(gastronomy.evidence.authority, "STRUCTURAL_OPERATIONAL_LANDING");
   assert.deepEqual(gastronomy.expectedItems.map((item) => item.nameHint), realVenues);
   assert.ok(gastronomy.expectedItems.every((item) => !/кулинар/i.test(item.nameHint)));
 });
