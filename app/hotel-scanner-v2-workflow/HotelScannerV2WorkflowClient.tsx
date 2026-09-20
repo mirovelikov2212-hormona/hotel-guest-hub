@@ -98,6 +98,8 @@ type QuickPreview = {
     domain: string;
     count: number;
     state: string;
+    namedCount?: number;
+    needsOnboarding?: boolean;
     items?: Array<{ name: string; hours?: string }>;
   }>;
   contacts?: {
@@ -147,7 +149,7 @@ const COPY = {
     pendingPages: "Непрочетени релевантни страници",
     failedPages: "Неуспешни релевантни страници",
     coverage: "2. Completeness по категории",
-    coverageHelp: "Inventory показва дали са намерени всички очаквани entities. Content показва дали намерените entities имат реални детайли. COMPLETE се дава само когато и двете са пълни.",
+    coverageHelp: "Inventory показва какво е намерено на сайта. Липсващи описания, цени, снимки и други подробности са onboarding работа и не правят Scanner-а неуспешен.",
     extracted: "Намерени entities",
     missing: "Липсващи entities",
     withDetails: "С детайли",
@@ -179,6 +181,8 @@ const COPY = {
     manualSetup: "Детайлите се допълват при onboarding",
     needsReview: "Нужна е проверка",
     discoveredOnSite: "Намерено на сайта",
+    contactsFound: "Контакти намерени",
+    manualConfiguration: "Нужда от ръчна настройка",
     technical: "Технически детайли",
   },
   en: {
@@ -213,7 +217,7 @@ const COPY = {
     pendingPages: "Unread relevant pages",
     failedPages: "Failed relevant pages",
     coverage: "2. Completeness by category",
-    coverageHelp: "Inventory shows whether every expected entity was found. Content shows whether found entities have real details. COMPLETE requires both layers to be complete.",
+    coverageHelp: "Inventory shows what was discovered on the website. Missing descriptions, prices, images and other details are onboarding work and do not make the Scanner fail.",
     extracted: "Entities found",
     missing: "Missing entities",
     withDetails: "With details",
@@ -245,6 +249,8 @@ const COPY = {
     manualSetup: "Details are completed during onboarding",
     needsReview: "Needs review",
     discoveredOnSite: "Found on the website",
+    contactsFound: "Contacts found",
+    manualConfiguration: "Manual setup required",
     technical: "Technical details",
   },
 } as const;
@@ -540,44 +546,65 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
           {quickPreview ? (
             <>
               <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {(quickPreview.components || []).map((component) => (
-                  <details key={component.domain} className="v2-card-soft group p-4">
-                    <summary className="cursor-pointer list-none">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="v2-muted text-xs font-bold uppercase tracking-[0.12em]">{domainLabel(component.domain, lang)}</p>
-                          <p className="mt-2 text-2xl font-semibold">{component.count}</p>
-                          <p className="v2-muted mt-1 text-xs">{component.count ? `${copy.found}: ${component.count}` : copy.notFound}</p>
+                {(quickPreview.components || []).map((component) => {
+                  const isContacts = component.domain === "contacts";
+                  const namedCount = component.namedCount ?? component.items?.length ?? 0;
+                  const hasContacts = Boolean(
+                    quickPreview.contacts?.phones?.length
+                    || quickPreview.contacts?.emails?.length
+                    || quickPreview.contacts?.addresses?.length
+                  );
+                  const hasCountOnlyEvidence = !isContacts && component.count > 0 && namedCount === 0;
+                  const summaryValue = isContacts
+                    ? (hasContacts ? copy.contactsFound : "—")
+                    : hasCountOnlyEvidence
+                      ? "—"
+                      : String(namedCount || 0);
+                  const summaryText = isContacts
+                    ? (hasContacts ? copy.discoveredOnSite : copy.notFound)
+                    : hasCountOnlyEvidence
+                      ? copy.manualConfiguration
+                      : namedCount
+                        ? `${copy.found}: ${namedCount}${component.needsOnboarding ? ` · ${copy.manualConfiguration}` : ""}`
+                        : copy.notFound;
+                  return (
+                    <details key={component.domain} className="v2-card-soft group p-4">
+                      <summary className="cursor-pointer list-none">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="v2-muted text-xs font-bold uppercase tracking-[0.12em]">{domainLabel(component.domain, lang)}</p>
+                            <p className={`mt-2 font-semibold ${isContacts ? "text-base" : "text-2xl"}`}>{summaryValue}</p>
+                            <p className="v2-muted mt-1 text-xs">{summaryText}</p>
+                          </div>
+                          <span className="v2-muted text-xs">{copy.openCard}</span>
                         </div>
-                        <span className="v2-muted text-xs">{copy.openCard}</span>
+                      </summary>
+                      <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--v2-line)" }}>
+                        {isContacts ? (
+                          <div className="space-y-2 text-sm">
+                            {(quickPreview.contacts?.phones || []).map((phone) => <p key={`phone:${phone}`}><strong>{lang === "bg" ? "Телефон" : "Phone"}:</strong> {phone}</p>)}
+                            {(quickPreview.contacts?.emails || []).map((email) => <p key={`email:${email}`}><strong>Email:</strong> {email}</p>)}
+                            {(quickPreview.contacts?.addresses || []).map((address) => <p key={`address:${address}`}><strong>{lang === "bg" ? "Адрес" : "Address"}:</strong> {address}</p>)}
+                            {quickPreview.contacts?.website ? <p className="break-all"><strong>Web:</strong> {quickPreview.contacts.website}</p> : null}
+                            {!hasContacts ? <p className="v2-muted">{copy.notFound}</p> : null}
+                          </div>
+                        ) : component.items?.length ? (
+                          <div className="space-y-2">
+                            {component.items.map((item, index) => (
+                              <div key={`${component.domain}:${item.name}:${index}`} className="v2-card p-3">
+                                <p className="text-sm font-semibold">{item.name}</p>
+                                {component.domain === "gastronomy" ? (
+                                  <p className="v2-muted mt-1 text-xs">{item.hours ? `${copy.hours}: ${item.hours}` : copy.hoursMissing}</p>
+                                ) : null}
+                              </div>
+                            ))}
+                            {component.needsOnboarding ? <p className="v2-muted text-xs">{copy.manualConfiguration}</p> : null}
+                          </div>
+                        ) : <p className="v2-muted text-sm">{hasCountOnlyEvidence ? copy.manualConfiguration : copy.notFound}</p>}
                       </div>
-                    </summary>
-                    <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--v2-line)" }}>
-                      {component.domain === "contacts" ? (
-                        <div className="space-y-2 text-sm">
-                          {(quickPreview.contacts?.phones || []).map((phone) => <p key={`phone:${phone}`}><strong>{lang === "bg" ? "Телефон" : "Phone"}:</strong> {phone}</p>)}
-                          {(quickPreview.contacts?.emails || []).map((email) => <p key={`email:${email}`}><strong>Email:</strong> {email}</p>)}
-                          {(quickPreview.contacts?.addresses || []).map((address) => <p key={`address:${address}`}><strong>{lang === "bg" ? "Адрес" : "Address"}:</strong> {address}</p>)}
-                          {quickPreview.contacts?.website ? <p className="break-all"><strong>Web:</strong> {quickPreview.contacts.website}</p> : null}
-                          {!quickPreview.contacts?.phones?.length && !quickPreview.contacts?.emails?.length && !quickPreview.contacts?.addresses?.length
-                            ? <p className="v2-muted">{copy.notFound}</p>
-                            : null}
-                        </div>
-                      ) : component.items?.length ? (
-                        <div className="space-y-2">
-                          {component.items.map((item, index) => (
-                            <div key={`${component.domain}:${item.name}:${index}`} className="v2-card p-3">
-                              <p className="text-sm font-semibold">{item.name}</p>
-                              {component.domain === "gastronomy" ? (
-                                <p className="v2-muted mt-1 text-xs">{item.hours ? `${copy.hours}: ${item.hours}` : copy.hoursMissing}</p>
-                              ) : null}
-                            </div>
-                          ))}
-                        </div>
-                      ) : <p className="v2-muted text-sm">{copy.notFound}</p>}
-                    </div>
-                  </details>
-                ))}
+                    </details>
+                  );
+                })}
               </div>
               {(quickPreview.documents || []).length ? (
                 <div className="mt-5">
