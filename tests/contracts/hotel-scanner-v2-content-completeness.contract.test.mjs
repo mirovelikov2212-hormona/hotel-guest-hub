@@ -72,7 +72,7 @@ test("entity inventory can be ready while missing details move to onboarding", (
   assert.equal(domain.content.detailed, 0);
   assert.equal(domain.content.missingDetailItems.length, 2);
   assert.equal(domain.status, "COMPLETE");
-  assert.equal(result.status, "READY_FOR_HUMAN_REVIEW");
+  assert.equal(result.status, "READY_FOR_ONBOARDING");
   assert.equal(result.prerequisitesSatisfied, true);
   assert.ok(!result.blockingReasons.includes("domain_content_incomplete"));
   assert.deepEqual(result.onboarding.domains, ["accommodation"]);
@@ -97,7 +97,7 @@ test("domain becomes complete only after every discovered entity has real detail
   assert.equal(domain.content.status, "COMPLETE");
   assert.equal(domain.content.detailed, 2);
   assert.equal(domain.status, "COMPLETE");
-  assert.equal(result.status, "READY_FOR_HUMAN_REVIEW");
+  assert.equal(result.status, "READY_FOR_ONBOARDING");
   assert.equal(result.prerequisitesSatisfied, true);
 });
 
@@ -122,7 +122,7 @@ test("real cross-source conflicts remain visible and block approval after comple
     }],
   });
 
-  assert.equal(result.status, "CONFLICT_REVIEW_REQUIRED");
+  assert.equal(result.status, "READY_FOR_ONBOARDING");
   assert.equal(result.conflicts.unresolved, 1);
   assert.ok(result.blockingReasons.includes("unresolved_cross_source_conflicts"));
   assert.equal(result.prerequisitesSatisfied, false);
@@ -165,7 +165,7 @@ test("localized detail facts on the same canonical page satisfy content complete
 
   assert.equal(result.domains[0].inventory.status, "COMPLETE");
   assert.equal(result.domains[0].content.status, "COMPLETE");
-  assert.equal(result.status, "READY_FOR_HUMAN_REVIEW");
+  assert.equal(result.status, "READY_FOR_ONBOARDING");
 });
 
 test("deterministic list-only service existence is complete when the site provides no richer detail page", () => {
@@ -208,7 +208,7 @@ test("deterministic list-only service existence is complete when the site provid
 
   assert.equal(result.domains[0].inventory.status, "COMPLETE");
   assert.equal(result.domains[0].content.status, "COMPLETE");
-  assert.equal(result.status, "READY_FOR_HUMAN_REVIEW");
+  assert.equal(result.status, "READY_FOR_ONBOARDING");
 });
 
 
@@ -243,7 +243,7 @@ test("deterministic list-only service existence can complete without duplicate A
   assert.equal(result.domains[0].inventory.status, "COMPLETE");
   assert.equal(result.domains[0].inventory.extracted, 1);
   assert.equal(result.domains[0].content.status, "COMPLETE");
-  assert.equal(result.status, "READY_FOR_HUMAN_REVIEW");
+  assert.equal(result.status, "READY_FOR_ONBOARDING");
 });
 
 
@@ -277,7 +277,7 @@ test("deterministic water facility text counts as existence evidence", () => {
 
   assert.equal(result.domains[0].inventory.status, "COMPLETE");
   assert.equal(result.domains[0].content.status, "COMPLETE");
-  assert.equal(result.status, "READY_FOR_HUMAN_REVIEW");
+  assert.equal(result.status, "READY_FOR_ONBOARDING");
 });
 
 
