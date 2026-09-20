@@ -267,7 +267,7 @@ async function ensureQuickPreviewDomainPages(
     existingUrls.add(result.page.url);
     added.push(`${result.domain}:${result.page.url}`);
   }
-  if (added.length) console.info("scanner_v2_quick_authority_fetch", { added });
+  if (added.length) console.info("quick_preview_targeted_authority", { added });
 }
 
 function quickPreviewRenderSchedule(
