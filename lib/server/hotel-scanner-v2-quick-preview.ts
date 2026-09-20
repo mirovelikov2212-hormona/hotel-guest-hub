@@ -33,6 +33,44 @@ function sameEntityName(left: unknown, right: unknown) {
   if (!a || !b) return false;
   return a === b || (Math.min(a.length, b.length) >= 6 && (a.includes(b) || b.includes(a)));
 }
+
+function clientPreviewNameAllowed(domain: string, value: unknown) {
+  const name = clean(value, 240);
+  if (!name) return false;
+  if (domain === "accommodation"
+    && /^(?:rooms?\s*(?:&|and)\s*suites?)(?:\s+(?:in|at)\s+.+)?$|^zimmer\s*(?:&|und)\s*suiten(?:\s+im\s+.+)?$/iu.test(name)) return false;
+  if (domain === "experiences"
+    && /(?:^|\s)(?:hotel|resort|ferienhotel|urlaubshotel|bikehotel|skihotel|wellnesshotel)(?:\s|$)/iu.test(name)) return false;
+  if (domain === "offers"
+    && /^(?:holiday\s+offers?(?:\s+in\s+.+)?|my\s+favo(?:u)?rite\s+place\s*:?.*|offers?(?:\s+in\s+.+)?|angebote(?:\s+im\s+.+)?)$/iu.test(name)) return false;
+  return true;
+}
+
+function normalizedPhoneKey(value: unknown) {
+  let digits = clean(value, 120).replace(/\D+/gu, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  return digits;
+}
+
+function normalizedAddressKey(value: unknown) {
+  return clean(value, 500)
+    .toLocaleLowerCase("en-US")
+    .replace(/ß/gu, "ss")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function preferredPhoneDisplay(values: string[]) {
+  const cleaned = unique(values, 20);
+  const plus = cleaned.find((value) => /^\s*\+/u.test(value));
+  if (plus) return plus;
+  const international = cleaned.find((value) => /^\s*00/u.test(value));
+  if (international) return international.replace(/^\s*00/u, "+");
+  return cleaned[0] || "";
+}
 const HOURS_LABEL = /(?:opening\s+hours?|opening\s+times?|öffnungszeiten|oeffnungszeiten|работно\s+време|program|orar|otev[ií]rac[ií]\s+doba|часы\s+работы)/iu;
 const HOURS_STOP_LABEL = /(?:\bdress\s*code\b|\bdresscode\b|\bspeisekarte\b|\bgetränkekarte\b|\bgetraenkekarte\b|\bbar(?:-?\s*)?karte\b|\bmenu\b|\bmenü\b|\breservierung\b|\breservation\b|\bbook\s+a\s+table\b|\bzur\s+(?:speise|bar|getränke|getraenke)karte\b)/iu;
 const TIME_RANGE = /\b\d{1,2}(?::|\.)\d{2}\s*(?:-|–|—|to|bis|до)\s*\d{1,2}(?::|\.)\d{2}\b/giu;
@@ -71,18 +109,48 @@ function openingHoursForItem(discovery: HotelIntakeV2DiscoveryResult, item: { na
 }
 
 function quickContacts(discovery: HotelIntakeV2DiscoveryResult) {
-  const phones: string[] = [];
+  const phoneGroups = new Map<string, { values: string[]; pages: Set<string> }>();
   const emails: string[] = [];
-  const addresses: string[] = [];
+  const addressGroups = new Map<string, { values: string[]; pages: Set<string> }>();
+
   for (const page of discovery.evidence.pages || []) {
-    phones.push(...(page.contactSignals?.phones || []));
+    const pageUrl = clean(page.url, 2_048);
+    for (const phone of page.contactSignals?.phones || []) {
+      const key = normalizedPhoneKey(phone);
+      if (!key) continue;
+      if (!phoneGroups.has(key)) phoneGroups.set(key, { values: [], pages: new Set() });
+      const group = phoneGroups.get(key)!;
+      group.values.push(clean(phone, 120));
+      group.pages.add(pageUrl);
+    }
     emails.push(...(page.contactSignals?.emails || []));
-    addresses.push(...(page.contactSignals?.addresses || []));
+    for (const address of page.contactSignals?.addresses || []) {
+      const key = normalizedAddressKey(address);
+      if (!key) continue;
+      if (!addressGroups.has(key)) addressGroups.set(key, { values: [], pages: new Set() });
+      const group = addressGroups.get(key)!;
+      group.values.push(clean(address, 500));
+      group.pages.add(pageUrl);
+    }
   }
+
+  const rankedPhones = [...phoneGroups.values()]
+    .sort((left, right) => right.pages.size - left.pages.size || preferredPhoneDisplay(left.values).localeCompare(preferredPhoneDisplay(right.values)));
+  const maxPhonePages = rankedPhones[0]?.pages.size || 0;
+  const phones = rankedPhones
+    .filter((group, index) => index === 0 || (maxPhonePages <= 1 ? index < 3 : group.pages.size >= Math.max(2, Math.ceil(maxPhonePages / 2))))
+    .map((group) => preferredPhoneDisplay(group.values))
+    .filter(Boolean)
+    .slice(0, 3);
+
+  const rankedAddresses = [...addressGroups.values()]
+    .sort((left, right) => right.pages.size - left.pages.size || clean(left.values[0], 500).localeCompare(clean(right.values[0], 500)));
+  const addresses = rankedAddresses.slice(0, 1).map((group) => group.values[0]).filter(Boolean);
+
   return {
-    phones: unique(phones, 10),
-    emails: unique(emails, 10),
-    addresses: unique(addresses, 5),
+    phones,
+    emails: unique(emails.map((email) => clean(email, 240).toLocaleLowerCase("en-US")), 5),
+    addresses,
     website: discovery.evidence.canonicalUrl,
   };
 }
@@ -158,10 +226,10 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
       contacts: { phones: contacts.phones, emails: contacts.emails, socialLinks: [] },
       operations: { checkIn: "", checkOut: "", languages: [] },
       hospitality: {
-        roomTypes: unique(rooms.map((item) => clean(item.nameHint, 180)), 50),
+        roomTypes: unique(rooms.map((item) => clean(item.nameHint, 180)).filter((name) => clientPreviewNameAllowed("accommodation", name)), 50),
         amenities: unique(services.map((item) => clean(item.nameHint, 180)), 50),
         venues: venues.map((item) => ({ name: clean(item.nameHint, 180), type: "venue", hours: "", summary: "" })).filter((item) => item.name),
-        spaServices: unique(spa.map((item) => clean(item.nameHint, 180)), 50),
+        spaServices: unique(spa.map((item) => clean(item.nameHint, 180)).filter((name) => clientPreviewNameAllowed("spa", name)), 50),
         policies: [],
       },
     },
@@ -184,17 +252,22 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
     components: discovery.inventory.domains
       .filter((domain) => CORE_DOMAINS.includes(domain.domain as (typeof CORE_DOMAINS)[number]))
       .map((domain) => {
-        const componentItems = (domain.expectedItems || []).map((item) => ({
+        const rawComponentItems = (domain.expectedItems || []).map((item) => ({
           name: clean(item.nameHint, 240),
           hours: domain.domain === "gastronomy" ? openingHoursForItem(discovery, item) : "",
         })).filter((item) => item.name);
+        const componentItems = rawComponentItems.filter((item) => clientPreviewNameAllowed(domain.domain, item.name));
+        const rejectedNoiseCount = rawComponentItems.length - componentItems.length;
         const contactMethodCount = contacts.phones.length + contacts.emails.length + contacts.addresses.length;
         return {
           domain: domain.domain,
-          count: domain.domain === "contacts" ? contactMethodCount : domain.expectedCount,
+          count: domain.domain === "contacts"
+            ? contactMethodCount
+            : componentItems.length || domain.expectedCount,
           state: domain.expectationState,
           namedCount: domain.domain === "contacts" ? contactMethodCount : componentItems.length,
-          needsOnboarding: domain.domain !== "contacts" && domain.expectedCount > componentItems.length,
+          needsOnboarding: domain.domain !== "contacts"
+            && (rejectedNoiseCount > 0 || domain.expectedCount > rawComponentItems.length),
           items: componentItems,
         };
       }),
