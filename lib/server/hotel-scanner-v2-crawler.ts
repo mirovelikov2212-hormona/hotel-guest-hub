@@ -16,6 +16,7 @@ import {
   type HotelScannerV2JsonLdEntity,
 } from "@/lib/server/hotel-scanner-v2-page-structure.mjs";
 import { extractHotelDomStructureV3 } from "@/lib/server/hotel-scanner-v3-dom-structure.mjs";
+import { buildHotelScannerAdaptivePlanV3 } from "@/lib/server/hotel-scanner-v3-frontier.mjs";
 import { canonicalizeHotelIntakeUrl, inferHotelPageLanguage } from "@/lib/server/hotel-scanner-v2-site-map.mjs";
 import {
   deriveHotelPropertyScopeV2,
@@ -48,6 +49,8 @@ const MAX_ROBOTS_BYTES = 200_000;
 // page coverage: headings/content blocks/links remain available after this cap.
 const MAX_TOTAL_TEXT = 500_000;
 const CRAWL_BATCH_SIZE = 8;
+const MAX_V3_ADAPTIVE_ATTEMPTS = 80;
+const MAX_V3_ADAPTIVE_WAVES = 48;
 const FETCH_TIMEOUT_MS = 8_000;
 const SITEMAP_TIMEOUT_MS = 5_000;
 const ROBOTS_TIMEOUT_MS = 3_000;
@@ -105,10 +108,41 @@ export type HotelScannerV2CoverageSummary = {
   failedRelevantUrls: string[];
   nextBatch: string[];
 };
+export type HotelScannerV3StructuralCrawlSummary = {
+  schemaVersion: "hotel-scanner-v3-adaptive-crawl-1";
+  enabled: boolean;
+  stopReason: string;
+  safetyCapReached: boolean;
+  attempts: number;
+  waves: number;
+  inventoryClosed: boolean;
+  hasStructuralInventory: boolean;
+  totalFamilies: number;
+  closedFamilies: number;
+  openFamilies: number;
+  blockedFamilies: number;
+  inferredLeafMembers: number;
+  pendingRequiredMembers: number;
+  familyStates: Array<{
+    familyId: string;
+    sourceUrl: string;
+    status: string;
+    mode: string;
+    totalMembers: number;
+    requiredMemberCount: number;
+    verifiedRequiredMembers: number;
+    pendingRequiredMembers: number;
+    blockedRequiredMembers: number;
+    inferredLeafMembers: number;
+  }>;
+  nextBatch: string[];
+};
 export type HotelScannerV2CrawlOptions = {
   maxInitialPages?: number;
   maxInitialPageAttempts?: number;
   maxCoverageFollowupAttempts?: number;
+  maxStructuralAdaptiveAttempts?: number;
+  useStructuralAdaptiveCrawl?: boolean;
   includeDelegatedOfferDetails?: boolean;
 };
 
@@ -125,6 +159,7 @@ export type HotelScannerV2EvidenceBundle = {
     navigationUrls: string[];
     failedPageUrls: string[];
     coverage: HotelScannerV2CoverageSummary;
+    structuralCrawl?: HotelScannerV3StructuralCrawlSummary;
   };
   crawlPolicy: {
     publicBusinessBoundary: true;
@@ -548,6 +583,11 @@ export async function crawlPublicHotelWebsiteV2(
     Math.trunc(options.maxCoverageFollowupAttempts ?? MAX_COVERAGE_FOLLOWUP_ATTEMPTS),
   ));
   const maxTotalPages = maxInitialPages + maxCoverageFollowupAttempts;
+  const useStructuralAdaptiveCrawl = options.useStructuralAdaptiveCrawl !== false;
+  const maxStructuralAdaptiveAttempts = Math.max(8, Math.min(
+    MAX_V3_ADAPTIVE_ATTEMPTS,
+    Math.trunc(options.maxStructuralAdaptiveAttempts ?? MAX_V3_ADAPTIVE_ATTEMPTS),
+  ));
   const includeDelegatedOfferDetails = options.includeDelegatedOfferDetails !== false;
 
   const requested = await validatePublicHotelUrlV2(rawUrl);
@@ -562,6 +602,9 @@ export async function crawlPublicHotelWebsiteV2(
   const propertyScope = deriveHotelPropertyScopeV2(requested.toString(), first.url.toString());
   const sitemap = await discoverSitemapResources(first.url, canonicalOrigin, robotsState, propertyScope).catch(() => ({ pageUrls: [], documentUrls: [] }));
   const firstPage = buildPageEvidence(first.url, first.html, propertyScope);
+  const planningCanonicalUrl = firstPage.canonicalHint && new URL(firstPage.canonicalHint).origin === canonicalOrigin
+    ? firstPage.canonicalHint
+    : canonicalizeHotelIntakeUrl(first.url.toString());
   const preferredLanguage = firstPage.language || inferHotelPageLanguage(firstPage.url);
   const pages: HotelScannerV2PageEvidence[] = [firstPage];
   const attempted = new Set<string>([firstPage.url]);
@@ -601,42 +644,123 @@ export async function crawlPublicHotelWebsiteV2(
   };
 
   let initialPageAttempts = 0;
-  while (pages.length < maxInitialPages && initialPageAttempts < maxInitialPageAttempts) {
-    const candidates = orderedCandidates(discoveredPages, attempted, preferredLanguage).filter((url) => {
-      const allowed = isHotelScannerRobotsAllowed(url, robotsState.policy);
-      if (!allowed) robotsBlockedUrls.add(url);
-      return allowed;
-    });
-    if (!candidates.length) break;
-    const batch = candidates.slice(0, Math.min(
-      CRAWL_BATCH_SIZE,
-      maxInitialPages - pages.length,
-      maxInitialPageAttempts - initialPageAttempts,
-    ));
-    if (!batch.length) break;
-    initialPageAttempts += batch.length;
-    await fetchBatch(batch);
-  }
-
   let coverageFollowupAttempts = 0;
-  while (pages.length < maxTotalPages && coverageFollowupAttempts < maxCoverageFollowupAttempts) {
-    const plan = buildHotelScannerCoveragePlanV2({
-      pages,
+  let structuralCrawl: HotelScannerV3StructuralCrawlSummary | undefined;
+
+  const structuralEvidence = () => ({
+    requestedUrl: canonicalizeHotelIntakeUrl(requested.toString()),
+    canonicalUrl: planningCanonicalUrl,
+    pages,
+    discovery: {
       sitemapPageUrls: sitemap.pageUrls,
       internalLinkUrls: [...internalLinks],
       navigationUrls: [...navigation],
+    },
+  });
+
+  if (useStructuralAdaptiveCrawl) {
+    let adaptiveAttempts = 0;
+    let adaptiveWaves = 0;
+    let finalPlan = buildHotelScannerAdaptivePlanV3(structuralEvidence(), {
       attemptedUrls: [...attempted],
-      failedUrls: [...failedPageUrls],
-      batchLimit: Math.min(CRAWL_BATCH_SIZE, maxCoverageFollowupAttempts - coverageFollowupAttempts),
+      unavailableUrls: [...failedPageUrls, ...robotsBlockedUrls],
+      batchLimit: Math.min(CRAWL_BATCH_SIZE, maxStructuralAdaptiveAttempts),
     });
-    const batch = plan.nextBatch.filter((url: string) => {
-      const allowed = isHotelScannerRobotsAllowed(url, robotsState.policy);
-      if (!allowed) robotsBlockedUrls.add(url);
-      return allowed;
+
+    while (adaptiveAttempts < maxStructuralAdaptiveAttempts && adaptiveWaves < MAX_V3_ADAPTIVE_WAVES) {
+      finalPlan = buildHotelScannerAdaptivePlanV3(structuralEvidence(), {
+        attemptedUrls: [...attempted],
+        unavailableUrls: [...failedPageUrls, ...robotsBlockedUrls],
+        batchLimit: Math.min(CRAWL_BATCH_SIZE, maxStructuralAdaptiveAttempts - adaptiveAttempts),
+      });
+
+      if (!finalPlan.nextBatch.length) break;
+
+      const batch = finalPlan.nextBatch.filter((url: string) => {
+        const allowed = isHotelScannerRobotsAllowed(url, robotsState.policy);
+        if (!allowed) robotsBlockedUrls.add(url);
+        return allowed;
+      });
+      adaptiveWaves += 1;
+      if (!batch.length) continue;
+
+      adaptiveAttempts += batch.length;
+      await fetchBatch(batch);
+    }
+
+    finalPlan = buildHotelScannerAdaptivePlanV3(structuralEvidence(), {
+      attemptedUrls: [...attempted],
+      unavailableUrls: [...failedPageUrls, ...robotsBlockedUrls],
+      batchLimit: CRAWL_BATCH_SIZE,
     });
-    if (!batch.length) break;
-    coverageFollowupAttempts += batch.length;
-    await fetchBatch(batch);
+    const safetyCapReached = adaptiveAttempts >= maxStructuralAdaptiveAttempts
+      && finalPlan.stopReason === "CONTINUE";
+    structuralCrawl = {
+      schemaVersion: "hotel-scanner-v3-adaptive-crawl-1",
+      enabled: true,
+      stopReason: safetyCapReached ? "SAFETY_CAP" : finalPlan.stopReason,
+      safetyCapReached,
+      attempts: adaptiveAttempts,
+      waves: adaptiveWaves,
+      inventoryClosed: finalPlan.inventoryClosed,
+      hasStructuralInventory: finalPlan.hasStructuralInventory,
+      totalFamilies: finalPlan.closure.totalFamilies,
+      closedFamilies: finalPlan.closure.closedFamilies,
+      openFamilies: finalPlan.closure.openFamilies,
+      blockedFamilies: finalPlan.closure.blockedFamilies,
+      inferredLeafMembers: finalPlan.closure.inferredLeafMembers,
+      pendingRequiredMembers: finalPlan.closure.pendingRequiredMembers,
+      familyStates: finalPlan.closure.states.map((state: any) => ({
+        familyId: String(state.familyId || ""),
+        sourceUrl: String(state.sourceUrl || ""),
+        status: String(state.status || ""),
+        mode: String(state.mode || ""),
+        totalMembers: Number(state.totalMembers || 0),
+        requiredMemberCount: Number(state.requiredMemberCount || 0),
+        verifiedRequiredMembers: Number(state.verifiedRequiredMembers || 0),
+        pendingRequiredMembers: Number(state.pendingRequiredMembers || 0),
+        blockedRequiredMembers: Number(state.blockedRequiredMembers || 0),
+        inferredLeafMembers: Number(state.inferredLeafMembers || 0),
+      })),
+      nextBatch: finalPlan.nextBatch,
+    };
+  } else {
+    while (pages.length < maxInitialPages && initialPageAttempts < maxInitialPageAttempts) {
+      const candidates = orderedCandidates(discoveredPages, attempted, preferredLanguage).filter((url) => {
+        const allowed = isHotelScannerRobotsAllowed(url, robotsState.policy);
+        if (!allowed) robotsBlockedUrls.add(url);
+        return allowed;
+      });
+      if (!candidates.length) break;
+      const batch = candidates.slice(0, Math.min(
+        CRAWL_BATCH_SIZE,
+        maxInitialPages - pages.length,
+        maxInitialPageAttempts - initialPageAttempts,
+      ));
+      if (!batch.length) break;
+      initialPageAttempts += batch.length;
+      await fetchBatch(batch);
+    }
+
+    while (pages.length < maxTotalPages && coverageFollowupAttempts < maxCoverageFollowupAttempts) {
+      const plan = buildHotelScannerCoveragePlanV2({
+        pages,
+        sitemapPageUrls: sitemap.pageUrls,
+        internalLinkUrls: [...internalLinks],
+        navigationUrls: [...navigation],
+        attemptedUrls: [...attempted],
+        failedUrls: [...failedPageUrls],
+        batchLimit: Math.min(CRAWL_BATCH_SIZE, maxCoverageFollowupAttempts - coverageFollowupAttempts),
+      });
+      const batch = plan.nextBatch.filter((url: string) => {
+        const allowed = isHotelScannerRobotsAllowed(url, robotsState.policy);
+        if (!allowed) robotsBlockedUrls.add(url);
+        return allowed;
+      });
+      if (!batch.length) break;
+      coverageFollowupAttempts += batch.length;
+      await fetchBatch(batch);
+    }
   }
 
   const delegatedOfferTargets = new Map<string, string>();
@@ -691,9 +815,7 @@ export async function crawlPublicHotelWebsiteV2(
     provenance.add("page_link"); documents.set(url, provenance);
   }
 
-  const canonicalUrl = firstPage.canonicalHint && new URL(firstPage.canonicalHint).origin === canonicalOrigin
-    ? firstPage.canonicalHint
-    : canonicalizeHotelIntakeUrl(first.url.toString());
+  const canonicalUrl = planningCanonicalUrl;
 
   return {
     requestedUrl: canonicalizeHotelIntakeUrl(requested.toString()), canonicalUrl, scannedAt: new Date().toISOString(), pages,
@@ -702,7 +824,7 @@ export async function crawlPublicHotelWebsiteV2(
     })),
     discovery: {
       sitemapPageUrls: sitemap.pageUrls, sitemapDocumentUrls: [...sitemapDocuments], internalLinkUrls: [...internalLinks],
-      navigationUrls: [...navigation], failedPageUrls: [...failedPageUrls].sort(), coverage,
+      navigationUrls: [...navigation], failedPageUrls: [...failedPageUrls].sort(), coverage, structuralCrawl,
     },
     crawlPolicy: {
       publicBusinessBoundary: true,
