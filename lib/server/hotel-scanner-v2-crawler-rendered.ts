@@ -8,6 +8,7 @@ import { fetchPublicHtmlV2, fetchPublicTextV2 } from "@/lib/server/hotel-scanner
 import { classifyHotelScannerPageV2, hotelScannerPageTypeDomain } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
 import { extractHotelPageStructureV2 } from "@/lib/server/hotel-scanner-v2-page-structure.mjs";
 import { extractHotelDomStructureV3 } from "@/lib/server/hotel-scanner-v3-dom-structure.mjs";
+import { buildHotelInventorySnapshotV3 } from "@/lib/server/hotel-scanner-v3-canonical-inventory.mjs";
 import { deriveHotelPropertyScopeV2, isHotelPropertyPageUrlInScopeV2 } from "@/lib/server/hotel-scanner-v2-property-scope.mjs";
 import { browserRenderDecisionV2, HOTEL_SCANNER_V2_BROWSER_RENDER_CONCURRENCY, HOTEL_SCANNER_V2_BROWSER_RENDER_WALL_MS, HOTEL_SCANNER_V2_MAX_BROWSER_RENDERS } from "@/lib/server/hotel-scanner-v2-render-policy.mjs";
 import { canonicalizeHotelIntakeUrl } from "@/lib/server/hotel-scanner-v2-site-map.mjs";
@@ -79,6 +80,20 @@ function richerV3Structure(
   return renderedItems > currentItems || (renderedItems === currentItems && renderedGroups > currentGroups)
     ? rendered
     : current;
+}
+
+function refreshV3InventorySnapshot(base: BrowserEnrichedEvidenceBundle) {
+  base.v3InventorySnapshot = buildHotelInventorySnapshotV3({
+    requestedUrl: base.requestedUrl,
+    canonicalUrl: base.canonicalUrl,
+    pages: base.pages,
+    discovery: {
+      sitemapPageUrls: base.discovery?.sitemapPageUrls || [],
+      internalLinkUrls: base.discovery?.internalLinkUrls || [],
+      navigationUrls: base.discovery?.navigationUrls || [],
+    },
+  });
+  return base;
 }
 
 function preferredLanguageRank(rawUrl: string) {
@@ -334,7 +349,7 @@ export async function enrichHotelEvidenceQuickRenderedV2(
   const base = input as BrowserEnrichedEvidenceBundle;
   await ensureQuickPreviewDomainPages(base, domains);
   const schedule = quickPreviewRenderSchedule(base, domains);
-  if (!schedule.size) return base;
+  if (!schedule.size) return refreshV3InventorySnapshot(base);
 
   const renderer = new HotelScannerV2BrowserRenderer();
   const browserRenderedUrls: string[] = [];
@@ -413,7 +428,7 @@ export async function enrichHotelEvidenceQuickRenderedV2(
     latencyMs: Date.now() - startedAt,
   });
 
-  return base;
+  return refreshV3InventorySnapshot(base);
 }
 
 function uniqueStrings(values: string[]) {
@@ -501,7 +516,7 @@ export async function crawlPublicHotelWebsiteRenderedV2(rawUrl: string): Promise
     renderedOfferDetails,
     latencyMs: browserRenderLatencyMs,
   });
-  return base;
+  return refreshV3InventorySnapshot(base);
 }
 
 export type { BrowserEnrichedPageEvidence, BrowserEnrichedEvidenceBundle };
