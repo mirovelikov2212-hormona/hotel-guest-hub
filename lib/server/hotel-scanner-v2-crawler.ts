@@ -15,6 +15,7 @@ import {
   type HotelScannerV2Heading,
   type HotelScannerV2JsonLdEntity,
 } from "@/lib/server/hotel-scanner-v2-page-structure.mjs";
+import { extractHotelDomStructureV3 } from "@/lib/server/hotel-scanner-v3-dom-structure.mjs";
 import { canonicalizeHotelIntakeUrl, inferHotelPageLanguage } from "@/lib/server/hotel-scanner-v2-site-map.mjs";
 import {
   deriveHotelPropertyScopeV2,
@@ -80,6 +81,7 @@ export type HotelScannerV2PageEvidence = {
   headings: HotelScannerV2Heading[];
   jsonLdEntities: HotelScannerV2JsonLdEntity[];
   contentBlocks: HotelScannerV2ContentBlock[];
+  v3Structure?: ReturnType<typeof extractHotelDomStructureV3>;
   contactSignals: HotelScannerV2ContactSignals;
   delegatedOfferDetailUrls: string[];
   delegatedAuthority: HotelScannerV2DelegatedAuthority | null;
@@ -311,6 +313,7 @@ export function buildPageEvidence(
   delegatedAuthority: HotelScannerV2DelegatedAuthority | null = null,
 ): HotelScannerV2PageEvidence {
   const structure = extractHotelPageStructureV2(html);
+  const v3Structure = extractHotelDomStructureV3(html, url.toString());
   const allLinks = anchorUrls(html, url, 500);
   const allContentLinks = contentUrls(html, url, allLinks);
   const allNavigationLinks = navigationUrls(html, url);
@@ -349,6 +352,7 @@ export function buildPageEvidence(
     headings: structure.headings,
     jsonLdEntities: structure.jsonLdEntities,
     contentBlocks: structure.contentBlocks,
+    v3Structure,
     contactSignals: extractHotelContactSignalsV2(html),
     delegatedOfferDetailUrls: [],
     delegatedAuthority,
