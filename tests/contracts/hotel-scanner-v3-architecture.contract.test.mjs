@@ -133,7 +133,7 @@ test("Scanner V3 M5 uses one signed quick inventory authority for the deep workf
   assert.match(pipeline, /compareHotelInventorySnapshotsV3/);
 
   assert.match(client, /inventoryAuthorityToken/);
-  assert.match(client, /M5 deliberately avoids two concurrent crawlers hitting the same hotel/);
+  assert.match(client, /No second crawl of the hotel is needed|Fallback for an oversized\/failed checkpoint handoff/);
   assert.doesNotMatch(client, /const quickRequest = fetch/);
 
   assert.match(token, /createHmac\("sha256"/);
