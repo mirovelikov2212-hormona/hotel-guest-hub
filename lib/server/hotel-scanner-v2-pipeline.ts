@@ -8,7 +8,8 @@ import {
 // Contract markers delegated to the safe runtime:
 // discoverHotelIntakeV2 -> deterministic core inventory -> policy/FAQ extractHotelDomainsV2
 // -> ingestHotelPolicyDocumentsV2 (policy/FAQ only; all temporary PDFs remain manual)
-// -> verifyHotelScanFactsV2 -> buildHotelCompletenessV2 -> buildHotelIntelligenceCandidateV2.
+// -> applyDocumentIngestionToInventoryV2 -> verifyHotelScanFactsV2
+// -> buildHotelCompletenessV2 -> buildHotelIntelligenceCandidateV2.
 // READY_FOR_APPROVAL / CONFLICT_REVIEW_REQUIRED / INCOMPLETE.
 // approvedHotelIntelligence: null; downstreamHandoffAllowed: false.
 
