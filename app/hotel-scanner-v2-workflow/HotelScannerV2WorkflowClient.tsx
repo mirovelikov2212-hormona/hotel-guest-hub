@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
+import type { HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
 import type { ScannerV2CandidateView, ScannerV2DocumentView } from "../hotel-scanner-v2/HotelScannerV2Details";
 import HotelScannerV2ReviewWorkspace, { type ScannerV2ReviewSection } from "../hotel-scanner-v2/HotelScannerV2ReviewWorkspace";
 
@@ -88,7 +89,19 @@ type WorkflowPoll = {
   result?: WorkflowResult;
 };
 
+type QuickPreview = {
+  ok?: boolean;
+  mode?: "quick_preview";
+  runtimeMs?: number;
+  sourcePackage?: HotelIntelligencePackage;
+  components?: Array<{ domain: string; count: number; state: string }>;
+  documents?: Array<{ kind: string; bg: string; en: string; onboarding: boolean; count: number }>;
+  diagnostics?: { pageCount?: number; resourceCount?: number; expectedItems?: number };
+  error?: string;
+};
+
 const STORAGE_KEY = "stayhub_scanner_v2_workflow_run";
+const PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1";
 
 const COPY = {
   bg: {
@@ -135,6 +148,15 @@ const COPY = {
     blockers: "Blocking reasons",
     noBlockers: "Няма blocking reasons.",
     designStudio: "Отвори в Design Studio",
+    quickTitle: "Quick Client Preview",
+    quickHelp: "Основните Hub компоненти са намерени без PDF четене и без да чакаш Deep Verification.",
+    quickLoading: "Подготвям бързия preview…",
+    quickFailed: "Quick Preview не успя, но Deep Verification продължава.",
+    quickDesign: "Виж визуално в Design Studio",
+    documentsFound: "Намерени документи",
+    onboardingLater: "добавяме при onboarding",
+    verifiedLater: "проверяваме за конфликти",
+    deepRunning: "Deep Verification продължава във фонов режим",
   },
   en: {
     title: "New scan",
@@ -180,6 +202,15 @@ const COPY = {
     blockers: "Blocking reasons",
     noBlockers: "No blocking reasons.",
     designStudio: "Open in Design Studio",
+    quickTitle: "Quick Client Preview",
+    quickHelp: "Core Hub components were found without PDF parsing and without waiting for Deep Verification.",
+    quickLoading: "Preparing quick preview…",
+    quickFailed: "Quick Preview failed, but Deep Verification continues.",
+    quickDesign: "Open visual Design Studio preview",
+    documentsFound: "Discovered documents",
+    onboardingLater: "add during onboarding",
+    verifiedLater: "verify for conflicts",
+    deepRunning: "Deep Verification continues in the background",
   },
 } as const;
 
@@ -225,6 +256,9 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
   const [error, setError] = useState<string | null>(null);
   const [pollStartedAt, setPollStartedAt] = useState<number | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
+  const [quickPreview, setQuickPreview] = useState<QuickPreview | null>(null);
+  const [quickPreviewLoading, setQuickPreviewLoading] = useState(false);
+  const [quickPreviewError, setQuickPreviewError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -321,8 +355,25 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
     setStarting(true);
     setResult(null);
     setError(null);
+    setQuickPreview(null);
+    setQuickPreviewError(null);
+    setQuickPreviewLoading(true);
     setStatus("starting");
     setElapsedMs(0);
+
+    const quickRequest = fetch("/api/control-plane/hotel-scanner/scan-v2-preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: url.trim(), lang }),
+    })
+      .then(async (response) => {
+        const body = (await response.json().catch(() => ({}))) as QuickPreview;
+        if (!response.ok || !body.ok || !body.sourcePackage) throw new Error(body.error || "scanner_v2_quick_preview_failed");
+        setQuickPreview(body);
+        setQuickPreviewError(null);
+      })
+      .catch((reason) => setQuickPreviewError(reason instanceof Error ? reason.message : String(reason)))
+      .finally(() => setQuickPreviewLoading(false));
 
     try {
       const response = await fetch("/api/control-plane/hotel-scanner/scan-v2-workflow", {
@@ -353,6 +404,7 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
       setStatus("failed");
     } finally {
       setStarting(false);
+      void quickRequest;
     }
   }
 
@@ -392,6 +444,9 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
     setError(null);
     setPollStartedAt(null);
     setElapsedMs(0);
+    setQuickPreview(null);
+    setQuickPreviewError(null);
+    setQuickPreviewLoading(false);
   }
 
   const metrics = useMemo(() => {
@@ -435,6 +490,57 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
           </button>
         </div>
       </section>
+
+      {(quickPreviewLoading || quickPreview || quickPreviewError) ? (
+        <section className="v2-panel p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="v2-section-title text-xl">{copy.quickTitle}</h2>
+              <p className="v2-muted mt-1 max-w-4xl text-sm leading-6">{copy.quickHelp}</p>
+            </div>
+            {quickPreview?.runtimeMs ? <span className="v2-pill v2-pill-good">{formatDuration(quickPreview.runtimeMs)}</span> : null}
+          </div>
+          {quickPreviewLoading ? <p className="v2-muted mt-5 text-sm">{copy.quickLoading}</p> : null}
+          {quickPreviewError ? <p className="mt-5 text-sm" style={{ color: "var(--v2-bad)" }}>{copy.quickFailed}</p> : null}
+          {quickPreview ? (
+            <>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {(quickPreview.components || []).map((component) => (
+                  <div key={component.domain} className="v2-card-soft p-4">
+                    <p className="v2-muted text-xs font-bold uppercase tracking-[0.12em]">{domainLabel(component.domain, lang)}</p>
+                    <p className="mt-2 text-2xl font-semibold">{component.count}</p>
+                    <p className="v2-muted mt-1 text-[10px] font-mono">{component.state}</p>
+                  </div>
+                ))}
+              </div>
+              {(quickPreview.documents || []).length ? (
+                <div className="mt-5">
+                  <p className="v2-muted text-xs font-bold uppercase tracking-[0.12em]">{copy.documentsFound}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(quickPreview.documents || []).map((document) => (
+                      <span key={document.kind} className="v2-pill">
+                        {lang === "bg" ? document.bg : document.en} · {document.count} · {document.onboarding ? copy.onboardingLater : copy.verifiedLater}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                {quickPreview.sourcePackage ? (
+                  <Link
+                    href={`/design-studio?lang=${lang}&preview=quick`}
+                    onClick={() => window.sessionStorage.setItem(PACKAGE_STORAGE_KEY, JSON.stringify(quickPreview.sourcePackage))}
+                    className="v2-button inline-flex text-sm"
+                  >
+                    {copy.quickDesign}
+                  </Link>
+                ) : null}
+                {runId && !result && !error ? <span className="v2-muted text-xs">{copy.deepRunning}</span> : null}
+              </div>
+            </>
+          ) : null}
+        </section>
+      ) : null}
 
       {runId ? (
         <section className="v2-panel p-5 sm:p-6">
