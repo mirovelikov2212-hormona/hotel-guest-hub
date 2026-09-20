@@ -69,6 +69,54 @@ test("placeholder offer detail titles never duplicate a named offer linked to th
   assert.equal(offers.expectedItems[0].url, "https://hotel.test/booking/packages/34257?lang=en");
 });
 
+test("room detail slugs recover identity, merge language variants, and ignore unbound count-only hints", () => {
+  const landing = resource({
+    url: "https://hotel.test/de/wohnen/zimmer-suiten",
+    primaryType: "accommodation",
+    domain: "accommodation",
+    names: [],
+    explicitCount: 2,
+    variantGroupId: "hotel.test/wohnen/zimmer-suiten",
+  });
+  landing.languages = ["de"];
+
+  const detail = (url, title, language) => ({
+    url,
+    resourceType: "page",
+    crawled: true,
+    variantGroupId: url.replace(/^https?:\/\//u, ""),
+    title,
+    languages: [language],
+    classification: { primaryType: "room_detail", types: ["room_detail", "accommodation"], confidence: 1, signals: [] },
+    inventoryHints: [],
+  });
+
+  const registry = buildCanonicalHotelEntityRegistryV2({
+    resources: [
+      landing,
+      detail("https://hotel.test/de/wohnen/zimmer-suiten/zimmer-detail/doppelzimmer-deluxe", "Zimmer Details - Hotel Test", "de"),
+      detail("https://hotel.test/en/accommodations/rooms-suites/room-details/double-room-deluxe", "Room Details - Hotel Test", "en"),
+      detail("https://hotel.test/de/wohnen/zimmer-suiten/zimmer-detail/suite-superior", "Zimmer Details - Hotel Test", "de"),
+      detail("https://hotel.test/en/accommodations/rooms-suites/room-details/suite-superior", "Room Details - Hotel Test", "en"),
+      detail("https://hotel.test/de/wohnen/zimmer-suiten/zimmer-detail/family-suite-duo", "Zimmer Details - Hotel Test", "de"),
+      detail("https://hotel.test/en/accommodations/rooms-suites/room-compare", "Room Compare - Hotel Test", "en"),
+    ],
+  });
+
+  const accommodation = registry.domains.get("accommodation");
+  assert.equal(accommodation.expectationState, "DETERMINISTIC");
+  assert.equal(accommodation.expectedCount, 3);
+  assert.deepEqual(
+    accommodation.expectedItems.map((item) => item.nameHint).sort(),
+    ["Double Room Deluxe", "Family Suite Duo", "Suite Superior"].sort(),
+  );
+  assert.ok(!accommodation.issues.some((issue) => issue.includes("canonical_entity_count_exceeds_explicit_count")));
+  const doubleRoom = accommodation.expectedItems.find((item) => item.nameHint === "Double Room Deluxe");
+  assert.deepEqual(doubleRoom.languages.sort(), ["de", "en"]);
+  assert.equal(doubleRoom.urls.length, 2);
+  assert.ok(!accommodation.expectedItems.some((item) => /room details|zimmer details|compare|vergleich/iu.test(item.nameHint)));
+});
+
 test("canonical registry keeps authoritative hotel entities and rejects policy contamination", () => {
   const siteMap = {
     resources: [
