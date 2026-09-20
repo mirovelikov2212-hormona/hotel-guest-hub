@@ -82,6 +82,22 @@ export async function loadPersistedSyncScannerV2Result(input: { actorAdminId: st
   return { result: envelope.result, persistence: persistenceSummary(review) };
 }
 
+export async function loadPersistedHotelScannerV2ResultForActor(input: { actorAdminId: string; scanRunId: string }) {
+  assertV2Uuid(input.actorAdminId);
+  assertV2Uuid(input.scanRunId);
+
+  const scan = await findScan(input.scanRunId);
+  if (!scan) return null;
+  if (scan.actor_admin_id !== input.actorAdminId) throw new Error("V2_SCAN_FORBIDDEN");
+
+  const envelope = verifyHotelScanEnvelopeV2(scan);
+  const review = await importHotelIntelligenceReviewV2({
+    actorAdminId: input.actorAdminId,
+    scanRunId: scan.id,
+  });
+  return { result: envelope.result, persistence: persistenceSummary(review) };
+}
+
 // Shared by synchronous and checkpointed durable scans. Durable retries retain
 // strict envelope equality; synchronous races reuse the first immutable winner
 // only when the authenticated actor and original request binding agree.

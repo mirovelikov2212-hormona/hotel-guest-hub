@@ -71,6 +71,7 @@ export type ScannerV2DocumentView = {
   status: string;
   domains: string[];
   facts?: ScannerV2FactView[];
+  factCount?: number;
   byteCount?: number;
   error?: string;
 };

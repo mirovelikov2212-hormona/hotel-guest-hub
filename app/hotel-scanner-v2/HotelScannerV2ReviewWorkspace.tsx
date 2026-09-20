@@ -194,7 +194,7 @@ export default function HotelScannerV2ReviewWorkspace({
         {(documents || []).map((document) => <article key={document.url} className="v2-card p-4">
           <div className="flex flex-wrap items-center gap-2">
             <StatusPill value={document.status} />
-            <span className="v2-muted text-xs">{document.facts?.length || 0} {copy.facts}</span>
+            <span className="v2-muted text-xs">{document.factCount ?? document.facts?.length ?? 0} {copy.facts}</span>
             <span className="v2-muted text-xs">{document.domains?.join(" · ")}</span>
           </div>
           <a href={document.url} target="_blank" rel="noreferrer" className="v2-source-link mt-3 block break-all text-xs">{shortSource(document.url)}</a>

@@ -150,5 +150,22 @@ export async function hotelScannerV2Workflow(input: HotelScannerV2WorkflowInput)
   }
 
   const persistence = await persistScannerResultStep(input, result);
-  return { ...result, persistence };
+  console.log("scanner_v2_workflow_completed", {
+    scanRunId: input.scanRunId,
+    reviewId: persistence.revisionId,
+    reviewStatus: persistence.reviewStatus,
+    approvalEligible: persistence.approvalEligible,
+  });
+
+  // The full Scanner result can be several megabytes for a large hotel.
+  // It is already durably stored in Supabase; never serialize it through the
+  // workflow return channel. The status route loads a bounded client projection
+  // from persisted data instead.
+  return {
+    scanRunId: input.scanRunId,
+    reviewId: persistence.revisionId,
+    reviewStatus: persistence.reviewStatus,
+    approvalEligible: persistence.approvalEligible,
+    downstreamHandoffAllowed: persistence.downstreamHandoffAllowed,
+  };
 }

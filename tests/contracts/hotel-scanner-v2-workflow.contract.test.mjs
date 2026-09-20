@@ -61,7 +61,7 @@ test("Scanner V2 workflow start route returns both durable run id and scan linea
   assert.match(source, /202/);
 });
 
-test("Scanner V2 workflow status route reads durable status and final return value", async () => {
+test("Scanner V2 workflow status route returns a bounded persisted projection and recovers transport failures", async () => {
   const source = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-workflow/[runId]/route.ts");
 
   assert.match(source, /import \{ getRun \} from "workflow\/api"/);
@@ -72,8 +72,29 @@ test("Scanner V2 workflow status route reads durable status and final return val
   assert.match(source, /workflow_run_forbidden/);
   assert.match(source, /await run\.status/);
   assert.match(source, /status === "completed"/);
-  assert.match(source, /await run\.returnValue/);
+  assert.match(source, /loadPersistedHotelScannerV2ResultForActor/);
+  assert.match(source, /projectHotelScannerV2ClientResult/);
+  assert.doesNotMatch(source, /await run\.returnValue/);
   assert.match(source, /status === "failed"/);
+  assert.match(source, /scanner_v2_workflow_transport_recovered_from_persistence/);
+  assert.match(source, /recovered: true/);
+});
+
+test("Scanner V2 durable workflow never serializes the full multi-megabyte result at completion", async () => {
+  const workflow = await readProjectFile("workflows/hotel-scanner-v2-workflow.ts");
+  const projection = await readProjectFile("lib/server/hotel-scanner-v2-client-projection.ts");
+  const persistence = await readProjectFile("lib/server/hotel-intelligence-persistence-v2.ts");
+
+  assert.doesNotMatch(workflow, /return \{ \.\.\.result, persistence \}/);
+  assert.match(workflow, /scanRunId: input\.scanRunId/);
+  assert.match(workflow, /reviewId: persistence\.revisionId/);
+  assert.match(workflow, /scanner_v2_workflow_completed/);
+  assert.match(persistence, /loadPersistedHotelScannerV2ResultForActor/);
+  assert.match(persistence, /scan\.actor_admin_id !== input\.actorAdminId/);
+  assert.match(projection, /facts: \[\]/);
+  assert.match(projection, /factCount: list\(document\.facts\)\.length/);
+  assert.match(projection, /attributes: list\(card\.attributes\)\.slice\(0, 7\)/);
+  assert.match(projection, /compactSourceUrls/);
 });
 
 test("Workflow Preview resumes a run after refresh and polls independently from the start request", async () => {

@@ -3,6 +3,8 @@ import { getRun } from "workflow/api";
 
 import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-session";
 import { assertV2Uuid } from "@/lib/server/hotel-scan-envelope-v2";
+import { loadPersistedHotelScannerV2ResultForActor } from "@/lib/server/hotel-intelligence-persistence-v2";
+import { projectHotelScannerV2ClientResult } from "@/lib/server/hotel-scanner-v2-client-projection";
 import { verifyScannerV2WorkflowAccessToken } from "@/lib/server/hotel-scanner-v2-workflow-access";
 
 export const runtime = "nodejs";
@@ -16,6 +18,15 @@ const NO_STORE_HEADERS = {
 
 function json(body: Record<string, unknown>, status = 200) {
   return NextResponse.json(body, { status, headers: NO_STORE_HEADERS });
+}
+
+async function persistedClientResult(actorAdminId: string, scanRunId: string) {
+  const persisted = await loadPersistedHotelScannerV2ResultForActor({ actorAdminId, scanRunId });
+  if (!persisted) return null;
+  return {
+    result: projectHotelScannerV2ClientResult(persisted.result),
+    persistence: persisted.persistence,
+  };
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ runId: string }> }) {
@@ -41,16 +52,44 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const status = await run.status;
 
     if (status === "completed") {
+      const persisted = await persistedClientResult(authority.adminId, scanRunId);
+      if (!persisted) {
+        console.error("scanner_v2_workflow_completed_without_persistence", { runId, scanRunId });
+        return json({ ok: false, runId, scanRunId, status: "failed", error: "scanner_v2_persisted_result_not_found" }, 409);
+      }
       return json({
         ok: true,
         runId,
         scanRunId,
-        status,
-        result: await run.returnValue,
+        status: "completed",
+        result: persisted.result,
+        persistence: persisted.persistence,
       });
     }
 
     if (status === "failed" || status === "cancelled") {
+      // The expensive scan may already have persisted successfully even if the
+      // workflow transport failed while finalizing. Prefer durable truth over a
+      // misleading red client state.
+      const persisted = await persistedClientResult(authority.adminId, scanRunId);
+      if (persisted) {
+        console.warn("scanner_v2_workflow_transport_recovered_from_persistence", {
+          runId,
+          scanRunId,
+          workflowStatus: status,
+        });
+        return json({
+          ok: true,
+          runId,
+          scanRunId,
+          status: "completed",
+          recovered: true,
+          workflowStatus: status,
+          result: persisted.result,
+          persistence: persisted.persistence,
+        });
+      }
+
       return json({
         ok: false,
         runId,
@@ -63,7 +102,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return json({ ok: true, runId, scanRunId, status });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("scanner_v2_workflow_status_failed", { runId, error: message });
-    return json({ ok: false, runId, error: "scanner_v2_workflow_not_found" }, 404);
+    if (message === "V2_SCAN_FORBIDDEN") {
+      return json({ ok: false, runId, scanRunId, error: "workflow_run_forbidden" }, 403);
+    }
+    console.error("scanner_v2_workflow_status_failed", { runId, scanRunId, error: message });
+    return json({ ok: false, runId, scanRunId, error: "scanner_v2_workflow_not_found" }, 404);
   }
 }
