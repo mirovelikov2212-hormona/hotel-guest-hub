@@ -103,15 +103,15 @@ export default function HotelScannerV2ReviewWorkspace({
   if (!candidate) return null;
   const labels = DOMAIN_LABELS[lang];
   const copy = lang === "bg" ? {
-    title: "3. Хотелско съдържание",
-    help: "Информацията е подредена като бъдещия Hub: един реален обект = една карта. Всяка карта показва източник и ниво на проверка.",
-    noDetails: "Все още няма сигурно извлечени детайли за този обект.",
+    title: "Onboarding настройка",
+    help: "Намерените обекти са подредени като бъдещия Hub. Тук могат да се допълнят описания, цени, снимки и други детайли преди активиране.",
+    noDetails: "Детайлите ще се добавят или потвърдят при onboarding.",
     sources: "Източници",
     source: "Източник",
-    verified: "Потвърдено от няколко източника",
-    single: "Един източник",
-    conflict: "Има несъответствие",
-    missing: "Липсват детайли",
+    verified: "Намерено",
+    single: "За onboarding",
+    conflict: "Нужна проверка",
+    missing: "За onboarding",
     issuesTitle: "4. Реални проблеми и несъответствия в сайта",
     issuesHelp: "Тук са твърденията, които Scanner-ът счита за противоречиви и които трябва да бъдат проверени от човек. Всяко твърдение сочи към публичния си източник.",
     noIssues: "Не са открити конфликти, изискващи човешко решение.",
@@ -121,15 +121,15 @@ export default function HotelScannerV2ReviewWorkspace({
     evidenceHelp: "Всички нормализирани facts остават достъпни за одит, но не се показват като основен клиентски интерфейс.",
     facts: "факта",
   } : {
-    title: "3. Hotel content",
-    help: "Information is arranged like the future Hub: one real entity = one card. Every card shows provenance and verification level.",
-    noDetails: "No confidently extracted details are available for this entity yet.",
+    title: "Onboarding setup",
+    help: "Discovered objects are arranged like the future Hub. Descriptions, prices, images and other details can be completed here before activation.",
+    noDetails: "Details will be added or confirmed during onboarding.",
     sources: "Sources",
     source: "Source",
-    verified: "Verified by multiple sources",
-    single: "Single source",
-    conflict: "Conflict detected",
-    missing: "Details missing",
+    verified: "Found",
+    single: "For onboarding",
+    conflict: "Needs review",
+    missing: "For onboarding",
     issuesTitle: "4. Real website issues & conflicts",
     issuesHelp: "These claims appear contradictory and require human review. Every claim links back to its public source.",
     noIssues: "No conflicts requiring human review were found.",
@@ -156,7 +156,11 @@ export default function HotelScannerV2ReviewWorkspace({
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h3 className="text-lg font-bold">{labels[section.domain as keyof typeof labels] || section.domain}</h3>
-              <p className="v2-muted mt-1 text-xs">{section.cardCount}/{section.expectedCount} entities · {section.verifiedCount} verified · {section.conflictCount} conflicts · {section.missingCount} missing details</p>
+              <p className="v2-muted mt-1 text-xs">
+                {section.cardCount}/{section.expectedCount} {lang === "bg" ? "намерени" : "found"}
+                {section.missingCount ? ` · ${section.missingCount} ${lang === "bg" ? "за допълване" : "to complete"}` : ""}
+                {section.conflictCount ? ` · ${section.conflictCount} ${lang === "bg" ? "за проверка" : "to review"}` : ""}
+              </p>
             </div>
           </div>
           <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -193,7 +197,7 @@ export default function HotelScannerV2ReviewWorkspace({
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {(documents || []).map((document) => <article key={document.url} className="v2-card p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusPill value={document.status} />
+            <StatusPill value={document.status === "SKIPPED_MANUAL" ? (lang === "bg" ? "За onboarding" : "For onboarding") : document.status} />
             <span className="v2-muted text-xs">{document.factCount ?? document.facts?.length ?? 0} {copy.facts}</span>
             <span className="v2-muted text-xs">{document.domains?.join(" · ")}</span>
           </div>
