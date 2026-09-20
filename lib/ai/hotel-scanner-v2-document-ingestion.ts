@@ -33,7 +33,7 @@ const DOCUMENT_ATTRIBUTES = [
 
 const SOCIAL_HOST = /(?:^|\.)(?:facebook\.com|instagram\.com|tiktok\.com|linkedin\.com|youtube\.com|youtu\.be|x\.com|twitter\.com)$/iu;
 
-export type HotelScannerV2DocumentStatus = "INGESTED" | "FAILED" | "SKIPPED_LIMIT";
+export type HotelScannerV2DocumentStatus = "INGESTED" | "FAILED" | "SKIPPED_LIMIT" | "SKIPPED_MANUAL";
 export type HotelScannerV2DocumentResult = {
   url: string;
   status: HotelScannerV2DocumentStatus;
@@ -460,21 +460,54 @@ export async function ingestHotelDocumentsV2(input: {
   };
 }
 
+export function deferHotelDocumentsToManualOnboardingV2(
+  inventory: HotelScannerV2Inventory,
+): HotelScannerV2DocumentIngestionResult {
+  const documents = inventory.documents.map((document) => ({
+    url: document.url,
+    status: "SKIPPED_MANUAL" as const,
+    domains: document.domains,
+    facts: [] as HotelScanFact[],
+    error: "manual_onboarding_document",
+    latencyMs: 0,
+  }));
+  return {
+    schemaVersion: "hotel-document-ingestion-v2",
+    documents,
+    facts: [],
+    diagnostics: {
+      model: "manual_onboarding",
+      discoveredDocumentCount: documents.length,
+      ingestedDocumentCount: 0,
+      failedDocumentCount: 0,
+      skippedDocumentCount: documents.length,
+    },
+  };
+}
+
 export function applyDocumentIngestionToInventoryV2(
   inventory: HotelScannerV2Inventory,
   ingestion: HotelScannerV2DocumentIngestionResult,
 ): HotelScannerV2Inventory {
   const statusByUrl = new Map(ingestion.documents.map((document) => [document.url, document.status]));
-  const documents = inventory.documents.map((document) => ({
-    ...document,
-    ingestionStatus: statusByUrl.get(document.url) === "INGESTED" ? "INGESTED" as const : "PENDING" as const,
-  }));
+  const documents = inventory.documents.map((document) => {
+    const status = statusByUrl.get(document.url);
+    return {
+      ...document,
+      ingestionStatus: status === "INGESTED"
+        ? "INGESTED" as const
+        : status === "SKIPPED_MANUAL"
+          ? "MANUAL" as const
+          : "PENDING" as const,
+    };
+  });
   return {
     ...inventory,
     documents,
     counts: {
       ...inventory.counts,
-      pendingDocuments: documents.filter((document) => document.ingestionStatus !== "INGESTED").length,
+      pendingDocuments: documents.filter((document) => document.ingestionStatus === "PENDING").length,
+      manualDocuments: documents.filter((document) => document.ingestionStatus === "MANUAL").length,
     },
   };
 }

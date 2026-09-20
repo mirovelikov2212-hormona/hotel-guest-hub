@@ -6,7 +6,7 @@ import {
 } from "@/lib/server/hotel-scanner-v2-pipeline-safe";
 
 // Contract markers delegated to the safe runtime:
-// discoverHotelIntakeV2 -> extractHotelDomainsV2 -> ingestHotelDocumentsV2 -> applyDocumentIngestionToInventoryV2
+// discoverHotelIntakeV2 -> extractHotelDomainsV2 -> deferHotelDocumentsToManualOnboardingV2
 // -> verifyHotelScanFactsV2 -> buildHotelCompletenessV2 -> buildHotelIntelligenceCandidateV2.
 // READY_FOR_APPROVAL / CONFLICT_REVIEW_REQUIRED / INCOMPLETE.
 // approvedHotelIntelligence: null; downstreamHandoffAllowed: false.

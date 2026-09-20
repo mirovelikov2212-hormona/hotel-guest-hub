@@ -74,7 +74,6 @@ export function projectHotelIntakeDiscoveryV2(
 ): HotelIntakeV2DiscoveryProjection {
   const { evidence, siteMap, inventory } = result;
   const blockingReasons = ["domain_extraction_pending", "cross_source_verification_pending"];
-  if (inventory.documents.length) blockingReasons.push("document_ingestion_pending");
   if (inventory.counts.unknownExpectationDomains) blockingReasons.push("inventory_expectation_unresolved");
   if (!evidence.discovery.coverage.coverageComplete) blockingReasons.push("relevant_site_coverage_incomplete");
   if (evidence.discovery.coverage.failedRelevantCount) blockingReasons.push("relevant_site_pages_failed");

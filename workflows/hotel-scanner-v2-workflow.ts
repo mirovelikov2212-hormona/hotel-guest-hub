@@ -32,8 +32,7 @@ function quotaResumeToken(input: Pick<HotelScannerV2WorkflowInput, "actorAdminId
 }
 
 function hasQuotaExhaustion(result: HotelIntakePipelineV2Result) {
-  return result.extraction.issues.some((issue) => issue.code === "AI_QUOTA_EXHAUSTED")
-    || result.documents.documents.some((document) => document.error === "document_ai_quota_exhausted");
+  return result.extraction.issues.some((issue) => issue.code === "AI_QUOTA_EXHAUSTED");
 }
 
 async function runDiscoveryCheckpointStep(input: HotelScannerV2WorkflowInput): Promise<ScannerV2DiscoveryCheckpoint> {

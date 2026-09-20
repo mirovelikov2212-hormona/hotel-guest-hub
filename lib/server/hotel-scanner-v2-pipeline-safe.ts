@@ -7,8 +7,7 @@ import {
 } from "@/lib/ai/hotel-scanner-v2-domain-extractors-safe";
 import {
   applyDocumentIngestionToInventoryV2,
-  ingestHotelDocumentsV2,
-  type HotelScannerV2DocumentIngestionResult,
+  deferHotelDocumentsToManualOnboardingV2,
 } from "@/lib/ai/hotel-scanner-v2-document-ingestion";
 import {
   buildHotelIntelligenceCandidateV2,
@@ -25,36 +24,6 @@ import {
 
 function extractionBlockingReasons(extraction: Awaited<ReturnType<typeof extractHotelDomainsV2>>) {
   return [...new Set(extraction.issues.map((issue) => `${issue.domain}_extraction_${issue.code.toLocaleLowerCase("en-US")}`))];
-}
-
-function extractionQuotaExhausted(extraction: Awaited<ReturnType<typeof extractHotelDomainsV2>>) {
-  return extraction.issues.some((issue) => issue.code === "AI_QUOTA_EXHAUSTED");
-}
-
-function quotaBlockedDocuments(
-  discovery: HotelIntakeV2DiscoveryResult,
-): HotelScannerV2DocumentIngestionResult {
-  const model = String(process.env.OPENAI_HOTEL_SCANNER_MODEL || "gpt-5.6-luna").trim();
-  const documents = discovery.inventory.documents.map((document) => ({
-    url: document.url,
-    status: "FAILED" as const,
-    domains: document.domains,
-    facts: [],
-    error: "document_ai_quota_exhausted",
-    latencyMs: 0,
-  }));
-  return {
-    schemaVersion: "hotel-document-ingestion-v2",
-    documents,
-    facts: [],
-    diagnostics: {
-      model,
-      discoveredDocumentCount: documents.length,
-      ingestedDocumentCount: 0,
-      failedDocumentCount: documents.length,
-      skippedDocumentCount: 0,
-    },
-  };
 }
 
 export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
@@ -75,28 +44,19 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
   const extractionLatencyMs = Date.now() - extractionStartedAt;
 
   const documentStartedAt = Date.now();
-  // A permanent billing/quota failure is global for the API key. Once web
-  // extraction proves the quota is exhausted, do not fan out more paid PDF
-  // requests that can only fail with the same 429.
-  const documents = extractionQuotaExhausted(extraction)
-    ? quotaBlockedDocuments(discovery)
-    : await ingestHotelDocumentsV2({
-        inventory: discovery.inventory,
-        canonicalUrl: discovery.evidence.canonicalUrl,
-        outputLanguage: input.outputLanguage,
-      });
+  // Scanner V2 does not download or AI-ingest public PDFs.
+  // The hotel supplies current authoritative documents during onboarding.
+  const documents = deferHotelDocumentsToManualOnboardingV2(discovery.inventory);
   const documentLatencyMs = Date.now() - documentStartedAt;
 
   const ingestedInventory = applyDocumentIngestionToInventoryV2(discovery.inventory, documents);
   const verificationStartedAt = Date.now();
-  const verification = verifyHotelScanFactsV2([...extraction.facts, ...documents.facts]);
+  const verification = verifyHotelScanFactsV2(extraction.facts);
   const inventory = reconcileHotelInventoryWithVerifiedFactsV2(
     ingestedInventory,
     verification.facts,
     {
-      ingestedDocumentUrls: documents.documents
-        .filter((document) => document.status === "INGESTED")
-        .map((document) => document.url),
+      ingestedDocumentUrls: [],
     },
   );
   const completeness = buildHotelCompletenessV2({
