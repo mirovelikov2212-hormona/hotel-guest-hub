@@ -249,3 +249,27 @@ test("Quick crawl budget is isolated from the full Scanner V2 crawl", async () =
   assert.match(intake, /maxInitialPageAttempts: 40/);
   assert.match(intake, /maxCoverageFollowupAttempts: 0/);
 });
+
+
+test("Quick Preview is expandable and hides internal inventory states from clients", async () => {
+  const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
+  const preview = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
+
+  assert.match(client, /<details key=\{component\.domain\}/);
+  assert.match(client, /component\.items/);
+  assert.match(client, /component\.domain === "gastronomy"/);
+  assert.match(client, /component\.domain === "contacts"/);
+  assert.match(client, /hoursMissing/);
+  assert.doesNotMatch(client, /font-mono">\{component\.state\}/);
+  assert.match(preview, /openingHoursForItem/);
+  assert.match(preview, /quickContacts/);
+  assert.match(preview, /contacts,/);
+});
+
+test("Completed workflow leads with onboarding and keeps technical diagnostics collapsed", async () => {
+  const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
+  assert.match(client, /onboardingReady/);
+  assert.match(client, /onboardingSection/);
+  assert.match(client, /manualSetup/);
+  assert.match(client, /<details className="v2-details v2-panel/);
+});
