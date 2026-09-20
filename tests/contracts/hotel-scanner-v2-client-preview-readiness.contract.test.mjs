@@ -165,3 +165,20 @@ test("quick preview hides events and rejects FAQ questions as experiences", asyn
   assert.match(preview, /PREVIEW_QUESTION_HEADING\.test\(heading\)/);
   assert.match(preview, /fahrrad\[-\\s\]\?erlebnisse|fahrrad/);
 });
+
+
+test("SPA quick preview expands real facilities and rejects FAQ/offer noise", async () => {
+  const preview = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
+
+  assert.match(preview, /SPA_TEXT_FACILITY_PATTERNS/);
+  assert.match(preview, /previewSpaTextFacilities/);
+  assert.match(preview, /Panorama\|Bio\|Finnische\|Finnish\|Textil\|Family/);
+  assert.match(preview, /Infinity\\s\+Pool/);
+  assert.match(preview, /Solebecken/);
+  assert.match(preview, /Tauchbecken/);
+  assert.match(preview, /Hamam/);
+  assert.match(preview, /Massagen/);
+  assert.match(preview, /Behandlungen/);
+  assert.match(preview, /\^faq\\b/);
+  assert.match(preview, /momente/);
+});
