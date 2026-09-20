@@ -511,7 +511,7 @@ export default function VersionedDesignStudioClient({ lang, scanRunId }: { lang:
           <p className="mt-2 font-mono text-[10px] text-neutral-600">scan {previewAuthority.scanRunId.slice(0, 8)} · review {previewAuthority.reviewId.slice(0, 8)}</p>
         </div>
       ) : null}
-      {(notice || error) && <div className={`mt-4 rounded-2xl border p-3 text-xs ${error ? "border-rose-300/20 text-rose-200" : "border-emerald-300/20 text-emerald-200"}`}>{error || notice}</div>
+      {(notice || error) && <div className={`mt-4 rounded-2xl border p-3 text-xs ${error ? "border-rose-300/20 text-rose-200" : "border-emerald-300/20 text-emerald-200"}`}>{error || notice}</div>}
 
       <div className="mt-5 flex gap-2 overflow-x-auto pb-2">
         {(["structure", "pages", "campaigns", "navigation", "survey", "style", "versions", "qa"] as Panel[]).map((id) => <button key={id} type="button" onClick={() => setPanel(id)} className={`min-h-11 shrink-0 rounded-xl border px-4 text-xs font-semibold ${panel === id ? "border-violet-300/30 bg-violet-300/[0.08] text-violet-100" : "border-white/5 text-neutral-500"}`}>{copy[id]}</button>)}
