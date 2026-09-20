@@ -97,6 +97,13 @@ export type HotelScannerV2CoverageSummary = {
   failedRelevantUrls: string[];
   nextBatch: string[];
 };
+export type HotelScannerV2CrawlOptions = {
+  maxInitialPages?: number;
+  maxInitialPageAttempts?: number;
+  maxCoverageFollowupAttempts?: number;
+  includeDelegatedOfferDetails?: boolean;
+};
+
 export type HotelScannerV2EvidenceBundle = {
   requestedUrl: string;
   canonicalUrl: string;
@@ -439,7 +446,25 @@ function orderedCandidates(urls: Iterable<string>, attempted: Set<string>, prefe
   return scored.sort((left, right) => right.score - left.score || left.url.localeCompare(right.url)).map((entry) => entry.url);
 }
 
-export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelScannerV2EvidenceBundle> {
+export async function crawlPublicHotelWebsiteV2(
+  rawUrl: string,
+  options: HotelScannerV2CrawlOptions = {},
+): Promise<HotelScannerV2EvidenceBundle> {
+  const maxInitialPages = Math.max(1, Math.min(
+    MAX_INITIAL_PAGES,
+    Math.trunc(options.maxInitialPages ?? MAX_INITIAL_PAGES),
+  ));
+  const maxInitialPageAttempts = Math.max(maxInitialPages, Math.min(
+    MAX_INITIAL_PAGE_ATTEMPTS,
+    Math.trunc(options.maxInitialPageAttempts ?? MAX_INITIAL_PAGE_ATTEMPTS),
+  ));
+  const maxCoverageFollowupAttempts = Math.max(0, Math.min(
+    MAX_COVERAGE_FOLLOWUP_ATTEMPTS,
+    Math.trunc(options.maxCoverageFollowupAttempts ?? MAX_COVERAGE_FOLLOWUP_ATTEMPTS),
+  ));
+  const maxTotalPages = maxInitialPages + maxCoverageFollowupAttempts;
+  const includeDelegatedOfferDetails = options.includeDelegatedOfferDetails !== false;
+
   const requested = await validatePublicHotelUrlV2(rawUrl);
   const requestedRobots = await fetchRobotsState(requested);
   if (!isHotelScannerRobotsAllowed(requested.toString(), requestedRobots.policy)) throw new HotelScannerV2NetworkError("scanner_v2_robots_disallowed", 403);
@@ -491,7 +516,7 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
   };
 
   let initialPageAttempts = 0;
-  while (pages.length < MAX_INITIAL_PAGES && initialPageAttempts < MAX_INITIAL_PAGE_ATTEMPTS) {
+  while (pages.length < maxInitialPages && initialPageAttempts < maxInitialPageAttempts) {
     const candidates = orderedCandidates(discoveredPages, attempted, preferredLanguage).filter((url) => {
       const allowed = isHotelScannerRobotsAllowed(url, robotsState.policy);
       if (!allowed) robotsBlockedUrls.add(url);
@@ -500,8 +525,8 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
     if (!candidates.length) break;
     const batch = candidates.slice(0, Math.min(
       CRAWL_BATCH_SIZE,
-      MAX_INITIAL_PAGES - pages.length,
-      MAX_INITIAL_PAGE_ATTEMPTS - initialPageAttempts,
+      maxInitialPages - pages.length,
+      maxInitialPageAttempts - initialPageAttempts,
     ));
     if (!batch.length) break;
     initialPageAttempts += batch.length;
@@ -509,7 +534,7 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
   }
 
   let coverageFollowupAttempts = 0;
-  while (pages.length < MAX_TOTAL_PAGES && coverageFollowupAttempts < MAX_COVERAGE_FOLLOWUP_ATTEMPTS) {
+  while (pages.length < maxTotalPages && coverageFollowupAttempts < maxCoverageFollowupAttempts) {
     const plan = buildHotelScannerCoveragePlanV2({
       pages,
       sitemapPageUrls: sitemap.pageUrls,
@@ -517,7 +542,7 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
       navigationUrls: [...navigation],
       attemptedUrls: [...attempted],
       failedUrls: [...failedPageUrls],
-      batchLimit: Math.min(CRAWL_BATCH_SIZE, MAX_COVERAGE_FOLLOWUP_ATTEMPTS - coverageFollowupAttempts),
+      batchLimit: Math.min(CRAWL_BATCH_SIZE, maxCoverageFollowupAttempts - coverageFollowupAttempts),
     });
     const batch = plan.nextBatch.filter((url: string) => {
       const allowed = isHotelScannerRobotsAllowed(url, robotsState.policy);
@@ -530,7 +555,7 @@ export async function crawlPublicHotelWebsiteV2(rawUrl: string): Promise<HotelSc
   }
 
   const delegatedOfferTargets = new Map<string, string>();
-  for (const page of pages) {
+  if (includeDelegatedOfferDetails) for (const page of pages) {
     for (const target of page.delegatedOfferDetailUrls || []) {
       if (delegatedOfferTargets.size >= MAX_DELEGATED_OFFER_PAGES) break;
       if (!delegatedOfferTargets.has(target)) delegatedOfferTargets.set(target, page.url);
