@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildHotelCompletenessV2 } from "../../lib/server/hotel-scanner-v2-completeness.mjs";
-import { classifyHotelScannerPageV2 } from "../../lib/server/hotel-scanner-v2-page-classifier.mjs";
+import { classifyHotelScannerPageV2, hotelScannerPageTypeDomain } from "../../lib/server/hotel-scanner-v2-page-classifier.mjs";
 import { readProjectFile } from "../helpers/source-contract.mjs";
 
 test("inclusive-services compound paths classify as hotel services without AI", () => {
@@ -10,7 +10,7 @@ test("inclusive-services compound paths classify as hotel services without AI", 
     url: "https://hotel.test/de/wohnen-angebote/inklusivleistungen/luxushotel-mit-wellness-und-gourmetkueche",
     title: "Inklusivleistungen",
   });
-  assert.equal(classification.primaryType, "services");
+  assert.equal(hotelScannerPageTypeDomain(classification.primaryType), "services");
 });
 
 test("undiscovered surfaces stay NOT_DISCOVERED instead of false NOT_APPLICABLE", () => {
