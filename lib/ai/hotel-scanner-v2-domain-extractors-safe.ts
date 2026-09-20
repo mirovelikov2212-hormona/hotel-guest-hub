@@ -164,6 +164,7 @@ export async function extractHotelDomainsV2(input: {
   siteMap: HotelScannerV2SiteMap;
   inventory: HotelScannerV2Inventory;
   outputLanguage: HotelScannerV2OutputLanguage;
+  domains?: string[];
 }): Promise<HotelScannerV2ExtractionResult> {
   const model = String(process.env.OPENAI_HOTEL_SCANNER_MODEL || "gpt-5.6-luna").trim();
   let quotaExhausted = false;
@@ -171,7 +172,11 @@ export async function extractHotelDomainsV2(input: {
     isExhausted: () => quotaExhausted,
     exhaust: () => { quotaExhausted = true; },
   };
-  const domains = await mapWithConcurrency(HOTEL_SCANNER_V2_DOMAIN_CONFIGS, DOMAIN_CONCURRENCY, (config) =>
+  const requestedDomains = new Set((input.domains || []).map((domain) => String(domain || "").trim()).filter(Boolean));
+  const configs = requestedDomains.size
+    ? HOTEL_SCANNER_V2_DOMAIN_CONFIGS.filter((config) => requestedDomains.has(config.domain))
+    : HOTEL_SCANNER_V2_DOMAIN_CONFIGS;
+  const domains = await mapWithConcurrency(configs, DOMAIN_CONCURRENCY, (config) =>
     extractDomain(config, input.evidence, input.siteMap, input.inventory, input.outputLanguage, model, quotaGate));
   const facts = domains.flatMap((domain) => domain.facts);
   const issues = domains.flatMap((domain) => domain.issues);
