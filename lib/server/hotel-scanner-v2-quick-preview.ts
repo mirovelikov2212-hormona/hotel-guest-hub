@@ -4,7 +4,7 @@ import type { HotelIntelligenceItem, HotelIntelligencePackage } from "@/lib/prod
 import { buildInventoryIdentityFactsV2 } from "@/lib/ai/hotel-scanner-v2-deterministic-facts";
 import type { HotelIntakeV2DiscoveryResult } from "@/lib/server/hotel-scanner-v2-intake";
 
-const CORE_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "experiences", "events", "offers"] as const;
+const CORE_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "experiences", "events", "offers", "contacts"] as const;
 
 function clean(value: unknown, max = 500) {
   const text = String(value ?? "").normalize("NFKC").replace(/\s+/g, " ").trim();
@@ -20,6 +20,70 @@ function hotelName(discovery: HotelIntakeV2DiscoveryResult) {
   try { return new URL(discovery.evidence.canonicalUrl).hostname.replace(/^www\./u, ""); }
   catch { return "Hotel"; }
 }
+function entityKey(value: unknown) {
+  return clean(value, 320).toLocaleLowerCase("en-US").normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function sameEntityName(left: unknown, right: unknown) {
+  const a = entityKey(left);
+  const b = entityKey(right);
+  if (!a || !b) return false;
+  return a === b || (Math.min(a.length, b.length) >= 6 && (a.includes(b) || b.includes(a)));
+}
+const HOURS_LABEL = /(?:opening\s+hours?|opening\s+times?|öffnungszeiten|oeffnungszeiten|работно\s+време|program|orar|otev[ií]rac[ií]\s+doba|часы\s+работы)/iu;
+const TIME_RANGE = /\b\d{1,2}(?::|\.)\d{2}\s*(?:-|–|—|to|bis|до)\s*\d{1,2}(?::|\.)\d{2}\b/giu;
+
+function hoursFromText(value: unknown) {
+  const text = clean(value, 1_200);
+  if (!text) return "";
+  const marker = text.search(HOURS_LABEL);
+  if (marker >= 0) {
+    const slice = text.slice(marker, marker + 220);
+    const nextSentence = slice.search(/[.!?](?=\s+[A-ZА-ЯÄÖÜ])/u);
+    return clean(nextSentence > 20 ? slice.slice(0, nextSentence + 1) : slice, 220);
+  }
+  const ranges = [...text.matchAll(TIME_RANGE)].map((match) => clean(match[0], 80));
+  return unique(ranges, 3).join(" · ");
+}
+
+function openingHoursForItem(discovery: HotelIntakeV2DiscoveryResult, item: { nameHint?: string; url?: string; urls?: string[] }) {
+  const name = clean(item.nameHint, 240);
+  const urls = new Set([item.url, ...(item.urls || [])].map((url) => clean(url, 2_048)).filter(Boolean));
+  for (const page of discovery.evidence.pages || []) {
+    for (const block of page.contentBlocks || []) {
+      if (!sameEntityName(block.heading, name)) continue;
+      const hours = hoursFromText(block.text);
+      if (hours) return hours;
+    }
+  }
+  for (const page of discovery.evidence.pages || []) {
+    if (!urls.has(clean(page.url, 2_048))) continue;
+    const hours = hoursFromText(page.text);
+    if (hours) return hours;
+  }
+  return "";
+}
+
+function quickContacts(discovery: HotelIntakeV2DiscoveryResult) {
+  const phones: string[] = [];
+  const emails: string[] = [];
+  const addresses: string[] = [];
+  for (const page of discovery.evidence.pages || []) {
+    phones.push(...(page.contactSignals?.phones || []));
+    emails.push(...(page.contactSignals?.emails || []));
+    addresses.push(...(page.contactSignals?.addresses || []));
+  }
+  return {
+    phones: unique(phones, 10),
+    emails: unique(emails, 10),
+    addresses: unique(addresses, 5),
+    website: discovery.evidence.canonicalUrl,
+  };
+}
+
 function itemize(discovery: HotelIntakeV2DiscoveryResult): HotelIntelligenceItem[] {
   const facts = discovery.inventory.domains
     .filter((domain) => CORE_DOMAINS.includes(domain.domain as (typeof CORE_DOMAINS)[number]))
@@ -72,6 +136,7 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
   const venues = discovery.inventory.domains.find((domain) => domain.domain === "gastronomy")?.expectedItems || [];
   const spa = discovery.inventory.domains.find((domain) => domain.domain === "spa")?.expectedItems || [];
   const services = discovery.inventory.domains.find((domain) => domain.domain === "services")?.expectedItems || [];
+  const contacts = quickContacts(discovery);
   const name = hotelName(discovery);
   const sourceUrls = unique([canonicalUrl, ...items.flatMap((item) => item.sourceUrls)]);
   const sourcePackage: HotelIntelligencePackage = {
@@ -86,8 +151,8 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
     },
     evidenceLayer: { facts: items, sourceUrls, uncertainties: ["quick_preview_only", "manual_onboarding_required"] },
     hotelProfileLayer: {
-      identity: { hotelName: name, summary: "", address: "", city: "", country: "", bookingUrl: "", contactUrl: canonicalUrl },
-      contacts: { phones: [], emails: [], socialLinks: [] },
+      identity: { hotelName: name, summary: "", address: contacts.addresses[0] || "", city: "", country: "", bookingUrl: "", contactUrl: canonicalUrl },
+      contacts: { phones: contacts.phones, emails: contacts.emails, socialLinks: [] },
       operations: { checkIn: "", checkOut: "", languages: [] },
       hospitality: {
         roomTypes: unique(rooms.map((item) => clean(item.nameHint, 180)), 50),
@@ -115,7 +180,16 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
     sourcePackage,
     components: discovery.inventory.domains
       .filter((domain) => CORE_DOMAINS.includes(domain.domain as (typeof CORE_DOMAINS)[number]))
-      .map((domain) => ({ domain: domain.domain, count: domain.expectedCount, state: domain.expectationState })),
+      .map((domain) => ({
+        domain: domain.domain,
+        count: domain.expectedCount,
+        state: domain.expectationState,
+        items: (domain.expectedItems || []).map((item) => ({
+          name: clean(item.nameHint, 240),
+          hours: domain.domain === "gastronomy" ? openingHoursForItem(discovery, item) : "",
+        })).filter((item) => item.name),
+      })),
+    contacts,
     documents: summarizeHotelScannerV2Documents(discovery),
     diagnostics: {
       pageCount: discovery.evidence.pages.length,
