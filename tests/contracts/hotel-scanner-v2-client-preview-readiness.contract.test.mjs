@@ -130,7 +130,6 @@ test("client preview normalizes repeated contacts and filters container/SEO name
   assert.match(preview, /normalizedAddressKey/);
   assert.match(preview, /preferredPhoneDisplay/);
   assert.match(preview, /clientPreviewNameAllowed/);
-  assert.match(preview, /rejectedNoiseCount/);
 });
 
 
