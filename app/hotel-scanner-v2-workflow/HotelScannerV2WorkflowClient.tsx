@@ -60,6 +60,18 @@ type WorkflowResult = {
     siteMap?: { counts?: { crawledPages?: number; resources?: number } };
     inventory?: { counts?: { expectedItems?: number } };
     coverage?: SiteCoverage;
+    structuralCrawl?: { stopReason?: string; inventoryClosed?: boolean };
+  };
+  canonicalInventory?: {
+    authority?: { snapshotId?: string; snapshotFingerprint?: string; domains?: Array<{ domain: string; count: number }> };
+    observed?: { snapshotId?: string; snapshotFingerprint?: string; domains?: Array<{ domain: string; count: number }> };
+    delta?: {
+      changed?: boolean;
+      addedEntityIds?: string[];
+      removedEntityIds?: string[];
+      domainChangedEntityIds?: string[];
+    };
+    authorityLocked?: boolean;
   };
   documents?: {
     documents?: ScannerV2DocumentView[];
@@ -109,7 +121,13 @@ type QuickPreview = {
     website?: string;
   };
   documents?: Array<{ kind: string; bg: string; en: string; onboarding: boolean; count: number }>;
-  diagnostics?: { pageCount?: number; resourceCount?: number; expectedItems?: number };
+  diagnostics?: { pageCount?: number; resourceCount?: number; expectedItems?: number; inventorySnapshotId?: string };
+  inventoryAuthority?: {
+    snapshotId?: string;
+    snapshotFingerprint?: string;
+    domains?: Array<{ domain: string; count: number; status?: string }>;
+  } | null;
+  inventoryAuthorityToken?: string;
   error?: string;
 };
 
@@ -402,25 +420,38 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
     setStatus("starting");
     setElapsedMs(0);
 
-    const quickRequest = fetch("/api/control-plane/hotel-scanner/scan-v2-preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: url.trim(), lang }),
-    })
-      .then(async (response) => {
-        const body = (await response.json().catch(() => ({}))) as QuickPreview;
-        if (!response.ok || !body.ok || !body.sourcePackage) throw new Error(body.error || "scanner_v2_quick_preview_failed");
-        setQuickPreview(body);
-        setQuickPreviewError(null);
-      })
-      .catch((reason) => setQuickPreviewError(reason instanceof Error ? reason.message : String(reason)))
-      .finally(() => setQuickPreviewLoading(false));
-
+    let inventoryAuthorityToken = "";
     try {
-      const response = await fetch("/api/control-plane/hotel-scanner/scan-v2-workflow", {
+      const quickResponse = await fetch("/api/control-plane/hotel-scanner/scan-v2-preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: url.trim(), lang }),
+      });
+      const quickBody = (await quickResponse.json().catch(() => ({}))) as QuickPreview;
+      if (!quickResponse.ok || !quickBody.ok || !quickBody.sourcePackage) {
+        throw new Error(quickBody.error || "scanner_v2_quick_preview_failed");
+      }
+      setQuickPreview(quickBody);
+      setQuickPreviewError(null);
+      inventoryAuthorityToken = String(quickBody.inventoryAuthorityToken || "");
+    } catch (reason) {
+      setQuickPreviewError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setQuickPreviewLoading(false);
+    }
+
+    try {
+      // M5 deliberately avoids two concurrent crawlers hitting the same hotel.
+      // Quick discovery completes first and signs its canonical inventory. The
+      // durable deep workflow then uses that exact snapshot as inventory authority.
+      const response = await fetch("/api/control-plane/hotel-scanner/scan-v2-workflow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: url.trim(),
+          lang,
+          inventoryAuthorityToken: inventoryAuthorityToken || undefined,
+        }),
       });
       const body = (await response.json().catch(() => ({}))) as WorkflowStart;
       if (!response.ok || !body.ok || !body.runId || !body.scanRunId || !body.runAccessToken) {
@@ -445,7 +476,6 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
       setStatus("failed");
     } finally {
       setStarting(false);
-      void quickRequest;
     }
   }
 
