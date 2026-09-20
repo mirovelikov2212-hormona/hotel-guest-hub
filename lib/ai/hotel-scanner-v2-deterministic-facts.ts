@@ -24,6 +24,52 @@ function identityShape(domain: string, entityType: string) {
   return null;
 }
 
+export function buildDeterministicContactFactsV2(
+  pages: Array<{ url: string; contactSignals?: { phones?: string[]; emails?: string[]; addresses?: string[] } }>,
+  canonicalUrl: string,
+) {
+  const values = {
+    phone: new Map<string, string>(),
+    email: new Map<string, string>(),
+    address: new Map<string, string>(),
+  };
+  for (const page of pages || []) {
+    const signals = page.contactSignals || {};
+    for (const phone of signals.phones || []) if (!values.phone.has(phone)) values.phone.set(phone, page.url);
+    for (const email of signals.emails || []) if (!values.email.has(email)) values.email.set(email, page.url);
+    for (const address of signals.addresses || []) if (!values.address.has(address)) values.address.set(address, page.url);
+  }
+  const result: HotelScanFact[] = [];
+  const push = (attribute: string, label: string, entries: Map<string, string>) => {
+    for (const [value, sourceUrl] of entries) {
+      result.push({
+        category: "contact",
+        subject: "Hotel contacts",
+        attribute,
+        label,
+        value,
+        confidence: 1,
+        sourceUrls: [sourceUrl || canonicalUrl],
+      } as HotelScanFact);
+    }
+  };
+  push("phone", "Phone", values.phone);
+  push("email", "Email", values.email);
+  push("address", "Address", values.address);
+  if (canonicalUrl) {
+    result.push({
+      category: "contact",
+      subject: "Hotel contacts",
+      attribute: "website",
+      label: "Website",
+      value: canonicalUrl,
+      confidence: 1,
+      sourceUrls: [canonicalUrl],
+    } as HotelScanFact);
+  }
+  return result;
+}
+
 export function buildInventoryIdentityFactsV2(domainInventory: HotelScannerV2DomainInventory | undefined) {
   if (!domainInventory || !["DETERMINISTIC", "CONFLICT"].includes(String(domainInventory.expectationState || ""))) return [] as HotelScanFact[];
   const result: HotelScanFact[] = [];
