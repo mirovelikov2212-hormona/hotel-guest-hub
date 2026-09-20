@@ -204,3 +204,31 @@ test("Scanner V3 M6 continuation remains bounded, public-only and robots-aware",
   assert.match(previewRoute, /750_000/);
   assert.doesNotMatch([crawler, previewRoute].join("\n"), /captcha[-_ ]solver|stealth[-_ ]plugin|credential stuffing|login bypass|robots bypass/iu);
 });
+
+
+test("Scanner V3 M7 canonical authority controls Quick entity count and list membership", async () => {
+  const quick = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
+  const previewRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-preview/route.ts");
+  const pipeline = await readProjectFile("lib/server/hotel-scanner-v2-pipeline-safe.ts");
+
+  assert.match(quick, /domainHasV3Authority/);
+  assert.match(quick, /allowEvidenceExpansion: !domainHasV3Authority/);
+  assert.match(quick, /domainHasV3Authority\s*\?\s*domain\.expectedCount/s);
+  assert.match(quick, /if \(options\.allowEvidenceExpansion === false\) return base/);
+
+  assert.match(previewRoute, /snapshot\.status === "READY"/);
+  assert.doesNotMatch(previewRoute, /snapshot\.status !== "ONTOLOGY_CONFLICT"/);
+
+  assert.match(pipeline, /observedAuthorityEligible/);
+  assert.match(pipeline, /observedSnapshot\.status === "READY"/);
+  assert.match(pipeline, /observedAuthorityEligible \? observedAuthority : null/);
+});
+
+test("Scanner V3 M7 semantic enrichment cannot become an authority entity when V3 is locked", async () => {
+  const quick = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
+
+  const expansionGuard = quick.indexOf("if (options.allowEvidenceExpansion === false) return base");
+  const evidenceHeadings = quick.indexOf("previewEvidenceHeadings(discovery, domain)", expansionGuard);
+  assert.ok(expansionGuard >= 0);
+  assert.ok(evidenceHeadings > expansionGuard);
+});
