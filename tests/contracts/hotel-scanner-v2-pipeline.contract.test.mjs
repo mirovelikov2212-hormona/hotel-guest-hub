@@ -5,6 +5,7 @@ import { classifyHotelScannerPageV2 } from "../../lib/server/hotel-scanner-v2-pa
 import { buildHotelSiteMapV2, canonicalizeHotelIntakeUrl } from "../../lib/server/hotel-scanner-v2-site-map.mjs";
 import { buildHotelInventoryV2 } from "../../lib/server/hotel-scanner-v2-inventory.mjs";
 import { buildHotelCompletenessV2 } from "../../lib/server/hotel-scanner-v2-completeness.mjs";
+import { readProjectFile } from "../helpers/source-contract.mjs";
 
 const VENUE_NAMES = ["Main Restaurant", "Lobby Bar", "NERO", "Nutrition Bar", "Pool Bar"];
 
