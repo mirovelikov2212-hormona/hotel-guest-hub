@@ -118,7 +118,14 @@ export function projectHotelScannerV2ClientResult(result: HotelIntakePipelineV2R
       siteMap: { counts: value.discovery?.siteMap?.counts },
       inventory: { counts: value.discovery?.inventory?.counts },
       coverage: value.discovery?.coverage,
+      structuralCrawl: value.discovery?.structuralCrawl,
     },
+    canonicalInventory: value.canonicalInventory ? {
+      authority: value.canonicalInventory.authority,
+      observed: value.canonicalInventory.observed,
+      delta: value.canonicalInventory.delta,
+      authorityLocked: Boolean(value.canonicalInventory.authorityLocked),
+    } : undefined,
     documents: {
       documents: list(value.documents?.documents).map((document: LooseRecord) => ({
         url: document.url,
