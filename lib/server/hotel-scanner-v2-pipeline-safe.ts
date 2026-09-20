@@ -53,7 +53,14 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
   const observedAuthority = observedSnapshot
     ? projectHotelInventoryAuthorityV3(observedSnapshot)
     : null;
-  const inventoryAuthority = input.inventoryAuthority || observedAuthority;
+  const observedAuthorityEligible = Boolean(
+    observedSnapshot
+    && observedSnapshot.status === "READY"
+    && discovery.evidence.discovery.structuralCrawl?.inventoryClosed
+    && !discovery.evidence.discovery.structuralCrawl?.safetyCapReached
+  );
+  const inventoryAuthority = input.inventoryAuthority
+    || (observedAuthorityEligible ? observedAuthority : null);
   const authorityInventory = inventoryAuthority
     ? applyHotelInventoryAuthorityV3(discovery.inventory, inventoryAuthority)
     : discovery.inventory;
@@ -200,6 +207,7 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
       observed: observedAuthority ? summarizeHotelInventoryAuthorityV3(observedAuthority) : null,
       delta: inventoryDelta,
       authorityLocked: Boolean(input.inventoryAuthority),
+      observedAuthorityEligible,
     },
     extraction,
     documents,
