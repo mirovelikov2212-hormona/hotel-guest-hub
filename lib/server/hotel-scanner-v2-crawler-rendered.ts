@@ -1,7 +1,7 @@
 import "server-only";
 
 import { buildHotelScannerRobotsPolicy, isHotelScannerRobotsAllowed } from "@/lib/server/hotel-scanner-robots.mjs";
-import { HotelScannerV2BrowserRenderer, type HotelScannerV2RenderedBlock } from "@/lib/server/hotel-scanner-v2-browser-renderer";
+import { HotelScannerV2BrowserRenderer, type HotelScannerV2RenderedBlock, type HotelScannerV2RenderedBrandSnapshot } from "@/lib/server/hotel-scanner-v2-browser-renderer";
 import { buildPageEvidence, crawlPublicHotelWebsiteV2, type HotelScannerV2EvidenceBundle, type HotelScannerV2PageEvidence } from "@/lib/server/hotel-scanner-v2-crawler";
 import { deriveHotelPageInventoryHintsV2 } from "@/lib/server/hotel-scanner-v2-landing-inventory.mjs";
 import { fetchPublicHtmlV2, fetchPublicTextV2 } from "@/lib/server/hotel-scanner-v2-network";
@@ -85,6 +85,44 @@ function richerV3Structure(
   return renderedItems > currentItems || (renderedItems === currentItems && renderedGroups > currentGroups)
     ? rendered
     : current;
+}
+
+function mergeRenderedBrandEvidence(
+  current: HotelScannerV2EvidenceBundle["brand"],
+  rendered: HotelScannerV2RenderedBrandSnapshot,
+): HotelScannerV2EvidenceBundle["brand"] {
+  const renderedRoles = rendered.colorRoles || [];
+  const renderedRoleNames = new Set(renderedRoles.map((item) => item.role));
+  const colorRoles = [
+    ...renderedRoles,
+    ...(current.colorRoles || []).filter((item) => !renderedRoleNames.has(item.role)),
+  ];
+  const colors = uniqueStrings([
+    ...renderedRoles.map((item) => item.color),
+    ...(current.colors || []),
+  ]);
+  const fonts = uniqueStrings([
+    rendered.typography.headingFont,
+    rendered.typography.bodyFont,
+    rendered.typography.buttonFont,
+    ...(current.fonts || []),
+  ]).filter((font) => font && !/^(?:-apple-system|system-ui|blinkmacsystemfont|segoe ui|sans-serif|serif|monospace)$/iu.test(font));
+
+  return {
+    ...current,
+    colors,
+    fonts,
+    colorRoles,
+    typography: {
+      bodyFont: rendered.typography.bodyFont || current.typography?.bodyFont || fonts[0] || "",
+      headingFont: rendered.typography.headingFont || current.typography?.headingFont || fonts[0] || "",
+      buttonFont: rendered.typography.buttonFont || current.typography?.buttonFont || rendered.typography.bodyFont || fonts[0] || "",
+    },
+    visualCues: {
+      buttonRadius: rendered.visualCues.buttonRadius || current.visualCues?.buttonRadius || "",
+      cardRadius: rendered.visualCues.cardRadius || current.visualCues?.cardRadius || "",
+    },
+  };
 }
 
 function refreshV3InventorySnapshot(base: BrowserEnrichedEvidenceBundle) {
@@ -313,6 +351,7 @@ function quickPreviewRenderSchedule(
   const requestedLanguage = pathLanguage(base.requestedUrl);
   const requested = new Set(domains);
   const selected = new Set<number>();
+  if (base.pages[0]) selected.add(0);
 
   for (const domain of QUICK_PREVIEW_DOMAIN_PRIORITY) {
     if (!requested.has(domain) || selected.size >= QUICK_PREVIEW_MAX_BROWSER_RENDERS) continue;
@@ -389,8 +428,9 @@ export async function enrichHotelEvidenceQuickRenderedV2(
             v3Structure: richerV3Structure(page.v3Structure, renderedV3Structure || undefined),
             renderedContentBlocks: rendered.blocks,
             renderMode: "browser",
-            renderReason: "quick_preview_targeted_authority",
+            renderReason: index === 0 ? "quick_preview_brand_homepage" : "quick_preview_targeted_authority",
           };
+          if (index === 0) base.brand = mergeRenderedBrandEvidence(base.brand, rendered.brandSnapshot);
           browserRenderedUrls.push(page.url);
         } catch (error) {
           const failure = { url: page.url, error: browserRenderFailureReason(error) };
