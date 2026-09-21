@@ -56,8 +56,6 @@ export async function POST(request: NextRequest) {
     const structuralCrawl = discovery.evidence.discovery.structuralCrawl;
     const authorityEligible = Boolean(
       snapshot
-      && structuralCrawl?.inventoryClosed
-      && !structuralCrawl?.safetyCapReached
       && snapshot.status === "READY"
     );
     const inventoryAuthority = authorityEligible && snapshot
