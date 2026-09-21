@@ -104,14 +104,21 @@ function selectTheme(colors: string[], fonts: string[]): HubDesignTheme & { avai
 }
 
 function brandRoleColor(pkg: HotelIntelligencePackage, role: string) {
-  const signal = pkg.designIntelligenceLayer.brandKit?.colorRoles.find((item) => item.role === role);
+  const signal = pkg.designIntelligenceLayer.brandKit?.colorRoles.find((item) =>
+    item.role === role
+    && item.confidence >= 0.8
+    && /rendered|visible/iu.test(String(item.evidence || "")));
   return normalizeHex(signal?.color || "");
 }
 
 function selectPackageTheme(pkg: HotelIntelligencePackage) {
-  const fallback = selectTheme(pkg.designIntelligenceLayer.colors, pkg.designIntelligenceLayer.fonts);
+  // Raw CSS colors are useful reference material, but they are not allowed to
+  // seed the live Hub theme. Automatic design starts only from rendered
+  // homepage roles; missing roles fall back to neutral StayHub defaults.
+  const fallback = selectTheme([], pkg.designIntelligenceLayer.fonts);
+  const rawPalette = selectTheme(pkg.designIntelligenceLayer.colors, pkg.designIntelligenceLayer.fonts);
   const brandKit = pkg.designIntelligenceLayer.brandKit;
-  if (!brandKit) return fallback;
+  if (!brandKit) return rawPalette;
 
   const primaryColor = brandRoleColor(pkg, "primary")
     || brandRoleColor(pkg, "button_background")
@@ -143,8 +150,11 @@ function selectPackageTheme(pkg: HotelIntelligencePackage) {
     headingFont,
     bodyFont,
     availableColors: unique([
-      ...brandKit.colorRoles.map((item) => normalizeHex(item.color)).filter(Boolean),
-      ...fallback.availableColors,
+      ...brandKit.colorRoles
+        .filter((item) => item.confidence >= 0.8 && /rendered|visible/iu.test(String(item.evidence || "")))
+        .map((item) => normalizeHex(item.color))
+        .filter(Boolean),
+      ...rawPalette.availableColors,
     ]),
     availableFonts: detectedFonts.length ? detectedFonts : fallback.availableFonts,
   };
