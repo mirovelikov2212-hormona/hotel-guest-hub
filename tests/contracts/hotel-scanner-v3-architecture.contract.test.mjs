@@ -112,33 +112,16 @@ test("Scanner V3 M4 canonical snapshot is attached before and after browser enri
 });
 
 
-test("Scanner V3 M5 uses one signed quick inventory authority for the deep workflow", async () => {
+test("Scanner Intake no longer auto-starts Deep from the quick route", async () => {
   const previewRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-preview/route.ts");
-  const startRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-workflow/route.ts");
-  const workflow = await readProjectFile("workflows/hotel-scanner-v2-workflow.ts");
-  const pipeline = await readProjectFile("lib/server/hotel-scanner-v2-pipeline-safe.ts");
   const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
-  const token = await readProjectFile("lib/server/hotel-scanner-v3-authority-token.ts");
 
-  assert.match(previewRoute, /createHotelInventoryAuthorityTokenV3/);
-  assert.match(previewRoute, /inventoryAuthorityToken/);
-  assert.match(startRoute, /verifyHotelInventoryAuthorityTokenV3/);
-  assert.match(startRoute, /invalid_inventory_authority/);
-  assert.match(workflow, /inventoryAuthority\?: Record<string, unknown>/);
-  assert.match(workflow, /inventoryAuthority: input\.inventoryAuthority/);
+  assert.match(previewRoute, /scanner_intake_quick_completed/);
+  assert.match(previewRoute, /deepWorkflowStarted:\s*false/);
+  assert.doesNotMatch(previewRoute, /workflow\/api|hotelScannerV2Workflow|discoveryCheckpointGzip|createScannerV2WorkflowAccessToken/);
 
-  assert.match(pipeline, /applyHotelInventoryAuthorityV3/);
-  assert.match(pipeline, /inventory_authority_delta_requires_review/);
-  assert.match(pipeline, /authorityLocked: Boolean\(input\.inventoryAuthority\)/);
-  assert.match(pipeline, /compareHotelInventorySnapshotsV3/);
-
-  assert.match(client, /inventoryAuthorityToken/);
-  assert.match(client, /No second crawl of the hotel is needed|Fallback for an oversized\/failed checkpoint handoff/);
-  assert.doesNotMatch(client, /const quickRequest = fetch/);
-
-  assert.match(token, /createHmac\("sha256"/);
-  assert.match(token, /timingSafeEqual/);
-  assert.match(token, /TOKEN_TTL_MS/);
+  assert.match(client, /\/api\/control-plane\/hotel-scanner\/scan-v2-preview/);
+  assert.doesNotMatch(client, /scan-v2-workflow\/\$\{|quickWorkflow|runAccessToken|pollStartedAt|Deep Verification/);
 });
 
 test("Scanner V3 M5 authority keeps public crawling bounded and does not add bypass behavior", async () => {
@@ -153,49 +136,20 @@ test("Scanner V3 M5 authority keeps public crawling bounded and does not add byp
 });
 
 
-test("Scanner V3 M6 resumes Deep Verification from the Quick crawl checkpoint", async () => {
+test("Scanner V3 deep continuation remains available internally but is not part of Intake", async () => {
   const crawler = await readProjectFile("lib/server/hotel-scanner-v2-crawler.ts");
-  const rendered = await readProjectFile("lib/server/hotel-scanner-v2-crawler-rendered.ts");
   const intake = await readProjectFile("lib/server/hotel-scanner-v2-intake.ts");
-  const previewRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-preview/route.ts");
   const workflow = await readProjectFile("workflows/hotel-scanner-v2-workflow.ts");
   const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
-  const checkpoint = await readProjectFile("lib/server/hotel-scanner-v3-discovery-checkpoint.ts");
 
   assert.match(crawler, /continuePublicHotelWebsiteV3/);
-  assert.match(crawler, /already-read pages are authoritative crawl history/);
-  assert.match(crawler, /attempted\.has\(url\)/);
-  assert.match(crawler, /supportDomains = new Set\(\["policies", "faq", "contacts"\]\)/);
-  assert.match(crawler, /isHotelScannerRobotsAllowed/);
-
-  assert.match(rendered, /enrichHotelEvidenceRenderedV3/);
-  assert.match(rendered, /renderMode === "browser"\) schedule\.delete/);
   assert.match(intake, /resumeHotelIntakeRenderedV3/);
-
-  assert.match(checkpoint, /OPERATIONAL_TEXT_LIMIT/);
-  assert.match(checkpoint, /SUPPORT_DOMAINS/);
-  assert.match(checkpoint, /v3InventorySnapshot: undefined/);
-
-  assert.match(previewRoute, /MAX_COMPRESSED_WORKFLOW_CHECKPOINT_BYTES/);
-  assert.match(previewRoute, /gzipSync/);
-  assert.match(previewRoute, /discoveryCheckpointGzip: checkpointGzip/);
-  assert.match(previewRoute, /reusedDiscovery: true/);
-  assert.match(previewRoute, /checkpointCompressedBytes <= MAX_COMPRESSED_WORKFLOW_CHECKPOINT_BYTES/);
-
-  assert.match(workflow, /gunzipSync/);
-  assert.match(workflow, /workflowDiscoveryCheckpoint/);
-  assert.match(workflow, /input\.discoveryCheckpointGzip/);
-  assert.match(workflow, /resumeHotelIntakeRenderedV3\(discoveryCheckpoint\)/);
-
-  assert.match(client, /quickWorkflow\?\.runId/);
-  assert.match(client, /No second crawl of the hotel is needed/);
-  assert.match(client, /Fallback for an oversized\/failed checkpoint handoff/);
+  assert.match(workflow, /resumeHotelIntakeRenderedV3/);
+  assert.doesNotMatch(client, /resumeHotelIntakeRenderedV3|Deep Verification|workflow_run/);
 });
 
 test("Scanner V3 M6 continuation remains bounded, public-only and robots-aware", async () => {
   const crawler = await readProjectFile("lib/server/hotel-scanner-v2-crawler.ts");
-  const previewRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-preview/route.ts");
-
   assert.match(crawler, /maxAdaptiveAttempts \?\? 40/);
   assert.match(crawler, /maxSupportAttempts \?\? 20/);
   assert.match(crawler, /FETCH_TIMEOUT_MS/);
@@ -204,8 +158,7 @@ test("Scanner V3 M6 continuation remains bounded, public-only and robots-aware",
   assert.match(crawler, /isHotelPropertyOperationalContentUrlV2/);
   assert.match(crawler, /scanner_v2_robots_disallowed/);
 
-  assert.match(previewRoute, /400_000/);
-  assert.doesNotMatch([crawler, previewRoute].join("\n"), /captcha[-_ ]solver|stealth[-_ ]plugin|credential stuffing|login bypass|robots bypass/iu);
+  assert.doesNotMatch(crawler, /captcha[-_ ]solver|stealth[-_ ]plugin|credential stuffing|login bypass|robots bypass/iu);
 });
 
 
@@ -215,7 +168,7 @@ test("Scanner V3 M7 canonical authority controls Quick entity count and list mem
   const pipeline = await readProjectFile("lib/server/hotel-scanner-v2-pipeline-safe.ts");
 
   assert.match(quick, /domainHasV3Authority/);
-  assert.match(quick, /allowEvidenceExpansion: !domainHasV3Authority/);
+  assert.match(quick, /allowEvidenceExpansion: false/);
   assert.match(quick, /domainHasV3Authority\s*\?\s*domain\.expectedCount/s);
   assert.match(quick, /if \(options\.allowEvidenceExpansion === false\) return base/);
 
@@ -238,12 +191,13 @@ test("Scanner V3 M7 semantic enrichment cannot become an authority entity when V
 });
 
 
-test("Scanner V3 Quick stays inside the interactive request budget and hands unfinished work to Deep", async () => {
+test("Scanner V3 Quick stays inside the interactive request budget as the final Intake path", async () => {
   const intake = await readProjectFile("lib/server/hotel-scanner-v2-intake.ts");
   const rendered = await readProjectFile("lib/server/hotel-scanner-v2-crawler-rendered.ts");
   const previewRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-preview/route.ts");
 
   assert.match(previewRoute, /export const maxDuration = 90/);
+  assert.doesNotMatch(previewRoute, /hotelScannerV2Workflow|workflow\/api/);
   assert.match(intake, /maxStructuralAdaptiveAttempts:\s*24/);
   assert.match(intake, /60_000 - elapsedMs/);
   assert.match(intake, /Math\.min\(25_000, remainingQuickMs\)/);
@@ -279,27 +233,27 @@ test("Scanner V3 M9 authority is domain-scoped instead of hotel-wide all-or-noth
 });
 
 
-test("Scanner Intake UI treats non-ready inventory as candidates and keeps manual domains manual", async () => {
+test("Scanner Intake is limited to rooms, dining, contacts and policies", async () => {
   const quick = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
   const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
   const page = await readProjectFile("app/hotel-scanner-v2-workflow/page.tsx");
 
-  assert.match(quick, /INTAKE_DOMAINS/);
-  assert.match(quick, /candidateCount/);
-  assert.match(quick, /authorityStatus/);
-  assert.match(quick, /manualOnly = domain\.domain === "experiences"/);
+  assert.match(quick, /CORE_DOMAINS = \["accommodation", "gastronomy", "policies", "contacts"\]/);
+  assert.match(quick, /INTAKE_DOMAINS = \["accommodation", "gastronomy", "policies", "contacts"\]/);
+  assert.match(quick, /openingHoursForItem/);
+  assert.match(quick, /policyDocuments/);
+  assert.match(quick, /policies: unique\(policies\.map/);
+  assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"spa"/s);
+  assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"experiences"/s);
+  assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"services"/s);
   assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"offers"/s);
+  assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"events"/s);
 
-  assert.match(client, /Hotel Intake Preview/);
-  assert.match(client, /INTAKE_VISIBLE_DOMAINS/);
-  assert.match(client, /INTAKE_REVIEW_DOMAINS/);
-  assert.match(client, /canonicalInventory\?\.authority\?\.domains/);
-  assert.match(client, /canonicalInventory\?\.observed\?\.domains/);
-  assert.match(client, /authorityStatus === "MANUAL"/);
-  assert.match(client, /candidatesFound/);
-  assert.match(client, /Извлечи данните/);
-  assert.match(client, /result\.reviewSections\?\.filter/);
-  assert.doesNotMatch(client, /\$\{copy\.found\}: \$\{inventoryLayer\.extracted\}\/\$\{inventoryLayer\.expected/);
+  assert.match(client, /VISIBLE_DOMAINS = new Set\(\["accommodation", "gastronomy", "policies", "contacts"\]\)/);
+  assert.match(client, /Работно време/);
+  assert.match(client, /Политики \/ FAQ/);
+  assert.match(client, /Отвори в Design Studio/);
+  assert.doesNotMatch(client, /SPA|Преживявания|Хотелски услуги|Оферти|Събития|Deep Intake|scan-v2-workflow\/\$\{/);
 
   assert.match(page, /Hotel Scanner · Intake/);
   assert.match(page, /Internal Intake/);
