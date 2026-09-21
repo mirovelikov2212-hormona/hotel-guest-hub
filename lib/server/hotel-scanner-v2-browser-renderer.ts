@@ -167,6 +167,159 @@ async function renderedDomBlocks(page: Page): Promise<HotelScannerV2RenderedBloc
   })).filter((value) => value.heading);
 }
 
+
+function normalizeRenderedColor(value: unknown) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw || raw === "transparent") return "";
+  const rgb = raw.match(/^rgba?\(\s*(\d{1,3})[,\s]+(\d{1,3})[,\s]+(\d{1,3})(?:[,\s/]+([\d.]+))?/iu);
+  if (rgb) {
+    const alpha = rgb[4] === undefined ? 1 : Number(rgb[4]);
+    if (!Number.isFinite(alpha) || alpha <= 0.04) return "";
+    const channels = rgb.slice(1, 4).map((item) => Math.max(0, Math.min(255, Number(item))));
+    return "#" + channels.map((item) => Math.round(item).toString(16).padStart(2, "0")).join("");
+  }
+  const hex = raw.match(/^#([0-9a-f]{3,8})$/iu);
+  if (!hex) return "";
+  const valueHex = hex[1];
+  if (valueHex.length === 3 || valueHex.length === 4) {
+    return "#" + valueHex.slice(0, 3).split("").map((part) => part + part).join("");
+  }
+  return "#" + valueHex.slice(0, 6);
+}
+
+function cleanRenderedFont(value: unknown) {
+  const generic = /^(?:inherit|initial|unset|system-ui|-apple-system|blinkmacsystemfont|segoe ui|sans-serif|serif|monospace)$/iu;
+  return String(value ?? "")
+    .split(",")
+    .map((font) => font.trim().replace(/^['"]|['"]$/gu, ""))
+    .find((font) => font && !generic.test(font))
+    || "";
+}
+
+async function renderedBrandSnapshot(page: Page): Promise<HotelScannerV2RenderedBrandSnapshot> {
+  const raw = await page.evaluate(() => {
+    const clean = (value: unknown, max = 180) => String(value ?? "").normalize("NFKC").replace(/\s+/g, " ").trim().slice(0, max);
+    const visible = (element: Element | null) => {
+      if (!(element instanceof HTMLElement)) return false;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none"
+        && style.visibility !== "hidden"
+        && Number(style.opacity || "1") > 0.05
+        && rect.width >= 18
+        && rect.height >= 12
+        && rect.bottom >= 0
+        && rect.top <= Math.max(window.innerHeight * 1.8, 1300);
+    };
+    const blocked = (element: Element) => Boolean(element.closest(
+      "[role='dialog'],[aria-modal='true'],[class*='cookie' i],[id*='cookie' i],[class*='consent' i],[id*='consent' i],[class*='popup' i],[class*='modal' i]"
+    ));
+    const probe = (element: Element | null) => {
+      if (!element || !visible(element) || blocked(element)) return null;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return {
+        color: style.color || "",
+        backgroundColor: style.backgroundColor || "",
+        fontFamily: style.fontFamily || "",
+        borderRadius: style.borderRadius || "",
+        backgroundImage: style.backgroundImage || "",
+        area: Math.max(0, rect.width * rect.height),
+        top: rect.top,
+        text: clean((element as HTMLElement).innerText || element.textContent),
+      };
+    };
+
+    const body = probe(document.body);
+    const heading = Array.from(document.querySelectorAll("h1,h2,h3"))
+      .filter((element) => visible(element) && !blocked(element))
+      .map((element) => probe(element))
+      .filter(Boolean)
+      .sort((left, right) => Number(left?.top || 0) - Number(right?.top || 0))[0] || null;
+
+    const header = Array.from(document.querySelectorAll("header,[role='banner'],nav"))
+      .filter((element) => visible(element) && !blocked(element))
+      .map((element) => probe(element))
+      .filter(Boolean)
+      .sort((left, right) => Number(right?.area || 0) - Number(left?.area || 0))[0] || null;
+
+    const ctaPattern = /(?:book|booking|reserve|reservation|anfrag|buchen|jetzt|angebot|zimmer|room|table|restaurant|spa|massage|kontakt|contact|enquir|request|availability|verfüg|verfug)/iu;
+    const actions = Array.from(document.querySelectorAll("button,a[href],[role='button'],input[type='submit'],input[type='button']"))
+      .filter((element) => visible(element) && !blocked(element))
+      .map((element) => {
+        const value = probe(element);
+        if (!value) return null;
+        const className = clean((element as HTMLElement).className);
+        const id = clean((element as HTMLElement).id);
+        const style = getComputedStyle(element);
+        const solid = style.backgroundColor && style.backgroundColor !== "rgba(0, 0, 0, 0)" && style.backgroundColor !== "transparent";
+        const score = (ctaPattern.test(value.text) ? 100 : 0)
+          + (/(?:btn|button|cta|book|reserve|booking)/iu.test(className + " " + id) ? 55 : 0)
+          + (solid ? 35 : 0)
+          + (value.top >= 0 && value.top <= window.innerHeight * 1.4 ? 20 : 0)
+          + Math.min(30, Math.round(value.area / 1000));
+        return { ...value, score };
+      })
+      .filter(Boolean)
+      .sort((left, right) => Number(right?.score || 0) - Number(left?.score || 0));
+    const action = actions[0] || null;
+
+    const main = document.querySelector("main") || document.body;
+    const hero = Array.from(main.children)
+      .filter((element) => visible(element) && !blocked(element))
+      .map((element) => {
+        const value = probe(element);
+        if (!value) return null;
+        const hasHeading = Boolean(element.querySelector("h1,h2"));
+        const hasMedia = value.backgroundImage !== "none" || Boolean(element.querySelector("img,picture,video"));
+        const score = (hasHeading ? 70 : 0) + (hasMedia ? 50 : 0) + Math.min(45, Math.round(value.area / 18000));
+        return { ...value, score };
+      })
+      .filter(Boolean)
+      .sort((left, right) => Number(right?.score || 0) - Number(left?.score || 0))[0] || null;
+
+    const card = Array.from(document.querySelectorAll("article,[class*='card' i],[class*='tile' i],[class*='panel' i],[class*='box' i]"))
+      .filter((element) => visible(element) && !blocked(element))
+      .map((element) => probe(element))
+      .filter((value) => Boolean(value && value.area >= 12000 && value.area <= 700000))
+      .sort((left, right) => Number(left?.top || 0) - Number(right?.top || 0))[0] || null;
+
+    return { body, heading, header, hero, action, card };
+  });
+
+  const colorRoles: HotelBrandColorRoleSignal[] = [];
+  const add = (role: HotelBrandColorRoleSignal["role"], colorValue: unknown, confidence: number, evidence: string) => {
+    const color = normalizeRenderedColor(colorValue);
+    if (!color) return;
+    const existing = colorRoles.findIndex((item) => item.role === role);
+    const item = { role, color, confidence, evidence };
+    if (existing >= 0) colorRoles[existing] = item;
+    else colorRoles.push(item);
+  };
+
+  add("page_background", raw.body?.backgroundColor, 1, "rendered body");
+  add("text", raw.body?.color, 0.98, "rendered body");
+  add("header_background", raw.header?.backgroundColor, 0.95, "visible header");
+  add("hero_background", raw.hero?.backgroundColor, 0.82, "visible hero");
+  add("surface", raw.card?.backgroundColor, 0.92, "visible card");
+  add("button_background", raw.action?.backgroundColor, 1, "visible CTA");
+  add("button_text", raw.action?.color, 1, "visible CTA");
+  add("primary", raw.action?.backgroundColor, 0.98, "visible CTA");
+
+  return {
+    colorRoles,
+    typography: {
+      bodyFont: cleanRenderedFont(raw.body?.fontFamily),
+      headingFont: cleanRenderedFont(raw.heading?.fontFamily) || cleanRenderedFont(raw.body?.fontFamily),
+      buttonFont: cleanRenderedFont(raw.action?.fontFamily) || cleanRenderedFont(raw.body?.fontFamily),
+    },
+    visualCues: {
+      buttonRadius: normalizeText(raw.action?.borderRadius || "", 80),
+      cardRadius: normalizeText(raw.card?.borderRadius || "", 80),
+    },
+  };
+}
+
 export class HotelScannerV2BrowserRenderer {
   private browser: Browser | null = null;
   private browserPromise: Promise<Browser> | null = null;
