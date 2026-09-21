@@ -29,6 +29,8 @@ import {
 import {
   applyHotelInventoryAuthorityV3,
   compareHotelInventorySnapshotsV3,
+  hasReadyHotelInventoryAuthorityV3,
+  mergeHotelInventoryAuthoritiesV3,
   projectHotelInventoryAuthorityV3,
   summarizeHotelInventoryAuthorityV3,
 } from "@/lib/server/hotel-scanner-v3-canonical-inventory.mjs";
@@ -54,13 +56,16 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
     ? projectHotelInventoryAuthorityV3(observedSnapshot)
     : null;
   const observedAuthorityEligible = Boolean(
-    observedSnapshot
-    && observedSnapshot.status === "READY"
-    && discovery.evidence.discovery.structuralCrawl?.inventoryClosed
-    && !discovery.evidence.discovery.structuralCrawl?.safetyCapReached
+    observedAuthority && hasReadyHotelInventoryAuthorityV3(observedAuthority)
   );
   const inventoryAuthority = input.inventoryAuthority
-    || (observedAuthorityEligible ? observedAuthority : null);
+    ? mergeHotelInventoryAuthoritiesV3(
+        input.inventoryAuthority,
+        observedAuthorityEligible ? observedAuthority : null,
+      )
+    : observedAuthorityEligible
+      ? observedAuthority
+      : null;
   const authorityInventory = inventoryAuthority
     ? applyHotelInventoryAuthorityV3(discovery.inventory, inventoryAuthority)
     : discovery.inventory;
@@ -124,10 +129,10 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
         .map((document) => document.url),
     },
   );
-  // Operational entity identity/counts remain locked to the signed canonical
-  // inventory authority. Deep extraction may enrich those entities, but may not
-  // silently add/remove them. A changed deep structural snapshot is reported as
-  // an explicit inventory delta for review.
+  // Signed READY domains remain locked to the Quick canonical authority.
+  // Deep may add authority for domains that were not READY in Quick, but it may
+  // not silently change entity identity/counts inside already locked domains.
+  // Any drift in a previously READY domain is an explicit review delta.
   const inventory = inventoryAuthority
     ? applyHotelInventoryAuthorityV3(reconciledInventory, inventoryAuthority)
     : reconciledInventory;
@@ -207,6 +212,12 @@ export async function runHotelIntakePipelineV2FromDiscoverySafe(input: {
       observed: observedAuthority ? summarizeHotelInventoryAuthorityV3(observedAuthority) : null,
       delta: inventoryDelta,
       authorityLocked: Boolean(input.inventoryAuthority),
+      lockedReadyDomains: input.inventoryAuthority
+        ? summarizeHotelInventoryAuthorityV3(input.inventoryAuthority).readyDomains || []
+        : [],
+      effectiveReadyDomains: inventoryAuthority
+        ? summarizeHotelInventoryAuthorityV3(inventoryAuthority).readyDomains || []
+        : [],
       observedAuthorityEligible,
     },
     extraction,
