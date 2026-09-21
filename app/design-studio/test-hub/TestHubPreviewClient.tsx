@@ -211,6 +211,22 @@ function categorySources(pkg: HotelIntelligencePackage, category: HotelOnboardin
   return (pkg.onboardingSources || []).filter((source) => source.category === category);
 }
 
+function hotelDisplayName(pkg: HotelIntelligencePackage) {
+  const raw = cleanText(pkg.hotelProfileLayer.identity.hotelName);
+  if (raw && raw.length <= 54 && !/[|:]/u.test(raw)) return raw;
+  try {
+    const host = new URL(pkg.source.canonicalUrl || pkg.source.requestedUrl).hostname.replace(/^www\./u, "");
+    const brand = host.split(".")[0]?.replace(/[-_]+/gu, " ").trim() || "Hotel";
+    return brand.replace(/\b\p{L}/gu, (letter) => letter.toLocaleUpperCase());
+  } catch {
+    return raw || "Hotel";
+  }
+}
+
+function hasSources(pkg: HotelIntelligencePackage, category: HotelOnboardingSourceCategory) {
+  return categorySources(pkg, category).length > 0;
+}
+
 function cardAvailable(pkg: HotelIntelligencePackage, key: CardKey) {
   const category = CATEGORY_FOR_CARD[key];
   if (category) return categorySources(pkg, category).length > 0;
@@ -287,7 +303,7 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
   }
 
   const currentPkg = pkg;
-  const hotelName = currentPkg.hotelProfileLayer.identity.hotelName || "Hotel";
+  const hotelName = hotelDisplayName(currentPkg);
   const info = {
     checkIn: currentPkg.hotelProfileLayer.operations.checkIn || "",
     checkOut: currentPkg.hotelProfileLayer.operations.checkOut || "",
@@ -333,25 +349,51 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
           {currentPkg.hotelProfileLayer.contacts.phones.map((phone) => <InfoRow key={phone} label={copy.phone} value={phone} />)}
           {currentPkg.hotelProfileLayer.contacts.emails.map((email) => <InfoRow key={email} label="Email" value={email} />)}
           {currentPkg.hotelProfileLayer.identity.address ? <InfoRow label={copy.address} value={currentPkg.hotelProfileLayer.identity.address} /> : null}
+          <div className="rounded-2xl border border-[#d9ece9] bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#4ca79d]">{copy.policies}</p>
+            <p className="mt-2 text-sm leading-6 text-[#365f61]">
+              {hasSources(currentPkg, "policies") ? copy.sourceOnly : copy.noData}
+            </p>
+          </div>
         </div>
       );
     }
 
-    const category = CATEGORY_FOR_CARD[card.key];
-    if (category) {
-      const sources = categorySources(currentPkg, category);
-      const names = curatedNames(sources, category);
+    if (card.key === "gastronomy" || card.key === "wellness" || card.key === "extras") {
+      const category = CATEGORY_FOR_CARD[card.key];
+      const found = category ? hasSources(currentPkg, category) : false;
       return (
-        <div>
-          <div className="rounded-2xl bg-[#edf9f7] p-4 text-sm leading-6 text-[#2b5e60]">{copy.sourceOnly}</div>
-          <div className="mt-4 space-y-2">
-            {names.length ? names.map((name) => (
-              <div key={name} className="rounded-2xl border border-[#d9ece9] bg-white px-4 py-3 text-sm font-semibold text-[#244f52]">{name}</div>
-            )) : <div className="rounded-2xl border border-dashed border-[#cce5e1] p-4 text-sm text-slate-500">{copy.noData}</div>}
+        <div className="space-y-3">
+          <div className="rounded-2xl bg-[#edf9f7] p-4 text-sm leading-6 text-[#2b5e60]">
+            {found ? copy.sourceOnly : copy.noData}
           </div>
-          <p className="mt-4 text-xs text-slate-400">{copy.draft}</p>
+          <div className="rounded-2xl border border-dashed border-[#cce5e1] bg-white p-5 text-sm leading-6 text-slate-500">
+            {copy.manual}
+          </div>
         </div>
       );
+    }
+
+    if (card.key === "around") {
+      const hasExperienceSources = hasSources(currentPkg, "experiences") || hasSources(currentPkg, "events");
+      return (
+        <div className="space-y-3">
+          <div className="rounded-2xl bg-[#edf9f7] p-4 text-sm leading-6 text-[#2b5e60]">
+            {hasExperienceSources ? copy.sourceOnly : copy.noData}
+          </div>
+          <div className="rounded-2xl border border-dashed border-[#cce5e1] bg-white p-5 text-sm leading-6 text-slate-500">
+            {copy.manual}
+          </div>
+        </div>
+      );
+    }
+
+    if (card.key === "weather") {
+      return <div className="rounded-2xl border border-[#d9ece9] bg-white p-5 text-sm leading-6 text-[#365f61]">Weather module · automatic hotel location data</div>;
+    }
+
+    if (card.key === "reviews") {
+      return <div className="rounded-2xl border border-dashed border-[#cce5e1] bg-white p-5 text-sm leading-6 text-slate-500">{copy.manual}</div>;
     }
 
     return <div className="rounded-2xl border border-dashed border-[#cce5e1] p-5 text-sm leading-6 text-slate-500">{copy.manual}</div>;
@@ -400,7 +442,7 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
 
         <nav className="sticky bottom-0 grid grid-cols-4 border-t border-[#d5ebe8] bg-white/95 px-2 py-2 backdrop-blur">
           {[copy.home, copy.services, copy.hotel, copy.more].map((label, index) => (
-            <button key={label} type="button" onClick={() => setActive(index === 0 ? null : index === 1 ? "gastronomy" : index === 2 ? "info" : "policies")} className="min-h-12 rounded-xl text-[11px] font-semibold text-[#5b7b7d] hover:bg-[#edf8f6]">{label}</button>
+            <button key={label} type="button" onClick={() => setActive(index === 0 ? null : index === 1 ? "extras" : index === 2 ? "info" : "around")} className="min-h-12 rounded-xl text-[11px] font-semibold text-[#5b7b7d] hover:bg-[#edf8f6]">{label}</button>
           ))}
         </nav>
       </div>
