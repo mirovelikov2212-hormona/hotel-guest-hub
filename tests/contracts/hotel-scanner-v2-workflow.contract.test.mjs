@@ -237,3 +237,13 @@ test("Quick Intake presents onboarding links, contacts and hotel info without in
 });
 
 
+
+
+test("Onboarding index collapses accommodation and offers to one landing source each", async () => {
+  const preview = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
+
+  assert.match(preview, /function onboardingSourceLimit/);
+  assert.match(preview, /category === "accommodation" \|\| category === "offers"/);
+  assert.match(preview, /return 1/);
+  assert.match(preview, /onboardingSourceLimit\(candidate\.category\)/);
+});
