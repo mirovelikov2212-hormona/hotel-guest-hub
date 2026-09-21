@@ -708,6 +708,11 @@ function pageTypePriority(type: string) {
   return 2;
 }
 
+function onboardingSourceLimit(category: HotelOnboardingSourceCategory) {
+  if (category === "accommodation" || category === "offers") return 1;
+  return 16;
+}
+
 function buildOnboardingSources(discovery: HotelIntakeV2DiscoveryResult): HotelOnboardingSource[] {
   const requestedLanguage = intakePathLanguage(discovery.evidence.canonicalUrl || discovery.evidence.requestedUrl);
   const candidates = (discovery.siteMap.resources || [])
@@ -754,7 +759,7 @@ function buildOnboardingSources(discovery: HotelIntakeV2DiscoveryResult): HotelO
     const dedupeKey = candidate.category + "|" + candidate.variantKey;
     if (seen.has(dedupeKey)) continue;
     const count = categoryCounts.get(candidate.category) || 0;
-    if (count >= 16) continue;
+    if (count >= onboardingSourceLimit(candidate.category)) continue;
     seen.add(dedupeKey);
     categoryCounts.set(candidate.category, count + 1);
     result.push({
