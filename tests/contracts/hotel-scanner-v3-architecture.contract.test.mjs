@@ -169,7 +169,9 @@ test("Scanner Intake ignores site-wide V3 authority and uses targeted room/dinin
 
   assert.match(quick, /targetedDomainItems/);
   assert.match(quick, /deriveHotelPageInventoryHintsV2/);
-  assert.match(quick, /classification\.primaryType !== domain/);
+  assert.match(quick, /hotelScannerPageTypeDomain\(classification\.primaryType\) !== domain/);
+  assert.match(quick, /roomCardItems/);
+  assert.match(quick, /atomicVenueItems/);
   assert.match(quick, /Intake deliberately ignores site-wide V3 inventory authority/);
   assert.match(quick, /inventoryAuthority:\s*null/);
 
@@ -186,6 +188,9 @@ test("Scanner Intake bounds noisy landing-page candidates instead of exposing si
   assert.match(quick, /uniqueIntakeItems\(items, domain === "accommodation" \? 30 : 20\)/);
   assert.match(quick, /homepageItems/);
   assert.match(quick, /detailSuffix/);
+  assert.match(quick, /ROOM_AREA_SIGNAL/);
+  assert.match(quick, /ROOM_OCCUPANCY_SIGNAL/);
+  assert.match(quick, /const nearest = clocks\.sort/);
 });
 
 test("Scanner V3 Quick stays inside the interactive request budget as the final Intake path", async () => {
