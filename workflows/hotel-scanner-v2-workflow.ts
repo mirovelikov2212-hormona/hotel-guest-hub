@@ -1,3 +1,4 @@
+import { gunzipSync } from "node:zlib";
 import { defineHook, FatalError } from "workflow";
 
 import type { HotelScannerV2OutputLanguage } from "@/lib/ai/hotel-scanner-v2-domain-extractors-safe";
@@ -20,6 +21,7 @@ export type HotelScannerV2WorkflowInput = {
   outputLanguage: HotelScannerV2OutputLanguage;
   inventoryAuthority?: Record<string, unknown>;
   discoveryCheckpoint?: HotelScannerV2EvidenceBundle;
+  discoveryCheckpointGzip?: string;
   discoveryCheckpointLatencyMs?: number;
 };
 
@@ -40,19 +42,37 @@ function hasQuotaExhaustion(result: HotelIntakePipelineV2Result) {
   return result.extraction.issues.some((issue) => issue.code === "AI_QUOTA_EXHAUSTED");
 }
 
+function workflowDiscoveryCheckpoint(input: HotelScannerV2WorkflowInput) {
+  if (input.discoveryCheckpoint) return input.discoveryCheckpoint;
+  const payload = String(input.discoveryCheckpointGzip || "").trim();
+  if (!payload) return undefined;
+
+  const compressed = Buffer.from(payload, "base64url");
+  if (compressed.byteLength > 400_000) throw new FatalError("scanner_v3_checkpoint_compressed_too_large");
+  const raw = gunzipSync(compressed);
+  if (raw.byteLength > 3_000_000) throw new FatalError("scanner_v3_checkpoint_uncompressed_too_large");
+  try {
+    return JSON.parse(raw.toString("utf8")) as HotelScannerV2EvidenceBundle;
+  } catch {
+    throw new FatalError("scanner_v3_checkpoint_invalid_json");
+  }
+}
+
 async function runDiscoveryCheckpointStep(input: HotelScannerV2WorkflowInput): Promise<ScannerV2DiscoveryCheckpoint> {
   "use step";
 
   const startedAt = Date.now();
+  const discoveryCheckpoint = workflowDiscoveryCheckpoint(input);
   console.log("scanner_v2_workflow_discovery_started", {
     url: input.url,
     outputLanguage: input.outputLanguage,
-    resumedFromQuickCheckpoint: Boolean(input.discoveryCheckpoint),
-    checkpointPageCount: input.discoveryCheckpoint?.pages?.length || 0,
+    resumedFromQuickCheckpoint: Boolean(discoveryCheckpoint),
+    checkpointPageCount: discoveryCheckpoint?.pages?.length || 0,
+    checkpointTransport: input.discoveryCheckpointGzip ? "gzip" : input.discoveryCheckpoint ? "inline" : "none",
   });
 
-  const discovery = input.discoveryCheckpoint
-    ? await resumeHotelIntakeRenderedV3(input.discoveryCheckpoint)
+  const discovery = discoveryCheckpoint
+    ? await resumeHotelIntakeRenderedV3(discoveryCheckpoint)
     : await discoverHotelIntakeRenderedV2(input.url);
   const discoveryLatencyMs = Math.max(0, Number(input.discoveryCheckpointLatencyMs || 0))
     + (Date.now() - startedAt);
@@ -62,7 +82,7 @@ async function runDiscoveryCheckpointStep(input: HotelScannerV2WorkflowInput): P
     pageCount: discovery.evidence.pages.length,
     resourceCount: discovery.siteMap.resources.length,
     inventorySnapshotId: discovery.evidence.v3InventorySnapshot?.snapshotId || "",
-    resumedFromQuickCheckpoint: Boolean(input.discoveryCheckpoint),
+    resumedFromQuickCheckpoint: Boolean(discoveryCheckpoint),
   });
   return { discovery, discoveryLatencyMs };
 }
