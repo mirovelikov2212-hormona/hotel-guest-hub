@@ -214,15 +214,57 @@ async function renderedBrandSnapshot(page: Page): Promise<HotelScannerV2Rendered
     const blocked = (element: Element) => Boolean(element.closest(
       "[role='dialog'],[aria-modal='true'],[class*='cookie' i],[id*='cookie' i],[class*='consent' i],[id*='consent' i],[class*='popup' i],[class*='modal' i]"
     ));
+    const painted = (value: string | null | undefined) => {
+      const raw = String(value || "").trim().toLowerCase();
+      return Boolean(raw)
+        && raw !== "transparent"
+        && raw !== "rgba(0, 0, 0, 0)"
+        && raw !== "rgb(0 0 0 / 0)";
+    };
+    const effectivePaint = (element: Element) => {
+      const rect = element.getBoundingClientRect();
+      const candidates: Array<{ source: string; backgroundColor: string; borderRadius: string }> = [];
+      const own = getComputedStyle(element);
+      candidates.push({ source: "element", backgroundColor: own.backgroundColor || "", borderRadius: own.borderRadius || "" });
+      for (const pseudo of ["::before", "::after"]) {
+        const style = getComputedStyle(element, pseudo);
+        if (style.content && style.content !== "none") {
+          candidates.push({ source: pseudo, backgroundColor: style.backgroundColor || "", borderRadius: style.borderRadius || "" });
+        }
+      }
+      let parent = element.parentElement;
+      let depth = 0;
+      while (parent && depth < 3) {
+        const parentRect = parent.getBoundingClientRect();
+        const areaRatio = Math.max(1, (parentRect.width * parentRect.height) / Math.max(1, rect.width * rect.height));
+        if (areaRatio <= 6 && parentRect.width >= rect.width * 0.85 && parentRect.height >= rect.height * 0.85) {
+          const style = getComputedStyle(parent);
+          candidates.push({ source: `parent:${depth + 1}`, backgroundColor: style.backgroundColor || "", borderRadius: style.borderRadius || "" });
+          for (const pseudo of ["::before", "::after"]) {
+            const pseudoStyle = getComputedStyle(parent, pseudo);
+            if (pseudoStyle.content && pseudoStyle.content !== "none") {
+              candidates.push({ source: `parent:${depth + 1}${pseudo}`, backgroundColor: pseudoStyle.backgroundColor || "", borderRadius: pseudoStyle.borderRadius || "" });
+            }
+          }
+        }
+        parent = parent.parentElement;
+        depth += 1;
+      }
+      return candidates.find((candidate) => painted(candidate.backgroundColor))
+        || candidates.find((candidate) => candidate.borderRadius && candidate.borderRadius !== "0px")
+        || candidates[0];
+    };
     const probe = (element: Element | null) => {
       if (!element || !visible(element) || blocked(element)) return null;
       const style = getComputedStyle(element);
       const rect = element.getBoundingClientRect();
+      const paint = effectivePaint(element);
       return {
         color: style.color || "",
-        backgroundColor: style.backgroundColor || "",
+        backgroundColor: paint?.backgroundColor || style.backgroundColor || "",
         fontFamily: style.fontFamily || "",
-        borderRadius: style.borderRadius || "",
+        borderRadius: paint?.borderRadius || style.borderRadius || "",
+        paintSource: paint?.source || "element",
         backgroundImage: style.backgroundImage || "",
         area: Math.max(0, rect.width * rect.height),
         top: rect.top,
@@ -302,9 +344,9 @@ async function renderedBrandSnapshot(page: Page): Promise<HotelScannerV2Rendered
   add("header_background", raw.header?.backgroundColor, 0.95, "visible header");
   add("hero_background", raw.hero?.backgroundColor, 0.82, "visible hero");
   add("surface", raw.card?.backgroundColor, 0.92, "visible card");
-  add("button_background", raw.action?.backgroundColor, 1, "visible CTA");
-  add("button_text", raw.action?.color, 1, "visible CTA");
-  add("primary", raw.action?.backgroundColor, 0.98, "visible CTA");
+  add("button_background", raw.action?.backgroundColor, 1, `visible CTA paint:${raw.action?.paintSource || "element"}`);
+  add("button_text", raw.action?.color, 1, "visible CTA text");
+  add("primary", raw.action?.backgroundColor, 0.98, `visible CTA paint:${raw.action?.paintSource || "element"}`);
 
   return {
     colorRoles,
