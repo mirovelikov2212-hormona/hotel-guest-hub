@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { buildHotelStructuralInventoryGraphV3 } from "../../lib/server/hotel-scanner-v3-structural-inventory.mjs";
 import { canonicalizeHotelIntakeUrl } from "../../lib/server/hotel-scanner-v2-site-map.mjs";
+import { classifyHotelScannerPageV2, hotelScannerPageTypeDomain } from "../../lib/server/hotel-scanner-v2-page-classifier.mjs";
 
 function page(url, title, blocks = [], extra = {}) {
   const contentLinks = blocks.flatMap((block) => (block.linkItems || []).map((item) => new URL(item.href, url).toString()));
@@ -184,4 +185,43 @@ test("V3 roles distinguish navigation/list/detail structure without hotel ontolo
   const roles = new Map(graph.roles.map((item) => [item.url, item.role]));
   assert.equal(roles.get(canonicalizeHotelIntakeUrl(group)), "HYBRID");
   assert.equal(roles.get(canonicalizeHotelIntakeUrl(`${group}one/`)), "DETAIL");
+});
+
+
+test("M8 compound hotel slugs expose domain tokens without hotel-specific routes", () => {
+  const offers = classifyHotelScannerPageV2({
+    url: "https://hotel.test/de/wohnen-angebote/5-sterne-hotel-oesterreich-angebote/",
+    title: "",
+  });
+  assert.equal(hotelScannerPageTypeDomain(offers.primaryType), "offers");
+
+  const services = classifyHotelScannerPageV2({
+    url: "https://hotel.test/en/hotel-services/guest-support/",
+    title: "",
+  });
+  assert.equal(hotelScannerPageTypeDomain(services.primaryType), "services");
+});
+
+test("M8 redundant linked teaser subsets collapse behind their richer authority family", () => {
+  const authority = "https://hotel.test/offers/";
+  const spa = "https://hotel.test/spa/";
+  const allOffers = Array.from({ length: 8 }, (_, index) => ({
+    href: `${authority}offer-${index + 1}/`,
+    text: `Offer ${index + 1}`,
+  }));
+  const teaser = allOffers.slice(0, 3);
+
+  const graph = buildHotelStructuralInventoryGraphV3({
+    requestedUrl: "https://hotel.test/",
+    canonicalUrl: "https://hotel.test/",
+    pages: [
+      page(authority, "Offers", [listBlock("Offers", authority, allOffers)]),
+      page(spa, "Spa", [listBlock("Featured offers", spa, teaser)]),
+    ],
+    discovery: { sitemapPageUrls: [], internalLinkUrls: [], navigationUrls: [] },
+  });
+
+  assert.equal(graph.families.length, 1);
+  assert.equal(graph.families[0].sourceUrl, canonicalizeHotelIntakeUrl(authority));
+  assert.equal(graph.families[0].members.length, 8);
 });
