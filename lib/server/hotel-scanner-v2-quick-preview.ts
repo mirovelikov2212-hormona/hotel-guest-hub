@@ -382,12 +382,15 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
           authority
           && authority.domains.some((entry) => entry.domain === domain.domain),
         );
-        const componentItems = previewItemsForDomain(
-          discovery,
-          domain.domain,
-          domain.expectedItems || [],
-          { allowEvidenceExpansion: !domainHasV3Authority },
-        );
+        const manualOnly = domain.domain === "experiences";
+        const componentItems = manualOnly
+          ? []
+          : previewItemsForDomain(
+              discovery,
+              domain.domain,
+              domain.expectedItems || [],
+              { allowEvidenceExpansion: !domainHasV3Authority },
+            );
         const contactMethodCount = contacts.phones.length + contacts.emails.length + contacts.addresses.length;
         return {
           domain: domain.domain,
@@ -398,8 +401,9 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
               : componentItems.length || domain.expectedCount,
           state: domain.expectationState,
           namedCount: domain.domain === "contacts" ? contactMethodCount : componentItems.length,
-          needsOnboarding: domain.domain !== "contacts"
-            && domain.expectedCount > rawComponentItems.length,
+          needsOnboarding: manualOnly || (domain.domain !== "contacts"
+            && domain.expectedCount > rawComponentItems.length),
+          manualOnly,
           items: componentItems,
         };
       }),
