@@ -111,6 +111,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.info("scanner_v3_quick_checkpoint_handoff", {
+      requestedUrl: url,
+      pageCount: discovery.evidence.pages.length,
+      checkpointBytes,
+      maxInlineBytes: MAX_INLINE_WORKFLOW_CHECKPOINT_BYTES,
+      authorityEligible,
+      snapshotStatus: snapshot?.status || "",
+      structuralClosed: Boolean(structuralCrawl?.inventoryClosed),
+      workflowStarted: Boolean(workflow),
+    });
+
     return json({
       ok: true,
       mode: "quick_preview",
