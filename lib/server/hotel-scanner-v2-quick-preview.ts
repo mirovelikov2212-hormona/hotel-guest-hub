@@ -324,6 +324,19 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
   const venues = inventory.domains.find((domain: { domain: string }) => domain.domain === "gastronomy")?.expectedItems || [];
   const policies = inventory.domains.find((domain: { domain: string }) => domain.domain === "policies")?.expectedItems || [];
   const contacts = quickContacts(discovery);
+  const policyDocuments = (discovery.inventory.documents || [])
+    .filter((document: { domains?: string[] }) => document.domains?.includes("policies"))
+    .map((document: { url?: string }, index: number) => {
+      const url = clean(document.url, 2_048);
+      let name = `Policy / FAQ ${index + 1}`;
+      try {
+        name = decodeURIComponent(new URL(url).pathname.split("/").filter(Boolean).pop() || name)
+          .replace(/\.pdf$/iu, "")
+          .replace(/[-_]+/gu, " ")
+          .trim() || name;
+      } catch {}
+      return { nameHint: name, url, urls: [url].filter(Boolean) };
+    });
   const name = hotelName(discovery);
   const sourceUrls = unique([canonicalUrl, ...items.flatMap((item) => item.sourceUrls)]);
   const sourcePackage: HotelIntelligencePackage = {
@@ -368,9 +381,13 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
     components: inventory.domains
       .filter((domain: HotelScannerV2DomainInventory) => INTAKE_DOMAINS.includes(domain.domain as (typeof INTAKE_DOMAINS)[number]))
       .map((domain: HotelScannerV2DomainInventory) => {
-        const rawComponentItems = (domain.expectedItems || []).map((item) => ({
+        const domainItems = domain.domain === "policies"
+          ? [...(domain.expectedItems || []), ...policyDocuments]
+          : (domain.expectedItems || []);
+        const rawComponentItems = domainItems.map((item) => ({
           name: clean(item.nameHint, 240),
           hours: domain.domain === "gastronomy" ? openingHoursForItem(discovery, item) : "",
+          url: clean(item.url, 2_048),
         })).filter((item) => item.name);
         const snapshotDomain = discovery.evidence.v3InventorySnapshot?.domains?.find(
           (entry: { domain?: string }) => entry?.domain === domain.domain,
@@ -381,12 +398,17 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
             entry.domain === domain.domain && entry.authorityStatus === "READY"),
         );
         const manualOnly = false;
-        const componentItems = previewItemsForDomain(
-          discovery,
-          domain.domain,
-          domain.expectedItems || [],
-          { allowEvidenceExpansion: false },
-        );
+        const componentItems = domain.domain === "policies"
+          ? rawComponentItems
+          : previewItemsForDomain(
+              discovery,
+              domain.domain,
+              domainItems,
+              { allowEvidenceExpansion: false },
+            ).map((item, index) => ({
+              ...item,
+              url: clean(domainItems[index]?.url, 2_048),
+            }));
         const authorityStatus = domain.domain === "policies"
           ? (componentItems.length ? "READY" : "NOT_DISCOVERED")
           : clean(snapshotDomain?.authorityStatus || (domainHasV3Authority ? "READY" : "PARTIAL"), 80);
