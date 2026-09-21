@@ -9,7 +9,7 @@ import {
   validateHubDesignDraftPayload,
   type HubDesignDraftPayload,
 } from "@/lib/product-factory/hub-design-draft";
-import type { HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
+import type { HotelIntelligencePackage, HotelOnboardingSourceCategory } from "@/lib/product-factory/hotel-intelligence-package";
 import { buildHubDesignProposal, type HubDesignSection } from "@/lib/product-factory/hub-design-proposal";
 import {
   buildHubExperienceBlueprint,
@@ -27,7 +27,7 @@ import {
 const PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1";
 const NEW_SECTION = "__new_section__";
 
-type Panel = "structure" | "pages" | "campaigns" | "navigation" | "survey" | "style" | "versions" | "qa";
+type Panel = "sources" | "structure" | "pages" | "campaigns" | "navigation" | "survey" | "style" | "versions" | "qa";
 type EditableOffer = HubOfferDraft & { ctaDestination: string };
 type EditablePromotion = HubPromotionDraft & { ctaDestination: string };
 type RevisionMeta = {
@@ -73,6 +73,24 @@ const MODULES: HubModuleKind[] = [
   "floating_banner", "message_teaser", "survey_card", "ai_concierge", "weather", "contact_strip",
 ];
 
+const SOURCE_CATEGORY_ORDER: HotelOnboardingSourceCategory[] = [
+  "accommodation", "gastronomy", "wellness", "services", "experiences",
+  "events", "offers", "policies", "contacts", "documents",
+];
+
+const SOURCE_CATEGORY_LABELS: Record<HotelOnboardingSourceCategory, { bg: string; en: string }> = {
+  accommodation: { bg: "Настаняване", en: "Accommodation" },
+  gastronomy: { bg: "Ресторанти и барове", en: "Restaurants & bars" },
+  wellness: { bg: "SPA / Wellness", en: "SPA / Wellness" },
+  services: { bg: "Услуги", en: "Services" },
+  experiences: { bg: "Преживявания / Activities", en: "Experiences / Activities" },
+  events: { bg: "Събития", en: "Events" },
+  offers: { bg: "Оферти", en: "Offers" },
+  policies: { bg: "Политики / FAQ", en: "Policies / FAQ" },
+  contacts: { bg: "Контакти", en: "Contacts" },
+  documents: { bg: "Документи / PDF", en: "Documents / PDF" },
+};
+
 const COPY = {
   bg: {
     title: "Hub Experience Builder V3",
@@ -84,6 +102,10 @@ const COPY = {
     saving: "Записване…",
     reset: "Върни AI blueprint",
     clear: "Изчисти локалния пакет",
+    sources: "Onboarding източници",
+    sourceHelp: "Отвори източника, попълни нужната информация в Design Studio и го отбележи като използван.",
+    used: "Използвано",
+    sourcesDone: "обработени",
     structure: "Структура",
     pages: "Страници",
     campaigns: "Кампании",
@@ -118,6 +140,10 @@ const COPY = {
     saving: "Saving…",
     reset: "Reset AI blueprint",
     clear: "Clear local package",
+    sources: "Onboarding sources",
+    sourceHelp: "Open a source, use the relevant information in Design Studio, then mark it as used.",
+    used: "Used",
+    sourcesDone: "processed",
     structure: "Structure",
     pages: "Pages",
     campaigns: "Campaigns",
@@ -166,13 +192,14 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
   const copy = COPY[language];
   const [pkg, setPkg] = useState<HotelIntelligencePackage | null>(null);
   const [previewAuthority, setPreviewAuthority] = useState<PreviewAuthority | null>(null);
-  const [panel, setPanel] = useState<Panel>("structure");
+  const [panel, setPanel] = useState<Panel>(quickPreview ? "sources" : "structure");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot | null>(null);
   const [diff, setDiff] = useState<DraftDiff | null>(null);
   const [activeScreen, setActiveScreen] = useState("home");
+  const [usedSourceIds, setUsedSourceIds] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -212,6 +239,47 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
     }
     return () => { cancelled = true; };
   }, [scanRunId, quickPreview]);
+
+  const sourceUsageStorageKey = pkg
+    ? `stayhub:onboarding-source-used:v1:${encodeURIComponent(pkg.source.canonicalUrl)}`
+    : "";
+
+  useEffect(() => {
+    if (!sourceUsageStorageKey) {
+      setUsedSourceIds([]);
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(sourceUsageStorageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      setUsedSourceIds(Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : []);
+    } catch {
+      setUsedSourceIds([]);
+    }
+  }, [sourceUsageStorageKey]);
+
+  const onboardingSourceGroups = useMemo(() => {
+    const sources = pkg?.onboardingSources || [];
+    return SOURCE_CATEGORY_ORDER
+      .map((category) => ({
+        category,
+        sources: sources.filter((source) => source.category === category),
+      }))
+      .filter((group) => group.sources.length);
+  }, [pkg?.onboardingSources]);
+
+  function toggleSourceUsed(sourceId: string) {
+    setUsedSourceIds((current) => {
+      const next = current.includes(sourceId)
+        ? current.filter((id) => id !== sourceId)
+        : [...current, sourceId];
+      if (sourceUsageStorageKey) {
+        try { window.localStorage.setItem(sourceUsageStorageKey, JSON.stringify(next)); }
+        catch {}
+      }
+      return next;
+    });
+  }
 
   const proposal = useMemo(() => pkg ? buildHubDesignProposal(pkg, language) : null, [pkg, language]);
   const generated = useMemo(() => pkg ? buildHubExperienceBlueprint(pkg, language) : null, [pkg, language]);
@@ -524,11 +592,55 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
       {(notice || error) && <div className={`mt-4 rounded-2xl border p-3 text-xs ${error ? "border-rose-300/20 text-rose-200" : "border-emerald-300/20 text-emerald-200"}`}>{error || notice}</div>}
 
       <div className="mt-5 flex gap-2 overflow-x-auto pb-2">
-        {(["structure", "pages", "campaigns", "navigation", "survey", "style", "versions", "qa"] as Panel[]).map((id) => <button key={id} type="button" onClick={() => setPanel(id)} className={`min-h-11 shrink-0 rounded-xl border px-4 text-xs font-semibold ${panel === id ? "border-violet-300/30 bg-violet-300/[0.08] text-violet-100" : "border-white/5 text-neutral-500"}`}>{copy[id]}</button>)}
+        {(["sources", "structure", "pages", "campaigns", "navigation", "survey", "style", "versions", "qa"] as Panel[]).map((id) => <button key={id} type="button" onClick={() => setPanel(id)} className={`min-h-11 shrink-0 rounded-xl border px-4 text-xs font-semibold ${panel === id ? "border-violet-300/30 bg-violet-300/[0.08] text-violet-100" : "border-white/5 text-neutral-500"}`}>{copy[id]}</button>)}
       </div>
 
       <div className="mt-4 grid gap-6 2xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="rounded-3xl border border-white/5 bg-neutral-950/70 p-4 sm:p-5">
+          {panel === "sources" && <div className="space-y-5">
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <SectionTitle>{copy.sources}</SectionTitle>
+                <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] text-neutral-500">
+                  {usedSourceIds.filter((id) => pkg.onboardingSources?.some((source) => source.id === id)).length}/{pkg.onboardingSources?.length || 0} {copy.sourcesDone}
+                </span>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-neutral-500">{copy.sourceHelp}</p>
+            </div>
+            {!pkg.onboardingSources?.length ? (
+              <p className="rounded-2xl border border-white/5 p-4 text-sm text-neutral-600">No onboarding source index in this package.</p>
+            ) : onboardingSourceGroups.map(({ category, sources }) => (
+              <section key={category} className="rounded-2xl border border-white/5 bg-black/15 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-neutral-200">{SOURCE_CATEGORY_LABELS[category][language]}</h3>
+                  <span className="text-[10px] text-neutral-600">{sources.length}</span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {sources.map((source) => {
+                    const used = usedSourceIds.includes(source.id);
+                    return (
+                      <div key={source.id} className={`rounded-xl border p-3 ${used ? "border-emerald-300/15 bg-emerald-300/[0.025]" : "border-white/5 bg-neutral-900/60"}`}>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <p className={`text-sm font-semibold ${used ? "text-neutral-500 line-through" : "text-neutral-200"}`}>{source.title}</p>
+                            <p className="mt-1 break-all text-[10px] text-neutral-700">{source.url}</p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <a href={source.url} target="_blank" rel="noreferrer" className="min-h-11 rounded-xl border border-cyan-300/15 px-3 py-3 text-xs font-semibold text-cyan-100">Open ↗</a>
+                            <label className="flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs text-neutral-400">
+                              <input type="checkbox" checked={used} onChange={() => toggleSourceUsed(source.id)} />
+                              {copy.used}
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>}
+
           {panel === "structure" && <div className="space-y-6">
             <Select label="Preset" value={preset} onChange={(value) => setPreset(value as HubExperiencePreset)} options={Object.entries(PRESETS).map(([value, label]) => ({ value, label }))} />
             <div><SectionTitle>Home modules</SectionTitle><div className="mt-3 grid gap-2 sm:grid-cols-2">{MODULES.map((module) => <Toggle key={module} label={module} active={modules.includes(module)} onClick={() => setModules((current) => current.includes(module) ? current.filter((item) => item !== module) : [...current, module])} />)}</div></div>
