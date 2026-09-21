@@ -10,6 +10,7 @@ type IntakeItem = {
   name: string;
   hours?: string;
   url?: string;
+  value?: string;
 };
 
 type QuickPreview = {
@@ -33,7 +34,7 @@ type QuickPreview = {
 };
 
 const PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1";
-const VISIBLE_DOMAINS = new Set(["accommodation", "gastronomy", "policies", "contacts"]);
+const VISIBLE_DOMAINS = new Set(["accommodation", "gastronomy", "policies", "contacts", "info"]);
 
 const COPY = {
   bg: {
@@ -88,6 +89,7 @@ function domainLabel(domain: string, lang: ControlPlaneLang) {
     gastronomy: ["Ресторанти и барове", "Restaurants & bars"],
     policies: ["Политики / FAQ", "Policies / FAQ"],
     contacts: ["Контакти", "Contacts"],
+    info: ["Инфо", "Info"],
   };
   return labels[domain]?.[lang === "bg" ? 0 : 1] || domain;
 }
@@ -217,7 +219,11 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
                     <div className="mt-4 space-y-2">
                       {items.map((item, index) => (
                         <div key={`${component.domain}:${item.name}:${index}`} className="v2-card p-3">
-                          <p className="text-sm font-semibold">{item.name}</p>
+                          {component.domain === "info" ? (
+                            <p className="text-sm"><strong>{item.name}:</strong> {item.value || "—"}</p>
+                          ) : (
+                            <p className="text-sm font-semibold">{item.name}</p>
+                          )}
                           {component.domain === "gastronomy" ? (
                             <p className="v2-muted mt-1 text-xs">
                               {item.hours ? `${copy.openingHours}: ${item.hours}` : copy.hoursMissing}
