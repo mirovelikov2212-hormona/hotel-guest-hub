@@ -219,12 +219,13 @@ test("Scanner V3 M7 canonical authority controls Quick entity count and list mem
   assert.match(quick, /domainHasV3Authority\s*\?\s*domain\.expectedCount/s);
   assert.match(quick, /if \(options\.allowEvidenceExpansion === false\) return base/);
 
-  assert.match(previewRoute, /snapshot\.status === "READY"/);
-  assert.doesNotMatch(previewRoute, /snapshot\.status !== "ONTOLOGY_CONFLICT"/);
+  assert.match(previewRoute, /hasReadyHotelInventoryAuthorityV3/);
+  assert.doesNotMatch(previewRoute, /snapshot\.status === "READY"/);
 
   assert.match(pipeline, /observedAuthorityEligible/);
-  assert.match(pipeline, /observedSnapshot\.status === "READY"/);
-  assert.match(pipeline, /observedAuthorityEligible \? observedAuthority : null/);
+  assert.match(pipeline, /hasReadyHotelInventoryAuthorityV3/);
+  assert.match(pipeline, /mergeHotelInventoryAuthoritiesV3/);
+  assert.doesNotMatch(pipeline, /observedSnapshot\.status === "READY"/);
 });
 
 test("Scanner V3 M7 semantic enrichment cannot become an authority entity when V3 is locked", async () => {
@@ -250,4 +251,29 @@ test("Scanner V3 Quick stays inside the interactive request budget and hands unf
   assert.match(rendered, /QUICK_PREVIEW_BROWSER_WALL_MS = 25_000/);
   assert.match(rendered, /options: \{ wallMs\?: number \}/);
   assert.match(rendered, /Date\.now\(\) - startedAt >= wallMs/);
+});
+
+
+test("Scanner V3 M9 authority is domain-scoped instead of hotel-wide all-or-nothing", async () => {
+  const canonical = await readProjectFile("lib/server/hotel-scanner-v3-canonical-inventory.mjs");
+  const quick = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
+  const previewRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-preview/route.ts");
+  const pipeline = await readProjectFile("lib/server/hotel-scanner-v2-pipeline-safe.ts");
+
+  assert.match(canonical, /authorityStatus/);
+  assert.match(canonical, /"READY"/);
+  assert.match(canonical, /"PARTIAL"/);
+  assert.match(canonical, /"CONFLICT"/);
+  assert.match(canonical, /"MANUAL"/);
+  assert.match(canonical, /hasReadyHotelInventoryAuthorityV3/);
+  assert.match(canonical, /mergeHotelInventoryAuthoritiesV3/);
+  assert.match(canonical, /if \(!authorityDomainReady\(authorityDomain/);
+  assert.match(canonical, /comparedDomains/);
+  assert.match(canonical, /authorityLostDomains/);
+
+  assert.match(quick, /entry\.authorityStatus === "READY"/);
+  assert.match(previewRoute, /hasReadyHotelInventoryAuthorityV3\(projectedAuthority\)/);
+  assert.match(pipeline, /mergeHotelInventoryAuthoritiesV3/);
+  assert.match(pipeline, /lockedReadyDomains/);
+  assert.match(pipeline, /effectiveReadyDomains/);
 });
