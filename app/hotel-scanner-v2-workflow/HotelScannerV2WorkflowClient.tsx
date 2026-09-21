@@ -39,7 +39,7 @@ const VISIBLE_DOMAINS = new Set(["accommodation", "gastronomy", "policies", "con
 const COPY = {
   bg: {
     title: "Hotel Intake",
-    help: "Въведи официалния сайт. Scanner-ът извлича само данните, които използваме за бърз onboarding: видове стаи, гастро обекти и работно време, контакти и хотелски политики.",
+    help: "Въведи официалния сайт. Scanner-ът извлича само данните, които използваме за бърз onboarding: видове стаи, гастро обекти и работно време, контакти, хотелски политики и основна информация за check-in, check-out и паркинг.",
     url: "Официален хотелски сайт",
     start: "Извлечи данните",
     starting: "Извличане…",
@@ -58,7 +58,7 @@ const COPY = {
   },
   en: {
     title: "Hotel Intake",
-    help: "Enter the official website. The Scanner extracts only the data used for fast onboarding: room types, dining venues and opening hours, contacts, and hotel policies.",
+    help: "Enter the official website. The Scanner extracts only the data used for fast onboarding: room types, dining venues and opening hours, contacts, hotel policies, and key check-in, check-out, and parking information.",
     url: "Official hotel website",
     start: "Extract data",
     starting: "Extracting…",
