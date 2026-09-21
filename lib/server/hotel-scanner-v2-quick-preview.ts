@@ -709,8 +709,64 @@ function pageTypePriority(type: string) {
 }
 
 function onboardingSourceLimit(category: HotelOnboardingSourceCategory) {
-  if (category === "accommodation" || category === "offers") return 1;
-  return 16;
+  if (category === "documents") return 16;
+  return 1;
+}
+
+function sectionLandingPriority(input: {
+  category: HotelOnboardingSourceCategory;
+  pageType: string;
+  url: string;
+  title: string;
+}) {
+  if (input.category === "documents") return 0;
+
+  const parentTypeByCategory: Partial<Record<HotelOnboardingSourceCategory, string[]>> = {
+    accommodation: ["accommodation"],
+    gastronomy: ["gastronomy"],
+    wellness: ["spa"],
+    services: ["services"],
+    experiences: ["experiences"],
+    events: ["events"],
+    offers: ["offers"],
+    policies: ["faq", "policies"],
+    contacts: ["contacts"],
+  };
+  if ((parentTypeByCategory[input.category] || []).includes(input.pageType)) return 0;
+
+  const detailTypes = new Set([
+    "room_detail",
+    "restaurant_detail",
+    "spa_detail",
+    "service_detail",
+    "experience_detail",
+    "event_detail",
+    "offer_detail",
+  ]);
+  if (detailTypes.has(input.pageType)) return 4;
+
+  const haystack = (() => {
+    try {
+      const parsed = new URL(input.url);
+      return decodeURIComponent(parsed.pathname) + " " + input.title;
+    } catch {
+      return input.url + " " + input.title;
+    }
+  })().toLowerCase();
+
+  const broadSectionTerms: Partial<Record<HotelOnboardingSourceCategory, RegExp>> = {
+    accommodation: /(?:^|[/\s_-])(?:rooms?|zimmer|accommodation|unterkunft)(?:$|[/\s_-])/iu,
+    gastronomy: /(?:^|[/\s_-])(?:gastronomy|gastronomie|restaurants?|dining|food|bars?)(?:$|[/\s_-])/iu,
+    wellness: /(?:^|[/\s_-])(?:spa|wellness)(?:$|[/\s_-])/iu,
+    services: /(?:^|[/\s_-])(?:services?|leistungen?|service)(?:$|[/\s_-])/iu,
+    experiences: /(?:^|[/\s_-])(?:experiences?|activities|activity|aktiv|erlebnisse?)(?:$|[/\s_-])/iu,
+    events: /(?:^|[/\s_-])(?:events?|veranstaltungen?)(?:$|[/\s_-])/iu,
+    offers: /(?:^|[/\s_-])(?:offers?|packages?|angebote)(?:$|[/\s_-])/iu,
+    policies: /(?:^|[/\s_-])(?:faq|policies|policy|booking[-_\s]?information|buchungsinformationen)(?:$|[/\s_-])/iu,
+    contacts: /(?:^|[/\s_-])(?:contact|kontakt)(?:$|[/\s_-])/iu,
+  };
+
+  return broadSectionTerms[input.category]?.test(haystack) ? 1 : 2;
 }
 
 function buildOnboardingSources(discovery: HotelIntakeV2DiscoveryResult): HotelOnboardingSource[] {
@@ -739,6 +795,12 @@ function buildOnboardingSources(discovery: HotelIntakeV2DiscoveryResult): HotelO
         variantKey: clean(resource.variantGroupId, 500) || url,
         languagePriority,
         typePriority: pageTypePriority(pageType),
+        landingPriority: sectionLandingPriority({
+          category,
+          pageType,
+          url,
+          title: sourceTitleFromUrl(url, resource.title || ""),
+        }),
         crawledPriority: resource.crawled ? 0 : 1,
         depth: intakePathDepth(url),
       };
@@ -748,6 +810,7 @@ function buildOnboardingSources(discovery: HotelIntakeV2DiscoveryResult): HotelO
       SOURCE_CATEGORY_ORDER.indexOf(left.category) - SOURCE_CATEGORY_ORDER.indexOf(right.category)
       || left.languagePriority - right.languagePriority
       || left.typePriority - right.typePriority
+      || left.landingPriority - right.landingPriority
       || left.crawledPriority - right.crawledPriority
       || left.depth - right.depth
       || left.url.localeCompare(right.url));
