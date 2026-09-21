@@ -13,6 +13,7 @@ import {
 } from "@/lib/server/hotel-scanner-v3-canonical-inventory.mjs";
 
 const CORE_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "experiences", "offers", "contacts"] as const;
+const INTAKE_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "experiences", "contacts"] as const;
 
 function clean(value: unknown, max = 500) {
   const text = String(value ?? "").normalize("NFKC").replace(/\s+/g, " ").trim();
@@ -371,18 +372,24 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
   return {
     sourcePackage,
     components: inventory.domains
-      .filter((domain: HotelScannerV2DomainInventory) => CORE_DOMAINS.includes(domain.domain as (typeof CORE_DOMAINS)[number]))
+      .filter((domain: HotelScannerV2DomainInventory) => INTAKE_DOMAINS.includes(domain.domain as (typeof INTAKE_DOMAINS)[number]))
       .map((domain: HotelScannerV2DomainInventory) => {
         const rawComponentItems = (domain.expectedItems || []).map((item) => ({
           name: clean(item.nameHint, 240),
           hours: domain.domain === "gastronomy" ? openingHoursForItem(discovery, item) : "",
         })).filter((item) => item.name);
+        const snapshotDomain = discovery.evidence.v3InventorySnapshot?.domains?.find(
+          (entry: { domain?: string }) => entry?.domain === domain.domain,
+        );
         const domainHasV3Authority = Boolean(
           authority
           && authority.domains.some((entry) =>
             entry.domain === domain.domain && entry.authorityStatus === "READY"),
         );
         const manualOnly = domain.domain === "experiences";
+        const authorityStatus = manualOnly
+          ? "MANUAL"
+          : clean(snapshotDomain?.authorityStatus || (domainHasV3Authority ? "READY" : "PARTIAL"), 80);
         const componentItems = manualOnly
           ? []
           : previewItemsForDomain(
@@ -401,6 +408,8 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
               : componentItems.length || domain.expectedCount,
           state: domain.expectationState,
           namedCount: domain.domain === "contacts" ? contactMethodCount : componentItems.length,
+          candidateCount: domain.domain === "contacts" ? contactMethodCount : componentItems.length,
+          authorityStatus: domain.domain === "contacts" ? (contactMethodCount ? "READY" : "NOT_DISCOVERED") : authorityStatus,
           needsOnboarding: manualOnly || (domain.domain !== "contacts"
             && domain.expectedCount > rawComponentItems.length),
           manualOnly,
