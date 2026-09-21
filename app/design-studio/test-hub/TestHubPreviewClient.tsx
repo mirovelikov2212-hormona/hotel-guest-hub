@@ -18,12 +18,9 @@ type CardKey =
   | "housekeeping"
   | "maintenance"
   | "info"
-  | "accommodation"
+  | "extras"
   | "gastronomy"
   | "wellness"
-  | "experiences"
-  | "offers"
-  | "policies"
   | "around"
   | "weather"
   | "reviews"
@@ -65,11 +62,9 @@ const COPY = {
     housekeeping: "Онлайн хаускипинг",
     maintenance: "Технически отдел",
     info: "Информация за хотела",
-    accommodation: "Настаняване",
+    extras: "Допълнителни услуги",
     gastronomy: "Ресторанти и барове",
     wellness: "SPA & Wellness",
-    experiences: "Преживявания",
-    offers: "Оферти",
     policies: "Политики / FAQ",
     around: "Около хотела",
     weather: "Времето",
@@ -108,11 +103,9 @@ const COPY = {
     housekeeping: "Housekeeping",
     maintenance: "Maintenance",
     info: "Hotel information",
-    accommodation: "Accommodation",
+    extras: "Additional services",
     gastronomy: "Restaurants & bars",
     wellness: "SPA & Wellness",
-    experiences: "Experiences",
-    offers: "Offers",
     policies: "Policies / FAQ",
     around: "Around the hotel",
     weather: "Weather",
@@ -145,12 +138,9 @@ const COPY = {
 } as const;
 
 const CATEGORY_FOR_CARD: Partial<Record<CardKey, HotelOnboardingSourceCategory>> = {
-  accommodation: "accommodation",
+  extras: "services",
   gastronomy: "gastronomy",
   wellness: "wellness",
-  experiences: "experiences",
-  offers: "offers",
-  policies: "policies",
 };
 
 const ICONS: Record<IconName, string[]> = {
@@ -264,14 +254,11 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
       { key: "housekeeping", title: copy.housekeeping, icon: "clean", available: true },
       { key: "maintenance", title: copy.maintenance, icon: "tool", available: true },
       { key: "info", title: copy.info, icon: "info", available: true },
-      { key: "accommodation", title: copy.accommodation, icon: "bed", available: cardAvailable(pkg, "accommodation") },
-      { key: "gastronomy", title: copy.gastronomy, icon: "dining", available: cardAvailable(pkg, "gastronomy") },
-      { key: "wellness", title: copy.wellness, icon: "spa", available: cardAvailable(pkg, "wellness") },
-      { key: "experiences", title: copy.experiences, icon: "activity", available: cardAvailable(pkg, "experiences") },
-      { key: "offers", title: copy.offers, icon: "gift", available: cardAvailable(pkg, "offers") },
-      { key: "policies", title: copy.policies, icon: "doc", available: cardAvailable(pkg, "policies") },
+      { key: "extras", title: copy.extras, icon: "gift", available: true, manual: !cardAvailable(pkg, "extras") },
+      { key: "gastronomy", title: copy.gastronomy, icon: "dining", available: true, manual: !cardAvailable(pkg, "gastronomy") },
+      { key: "wellness", title: copy.wellness, icon: "spa", available: true, manual: !cardAvailable(pkg, "wellness") },
       { key: "around", title: copy.around, icon: "pin", available: true, manual: true },
-      { key: "weather", title: copy.weather, icon: "weather", available: true, manual: true },
+      { key: "weather", title: copy.weather, icon: "weather", available: true },
       { key: "reviews", title: copy.reviews, icon: "star", available: true, manual: true },
       { key: "emergency", title: copy.emergency, icon: "alert", available: true, manual: true, danger: true },
     ];
