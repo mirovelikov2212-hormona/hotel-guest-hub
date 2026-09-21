@@ -63,8 +63,8 @@ type WorkflowResult = {
     structuralCrawl?: { stopReason?: string; inventoryClosed?: boolean };
   };
   canonicalInventory?: {
-    authority?: { snapshotId?: string; snapshotFingerprint?: string; domains?: Array<{ domain: string; count: number }> };
-    observed?: { snapshotId?: string; snapshotFingerprint?: string; domains?: Array<{ domain: string; count: number }> };
+    authority?: { snapshotId?: string; snapshotFingerprint?: string; domains?: Array<{ domain: string; count: number; authorityStatus?: string; blockers?: string[] }> } | null;
+    observed?: { snapshotId?: string; snapshotFingerprint?: string; domains?: Array<{ domain: string; count: number; authorityStatus?: string; blockers?: string[] }> } | null;
     delta?: {
       changed?: boolean;
       addedEntityIds?: string[];
@@ -111,6 +111,8 @@ type QuickPreview = {
     count: number;
     state: string;
     namedCount?: number;
+    candidateCount?: number;
+    authorityStatus?: string;
     needsOnboarding?: boolean;
     manualOnly?: boolean;
     items?: Array<{ name: string; hours?: string }>;
@@ -141,6 +143,7 @@ type QuickPreview = {
 
 const STORAGE_KEY = "stayhub_scanner_v2_workflow_run";
 const PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1";
+const INTAKE_VISIBLE_DOMAINS = new Set(["accommodation", "gastronomy", "spa", "services", "experiences", "contacts"]);
 
 const COPY = {
   bg: {
@@ -187,8 +190,8 @@ const COPY = {
     blockers: "Blocking reasons",
     noBlockers: "Няма blocking reasons.",
     designStudio: "Отвори в Design Studio",
-    quickTitle: "Quick Client Preview",
-    quickHelp: "Основните компоненти на бъдещия Hub са готови за преглед. Отвори всяка карта, за да видиш какво е намерено.",
+    quickTitle: "Hotel Intake Preview",
+    quickHelp: "Вътрешен преглед за onboarding. Scanner-ът показва намерените кандидати и сигурните факти, без да твърди пълнота там, където сайтът не я доказва.",
     quickLoading: "Подготвям бързия preview…",
     quickFailed: "Quick Preview не успя, но Deep Verification продължава.",
     quickDesign: "Виж визуално в Design Studio",
@@ -201,14 +204,15 @@ const COPY = {
     openCard: "Виж съдържанието",
     hours: "Работно време",
     hoursMissing: "Работно време не е открито на сайта",
-    onboardingReady: "Сканирането е готово за onboarding.",
-    onboardingHelp: "Намерените компоненти са готови. Описания, цени, снимки и други детайли могат да се допълнят ръчно при onboarding.",
-    onboardingSection: "Следваща стъпка: onboarding",
+    onboardingReady: "Данните са готови за onboarding.",
+    onboardingHelp: "Използвай намереното като стартова информация за Design Studio. Липсващите или неясни детайли се довършват ръчно.",
+    onboardingSection: "Intake за Design Studio",
     manualSetup: "Детайлите се допълват при onboarding",
     needsReview: "Нужна е проверка",
     discoveredOnSite: "Намерено на сайта",
     contactsFound: "Контакти намерени",
     manualConfiguration: "Нужда от ръчна настройка",
+    candidatesFound: "Намерени кандидати",
     technical: "Технически детайли",
   },
   en: {
@@ -255,8 +259,8 @@ const COPY = {
     blockers: "Blocking reasons",
     noBlockers: "No blocking reasons.",
     designStudio: "Open in Design Studio",
-    quickTitle: "Quick Client Preview",
-    quickHelp: "The core components of the future Hub are ready to review. Open each card to see what was found.",
+    quickTitle: "Hotel Intake Preview",
+    quickHelp: "Internal onboarding view. The Scanner shows discovered candidates and reliable facts without claiming completeness where the public website does not prove it.",
     quickLoading: "Preparing quick preview…",
     quickFailed: "Quick Preview failed, but Deep Verification continues.",
     quickDesign: "Open visual Design Studio preview",
@@ -269,14 +273,15 @@ const COPY = {
     openCard: "View contents",
     hours: "Opening hours",
     hoursMissing: "Opening hours were not found on the website",
-    onboardingReady: "The scan is ready for onboarding.",
-    onboardingHelp: "The discovered components are ready. Descriptions, prices, images and other details can be completed manually during onboarding.",
-    onboardingSection: "Next step: onboarding",
+    onboardingReady: "The data is ready for onboarding.",
+    onboardingHelp: "Use the discovered information as the starting point for Design Studio. Missing or unclear details are completed manually.",
+    onboardingSection: "Design Studio intake",
     manualSetup: "Details are completed during onboarding",
     needsReview: "Needs review",
     discoveredOnSite: "Found on the website",
     contactsFound: "Contacts found",
     manualConfiguration: "Manual setup required",
+    candidatesFound: "Candidates found",
     technical: "Technical details",
   },
 } as const;
@@ -563,6 +568,9 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
   const active = Boolean(runId && !result && !error);
   const blockers = result?.validationGate?.blockingReasons || result?.completeness?.blockingReasons || [];
   const siteCoverage = result?.discovery?.coverage;
+  const canonicalDomains = result?.canonicalInventory?.authority?.domains?.length
+    ? result.canonicalInventory.authority.domains
+    : result?.canonicalInventory?.observed?.domains || [];
 
   return (
     <div className="space-y-6">
@@ -610,18 +618,27 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
                   );
                   const hasCountOnlyEvidence = !isContacts && component.count > 0 && namedCount === 0;
                   const manualOnly = Boolean(component.manualOnly);
+                  const authorityStatus = manualOnly ? "MANUAL" : (component.authorityStatus || "PARTIAL");
+                  const authorityReady = authorityStatus === "READY";
+                  const candidateCount = component.candidateCount ?? namedCount;
                   const summaryValue = isContacts
                     ? (hasContacts ? copy.contactsFound : "—")
-                    : manualOnly || hasCountOnlyEvidence
-                      ? "—"
-                      : String(namedCount || 0);
+                    : authorityReady
+                      ? String(component.count || candidateCount || 0)
+                      : "—";
                   const summaryText = isContacts
                     ? (hasContacts ? copy.discoveredOnSite : copy.notFound)
-                    : manualOnly || hasCountOnlyEvidence
+                    : manualOnly
                       ? copy.manualConfiguration
-                      : namedCount
-                        ? `${copy.found}: ${namedCount}${component.needsOnboarding ? ` · ${copy.manualConfiguration}` : ""}`
-                        : copy.notFound;
+                      : authorityReady
+                        ? (candidateCount ? `${copy.found}: ${candidateCount}` : copy.discoveredOnSite)
+                        : authorityStatus === "NOT_DISCOVERED"
+                          ? copy.notFound
+                          : candidateCount
+                            ? `${copy.candidatesFound}: ${candidateCount} · ${copy.needsReview}`
+                            : hasCountOnlyEvidence
+                              ? copy.needsReview
+                              : copy.notFound;
                   return (
                     <details key={component.domain} className="v2-card-soft group p-4">
                       <summary className="cursor-pointer list-none">
@@ -752,7 +769,7 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
             <h2 className="v2-section-title text-xl">{copy.onboardingSection}</h2>
             <p className="v2-muted mt-1 max-w-4xl text-sm leading-6">{copy.onboardingHelp}</p>
             <div className="mt-5 grid gap-3 md:grid-cols-2">
-              {(result.completeness?.domains || []).map((domain) => {
+              {(result.completeness?.domains || []).filter((domain) => INTAKE_VISIBLE_DOMAINS.has(domain.domain)).map((domain) => {
                 const inventoryLayer = domain.inventory || {
                   status: domain.status,
                   reason: domain.reason,
@@ -760,29 +777,49 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
                   extracted: domain.extracted,
                   missingItems: domain.missingItems || [],
                 };
-                const inventoryReady = inventoryLayer.status === "COMPLETE";
-                const notDiscovered = domain.status === "NOT_DISCOVERED";
-                const label = notDiscovered ? copy.notFound : inventoryReady ? copy.discoveredOnSite : copy.needsReview;
+                const authorityDomain = canonicalDomains.find((entry) => entry.domain === domain.domain);
+                const manualOnly = domain.domain === "experiences";
+                const contactStatus = domain.status === "NOT_DISCOVERED"
+                  ? "NOT_DISCOVERED"
+                  : inventoryLayer.status === "COMPLETE"
+                    ? "READY"
+                    : "PARTIAL";
+                const authorityStatus = manualOnly
+                  ? "MANUAL"
+                  : domain.domain === "contacts"
+                    ? contactStatus
+                    : authorityDomain?.authorityStatus || "PARTIAL";
+                const authoritative = authorityStatus === "READY";
+                const notDiscovered = authorityStatus === "NOT_DISCOVERED";
+                const candidateCount = authorityDomain?.count ?? inventoryLayer.extracted ?? 0;
+                const label = notDiscovered
+                  ? copy.notFound
+                  : authorityStatus === "MANUAL"
+                    ? copy.manualConfiguration
+                    : authoritative
+                      ? copy.discoveredOnSite
+                      : copy.needsReview;
                 return (
                   <article key={domain.domain} className="v2-card p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h3 className="font-bold">{domainLabel(domain.domain, lang)}</h3>
                         <p className="v2-muted mt-1 text-sm">
-                          {notDiscovered ? copy.notFound : `${copy.found}: ${inventoryLayer.extracted}/${inventoryLayer.expected ?? "?"}`}
+                          {notDiscovered
+                            ? copy.notFound
+                            : authorityStatus === "MANUAL"
+                              ? copy.manualConfiguration
+                              : authoritative
+                                ? `${copy.found}: ${candidateCount}`
+                                : candidateCount
+                                  ? `${copy.candidatesFound}: ${candidateCount}`
+                                  : copy.needsReview}
                         </p>
                       </div>
-                      <span className={`v2-pill ${inventoryReady ? "v2-pill-good" : notDiscovered ? "v2-pill-info" : "v2-pill-warn"}`}>{label}</span>
+                      <span className={`v2-pill ${authoritative ? "v2-pill-good" : notDiscovered ? "v2-pill-info" : "v2-pill-warn"}`}>{label}</span>
                     </div>
-                    {!notDiscovered && inventoryReady && domain.content?.status === "ONBOARDING_REQUIRED" ? (
+                    {!notDiscovered && (authorityStatus === "MANUAL" || domain.content?.status === "ONBOARDING_REQUIRED") ? (
                       <p className="v2-muted mt-3 text-xs">{copy.manualSetup}</p>
-                    ) : null}
-                    {inventoryLayer.missingItems?.length ? (
-                      <div className="mt-3 space-y-2">
-                        {inventoryLayer.missingItems.map((item) => (
-                          <p key={item.id} className="v2-card-soft p-2 text-xs">{item.nameHint || item.url || item.id}</p>
-                        ))}
-                      </div>
                     ) : null}
                   </article>
                 );
