@@ -223,7 +223,7 @@ test("Quick Client Preview uses targeted DOM authority without waiting for full 
   assert.match(intake, /enrichHotelEvidenceQuickRenderedV2/);
   assert.match(rendered, /QUICK_PREVIEW_MAX_BROWSER_RENDERS = 4/);
   assert.match(rendered, /QUICK_PREVIEW_BROWSER_CONCURRENCY = 4/);
-  assert.match(rendered, /QUICK_PREVIEW_BROWSER_WALL_MS = 55_000/);
+  assert.match(rendered, /QUICK_PREVIEW_BROWSER_WALL_MS = 25_000/);
   assert.match(rendered, /quick_preview_targeted_authority/);
   assert.match(projector, /CORE_DOMAINS/);
   assert.match(projector, /restaurant_menu/);
