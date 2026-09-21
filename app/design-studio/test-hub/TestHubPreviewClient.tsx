@@ -649,22 +649,52 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
   );
 }
 
-function HubTile({ card, onClick, compact = false, wide = false }: { card: HubCard; onClick: () => void; compact?: boolean; wide?: boolean }) {
+function HubTile({
+  card,
+  onClick,
+  theme,
+  compact = false,
+  wide = false,
+}: {
+  card: HubCard;
+  onClick: () => void;
+  theme: HubTheme;
+  compact?: boolean;
+  wide?: boolean;
+}) {
   return (
-    <button type="button" onClick={onClick} className={`group relative overflow-hidden rounded-[1.7rem] border bg-white text-left shadow-[0_10px_30px_rgba(58,119,117,0.07)] transition hover:-translate-y-0.5 hover:shadow-lg ${card.danger ? "border-rose-200" : "border-[#ccebe7]"} ${wide ? "w-full" : ""} ${compact ? "min-h-36 p-3" : "min-h-40 p-4"}`}>
-      <div className={`${card.danger ? "text-rose-500" : "text-[#43b5a1]"}`}><Icon name={card.icon} /></div>
-      <p className={`mt-5 font-semibold leading-tight ${compact ? "text-[13px]" : "text-sm"} ${card.danger ? "text-rose-600" : "text-[#315d60]"}`}>{card.title}</p>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group relative overflow-hidden border text-left shadow-[0_10px_30px_rgba(53,44,43,0.06)] transition hover:-translate-y-0.5 hover:shadow-lg ${wide ? "w-full" : ""} ${compact ? "min-h-36 p-3" : "min-h-40 p-4"}`}
+      style={{
+        backgroundColor: theme.surface,
+        borderColor: card.danger ? "#fecdd3" : theme.border,
+        borderRadius: theme.cardRadius,
+        color: card.danger ? "#be123c" : theme.text,
+      }}
+    >
+      <div style={{ color: card.danger ? "#e11d48" : theme.primary }}><Icon name={card.icon} /></div>
+      <p
+        className={`mt-5 font-semibold leading-tight ${compact ? "text-[13px]" : "text-sm"}`}
+        style={{ color: card.danger ? "#be123c" : theme.text, fontFamily: theme.bodyFont }}
+      >
+        {card.title}
+      </p>
       {card.manual ? <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-amber-300" title="Manual onboarding" /> : null}
-      <div className={`absolute inset-x-0 bottom-0 h-5 ${card.danger ? "bg-rose-50" : "bg-[radial-gradient(ellipse_at_top,#c9f2ec_0%,#eafaf7_58%,transparent_60%)]"}`} />
+      <div
+        className="absolute inset-x-0 bottom-0 h-1.5"
+        style={{ backgroundColor: card.danger ? "#ffe4e6" : theme.primary }}
+      />
     </button>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value, theme }: { label: string; value: string; theme: HubTheme }) {
   return (
-    <div className="rounded-2xl border border-[#d9ece9] bg-white p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#4ca79d]">{label}</p>
-      <p className="mt-2 text-sm leading-6 text-[#365f61]">{value}</p>
+    <div className="border p-4" style={{ backgroundColor: theme.surface, borderColor: theme.border, borderRadius: theme.cardRadius }}>
+      <p className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: theme.primary, fontFamily: theme.buttonFont }}>{label}</p>
+      <p className="mt-2 text-sm leading-6" style={{ color: theme.text, fontFamily: theme.bodyFont }}>{value}</p>
     </div>
   );
 }
