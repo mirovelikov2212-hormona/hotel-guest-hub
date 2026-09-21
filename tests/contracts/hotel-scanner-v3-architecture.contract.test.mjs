@@ -162,34 +162,31 @@ test("Scanner V3 M6 continuation remains bounded, public-only and robots-aware",
 });
 
 
-test("Scanner V3 M7 canonical authority controls Quick entity count and list membership", async () => {
+test("Scanner Intake ignores site-wide V3 authority and uses targeted room/dining landing pages", async () => {
   const quick = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
   const previewRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-preview/route.ts");
   const pipeline = await readProjectFile("lib/server/hotel-scanner-v2-pipeline-safe.ts");
 
-  assert.match(quick, /domainHasV3Authority/);
-  assert.match(quick, /allowEvidenceExpansion: false/);
-  assert.match(quick, /domainHasV3Authority\s*\?\s*domain\.expectedCount/s);
-  assert.match(quick, /if \(options\.allowEvidenceExpansion === false\) return base/);
+  assert.match(quick, /targetedDomainItems/);
+  assert.match(quick, /deriveHotelPageInventoryHintsV2/);
+  assert.match(quick, /classification\.primaryType !== domain/);
+  assert.match(quick, /Intake deliberately ignores site-wide V3 inventory authority/);
+  assert.match(quick, /inventoryAuthority:\s*null/);
 
+  // V3 authority remains available to the internal deep/pipeline code, but it
+  // no longer controls the lightweight onboarding Intake projection.
   assert.match(previewRoute, /hasReadyHotelInventoryAuthorityV3/);
-  assert.doesNotMatch(previewRoute, /snapshot\.status === "READY"/);
-
   assert.match(pipeline, /observedAuthorityEligible/);
-  assert.match(pipeline, /hasReadyHotelInventoryAuthorityV3/);
   assert.match(pipeline, /mergeHotelInventoryAuthoritiesV3/);
-  assert.doesNotMatch(pipeline, /observedSnapshot\.status === "READY"/);
 });
 
-test("Scanner V3 M7 semantic enrichment cannot become an authority entity when V3 is locked", async () => {
+test("Scanner Intake bounds noisy landing-page candidates instead of exposing site-wide counts", async () => {
   const quick = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
 
-  const expansionGuard = quick.indexOf("if (options.allowEvidenceExpansion === false) return base");
-  const evidenceHeadings = quick.indexOf("previewEvidenceHeadings(discovery, domain)", expansionGuard);
-  assert.ok(expansionGuard >= 0);
-  assert.ok(evidenceHeadings > expansionGuard);
+  assert.match(quick, /const maxItems = domain === "accommodation" \? 30 : 20/);
+  assert.match(quick, /if \(items\.length > maxItems\) return \[\]/);
+  assert.match(quick, /uniqueIntakeItems/);
 });
-
 
 test("Scanner V3 Quick stays inside the interactive request budget as the final Intake path", async () => {
   const intake = await readProjectFile("lib/server/hotel-scanner-v2-intake.ts");
@@ -208,9 +205,8 @@ test("Scanner V3 Quick stays inside the interactive request budget as the final 
 });
 
 
-test("Scanner V3 M9 authority is domain-scoped instead of hotel-wide all-or-nothing", async () => {
+test("Scanner V3 M9 authority remains domain-scoped for internal deep verification", async () => {
   const canonical = await readProjectFile("lib/server/hotel-scanner-v3-canonical-inventory.mjs");
-  const quick = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
   const previewRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-preview/route.ts");
   const pipeline = await readProjectFile("lib/server/hotel-scanner-v2-pipeline-safe.ts");
 
@@ -221,17 +217,14 @@ test("Scanner V3 M9 authority is domain-scoped instead of hotel-wide all-or-noth
   assert.match(canonical, /"MANUAL"/);
   assert.match(canonical, /hasReadyHotelInventoryAuthorityV3/);
   assert.match(canonical, /mergeHotelInventoryAuthoritiesV3/);
-  assert.match(canonical, /if \(!authorityDomainReady\(authorityDomain/);
   assert.match(canonical, /comparedDomains/);
   assert.match(canonical, /authorityLostDomains/);
 
-  assert.match(quick, /entry\.authorityStatus === "READY"/);
   assert.match(previewRoute, /hasReadyHotelInventoryAuthorityV3\(projectedAuthority\)/);
   assert.match(pipeline, /mergeHotelInventoryAuthoritiesV3/);
   assert.match(pipeline, /lockedReadyDomains/);
   assert.match(pipeline, /effectiveReadyDomains/);
 });
-
 
 test("Scanner Intake is limited to rooms, dining, contacts and policies", async () => {
   const quick = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
@@ -242,16 +235,20 @@ test("Scanner Intake is limited to rooms, dining, contacts and policies", async 
   assert.match(quick, /INTAKE_DOMAINS = \["accommodation", "gastronomy", "policies", "contacts"\]/);
   assert.match(quick, /openingHoursForItem/);
   assert.match(quick, /policyDocuments/);
-  assert.match(quick, /policies: unique\(policies\.map/);
+  assert.match(quick, /buildIntakeInfo/);
+  assert.match(quick, /CHECK_IN_MARKER/);
+  assert.match(quick, /CHECK_OUT_MARKER/);
+  assert.match(quick, /PARKING_MARKER/);
   assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"spa"/s);
   assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"experiences"/s);
   assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"services"/s);
   assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"offers"/s);
   assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"events"/s);
 
-  assert.match(client, /VISIBLE_DOMAINS = new Set\(\["accommodation", "gastronomy", "policies", "contacts"\]\)/);
+  assert.match(client, /VISIBLE_DOMAINS = new Set\(\["accommodation", "gastronomy", "policies", "contacts", "info"\]\)/);
   assert.match(client, /Работно време/);
   assert.match(client, /Политики \/ FAQ/);
+  assert.match(client, /Инфо/);
   assert.match(client, /Отвори в Design Studio/);
   assert.doesNotMatch(client, /SPA|Преживявания|Хотелски услуги|Оферти|Събития|Deep Intake|scan-v2-workflow\/\$\{/);
 
