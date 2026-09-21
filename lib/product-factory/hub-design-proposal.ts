@@ -103,6 +103,53 @@ function selectTheme(colors: string[], fonts: string[]): HubDesignTheme & { avai
   return { primaryColor, secondaryColor, backgroundColor, surfaceColor, textColor, softAccentColor: mixWithWhite(primaryColor), headingFont: typography.headingFont, bodyFont: typography.bodyFont, availableColors: normalizedColors.length ? normalizedColors : [FALLBACK_PRIMARY, FALLBACK_SECONDARY, FALLBACK_BACKGROUND, FALLBACK_SURFACE], availableFonts: typography.contentFonts.length ? typography.contentFonts : [FALLBACK_FONT] };
 }
 
+function brandRoleColor(pkg: HotelIntelligencePackage, role: string) {
+  const signal = pkg.designIntelligenceLayer.brandKit?.colorRoles.find((item) => item.role === role);
+  return normalizeHex(signal?.color || "");
+}
+
+function selectPackageTheme(pkg: HotelIntelligencePackage) {
+  const fallback = selectTheme(pkg.designIntelligenceLayer.colors, pkg.designIntelligenceLayer.fonts);
+  const brandKit = pkg.designIntelligenceLayer.brandKit;
+  if (!brandKit) return fallback;
+
+  const primaryColor = brandRoleColor(pkg, "primary")
+    || brandRoleColor(pkg, "button_background")
+    || brandRoleColor(pkg, "accent")
+    || fallback.primaryColor;
+  const secondaryColor = brandRoleColor(pkg, "secondary")
+    || brandRoleColor(pkg, "header_background")
+    || fallback.secondaryColor;
+  const backgroundColor = brandRoleColor(pkg, "page_background") || fallback.backgroundColor;
+  const surfaceColor = brandRoleColor(pkg, "surface") || fallback.surfaceColor;
+  const textColor = brandRoleColor(pkg, "text") || fallback.textColor;
+
+  const detectedFonts = unique([
+    brandKit.typography.headingFont,
+    brandKit.typography.bodyFont,
+    brandKit.typography.buttonFont,
+    ...pkg.designIntelligenceLayer.fonts,
+  ].filter(isContentFont));
+  const headingFont = brandKit.typography.headingFont || fallback.headingFont;
+  const bodyFont = brandKit.typography.bodyFont || fallback.bodyFont;
+
+  return {
+    primaryColor,
+    secondaryColor,
+    backgroundColor,
+    surfaceColor,
+    textColor,
+    softAccentColor: mixWithWhite(primaryColor),
+    headingFont,
+    bodyFont,
+    availableColors: unique([
+      ...brandKit.colorRoles.map((item) => normalizeHex(item.color)).filter(Boolean),
+      ...fallback.availableColors,
+    ]),
+    availableFonts: detectedFonts.length ? detectedFonts : fallback.availableFonts,
+  };
+}
+
 function categoryTitle(category: string, language: "bg" | "en") { return CATEGORY_TITLES[category]?.[language] || category; }
 function attrLabel(attribute: string, fallback: string, language: "bg" | "en") { return ATTRIBUTE_LABELS[attribute]?.[language] || fallback || attribute; }
 function clean(value: unknown) { return String(value ?? "").replace(/\s+/g, " ").trim(); }
@@ -182,7 +229,7 @@ function buildSections(pkg: HotelIntelligencePackage, language: "bg" | "en") {
 }
 
 export function buildHubDesignProposal(pkg: HotelIntelligencePackage, language: "bg" | "en"): HubDesignProposal {
-  const selected = selectTheme(pkg.designIntelligenceLayer.colors, pkg.designIntelligenceLayer.fonts);
+  const selected = selectPackageTheme(pkg);
   const sections = buildSections(pkg, language);
   return {
     schemaVersion: "hub-design-proposal-v1",
