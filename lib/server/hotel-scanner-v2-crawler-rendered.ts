@@ -43,7 +43,12 @@ const QUICK_PREVIEW_MAX_BROWSER_RENDERS = 4;
 const QUICK_PREVIEW_MAX_AUTHORITY_FETCHES = 6;
 const QUICK_PREVIEW_BROWSER_CONCURRENCY = 4;
 const QUICK_PREVIEW_BROWSER_WALL_MS = 25_000;
-const QUICK_PREVIEW_DOMAIN_PRIORITY = ["accommodation", "gastronomy", "spa", "services", "experiences", "offers"] as const;
+const QUICK_PREVIEW_DOMAIN_PRIORITY = ["accommodation", "gastronomy"] as const;
+
+function quickIntakeDomainFromPageType(type: string) {
+  const domain = hotelScannerPageTypeDomain(type);
+  return domain === "faq" ? "policies" : domain;
+}
 
 function browserRenderFailureReason(error: unknown) {
   const name = String((error as { name?: unknown })?.name || "Error").replace(/\s+/g, " ").trim().slice(0, 80);
@@ -234,7 +239,7 @@ function pathDepth(rawUrl: string) {
 
 function quickAuthorityCandidateScore(rawUrl: string, domain: string, requestedLanguage: string) {
   const primaryType = classifyHotelScannerPageV2({ url: rawUrl }).primaryType;
-  if (hotelScannerPageTypeDomain(primaryType) !== domain) return -1;
+  if (quickIntakeDomainFromPageType(primaryType) !== domain) return -1;
   const language = pathLanguage(rawUrl);
   const languageScore = requestedLanguage && language === requestedLanguage ? 40 : language === "en" ? 25 : language ? 15 : 20;
   const landingScore = primaryType === domain ? 80 : 35;
@@ -253,7 +258,7 @@ async function ensureQuickPreviewDomainPages(
   const requestedLanguage = pathLanguage(base.requestedUrl);
   const existingUrls = new Set(base.pages.map((page) => canonicalizeHotelIntakeUrl(page.url)).filter(Boolean));
   const existingDomains = new Set<string>(base.pages.map((page) =>
-    hotelScannerPageTypeDomain(classifyHotelScannerPageV2(page).primaryType)).filter(Boolean));
+    quickIntakeDomainFromPageType(classifyHotelScannerPageV2(page).primaryType)).filter(Boolean));
   const missingDomains = [...new Set(domains)].filter((domain) => !existingDomains.has(domain));
   if (!missingDomains.length) return;
 
@@ -314,7 +319,7 @@ function quickPreviewRenderSchedule(
     const candidates = base.pages
       .map((page, index) => {
         const primaryType = classifyHotelScannerPageV2(page).primaryType;
-        const pageDomain = hotelScannerPageTypeDomain(primaryType);
+        const pageDomain = quickIntakeDomainFromPageType(primaryType);
         if (pageDomain !== domain) return null;
         const language = pathLanguage(page.url);
         const languageRank = requestedLanguage && language === requestedLanguage
