@@ -1,104 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
 import type { HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
-import type { ScannerV2CandidateView, ScannerV2DocumentView } from "../hotel-scanner-v2/HotelScannerV2Details";
-import HotelScannerV2ReviewWorkspace, { type ScannerV2ReviewSection } from "../hotel-scanner-v2/HotelScannerV2ReviewWorkspace";
 
-type WorkflowStart = {
-  ok?: boolean;
-  runId?: string;
-  scanRunId?: string;
-  runAccessToken?: string;
-  status?: string;
-  error?: string;
-};
-
-type MissingCoverageItem = { id: string; nameHint: string; url: string; crawled: boolean };
-
-type DomainCoverage = {
-  domain: string;
-  status: string;
-  reason: string;
-  expected: number | null;
-  extracted: number;
-  missingItems: MissingCoverageItem[];
-  inventory?: {
-    status: string;
-    reason: string;
-    expected: number | null;
-    extracted: number;
-    missingItems: MissingCoverageItem[];
-  };
-  content?: {
-    status: string;
-    reason: string;
-    detailed: number;
-    totalEntities: number;
-    missingDetailItems: MissingCoverageItem[];
-  };
-};
-
-type SiteCoverage = {
-  coverageComplete?: boolean;
-  discoveredRelevantCount?: number;
-  fetchedRelevantCount?: number;
-  pendingRelevantCount?: number;
-  failedRelevantCount?: number;
-  pendingRelevantUrls?: string[];
-  failedRelevantUrls?: string[];
-};
-
-type WorkflowResult = {
-  ok?: boolean;
-  pipelineStatus?: string;
-  source?: { canonicalUrl?: string };
-  discovery?: {
-    siteMap?: { counts?: { crawledPages?: number; resources?: number } };
-    inventory?: { counts?: { expectedItems?: number } };
-    coverage?: SiteCoverage;
-    structuralCrawl?: { stopReason?: string; inventoryClosed?: boolean };
-  };
-  canonicalInventory?: {
-    authority?: { snapshotId?: string; snapshotFingerprint?: string; domains?: Array<{ domain: string; count: number; authorityStatus?: string; blockers?: string[] }> } | null;
-    observed?: { snapshotId?: string; snapshotFingerprint?: string; domains?: Array<{ domain: string; count: number; authorityStatus?: string; blockers?: string[] }> } | null;
-    delta?: {
-      changed?: boolean;
-      addedEntityIds?: string[];
-      removedEntityIds?: string[];
-      domainChangedEntityIds?: string[];
-    };
-    authorityLocked?: boolean;
-  };
-  documents?: {
-    documents?: ScannerV2DocumentView[];
-  };
-  completeness?: {
-    status?: string;
-    domains?: DomainCoverage[];
-    documents?: { discovered?: number; ingested?: number };
-    conflicts?: { unresolved?: number };
-    blockingReasons?: string[];
-  };
-  intelligenceCandidate?: ScannerV2CandidateView;
-  reviewSections?: ScannerV2ReviewSection[];
-  validationGate?: {
-    downstreamHandoffAllowed?: false;
-    approvalEligible?: boolean;
-    blockingReasons?: string[];
-  };
-  diagnostics?: { totalLatencyMs?: number };
-};
-
-type WorkflowPoll = {
-  ok?: boolean;
-  runId?: string;
-  status?: string;
-  error?: string;
-  result?: WorkflowResult;
+type IntakeItem = {
+  name: string;
+  hours?: string;
+  url?: string;
 };
 
 type QuickPreview = {
@@ -109,13 +20,8 @@ type QuickPreview = {
   components?: Array<{
     domain: string;
     count: number;
-    state: string;
     namedCount?: number;
-    candidateCount?: number;
-    authorityStatus?: string;
-    needsOnboarding?: boolean;
-    manualOnly?: boolean;
-    items?: Array<{ name: string; hours?: string }>;
+    items?: IntakeItem[];
   }>;
   contacts?: {
     phones?: string[];
@@ -123,194 +29,64 @@ type QuickPreview = {
     addresses?: string[];
     website?: string;
   };
-  documents?: Array<{ kind: string; bg: string; en: string; onboarding: boolean; count: number }>;
-  diagnostics?: { pageCount?: number; resourceCount?: number; expectedItems?: number; inventorySnapshotId?: string };
-  inventoryAuthority?: {
-    snapshotId?: string;
-    snapshotFingerprint?: string;
-    domains?: Array<{ domain: string; count: number; status?: string }>;
-  } | null;
-  inventoryAuthorityToken?: string;
-  workflow?: (WorkflowStart & { reusedDiscovery?: boolean }) | null;
-  checkpoint?: {
-    reusable?: boolean;
-    bytes?: number;
-    maxInlineBytes?: number;
-    fallbackRequired?: boolean;
-  };
   error?: string;
 };
 
-const STORAGE_KEY = "stayhub_scanner_v2_workflow_run";
 const PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1";
-const INTAKE_VISIBLE_DOMAINS = new Set(["accommodation", "gastronomy", "spa", "services", "experiences", "contacts"]);
-const INTAKE_REVIEW_DOMAINS = new Set(["accommodation", "gastronomy", "spa", "services", "contacts", "policies"]);
+const VISIBLE_DOMAINS = new Set(["accommodation", "gastronomy", "policies", "contacts"]);
 
 const COPY = {
   bg: {
-    title: "Ново сканиране",
-    help: "Въведи официалния хотелски сайт. Scanner-ът извлича публичната информация за бърз ръчен onboarding в Design Studio; не е нужно всяка категория да бъде изчерпателна.",
+    title: "Hotel Intake",
+    help: "Въведи официалния сайт. Scanner-ът извлича само данните, които използваме за бърз onboarding: видове стаи, гастро обекти и работно време, контакти и хотелски политики.",
     url: "Официален хотелски сайт",
     start: "Извлечи данните",
-    starting: "Стартиране…",
-    run: "Workflow Run",
-    status: "Статус",
-    resume: "При refresh този run се възстановява автоматично.",
-    completed: "Извличането завърши. Данните по-долу са работният intake за ръчен преглед и Design Studio.",
-    failed: "Workflow сканирането завърши с грешка.",
-    newScan: "Ново сканиране",
-    cancelRun: "Прекрати текущия run",
-    cancellingRun: "Прекратяване…",
-    pipeline: "Pipeline статус",
-    pages: "Прочетени страници",
-    resources: "Открити ресурси",
-    expected: "Expected",
-    pdf: "PDF",
-    conflicts: "Конфликти",
-    runtime: "Scanner runtime",
-    siteCoverage: "1. Coverage на релевантните страници",
-    siteCoverageHelp: "Crawler-ът първо установява кои hotel pages са релевантни. Тук се вижда дали всички открити logical pages са реално прочетени преди extraction.",
-    discoveredRelevant: "Открити релевантни",
-    fetchedRelevant: "Прочетени релевантни",
-    pendingRelevant: "Чакат прочит",
-    failedRelevant: "Неуспешни",
-    coverageComplete: "Coverage complete",
-    coverageIncomplete: "Coverage incomplete",
-    pendingPages: "Непрочетени релевантни страници",
-    failedPages: "Неуспешни релевантни страници",
-    coverage: "2. Completeness по категории",
-    coverageHelp: "Inventory показва какво е намерено на сайта. Липсващи описания, цени, снимки и други подробности са onboarding работа и не правят Scanner-а неуспешен.",
-    extracted: "Намерени entities",
-    missing: "Липсващи entities",
-    withDetails: "С детайли",
-    missingDetails: "Без детайли",
-    approval: "5. Approval gate",
-    approvalHelp: "Workflow-ът остава evidence-only. Няма автоматичен handoff към Design Studio / Factory.",
-    eligible: "Готово за човешки approval",
-    blocked: "Блокирано",
-    blockers: "Blocking reasons",
-    noBlockers: "Няма blocking reasons.",
+    starting: "Извличане…",
+    preview: "Намерена информация",
+    previewHelp: "Това е работна информация за Design Studio. Всичко останало се изисква директно от хотела при onboarding.",
+    failed: "Scanner-ът не успя да извлече данните.",
     designStudio: "Отвори в Design Studio",
-    quickTitle: "Hotel Intake Preview",
-    quickHelp: "Вътрешен преглед за onboarding. Scanner-ът показва намерените кандидати и сигурните факти, без да твърди пълнота там, където сайтът не я доказва.",
-    quickLoading: "Подготвям бързия preview…",
-    quickFailed: "Quick Preview не успя, но Deep Verification продължава.",
-    quickDesign: "Виж визуално в Design Studio",
-    documentsFound: "Намерени документи",
-    onboardingLater: "добавяме при onboarding",
-    verifiedLater: "проверяваме за конфликти",
-    deepRunning: "Пълната проверка продължава във фонов режим",
     found: "Намерени",
+    openingHours: "Работно време",
+    hoursMissing: "Работно време не е открито",
     notFound: "Не е открито на сайта",
-    openCard: "Виж съдържанието",
-    hours: "Работно време",
-    hoursMissing: "Работно време не е открито на сайта",
-    onboardingReady: "Данните са готови за onboarding.",
-    onboardingHelp: "Използвай намереното като стартова информация за Design Studio. Липсващите или неясни детайли се довършват ръчно.",
-    onboardingSection: "Intake за Design Studio",
-    manualSetup: "Детайлите се допълват при onboarding",
-    needsReview: "Нужна е проверка",
-    discoveredOnSite: "Намерено на сайта",
-    contactsFound: "Контакти намерени",
-    manualConfiguration: "Нужда от ръчна настройка",
-    candidatesFound: "Намерени кандидати",
-    technical: "Технически детайли",
+    phone: "Телефон",
+    address: "Адрес",
+    website: "Web",
+    source: "Източник",
   },
   en: {
-    title: "New scan",
-    help: "Enter the official hotel website. The Scanner extracts public information for fast manual onboarding in Design Studio; every category does not need to be exhaustive.",
+    title: "Hotel Intake",
+    help: "Enter the official website. The Scanner extracts only the data used for fast onboarding: room types, dining venues and opening hours, contacts, and hotel policies.",
     url: "Official hotel website",
     start: "Extract data",
-    starting: "Starting…",
-    run: "Workflow Run",
-    status: "Status",
-    resume: "After refresh this run is restored automatically.",
-    completed: "Extraction completed. The data below is the working intake for manual review and Design Studio.",
-    failed: "The workflow scan failed.",
-    newScan: "New scan",
-    cancelRun: "Cancel current run",
-    cancellingRun: "Cancelling…",
-    pipeline: "Pipeline status",
-    pages: "Crawled pages",
-    resources: "Discovered resources",
-    expected: "Expected",
-    pdf: "PDF",
-    conflicts: "Conflicts",
-    runtime: "Scanner runtime",
-    siteCoverage: "1. Relevant page coverage",
-    siteCoverageHelp: "The crawler first establishes which hotel pages are relevant. This shows whether every discovered logical page was actually read before extraction.",
-    discoveredRelevant: "Relevant discovered",
-    fetchedRelevant: "Relevant fetched",
-    pendingRelevant: "Pending read",
-    failedRelevant: "Failed",
-    coverageComplete: "Coverage complete",
-    coverageIncomplete: "Coverage incomplete",
-    pendingPages: "Unread relevant pages",
-    failedPages: "Failed relevant pages",
-    coverage: "2. Completeness by category",
-    coverageHelp: "Inventory shows what was discovered on the website. Missing descriptions, prices, images and other details are onboarding work and do not make the Scanner fail.",
-    extracted: "Entities found",
-    missing: "Missing entities",
-    withDetails: "With details",
-    missingDetails: "Missing details",
-    approval: "5. Approval gate",
-    approvalHelp: "The workflow remains evidence-only. There is no automatic handoff to Design Studio / Factory.",
-    eligible: "Ready for human approval",
-    blocked: "Blocked",
-    blockers: "Blocking reasons",
-    noBlockers: "No blocking reasons.",
+    starting: "Extracting…",
+    preview: "Discovered information",
+    previewHelp: "This is working information for Design Studio. Everything else is requested directly from the hotel during onboarding.",
+    failed: "The Scanner could not extract the data.",
     designStudio: "Open in Design Studio",
-    quickTitle: "Hotel Intake Preview",
-    quickHelp: "Internal onboarding view. The Scanner shows discovered candidates and reliable facts without claiming completeness where the public website does not prove it.",
-    quickLoading: "Preparing quick preview…",
-    quickFailed: "Quick Preview failed, but Deep Verification continues.",
-    quickDesign: "Open visual Design Studio preview",
-    documentsFound: "Discovered documents",
-    onboardingLater: "add during onboarding",
-    verifiedLater: "verify for conflicts",
-    deepRunning: "Full verification continues in the background",
     found: "Found",
+    openingHours: "Opening hours",
+    hoursMissing: "Opening hours not found",
     notFound: "Not found on the website",
-    openCard: "View contents",
-    hours: "Opening hours",
-    hoursMissing: "Opening hours were not found on the website",
-    onboardingReady: "The data is ready for onboarding.",
-    onboardingHelp: "Use the discovered information as the starting point for Design Studio. Missing or unclear details are completed manually.",
-    onboardingSection: "Design Studio intake",
-    manualSetup: "Details are completed during onboarding",
-    needsReview: "Needs review",
-    discoveredOnSite: "Found on the website",
-    contactsFound: "Contacts found",
-    manualConfiguration: "Manual setup required",
-    candidatesFound: "Candidates found",
-    technical: "Technical details",
+    phone: "Phone",
+    address: "Address",
+    website: "Web",
+    source: "Source",
   },
 } as const;
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 function formatDuration(ms?: number) {
   if (!ms || ms < 0) return "—";
   if (ms < 1000) return `${ms} ms`;
-  const seconds = Math.round(ms / 1000);
-  if (seconds < 60) return `${seconds} s`;
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-  return `${minutes}m ${rest}s`;
+  return `${Math.round(ms / 1000)} s`;
 }
 
 function domainLabel(domain: string, lang: ControlPlaneLang) {
   const labels: Record<string, [string, string]> = {
     accommodation: ["Настаняване", "Accommodation"],
     gastronomy: ["Ресторанти и барове", "Restaurants & bars"],
-    spa: ["SPA / Medical", "SPA / Medical"],
-    services: ["Хотелски услуги", "Hotel services"],
-    experiences: ["Преживявания", "Experiences"],
-    events: ["Събития", "Events"],
-    offers: ["Оферти", "Offers"],
-    policies: ["Правила", "Policies"],
+    policies: ["Политики / FAQ", "Policies / FAQ"],
     contacts: ["Контакти", "Contacts"],
   };
   return labels[domain]?.[lang === "bg" ? 0 : 1] || domain;
@@ -319,259 +95,36 @@ function domainLabel(domain: string, lang: ControlPlaneLang) {
 export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPlaneLang }) {
   const copy = COPY[lang];
   const [url, setUrl] = useState("https://pavelbanyagrand.com/");
-  const [runId, setRunId] = useState<string | null>(null);
-  const [scanRunId, setScanRunId] = useState<string | null>(null);
-  const [runAccessToken, setRunAccessToken] = useState<string | null>(null);
-  const [status, setStatus] = useState<string>("idle");
   const [starting, setStarting] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
-  const [result, setResult] = useState<WorkflowResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pollStartedAt, setPollStartedAt] = useState<number | null>(null);
-  const [elapsedMs, setElapsedMs] = useState(0);
   const [quickPreview, setQuickPreview] = useState<QuickPreview | null>(null);
-  const [quickPreviewLoading, setQuickPreviewLoading] = useState(false);
-  const [quickPreviewError, setQuickPreviewError] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as { runId?: string; scanRunId?: string; runAccessToken?: string; url?: string };
-      if (saved.runId && saved.scanRunId && saved.runAccessToken) {
-        setRunId(saved.runId);
-        setScanRunId(saved.scanRunId);
-        setRunAccessToken(saved.runAccessToken);
-        setUrl(saved.url || "https://pavelbanyagrand.com/");
-        setStatus("restoring");
-        setPollStartedAt(Date.now());
-      }
-    } catch {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!pollStartedAt || result || error) return;
-    const timer = window.setInterval(() => setElapsedMs(Date.now() - pollStartedAt), 1000);
-    return () => window.clearInterval(timer);
-  }, [pollStartedAt, result, error]);
-
-  useEffect(() => {
-    if (!runId || !scanRunId || !runAccessToken || result || error) return;
-    const currentRunId = runId;
-    const currentScanRunId = scanRunId;
-    const currentRunAccessToken = runAccessToken;
-    let cancelled = false;
-
-    async function poll() {
-      while (!cancelled) {
-        try {
-          const response = await fetch(`/api/control-plane/hotel-scanner/scan-v2-workflow/${encodeURIComponent(currentRunId)}`, {
-            method: "GET",
-            cache: "no-store",
-            headers: {
-              "X-Scanner-Scan-Run-Id": currentScanRunId,
-              "X-Scanner-Workflow-Token": currentRunAccessToken,
-            },
-          });
-          const body = (await response.json().catch(() => ({}))) as WorkflowPoll;
-          if (cancelled) return;
-
-          if (body.status === "completed" && body.result) {
-            setStatus("completed");
-            setResult(body.result);
-            setError(null);
-            window.localStorage.removeItem(STORAGE_KEY);
-            return;
-          }
-
-          if (body.status === "failed" || body.status === "cancelled") {
-            setStatus(body.status);
-            setError(body.error || "scanner_v2_workflow_failed");
-            window.localStorage.removeItem(STORAGE_KEY);
-            return;
-          }
-
-          if (!response.ok || body.ok === false) {
-            // Workflow status transport can fail transiently while the durable run
-            // continues in the background. Never turn a recoverable polling error
-            // into a terminal FAILED state.
-            if ([400, 401, 403].includes(response.status)) {
-              setStatus("failed");
-              setError(body.error || "scanner_v2_workflow_access_failed");
-              window.localStorage.removeItem(STORAGE_KEY);
-              return;
-            }
-            setStatus("reconnecting");
-          } else {
-            setStatus(body.status || "running");
-            setError(null);
-          }
-        } catch {
-          if (cancelled) return;
-          setStatus("reconnecting");
-        }
-
-        await sleep(2500);
-      }
-    }
-
-    void poll();
-    return () => {
-      cancelled = true;
-    };
-  }, [runId, scanRunId, runAccessToken, result, error]);
+  const [error, setError] = useState<string | null>(null);
 
   async function startScan() {
-    if (!url.trim() || starting || (runId && !result && !error)) return;
+    if (!url.trim() || starting) return;
     setStarting(true);
-    setResult(null);
-    setError(null);
     setQuickPreview(null);
-    setQuickPreviewError(null);
-    setQuickPreviewLoading(true);
-    setStatus("starting");
-    setElapsedMs(0);
+    setError(null);
 
-    let inventoryAuthorityToken = "";
-    let quickWorkflow: (WorkflowStart & { reusedDiscovery?: boolean }) | null = null;
     try {
-      const quickResponse = await fetch("/api/control-plane/hotel-scanner/scan-v2-preview", {
+      const response = await fetch("/api/control-plane/hotel-scanner/scan-v2-preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: url.trim(), lang }),
       });
-      const quickBody = (await quickResponse.json().catch(() => ({}))) as QuickPreview;
-      if (!quickResponse.ok || !quickBody.ok || !quickBody.sourcePackage) {
-        throw new Error(quickBody.error || "scanner_v2_quick_preview_failed");
-      }
-      setQuickPreview(quickBody);
-      setQuickPreviewError(null);
-      inventoryAuthorityToken = String(quickBody.inventoryAuthorityToken || "");
-      quickWorkflow = quickBody.workflow || null;
-    } catch (reason) {
-      setQuickPreviewError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      setQuickPreviewLoading(false);
-    }
-
-    try {
-      if (
-        quickWorkflow?.runId
-        && quickWorkflow.scanRunId
-        && quickWorkflow.runAccessToken
-      ) {
-        // M6: the preview route already started Deep Verification with the same
-        // discovery evidence. No second crawl of the hotel is needed.
-        setRunId(quickWorkflow.runId);
-        setScanRunId(quickWorkflow.scanRunId);
-        setRunAccessToken(quickWorkflow.runAccessToken);
-        setStatus(quickWorkflow.status || "running");
-        setPollStartedAt(Date.now());
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
-          runId: quickWorkflow.runId,
-          scanRunId: quickWorkflow.scanRunId,
-          runAccessToken: quickWorkflow.runAccessToken,
-          url: url.trim(),
-        }));
+      const body = (await response.json().catch(() => ({}))) as QuickPreview;
+      if (!response.ok || !body.ok || !body.sourcePackage) {
+        setError(body.error || "scanner_intake_failed");
         return;
       }
-
-      // Fallback for an oversized/failed checkpoint handoff. It is sequential,
-      // bounded and robots-aware; the scanners are never run concurrently.
-      const response = await fetch("/api/control-plane/hotel-scanner/scan-v2-workflow", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: url.trim(),
-          lang,
-          inventoryAuthorityToken: inventoryAuthorityToken || undefined,
-        }),
-      });
-      const body = (await response.json().catch(() => ({}))) as WorkflowStart;
-      if (!response.ok || !body.ok || !body.runId || !body.scanRunId || !body.runAccessToken) {
-        setError(body.error || "scanner_v2_workflow_start_failed");
-        setStatus("failed");
-        return;
-      }
-
-      setRunId(body.runId);
-      setScanRunId(body.scanRunId);
-      setRunAccessToken(body.runAccessToken);
-      setStatus(body.status || "running");
-      setPollStartedAt(Date.now());
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        runId: body.runId,
-        scanRunId: body.scanRunId,
-        runAccessToken: body.runAccessToken,
-        url: url.trim(),
-      }));
+      setQuickPreview(body);
     } catch {
       setError("network_error");
-      setStatus("failed");
     } finally {
       setStarting(false);
     }
   }
 
-  async function cancelCurrentRun() {
-    if (!runId || !scanRunId || !runAccessToken || cancelling) return;
-    setCancelling(true);
-    setStatus("cancelling");
-    try {
-      const response = await fetch(`/api/control-plane/hotel-scanner/scan-v2-workflow/${encodeURIComponent(runId)}/cancel`, {
-        method: "POST",
-        cache: "no-store",
-        headers: {
-          "X-Scanner-Scan-Run-Id": scanRunId,
-          "X-Scanner-Workflow-Token": runAccessToken,
-        },
-      });
-      const body = (await response.json().catch(() => ({}))) as WorkflowPoll;
-      if (!response.ok || body.ok === false) {
-        setStatus(body.error || "cancel_failed");
-        return;
-      }
-      reset();
-    } catch {
-      setStatus("cancel_failed");
-    } finally {
-      setCancelling(false);
-    }
-  }
-
-  function reset() {
-    window.localStorage.removeItem(STORAGE_KEY);
-    setRunId(null);
-    setScanRunId(null);
-    setRunAccessToken(null);
-    setStatus("idle");
-    setResult(null);
-    setError(null);
-    setPollStartedAt(null);
-    setElapsedMs(0);
-    setQuickPreview(null);
-    setQuickPreviewError(null);
-    setQuickPreviewLoading(false);
-  }
-
-  const metrics = useMemo(() => {
-    if (!result) return [];
-    const counts = result.discovery?.siteMap?.counts;
-    return [
-      [copy.pages, String(counts?.crawledPages ?? 0)],
-      [copy.resources, String(counts?.resources ?? 0)],
-      [copy.runtime, formatDuration(result.diagnostics?.totalLatencyMs)],
-    ];
-  }, [result, copy]);
-
-  const active = Boolean(runId && !result && !error);
-  const blockers = result?.validationGate?.blockingReasons || result?.completeness?.blockingReasons || [];
-  const siteCoverage = result?.discovery?.coverage;
-  const canonicalDomains = result?.canonicalInventory?.authority?.domains?.length
-    ? result.canonicalInventory.authority.domains
-    : result?.canonicalInventory?.observed?.domains || [];
+  const visibleComponents = (quickPreview?.components || []).filter((component) => VISIBLE_DOMAINS.has(component.domain));
 
   return (
     <div className="space-y-6">
@@ -585,150 +138,20 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
               type="url"
               value={url}
               onChange={(event) => setUrl(event.target.value)}
-              disabled={active}
+              disabled={starting}
               className="v2-input mt-2"
             />
           </label>
-          <button type="button" onClick={() => void startScan()} disabled={starting || active || !url.trim()} className="v2-button min-w-56">
+          <button
+            type="button"
+            onClick={() => void startScan()}
+            disabled={starting || !url.trim()}
+            className="v2-button min-w-56"
+          >
             {starting ? copy.starting : copy.start}
           </button>
         </div>
       </section>
-
-      {(quickPreviewLoading || quickPreview || quickPreviewError) ? (
-        <section className="v2-panel p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="v2-section-title text-xl">{copy.quickTitle}</h2>
-              <p className="v2-muted mt-1 max-w-4xl text-sm leading-6">{copy.quickHelp}</p>
-            </div>
-            {quickPreview?.runtimeMs ? <span className="v2-pill v2-pill-good">{formatDuration(quickPreview.runtimeMs)}</span> : null}
-          </div>
-          {quickPreviewLoading ? <p className="v2-muted mt-5 text-sm">{copy.quickLoading}</p> : null}
-          {quickPreviewError ? <p className="mt-5 text-sm" style={{ color: "var(--v2-bad)" }}>{copy.quickFailed}</p> : null}
-          {quickPreview ? (
-            <>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {(quickPreview.components || []).map((component) => {
-                  const isContacts = component.domain === "contacts";
-                  const namedCount = component.namedCount ?? component.items?.length ?? 0;
-                  const hasContacts = Boolean(
-                    quickPreview.contacts?.phones?.length
-                    || quickPreview.contacts?.emails?.length
-                    || quickPreview.contacts?.addresses?.length
-                  );
-                  const hasCountOnlyEvidence = !isContacts && component.count > 0 && namedCount === 0;
-                  const manualOnly = Boolean(component.manualOnly);
-                  const authorityStatus = manualOnly ? "MANUAL" : (component.authorityStatus || "PARTIAL");
-                  const authorityReady = authorityStatus === "READY";
-                  const candidateCount = component.candidateCount ?? namedCount;
-                  const summaryValue = isContacts
-                    ? (hasContacts ? copy.contactsFound : "—")
-                    : authorityReady
-                      ? String(component.count || candidateCount || 0)
-                      : "—";
-                  const summaryText = isContacts
-                    ? (hasContacts ? copy.discoveredOnSite : copy.notFound)
-                    : manualOnly
-                      ? copy.manualConfiguration
-                      : authorityReady
-                        ? (candidateCount ? `${copy.found}: ${candidateCount}` : copy.discoveredOnSite)
-                        : authorityStatus === "NOT_DISCOVERED"
-                          ? copy.notFound
-                          : candidateCount
-                            ? `${copy.candidatesFound}: ${candidateCount} · ${copy.needsReview}`
-                            : hasCountOnlyEvidence
-                              ? copy.needsReview
-                              : copy.notFound;
-                  return (
-                    <details key={component.domain} className="v2-card-soft group p-4">
-                      <summary className="cursor-pointer list-none">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="v2-muted text-xs font-bold uppercase tracking-[0.12em]">{domainLabel(component.domain, lang)}</p>
-                            <p className={`mt-2 font-semibold ${isContacts ? "text-base" : "text-2xl"}`}>{summaryValue}</p>
-                            <p className="v2-muted mt-1 text-xs">{summaryText}</p>
-                          </div>
-                          <span className="v2-muted text-xs">{copy.openCard}</span>
-                        </div>
-                      </summary>
-                      <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--v2-line)" }}>
-                        {isContacts ? (
-                          <div className="space-y-2 text-sm">
-                            {(quickPreview.contacts?.phones || []).map((phone) => <p key={`phone:${phone}`}><strong>{lang === "bg" ? "Телефон" : "Phone"}:</strong> {phone}</p>)}
-                            {(quickPreview.contacts?.emails || []).map((email) => <p key={`email:${email}`}><strong>Email:</strong> {email}</p>)}
-                            {(quickPreview.contacts?.addresses || []).map((address) => <p key={`address:${address}`}><strong>{lang === "bg" ? "Адрес" : "Address"}:</strong> {address}</p>)}
-                            {quickPreview.contacts?.website ? <p className="break-all"><strong>Web:</strong> {quickPreview.contacts.website}</p> : null}
-                            {!hasContacts ? <p className="v2-muted">{copy.notFound}</p> : null}
-                          </div>
-                        ) : component.items?.length ? (
-                          <div className="space-y-2">
-                            {component.items.map((item, index) => (
-                              <div key={`${component.domain}:${item.name}:${index}`} className="v2-card p-3">
-                                <p className="text-sm font-semibold">{item.name}</p>
-                                {component.domain === "gastronomy" ? (
-                                  <p className="v2-muted mt-1 text-xs">{item.hours ? `${copy.hours}: ${item.hours}` : copy.hoursMissing}</p>
-                                ) : null}
-                              </div>
-                            ))}
-                            {component.needsOnboarding ? <p className="v2-muted text-xs">{copy.manualConfiguration}</p> : null}
-                          </div>
-                        ) : <p className="v2-muted text-sm">{hasCountOnlyEvidence ? copy.manualConfiguration : copy.notFound}</p>}
-                      </div>
-                    </details>
-                  );
-                })}
-              </div>
-              {(quickPreview.documents || []).length ? (
-                <div className="mt-5">
-                  <p className="v2-muted text-xs font-bold uppercase tracking-[0.12em]">{copy.documentsFound}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {(quickPreview.documents || []).map((document) => (
-                      <span key={document.kind} className="v2-pill">
-                        {lang === "bg" ? document.bg : document.en} · {document.count} · {document.onboarding ? copy.onboardingLater : copy.verifiedLater}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                {quickPreview.sourcePackage ? (
-                  <Link
-                    href={`/design-studio?lang=${lang}&preview=quick`}
-                    onClick={() => window.sessionStorage.setItem(PACKAGE_STORAGE_KEY, JSON.stringify(quickPreview.sourcePackage))}
-                    className="v2-button inline-flex text-sm"
-                  >
-                    {copy.quickDesign}
-                  </Link>
-                ) : null}
-                {runId && !result && !error ? <span className="v2-muted text-xs">{copy.deepRunning}</span> : null}
-              </div>
-            </>
-          ) : null}
-        </section>
-      ) : null}
-
-      {runId ? (
-        <section className="v2-panel p-5 sm:p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="v2-muted text-xs font-bold uppercase tracking-[0.16em]">{copy.run}</p>
-              <p className="mt-2 break-all font-mono text-sm font-semibold">{runId}</p>
-              <p className="v2-muted mt-2 text-sm">{copy.resume}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`v2-pill ${result ? "v2-pill-good" : error ? "v2-pill-bad" : "v2-pill-info"}`}>{copy.status}: {status}</span>
-              <span className="v2-pill">{formatDuration(elapsedMs)}</span>
-              {active ? (
-                <button type="button" onClick={() => void cancelCurrentRun()} disabled={cancelling} className="v2-button text-xs">
-                  {cancelling ? copy.cancellingRun : copy.cancelRun}
-                </button>
-              ) : null}
-              {(result || error) ? <button type="button" onClick={reset} className="v2-button text-xs">{copy.newScan}</button> : null}
-            </div>
-          </div>
-        </section>
-      ) : null}
 
       {error ? (
         <section className="v2-panel p-5 sm:p-6">
@@ -738,116 +161,99 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
         </section>
       ) : null}
 
-      {result ? (
-        <>
-          <section className="v2-panel p-5 sm:p-6">
-            <span className="v2-pill v2-pill-good">{lang === "bg" ? "ГОТОВО" : "READY"}</span>
-            <h2 className="mt-3 text-xl font-bold">{copy.onboardingReady}</h2>
-            <p className="v2-muted mt-2 text-sm leading-6">{copy.onboardingHelp}</p>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {metrics.map(([label, value]) => (
-                <div key={label} className="v2-card-soft p-4">
-                  <p className="v2-muted text-xs font-bold uppercase tracking-[0.12em]">{label}</p>
-                  <p className="mt-2 text-lg font-semibold">{value}</p>
-                </div>
-              ))}
+      {quickPreview ? (
+        <section className="v2-panel p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="v2-section-title text-xl">{copy.preview}</h2>
+              <p className="v2-muted mt-1 max-w-4xl text-sm leading-6">{copy.previewHelp}</p>
             </div>
-            {result.source?.canonicalUrl ? (
-              <a className="v2-source-link mt-5 inline-flex text-sm font-semibold" href={result.source.canonicalUrl} target="_blank" rel="noreferrer">
-                {result.source.canonicalUrl}
-              </a>
+            {quickPreview.runtimeMs ? (
+              <span className="v2-pill v2-pill-good">{formatDuration(quickPreview.runtimeMs)}</span>
             ) : null}
-            {scanRunId ? (
-              <div className="mt-5">
-                <Link href={`/design-studio?lang=${lang}&scanRunId=${encodeURIComponent(scanRunId)}`} className="v2-button inline-flex text-sm">
-                  {copy.designStudio}
-                </Link>
-              </div>
-            ) : null}
-          </section>
+          </div>
 
-          <section className="v2-panel p-5 sm:p-6">
-            <h2 className="v2-section-title text-xl">{copy.onboardingSection}</h2>
-            <p className="v2-muted mt-1 max-w-4xl text-sm leading-6">{copy.onboardingHelp}</p>
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              {(result.completeness?.domains || []).filter((domain) => INTAKE_VISIBLE_DOMAINS.has(domain.domain)).map((domain) => {
-                const inventoryLayer = domain.inventory || {
-                  status: domain.status,
-                  reason: domain.reason,
-                  expected: domain.expected,
-                  extracted: domain.extracted,
-                  missingItems: domain.missingItems || [],
-                };
-                const authorityDomain = canonicalDomains.find((entry) => entry.domain === domain.domain);
-                const manualOnly = domain.domain === "experiences";
-                const contactStatus = domain.status === "NOT_DISCOVERED"
-                  ? "NOT_DISCOVERED"
-                  : inventoryLayer.status === "COMPLETE"
-                    ? "READY"
-                    : "PARTIAL";
-                const authorityStatus = manualOnly
-                  ? "MANUAL"
-                  : domain.domain === "contacts"
-                    ? contactStatus
-                    : authorityDomain?.authorityStatus || "PARTIAL";
-                const authoritative = authorityStatus === "READY";
-                const notDiscovered = authorityStatus === "NOT_DISCOVERED";
-                const candidateCount = authorityDomain?.count ?? inventoryLayer.extracted ?? 0;
-                const label = notDiscovered
-                  ? copy.notFound
-                  : authorityStatus === "MANUAL"
-                    ? copy.manualConfiguration
-                    : authoritative
-                      ? copy.discoveredOnSite
-                      : copy.needsReview;
-                return (
-                  <article key={domain.domain} className="v2-card p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="font-bold">{domainLabel(domain.domain, lang)}</h3>
-                        <p className="v2-muted mt-1 text-sm">
-                          {notDiscovered
-                            ? copy.notFound
-                            : authorityStatus === "MANUAL"
-                              ? copy.manualConfiguration
-                              : authoritative
-                                ? `${copy.found}: ${candidateCount}`
-                                : candidateCount
-                                  ? `${copy.candidatesFound}: ${candidateCount}`
-                                  : copy.needsReview}
-                        </p>
-                      </div>
-                      <span className={`v2-pill ${authoritative ? "v2-pill-good" : notDiscovered ? "v2-pill-info" : "v2-pill-warn"}`}>{label}</span>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {visibleComponents.map((component) => {
+              const items = component.items || [];
+              const isContacts = component.domain === "contacts";
+              const hasContacts = Boolean(
+                quickPreview.contacts?.phones?.length
+                || quickPreview.contacts?.emails?.length
+                || quickPreview.contacts?.addresses?.length
+              );
+
+              return (
+                <article key={component.domain} className="v2-card-soft p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-bold">{domainLabel(component.domain, lang)}</h3>
+                      <p className="v2-muted mt-1 text-sm">
+                        {isContacts
+                          ? (hasContacts ? copy.found : copy.notFound)
+                          : items.length
+                            ? `${copy.found}: ${items.length}`
+                            : copy.notFound}
+                      </p>
                     </div>
-                    {!notDiscovered && (authorityStatus === "MANUAL" || domain.content?.status === "ONBOARDING_REQUIRED") ? (
-                      <p className="v2-muted mt-3 text-xs">{copy.manualSetup}</p>
-                    ) : null}
-                  </article>
-                );
-              })}
-            </div>
-          </section>
+                  </div>
 
-          <HotelScannerV2ReviewWorkspace
-            sections={result.reviewSections?.filter((section) => INTAKE_REVIEW_DOMAINS.has(section.domain))}
-            candidate={result.intelligenceCandidate}
-            documents={result.documents?.documents}
-            lang={lang}
-          />
+                  {isContacts ? (
+                    <div className="mt-4 space-y-2 text-sm">
+                      {(quickPreview.contacts?.phones || []).map((phone) => (
+                        <p key={`phone:${phone}`}><strong>{copy.phone}:</strong> {phone}</p>
+                      ))}
+                      {(quickPreview.contacts?.emails || []).map((email) => (
+                        <p key={`email:${email}`}><strong>Email:</strong> {email}</p>
+                      ))}
+                      {(quickPreview.contacts?.addresses || []).map((address) => (
+                        <p key={`address:${address}`}><strong>{copy.address}:</strong> {address}</p>
+                      ))}
+                      {quickPreview.contacts?.website ? (
+                        <p className="break-all"><strong>{copy.website}:</strong> {quickPreview.contacts.website}</p>
+                      ) : null}
+                    </div>
+                  ) : items.length ? (
+                    <div className="mt-4 space-y-2">
+                      {items.map((item, index) => (
+                        <div key={`${component.domain}:${item.name}:${index}`} className="v2-card p-3">
+                          <p className="text-sm font-semibold">{item.name}</p>
+                          {component.domain === "gastronomy" ? (
+                            <p className="v2-muted mt-1 text-xs">
+                              {item.hours ? `${copy.openingHours}: ${item.hours}` : copy.hoursMissing}
+                            </p>
+                          ) : null}
+                          {component.domain === "policies" && item.url ? (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="v2-source-link mt-2 block break-all text-xs"
+                            >
+                              {copy.source}
+                            </a>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
 
-          <details className="v2-details v2-panel p-5 sm:p-6">
-            <summary className="cursor-pointer font-bold">{copy.technical}</summary>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {metrics.map(([label, value]) => (
-                <div key={`tech:${label}`} className="v2-card-soft p-3">
-                  <p className="v2-muted text-[10px] font-bold uppercase tracking-[0.12em]">{label}</p>
-                  <p className="mt-2 text-sm font-semibold">{value}</p>
-                </div>
-              ))}
+          {quickPreview.sourcePackage ? (
+            <div className="mt-5">
+              <Link
+                href={`/design-studio?lang=${lang}&preview=quick`}
+                onClick={() => window.sessionStorage.setItem(PACKAGE_STORAGE_KEY, JSON.stringify(quickPreview.sourcePackage))}
+                className="v2-button inline-flex text-sm"
+              >
+                {copy.designStudio}
+              </Link>
             </div>
-            <p className="v2-muted mt-4 text-xs">{blockers.length ? blockers.join(" · ") : copy.noBlockers}</p>
-          </details>
-        </>
+          ) : null}
+        </section>
       ) : null}
     </div>
   );
