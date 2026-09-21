@@ -84,6 +84,24 @@ export type HotelIntelligencePackage = {
     styleKeywords: string[];
     imageReferences: string[];
     logoReferences: string[];
+    brandKit?: {
+      colorRoles: Array<{
+        role: string;
+        color: string;
+        confidence: number;
+        evidence: string;
+      }>;
+      typography: {
+        bodyFont: string;
+        headingFont: string;
+        buttonFont: string;
+      };
+      visualCues: {
+        buttonRadius: string;
+        cardRadius: string;
+      };
+      stylesheetUrls: string[];
+    };
     visualAssetPolicy: "hotel_authorization_required";
   };
   factoryBlueprint?: HotelFactoryBlueprint;
