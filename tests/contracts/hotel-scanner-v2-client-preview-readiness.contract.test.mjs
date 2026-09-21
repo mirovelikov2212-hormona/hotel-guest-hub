@@ -59,20 +59,21 @@ test("unknown inventory becomes onboarding work rather than scanner failure", ()
   assert.equal(result.prerequisitesSatisfied, false);
 });
 
-test("quick intake exposes room, dining, policy and contact data with bounded hours text", async () => {
+test("quick intake exposes a categorized onboarding source index plus obvious hotel facts", async () => {
   const preview = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
   const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
 
-  assert.match(preview, /HOURS_STOP_LABEL/);
-  assert.match(preview, /dress\\s\*code|dresscode/);
-  assert.match(preview, /speisekarte/);
-  assert.match(preview, /policyDocuments/);
-  assert.match(preview, /openingHoursForItem/);
+  assert.match(preview, /buildOnboardingSources/);
+  assert.match(preview, /siteMap\.resources/);
+  assert.match(preview, /sourceCategoryFromPageType/);
+  assert.match(preview, /buildIntakeInfo/);
+  assert.match(preview, /onboardingSources/);
 
-  assert.match(client, /VISIBLE_DOMAINS/);
-  assert.match(client, /openingHours/);
-  assert.match(client, /component\.domain === "gastronomy"/);
-  assert.match(client, /component\.domain === "policies"/);
+  assert.match(client, /CATEGORY_ORDER/);
+  assert.match(client, /groupedSources/);
+  assert.match(client, /Onboarding източници/);
+  assert.match(client, /quickPreview\.info/);
+  assert.match(client, /quickPreview\.contacts/);
 });
 
 test("quick crawl prioritizes inventory authority and can fetch one missing authority page per requested domain", async () => {
