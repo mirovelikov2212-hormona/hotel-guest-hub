@@ -185,7 +185,7 @@ test("Primary Intake exposes no Deep-run cancel controls because no Deep run is 
   assert.doesNotMatch(source, /cancelCurrentRun|cancellingRun|\/cancel/);
 });
 
-test("Quick Intake extracts only the four onboarding data groups and does not start Deep", async () => {
+test("Quick Intake builds a broad onboarding source index without starting Deep", async () => {
   const route = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-preview/route.ts");
   const intake = await readProjectFile("lib/server/hotel-scanner-v2-intake.ts");
   const projector = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
@@ -196,9 +196,13 @@ test("Quick Intake extracts only the four onboarding data groups and does not st
   assert.doesNotMatch(route, /hotelScannerV2Workflow|workflow\/api|discoveryCheckpointGzip/);
   assert.match(intake, /\["accommodation", "gastronomy"\]/);
   assert.match(projector, /CORE_DOMAINS = \["accommodation", "gastronomy", "policies", "contacts"\]/);
-  assert.match(projector, /policyDocuments/);
-  assert.match(projector, /openingHoursForItem/);
-  assert.match(client, /VISIBLE_DOMAINS = new Set\(\["accommodation", "gastronomy", "policies", "contacts", "info"\]\)/);
+  assert.match(projector, /buildOnboardingSources/);
+  assert.match(projector, /sourceCategoryFromPageType/);
+  assert.match(projector, /wellness/);
+  assert.match(projector, /services/);
+  assert.match(projector, /experiences/);
+  assert.match(client, /CATEGORY_ORDER/);
+  assert.match(client, /groupedSources/);
   assert.match(client, /preview=quick/);
   assert.match(designPage, /quickPreview/);
 });
@@ -217,19 +221,18 @@ test("Quick crawl budget is isolated from the full Scanner V2 crawl", async () =
 });
 
 
-test("Quick Intake presents rooms, dining hours, policies and contacts without internal inventory states", async () => {
+test("Quick Intake presents onboarding links, contacts and hotel info without internal inventory states", async () => {
   const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
   const preview = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
 
-  assert.match(client, /component\.items/);
-  assert.match(client, /component\.domain === "gastronomy"/);
-  assert.match(client, /component\.domain === "contacts"/);
-  assert.match(client, /component\.domain === "policies"/);
-  assert.match(client, /hoursMissing/);
+  assert.match(client, /onboardingSources/);
+  assert.match(client, /groupedSources/);
+  assert.match(client, /target="_blank"/);
+  assert.match(client, /quickPreview\.contacts/);
+  assert.match(client, /quickPreview\.info/);
   assert.doesNotMatch(client, /component\.state|authorityStatus|candidateCount/);
-  assert.match(preview, /openingHoursForItem/);
+  assert.match(preview, /buildOnboardingSources/);
   assert.match(preview, /quickContacts/);
-  assert.match(preview, /policyDocuments/);
   assert.match(preview, /buildIntakeInfo/);
 });
 
