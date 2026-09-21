@@ -508,46 +508,51 @@ function targetedDomainItems(
   discovery: HotelIntakeV2DiscoveryResult,
   domain: "accommodation" | "gastronomy",
 ) {
-  const requestedLanguage = intakePathLanguage(discovery.evidence.canonicalUrl || discovery.evidence.requestedUrl);
   const pages = discovery.evidence.pages || [];
+  const requestedLanguage = pageLanguage(pages[0]);
+
+  if (domain === "gastronomy") {
+    const atomic = atomicVenueItems(discovery, requestedLanguage);
+    if (atomic.length) return atomic;
+  }
 
   const rankedLandings = pages
     .map((page) => {
       const classification = classifyHotelScannerPageV2(page);
-      if (classification.primaryType !== domain) return null;
-      const items = domainHintItems(discovery, page, domain);
+      if (hotelScannerPageTypeDomain(classification.primaryType) !== domain) return null;
+      const items = domain === "accommodation"
+        ? roomCardItems(page)
+        : domainHintItems(discovery, page, domain);
       if (!items.length) return null;
-      const language = intakePathLanguage(page.url);
       return {
         page,
         items,
-        languageRank: requestedLanguage && language === requestedLanguage ? 0 : language === "en" ? 1 : language ? 2 : 3,
+        languageRank: languageRank(page, requestedLanguage),
         depth: intakePathDepth(page.url),
       };
     })
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
     .sort((left, right) =>
       left.languageRank - right.languageRank
+      || right.items.length - left.items.length
       || left.depth - right.depth
       || left.page.url.localeCompare(right.page.url));
 
   const landing = rankedLandings[0];
   if (landing) return landing.items;
 
-  // Some hotel sites expose the useful object list on the homepage while the
-  // dedicated route is classified as a detail page. Use the homepage only as
-  // a narrow fallback; never aggregate candidates from the whole site.
   const homepage = pages[0];
   if (homepage) {
-    const homepageItems = domainHintItems(discovery, homepage, domain);
+    const homepageItems = domain === "accommodation"
+      ? roomCardItems(homepage)
+      : domainHintItems(discovery, homepage, domain);
     if (homepageItems.length) return homepageItems;
   }
 
-  // Final fallback: one atomic item per fetched detail page in the requested
-  // domain. This is still page-scoped and cannot explode into site-wide counts.
   const detailSuffix = domain === "accommodation" ? "room_detail" : "restaurant_detail";
   const detailItems = pages
     .filter((page) => classifyHotelScannerPageV2(page).primaryType === detailSuffix)
+    .filter((page) => languageRank(page, requestedLanguage) <= 1)
     .map((page) => {
       const name = pageTitleItemName(page);
       if (!name || !clientPreviewNameAllowed(domain, name)) return null;
@@ -595,12 +600,19 @@ function timeNearMarker(discovery: HotelIntakeV2DiscoveryResult, marker: RegExp)
       ...(page.contentBlocks || []).map((block) => clean(block.text, 4_000)),
     ];
     for (const text of texts) {
-      marker.lastIndex = 0;
-      const match = marker.exec(text);
-      if (!match) continue;
-      const window = text.slice(match.index, match.index + 220);
-      const clock = window.match(CLOCK_VALUE)?.[0];
-      if (clock) return clock.replace(".", ":");
+      const sentences = text.split(/(?<=[.!?])\s+|\n+/u).map((value) => clean(value, 700)).filter(Boolean);
+      for (const sentence of sentences) {
+        marker.lastIndex = 0;
+        const markerMatch = marker.exec(sentence);
+        if (!markerMatch) continue;
+        const clocks = [...sentence.matchAll(/\b(?:[01]?\d|2[0-3])(?:[:.]\d{2})\b/gu)];
+        if (!clocks.length) continue;
+        const nearest = clocks.sort((left, right) =>
+          Math.abs(Number(left.index || 0) - markerMatch.index)
+          - Math.abs(Number(right.index || 0) - markerMatch.index))[0];
+        const clock = clean(nearest?.[0], 20);
+        if (clock) return clock.replace(".", ":");
+      }
     }
   }
   return "";
