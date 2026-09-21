@@ -4,6 +4,7 @@ import type { HotelIntelligenceItem, HotelIntelligencePackage } from "@/lib/prod
 import { buildInventoryIdentityFactsV2 } from "@/lib/ai/hotel-scanner-v2-deterministic-facts";
 import type { HotelIntakeV2DiscoveryResult } from "@/lib/server/hotel-scanner-v2-intake";
 import type { HotelScannerV2DomainInventory } from "@/lib/server/hotel-scanner-v2-inventory.mjs";
+import { deriveHotelPageInventoryHintsV2 } from "@/lib/server/hotel-scanner-v2-landing-inventory.mjs";
 import { classifyHotelScannerPageV2, hotelScannerPageTypeDomain } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
 import {
   applyHotelInventoryAuthorityV3,
@@ -315,25 +316,218 @@ export function summarizeHotelScannerV2Documents(discovery: HotelIntakeV2Discove
     .map(([kind, meta]) => ({ kind, ...meta, count: counts.get(kind) || 0 }))
     .filter((item) => item.count > 0);
 }
+
+type IntakePreviewItem = {
+  name: string;
+  hours?: string;
+  url?: string;
+  value?: string;
+};
+
+function intakePathLanguage(rawUrl: string) {
+  try {
+    const segment = new URL(rawUrl).pathname.split("/").filter(Boolean)[0] || "";
+    return /^(?:bg|en|de|ro|ru|cs|cz|fr|it|es|pl|tr|el|sr|mk|uk|hu|nl|pt)$/iu.test(segment)
+      ? segment.toLocaleLowerCase("en-US")
+      : "";
+  } catch {
+    return "";
+  }
+}
+
+function intakePathDepth(rawUrl: string) {
+  try { return new URL(rawUrl).pathname.split("/").filter(Boolean).length; }
+  catch { return 99; }
+}
+
+function absoluteEvidenceUrl(rawUrl: unknown, baseUrl: string) {
+  const raw = clean(rawUrl, 2_048);
+  if (!raw) return "";
+  try { return new URL(raw, baseUrl).toString(); }
+  catch { return "";
+  }
+}
+
+function uniqueIntakeItems(values: IntakePreviewItem[], max = 40) {
+  const seen = new Set<string>();
+  const result: IntakePreviewItem[] = [];
+  for (const item of values) {
+    const name = clean(item.name, 240);
+    const key = entityKey(name);
+    if (!name || !key || seen.has(key)) continue;
+    seen.add(key);
+    result.push({
+      name,
+      hours: clean(item.hours, 220),
+      url: clean(item.url, 2_048),
+      value: clean(item.value, 500),
+    });
+    if (result.length >= max) break;
+  }
+  return result;
+}
+
+function targetedDomainItems(
+  discovery: HotelIntakeV2DiscoveryResult,
+  domain: "accommodation" | "gastronomy",
+) {
+  const requestedLanguage = intakePathLanguage(discovery.evidence.canonicalUrl || discovery.evidence.requestedUrl);
+  const candidates = (discovery.evidence.pages || [])
+    .map((page) => {
+      const classification = classifyHotelScannerPageV2(page);
+      if (classification.primaryType !== domain) return null;
+      const hint = deriveHotelPageInventoryHintsV2(page, classification)
+        .find((entry: { domain?: string }) => entry?.domain === domain);
+      if (!hint || !Array.isArray(hint.candidates) || !hint.candidates.length) return null;
+      const language = intakePathLanguage(page.url);
+      return {
+        page,
+        hint,
+        languageRank: requestedLanguage && language === requestedLanguage ? 0 : language === "en" ? 1 : language ? 2 : 3,
+        depth: intakePathDepth(page.url),
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+    .sort((left, right) =>
+      left.languageRank - right.languageRank
+      || left.depth - right.depth
+      || Number(right.hint.confidence === "HIGH") - Number(left.hint.confidence === "HIGH")
+      || left.page.url.localeCompare(right.page.url));
+
+  const selected = candidates[0];
+  if (!selected) return [] as IntakePreviewItem[];
+
+  const items = selected.hint.candidates
+    .map((candidate: { name?: string; links?: string[] }) => {
+      const name = clean(candidate?.name, 240);
+      if (!name || !clientPreviewNameAllowed(domain, name)) return null;
+      const linkedUrl = (candidate.links || [])
+        .map((url) => absoluteEvidenceUrl(url, selected.page.url))
+        .find(Boolean) || selected.page.url;
+      const hours = domain === "gastronomy"
+        ? openingHoursForItem(discovery, { nameHint: name, url: linkedUrl, urls: [linkedUrl] })
+        : "";
+      return { name, hours, url: linkedUrl };
+    })
+    .filter((item): item is IntakePreviewItem => Boolean(item));
+
+  // A landing page is the authority for Intake. If it produces an implausibly
+  // large navigation-like set, do not expose that noise as hotel inventory.
+  const maxItems = domain === "accommodation" ? 30 : 20;
+  if (items.length > maxItems) return [];
+  return uniqueIntakeItems(items, maxItems);
+}
+
+const CHECK_IN_MARKER = /(?:check[-\s]?in|anreise(?:tag)?|ankunft|arrival|настаняване|пристигане|заезд|giri[sş]|sosire|p[řr]íjezd)/iu;
+const CHECK_OUT_MARKER = /(?:check[-\s]?out|abreise(?:tag)?|departure|освобождаване|заминаване|выезд|çıkış|cikis|plecare|odjezd)/iu;
+const CLOCK_VALUE = /\b(?:[01]?\d|2[0-3])(?:[:.]\d{2})\b/u;
+const PARKING_MARKER = /(?:parking|car\s*park|parkplatz|parkplätze|parkplaetze|garage|паркинг|парковк|otopark|parcare|parkoviště|parkoviste)/iu;
+
+function operationEvidencePages(discovery: HotelIntakeV2DiscoveryResult) {
+  const selected = (discovery.evidence.pages || []).filter((page, index) => {
+    const type = classifyHotelScannerPageV2(page).primaryType;
+    return index === 0 || ["faq", "policies", "contacts", "accommodation"].includes(type);
+  });
+  return selected.length ? selected : (discovery.evidence.pages || []).slice(0, 1);
+}
+
+function timeNearMarker(discovery: HotelIntakeV2DiscoveryResult, marker: RegExp) {
+  for (const page of operationEvidencePages(discovery)) {
+    const texts = [
+      clean(page.text, 30_000),
+      ...(page.contentBlocks || []).map((block) => clean(block.text, 4_000)),
+    ];
+    for (const text of texts) {
+      marker.lastIndex = 0;
+      const match = marker.exec(text);
+      if (!match) continue;
+      const window = text.slice(match.index, match.index + 220);
+      const clock = window.match(CLOCK_VALUE)?.[0];
+      if (clock) return clock.replace(".", ":");
+    }
+  }
+  return "";
+}
+
+function parkingInfo(discovery: HotelIntakeV2DiscoveryResult) {
+  for (const page of operationEvidencePages(discovery)) {
+    const texts = [
+      clean(page.text, 30_000),
+      ...(page.contentBlocks || []).map((block) => clean(block.text, 4_000)),
+    ];
+    for (const text of texts) {
+      const sentences = text.split(/(?<=[.!?])\s+|\n+/u).map((value) => clean(value, 500)).filter(Boolean);
+      const sentence = sentences.find((value) => PARKING_MARKER.test(value) && value.length >= 8 && value.length <= 420);
+      if (sentence) return sentence;
+    }
+  }
+  return "";
+}
+
+function buildIntakeInfo(discovery: HotelIntakeV2DiscoveryResult) {
+  return {
+    checkIn: timeNearMarker(discovery, CHECK_IN_MARKER),
+    checkOut: timeNearMarker(discovery, CHECK_OUT_MARKER),
+    parking: parkingInfo(discovery),
+  };
+}
+
+function buildQuickIntakeFacts(input: {
+  rooms: IntakePreviewItem[];
+  venues: IntakePreviewItem[];
+  policies: IntakePreviewItem[];
+  contacts: ReturnType<typeof quickContacts>;
+  info: { checkIn: string; checkOut: string; parking: string };
+}) {
+  const raw: Array<{ category: string; label: string; value: string; sourceUrls: string[] }> = [];
+  for (const room of input.rooms) raw.push({ category: "accommodation", label: "Room type", value: room.name, sourceUrls: room.url ? [room.url] : [] });
+  for (const venue of input.venues) raw.push({
+    category: "dining",
+    label: "Venue",
+    value: [venue.name, venue.hours].filter(Boolean).join(" · "),
+    sourceUrls: venue.url ? [venue.url] : [],
+  });
+  for (const policy of input.policies) raw.push({ category: "policy", label: "Policy / FAQ", value: policy.name, sourceUrls: policy.url ? [policy.url] : [] });
+  for (const phone of input.contacts.phones) raw.push({ category: "contact", label: "Phone", value: phone, sourceUrls: [] });
+  for (const email of input.contacts.emails) raw.push({ category: "contact", label: "Email", value: email, sourceUrls: [] });
+  if (input.info.checkIn) raw.push({ category: "operations", label: "Check-in", value: input.info.checkIn, sourceUrls: [] });
+  if (input.info.checkOut) raw.push({ category: "operations", label: "Check-out", value: input.info.checkOut, sourceUrls: [] });
+  if (input.info.parking) raw.push({ category: "parking", label: "Parking", value: input.info.parking, sourceUrls: [] });
+
+  return raw.map((fact, index): HotelIntelligenceItem => ({
+    ...fact,
+    confidence: 0.9,
+    id: `quick-intake-${index + 1}`,
+    targets: ["hub"],
+    status: "candidate",
+    verification: {
+      status: "SINGLE_SOURCE",
+      independentSourceCount: 1,
+      sourceUrls: fact.sourceUrls,
+    },
+  }));
+}
+
 export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2DiscoveryResult) {
-  const authority = v3InventoryAuthority(discovery);
-  const inventory = authority ? applyHotelInventoryAuthorityV3(discovery.inventory, authority) : discovery.inventory;
-  const items = itemize(discovery);
+  // Intake deliberately ignores site-wide V3 inventory authority. The public
+  // landing pages for rooms and dining are the source for the onboarding list.
   const canonicalUrl = discovery.evidence.canonicalUrl;
-  const rooms = inventory.domains.find((domain: { domain: string }) => domain.domain === "accommodation")?.expectedItems || [];
-  const venues = inventory.domains.find((domain: { domain: string }) => domain.domain === "gastronomy")?.expectedItems || [];
+  const rooms = targetedDomainItems(discovery, "accommodation");
+  const venues = targetedDomainItems(discovery, "gastronomy");
   const contacts = quickContacts(discovery);
-  const policyPages = (discovery.evidence.pages || [])
+  const info = buildIntakeInfo(discovery);
+
+  const policyPages: IntakePreviewItem[] = (discovery.evidence.pages || [])
     .filter((page) => {
       const type = classifyHotelScannerPageV2(page).primaryType;
       return type === "faq" || type === "policies";
     })
     .map((page, index) => ({
-      nameHint: clean(page.title, 240).split(/\s+[|]\s+/u)[0] || `Policy / FAQ ${index + 1}`,
+      name: clean(page.title, 240).split(/\s+[|]\s+/u)[0] || `Policy / FAQ ${index + 1}`,
       url: clean(page.url, 2_048),
-      urls: [clean(page.url, 2_048)].filter(Boolean),
     }));
-  const policyDocuments = (discovery.inventory.documents || [])
+
+  const policyDocuments: IntakePreviewItem[] = (discovery.inventory.documents || [])
     .filter((document: { domains?: string[] }) => document.domains?.includes("policies"))
     .map((document: { url?: string }, index: number) => {
       const url = clean(document.url, 2_048);
@@ -344,15 +538,13 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
           .replace(/[-_]+/gu, " ")
           .trim() || name;
       } catch {}
-      return { nameHint: name, url, urls: [url].filter(Boolean) };
+      return { name, url };
     });
-  const policies = [
-    ...(inventory.domains.find((domain: { domain: string }) => domain.domain === "policies")?.expectedItems || []),
-    ...policyPages,
-    ...policyDocuments,
-  ];
+  const policies = uniqueIntakeItems([...policyPages, ...policyDocuments], 20);
+  const items = buildQuickIntakeFacts({ rooms, venues, policies, contacts, info });
   const name = hotelName(discovery);
   const sourceUrls = unique([canonicalUrl, ...items.flatMap((item) => item.sourceUrls)]);
+
   const sourcePackage: HotelIntelligencePackage = {
     schemaVersion: "hotel-intelligence-v1",
     pipelineVersion: "professional-crawler-v2",
@@ -363,20 +555,40 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
       scannedAt: discovery.evidence.scannedAt,
       pageCount: discovery.evidence.pages.length,
     },
-    evidenceLayer: { facts: items, sourceUrls, uncertainties: ["quick_preview_only", "manual_onboarding_required"] },
+    evidenceLayer: { facts: items, sourceUrls, uncertainties: ["quick_intake_only", "manual_onboarding_required"] },
     hotelProfileLayer: {
-      identity: { hotelName: name, summary: "", address: contacts.addresses[0] || "", city: "", country: "", bookingUrl: "", contactUrl: canonicalUrl },
+      identity: {
+        hotelName: name,
+        summary: "",
+        address: contacts.addresses[0] || "",
+        city: "",
+        country: "",
+        bookingUrl: "",
+        contactUrl: canonicalUrl,
+      },
       contacts: { phones: contacts.phones, emails: contacts.emails, socialLinks: [] },
-      operations: { checkIn: "", checkOut: "", languages: [] },
+      operations: { checkIn: info.checkIn, checkOut: info.checkOut, languages: [] },
       hospitality: {
-        roomTypes: unique(rooms.map((item) => clean(item.nameHint, 180)).filter((name) => clientPreviewNameAllowed("accommodation", name)), 50),
-        amenities: [],
-        venues: venues.map((item) => ({ name: clean(item.nameHint, 180), type: "venue", hours: openingHoursForItem(discovery, item), summary: "" })).filter((item) => item.name),
+        roomTypes: rooms.map((item) => item.name),
+        amenities: info.parking ? [info.parking] : [],
+        venues: venues.map((item) => ({
+          name: item.name,
+          type: "venue",
+          hours: item.hours || "",
+          summary: "",
+        })),
         spaServices: [],
-        policies: unique(policies.map((item) => clean(item.nameHint, 180)).filter(Boolean), 50),
+        policies: policies.map((item) => item.name),
       },
     },
-    designIntelligenceLayer: { colors: [], fonts: [], styleKeywords: [], imageReferences: [], logoReferences: [], visualAssetPolicy: "hotel_authorization_required" },
+    designIntelligenceLayer: {
+      colors: [],
+      fonts: [],
+      styleKeywords: [],
+      imageReferences: [],
+      logoReferences: [],
+      visualAssetPolicy: "hotel_authorization_required",
+    },
     routing: { hub: items, smartSetup: [], designStudio: [], review: [] },
     readiness: {
       evidenceFactCount: items.length,
@@ -385,73 +597,37 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
       designSignalCount: 0,
       reviewRequiredCount: 0,
       verifiedFactCount: 0,
-      singleSourceFactCount: 0,
+      singleSourceFactCount: items.length,
       conflictFactCount: 0,
       humanReviewResolved: false,
     },
   };
+
+  const contactMethodCount = contacts.phones.length + contacts.emails.length + contacts.addresses.length;
+  const infoItems: IntakePreviewItem[] = [
+    ...(info.checkIn ? [{ name: "Check-in", value: info.checkIn }] : []),
+    ...(info.checkOut ? [{ name: "Check-out", value: info.checkOut }] : []),
+    ...(info.parking ? [{ name: "Паркинг", value: info.parking }] : []),
+  ];
+
   return {
     sourcePackage,
-    components: inventory.domains
-      .filter((domain: HotelScannerV2DomainInventory) => INTAKE_DOMAINS.includes(domain.domain as (typeof INTAKE_DOMAINS)[number]))
-      .map((domain: HotelScannerV2DomainInventory) => {
-        const domainItems = domain.domain === "policies"
-          ? [...(domain.expectedItems || []), ...policyPages, ...policyDocuments]
-          : (domain.expectedItems || []);
-        const rawComponentItems = domainItems.map((item) => ({
-          name: clean(item.nameHint, 240),
-          hours: domain.domain === "gastronomy" ? openingHoursForItem(discovery, item) : "",
-          url: clean(item.url, 2_048),
-        })).filter((item) => item.name);
-        const snapshotDomain = discovery.evidence.v3InventorySnapshot?.domains?.find(
-          (entry: { domain?: string }) => entry?.domain === domain.domain,
-        );
-        const domainHasV3Authority = Boolean(
-          authority
-          && authority.domains.some((entry) =>
-            entry.domain === domain.domain && entry.authorityStatus === "READY"),
-        );
-        const manualOnly = false;
-        const componentItems = domain.domain === "policies"
-          ? rawComponentItems
-          : previewItemsForDomain(
-              discovery,
-              domain.domain,
-              domainItems,
-              { allowEvidenceExpansion: false },
-            ).map((item, index) => ({
-              ...item,
-              url: clean(domainItems[index]?.url, 2_048),
-            }));
-        const authorityStatus = domain.domain === "policies"
-          ? (componentItems.length ? "READY" : "NOT_DISCOVERED")
-          : clean(snapshotDomain?.authorityStatus || (domainHasV3Authority ? "READY" : "PARTIAL"), 80);
-        const contactMethodCount = contacts.phones.length + contacts.emails.length + contacts.addresses.length;
-        return {
-          domain: domain.domain,
-          count: domain.domain === "contacts"
-            ? contactMethodCount
-            : domainHasV3Authority
-              ? domain.expectedCount
-              : componentItems.length || domain.expectedCount,
-          state: domain.expectationState,
-          namedCount: domain.domain === "contacts" ? contactMethodCount : componentItems.length,
-          candidateCount: domain.domain === "contacts" ? contactMethodCount : componentItems.length,
-          authorityStatus: domain.domain === "contacts" ? (contactMethodCount ? "READY" : "NOT_DISCOVERED") : authorityStatus,
-          needsOnboarding: manualOnly || (domain.domain !== "contacts"
-            && domain.expectedCount > rawComponentItems.length),
-          manualOnly,
-          items: componentItems,
-        };
-      }),
+    components: [
+      { domain: "accommodation", count: rooms.length, namedCount: rooms.length, items: rooms },
+      { domain: "gastronomy", count: venues.length, namedCount: venues.length, items: venues },
+      { domain: "policies", count: policies.length, namedCount: policies.length, items: policies },
+      { domain: "contacts", count: contactMethodCount, namedCount: contactMethodCount, items: [] },
+      { domain: "info", count: infoItems.length, namedCount: infoItems.length, items: infoItems },
+    ],
     contacts,
+    info,
     documents: summarizeHotelScannerV2Documents(discovery),
-    inventoryAuthority: authority ? summarizeHotelInventoryAuthorityV3(authority) : null,
+    inventoryAuthority: null,
     diagnostics: {
       pageCount: discovery.evidence.pages.length,
       resourceCount: discovery.siteMap.counts.resources,
-      expectedItems: inventory.counts.expectedItems,
-      inventorySnapshotId: authority?.snapshotId || "",
+      expectedItems: rooms.length + venues.length + policies.length,
+      inventorySnapshotId: "",
     },
   };
 }
