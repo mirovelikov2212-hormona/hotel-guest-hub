@@ -7,6 +7,7 @@ import type { HotelScannerV2DomainInventory } from "@/lib/server/hotel-scanner-v
 import { classifyHotelScannerPageV2, hotelScannerPageTypeDomain } from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
 import {
   applyHotelInventoryAuthorityV3,
+  hasReadyHotelInventoryAuthorityV3,
   projectHotelInventoryAuthorityV3,
   summarizeHotelInventoryAuthorityV3,
 } from "@/lib/server/hotel-scanner-v3-canonical-inventory.mjs";
@@ -263,10 +264,8 @@ function quickContacts(discovery: HotelIntakeV2DiscoveryResult) {
 function v3InventoryAuthority(discovery: HotelIntakeV2DiscoveryResult) {
   const snapshot = discovery.evidence.v3InventorySnapshot;
   if (!snapshot || snapshot.schemaVersion !== "hotel-scanner-v3-canonical-inventory-1") return null;
-  // Canonical readiness is domain-aware: manual-only Experiences/Events do not
-  // block the operational inventory authority.
-  if (snapshot.status !== "READY") return null;
-  return projectHotelInventoryAuthorityV3(snapshot);
+  const authority = projectHotelInventoryAuthorityV3(snapshot);
+  return hasReadyHotelInventoryAuthorityV3(authority) ? authority : null;
 }
 
 function authorityInventory(discovery: HotelIntakeV2DiscoveryResult) {
@@ -380,7 +379,8 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
         })).filter((item) => item.name);
         const domainHasV3Authority = Boolean(
           authority
-          && authority.domains.some((entry) => entry.domain === domain.domain),
+          && authority.domains.some((entry) =>
+            entry.domain === domain.domain && entry.authorityStatus === "READY"),
         );
         const manualOnly = domain.domain === "experiences";
         const componentItems = manualOnly
