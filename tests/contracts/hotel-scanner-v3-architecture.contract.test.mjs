@@ -277,3 +277,27 @@ test("Scanner V3 M9 authority is domain-scoped instead of hotel-wide all-or-noth
   assert.match(pipeline, /lockedReadyDomains/);
   assert.match(pipeline, /effectiveReadyDomains/);
 });
+
+
+test("Scanner Intake UI treats non-ready inventory as candidates and keeps manual domains manual", async () => {
+  const quick = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
+  const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
+  const page = await readProjectFile("app/hotel-scanner-v2-workflow/page.tsx");
+
+  assert.match(quick, /INTAKE_DOMAINS/);
+  assert.match(quick, /candidateCount/);
+  assert.match(quick, /authorityStatus/);
+  assert.match(quick, /manualOnly = domain\.domain === "experiences"/);
+  assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"offers"/s);
+
+  assert.match(client, /Hotel Intake Preview/);
+  assert.match(client, /INTAKE_VISIBLE_DOMAINS/);
+  assert.match(client, /canonicalInventory\?\.authority\?\.domains/);
+  assert.match(client, /canonicalInventory\?\.observed\?\.domains/);
+  assert.match(client, /authorityStatus === "MANUAL"/);
+  assert.match(client, /candidatesFound/);
+  assert.doesNotMatch(client, /\$\{copy\.found\}: \$\{inventoryLayer\.extracted\}\/\$\{inventoryLayer\.expected/);
+
+  assert.match(page, /Hotel Scanner · Intake/);
+  assert.match(page, /Internal Intake/);
+});
