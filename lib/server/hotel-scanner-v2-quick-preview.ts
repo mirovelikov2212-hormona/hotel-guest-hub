@@ -322,11 +322,6 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
   const canonicalUrl = discovery.evidence.canonicalUrl;
   const rooms = inventory.domains.find((domain: { domain: string }) => domain.domain === "accommodation")?.expectedItems || [];
   const venues = inventory.domains.find((domain: { domain: string }) => domain.domain === "gastronomy")?.expectedItems || [];
-  const policies = [
-    ...(inventory.domains.find((domain: { domain: string }) => domain.domain === "policies")?.expectedItems || []),
-    ...policyPages,
-    ...policyDocuments,
-  ];
   const contacts = quickContacts(discovery);
   const policyPages = (discovery.evidence.pages || [])
     .filter((page) => {
@@ -351,6 +346,11 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
       } catch {}
       return { nameHint: name, url, urls: [url].filter(Boolean) };
     });
+  const policies = [
+    ...(inventory.domains.find((domain: { domain: string }) => domain.domain === "policies")?.expectedItems || []),
+    ...policyPages,
+    ...policyDocuments,
+  ];
   const name = hotelName(discovery);
   const sourceUrls = unique([canonicalUrl, ...items.flatMap((item) => item.sourceUrls)]);
   const sourcePackage: HotelIntelligencePackage = {
