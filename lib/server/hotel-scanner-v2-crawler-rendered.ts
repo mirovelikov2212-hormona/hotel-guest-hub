@@ -91,12 +91,12 @@ function mergeRenderedBrandEvidence(
   current: HotelScannerV2EvidenceBundle["brand"],
   rendered: HotelScannerV2RenderedBrandSnapshot,
 ): HotelScannerV2EvidenceBundle["brand"] {
-  const renderedRoles = rendered.colorRoles || [];
-  const renderedRoleNames = new Set(renderedRoles.map((item) => item.role));
-  const colorRoles = [
-    ...renderedRoles,
-    ...(current.colorRoles || []).filter((item) => !renderedRoleNames.has(item.role)),
-  ];
+  const renderedRoles = (rendered.colorRoles || [])
+    .filter((item) => item.color && item.confidence >= 0.8);
+  // Brand roles are authoritative only when they come from the rendered homepage.
+  // Raw CSS remains available in `colors` below as secondary evidence, but it
+  // must never silently become a semantic brand role.
+  const colorRoles = renderedRoles;
   const colors = uniqueStrings([
     ...renderedRoles.map((item) => item.color),
     ...(current.colors || []),
