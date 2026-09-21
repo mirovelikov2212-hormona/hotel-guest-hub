@@ -11,6 +11,27 @@ export type HotelFactVerificationMetadata = {
   sourceUrls: string[];
 };
 
+export type HotelOnboardingSourceCategory =
+  | "accommodation"
+  | "gastronomy"
+  | "wellness"
+  | "services"
+  | "experiences"
+  | "events"
+  | "offers"
+  | "policies"
+  | "contacts"
+  | "documents";
+
+export type HotelOnboardingSource = {
+  id: string;
+  category: HotelOnboardingSourceCategory;
+  title: string;
+  url: string;
+  kind: "page" | "document";
+  pageType?: string;
+};
+
 export type HotelIntelligenceItem = HotelScanFact & {
   id: string;
   subject?: string;
@@ -45,6 +66,7 @@ export type HotelIntelligencePackage = {
   generatedAt: string;
   source: HotelScanProfile["source"];
   scannerBridge?: HotelScannerBridgeSnapshot;
+  onboardingSources?: HotelOnboardingSource[];
   evidenceLayer: {
     facts: HotelIntelligenceItem[];
     sourceUrls: string[];
