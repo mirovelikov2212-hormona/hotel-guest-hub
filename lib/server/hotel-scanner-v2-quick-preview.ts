@@ -409,7 +409,7 @@ function targetedDomainItems(
         : "";
       return { name, hours, url: linkedUrl };
     })
-    .filter((item): item is IntakePreviewItem => Boolean(item));
+    .filter((item): item is { name: string; hours: string; url: string } => Boolean(item));
 
   // A landing page is the authority for Intake. If it produces an implausibly
   // large navigation-like set, do not expose that noise as hotel inventory.
