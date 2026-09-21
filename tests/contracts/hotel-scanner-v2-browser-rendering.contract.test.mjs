@@ -122,3 +122,15 @@ test("Quick Brand Kit authority comes from one visible homepage render before ra
 
   assert.doesNotMatch(intake, /if \(!domains\.length\) return initial/);
 });
+
+
+test("Rendered Brand Kit resolves CTA paint from element pseudo or nearby wrapper", async () => {
+  const renderer = await read("lib/server/hotel-scanner-v2-browser-renderer.ts");
+
+  assert.match(renderer, /effectivePaint/);
+  assert.match(renderer, /::before/);
+  assert.match(renderer, /::after/);
+  assert.match(renderer, /parent:/);
+  assert.match(renderer, /paintSource/);
+  assert.match(renderer, /visible CTA paint:/);
+});
