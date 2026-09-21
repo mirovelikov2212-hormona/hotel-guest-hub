@@ -16,6 +16,10 @@ import {
 } from "@/lib/server/hotel-scanner-v2-site-map.mjs";
 import { buildHotelInventoryCanonicalV2 } from "@/lib/server/hotel-scanner-v2-inventory-canonical.mjs";
 import type { HotelScannerV2Inventory } from "@/lib/server/hotel-scanner-v2-inventory.mjs";
+import {
+  classifyHotelScannerPageV2,
+  hotelScannerPageTypeDomain,
+} from "@/lib/server/hotel-scanner-v2-page-classifier.mjs";
 
 export type HotelIntakeV2DiscoveryResult = {
   evidence: HotelScannerV2EvidenceBundle;
@@ -63,21 +67,38 @@ async function finalizeDiscovery(evidence: HotelScannerV2EvidenceBundle): Promis
 }
 
 const QUICK_PREVIEW_CORE_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "experiences", "offers"] as const;
+const QUICK_PREVIEW_RENDER_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "offers"] as const;
 
 export function selectHotelIntakeQuickRenderDomainsV2(result: HotelIntakeV2DiscoveryResult) {
   const resources = Array.isArray(result.siteMap.resources) ? result.siteMap.resources : [];
-  const hasDomainPage = (domain: string) => resources.some((resource) =>
-    resource?.classification?.primaryType === domain
-    || String(resource?.classification?.primaryType || "").endsWith("_detail")
-      && String(resource?.classification?.types || "").includes(domain));
+  const discoveredUrls = [
+    ...(result.evidence.discovery?.navigationUrls || []),
+    ...(result.evidence.discovery?.internalLinkUrls || []),
+    ...(result.evidence.discovery?.sitemapPageUrls || []),
+  ];
+
+  const hasDomainPage = (domain: string) => {
+    const resourceMatch = resources.some((resource) =>
+      resource?.classification?.primaryType === domain
+      || String(resource?.classification?.primaryType || "").endsWith("_detail")
+        && String(resource?.classification?.types || "").includes(domain));
+    if (resourceMatch) return true;
+
+    // A collection authority can be present in sitemap/navigation without
+    // having been fetched yet. URL-only classification is enough to schedule
+    // one bounded authority fetch; actual inventory still comes from evidence.
+    return discoveredUrls.some((url) =>
+      hotelScannerPageTypeDomain(classifyHotelScannerPageV2({ url, title: "" }).primaryType) === domain);
+  };
 
   const selected: string[] = [];
-  for (const domain of ["accommodation", "gastronomy"]) {
-    if (hasDomainPage(domain)) selected.push(domain);
-  }
+  for (const domain of QUICK_PREVIEW_RENDER_DOMAINS) {
+    if (!hasDomainPage(domain)) continue;
+    if (domain === "accommodation" || domain === "gastronomy") {
+      selected.push(domain);
+      continue;
+    }
 
-  for (const domain of QUICK_PREVIEW_CORE_DOMAINS) {
-    if (selected.length >= 6 || selected.includes(domain) || !hasDomainPage(domain)) continue;
     const inventory = result.inventory.domains.find((entry) => entry.domain === domain);
     const authority = String((inventory?.evidence as { authority?: unknown } | undefined)?.authority || "");
     const ambiguous = !inventory
@@ -91,7 +112,7 @@ export function selectHotelIntakeQuickRenderDomainsV2(result: HotelIntakeV2Disco
     if (ambiguous) selected.push(domain);
   }
 
-  return selected.slice(0, 6);
+  return selected.slice(0, QUICK_PREVIEW_RENDER_DOMAINS.length);
 }
 
 export async function discoverHotelIntakeQuickV2(rawUrl: string): Promise<HotelIntakeV2DiscoveryResult> {
