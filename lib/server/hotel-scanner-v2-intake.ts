@@ -94,10 +94,6 @@ export function selectHotelIntakeQuickRenderDomainsV2(result: HotelIntakeV2Disco
   const selected: string[] = [];
   for (const domain of QUICK_PREVIEW_RENDER_DOMAINS) {
     if (!hasDomainPage(domain)) continue;
-    if (domain === "accommodation" || domain === "gastronomy") {
-      selected.push(domain);
-      continue;
-    }
 
     const inventory = result.inventory.domains.find((entry) => entry.domain === domain);
     const authority = String((inventory?.evidence as { authority?: unknown } | undefined)?.authority || "");
@@ -108,6 +104,7 @@ export function selectHotelIntakeQuickRenderDomainsV2(result: HotelIntakeV2Disco
         "STRUCTURAL_OPERATIONAL_LANDING",
         "CANONICAL_DETAIL_FAMILY",
         "CANONICAL_DETAIL_FAMILY_FALLBACK",
+        "RECONCILED_NAMED_SUPERSET",
       ].includes(authority);
     if (ambiguous) selected.push(domain);
   }
