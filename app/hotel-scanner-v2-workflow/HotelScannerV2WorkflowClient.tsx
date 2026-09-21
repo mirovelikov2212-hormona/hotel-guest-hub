@@ -31,6 +31,7 @@ type QuickPreview = {
 };
 
 const PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1";
+const TEST_HUB_STORAGE_KEY = "stayhub:test-hub-package:v1";
 
 const CATEGORY_ORDER: HotelOnboardingSourceCategory[] = [
   "accommodation",
@@ -56,6 +57,7 @@ const COPY = {
     previewHelp: "Отваряй нужните страници при ръчния onboarding. Същият списък се пренася и в Design Studio.",
     failed: "Scanner-ът не успя да извлече данните.",
     designStudio: "Отвори в Design Studio",
+    testHub: "Виж Hub Preview",
     found: "Намерени",
     open: "Отвори",
     page: "Страница",
@@ -93,6 +95,7 @@ const COPY = {
     previewHelp: "Open the relevant pages during manual onboarding. The same source list is handed to Design Studio.",
     failed: "The Scanner could not extract the data.",
     designStudio: "Open in Design Studio",
+    testHub: "View Hub Preview",
     found: "Found",
     open: "Open",
     page: "Page",
@@ -420,13 +423,21 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
           </div>
 
           {quickPreview.sourcePackage ? (
-            <div className="mt-5">
+            <div className="mt-5 flex flex-wrap gap-3">
               <Link
                 href={`/design-studio?lang=${lang}&preview=quick`}
                 onClick={() => window.sessionStorage.setItem(PACKAGE_STORAGE_KEY, JSON.stringify(quickPreview.sourcePackage))}
                 className="v2-button inline-flex text-sm"
               >
                 {copy.designStudio}
+              </Link>
+              <Link
+                href={`/design-studio/test-hub?lang=${lang}`}
+                target="_blank"
+                onClick={() => window.localStorage.setItem(TEST_HUB_STORAGE_KEY, JSON.stringify(quickPreview.sourcePackage))}
+                className="v2-button inline-flex text-sm"
+              >
+                {copy.testHub}
               </Link>
             </div>
           ) : null}
