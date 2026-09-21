@@ -231,32 +231,31 @@ test("Scanner V3 M9 authority remains domain-scoped for internal deep verificati
   assert.match(pipeline, /effectiveReadyDomains/);
 });
 
-test("Scanner Intake is limited to rooms, dining, contacts and policies", async () => {
+test("Scanner Intake is a broad categorized source index for manual onboarding", async () => {
   const quick = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
   const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
-  const page = await readProjectFile("app/hotel-scanner-v2-workflow/page.tsx");
+  const design = await readProjectFile("app/design-studio/VersionedDesignStudioClient.tsx");
+  const pkg = await readProjectFile("lib/product-factory/hotel-intelligence-package.ts");
 
-  assert.match(quick, /CORE_DOMAINS = \["accommodation", "gastronomy", "policies", "contacts"\]/);
-  assert.match(quick, /INTAKE_DOMAINS = \["accommodation", "gastronomy", "policies", "contacts"\]/);
-  assert.match(quick, /openingHoursForItem/);
-  assert.match(quick, /policyDocuments/);
+  assert.match(quick, /buildOnboardingSources/);
+  assert.match(quick, /SOURCE_CATEGORY_ORDER/);
+  assert.match(quick, /"wellness"/);
+  assert.match(quick, /"services"/);
+  assert.match(quick, /"experiences"/);
+  assert.match(quick, /"events"/);
+  assert.match(quick, /"offers"/);
+  assert.match(quick, /"policies"/);
+  assert.match(quick, /"contacts"/);
+  assert.match(quick, /"documents"/);
   assert.match(quick, /buildIntakeInfo/);
-  assert.match(quick, /CHECK_IN_MARKER/);
-  assert.match(quick, /CHECK_OUT_MARKER/);
-  assert.match(quick, /PARKING_MARKER/);
-  assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"spa"/s);
-  assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"experiences"/s);
-  assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"services"/s);
-  assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"offers"/s);
-  assert.doesNotMatch(quick, /INTAKE_DOMAINS = \[[^\]]*"events"/s);
 
-  assert.match(client, /VISIBLE_DOMAINS = new Set\(\["accommodation", "gastronomy", "policies", "contacts", "info"\]\)/);
-  assert.match(client, /Работно време/);
-  assert.match(client, /Политики \/ FAQ/);
-  assert.match(client, /Инфо/);
+  assert.match(client, /Onboarding източници/);
+  assert.match(client, /groupedSources/);
   assert.match(client, /Отвори в Design Studio/);
-  assert.doesNotMatch(client, /SPA|Преживявания|Хотелски услуги|Оферти|Събития|Deep Intake|scan-v2-workflow\/\$\{/);
 
-  assert.match(page, /Hotel Scanner · Intake/);
-  assert.match(page, /Internal Intake/);
+  assert.match(pkg, /onboardingSources\?: HotelOnboardingSource\[\]/);
+  assert.match(design, /Onboarding източници/);
+  assert.match(design, /usedSourceIds/);
+  assert.match(design, /localStorage\.setItem/);
 });
+
