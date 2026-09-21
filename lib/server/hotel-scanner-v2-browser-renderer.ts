@@ -4,6 +4,7 @@ import chromium from "@sparticuz/chromium";
 import { chromium as playwrightChromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 
 import { assertPublicHostnameV2 } from "@/lib/server/hotel-scanner-v2-network";
+import type { HotelBrandColorRoleSignal } from "@/lib/server/factory-hotel-scanner";
 
 const RENDER_TIMEOUT_MS = 15_000;
 const NETWORK_IDLE_TIMEOUT_MS = 2_500;
@@ -21,12 +22,26 @@ export type HotelScannerV2RenderedBlock = {
   sourceKind: "rendered_dom_card";
 };
 
+export type HotelScannerV2RenderedBrandSnapshot = {
+  colorRoles: HotelBrandColorRoleSignal[];
+  typography: {
+    bodyFont: string;
+    headingFont: string;
+    buttonFont: string;
+  };
+  visualCues: {
+    buttonRadius: string;
+    cardRadius: string;
+  };
+};
+
 export type HotelScannerV2RenderedPage = {
   requestedUrl: string;
   finalUrl: string;
   html: string;
   text: string;
   blocks: HotelScannerV2RenderedBlock[];
+  brandSnapshot: HotelScannerV2RenderedBrandSnapshot;
 };
 
 function normalizeText(value: unknown, max = 4_000) {
