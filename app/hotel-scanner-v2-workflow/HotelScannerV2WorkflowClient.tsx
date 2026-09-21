@@ -62,6 +62,15 @@ const COPY = {
     document: "Документ",
     contacts: "Контакти",
     info: "Инфо",
+    brandDesign: "Бранд дизайн",
+    brandHelp: "Детерминистично извлечени цветове, роли и шрифтове от CSS на официалния сайт.",
+    colors: "Цветове",
+    fonts: "Шрифтове",
+    headingFont: "Заглавия",
+    bodyFont: "Основен текст",
+    buttonFont: "Бутони",
+    buttonRadius: "Радиус на бутоните",
+    cardRadius: "Радиус на картите",
     phone: "Телефон",
     address: "Адрес",
     website: "Web",
@@ -86,6 +95,15 @@ const COPY = {
     document: "Document",
     contacts: "Contacts",
     info: "Info",
+    brandDesign: "Brand design",
+    brandHelp: "Deterministically extracted colors, roles and fonts from the official website CSS.",
+    colors: "Colors",
+    fonts: "Fonts",
+    headingFont: "Heading font",
+    bodyFont: "Body font",
+    buttonFont: "Button font",
+    buttonRadius: "Button radius",
+    cardRadius: "Card radius",
     phone: "Phone",
     address: "Address",
     website: "Web",
@@ -108,6 +126,22 @@ const CATEGORY_LABELS: Record<HotelOnboardingSourceCategory, { bg: string; en: s
   contacts: { bg: "Контактна страница", en: "Contact page" },
   documents: { bg: "Документи / PDF", en: "Documents / PDF" },
 };
+
+const BRAND_ROLE_LABELS: Record<string, { bg: string; en: string }> = {
+  primary: { bg: "Основен", en: "Primary" },
+  secondary: { bg: "Вторичен", en: "Secondary" },
+  accent: { bg: "Акцент", en: "Accent" },
+  page_background: { bg: "Фон на страницата", en: "Page background" },
+  surface: { bg: "Карти / surface", en: "Cards / surface" },
+  text: { bg: "Основен текст", en: "Text" },
+  muted_text: { bg: "Вторичен текст", en: "Muted text" },
+  button_background: { bg: "Фон на бутон", en: "Button background" },
+  button_text: { bg: "Текст на бутон", en: "Button text" },
+  link: { bg: "Линкове", en: "Links" },
+  header_background: { bg: "Header фон", en: "Header background" },
+  hero_background: { bg: "Hero фон", en: "Hero background" },
+};
+
 
 function formatDuration(ms?: number) {
   if (!ms || ms < 0) return "—";
@@ -165,6 +199,13 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
     || quickPreview?.contacts?.addresses?.length
   );
   const hasInfo = Boolean(quickPreview?.info?.checkIn || quickPreview?.info?.checkOut || quickPreview?.info?.parking);
+  const designSignals = quickPreview?.sourcePackage?.designIntelligenceLayer;
+  const brandKit = designSignals?.brandKit;
+  const hasBrandKit = Boolean(
+    designSignals?.colors?.length
+    || designSignals?.fonts?.length
+    || brandKit?.colorRoles?.length
+  );
 
   return (
     <div className="space-y-6">
@@ -244,6 +285,61 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
                 </div>
               </article>
             ))}
+
+            {hasBrandKit ? (
+              <article className="v2-card-soft p-4 lg:col-span-2">
+                <div>
+                  <h3 className="font-bold">{copy.brandDesign}</h3>
+                  <p className="v2-muted mt-1 text-sm">{copy.brandHelp}</p>
+                </div>
+
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em]">{copy.colors}</p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {(brandKit?.colorRoles?.length
+                      ? brandKit.colorRoles
+                      : (designSignals?.colors || []).map((color, index) => ({
+                          role: `color_${index + 1}`,
+                          color,
+                          confidence: 0,
+                          evidence: "",
+                        }))).map((signal) => (
+                      <div key={signal.role + signal.color} className="v2-card flex items-center gap-3 p-3">
+                        <span
+                          className="h-10 w-10 shrink-0 rounded-xl border border-black/10"
+                          style={{ backgroundColor: signal.color }}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold">
+                            {BRAND_ROLE_LABELS[signal.role]?.[lang] || signal.role}
+                          </p>
+                          <p className="v2-muted mt-1 font-mono text-[11px]">{signal.color}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <div className="v2-card p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em]">{copy.fonts}</p>
+                    <div className="mt-3 space-y-2 text-sm">
+                      {brandKit?.typography?.headingFont ? <p><strong>{copy.headingFont}:</strong> {brandKit.typography.headingFont}</p> : null}
+                      {brandKit?.typography?.bodyFont ? <p><strong>{copy.bodyFont}:</strong> {brandKit.typography.bodyFont}</p> : null}
+                      {brandKit?.typography?.buttonFont ? <p><strong>{copy.buttonFont}:</strong> {brandKit.typography.buttonFont}</p> : null}
+                      {!brandKit?.typography?.headingFont && (designSignals?.fonts || []).map((font) => <p key={font}>{font}</p>)}
+                    </div>
+                  </div>
+                  <div className="v2-card p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em]">UI</p>
+                    <div className="mt-3 space-y-2 text-sm">
+                      {brandKit?.visualCues?.buttonRadius ? <p><strong>{copy.buttonRadius}:</strong> {brandKit.visualCues.buttonRadius}</p> : null}
+                      {brandKit?.visualCues?.cardRadius ? <p><strong>{copy.cardRadius}:</strong> {brandKit.visualCues.cardRadius}</p> : null}
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ) : null}
 
             <article className="v2-card-soft p-4">
               <h3 className="font-bold">{copy.contacts}</h3>
