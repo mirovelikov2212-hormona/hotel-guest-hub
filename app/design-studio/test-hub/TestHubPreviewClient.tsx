@@ -223,7 +223,7 @@ function categorySources(pkg: HotelIntelligencePackage, category: HotelOnboardin
 
 function cardAvailable(pkg: HotelIntelligencePackage, key: CardKey) {
   const category = CATEGORY_FOR_CARD[key];
-  if (category) return categorySources(currentPkg, category).length > 0;
+  if (category) return categorySources(pkg, category).length > 0;
   return true;
 }
 
