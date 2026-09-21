@@ -262,7 +262,10 @@ function quickContacts(discovery: HotelIntakeV2DiscoveryResult) {
 
 function v3InventoryAuthority(discovery: HotelIntakeV2DiscoveryResult) {
   const snapshot = discovery.evidence.v3InventorySnapshot;
+  const structuralCrawl = discovery.evidence.discovery.structuralCrawl;
   if (!snapshot || snapshot.schemaVersion !== "hotel-scanner-v3-canonical-inventory-1") return null;
+  if (!structuralCrawl?.inventoryClosed || structuralCrawl?.safetyCapReached) return null;
+  if (snapshot.status === "STRUCTURAL_PARTIAL" || snapshot.status === "ONTOLOGY_CONFLICT") return null;
   return projectHotelInventoryAuthorityV3(snapshot);
 }
 
