@@ -19,6 +19,7 @@ import { extractHotelDomStructureV3 } from "@/lib/server/hotel-scanner-v3-dom-st
 import { buildHotelScannerAdaptivePlanV3 } from "@/lib/server/hotel-scanner-v3-frontier.mjs";
 import { buildHotelInventorySnapshotV3 } from "@/lib/server/hotel-scanner-v3-canonical-inventory.mjs";
 import { canonicalizeHotelIntakeUrl, inferHotelPageLanguage } from "@/lib/server/hotel-scanner-v2-site-map.mjs";
+import { collectBrandEvidence, type HotelScanBrandEvidence } from "@/lib/server/factory-hotel-scanner";
 import {
   deriveHotelPropertyScopeV2,
   isHotelPropertyDocumentUrlInScopeV2,
@@ -154,6 +155,7 @@ export type HotelScannerV2EvidenceBundle = {
   pages: HotelScannerV2PageEvidence[];
   v3InventorySnapshot?: ReturnType<typeof buildHotelInventorySnapshotV3>;
   publicDocuments: HotelScannerV2PublicDocument[];
+  brand: HotelScanBrandEvidence;
   discovery: {
     sitemapPageUrls: string[];
     sitemapDocumentUrls: string[];
@@ -597,6 +599,7 @@ export async function crawlPublicHotelWebsiteV2(
   if (!isHotelScannerRobotsAllowed(requested.toString(), requestedRobots.policy)) throw new HotelScannerV2NetworkError("scanner_v2_robots_disallowed", 403);
 
   const first = await fetchPublicHtmlV2(requested, { timeoutMs: FETCH_TIMEOUT_MS, maxBytes: MAX_PAGE_BYTES, userAgent: USER_AGENT });
+  const brandPromise = collectBrandEvidence(first.html, first.url);
   const canonicalOrigin = first.url.origin;
   const robotsState = canonicalOrigin === requested.origin ? requestedRobots : await fetchRobotsState(first.url);
   if (!isHotelScannerRobotsAllowed(first.url.toString(), robotsState.policy)) throw new HotelScannerV2NetworkError("scanner_v2_robots_disallowed", 403);
@@ -829,8 +832,10 @@ export async function crawlPublicHotelWebsiteV2(
     },
   });
 
+  const brand = await brandPromise;
   return {
     requestedUrl: canonicalizeHotelIntakeUrl(requested.toString()), canonicalUrl, scannedAt: new Date().toISOString(), pages, v3InventorySnapshot,
+    brand,
     publicDocuments: [...documents.entries()].slice(0, MAX_PUBLIC_DOCUMENTS).map(([url, provenance]) => ({
       url, kind: "pdf" as const, status: "discovered_not_ingested" as const, discoveredBy: [...provenance],
     })),
