@@ -63,7 +63,11 @@ const COPY = {
     contacts: "Контакти",
     info: "Инфо",
     brandDesign: "Бранд дизайн",
-    brandHelp: "Детерминистично извлечени цветове, роли и шрифтове от CSS на официалния сайт.",
+    brandHelp: "Потвърдените роли идват от реално видимата начална страница. Допълнителните CSS сигнали са само за справка.",
+    confirmedBrand: "Потвърден Brand Kit",
+    additionalCss: "Допълнителни CSS сигнали",
+    referenceOnly: "Само за справка — не влияят автоматично на Design Studio.",
+    noConfirmedColors: "Няма потвърдени цветови роли от rendered homepage.",
     colors: "Цветове",
     fonts: "Шрифтове",
     headingFont: "Заглавия",
@@ -96,7 +100,11 @@ const COPY = {
     contacts: "Contacts",
     info: "Info",
     brandDesign: "Brand design",
-    brandHelp: "Deterministically extracted colors, roles and fonts from the official website CSS.",
+    brandHelp: "Confirmed roles come from the visibly rendered homepage. Additional CSS signals are reference-only.",
+    confirmedBrand: "Confirmed Brand Kit",
+    additionalCss: "Additional CSS signals",
+    referenceOnly: "Reference only — they do not automatically influence Design Studio.",
+    noConfirmedColors: "No confirmed color roles from the rendered homepage.",
     colors: "Colors",
     fonts: "Fonts",
     headingFont: "Heading font",
@@ -201,10 +209,26 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
   const hasInfo = Boolean(quickPreview?.info?.checkIn || quickPreview?.info?.checkOut || quickPreview?.info?.parking);
   const designSignals = quickPreview?.sourcePackage?.designIntelligenceLayer;
   const brandKit = designSignals?.brandKit;
+  const confirmedBrandRoles = (brandKit?.colorRoles || []).filter((signal) =>
+    signal.confidence >= 0.8 && /rendered|visible/iu.test(String(signal.evidence || "")));
+  const confirmedColorSet = new Set(confirmedBrandRoles.map((signal) => signal.color.toLowerCase()));
+  const additionalCssColors = (designSignals?.colors || [])
+    .filter((color) => !confirmedColorSet.has(color.toLowerCase()))
+    .slice(0, 12);
+  const confirmedFonts = [...new Set([
+    brandKit?.typography?.headingFont,
+    brandKit?.typography?.bodyFont,
+    brandKit?.typography?.buttonFont,
+  ].filter((font): font is string => Boolean(font)))];
+  const confirmedFontSet = new Set(confirmedFonts.map((font) => font.toLowerCase()));
+  const additionalCssFonts = (designSignals?.fonts || [])
+    .filter((font) => !confirmedFontSet.has(font.toLowerCase()))
+    .slice(0, 8);
   const hasBrandKit = Boolean(
-    designSignals?.colors?.length
-    || designSignals?.fonts?.length
-    || brandKit?.colorRoles?.length
+    confirmedBrandRoles.length
+    || confirmedFonts.length
+    || additionalCssColors.length
+    || additionalCssFonts.length
   );
 
   return (
@@ -293,31 +317,28 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
                   <p className="v2-muted mt-1 text-sm">{copy.brandHelp}</p>
                 </div>
 
-                <div className="mt-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em]">{copy.colors}</p>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {(brandKit?.colorRoles?.length
-                      ? brandKit.colorRoles
-                      : (designSignals?.colors || []).map((color, index) => ({
-                          role: `color_${index + 1}`,
-                          color,
-                          confidence: 0,
-                          evidence: "",
-                        }))).map((signal) => (
-                      <div key={signal.role + signal.color} className="v2-card flex items-center gap-3 p-3">
-                        <span
-                          className="h-10 w-10 shrink-0 rounded-xl border border-black/10"
-                          style={{ backgroundColor: signal.color }}
-                        />
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold">
-                            {BRAND_ROLE_LABELS[signal.role]?.[lang] || signal.role}
-                          </p>
-                          <p className="v2-muted mt-1 font-mono text-[11px]">{signal.color}</p>
+                <div className="mt-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em]">{copy.confirmedBrand}</p>
+                  {confirmedBrandRoles.length ? (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {confirmedBrandRoles.map((signal) => (
+                        <div key={signal.role + signal.color} className="v2-card flex items-center gap-3 p-3">
+                          <span
+                            className="h-10 w-10 shrink-0 rounded-xl border border-black/10"
+                            style={{ backgroundColor: signal.color }}
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold">
+                              {BRAND_ROLE_LABELS[signal.role]?.[lang] || signal.role}
+                            </p>
+                            <p className="v2-muted mt-1 font-mono text-[11px]">{signal.color}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="v2-muted mt-3 text-sm">{copy.noConfirmedColors}</p>
+                  )}
                 </div>
 
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -327,7 +348,6 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
                       {brandKit?.typography?.headingFont ? <p><strong>{copy.headingFont}:</strong> {brandKit.typography.headingFont}</p> : null}
                       {brandKit?.typography?.bodyFont ? <p><strong>{copy.bodyFont}:</strong> {brandKit.typography.bodyFont}</p> : null}
                       {brandKit?.typography?.buttonFont ? <p><strong>{copy.buttonFont}:</strong> {brandKit.typography.buttonFont}</p> : null}
-                      {!brandKit?.typography?.headingFont && (designSignals?.fonts || []).map((font) => <p key={font}>{font}</p>)}
                     </div>
                   </div>
                   <div className="v2-card p-4">
@@ -338,6 +358,30 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
                     </div>
                   </div>
                 </div>
+
+                {(additionalCssColors.length || additionalCssFonts.length) ? (
+                  <div className="mt-5 border-t border-black/5 pt-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em]">{copy.additionalCss}</p>
+                    <p className="v2-muted mt-1 text-xs">{copy.referenceOnly}</p>
+                    {additionalCssColors.length ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {additionalCssColors.map((color) => (
+                          <div key={color} className="v2-card flex items-center gap-2 px-3 py-2">
+                            <span className="h-6 w-6 rounded-lg border border-black/10" style={{ backgroundColor: color }} />
+                            <span className="font-mono text-[11px]">{color}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {additionalCssFonts.length ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {additionalCssFonts.map((font) => (
+                          <span key={font} className="v2-card px-3 py-2 text-xs">{font}</span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </article>
             ) : null}
 
