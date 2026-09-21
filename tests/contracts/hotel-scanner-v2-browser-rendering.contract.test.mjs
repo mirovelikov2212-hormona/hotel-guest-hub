@@ -101,3 +101,24 @@ test("Vercel tracing includes Playwright metadata and Chromium binaries for sync
   assert.match(source, /\/api\/control-plane\/hotel-scanner\/scan-v2/);
   assert.match(source, /\/\.well-known\/workflow\/v1\/step/);
 });
+
+
+test("Quick Brand Kit authority comes from one visible homepage render before raw CSS fallback", async () => {
+  const renderer = await read("lib/server/hotel-scanner-v2-browser-renderer.ts");
+  const enrichment = await read("lib/server/hotel-scanner-v2-crawler-rendered.ts");
+  const intake = await read("lib/server/hotel-scanner-v2-intake.ts");
+
+  assert.match(renderer, /renderedBrandSnapshot/);
+  assert.match(renderer, /getComputedStyle/);
+  assert.match(renderer, /visible CTA/);
+  assert.match(renderer, /button_background/);
+  assert.match(renderer, /headingFont/);
+  assert.match(renderer, /buttonRadius/);
+
+  assert.match(enrichment, /if \(base\.pages\[0\]\) selected\.add\(0\)/);
+  assert.match(enrichment, /mergeRenderedBrandEvidence/);
+  assert.match(enrichment, /quick_preview_brand_homepage/);
+  assert.match(enrichment, /index === 0.*base\.brand = mergeRenderedBrandEvidence/s);
+
+  assert.doesNotMatch(intake, /if \(!domains\.length\) return initial/);
+});
