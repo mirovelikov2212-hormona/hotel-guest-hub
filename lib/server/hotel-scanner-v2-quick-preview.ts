@@ -375,6 +375,108 @@ function pageTitleItemName(page: { title?: string }) {
   return clean(page.title, 240).split(/\s+(?:[-–—|])\s+/u)[0] || "";
 }
 
+
+const ROOM_ENTITY_HEADING = /(?:\broom\b|\bsuite\b|\bstudio\b|\bapartment\b|\bvilla\b|\bzimmer\b|\bappartement\b|\bcamer[ăa]\b|\bpokoj\b|\bстая\b|\bстудио\b|\bапартамент\b|\bномер\b|\boda\b|\bsüit\b)/iu;
+const ROOM_AREA_SIGNAL = /\b\d{1,3}(?:[.,]\d+)?\s*(?:m²|m2|sq\.?\s*(?:m|ft)|ft²)\b/iu;
+const ROOM_OCCUPANCY_SIGNAL = /\b\d{1,2}\s*(?:-|–|—|bis|to|до)\s*\d{1,2}\s*(?:personen|persons?|people|guests?|гости|човека|persoane|osoby|os[oó]b|kişi|kisi)\b|\b(?:up\s+to|max(?:imum)?|bis\s+zu)\s*\d{1,2}\s*(?:personen|persons?|people|guests?|гости|човека)\b/iu;
+const CTA_TEXT = /^(?:mehr\s+erfahren|details?|learn\s+more|discover|view|see\s+more|weiter|lesen|read\s+more|виж|детайли|подробности)$/iu;
+const VENUE_TERM = /(?:restaurant|restoran|lokanta|bar|pub|cafe|café|kafe|bistro|lounge|grill|brasserie|taverna|таверна|ресторант|бар|кафе)/iu;
+const VENUE_JSON_LD = /^(?:restaurant|foodestablishment|barorpub|cafeorcoffeeshop)$/iu;
+
+function pageLanguage(page: HotelIntakeV2DiscoveryResult["evidence"]["pages"][number]) {
+  return clean(page.language, 40).toLocaleLowerCase("en-US") || intakePathLanguage(page.url);
+}
+
+function languageRank(page: HotelIntakeV2DiscoveryResult["evidence"]["pages"][number], requestedLanguage: string) {
+  const language = pageLanguage(page);
+  if (requestedLanguage && language === requestedLanguage) return 0;
+  if (!requestedLanguage && !language) return 0;
+  if (language === "en") return 1;
+  if (!language) return 2;
+  return 3;
+}
+
+function roomCardItems(page: HotelIntakeV2DiscoveryResult["evidence"]["pages"][number]) {
+  const raw = (page.contentBlocks || [])
+    .map((block) => {
+      const name = clean(block.heading, 240);
+      if (!name || !ROOM_ENTITY_HEADING.test(name) || !clientPreviewNameAllowed("accommodation", name)) return null;
+      const localText = clean(block.text, 650);
+      const hasArea = ROOM_AREA_SIGNAL.test(localText);
+      const hasOccupancy = ROOM_OCCUPANCY_SIGNAL.test(localText);
+      const links = (block.linkItems || [])
+        .map((link) => ({
+          text: clean(link.text, 120),
+          href: absoluteEvidenceUrl(link.href, page.url),
+        }))
+        .filter((link) => link.href);
+      const hasCompactCta = links.some((link) => CTA_TEXT.test(link.text)) && links.length <= 4;
+      if (!hasArea && !(hasOccupancy && hasCompactCta)) return null;
+      return {
+        name,
+        hours: "",
+        url: links.find((link) => CTA_TEXT.test(link.text))?.href || page.url,
+        group: Number(block.level || 0) + "|" + (block.sectionPath || []).map((value) => entityKey(value)).join(">"),
+        strength: (hasArea ? 4 : 0) + (hasOccupancy ? 3 : 0) + (hasCompactCta ? 2 : 0),
+      };
+    })
+    .filter((item): item is { name: string; hours: string; url: string; group: string; strength: number } => Boolean(item));
+
+  if (!raw.length) return [] as IntakePreviewItem[];
+  const grouped = new Map<string, typeof raw>();
+  for (const item of raw) {
+    const group = grouped.get(item.group) || [];
+    group.push(item);
+    grouped.set(item.group, group);
+  }
+  const bestGroup = [...grouped.values()]
+    .sort((left, right) =>
+      right.length - left.length
+      || right.reduce((sum, item) => sum + item.strength, 0) - left.reduce((sum, item) => sum + item.strength, 0))[0] || [];
+  const selected = bestGroup.length >= 2 ? bestGroup : raw.filter((item) => item.strength >= 7);
+  return uniqueIntakeItems(selected, 30);
+}
+
+function quotedVenueName(heading: string) {
+  const quoted = heading.match(/(?:restaurant|restoran|bar|pub|cafe|café|bistro|lounge|grill)[^„“"'’]{0,24}[„“"']([^„“"']{2,80})[„“"']/iu);
+  if (!quoted?.[1]) return "";
+  const type = clean(heading.match(VENUE_TERM)?.[0], 40);
+  return clean(type + " " + quoted[1], 120);
+}
+
+function conciseVenueHeading(heading: string) {
+  let value = clean(heading, 180);
+  if (!value || PREVIEW_QUESTION_HEADING.test(value) || !VENUE_TERM.test(value)) return "";
+  const quoted = quotedVenueName(value);
+  if (quoted) return quoted;
+  value = value.split(/\s*(?:,|–|—|\||:)\s*/u)[0] || value;
+  value = value.replace(/\s+in\s+[\p{L}\p{M} .'-]{2,50}$/iu, "").trim();
+  return value.length <= 90 ? value : "";
+}
+
+function atomicVenueItems(discovery: HotelIntakeV2DiscoveryResult, requestedLanguage: string) {
+  const pages = (discovery.evidence.pages || [])
+    .filter((page) => hotelScannerPageTypeDomain(classifyHotelScannerPageV2(page).primaryType) === "gastronomy")
+    .filter((page) => languageRank(page, requestedLanguage) <= 1);
+
+  const items: IntakePreviewItem[] = [];
+  for (const page of pages) {
+    const jsonLdNames = (page.jsonLdEntities || [])
+      .filter((entity) => (entity.types || []).some((type) => VENUE_JSON_LD.test(clean(type, 80))))
+      .map((entity) => clean(entity.name, 160))
+      .filter((name) => name && clientPreviewNameAllowed("gastronomy", name));
+    const h1 = (page.headings || []).find((heading) => Number(heading.level) === 1)?.text || "";
+    const name = jsonLdNames[0] || conciseVenueHeading(h1);
+    if (!name) continue;
+    items.push({
+      name,
+      hours: openingHoursForItem(discovery, { nameHint: name, url: page.url, urls: [page.url] }),
+      url: page.url,
+    });
+  }
+  return uniqueIntakeItems(items, 20);
+}
+
 function domainHintItems(
   discovery: HotelIntakeV2DiscoveryResult,
   page: HotelIntakeV2DiscoveryResult["evidence"]["pages"][number],
