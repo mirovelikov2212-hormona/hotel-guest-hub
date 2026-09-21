@@ -20,6 +20,13 @@ export type HotelScannerV3AuthorityDomain = {
   count: number;
   entityIds: string[];
   status: string;
+  authorityStatus?: "READY" | "PARTIAL" | "CONFLICT" | "MANUAL" | "NOT_DISCOVERED" | string;
+  familyIds?: string[];
+  uncertifiedFamilyIds?: string[];
+  conflictEntityIds?: string[];
+  blockers?: string[];
+  structuralEntityCount?: number;
+  assertionEntityCount?: number;
 };
 
 export type HotelScannerV3InventoryAuthority = {
@@ -62,6 +69,7 @@ export type HotelScannerV3CanonicalInventorySnapshot = {
   entities: HotelScannerV3AuthorityEntity[];
   unclassifiedEntityIds: string[];
   conflictingEntityIds: string[];
+  uncertifiedFamilyIds?: string[];
   ontology: Record<string, unknown>;
   structural: Record<string, unknown>;
   enrichmentFingerprint?: string;
@@ -75,6 +83,8 @@ export type HotelScannerV3InventoryDelta = {
   addedEntityIds: string[];
   removedEntityIds: string[];
   domainChangedEntityIds: string[];
+  comparedDomains?: string[];
+  authorityLostDomains?: string[];
 };
 
 export type HotelScannerV3InventoryAuthoritySummary = {
@@ -85,7 +95,14 @@ export type HotelScannerV3InventoryAuthoritySummary = {
   ontologyFingerprint: string;
   status: string;
   counts: Record<string, unknown>;
-  domains: Array<{ domain: string; count: number; status: string }>;
+  domains: Array<{
+    domain: string;
+    count: number;
+    status: string;
+    authorityStatus?: string;
+    blockers?: string[];
+  }>;
+  readyDomains?: string[];
 };
 
 export function buildHotelInventorySnapshotV3(
@@ -106,6 +123,15 @@ export function compareHotelInventorySnapshotsV3(
 export function projectHotelInventoryAuthorityV3(
   snapshot?: HotelScannerV3CanonicalInventorySnapshot | Record<string, unknown>,
 ): HotelScannerV3InventoryAuthority;
+
+export function hasReadyHotelInventoryAuthorityV3(
+  authority?: Partial<HotelScannerV3InventoryAuthority> | Record<string, unknown>,
+): boolean;
+
+export function mergeHotelInventoryAuthoritiesV3(
+  locked?: Partial<HotelScannerV3InventoryAuthority> | Record<string, unknown> | null,
+  observed?: Partial<HotelScannerV3InventoryAuthority> | Record<string, unknown> | null,
+): HotelScannerV3InventoryAuthority | null;
 
 export function applyHotelInventoryAuthorityV3(
   legacyInventory?: HotelScannerV2Inventory,
