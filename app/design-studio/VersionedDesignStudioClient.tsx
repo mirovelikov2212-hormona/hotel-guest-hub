@@ -25,6 +25,7 @@ import {
 } from "@/lib/product-factory/hub-experience-blueprint";
 
 const PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1";
+const TEST_HUB_STORAGE_KEY = "stayhub:test-hub-package:v1";
 const NEW_SECTION = "__new_section__";
 
 type Panel = "sources" | "structure" | "pages" | "campaigns" | "navigation" | "survey" | "style" | "versions" | "qa";
@@ -101,6 +102,7 @@ const COPY = {
     save: "Запази revision",
     saving: "Записване…",
     reset: "Върни AI blueprint",
+    testHub: "Виж тестов Hub",
     clear: "Изчисти локалния пакет",
     sources: "Onboarding източници",
     sourceHelp: "Отвори източника, попълни нужната информация в Design Studio и го отбележи като използван.",
@@ -139,6 +141,7 @@ const COPY = {
     save: "Save revision",
     saving: "Saving…",
     reset: "Reset AI blueprint",
+    testHub: "View test Hub",
     clear: "Clear local package",
     sources: "Onboarding sources",
     sourceHelp: "Open a source, use the relevant information in Design Studio, then mark it as used.",
@@ -579,6 +582,14 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
           <span className="rounded-full border border-amber-300/20 px-3 py-2 text-[10px] font-semibold uppercase text-amber-100">{previewAuthority ? copy.previewOnly : `DRAFT · ${currentRevision ? `r${currentRevision.revisionNo}` : "unsaved"}`}</span>
           <button type="button" onClick={saveRevision} disabled={Boolean(previewAuthority) || busy || !validation.ok} className="min-h-11 rounded-xl border border-emerald-300/25 bg-emerald-300/[0.06] px-4 text-xs font-semibold text-emerald-100 disabled:opacity-40">{previewAuthority ? copy.approvalRequired : busy ? copy.saving : copy.save}</button>
           <button type="button" onClick={applyGeneratedBlueprint} className="min-h-11 rounded-xl border border-white/10 px-3 text-xs text-neutral-400">{copy.reset}</button>
+          <Link
+            href={`/design-studio/test-hub?lang=${lang}`}
+            target="_blank"
+            onClick={() => window.localStorage.setItem(TEST_HUB_STORAGE_KEY, JSON.stringify(pkg))}
+            className="min-h-11 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.05] px-4 py-3 text-xs font-semibold text-cyan-100"
+          >
+            {copy.testHub}
+          </Link>
         </div>
       </div>
 
