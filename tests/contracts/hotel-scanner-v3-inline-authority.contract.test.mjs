@@ -160,3 +160,45 @@ test("M7 inline list echoes with the same labels collapse to one structural fami
   assert.equal(structural.families.length, 1);
   assert.equal(structural.families[0].members.length, 3);
 });
+
+
+test("M8 plain list items become inline structural entities", () => {
+  const url = "https://hotel.test/spa/";
+  const html = `<main><section><h2>Pools</h2><ul>
+    <li>Infinity Pool</li>
+    <li>Sportpool</li>
+    <li>Family Whirlpool</li>
+    <li>Babyschwimmbad</li>
+  </ul></section></main>`;
+
+  const discovery = evidence([page(url, "Spa & Wellness", html)]);
+  const plan = buildHotelScannerAdaptivePlanV3(discovery, { batchLimit: 8 });
+  assert.equal(plan.closure.states[0].status, "CLOSED_INLINE");
+  assert.equal(plan.closure.states[0].totalMembers, 4);
+});
+
+test("M8 deterministic service assertions supplement structural services without URL cards", () => {
+  const discovery = evidence([
+    page("https://hotel.test/facts/", "Important information", "", {
+      text: "Free WLAN. Parking in our garage with EV charging. Childcare is available. Ski rental and Ski Depot are offered. Concierge service is available at reception.",
+    }),
+  ]);
+  discovery.discovery.structuralCrawl = {
+    inventoryClosed: true,
+    safetyCapReached: false,
+    familyStates: [],
+  };
+
+  const snapshot = buildHotelInventorySnapshotV3(discovery, {
+    generatedAt: "2026-09-21T00:00:00.000Z",
+  });
+  const services = snapshot.domains.find((item) => item.domain === "services");
+  const labels = snapshot.entities
+    .filter((entity) => entity.domain === "services")
+    .map((entity) => entity.label);
+
+  assert.ok(services.count >= 7);
+  for (const expected of ["Wi-Fi", "Parking", "EV Charging", "Childcare", "Ski Rental", "Ski Depot", "Concierge"]) {
+    assert.ok(labels.includes(expected), `missing service assertion: ${expected}`);
+  }
+});
