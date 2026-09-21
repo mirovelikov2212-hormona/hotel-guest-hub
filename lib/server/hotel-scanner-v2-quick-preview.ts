@@ -881,11 +881,17 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
       },
     },
     designIntelligenceLayer: {
-      colors: [],
-      fonts: [],
+      colors: discovery.evidence.brand?.colors || [],
+      fonts: discovery.evidence.brand?.fonts || [],
       styleKeywords: [],
       imageReferences: [],
       logoReferences: [],
+      brandKit: discovery.evidence.brand ? {
+        colorRoles: discovery.evidence.brand.colorRoles || [],
+        typography: discovery.evidence.brand.typography,
+        visualCues: discovery.evidence.brand.visualCues,
+        stylesheetUrls: discovery.evidence.brand.stylesheetUrls || [],
+      } : undefined,
       visualAssetPolicy: "hotel_authorization_required",
     },
     routing: { hub: items, smartSetup: [], designStudio: [], review: [] },
@@ -893,7 +899,9 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
       evidenceFactCount: items.length,
       hubCandidateCount: items.length,
       smartSetupCandidateCount: 0,
-      designSignalCount: 0,
+      designSignalCount: (discovery.evidence.brand?.colors?.length || 0)
+        + (discovery.evidence.brand?.fonts?.length || 0)
+        + (discovery.evidence.brand?.colorRoles?.length || 0),
       reviewRequiredCount: 0,
       verifiedFactCount: 0,
       singleSourceFactCount: items.length,
@@ -921,6 +929,7 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
     contacts,
     info,
     onboardingSources,
+    brandKit: sourcePackage.designIntelligenceLayer.brandKit,
     documents: summarizeHotelScannerV2Documents(discovery),
     inventoryAuthority: null,
     diagnostics: {
