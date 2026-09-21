@@ -85,7 +85,7 @@ test("quick crawl prioritizes inventory authority and can fetch one missing auth
   assert.match(crawler, /zimmer-vergleich|zimmervergleich/);
 
   assert.match(rendered, /QUICK_PREVIEW_MAX_AUTHORITY_FETCHES\s*=\s*6/);
-  assert.match(rendered, /QUICK_PREVIEW_MAX_BROWSER_RENDERS\\s*=\\s*4/);
+  assert.match(rendered, /QUICK_PREVIEW_MAX_BROWSER_RENDERS\s*=\s*4/);
   assert.match(rendered, /ensureQuickPreviewDomainPages/);
   assert.match(rendered, /quick_preview_targeted_authority/);
 
