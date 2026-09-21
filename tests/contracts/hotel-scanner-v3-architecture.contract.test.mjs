@@ -176,13 +176,16 @@ test("Scanner V3 M6 resumes Deep Verification from the Quick crawl checkpoint", 
   assert.match(checkpoint, /SUPPORT_DOMAINS/);
   assert.match(checkpoint, /v3InventorySnapshot: undefined/);
 
-  assert.match(previewRoute, /MAX_INLINE_WORKFLOW_CHECKPOINT_BYTES/);
-  assert.match(previewRoute, /discoveryCheckpoint: checkpoint/);
+  assert.match(previewRoute, /MAX_COMPRESSED_WORKFLOW_CHECKPOINT_BYTES/);
+  assert.match(previewRoute, /gzipSync/);
+  assert.match(previewRoute, /discoveryCheckpointGzip: checkpointGzip/);
   assert.match(previewRoute, /reusedDiscovery: true/);
-  assert.match(previewRoute, /checkpointBytes <= MAX_INLINE_WORKFLOW_CHECKPOINT_BYTES/);
+  assert.match(previewRoute, /checkpointCompressedBytes <= MAX_COMPRESSED_WORKFLOW_CHECKPOINT_BYTES/);
 
-  assert.match(workflow, /input\.discoveryCheckpoint/);
-  assert.match(workflow, /resumeHotelIntakeRenderedV3\(input\.discoveryCheckpoint\)/);
+  assert.match(workflow, /gunzipSync/);
+  assert.match(workflow, /workflowDiscoveryCheckpoint/);
+  assert.match(workflow, /input\.discoveryCheckpointGzip/);
+  assert.match(workflow, /resumeHotelIntakeRenderedV3\(discoveryCheckpoint\)/);
 
   assert.match(client, /quickWorkflow\?\.runId/);
   assert.match(client, /No second crawl of the hotel is needed/);
@@ -201,7 +204,7 @@ test("Scanner V3 M6 continuation remains bounded, public-only and robots-aware",
   assert.match(crawler, /isHotelPropertyOperationalContentUrlV2/);
   assert.match(crawler, /scanner_v2_robots_disallowed/);
 
-  assert.match(previewRoute, /750_000/);
+  assert.match(previewRoute, /400_000/);
   assert.doesNotMatch([crawler, previewRoute].join("\n"), /captcha[-_ ]solver|stealth[-_ ]plugin|credential stuffing|login bypass|robots bypass/iu);
 });
 
