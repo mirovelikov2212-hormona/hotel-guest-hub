@@ -39,10 +39,10 @@ const RENDER_DISCOVERED_FETCH_TIMEOUT_MS = 8_000;
 const RENDER_DISCOVERED_MAX_PAGE_BYTES = 1_500_000;
 const RENDER_USER_AGENT_TOKEN = "stayhub-hotel-scanner";
 const RENDER_USER_AGENT = "StayHub-Hotel-Scanner/2.0 (+https://stayhub.app)";
-const QUICK_PREVIEW_MAX_BROWSER_RENDERS = 6;
+const QUICK_PREVIEW_MAX_BROWSER_RENDERS = 4;
 const QUICK_PREVIEW_MAX_AUTHORITY_FETCHES = 6;
 const QUICK_PREVIEW_BROWSER_CONCURRENCY = 4;
-const QUICK_PREVIEW_BROWSER_WALL_MS = 55_000;
+const QUICK_PREVIEW_BROWSER_WALL_MS = 25_000;
 const QUICK_PREVIEW_DOMAIN_PRIORITY = ["accommodation", "gastronomy", "spa", "services", "experiences", "offers"] as const;
 
 function browserRenderFailureReason(error: unknown) {
@@ -345,17 +345,22 @@ function quickPreviewRenderSchedule(
 export async function enrichHotelEvidenceQuickRenderedV2(
   input: HotelScannerV2EvidenceBundle,
   domains: string[],
+  options: { wallMs?: number } = {},
 ): Promise<HotelScannerV2EvidenceBundle> {
   const base = input as BrowserEnrichedEvidenceBundle;
+  const startedAt = Date.now();
+  const wallMs = Math.max(5_000, Math.min(
+    QUICK_PREVIEW_BROWSER_WALL_MS,
+    Math.trunc(options.wallMs ?? QUICK_PREVIEW_BROWSER_WALL_MS),
+  ));
   await ensureQuickPreviewDomainPages(base, domains);
   const schedule = quickPreviewRenderSchedule(base, domains);
-  if (!schedule.size) return refreshV3InventorySnapshot(base);
+  if (!schedule.size || Date.now() - startedAt >= wallMs) return refreshV3InventorySnapshot(base);
 
   const renderer = new HotelScannerV2BrowserRenderer();
   const browserRenderedUrls: string[] = [];
   const browserRenderFailedUrls: string[] = [];
   const browserRenderFailures: Array<{ url: string; error: string }> = [];
-  const startedAt = Date.now();
 
   try {
     let cursor = 0;
@@ -363,7 +368,7 @@ export async function enrichHotelEvidenceQuickRenderedV2(
     async function worker() {
       while (cursor < indices.length) {
         const index = indices[cursor++];
-        if (Date.now() - startedAt >= QUICK_PREVIEW_BROWSER_WALL_MS) return;
+        if (Date.now() - startedAt >= wallMs) return;
         const page = base.pages[index];
         try {
           const rendered = await renderer.render(page.url);
