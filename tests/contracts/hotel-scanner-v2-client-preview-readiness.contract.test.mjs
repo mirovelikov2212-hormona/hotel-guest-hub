@@ -59,20 +59,20 @@ test("unknown inventory becomes onboarding work rather than scanner failure", ()
   assert.equal(result.prerequisitesSatisfied, false);
 });
 
-test("quick preview distinguishes named entities from count-only evidence and trims non-hour text", async () => {
+test("quick intake exposes room, dining, policy and contact data with bounded hours text", async () => {
   const preview = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
   const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
 
   assert.match(preview, /HOURS_STOP_LABEL/);
-  assert.match(preview, /dress\\s*code|dresscode/);
+  assert.match(preview, /dress\\s\*code|dresscode/);
   assert.match(preview, /speisekarte/);
-  assert.match(preview, /namedCount:/);
-  assert.match(preview, /needsOnboarding:/);
+  assert.match(preview, /policyDocuments/);
+  assert.match(preview, /openingHoursForItem/);
 
-  assert.match(client, /hasCountOnlyEvidence/);
-  assert.match(client, /manualConfiguration/);
-  assert.match(client, /contactsFound/);
-  assert.match(client, /namedCount/);
+  assert.match(client, /VISIBLE_DOMAINS/);
+  assert.match(client, /openingHours/);
+  assert.match(client, /component\.domain === "gastronomy"/);
+  assert.match(client, /component\.domain === "policies"/);
 });
 
 test("quick crawl prioritizes inventory authority and can fetch one missing authority page per requested domain", async () => {
@@ -156,29 +156,13 @@ test("quick client preview can recover SPA and experience names from authority-p
 });
 
 
-test("quick preview hides events and rejects FAQ questions as experiences", async () => {
+
+
+
+
+
+test("quick intake scope is exactly rooms, dining, policies and contacts", async () => {
   const preview = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
-
-  assert.match(preview, /CORE_DOMAINS = \["accommodation", "gastronomy", "spa", "services", "experiences", "offers", "contacts"\]/);
-  assert.doesNotMatch(preview, /CORE_DOMAINS = \[[^\]]*"events"/);
-  assert.match(preview, /PREVIEW_QUESTION_HEADING/);
-  assert.match(preview, /PREVIEW_QUESTION_HEADING\.test\(heading\)/);
-  assert.match(preview, /fahrrad\[-\\s\]\?erlebnisse|fahrrad/);
-});
-
-
-test("SPA quick preview expands real facilities and rejects FAQ/offer noise", async () => {
-  const preview = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
-
-  assert.match(preview, /SPA_TEXT_FACILITY_PATTERNS/);
-  assert.match(preview, /previewSpaTextFacilities/);
-  assert.match(preview, /Panorama\|Bio\|Finnische\|Finnish\|Textil\|Family/);
-  assert.match(preview, /Infinity\\s\+Pool/);
-  assert.match(preview, /Solebecken/);
-  assert.match(preview, /Tauchbecken/);
-  assert.match(preview, /Hamam/);
-  assert.match(preview, /Massagen/);
-  assert.match(preview, /Behandlungen/);
-  assert.match(preview, /\^faq\\b/);
-  assert.match(preview, /momente/);
+  assert.match(preview, /CORE_DOMAINS = \["accommodation", "gastronomy", "policies", "contacts"\]/);
+  assert.match(preview, /INTAKE_DOMAINS = \["accommodation", "gastronomy", "policies", "contacts"\]/);
 });
