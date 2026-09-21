@@ -292,10 +292,13 @@ test("Scanner Intake UI treats non-ready inventory as candidates and keeps manua
 
   assert.match(client, /Hotel Intake Preview/);
   assert.match(client, /INTAKE_VISIBLE_DOMAINS/);
+  assert.match(client, /INTAKE_REVIEW_DOMAINS/);
   assert.match(client, /canonicalInventory\?\.authority\?\.domains/);
   assert.match(client, /canonicalInventory\?\.observed\?\.domains/);
   assert.match(client, /authorityStatus === "MANUAL"/);
   assert.match(client, /candidatesFound/);
+  assert.match(client, /Извлечи данните/);
+  assert.match(client, /result\.reviewSections\?\.filter/);
   assert.doesNotMatch(client, /\$\{copy\.found\}: \$\{inventoryLayer\.extracted\}\/\$\{inventoryLayer\.expected/);
 
   assert.match(page, /Hotel Scanner · Intake/);
