@@ -232,3 +232,19 @@ test("Scanner V3 M7 semantic enrichment cannot become an authority entity when V
   assert.ok(expansionGuard >= 0);
   assert.ok(evidenceHeadings > expansionGuard);
 });
+
+
+test("Scanner V3 Quick stays inside the interactive request budget and hands unfinished work to Deep", async () => {
+  const intake = await readProjectFile("lib/server/hotel-scanner-v2-intake.ts");
+  const rendered = await readProjectFile("lib/server/hotel-scanner-v2-crawler-rendered.ts");
+  const previewRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-preview/route.ts");
+
+  assert.match(previewRoute, /export const maxDuration = 90/);
+  assert.match(intake, /maxStructuralAdaptiveAttempts:\s*24/);
+  assert.match(intake, /60_000 - elapsedMs/);
+  assert.match(intake, /Math\.min\(25_000, remainingQuickMs\)/);
+  assert.match(rendered, /QUICK_PREVIEW_MAX_BROWSER_RENDERS = 4/);
+  assert.match(rendered, /QUICK_PREVIEW_BROWSER_WALL_MS = 25_000/);
+  assert.match(rendered, /options: \{ wallMs\?: number \}/);
+  assert.match(rendered, /Date\.now\(\) - startedAt >= wallMs/);
+});
