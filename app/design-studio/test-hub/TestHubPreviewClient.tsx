@@ -420,6 +420,11 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
     parking: currentPkg.hotelProfileLayer.hospitality.amenities[0] || "",
   };
   const activeCard = cards.find((card) => card.key === active) || null;
+  const pageStyle: CSSProperties = {
+    backgroundColor: theme.background,
+    color: theme.text,
+    fontFamily: theme.bodyFont,
+  };
 
   function sendRequest() {
     if (!requestText.trim()) setRequestText(lang === "bg" ? "Допълнителна кърпа в стаята" : "Extra towel for the room");
@@ -525,65 +530,116 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
   }
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#eaf8f6_0%,#f8fbfb_48%,#eef8f7_100%)] px-3 py-5 text-[#174d50] sm:px-6">
-      <div className="mx-auto max-w-[460px] overflow-hidden rounded-[2.2rem] border border-[#bae8e3] bg-[#f9fdfc] shadow-[0_24px_80px_rgba(29,83,84,0.16)]">
-        <header className="bg-[linear-gradient(145deg,#174b4d,#43b5a1)] px-5 pb-6 pt-5 text-white">
+    <main className="min-h-screen px-3 py-5 sm:px-6" style={pageStyle}>
+      <div
+        className="mx-auto max-w-[460px] overflow-hidden border shadow-[0_24px_80px_rgba(53,44,43,0.14)]"
+        style={{ backgroundColor: theme.background, borderColor: theme.border, borderRadius: theme.cardRadius }}
+      >
+        <header className="px-5 pb-6 pt-5" style={{ backgroundColor: theme.hero, color: theme.text }}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/65">{copy.preview}</p>
-              <h1 className="mt-2 text-2xl font-semibold leading-tight">{hotelName}</h1>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: theme.muted, fontFamily: theme.buttonFont }}>{copy.preview}</p>
+              <h1 className="mt-2 text-3xl font-semibold leading-tight" style={{ fontFamily: theme.headingFont }}>{hotelName}</h1>
             </div>
-            <Link href={`/design-studio?lang=${lang}&preview=quick`} className="rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold">Design Studio</Link>
+            <Link
+              href={`/design-studio?lang=${lang}&preview=quick`}
+              className="border px-3 py-2 text-xs font-semibold"
+              style={{
+                backgroundColor: theme.primary,
+                color: theme.buttonText,
+                borderColor: theme.primary,
+                borderRadius: theme.buttonRadius,
+                fontFamily: theme.buttonFont,
+              }}
+            >
+              Design Studio
+            </Link>
           </div>
-          <div className="mt-5 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+          <div
+            className="mt-5 border p-4"
+            style={{ backgroundColor: theme.surface, borderColor: theme.border, borderRadius: theme.cardRadius }}
+          >
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs text-white/70">{copy.demoRoom}</p>
+                <p className="text-xs" style={{ color: theme.muted }}>{copy.demoRoom}</p>
                 <p className="mt-1 text-sm font-semibold">{copy.roomConfirmed}</p>
               </div>
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#278d82]">✓</span>
+              <span
+                className="flex h-9 w-9 items-center justify-center"
+                style={{ backgroundColor: theme.primary, color: theme.buttonText, borderRadius: theme.buttonRadius || "999px" }}
+              >
+                ✓
+              </span>
             </div>
           </div>
-          <p className="mt-3 text-[11px] leading-5 text-white/70">{copy.intro}</p>
+          <p className="mt-3 text-[11px] leading-5" style={{ color: theme.muted }}>{copy.intro}</p>
         </header>
 
         <section className="p-4">
           <div className="grid grid-cols-3 gap-3">
             {cards.slice(0, 3).map((card) => (
-              <HubTile key={card.key} card={card} onClick={() => setActive(card.key)} compact />
+              <HubTile key={card.key} card={card} onClick={() => setActive(card.key)} theme={theme} compact />
             ))}
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
             {cards.slice(3, 13).filter((card) => card.available).map((card) => (
-              <HubTile key={card.key} card={card} onClick={() => setActive(card.key)} />
+              <HubTile key={card.key} card={card} onClick={() => setActive(card.key)} theme={theme} />
             ))}
           </div>
 
           <div className="mt-4">
-            <HubTile card={cards[cards.length - 1]} onClick={() => setActive("emergency")} wide />
+            <HubTile card={cards[cards.length - 1]} onClick={() => setActive("emergency")} theme={theme} wide />
           </div>
         </section>
 
-        <nav className="sticky bottom-0 grid grid-cols-4 border-t border-[#d5ebe8] bg-white/95 px-2 py-2 backdrop-blur">
+        <nav className="sticky bottom-0 grid grid-cols-4 border-t px-2 py-2 backdrop-blur" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
           {[copy.home, copy.services, copy.hotel, copy.more].map((label, index) => (
-            <button key={label} type="button" onClick={() => setActive(index === 0 ? null : index === 1 ? "extras" : index === 2 ? "info" : "around")} className="min-h-12 rounded-xl text-[11px] font-semibold text-[#5b7b7d] hover:bg-[#edf8f6]">{label}</button>
+            <button
+              key={label}
+              type="button"
+              onClick={() => setActive(index === 0 ? null : index === 1 ? "extras" : index === 2 ? "info" : "around")}
+              className="min-h-12 text-[11px] font-semibold"
+              style={{ color: theme.text, borderRadius: theme.buttonRadius, fontFamily: theme.buttonFont }}
+            >
+              {label}
+            </button>
           ))}
         </nav>
       </div>
 
       {activeCard ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#123f42]/35 p-3 sm:items-center">
-          <div className="max-h-[84vh] w-full max-w-[440px] overflow-y-auto rounded-[2rem] border border-[#c6e7e3] bg-[#f9fdfc] p-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center" style={{ backgroundColor: theme.overlay }}>
+          <div
+            className="max-h-[84vh] w-full max-w-[440px] overflow-y-auto border p-5 shadow-2xl"
+            style={{ backgroundColor: theme.background, borderColor: theme.border, borderRadius: theme.cardRadius }}
+          >
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
-                <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${activeCard.danger ? "bg-rose-50 text-rose-500" : "bg-[#e8f8f5] text-[#3da99b]"}`}><Icon name={activeCard.icon} /></span>
+                <span
+                  className="flex h-12 w-12 items-center justify-center"
+                  style={{
+                    backgroundColor: activeCard.danger ? "#fff1f2" : theme.soft,
+                    color: activeCard.danger ? "#e11d48" : theme.primary,
+                    borderRadius: theme.cardRadius,
+                  }}
+                >
+                  <Icon name={activeCard.icon} />
+                </span>
                 <div>
-                  <h2 className="text-xl font-bold text-[#16484b]">{activeCard.title}</h2>
-                  {activeCard.manual ? <p className="mt-1 text-xs text-slate-400">{copy.manual}</p> : null}
+                  <h2 className="text-2xl font-semibold" style={{ color: theme.text, fontFamily: theme.headingFont }}>{activeCard.title}</h2>
+                  {activeCard.manual ? <p className="mt-1 text-xs" style={{ color: theme.muted }}>{copy.manual}</p> : null}
                 </div>
               </div>
-              <button type="button" onClick={() => setActive(null)} aria-label={copy.close} className="flex h-11 w-11 items-center justify-center rounded-full border border-[#cfe8e5] bg-white text-xl">×</button>
+              <button
+                type="button"
+                onClick={() => setActive(null)}
+                aria-label={copy.close}
+                className="flex h-11 w-11 items-center justify-center border text-xl"
+                style={{ backgroundColor: theme.surface, color: theme.text, borderColor: theme.border, borderRadius: theme.buttonRadius }}
+              >
+                ×
+              </button>
             </div>
             <div className="mt-5">{detailContent(activeCard)}</div>
           </div>
