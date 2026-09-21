@@ -12,8 +12,8 @@ import {
   summarizeHotelInventoryAuthorityV3,
 } from "@/lib/server/hotel-scanner-v3-canonical-inventory.mjs";
 
-const CORE_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "experiences", "offers", "contacts"] as const;
-const INTAKE_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "experiences", "contacts"] as const;
+const CORE_DOMAINS = ["accommodation", "gastronomy", "policies", "contacts"] as const;
+const INTAKE_DOMAINS = ["accommodation", "gastronomy", "policies", "contacts"] as const;
 
 function clean(value: unknown, max = 500) {
   const text = String(value ?? "").normalize("NFKC").replace(/\s+/g, " ").trim();
@@ -304,12 +304,7 @@ function docKind(document: { url: string; domains?: string[] }) {
 }
 export function summarizeHotelScannerV2Documents(discovery: HotelIntakeV2DiscoveryResult) {
   const labels = {
-    restaurant_menu: { bg: "Ресторант меню", en: "Restaurant menus", onboarding: true },
-    brochures: { bg: "Брошури", en: "Brochures", onboarding: true },
-    spa_brochures: { bg: "SPA / Wellness брошури", en: "SPA / Wellness brochures", onboarding: true },
-    offers_packages: { bg: "Оферти / пакети", en: "Offers / packages", onboarding: true },
     policies_faq: { bg: "Политики / FAQ", en: "Policies / FAQ", onboarding: false },
-    other_documents: { bg: "Други документи", en: "Other documents", onboarding: true },
   } as const;
   const counts = new Map<string, number>();
   for (const document of discovery.inventory.documents) {
@@ -327,8 +322,7 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
   const canonicalUrl = discovery.evidence.canonicalUrl;
   const rooms = inventory.domains.find((domain: { domain: string }) => domain.domain === "accommodation")?.expectedItems || [];
   const venues = inventory.domains.find((domain: { domain: string }) => domain.domain === "gastronomy")?.expectedItems || [];
-  const spa = inventory.domains.find((domain: { domain: string }) => domain.domain === "spa")?.expectedItems || [];
-  const services = inventory.domains.find((domain: { domain: string }) => domain.domain === "services")?.expectedItems || [];
+  const policies = inventory.domains.find((domain: { domain: string }) => domain.domain === "policies")?.expectedItems || [];
   const contacts = quickContacts(discovery);
   const name = hotelName(discovery);
   const sourceUrls = unique([canonicalUrl, ...items.flatMap((item) => item.sourceUrls)]);
@@ -349,10 +343,10 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
       operations: { checkIn: "", checkOut: "", languages: [] },
       hospitality: {
         roomTypes: unique(rooms.map((item) => clean(item.nameHint, 180)).filter((name) => clientPreviewNameAllowed("accommodation", name)), 50),
-        amenities: unique(services.map((item) => clean(item.nameHint, 180)), 50),
-        venues: venues.map((item) => ({ name: clean(item.nameHint, 180), type: "venue", hours: "", summary: "" })).filter((item) => item.name),
-        spaServices: unique(spa.map((item) => clean(item.nameHint, 180)).filter((name) => clientPreviewNameAllowed("spa", name)), 50),
-        policies: [],
+        amenities: [],
+        venues: venues.map((item) => ({ name: clean(item.nameHint, 180), type: "venue", hours: openingHoursForItem(discovery, item), summary: "" })).filter((item) => item.name),
+        spaServices: [],
+        policies: unique(policies.map((item) => clean(item.nameHint, 180)).filter(Boolean), 50),
       },
     },
     designIntelligenceLayer: { colors: [], fonts: [], styleKeywords: [], imageReferences: [], logoReferences: [], visualAssetPolicy: "hotel_authorization_required" },
@@ -386,18 +380,16 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
           && authority.domains.some((entry) =>
             entry.domain === domain.domain && entry.authorityStatus === "READY"),
         );
-        const manualOnly = domain.domain === "experiences";
-        const authorityStatus = manualOnly
-          ? "MANUAL"
+        const manualOnly = false;
+        const componentItems = previewItemsForDomain(
+          discovery,
+          domain.domain,
+          domain.expectedItems || [],
+          { allowEvidenceExpansion: false },
+        );
+        const authorityStatus = domain.domain === "policies"
+          ? (componentItems.length ? "READY" : "NOT_DISCOVERED")
           : clean(snapshotDomain?.authorityStatus || (domainHasV3Authority ? "READY" : "PARTIAL"), 80);
-        const componentItems = manualOnly
-          ? []
-          : previewItemsForDomain(
-              discovery,
-              domain.domain,
-              domain.expectedItems || [],
-              { allowEvidenceExpansion: !domainHasV3Authority },
-            );
         const contactMethodCount = contacts.phones.length + contacts.emails.length + contacts.addresses.length;
         return {
           domain: domain.domain,
