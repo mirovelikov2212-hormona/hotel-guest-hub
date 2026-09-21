@@ -130,7 +130,6 @@ export async function discoverHotelIntakeQuickV2(rawUrl: string): Promise<HotelI
   });
   const initial = await finalizeDiscovery(evidence);
   const domains = selectHotelIntakeQuickRenderDomainsV2(initial);
-  if (!domains.length) return initial;
 
   const elapsedMs = Date.now() - startedAt;
   const remainingQuickMs = Math.max(0, 60_000 - elapsedMs);
