@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import type {
   HotelIntelligencePackage,
@@ -176,6 +176,115 @@ function cleanText(value: unknown) {
     .replace(/\s+/gu, " ")
     .trim();
 }
+
+
+function normalizedHex(value: unknown, fallback: string) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (/^#[0-9a-f]{6}$/u.test(raw)) return raw;
+  if (/^#[0-9a-f]{3}$/u.test(raw)) {
+    return "#" + raw.slice(1).split("").map((part) => part + part).join("");
+  }
+  return fallback;
+}
+
+function rgb(hex: string) {
+  const value = normalizedHex(hex, "#000000");
+  return {
+    r: Number.parseInt(value.slice(1, 3), 16),
+    g: Number.parseInt(value.slice(3, 5), 16),
+    b: Number.parseInt(value.slice(5, 7), 16),
+  };
+}
+
+function relativeLuminance(hex: string) {
+  const { r, g, b } = rgb(hex);
+  const convert = (channel: number) => {
+    const value = channel / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * convert(r) + 0.7152 * convert(g) + 0.0722 * convert(b);
+}
+
+function contrastRatio(left: string, right: string) {
+  const a = relativeLuminance(left);
+  const b = relativeLuminance(right);
+  const lighter = Math.max(a, b);
+  const darker = Math.min(a, b);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function rgba(hex: string, alpha: number) {
+  const { r, g, b } = rgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function mixHex(left: string, right: string, rightWeight: number) {
+  const a = rgb(left);
+  const b = rgb(right);
+  const mix = (x: number, y: number) => Math.round(x * (1 - rightWeight) + y * rightWeight);
+  return "#" + [mix(a.r, b.r), mix(a.g, b.g), mix(a.b, b.b)]
+    .map((channel) => channel.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function brandRole(pkg: HotelIntelligencePackage, role: string) {
+  const match = pkg.designIntelligenceLayer.brandKit?.colorRoles.find((signal) =>
+    signal.role === role
+    && signal.confidence >= 0.8
+    && /rendered|visible/iu.test(String(signal.evidence || "")));
+  return match?.color || "";
+}
+
+function fontStack(font: string, fallback: string) {
+  const value = cleanText(font);
+  return value ? `"${value}", ${fallback}` : fallback;
+}
+
+function buildGuestTheme(pkg: HotelIntelligencePackage) {
+  const background = normalizedHex(brandRole(pkg, "page_background"), "#f2f0ed");
+  const text = normalizedHex(brandRole(pkg, "text"), "#352c2b");
+  const surface = normalizedHex(brandRole(pkg, "surface"), "#ffffff");
+  const hero = normalizedHex(brandRole(pkg, "hero_background"), background);
+  const primary = normalizedHex(
+    brandRole(pkg, "primary") || brandRole(pkg, "button_background"),
+    text,
+  );
+  const declaredButtonText = normalizedHex(brandRole(pkg, "button_text"), text);
+  const buttonText = contrastRatio(primary, declaredButtonText) >= 4.5
+    ? declaredButtonText
+    : contrastRatio(primary, background) >= 4.5
+      ? background
+      : contrastRatio(primary, "#ffffff") >= contrastRatio(primary, "#000000")
+        ? "#ffffff"
+        : "#000000";
+
+  const headingFont = pkg.designIntelligenceLayer.brandKit?.typography.headingFont || "";
+  const bodyFont = pkg.designIntelligenceLayer.brandKit?.typography.bodyFont || "";
+  const buttonFont = pkg.designIntelligenceLayer.brandKit?.typography.buttonFont || "";
+  const cardRadius = pkg.designIntelligenceLayer.brandKit?.visualCues.cardRadius || "20px";
+  const buttonRadius = pkg.designIntelligenceLayer.brandKit?.visualCues.buttonRadius || "0px";
+
+  return {
+    background,
+    text,
+    surface,
+    hero,
+    primary,
+    buttonText,
+    border: rgba(text, 0.16),
+    muted: mixHex(text, background, 0.58),
+    soft: mixHex(primary, background, 0.90),
+    overlay: rgba(text, 0.34),
+    headingFont: fontStack(headingFont, "Georgia, serif"),
+    bodyFont: fontStack(bodyFont, "Arial, sans-serif"),
+    buttonFont: fontStack(buttonFont, "Arial, sans-serif"),
+    cardRadius,
+    buttonRadius,
+  };
+}
+
+type HubTheme = ReturnType<typeof buildGuestTheme>;
+
 
 function selectedLanguageSources(sources: HotelOnboardingSource[]) {
   const english = sources.filter((source) => /\/en(?:\/|$)/iu.test(new URL(source.url).pathname));
