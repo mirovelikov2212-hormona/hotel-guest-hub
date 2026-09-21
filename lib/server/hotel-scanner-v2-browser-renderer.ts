@@ -421,7 +421,10 @@ export class HotelScannerV2BrowserRenderer {
       const final = new URL(finalUrl);
       if (final.origin !== requested.origin) throw new Error("scanner_v2_browser_cross_origin_navigation");
       await this.publicHost(final);
-      const blocks = await renderedDomBlocks(page);
+      const [blocks, brandSnapshot] = await Promise.all([
+        renderedDomBlocks(page),
+        renderedBrandSnapshot(page),
+      ]);
       const text = normalizeText(await page.locator("main").innerText().catch(() => page.locator("body").innerText().catch(() => "")), 40_000);
       const html = await page.content();
       return {
@@ -430,6 +433,7 @@ export class HotelScannerV2BrowserRenderer {
         html: bytes(html) <= MAX_RENDERED_HTML_BYTES ? html : "",
         text,
         blocks,
+        brandSnapshot,
       };
     } finally {
       await page.close().catch(() => undefined);
