@@ -95,18 +95,28 @@ export function selectHotelIntakeQuickRenderDomainsV2(result: HotelIntakeV2Disco
 }
 
 export async function discoverHotelIntakeQuickV2(rawUrl: string): Promise<HotelIntakeV2DiscoveryResult> {
+  const startedAt = Date.now();
   const evidence = await crawlPublicHotelWebsiteV2(rawUrl, {
     maxInitialPages: 28,
     maxInitialPageAttempts: 40,
     maxCoverageFollowupAttempts: 0,
-    maxStructuralAdaptiveAttempts: 48,
+    // Quick is an interactive checkpoint, not the full verification crawl.
+    // Keep enough headroom for targeted rendering + workflow handoff inside
+    // the 90s Vercel request limit; Deep continuation finishes the frontier.
+    maxStructuralAdaptiveAttempts: 24,
     includeDelegatedOfferDetails: false,
   });
   const initial = await finalizeDiscovery(evidence);
   const domains = selectHotelIntakeQuickRenderDomainsV2(initial);
   if (!domains.length) return initial;
 
-  const enriched = await enrichHotelEvidenceQuickRenderedV2(evidence, domains);
+  const elapsedMs = Date.now() - startedAt;
+  const remainingQuickMs = Math.max(0, 60_000 - elapsedMs);
+  if (remainingQuickMs < 5_000) return initial;
+
+  const enriched = await enrichHotelEvidenceQuickRenderedV2(evidence, domains, {
+    wallMs: Math.min(25_000, remainingQuickMs),
+  });
   return finalizeDiscovery(enriched);
 }
 
