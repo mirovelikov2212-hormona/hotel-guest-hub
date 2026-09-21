@@ -183,9 +183,9 @@ test("Scanner Intake ignores site-wide V3 authority and uses targeted room/dinin
 test("Scanner Intake bounds noisy landing-page candidates instead of exposing site-wide counts", async () => {
   const quick = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
 
-  assert.match(quick, /const maxItems = domain === "accommodation" \? 30 : 20/);
-  assert.match(quick, /if \(items\.length > maxItems\) return \[\]/);
-  assert.match(quick, /uniqueIntakeItems/);
+  assert.match(quick, /uniqueIntakeItems\(items, domain === "accommodation" \? 30 : 20\)/);
+  assert.match(quick, /homepageItems/);
+  assert.match(quick, /detailSuffix/);
 });
 
 test("Scanner V3 Quick stays inside the interactive request budget as the final Intake path", async () => {
