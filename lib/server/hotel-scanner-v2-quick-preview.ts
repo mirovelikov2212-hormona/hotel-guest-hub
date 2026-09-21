@@ -509,7 +509,7 @@ function targetedDomainItems(
   domain: "accommodation" | "gastronomy",
 ) {
   const pages = discovery.evidence.pages || [];
-  const requestedLanguage = pageLanguage(pages[0]);
+  const requestedLanguage = pages[0] ? pageLanguage(pages[0]) : "";
 
   if (domain === "gastronomy") {
     const atomic = atomicVenueItems(discovery, requestedLanguage);
