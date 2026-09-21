@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { gzipSync } from "node:zlib";
 import { NextRequest, NextResponse } from "next/server";
 import { start } from "workflow/api";
 
@@ -23,7 +24,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 90;
 
-const MAX_INLINE_WORKFLOW_CHECKPOINT_BYTES = 750_000;
+const MAX_COMPRESSED_WORKFLOW_CHECKPOINT_BYTES = 400_000;
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
@@ -72,6 +73,8 @@ export async function POST(request: NextRequest) {
 
     const checkpoint = projectHotelScannerDiscoveryCheckpointV3(discovery.evidence);
     const checkpointBytes = hotelScannerDiscoveryCheckpointBytesV3(checkpoint);
+    const checkpointGzip = gzipSync(Buffer.from(JSON.stringify(checkpoint), "utf8"), { level: 6 }).toString("base64url");
+    const checkpointCompressedBytes = Buffer.byteLength(checkpointGzip, "utf8");
     let workflow: {
       runId: string;
       scanRunId: string;
@@ -80,7 +83,7 @@ export async function POST(request: NextRequest) {
       reusedDiscovery: true;
     } | null = null;
 
-    if (checkpointBytes <= MAX_INLINE_WORKFLOW_CHECKPOINT_BYTES) {
+    if (checkpointCompressedBytes <= MAX_COMPRESSED_WORKFLOW_CHECKPOINT_BYTES) {
       try {
         const scanRunId = randomUUID();
         const run = await start(hotelScannerV2Workflow, [{
@@ -89,7 +92,7 @@ export async function POST(request: NextRequest) {
           actorAdminId: authority.adminId,
           scanRunId,
           inventoryAuthority: inventoryAuthority || undefined,
-          discoveryCheckpoint: checkpoint,
+          discoveryCheckpointGzip: checkpointGzip,
           discoveryCheckpointLatencyMs: Date.now() - startedAt,
         }]);
         workflow = {
@@ -107,6 +110,7 @@ export async function POST(request: NextRequest) {
         console.warn("scanner_v3_quick_checkpoint_workflow_start_failed", {
           error: workflowError instanceof Error ? workflowError.message : String(workflowError),
           checkpointBytes,
+          checkpointCompressedBytes,
         });
       }
     }
@@ -115,7 +119,8 @@ export async function POST(request: NextRequest) {
       requestedUrl: url,
       pageCount: discovery.evidence.pages.length,
       checkpointBytes,
-      maxInlineBytes: MAX_INLINE_WORKFLOW_CHECKPOINT_BYTES,
+      checkpointCompressedBytes,
+      maxCompressedBytes: MAX_COMPRESSED_WORKFLOW_CHECKPOINT_BYTES,
       authorityEligible,
       snapshotStatus: snapshot?.status || "",
       structuralClosed: Boolean(structuralCrawl?.inventoryClosed),
@@ -136,7 +141,8 @@ export async function POST(request: NextRequest) {
       checkpoint: {
         reusable: Boolean(workflow),
         bytes: checkpointBytes,
-        maxInlineBytes: MAX_INLINE_WORKFLOW_CHECKPOINT_BYTES,
+        compressedBytes: checkpointCompressedBytes,
+        maxCompressedBytes: MAX_COMPRESSED_WORKFLOW_CHECKPOINT_BYTES,
         fallbackRequired: !workflow,
       },
     });
