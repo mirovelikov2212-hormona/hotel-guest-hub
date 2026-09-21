@@ -144,18 +144,19 @@ type QuickPreview = {
 const STORAGE_KEY = "stayhub_scanner_v2_workflow_run";
 const PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1";
 const INTAKE_VISIBLE_DOMAINS = new Set(["accommodation", "gastronomy", "spa", "services", "experiences", "contacts"]);
+const INTAKE_REVIEW_DOMAINS = new Set(["accommodation", "gastronomy", "spa", "services", "contacts", "policies"]);
 
 const COPY = {
   bg: {
     title: "Ново сканиране",
-    help: "Scanner V2 работи като durable background workflow: Discovery се checkpoint-ва отделно, AI enrichment и persistence продължават без браузърът да държи една дълга HTTP заявка.",
+    help: "Въведи официалния хотелски сайт. Scanner-ът извлича публичната информация за бърз ръчен onboarding в Design Studio; не е нужно всяка категория да бъде изчерпателна.",
     url: "Официален хотелски сайт",
-    start: "Сканирай с V2",
+    start: "Извлечи данните",
     starting: "Стартиране…",
     run: "Workflow Run",
     status: "Статус",
     resume: "При refresh този run се възстановява автоматично.",
-    completed: "Сканирането завърши. Данните по-долу са пълният резултат от същия Scanner V2 pipeline, изпълнен като durable workflow.",
+    completed: "Извличането завърши. Данните по-долу са работният intake за ръчен преглед и Design Studio.",
     failed: "Workflow сканирането завърши с грешка.",
     newScan: "Ново сканиране",
     cancelRun: "Прекрати текущия run",
@@ -217,14 +218,14 @@ const COPY = {
   },
   en: {
     title: "New scan",
-    help: "Scanner V2 runs as a durable background workflow: Discovery is checkpointed separately, while AI enrichment and persistence continue without one long browser HTTP request.",
+    help: "Enter the official hotel website. The Scanner extracts public information for fast manual onboarding in Design Studio; every category does not need to be exhaustive.",
     url: "Official hotel website",
-    start: "Scan with V2",
+    start: "Extract data",
     starting: "Starting…",
     run: "Workflow Run",
     status: "Status",
     resume: "After refresh this run is restored automatically.",
-    completed: "The scan completed. The data below is the full result from the same Scanner V2 pipeline, executed as a durable workflow.",
+    completed: "Extraction completed. The data below is the working intake for manual review and Design Studio.",
     failed: "The workflow scan failed.",
     newScan: "New scan",
     cancelRun: "Cancel current run",
@@ -828,7 +829,7 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
           </section>
 
           <HotelScannerV2ReviewWorkspace
-            sections={result.reviewSections}
+            sections={result.reviewSections?.filter((section) => INTAKE_REVIEW_DOMAINS.has(section.domain))}
             candidate={result.intelligenceCandidate}
             documents={result.documents?.documents}
             lang={lang}
