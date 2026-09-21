@@ -221,7 +221,11 @@ function quickContacts(discovery: HotelIntakeV2DiscoveryResult) {
   const emails: string[] = [];
   const addressGroups = new Map<string, { values: string[]; pages: Set<string> }>();
 
-  for (const page of discovery.evidence.pages || []) {
+  const allPages = discovery.evidence.pages || [];
+  const contactPages = allPages.filter((page) => classifyHotelScannerPageV2(page).primaryType === "contacts");
+  const selectedPages = contactPages.length ? contactPages : allPages;
+
+  for (const page of selectedPages) {
     const pageUrl = clean(page.url, 2_048);
     for (const phone of page.contactSignals?.phones || []) {
       const key = normalizedPhoneKey(phone);
@@ -367,22 +371,54 @@ function uniqueIntakeItems(values: IntakePreviewItem[], max = 40) {
   return result;
 }
 
+function pageTitleItemName(page: { title?: string }) {
+  return clean(page.title, 240).split(/\s+(?:[-–—|])\s+/u)[0] || "";
+}
+
+function domainHintItems(
+  discovery: HotelIntakeV2DiscoveryResult,
+  page: HotelIntakeV2DiscoveryResult["evidence"]["pages"][number],
+  domain: "accommodation" | "gastronomy",
+) {
+  const classification = classifyHotelScannerPageV2(page);
+  const hint = deriveHotelPageInventoryHintsV2(page, classification)
+    .find((entry: { domain?: string }) => entry?.domain === domain);
+  if (!hint || !Array.isArray(hint.candidates) || !hint.candidates.length) return [] as IntakePreviewItem[];
+
+  const items = hint.candidates
+    .map((candidate: { name?: string; links?: string[] }) => {
+      const name = clean(candidate?.name, 240);
+      if (!name || !clientPreviewNameAllowed(domain, name)) return null;
+      const linkedUrl = (candidate.links || [])
+        .map((url) => absoluteEvidenceUrl(url, page.url))
+        .find(Boolean) || page.url;
+      const hours = domain === "gastronomy"
+        ? openingHoursForItem(discovery, { nameHint: name, url: linkedUrl, urls: [linkedUrl] })
+        : "";
+      return { name, hours, url: linkedUrl };
+    })
+    .filter((item): item is { name: string; hours: string; url: string } => Boolean(item));
+
+  return uniqueIntakeItems(items, domain === "accommodation" ? 30 : 20);
+}
+
 function targetedDomainItems(
   discovery: HotelIntakeV2DiscoveryResult,
   domain: "accommodation" | "gastronomy",
 ) {
   const requestedLanguage = intakePathLanguage(discovery.evidence.canonicalUrl || discovery.evidence.requestedUrl);
-  const candidates = (discovery.evidence.pages || [])
+  const pages = discovery.evidence.pages || [];
+
+  const rankedLandings = pages
     .map((page) => {
       const classification = classifyHotelScannerPageV2(page);
       if (classification.primaryType !== domain) return null;
-      const hint = deriveHotelPageInventoryHintsV2(page, classification)
-        .find((entry: { domain?: string }) => entry?.domain === domain);
-      if (!hint || !Array.isArray(hint.candidates) || !hint.candidates.length) return null;
+      const items = domainHintItems(discovery, page, domain);
+      if (!items.length) return null;
       const language = intakePathLanguage(page.url);
       return {
         page,
-        hint,
+        items,
         languageRank: requestedLanguage && language === requestedLanguage ? 0 : language === "en" ? 1 : language ? 2 : 3,
         depth: intakePathDepth(page.url),
       };
@@ -391,31 +427,39 @@ function targetedDomainItems(
     .sort((left, right) =>
       left.languageRank - right.languageRank
       || left.depth - right.depth
-      || Number(right.hint.confidence === "HIGH") - Number(left.hint.confidence === "HIGH")
       || left.page.url.localeCompare(right.page.url));
 
-  const selected = candidates[0];
-  if (!selected) return [] as IntakePreviewItem[];
+  const landing = rankedLandings[0];
+  if (landing) return landing.items;
 
-  const items = selected.hint.candidates
-    .map((candidate: { name?: string; links?: string[] }) => {
-      const name = clean(candidate?.name, 240);
+  // Some hotel sites expose the useful object list on the homepage while the
+  // dedicated route is classified as a detail page. Use the homepage only as
+  // a narrow fallback; never aggregate candidates from the whole site.
+  const homepage = pages[0];
+  if (homepage) {
+    const homepageItems = domainHintItems(discovery, homepage, domain);
+    if (homepageItems.length) return homepageItems;
+  }
+
+  // Final fallback: one atomic item per fetched detail page in the requested
+  // domain. This is still page-scoped and cannot explode into site-wide counts.
+  const detailSuffix = domain === "accommodation" ? "room_detail" : "restaurant_detail";
+  const detailItems = pages
+    .filter((page) => classifyHotelScannerPageV2(page).primaryType === detailSuffix)
+    .map((page) => {
+      const name = pageTitleItemName(page);
       if (!name || !clientPreviewNameAllowed(domain, name)) return null;
-      const linkedUrl = (candidate.links || [])
-        .map((url) => absoluteEvidenceUrl(url, selected.page.url))
-        .find(Boolean) || selected.page.url;
-      const hours = domain === "gastronomy"
-        ? openingHoursForItem(discovery, { nameHint: name, url: linkedUrl, urls: [linkedUrl] })
-        : "";
-      return { name, hours, url: linkedUrl };
+      return {
+        name,
+        hours: domain === "gastronomy"
+          ? openingHoursForItem(discovery, { nameHint: name, url: page.url, urls: [page.url] })
+          : "",
+        url: clean(page.url, 2_048),
+      };
     })
     .filter((item): item is { name: string; hours: string; url: string } => Boolean(item));
 
-  // A landing page is the authority for Intake. If it produces an implausibly
-  // large navigation-like set, do not expose that noise as hotel inventory.
-  const maxItems = domain === "accommodation" ? 30 : 20;
-  if (items.length > maxItems) return [];
-  return uniqueIntakeItems(items, maxItems);
+  return uniqueIntakeItems(detailItems, domain === "accommodation" ? 30 : 20);
 }
 
 const CHECK_IN_MARKER = /(?:check[-\s]?in|anreise(?:tag)?|ankunft|arrival|настаняване|пристигане|заезд|giri[sş]|sosire|p[řr]íjezd)/iu;
@@ -424,10 +468,21 @@ const CLOCK_VALUE = /\b(?:[01]?\d|2[0-3])(?:[:.]\d{2})\b/u;
 const PARKING_MARKER = /(?:parking|car\s*park|parkplatz|parkplätze|parkplaetze|garage|паркинг|парковк|otopark|parcare|parkoviště|parkoviste)/iu;
 
 function operationEvidencePages(discovery: HotelIntakeV2DiscoveryResult) {
-  const selected = (discovery.evidence.pages || []).filter((page, index) => {
+  const selected = (discovery.evidence.pages || []).map((page, index) => {
     const type = classifyHotelScannerPageV2(page).primaryType;
-    return index === 0 || ["faq", "policies", "contacts", "accommodation"].includes(type);
-  });
+    const priority = ["faq", "policies"].includes(type)
+      ? 0
+      : type === "contacts"
+        ? 1
+        : type === "accommodation"
+          ? 2
+          : index === 0
+            ? 3
+            : 99;
+    return { page, priority, index };
+  }).filter((entry) => entry.priority < 99)
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)
+    .map((entry) => entry.page);
   return selected.length ? selected : (discovery.evidence.pages || []).slice(0, 1);
 }
 
@@ -450,6 +505,8 @@ function timeNearMarker(discovery: HotelIntakeV2DiscoveryResult, marker: RegExp)
 }
 
 function parkingInfo(discovery: HotelIntakeV2DiscoveryResult) {
+  const strongParking = /(?:hoteleigen|on[-\s]?site|kostenlos|free|gratis|garage|parkplatz|parkplätze|parkplaetze|parking\s+(?:lot|area)|car\s*park)/iu;
+  const candidates: Array<{ text: string; score: number }> = [];
   for (const page of operationEvidencePages(discovery)) {
     const texts = [
       clean(page.text, 30_000),
@@ -457,11 +514,16 @@ function parkingInfo(discovery: HotelIntakeV2DiscoveryResult) {
     ];
     for (const text of texts) {
       const sentences = text.split(/(?<=[.!?])\s+|\n+/u).map((value) => clean(value, 500)).filter(Boolean);
-      const sentence = sentences.find((value) => PARKING_MARKER.test(value) && value.length >= 8 && value.length <= 420);
-      if (sentence) return sentence;
+      for (const sentence of sentences) {
+        if (!PARKING_MARKER.test(sentence) || sentence.length < 8 || sentence.length > 420) continue;
+        const score = (strongParking.test(sentence) ? 10 : 0)
+          + (/guest|gäste|gast|hotel|гост/iu.test(sentence) ? 3 : 0)
+          - Math.floor(sentence.length / 140);
+        candidates.push({ text: sentence, score });
+      }
     }
   }
-  return "";
+  return candidates.sort((left, right) => right.score - left.score || left.text.length - right.text.length)[0]?.text || "";
 }
 
 function buildIntakeInfo(discovery: HotelIntakeV2DiscoveryResult) {
