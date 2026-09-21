@@ -198,7 +198,7 @@ test("Quick Intake extracts only the four onboarding data groups and does not st
   assert.match(projector, /CORE_DOMAINS = \["accommodation", "gastronomy", "policies", "contacts"\]/);
   assert.match(projector, /policyDocuments/);
   assert.match(projector, /openingHoursForItem/);
-  assert.match(client, /VISIBLE_DOMAINS = new Set\(\["accommodation", "gastronomy", "policies", "contacts"\]\)/);
+  assert.match(client, /VISIBLE_DOMAINS = new Set\(\["accommodation", "gastronomy", "policies", "contacts", "info"\]\)/);
   assert.match(client, /preview=quick/);
   assert.match(designPage, /quickPreview/);
 });
@@ -230,6 +230,7 @@ test("Quick Intake presents rooms, dining hours, policies and contacts without i
   assert.match(preview, /openingHoursForItem/);
   assert.match(preview, /quickContacts/);
   assert.match(preview, /policyDocuments/);
+  assert.match(preview, /buildIntakeInfo/);
 });
 
 
