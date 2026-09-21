@@ -9,6 +9,7 @@ import { getCurrentPlatformAdminSession } from "@/lib/server/control-plane-sessi
 import { discoverHotelIntakeQuickV2 } from "@/lib/server/hotel-scanner-v2-intake";
 import { buildHotelScannerV2QuickPreview } from "@/lib/server/hotel-scanner-v2-quick-preview";
 import {
+  hasReadyHotelInventoryAuthorityV3,
   projectHotelInventoryAuthorityV3,
   summarizeHotelInventoryAuthorityV3,
 } from "@/lib/server/hotel-scanner-v3-canonical-inventory.mjs";
@@ -54,12 +55,14 @@ export async function POST(request: NextRequest) {
     const preview = buildHotelScannerV2QuickPreview(discovery);
     const snapshot = discovery.evidence.v3InventorySnapshot;
     const structuralCrawl = discovery.evidence.discovery.structuralCrawl;
-    const authorityEligible = Boolean(
-      snapshot
-      && snapshot.status === "READY"
-    );
-    const inventoryAuthority = authorityEligible && snapshot
+    const projectedAuthority = snapshot
       ? projectHotelInventoryAuthorityV3(snapshot)
+      : null;
+    const authorityEligible = Boolean(
+      projectedAuthority && hasReadyHotelInventoryAuthorityV3(projectedAuthority)
+    );
+    const inventoryAuthority = authorityEligible
+      ? projectedAuthority
       : null;
     const inventoryAuthorityToken = inventoryAuthority
       ? createHotelInventoryAuthorityTokenV3({
@@ -120,6 +123,9 @@ export async function POST(request: NextRequest) {
       checkpointCompressedBytes,
       maxCompressedBytes: MAX_COMPRESSED_WORKFLOW_CHECKPOINT_BYTES,
       authorityEligible,
+      readyDomains: inventoryAuthority
+        ? summarizeHotelInventoryAuthorityV3(inventoryAuthority).readyDomains || []
+        : [],
       snapshotStatus: snapshot?.status || "",
       structuralClosed: Boolean(structuralCrawl?.inventoryClosed),
       workflowStarted: Boolean(workflow),
