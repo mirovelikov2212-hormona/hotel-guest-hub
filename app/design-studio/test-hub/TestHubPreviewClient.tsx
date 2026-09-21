@@ -223,7 +223,7 @@ function categorySources(pkg: HotelIntelligencePackage, category: HotelOnboardin
 
 function cardAvailable(pkg: HotelIntelligencePackage, key: CardKey) {
   const category = CATEGORY_FOR_CARD[key];
-  if (category) return categorySources(pkg, category).length > 0;
+  if (category) return categorySources(currentPkg, category).length > 0;
   return true;
 }
 
@@ -299,11 +299,12 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
     );
   }
 
-  const hotelName = pkg.hotelProfileLayer.identity.hotelName || "Hotel";
+  const currentPkg = pkg;
+  const hotelName = currentPkg.hotelProfileLayer.identity.hotelName || "Hotel";
   const info = {
-    checkIn: pkg.hotelProfileLayer.operations.checkIn || "",
-    checkOut: pkg.hotelProfileLayer.operations.checkOut || "",
-    parking: pkg.hotelProfileLayer.hospitality.amenities[0] || "",
+    checkIn: currentPkg.hotelProfileLayer.operations.checkIn || "",
+    checkOut: currentPkg.hotelProfileLayer.operations.checkOut || "",
+    parking: currentPkg.hotelProfileLayer.hospitality.amenities[0] || "",
   };
   const activeCard = cards.find((card) => card.key === active) || null;
 
@@ -342,16 +343,16 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
           {info.checkIn ? <InfoRow label={copy.checkIn} value={info.checkIn} /> : null}
           {info.checkOut ? <InfoRow label={copy.checkOut} value={info.checkOut} /> : null}
           {info.parking ? <InfoRow label={copy.parking} value={info.parking} /> : null}
-          {pkg.hotelProfileLayer.contacts.phones.map((phone) => <InfoRow key={phone} label={copy.phone} value={phone} />)}
-          {pkg.hotelProfileLayer.contacts.emails.map((email) => <InfoRow key={email} label="Email" value={email} />)}
-          {pkg.hotelProfileLayer.identity.address ? <InfoRow label={copy.address} value={pkg.hotelProfileLayer.identity.address} /> : null}
+          {currentPkg.hotelProfileLayer.contacts.phones.map((phone) => <InfoRow key={phone} label={copy.phone} value={phone} />)}
+          {currentPkg.hotelProfileLayer.contacts.emails.map((email) => <InfoRow key={email} label="Email" value={email} />)}
+          {currentPkg.hotelProfileLayer.identity.address ? <InfoRow label={copy.address} value={currentPkg.hotelProfileLayer.identity.address} /> : null}
         </div>
       );
     }
 
     const category = CATEGORY_FOR_CARD[card.key];
     if (category) {
-      const sources = categorySources(pkg, category);
+      const sources = categorySources(currentPkg, category);
       const names = curatedNames(sources, category);
       return (
         <div>
