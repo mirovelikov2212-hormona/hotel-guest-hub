@@ -51,10 +51,41 @@ export type HotelScanPageEvidence = {
   technology: HotelScannerRawTechnologySignals;
 };
 
+export type HotelBrandColorRole =
+  | "primary"
+  | "secondary"
+  | "accent"
+  | "page_background"
+  | "surface"
+  | "text"
+  | "muted_text"
+  | "button_background"
+  | "button_text"
+  | "link"
+  | "header_background"
+  | "hero_background";
+
+export type HotelBrandColorRoleSignal = {
+  role: HotelBrandColorRole;
+  color: string;
+  confidence: number;
+  evidence: string;
+};
+
 export type HotelScanBrandEvidence = {
   stylesheetUrls: string[];
   colors: string[];
   fonts: string[];
+  colorRoles: HotelBrandColorRoleSignal[];
+  typography: {
+    bodyFont: string;
+    headingFont: string;
+    buttonFont: string;
+  };
+  visualCues: {
+    buttonRadius: string;
+    cardRadius: string;
+  };
 };
 
 export type HotelScanPublicDocument = {
@@ -579,7 +610,128 @@ async function fetchSecondaryEvidence(url: string, canonicalOrigin: string) {
   } catch { return null; }
 }
 
-async function collectBrandEvidence(html: string, baseUrl: URL): Promise<HotelScanBrandEvidence> {
+
+function cssBlocks(css: string) {
+  const result: Array<{ selector: string; declarations: string }> = [];
+  for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/gu)) {
+    const selector = cleanText(String(match[1] || ""), 500);
+    const declarations = String(match[2] || "");
+    if (!selector || !declarations || selector.startsWith("@")) continue;
+    result.push({ selector, declarations });
+    if (result.length >= 12_000) break;
+  }
+  return result;
+}
+
+function declarationValue(declarations: string, property: string) {
+  const pattern = new RegExp("(?:^|;)\\s*" + property + "\\s*:\\s*([^;{}]+)", "iu");
+  return cleanText(declarations.match(pattern)?.[1] || "", 300);
+}
+
+function firstDeclarationColor(declarations: string, properties: string[]) {
+  for (const property of properties) {
+    const color = findColors(declarationValue(declarations, property))[0];
+    if (color) return color;
+  }
+  return "";
+}
+
+function firstFontFamily(declarations: string) {
+  const family = declarationValue(declarations, "font-family");
+  for (const raw of family.split(",")) {
+    const font = cleanFontName(raw);
+    if (!font || GENERIC_FONTS.has(font.toLowerCase()) || UTILITY_FONT_PATTERN.test(font) || /^var\(/iu.test(font)) continue;
+    return font;
+  }
+  return "";
+}
+
+function brandColorRoles(css: string) {
+  const result = new Map<HotelBrandColorRole, { color: string; score: number; evidence: string }>();
+  const add = (role: HotelBrandColorRole, color: string, score: number, evidence: string) => {
+    if (!color) return;
+    const current = result.get(role);
+    if (!current || score > current.score) result.set(role, { color, score, evidence });
+  };
+
+  for (const match of css.matchAll(/--([\w-]+)\s*:\s*([^;}{]+)/gu)) {
+    const name = String(match[1] || "").toLowerCase();
+    const color = findColors(String(match[2] || ""))[0];
+    if (!color) continue;
+    const evidence = "CSS variable --" + String(match[1] || "");
+    if (/primary|brand|main/u.test(name)) add("primary", color, 24, evidence);
+    if (/secondary/u.test(name)) add("secondary", color, 22, evidence);
+    if (/accent|highlight/u.test(name)) add("accent", color, 22, evidence);
+    if (/page.*bg|body.*bg|background/u.test(name)) add("page_background", color, 19, evidence);
+    if (/surface|card.*bg|panel.*bg/u.test(name)) add("surface", color, 20, evidence);
+    if (/muted.*text|text.*muted|secondary.*text/u.test(name)) add("muted_text", color, 20, evidence);
+    else if (/text|foreground/u.test(name)) add("text", color, 18, evidence);
+    if (/button.*bg|btn.*bg/u.test(name)) add("button_background", color, 24, evidence);
+    if (/button.*text|btn.*text/u.test(name)) add("button_text", color, 24, evidence);
+    if (/link/u.test(name)) add("link", color, 18, evidence);
+  }
+
+  for (const block of cssBlocks(css)) {
+    const selector = block.selector.toLowerCase();
+    const bg = firstDeclarationColor(block.declarations, ["background-color", "background"]);
+    const fg = firstDeclarationColor(block.declarations, ["color"]);
+
+    if (/(?:^|,)\s*(?:html|body)\b/u.test(selector)) {
+      add("page_background", bg, 32, "selector " + block.selector);
+      add("text", fg, 30, "selector " + block.selector);
+    }
+    if (/\b(?:button|btn|cta|booking|book-now|reserve|reservation)\b/u.test(selector)) {
+      add("button_background", bg, 34, "selector " + block.selector);
+      add("button_text", fg, 34, "selector " + block.selector);
+    }
+    if (/\b(?:card|panel|tile|box|surface)\b/u.test(selector)) add("surface", bg, 25, "selector " + block.selector);
+    if (/\b(?:header|navbar|navigation|site-header)\b/u.test(selector)) add("header_background", bg, 26, "selector " + block.selector);
+    if (/\b(?:hero|banner|stage|masthead)\b/u.test(selector)) add("hero_background", bg, 26, "selector " + block.selector);
+    if (/\ba(?::|\b)/u.test(selector) && !/button|btn/u.test(selector)) add("link", fg, 14, "selector " + block.selector);
+  }
+
+  return [...result.entries()].map(([role, value]) => ({
+    role,
+    color: value.color,
+    confidence: Math.min(1, value.score / 34),
+    evidence: value.evidence,
+  }));
+}
+
+function brandTypography(css: string, fonts: string[]) {
+  let bodyFont = "";
+  let headingFont = "";
+  let buttonFont = "";
+  for (const block of cssBlocks(css)) {
+    const selector = block.selector.toLowerCase();
+    const font = firstFontFamily(block.declarations);
+    if (!font) continue;
+    if (!bodyFont && /(?:^|,)\s*(?:html|body)\b/u.test(selector)) bodyFont = font;
+    if (!headingFont && /(?:^|,)\s*h[1-6]\b|\b(?:heading|headline|title)\b/u.test(selector)) headingFont = font;
+    if (!buttonFont && /\b(?:button|btn|cta|booking|reserve)\b/u.test(selector)) buttonFont = font;
+  }
+  return {
+    bodyFont: bodyFont || fonts[0] || "",
+    headingFont: headingFont || fonts[0] || "",
+    buttonFont: buttonFont || bodyFont || fonts[0] || "",
+  };
+}
+
+function brandVisualCues(css: string) {
+  let buttonRadius = "";
+  let cardRadius = "";
+  for (const block of cssBlocks(css)) {
+    const selector = block.selector.toLowerCase();
+    const radius = declarationValue(block.declarations, "border-radius");
+    if (!radius) continue;
+    if (!buttonRadius && /\b(?:button|btn|cta|booking|reserve)\b/u.test(selector)) buttonRadius = radius;
+    if (!cardRadius && /\b(?:card|panel|tile|box)\b/u.test(selector)) cardRadius = radius;
+    if (buttonRadius && cardRadius) break;
+  }
+  return { buttonRadius, cardRadius };
+}
+
+export async function collectBrandEvidence(html: string, baseUrl: URL): Promise<HotelScanBrandEvidence> {
   const stylesheetUrls = extractStylesheetUrls(html, baseUrl);
   const stylesheetResults = await Promise.all(stylesheetUrls.map(async (url) => {
     try { return await fetchStylesheet(new URL(url)); } catch { return null; }
@@ -587,10 +739,15 @@ async function collectBrandEvidence(html: string, baseUrl: URL): Promise<HotelSc
   const fetchedStylesheets = stylesheetResults.filter((item): item is { url: string; css: string } => Boolean(item));
   const resolvedStylesheetUrls = [...new Set(fetchedStylesheets.map((item) => item.url))];
   const combinedCss = [extractInlineCss(html), ...fetchedStylesheets.map((item) => item.css)].join("\n");
+  const colors = rankedColors(combinedCss, 12);
+  const fonts = rankedFonts(combinedCss, [...stylesheetUrls, ...resolvedStylesheetUrls], 8);
   return {
     stylesheetUrls: resolvedStylesheetUrls,
-    colors: rankedColors(combinedCss, 12),
-    fonts: rankedFonts(combinedCss, [...stylesheetUrls, ...resolvedStylesheetUrls], 8),
+    colors,
+    fonts,
+    colorRoles: brandColorRoles(combinedCss),
+    typography: brandTypography(combinedCss, fonts),
+    visualCues: brandVisualCues(combinedCss),
   };
 }
 
