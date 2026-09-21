@@ -670,7 +670,50 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
 
           {panel === "survey" && <div className="space-y-4"><SectionTitle>{copy.survey}</SectionTitle><label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={survey.enabled} onChange={(event) => setSurvey((current) => ({ ...current, enabled: event.target.checked }))} />Enabled presentation surface</label><Select label="Placement" value={survey.placement} onChange={(value) => setSurvey((current) => ({ ...current, placement: value as HubSurveySurface["placement"] }))} options={[{ value: "home", label: "Home" }, { value: "messages", label: "Messages" }, { value: "stay", label: "Stay" }]} /><Select label="Presentation" value={survey.presentation} onChange={(value) => setSurvey((current) => ({ ...current, presentation: value as HubSurveySurface["presentation"] }))} options={[{ value: "card", label: "Card" }, { value: "compact", label: "Compact" }]} /><p className="text-xs text-neutral-500">runtimeOwned = true · business logic remains runtime-owned.</p></div>}
 
-          {panel === "style" && <div className="grid gap-4 sm:grid-cols-2"><Color label="Primary" value={primaryColor} onChange={setPrimaryColor} /><Color label="Secondary" value={secondaryColor} onChange={setSecondaryColor} /><Color label="Background" value={backgroundColor} onChange={setBackgroundColor} /><Select label="Heading font" value={headingFont} onChange={setHeadingFont} options={proposal.availableFonts.map((font) => ({ value: font, label: font }))} /><Select label="Body font" value={bodyFont} onChange={setBodyFont} options={proposal.availableFonts.map((font) => ({ value: font, label: font }))} /></div>}
+          {panel === "style" && <div className="grid gap-4 sm:grid-cols-2">
+            {pkg.designIntelligenceLayer.brandKit ? <div className="sm:col-span-2 rounded-2xl border border-cyan-300/10 bg-cyan-300/[0.025] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <SectionTitle>{language === "bg" ? "Brand Kit от сайта" : "Detected website Brand Kit"}</SectionTitle>
+                  <p className="mt-2 text-xs leading-5 text-neutral-500">
+                    {language === "bg"
+                      ? "Стартова дизайн референция от CSS на официалния хотелски сайт. След това се потвърждава ръчно при onboarding."
+                      : "Starting design reference extracted from the official hotel website CSS. It is confirmed manually during onboarding."}
+                  </p>
+                </div>
+                <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] text-neutral-500">
+                  {pkg.designIntelligenceLayer.brandKit.colorRoles.length} color roles
+                </span>
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                {pkg.designIntelligenceLayer.brandKit.colorRoles.map((signal) => <div key={signal.role + signal.color} className="rounded-xl border border-white/5 bg-neutral-900/60 p-3">
+                  <div className="flex items-center gap-3">
+                    <span className="h-9 w-9 shrink-0 rounded-lg border border-white/10" style={{ backgroundColor: signal.color }} />
+                    <div className="min-w-0">
+                      <p className="truncate text-[10px] uppercase tracking-[0.08em] text-neutral-500">{signal.role.replaceAll("_", " ")}</p>
+                      <p className="mt-1 font-mono text-xs text-neutral-300">{signal.color}</p>
+                    </div>
+                  </div>
+                </div>)}
+              </div>
+              <div className="mt-4 grid gap-3 text-xs text-neutral-400 sm:grid-cols-2">
+                <div className="rounded-xl border border-white/5 p-3">
+                  <p><strong className="text-neutral-300">Heading:</strong> {pkg.designIntelligenceLayer.brandKit.typography.headingFont || "—"}</p>
+                  <p className="mt-1"><strong className="text-neutral-300">Body:</strong> {pkg.designIntelligenceLayer.brandKit.typography.bodyFont || "—"}</p>
+                  <p className="mt-1"><strong className="text-neutral-300">Button:</strong> {pkg.designIntelligenceLayer.brandKit.typography.buttonFont || "—"}</p>
+                </div>
+                <div className="rounded-xl border border-white/5 p-3">
+                  <p><strong className="text-neutral-300">Button radius:</strong> {pkg.designIntelligenceLayer.brandKit.visualCues.buttonRadius || "—"}</p>
+                  <p className="mt-1"><strong className="text-neutral-300">Card radius:</strong> {pkg.designIntelligenceLayer.brandKit.visualCues.cardRadius || "—"}</p>
+                </div>
+              </div>
+            </div> : null}
+            <Color label="Primary" value={primaryColor} onChange={setPrimaryColor} />
+            <Color label="Secondary" value={secondaryColor} onChange={setSecondaryColor} />
+            <Color label="Background" value={backgroundColor} onChange={setBackgroundColor} />
+            <Select label="Heading font" value={headingFont} onChange={setHeadingFont} options={proposal.availableFonts.map((font) => ({ value: font, label: font }))} />
+            <Select label="Body font" value={bodyFont} onChange={setBodyFont} options={proposal.availableFonts.map((font) => ({ value: font, label: font }))} />
+          </div>}
 
           {panel === "versions" && <div className="space-y-3"><SectionTitle>{copy.versions}</SectionTitle>{!snapshot?.revisions.length && <p className="text-sm text-neutral-500">{copy.noVersions}</p>}{snapshot?.revisions.map((revision) => { const isCurrent = revision.id === currentRevisionId; return <div key={revision.id} className={`rounded-2xl border p-4 ${isCurrent ? "border-emerald-300/20" : "border-white/5"}`}><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold">Revision {revision.revisionNo} {isCurrent ? `· ${copy.current}` : ""}</p><p className="mt-1 text-[10px] text-neutral-600">{new Date(revision.createdAt).toLocaleString()} · {revision.payloadChecksum.slice(0, 12)}</p>{revision.restoredFromRevisionId && <p className="mt-1 text-[10px] text-violet-300/70">restored from {revision.restoredFromRevisionId.slice(0, 8)}</p>}</div>{!isCurrent && currentRevisionId && <div className="flex gap-2"><button type="button" onClick={() => compareRevision(revision.id)} disabled={busy} className="min-h-11 rounded-xl border border-white/10 px-3 text-xs">{copy.compare}</button><button type="button" onClick={() => restoreRevision(revision.id)} disabled={busy} className="min-h-11 rounded-xl border border-violet-300/20 px-3 text-xs text-violet-100">{copy.restore}</button></div>}</div></div>; })}{diff && <div className="rounded-2xl border border-cyan-300/15 p-4"><p className="text-sm font-semibold">{diff.changeCount} changed paths{diff.truncated ? " +" : ""}</p><div className="mt-2 max-h-64 overflow-auto">{diff.changedPaths.map((path) => <p key={path} className="font-mono text-[10px] leading-5 text-cyan-100/70">{path}</p>)}</div></div>}</div>}
 
