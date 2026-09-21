@@ -97,51 +97,37 @@ test("Scanner V2 durable workflow never serializes the full multi-megabyte resul
   assert.match(projection, /compactSourceUrls/);
 });
 
-test("Scanner V2 completed result can open Design Studio by scan lineage only", async () => {
+test("Primary Intake opens Design Studio from the quick package without a Deep scan", async () => {
   const source = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
   const designPage = await readProjectFile("app/design-studio/page.tsx");
-  const previewRoute = await readProjectFile("app/api/control-plane/design-studio/preview-source/route.ts");
 
-  assert.match(source, /design-studio\?lang=\$\{lang\}&scanRunId=/);
-  assert.match(designPage, /scanRunId/);
-  assert.match(designPage, /!scanRunId && !quickPreview \? <DesignFactoryHandoffLauncher/);
-  assert.match(previewRoute, /loadPersistedHotelScannerV2ResultForActor/);
-  assert.match(previewRoute, /projectHotelScannerV2DesignPreviewPackage/);
-  assert.match(previewRoute, /downstreamHandoffAllowed: false/);
+  assert.match(source, /preview=quick/);
+  assert.match(source, /PACKAGE_STORAGE_KEY/);
+  assert.match(source, /sessionStorage\.setItem/);
+  assert.doesNotMatch(source, /scanRunId=|runAccessToken|X-Scanner-Workflow-Token/);
+  assert.match(designPage, /quickPreview/);
 });
 
-test("Workflow Preview treats transient status transport failures as reconnecting, not terminal failure", async () => {
+test("Primary Intake has no workflow polling state", async () => {
   const source = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
-
-  assert.match(source, /Never turn a recoverable polling error/);
-  assert.match(source, /setStatus\("reconnecting"\)/);
-  assert.match(source, /\[400, 401, 403\]\.includes\(response\.status\)/);
-  assert.doesNotMatch(source, /body\.ok === false \|\| body\.status === "failed"/);
+  assert.doesNotMatch(source, /reconnecting|2500|X-Scanner-Scan-Run-Id|X-Scanner-Workflow-Token|localStorage/);
 });
 
-test("Workflow Preview resumes a run after refresh and polls independently from the start request", async () => {
+test("Primary Intake ends after the quick request instead of resuming a durable run", async () => {
   const source = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
-
-  assert.match(source, /stayhub_scanner_v2_workflow_run/);
-  assert.match(source, /localStorage\.setItem/);
-  assert.match(source, /scan-v2-workflow/);
-  assert.match(source, /2500/);
-  assert.match(source, /const currentRunId = runId/);
-  assert.match(source, /runAccessToken/);
-  assert.match(source, /X-Scanner-Scan-Run-Id/);
-  assert.match(source, /X-Scanner-Workflow-Token/);
-  assert.match(source, /encodeURIComponent\(currentRunId\)/);
+  assert.match(source, /scan-v2-preview/);
+  assert.doesNotMatch(source, /scan-v2-workflow|currentRunId|runAccessToken|pollStartedAt/);
 });
 
-
-test("Primary Scanner V2 UI uses the durable workflow client while sync route remains fallback-only", async () => {
+test("Primary Scanner UI uses the quick Intake client while durable workflow stays internal", async () => {
   const page = await readProjectFile("app/hotel-scanner-v2/page.tsx");
-  const syncRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2/route.ts");
+  const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
+  const workflowRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-workflow/route.ts");
 
   assert.match(page, /HotelScannerV2WorkflowClient/);
-  assert.doesNotMatch(page, /<HotelScannerV2Client/);
-  assert.match(syncRoute, /runHotelIntakePipelineV2/);
-  assert.doesNotMatch(syncRoute, /workflow\/api/);
+  assert.match(client, /scan-v2-preview/);
+  assert.doesNotMatch(client, /scan-v2-workflow/);
+  assert.match(workflowRoute, /start\(hotelScannerV2Workflow/);
 });
 
 test("Durable Scanner V2 workflow access token is HMAC-bound to actor, scan and run ids", async () => {
@@ -194,48 +180,28 @@ test("Scanner V2 workflow exposes a protected cancel route for stuck durable run
   assert.match(source, /scanner_v2_workflow_cancel_failed/);
 });
 
-test("Workflow Preview can cancel a stuck active run and release the scan form", async () => {
+test("Primary Intake exposes no Deep-run cancel controls because no Deep run is started", async () => {
   const source = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
-  assert.match(source, /async function cancelCurrentRun\(\)/);
-  assert.match(source, /scan-v2-workflow\/\$\{encodeURIComponent\(runId\)\}\/cancel/);
-  assert.match(source, /method: "POST"/);
-  assert.match(source, /copy\.cancelRun/);
-  assert.match(source, /copy\.cancellingRun/);
-  assert.match(source, /reset\(\)/);
+  assert.doesNotMatch(source, /cancelCurrentRun|cancellingRun|\/cancel/);
 });
 
-
-test("Quick Client Preview uses targeted DOM authority without waiting for full deep verification", async () => {
+test("Quick Intake extracts only the four onboarding data groups and does not start Deep", async () => {
   const route = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-preview/route.ts");
   const intake = await readProjectFile("lib/server/hotel-scanner-v2-intake.ts");
-  const rendered = await readProjectFile("lib/server/hotel-scanner-v2-crawler-rendered.ts");
   const projector = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
   const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
   const designPage = await readProjectFile("app/design-studio/page.tsx");
 
   assert.match(route, /discoverHotelIntakeQuickV2/);
-  assert.doesNotMatch(route, /discoverHotelIntakeRenderedV2|OpenAI|ingestHotelDocumentsV2/);
-  assert.match(intake, /selectHotelIntakeQuickRenderDomainsV2/);
+  assert.doesNotMatch(route, /hotelScannerV2Workflow|workflow\/api|discoveryCheckpointGzip/);
   assert.match(intake, /\["accommodation", "gastronomy"\]/);
-  assert.match(intake, /maxInitialPages: 28/);
-  assert.match(intake, /maxCoverageFollowupAttempts: 0/);
-  assert.match(intake, /includeDelegatedOfferDetails: false/);
-  assert.match(intake, /enrichHotelEvidenceQuickRenderedV2/);
-  assert.match(rendered, /QUICK_PREVIEW_MAX_BROWSER_RENDERS = 4/);
-  assert.match(rendered, /QUICK_PREVIEW_BROWSER_CONCURRENCY = 4/);
-  assert.match(rendered, /QUICK_PREVIEW_BROWSER_WALL_MS = 25_000/);
-  assert.match(rendered, /quick_preview_targeted_authority/);
-  assert.match(projector, /CORE_DOMAINS/);
-  assert.match(projector, /restaurant_menu/);
-  assert.match(projector, /offers_packages/);
-  assert.match(projector, /policies_faq/);
-  assert.match(client, /scan-v2-preview/);
+  assert.match(projector, /CORE_DOMAINS = \["accommodation", "gastronomy", "policies", "contacts"\]/);
+  assert.match(projector, /policyDocuments/);
+  assert.match(projector, /openingHoursForItem/);
+  assert.match(client, /VISIBLE_DOMAINS = new Set\(\["accommodation", "gastronomy", "policies", "contacts"\]\)/);
   assert.match(client, /preview=quick/);
-  assert.match(client, /PACKAGE_STORAGE_KEY/);
   assert.match(designPage, /quickPreview/);
-  assert.match(designPage, /!scanRunId && !quickPreview/);
 });
-
 
 test("Quick crawl budget is isolated from the full Scanner V2 crawl", async () => {
   const crawler = await readProjectFile("lib/server/hotel-scanner-v2-crawler.ts");
@@ -251,25 +217,19 @@ test("Quick crawl budget is isolated from the full Scanner V2 crawl", async () =
 });
 
 
-test("Quick Preview is expandable and hides internal inventory states from clients", async () => {
+test("Quick Intake presents rooms, dining hours, policies and contacts without internal inventory states", async () => {
   const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
   const preview = await readProjectFile("lib/server/hotel-scanner-v2-quick-preview.ts");
 
-  assert.match(client, /<details key=\{component\.domain\}/);
   assert.match(client, /component\.items/);
   assert.match(client, /component\.domain === "gastronomy"/);
   assert.match(client, /component\.domain === "contacts"/);
+  assert.match(client, /component\.domain === "policies"/);
   assert.match(client, /hoursMissing/);
-  assert.doesNotMatch(client, /font-mono">\{component\.state\}/);
+  assert.doesNotMatch(client, /component\.state|authorityStatus|candidateCount/);
   assert.match(preview, /openingHoursForItem/);
   assert.match(preview, /quickContacts/);
-  assert.match(preview, /contacts,/);
+  assert.match(preview, /policyDocuments/);
 });
 
-test("Completed workflow leads with onboarding and keeps technical diagnostics collapsed", async () => {
-  const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
-  assert.match(client, /onboardingReady/);
-  assert.match(client, /onboardingSection/);
-  assert.match(client, /manualSetup/);
-  assert.match(client, /<details className="v2-details v2-panel/);
-});
+
