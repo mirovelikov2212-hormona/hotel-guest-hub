@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { HotelIntelligenceItem, HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
+import type { HotelIntelligenceItem, HotelIntelligencePackage, HotelOnboardingSource, HotelOnboardingSourceCategory } from "@/lib/product-factory/hotel-intelligence-package";
 import { buildInventoryIdentityFactsV2 } from "@/lib/ai/hotel-scanner-v2-deterministic-facts";
 import type { HotelIntakeV2DiscoveryResult } from "@/lib/server/hotel-scanner-v2-intake";
 import type { HotelScannerV2DomainInventory } from "@/lib/server/hotel-scanner-v2-inventory.mjs";
@@ -648,6 +648,127 @@ function buildIntakeInfo(discovery: HotelIntakeV2DiscoveryResult) {
   };
 }
 
+
+const SOURCE_CATEGORY_ORDER: HotelOnboardingSourceCategory[] = [
+  "accommodation",
+  "gastronomy",
+  "wellness",
+  "services",
+  "experiences",
+  "events",
+  "offers",
+  "policies",
+  "contacts",
+  "documents",
+];
+
+function decodeHtmlEntities(value: unknown) {
+  return clean(value, 500)
+    .replace(/&#(\d+);/gu, (_, code) => String.fromCodePoint(Number(code) || 32))
+    .replace(/&#x([\da-f]+);/giu, (_, code) => String.fromCodePoint(Number.parseInt(code, 16) || 32))
+    .replace(/&quot;|&ldquo;|&rdquo;/giu, '"')
+    .replace(/&apos;|&#39;|&lsquo;|&rsquo;/giu, "'")
+    .replace(/&amp;/giu, "&")
+    .replace(/&nbsp;/giu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function sourceCategoryFromPageType(type: unknown): HotelOnboardingSourceCategory | null {
+  const value = clean(type, 80);
+  if (["accommodation", "room_detail"].includes(value)) return "accommodation";
+  if (["gastronomy", "restaurant_detail"].includes(value)) return "gastronomy";
+  if (["spa", "spa_detail"].includes(value)) return "wellness";
+  if (["services", "service_detail"].includes(value)) return "services";
+  if (["experiences", "experience_detail"].includes(value)) return "experiences";
+  if (["events", "event_detail"].includes(value)) return "events";
+  if (["offers", "offer_detail"].includes(value)) return "offers";
+  if (["faq", "policies"].includes(value)) return "policies";
+  if (value === "contacts") return "contacts";
+  if (value === "documents") return "documents";
+  return null;
+}
+
+function sourceTitleFromUrl(rawUrl: string, fallback: string) {
+  const decodedFallback = decodeHtmlEntities(fallback);
+  if (decodedFallback) return decodedFallback;
+  try {
+    const parsed = new URL(rawUrl);
+    const segment = decodeURIComponent(parsed.pathname.split("/").filter(Boolean).pop() || "");
+    const title = segment.replace(/\.pdf$/iu, "").replace(/[-_]+/gu, " ").trim();
+    return title || parsed.hostname.replace(/^www\./u, "");
+  } catch {
+    return rawUrl;
+  }
+}
+
+function pageTypePriority(type: string) {
+  if (["accommodation", "gastronomy", "spa", "services", "experiences", "events", "offers", "faq", "policies", "contacts"].includes(type)) return 0;
+  if (type === "documents") return 1;
+  return 2;
+}
+
+function buildOnboardingSources(discovery: HotelIntakeV2DiscoveryResult): HotelOnboardingSource[] {
+  const requestedLanguage = intakePathLanguage(discovery.evidence.canonicalUrl || discovery.evidence.requestedUrl);
+  const candidates = (discovery.siteMap.resources || [])
+    .map((resource) => {
+      const pageType = clean(resource.classification?.primaryType, 80);
+      const category = resource.resourceType === "pdf" ? "documents" : sourceCategoryFromPageType(pageType);
+      if (!category) return null;
+      const url = clean(resource.url, 2_048);
+      if (!url) return null;
+      const resourceLanguage = (resource.languages || [])[0] || intakePathLanguage(url);
+      const languagePriority = requestedLanguage && resourceLanguage === requestedLanguage
+        ? 0
+        : resourceLanguage === "en"
+          ? 1
+          : resourceLanguage
+            ? 2
+            : 3;
+      return {
+        category,
+        url,
+        kind: resource.resourceType === "pdf" ? "document" as const : "page" as const,
+        pageType,
+        title: sourceTitleFromUrl(url, resource.title || ""),
+        variantKey: clean(resource.variantGroupId, 500) || url,
+        languagePriority,
+        typePriority: pageTypePriority(pageType),
+        crawledPriority: resource.crawled ? 0 : 1,
+        depth: intakePathDepth(url),
+      };
+    })
+    .filter((source): source is NonNullable<typeof source> => Boolean(source))
+    .sort((left, right) =>
+      SOURCE_CATEGORY_ORDER.indexOf(left.category) - SOURCE_CATEGORY_ORDER.indexOf(right.category)
+      || left.languagePriority - right.languagePriority
+      || left.typePriority - right.typePriority
+      || left.crawledPriority - right.crawledPriority
+      || left.depth - right.depth
+      || left.url.localeCompare(right.url));
+
+  const seen = new Set<string>();
+  const categoryCounts = new Map<HotelOnboardingSourceCategory, number>();
+  const result: HotelOnboardingSource[] = [];
+  for (const candidate of candidates) {
+    const dedupeKey = candidate.category + "|" + candidate.variantKey;
+    if (seen.has(dedupeKey)) continue;
+    const count = categoryCounts.get(candidate.category) || 0;
+    if (count >= 16) continue;
+    seen.add(dedupeKey);
+    categoryCounts.set(candidate.category, count + 1);
+    result.push({
+      id: "onboarding-source-" + (result.length + 1),
+      category: candidate.category,
+      title: candidate.title,
+      url: candidate.url,
+      kind: candidate.kind,
+      pageType: candidate.pageType,
+    });
+  }
+  return result;
+}
+
 function buildQuickIntakeFacts(input: {
   rooms: IntakePreviewItem[];
   venues: IntakePreviewItem[];
@@ -688,10 +809,11 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
   // Intake deliberately ignores site-wide V3 inventory authority. The public
   // landing pages for rooms and dining are the source for the onboarding list.
   const canonicalUrl = discovery.evidence.canonicalUrl;
-  const rooms = targetedDomainItems(discovery, "accommodation");
-  const venues = targetedDomainItems(discovery, "gastronomy");
+  const rooms: IntakePreviewItem[] = [];
+  const venues: IntakePreviewItem[] = [];
   const contacts = quickContacts(discovery);
   const info = buildIntakeInfo(discovery);
+  const onboardingSources = buildOnboardingSources(discovery);
 
   const policyPages: IntakePreviewItem[] = (discovery.evidence.pages || [])
     .filter((page) => {
@@ -731,6 +853,7 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
       scannedAt: discovery.evidence.scannedAt,
       pageCount: discovery.evidence.pages.length,
     },
+    onboardingSources,
     evidenceLayer: { facts: items, sourceUrls, uncertainties: ["quick_intake_only", "manual_onboarding_required"] },
     hotelProfileLayer: {
       identity: {
@@ -797,6 +920,7 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
     ],
     contacts,
     info,
+    onboardingSources,
     documents: summarizeHotelScannerV2Documents(discovery),
     inventoryAuthority: null,
     diagnostics: {
