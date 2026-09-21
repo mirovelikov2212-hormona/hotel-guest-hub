@@ -167,3 +167,23 @@ test("quick intake scope is exactly rooms, dining, policies and contacts", async
   assert.match(preview, /CORE_DOMAINS = \["accommodation", "gastronomy", "policies", "contacts"\]/);
   assert.match(preview, /INTAKE_DOMAINS = \["accommodation", "gastronomy", "policies", "contacts"\]/);
 });
+
+
+test("Brand Kit UI separates rendered authority from raw CSS reference signals", async () => {
+  const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
+  const studio = await readProjectFile("app/design-studio/VersionedDesignStudioClient.tsx");
+  const proposal = await readProjectFile("lib/product-factory/hub-design-proposal.ts");
+
+  assert.match(client, /confirmedBrandRoles/);
+  assert.match(client, /additionalCssColors/);
+  assert.match(client, /Допълнителни CSS сигнали/);
+  assert.match(client, /не влияят автоматично на Design Studio/);
+
+  assert.match(studio, /confirmedRoles/);
+  assert.match(studio, /cssReferenceColors/);
+  assert.match(studio, /Допълнителни CSS сигнали · само за справка/);
+
+  assert.match(proposal, /confidence >= 0\.8/);
+  assert.match(proposal, /rendered\|visible/);
+  assert.match(proposal, /selectTheme\(\[\], pkg\.designIntelligenceLayer\.fonts\)/);
+});
