@@ -322,8 +322,22 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
   const canonicalUrl = discovery.evidence.canonicalUrl;
   const rooms = inventory.domains.find((domain: { domain: string }) => domain.domain === "accommodation")?.expectedItems || [];
   const venues = inventory.domains.find((domain: { domain: string }) => domain.domain === "gastronomy")?.expectedItems || [];
-  const policies = inventory.domains.find((domain: { domain: string }) => domain.domain === "policies")?.expectedItems || [];
+  const policies = [
+    ...(inventory.domains.find((domain: { domain: string }) => domain.domain === "policies")?.expectedItems || []),
+    ...policyPages,
+    ...policyDocuments,
+  ];
   const contacts = quickContacts(discovery);
+  const policyPages = (discovery.evidence.pages || [])
+    .filter((page) => {
+      const type = classifyHotelScannerPageV2(page).primaryType;
+      return type === "faq" || type === "policies";
+    })
+    .map((page, index) => ({
+      nameHint: clean(page.title, 240).split(/\s+[|]\s+/u)[0] || `Policy / FAQ ${index + 1}`,
+      url: clean(page.url, 2_048),
+      urls: [clean(page.url, 2_048)].filter(Boolean),
+    }));
   const policyDocuments = (discovery.inventory.documents || [])
     .filter((document: { domains?: string[] }) => document.domains?.includes("policies"))
     .map((document: { url?: string }, index: number) => {
@@ -382,7 +396,7 @@ export function buildHotelScannerV2QuickPreview(discovery: HotelIntakeV2Discover
       .filter((domain: HotelScannerV2DomainInventory) => INTAKE_DOMAINS.includes(domain.domain as (typeof INTAKE_DOMAINS)[number]))
       .map((domain: HotelScannerV2DomainInventory) => {
         const domainItems = domain.domain === "policies"
-          ? [...(domain.expectedItems || []), ...policyDocuments]
+          ? [...(domain.expectedItems || []), ...policyPages, ...policyDocuments]
           : (domain.expectedItems || []);
         const rawComponentItems = domainItems.map((item) => ({
           name: clean(item.nameHint, 240),
