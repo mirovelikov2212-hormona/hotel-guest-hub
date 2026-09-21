@@ -67,7 +67,13 @@ async function finalizeDiscovery(evidence: HotelScannerV2EvidenceBundle): Promis
 }
 
 const QUICK_PREVIEW_CORE_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "experiences", "offers"] as const;
-const QUICK_PREVIEW_RENDER_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "offers"] as const;
+const QUICK_PREVIEW_BASELINE_DOMAINS = ["accommodation", "gastronomy"] as const;
+const QUICK_PREVIEW_RENDER_DOMAINS = [
+  ...QUICK_PREVIEW_BASELINE_DOMAINS,
+  "spa",
+  "services",
+  "offers",
+] as const;
 
 export function selectHotelIntakeQuickRenderDomainsV2(result: HotelIntakeV2DiscoveryResult) {
   const resources = Array.isArray(result.siteMap.resources) ? result.siteMap.resources : [];
