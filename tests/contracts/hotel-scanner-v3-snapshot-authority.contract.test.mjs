@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   applyHotelInventoryAuthorityV3,
   compareHotelInventorySnapshotsV3,
+  hasReadyHotelInventoryAuthorityV3,
+  mergeHotelInventoryAuthoritiesV3,
   projectHotelInventoryAuthorityV3,
 } from "../../lib/server/hotel-scanner-v3-canonical-inventory.mjs";
 
@@ -178,4 +180,107 @@ test("M5 authority projection is compact but retains stable entity identity and 
   assert.equal(projected.domains.find((item) => item.domain === "gastronomy").count, 3);
   assert.equal(projected.structural, undefined);
   assert.equal(projected.ontology, undefined);
+});
+
+
+test("M9 domain-scoped authority applies READY domains and preserves CONFLICT/PARTIAL legacy domains", () => {
+  const mixed = authority({ accommodation: 2, spa: 2, offers: 3 });
+  mixed.status = "ONTOLOGY_CONFLICT";
+  mixed.domains = mixed.domains.map((domain) => ({
+    ...domain,
+    authorityStatus: domain.domain === "accommodation" || domain.domain === "offers"
+      ? "READY"
+      : domain.domain === "spa"
+        ? "CONFLICT"
+        : "NOT_DISCOVERED",
+  }));
+
+  const legacy = {
+    schemaVersion: "hotel-inventory-v2",
+    domains: [
+      legacyDomain("accommodation", 9),
+      legacyDomain("spa", 7),
+      legacyDomain("offers", 1),
+    ],
+    documents: [],
+    counts: {},
+  };
+
+  const applied = applyHotelInventoryAuthorityV3(legacy, mixed);
+  assert.equal(applied.domains.find((item) => item.domain === "accommodation").expectedCount, 2);
+  assert.equal(applied.domains.find((item) => item.domain === "offers").expectedCount, 3);
+  assert.equal(applied.domains.find((item) => item.domain === "spa").expectedCount, 7);
+  assert.deepEqual(applied.v3Authority.readyDomains, ["accommodation", "offers"]);
+  assert.equal(hasReadyHotelInventoryAuthorityV3(mixed), true);
+});
+
+test("M9 Deep can add newly READY domains without changing signed Quick READY domains", () => {
+  const quick = authority({ accommodation: 2, offers: 1 });
+  quick.status = "ONTOLOGY_CONFLICT";
+  quick.snapshotId = "inventory-v3:quick";
+  quick.domains = quick.domains.map((domain) => ({
+    ...domain,
+    authorityStatus: domain.domain === "accommodation" ? "READY" : "PARTIAL",
+  }));
+
+  const deep = authority({ accommodation: 3, offers: 4 });
+  deep.status = "DOMAIN_SCOPED";
+  deep.snapshotId = "inventory-v3:deep";
+  deep.domains = deep.domains.map((domain) => ({
+    ...domain,
+    authorityStatus: "READY",
+  }));
+
+  const merged = mergeHotelInventoryAuthoritiesV3(quick, deep);
+  const accommodationIds = merged.entities
+    .filter((entity) => entity.domain === "accommodation")
+    .map((entity) => entity.id)
+    .sort();
+  const offersIds = merged.entities
+    .filter((entity) => entity.domain === "offers")
+    .map((entity) => entity.id)
+    .sort();
+
+  assert.deepEqual(accommodationIds, ["entity:accommodation:1", "entity:accommodation:2"]);
+  assert.deepEqual(offersIds, [
+    "entity:offers:1",
+    "entity:offers:2",
+    "entity:offers:3",
+    "entity:offers:4",
+  ]);
+  assert.deepEqual(
+    merged.domains.filter((domain) => domain.authorityStatus === "READY").map((domain) => domain.domain).sort(),
+    ["accommodation", "offers"],
+  );
+});
+
+test("M9 inventory delta ignores non-authoritative domain churn but blocks drift inside signed READY domains", () => {
+  const quick = authority({ accommodation: 2, spa: 1 });
+  quick.status = "ONTOLOGY_CONFLICT";
+  quick.domains = quick.domains.map((domain) => ({
+    ...domain,
+    authorityStatus: domain.domain === "accommodation" ? "READY" : "CONFLICT",
+  }));
+
+  const deepSpaOnlyChange = authority({ accommodation: 2, spa: 4 });
+  deepSpaOnlyChange.status = "DOMAIN_SCOPED";
+  deepSpaOnlyChange.domains = deepSpaOnlyChange.domains.map((domain) => ({
+    ...domain,
+    authorityStatus: domain.domain === "accommodation" ? "READY" : "READY",
+  }));
+
+  const safeDelta = compareHotelInventorySnapshotsV3(quick, deepSpaOnlyChange);
+  assert.equal(safeDelta.changed, false);
+  assert.deepEqual(safeDelta.comparedDomains, ["accommodation"]);
+
+  const deepAccommodationChange = authority({ accommodation: 3, spa: 4 });
+  deepAccommodationChange.status = "DOMAIN_SCOPED";
+  deepAccommodationChange.domains = deepAccommodationChange.domains.map((domain) => ({
+    ...domain,
+    authorityStatus: "READY",
+  }));
+
+  const blockingDelta = compareHotelInventorySnapshotsV3(quick, deepAccommodationChange);
+  assert.equal(blockingDelta.changed, true);
+  assert.deepEqual(blockingDelta.addedEntityIds, ["entity:accommodation:3"]);
 });
