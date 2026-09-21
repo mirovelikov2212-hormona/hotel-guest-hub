@@ -11,18 +11,18 @@ export const dynamic = "force-dynamic";
 const COPY = {
   bg: {
     eyebrow: "StayHub Intelligence",
-    title: "Hotel Scanner V2 · Workflow Preview",
-    subtitle: "Изолиран тест на durable execution модела. Текущият стабилен Scanner V2 остава отделен и непроменен.",
-    back: "← Scanner V2",
-    preview: "Preview · durable workflow · без Production handoff",
+    title: "Hotel Scanner · Intake",
+    subtitle: "Вътрешен инструмент за бързо извличане на хотелска информация и подготовка на onboarding в Design Studio.",
+    back: "← Scanner",
+    preview: "Internal Intake · durable workflow · без Production handoff",
     build: "Build",
   },
   en: {
     eyebrow: "StayHub Intelligence",
-    title: "Hotel Scanner V2 · Workflow Preview",
-    subtitle: "Isolated test of the durable execution model. The current stable Scanner V2 remains separate and unchanged.",
-    back: "← Scanner V2",
-    preview: "Preview · durable workflow · no Production handoff",
+    title: "Hotel Scanner · Intake",
+    subtitle: "Internal tool for fast hotel-data extraction and onboarding preparation in Design Studio.",
+    back: "← Scanner",
+    preview: "Internal Intake · durable workflow · no Production handoff",
     build: "Build",
   },
 } as const;
