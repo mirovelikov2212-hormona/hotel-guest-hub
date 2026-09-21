@@ -412,6 +412,7 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
   }
 
   const currentPkg = pkg;
+  const theme = buildGuestTheme(currentPkg);
   const hotelName = hotelDisplayName(currentPkg);
   const info = {
     checkIn: currentPkg.hotelProfileLayer.operations.checkIn || "",
@@ -429,19 +430,34 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
     if (["reception", "housekeeping", "maintenance"].includes(card.key)) {
       return (
         <div className="space-y-4">
-          <div className="rounded-2xl bg-[#edf9f7] p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#248d82]">{copy.requestTitle}</p>
-            <textarea value={requestText} onChange={(event) => setRequestText(event.target.value)} rows={3} placeholder={copy.requestBody} className="mt-3 w-full resize-none rounded-xl border border-[#c9e8e4] bg-white p-3 text-sm outline-none focus:border-[#43b5a1]" />
-            <button type="button" onClick={sendRequest} disabled={requestStatus === "sent" || requestStatus === "accepted"} className="mt-3 min-h-11 w-full rounded-xl bg-[#43b5a1] px-4 text-sm font-semibold text-white disabled:opacity-50">{copy.send}</button>
+          <div className="p-4" style={{ backgroundColor: theme.soft, borderRadius: theme.cardRadius }}>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: theme.primary }}>{copy.requestTitle}</p>
+            <textarea
+              value={requestText}
+              onChange={(event) => setRequestText(event.target.value)}
+              rows={3}
+              placeholder={copy.requestBody}
+              className="mt-3 w-full resize-none border p-3 text-sm outline-none"
+              style={{ backgroundColor: theme.surface, borderColor: theme.border, borderRadius: theme.cardRadius, color: theme.text, fontFamily: theme.bodyFont }}
+            />
+            <button
+              type="button"
+              onClick={sendRequest}
+              disabled={requestStatus === "sent" || requestStatus === "accepted"}
+              className="mt-3 min-h-11 w-full px-4 text-sm font-semibold disabled:opacity-50"
+              style={{ backgroundColor: theme.primary, color: theme.buttonText, borderRadius: theme.buttonRadius, fontFamily: theme.buttonFont }}
+            >
+              {copy.send}
+            </button>
           </div>
-          <div className="rounded-2xl border border-[#d7efec] bg-white p-4">
+          <div className="border p-4" style={{ backgroundColor: theme.surface, borderColor: theme.border, borderRadius: theme.cardRadius }}>
             <p className="text-sm font-semibold">
               {requestStatus === "idle" ? copy.idle : requestStatus === "sent" ? copy.sent : requestStatus === "accepted" ? copy.accepted : copy.completed}
             </p>
             <div className="mt-3 flex items-center gap-2">
               {["sent", "accepted", "completed"].map((step, index) => {
                 const currentIndex = requestStatus === "idle" ? -1 : requestStatus === "sent" ? 0 : requestStatus === "accepted" ? 1 : 2;
-                return <span key={step} className={`h-2 flex-1 rounded-full ${index <= currentIndex ? "bg-[#43b5a1]" : "bg-[#d9eeeb]"}`} />;
+                return <span key={step} className="h-2 flex-1" style={{ backgroundColor: index <= currentIndex ? theme.primary : theme.soft, borderRadius: theme.buttonRadius || "999px" }} />;
               })}
             </div>
           </div>
@@ -452,15 +468,15 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
     if (card.key === "info") {
       return (
         <div className="space-y-3">
-          {info.checkIn ? <InfoRow label={copy.checkIn} value={info.checkIn} /> : null}
-          {info.checkOut ? <InfoRow label={copy.checkOut} value={info.checkOut} /> : null}
-          {info.parking ? <InfoRow label={copy.parking} value={info.parking} /> : null}
-          {currentPkg.hotelProfileLayer.contacts.phones.map((phone) => <InfoRow key={phone} label={copy.phone} value={phone} />)}
-          {currentPkg.hotelProfileLayer.contacts.emails.map((email) => <InfoRow key={email} label="Email" value={email} />)}
-          {currentPkg.hotelProfileLayer.identity.address ? <InfoRow label={copy.address} value={currentPkg.hotelProfileLayer.identity.address} /> : null}
-          <div className="rounded-2xl border border-[#d9ece9] bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#4ca79d]">{copy.policies}</p>
-            <p className="mt-2 text-sm leading-6 text-[#365f61]">
+          {info.checkIn ? <InfoRow label={copy.checkIn} value={info.checkIn} theme={theme} /> : null}
+          {info.checkOut ? <InfoRow label={copy.checkOut} value={info.checkOut} theme={theme} /> : null}
+          {info.parking ? <InfoRow label={copy.parking} value={info.parking} theme={theme} /> : null}
+          {currentPkg.hotelProfileLayer.contacts.phones.map((phone) => <InfoRow key={phone} label={copy.phone} value={phone} theme={theme} />)}
+          {currentPkg.hotelProfileLayer.contacts.emails.map((email) => <InfoRow key={email} label="Email" value={email} theme={theme} />)}
+          {currentPkg.hotelProfileLayer.identity.address ? <InfoRow label={copy.address} value={currentPkg.hotelProfileLayer.identity.address} theme={theme} /> : null}
+          <div className="border p-4" style={{ backgroundColor: theme.surface, borderColor: theme.border, borderRadius: theme.cardRadius }}>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: theme.primary }}>{copy.policies}</p>
+            <p className="mt-2 text-sm leading-6" style={{ color: theme.text }}>
               {hasSources(currentPkg, "policies") ? copy.sourceOnly : copy.noData}
             </p>
           </div>
@@ -473,10 +489,10 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
       const found = category ? hasSources(currentPkg, category) : false;
       return (
         <div className="space-y-3">
-          <div className="rounded-2xl bg-[#edf9f7] p-4 text-sm leading-6 text-[#2b5e60]">
+          <div className="p-4 text-sm leading-6" style={{ backgroundColor: theme.soft, color: theme.text, borderRadius: theme.cardRadius }}>
             {found ? copy.sourceOnly : copy.noData}
           </div>
-          <div className="rounded-2xl border border-dashed border-[#cce5e1] bg-white p-5 text-sm leading-6 text-slate-500">
+          <div className="border border-dashed p-5 text-sm leading-6" style={{ backgroundColor: theme.surface, borderColor: theme.border, borderRadius: theme.cardRadius, color: theme.muted }}>
             {copy.manual}
           </div>
         </div>
@@ -487,10 +503,10 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
       const hasExperienceSources = hasSources(currentPkg, "experiences") || hasSources(currentPkg, "events");
       return (
         <div className="space-y-3">
-          <div className="rounded-2xl bg-[#edf9f7] p-4 text-sm leading-6 text-[#2b5e60]">
+          <div className="p-4 text-sm leading-6" style={{ backgroundColor: theme.soft, color: theme.text, borderRadius: theme.cardRadius }}>
             {hasExperienceSources ? copy.sourceOnly : copy.noData}
           </div>
-          <div className="rounded-2xl border border-dashed border-[#cce5e1] bg-white p-5 text-sm leading-6 text-slate-500">
+          <div className="border border-dashed p-5 text-sm leading-6" style={{ backgroundColor: theme.surface, borderColor: theme.border, borderRadius: theme.cardRadius, color: theme.muted }}>
             {copy.manual}
           </div>
         </div>
@@ -498,14 +514,14 @@ export default function TestHubPreviewClient({ lang }: { lang: Lang }) {
     }
 
     if (card.key === "weather") {
-      return <div className="rounded-2xl border border-[#d9ece9] bg-white p-5 text-sm leading-6 text-[#365f61]">Weather module · automatic hotel location data</div>;
+      return <div className="border p-5 text-sm leading-6" style={{ backgroundColor: theme.surface, borderColor: theme.border, borderRadius: theme.cardRadius, color: theme.text }}>Weather module · automatic hotel location data</div>;
     }
 
     if (card.key === "reviews") {
-      return <div className="rounded-2xl border border-dashed border-[#cce5e1] bg-white p-5 text-sm leading-6 text-slate-500">{copy.manual}</div>;
+      return <div className="border border-dashed p-5 text-sm leading-6" style={{ backgroundColor: theme.surface, borderColor: theme.border, borderRadius: theme.cardRadius, color: theme.muted }}>{copy.manual}</div>;
     }
 
-    return <div className="rounded-2xl border border-dashed border-[#cce5e1] p-5 text-sm leading-6 text-slate-500">{copy.manual}</div>;
+    return <div className="border border-dashed p-5 text-sm leading-6" style={{ backgroundColor: theme.surface, borderColor: theme.border, borderRadius: theme.cardRadius, color: theme.muted }}>{copy.manual}</div>;
   }
 
   return (
