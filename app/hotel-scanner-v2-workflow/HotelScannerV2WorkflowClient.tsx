@@ -1,97 +1,118 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { ControlPlaneLang } from "@/lib/control-plane-i18n";
-import type { HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
-
-type IntakeItem = {
-  name: string;
-  hours?: string;
-  url?: string;
-  value?: string;
-};
+import type {
+  HotelIntelligencePackage,
+  HotelOnboardingSource,
+  HotelOnboardingSourceCategory,
+} from "@/lib/product-factory/hotel-intelligence-package";
 
 type QuickPreview = {
   ok?: boolean;
   mode?: "quick_preview";
   runtimeMs?: number;
   sourcePackage?: HotelIntelligencePackage;
-  components?: Array<{
-    domain: string;
-    count: number;
-    namedCount?: number;
-    items?: IntakeItem[];
-  }>;
+  onboardingSources?: HotelOnboardingSource[];
   contacts?: {
     phones?: string[];
     emails?: string[];
     addresses?: string[];
     website?: string;
   };
+  info?: {
+    checkIn?: string;
+    checkOut?: string;
+    parking?: string;
+  };
   error?: string;
 };
 
 const PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1";
-const VISIBLE_DOMAINS = new Set(["accommodation", "gastronomy", "policies", "contacts", "info"]);
+
+const CATEGORY_ORDER: HotelOnboardingSourceCategory[] = [
+  "accommodation",
+  "gastronomy",
+  "wellness",
+  "services",
+  "experiences",
+  "events",
+  "offers",
+  "policies",
+  "contacts",
+  "documents",
+];
 
 const COPY = {
   bg: {
     title: "Hotel Intake",
-    help: "Въведи официалния сайт. Scanner-ът извлича само данните, които използваме за бърз onboarding: видове стаи, гастро обекти и работно време, контакти, хотелски политики и основна информация за check-in, check-out и паркинг.",
+    help: "Въведи официалния хотелски сайт. Scanner-ът подрежда полезните публични страници и документи като onboarding index, без да се опитва да решава вместо нас какво точно влиза в Hub-а.",
     url: "Официален хотелски сайт",
-    start: "Извлечи данните",
-    starting: "Извличане…",
-    preview: "Намерена информация",
-    previewHelp: "Това е работна информация за Design Studio. Всичко останало се изисква директно от хотела при onboarding.",
+    start: "Намери източниците",
+    starting: "Сканиране…",
+    preview: "Onboarding източници",
+    previewHelp: "Отваряй нужните страници при ръчния onboarding. Същият списък се пренася и в Design Studio.",
     failed: "Scanner-ът не успя да извлече данните.",
     designStudio: "Отвори в Design Studio",
     found: "Намерени",
-    openingHours: "Работно време",
-    hoursMissing: "Работно време не е открито",
-    notFound: "Не е открито на сайта",
+    open: "Отвори",
+    page: "Страница",
+    document: "Документ",
+    contacts: "Контакти",
+    info: "Инфо",
     phone: "Телефон",
     address: "Адрес",
     website: "Web",
-    source: "Източник",
+    checkIn: "Check-in",
+    checkOut: "Check-out",
+    parking: "Паркинг",
+    notFound: "Не е открито",
   },
   en: {
     title: "Hotel Intake",
-    help: "Enter the official website. The Scanner extracts only the data used for fast onboarding: room types, dining venues and opening hours, contacts, hotel policies, and key check-in, check-out, and parking information.",
+    help: "Enter the official hotel website. The Scanner organizes useful public pages and documents into an onboarding index without trying to decide what must go into the Hub.",
     url: "Official hotel website",
-    start: "Extract data",
-    starting: "Extracting…",
-    preview: "Discovered information",
-    previewHelp: "This is working information for Design Studio. Everything else is requested directly from the hotel during onboarding.",
+    start: "Find sources",
+    starting: "Scanning…",
+    preview: "Onboarding sources",
+    previewHelp: "Open the relevant pages during manual onboarding. The same source list is handed to Design Studio.",
     failed: "The Scanner could not extract the data.",
     designStudio: "Open in Design Studio",
     found: "Found",
-    openingHours: "Opening hours",
-    hoursMissing: "Opening hours not found",
-    notFound: "Not found on the website",
+    open: "Open",
+    page: "Page",
+    document: "Document",
+    contacts: "Contacts",
+    info: "Info",
     phone: "Phone",
     address: "Address",
     website: "Web",
-    source: "Source",
+    checkIn: "Check-in",
+    checkOut: "Check-out",
+    parking: "Parking",
+    notFound: "Not found",
   },
 } as const;
+
+const CATEGORY_LABELS: Record<HotelOnboardingSourceCategory, { bg: string; en: string }> = {
+  accommodation: { bg: "Настаняване", en: "Accommodation" },
+  gastronomy: { bg: "Ресторанти и барове", en: "Restaurants & bars" },
+  wellness: { bg: "SPA / Wellness", en: "SPA / Wellness" },
+  services: { bg: "Услуги", en: "Services" },
+  experiences: { bg: "Преживявания / Activities", en: "Experiences / Activities" },
+  events: { bg: "Събития", en: "Events" },
+  offers: { bg: "Оферти", en: "Offers" },
+  policies: { bg: "Политики / FAQ", en: "Policies / FAQ" },
+  contacts: { bg: "Контактна страница", en: "Contact page" },
+  documents: { bg: "Документи / PDF", en: "Documents / PDF" },
+};
 
 function formatDuration(ms?: number) {
   if (!ms || ms < 0) return "—";
   if (ms < 1000) return `${ms} ms`;
   return `${Math.round(ms / 1000)} s`;
-}
-
-function domainLabel(domain: string, lang: ControlPlaneLang) {
-  const labels: Record<string, [string, string]> = {
-    accommodation: ["Настаняване", "Accommodation"],
-    gastronomy: ["Ресторанти и барове", "Restaurants & bars"],
-    policies: ["Политики / FAQ", "Policies / FAQ"],
-    contacts: ["Контакти", "Contacts"],
-    info: ["Инфо", "Info"],
-  };
-  return labels[domain]?.[lang === "bg" ? 0 : 1] || domain;
 }
 
 export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPlaneLang }) {
@@ -126,7 +147,24 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
     }
   }
 
-  const visibleComponents = (quickPreview?.components || []).filter((component) => VISIBLE_DOMAINS.has(component.domain));
+  const groupedSources = useMemo(() => {
+    const groups = new Map<HotelOnboardingSourceCategory, HotelOnboardingSource[]>();
+    for (const source of quickPreview?.onboardingSources || quickPreview?.sourcePackage?.onboardingSources || []) {
+      const group = groups.get(source.category) || [];
+      group.push(source);
+      groups.set(source.category, group);
+    }
+    return CATEGORY_ORDER
+      .map((category) => ({ category, sources: groups.get(category) || [] }))
+      .filter((group) => group.sources.length);
+  }, [quickPreview]);
+
+  const hasContacts = Boolean(
+    quickPreview?.contacts?.phones?.length
+    || quickPreview?.contacts?.emails?.length
+    || quickPreview?.contacts?.addresses?.length
+  );
+  const hasInfo = Boolean(quickPreview?.info?.checkIn || quickPreview?.info?.checkOut || quickPreview?.info?.parking);
 
   return (
     <div className="space-y-6">
@@ -175,77 +213,70 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
             ) : null}
           </div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            {visibleComponents.map((component) => {
-              const items = component.items || [];
-              const isContacts = component.domain === "contacts";
-              const hasContacts = Boolean(
-                quickPreview.contacts?.phones?.length
-                || quickPreview.contacts?.emails?.length
-                || quickPreview.contacts?.addresses?.length
-              );
-
-              return (
-                <article key={component.domain} className="v2-card-soft p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-bold">{domainLabel(component.domain, lang)}</h3>
-                      <p className="v2-muted mt-1 text-sm">
-                        {isContacts
-                          ? (hasContacts ? copy.found : copy.notFound)
-                          : items.length
-                            ? `${copy.found}: ${items.length}`
-                            : copy.notFound}
-                      </p>
-                    </div>
-                  </div>
-
-                  {isContacts ? (
-                    <div className="mt-4 space-y-2 text-sm">
-                      {(quickPreview.contacts?.phones || []).map((phone) => (
-                        <p key={`phone:${phone}`}><strong>{copy.phone}:</strong> {phone}</p>
-                      ))}
-                      {(quickPreview.contacts?.emails || []).map((email) => (
-                        <p key={`email:${email}`}><strong>Email:</strong> {email}</p>
-                      ))}
-                      {(quickPreview.contacts?.addresses || []).map((address) => (
-                        <p key={`address:${address}`}><strong>{copy.address}:</strong> {address}</p>
-                      ))}
-                      {quickPreview.contacts?.website ? (
-                        <p className="break-all"><strong>{copy.website}:</strong> {quickPreview.contacts.website}</p>
-                      ) : null}
-                    </div>
-                  ) : items.length ? (
-                    <div className="mt-4 space-y-2">
-                      {items.map((item, index) => (
-                        <div key={`${component.domain}:${item.name}:${index}`} className="v2-card p-3">
-                          {component.domain === "info" ? (
-                            <p className="text-sm"><strong>{item.name}:</strong> {item.value || "—"}</p>
-                          ) : (
-                            <p className="text-sm font-semibold">{item.name}</p>
-                          )}
-                          {component.domain === "gastronomy" ? (
-                            <p className="v2-muted mt-1 text-xs">
-                              {item.hours ? `${copy.openingHours}: ${item.hours}` : copy.hoursMissing}
-                            </p>
-                          ) : null}
-                          {component.domain === "policies" && item.url ? (
-                            <a
-                              href={item.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="v2-source-link mt-2 block break-all text-xs"
-                            >
-                              {copy.source}
-                            </a>
-                          ) : null}
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            {groupedSources.map(({ category, sources }) => (
+              <article key={category} className="v2-card-soft p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-bold">{CATEGORY_LABELS[category][lang]}</h3>
+                  <span className="v2-pill v2-pill-info">{sources.length}</span>
+                </div>
+                <div className="mt-4 space-y-2">
+                  {sources.map((source) => (
+                    <div key={source.id + source.url} className="v2-card p-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold">{source.title}</p>
+                          <p className="v2-muted mt-1 text-[11px]">
+                            {source.kind === "document" ? copy.document : copy.page}
+                          </p>
                         </div>
-                      ))}
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="v2-source-link shrink-0 text-xs font-semibold"
+                        >
+                          {copy.open} ↗
+                        </a>
+                      </div>
                     </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+
+            <article className="v2-card-soft p-4">
+              <h3 className="font-bold">{copy.contacts}</h3>
+              <p className="v2-muted mt-1 text-sm">{hasContacts ? copy.found : copy.notFound}</p>
+              {hasContacts ? (
+                <div className="mt-4 space-y-2 text-sm">
+                  {(quickPreview.contacts?.phones || []).map((phone) => (
+                    <p key={`phone:${phone}`}><strong>{copy.phone}:</strong> {phone}</p>
+                  ))}
+                  {(quickPreview.contacts?.emails || []).map((email) => (
+                    <p key={`email:${email}`}><strong>Email:</strong> {email}</p>
+                  ))}
+                  {(quickPreview.contacts?.addresses || []).map((address) => (
+                    <p key={`address:${address}`}><strong>{copy.address}:</strong> {address}</p>
+                  ))}
+                  {quickPreview.contacts?.website ? (
+                    <p className="break-all"><strong>{copy.website}:</strong> {quickPreview.contacts.website}</p>
                   ) : null}
-                </article>
-              );
-            })}
+                </div>
+              ) : null}
+            </article>
+
+            <article className="v2-card-soft p-4">
+              <h3 className="font-bold">{copy.info}</h3>
+              <p className="v2-muted mt-1 text-sm">{hasInfo ? copy.found : copy.notFound}</p>
+              {hasInfo ? (
+                <div className="mt-4 space-y-3 text-sm">
+                  {quickPreview.info?.checkIn ? <p><strong>{copy.checkIn}:</strong> {quickPreview.info.checkIn}</p> : null}
+                  {quickPreview.info?.checkOut ? <p><strong>{copy.checkOut}:</strong> {quickPreview.info.checkOut}</p> : null}
+                  {quickPreview.info?.parking ? <p><strong>{copy.parking}:</strong> {quickPreview.info.parking}</p> : null}
+                </div>
+              ) : null}
+            </article>
           </div>
 
           {quickPreview.sourcePackage ? (
