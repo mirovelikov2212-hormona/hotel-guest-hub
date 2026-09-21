@@ -66,14 +66,14 @@ async function finalizeDiscovery(evidence: HotelScannerV2EvidenceBundle): Promis
   return { evidence, siteMap, inventory };
 }
 
-const QUICK_PREVIEW_CORE_DOMAINS = ["accommodation", "gastronomy", "spa", "services", "experiences", "offers"] as const;
+const QUICK_PREVIEW_CORE_DOMAINS = ["accommodation", "gastronomy", "policies", "contacts"] as const;
 const QUICK_PREVIEW_BASELINE_DOMAINS = ["accommodation", "gastronomy"] as const;
-const QUICK_PREVIEW_RENDER_DOMAINS = [
-  ...QUICK_PREVIEW_BASELINE_DOMAINS,
-  "spa",
-  "services",
-  "offers",
-] as const;
+const QUICK_PREVIEW_RENDER_DOMAINS = ["accommodation", "gastronomy", "policies", "contacts"] as const;
+
+function quickIntakeDomainFromPageType(type: string) {
+  const domain = hotelScannerPageTypeDomain(type);
+  return domain === "faq" ? "policies" : domain;
+}
 
 export function selectHotelIntakeQuickRenderDomainsV2(result: HotelIntakeV2DiscoveryResult) {
   const resources = Array.isArray(result.siteMap.resources) ? result.siteMap.resources : [];
@@ -85,16 +85,14 @@ export function selectHotelIntakeQuickRenderDomainsV2(result: HotelIntakeV2Disco
 
   const hasDomainPage = (domain: string) => {
     const resourceMatch = resources.some((resource) =>
-      resource?.classification?.primaryType === domain
-      || String(resource?.classification?.primaryType || "").endsWith("_detail")
-        && String(resource?.classification?.types || "").includes(domain));
+      quickIntakeDomainFromPageType(String(resource?.classification?.primaryType || "")) === domain);
     if (resourceMatch) return true;
 
     // A collection authority can be present in sitemap/navigation without
     // having been fetched yet. URL-only classification is enough to schedule
     // one bounded authority fetch; actual inventory still comes from evidence.
     return discoveredUrls.some((url) =>
-      hotelScannerPageTypeDomain(classifyHotelScannerPageV2({ url, title: "" }).primaryType) === domain);
+      quickIntakeDomainFromPageType(classifyHotelScannerPageV2({ url, title: "" }).primaryType) === domain);
   };
 
   const selected: string[] = [];
