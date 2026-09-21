@@ -112,6 +112,7 @@ type QuickPreview = {
     state: string;
     namedCount?: number;
     needsOnboarding?: boolean;
+    manualOnly?: boolean;
     items?: Array<{ name: string; hours?: string }>;
   }>;
   contacts?: {
@@ -608,14 +609,15 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
                     || quickPreview.contacts?.addresses?.length
                   );
                   const hasCountOnlyEvidence = !isContacts && component.count > 0 && namedCount === 0;
+                  const manualOnly = Boolean(component.manualOnly);
                   const summaryValue = isContacts
                     ? (hasContacts ? copy.contactsFound : "—")
-                    : hasCountOnlyEvidence
+                    : manualOnly || hasCountOnlyEvidence
                       ? "—"
                       : String(namedCount || 0);
                   const summaryText = isContacts
                     ? (hasContacts ? copy.discoveredOnSite : copy.notFound)
-                    : hasCountOnlyEvidence
+                    : manualOnly || hasCountOnlyEvidence
                       ? copy.manualConfiguration
                       : namedCount
                         ? `${copy.found}: ${namedCount}${component.needsOnboarding ? ` · ${copy.manualConfiguration}` : ""}`
