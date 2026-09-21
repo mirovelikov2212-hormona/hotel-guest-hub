@@ -31,7 +31,6 @@ type QuickPreview = {
 };
 
 const PACKAGE_STORAGE_KEY = "stayhub:hotel-intelligence-package:v1";
-const TEST_HUB_STORAGE_KEY = "stayhub:test-hub-package:v1";
 
 const CATEGORY_ORDER: HotelOnboardingSourceCategory[] = [
   "accommodation",
@@ -433,8 +432,7 @@ export default function HotelScannerV2WorkflowClient({ lang }: { lang: ControlPl
               </Link>
               <Link
                 href={`/design-studio/test-hub?lang=${lang}`}
-                target="_blank"
-                onClick={() => window.localStorage.setItem(TEST_HUB_STORAGE_KEY, JSON.stringify(quickPreview.sourcePackage))}
+                onClick={() => window.sessionStorage.setItem(PACKAGE_STORAGE_KEY, JSON.stringify(quickPreview.sourcePackage))}
                 className="v2-button inline-flex text-sm"
               >
                 {copy.testHub}
