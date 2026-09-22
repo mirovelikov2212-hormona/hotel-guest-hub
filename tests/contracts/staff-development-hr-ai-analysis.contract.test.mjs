@@ -55,6 +55,8 @@ test("AI output may only cite verified result hashes and triggered rule IDs", as
     "allowedRuleIds.has",
     "STAFF_HR_AI_EVIDENCE_REFERENCE_INVALID",
     "STAFF_HR_AI_RULE_REFERENCE_INVALID",
+    "allowedTrainingUnits.has",
+    "STAFF_HR_AI_TRAINING_REFERENCE_INVALID",
   ]) {
     assertContains(source, fragment);
   }
