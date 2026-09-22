@@ -186,15 +186,15 @@ export async function getManagerHubContentEditorState(hotelSlugInput: unknown) {
   };
 }
 
-export async function previewManagerHubContentChange(input: {
+export async function prepareManagerHubContentChange(input: {
   hotelSlug: unknown;
   scope: unknown;
   operations?: unknown;
   department?: unknown;
   schedule?: unknown;
 }) {
-  const scope = await resolveManagerContentChangeScope(input.hotelSlug);
-  const live = await loadManagerCurrentLiveConfig(scope.hotelId);
+  const authority = await resolveManagerContentChangeScope(input.hotelSlug);
+  const live = await loadManagerCurrentLiveConfig(authority.hotelId);
   const changeScope = clean(input.scope).toLowerCase();
 
   if (changeScope === "services") {
@@ -204,6 +204,7 @@ export async function previewManagerHubContentChange(input: {
     });
     return {
       scope: changeScope,
+      operations: structuredClone(input.operations),
       preview: prepared.preview,
       diff: prepared.diff,
     };
@@ -216,6 +217,7 @@ export async function previewManagerHubContentChange(input: {
     });
     return {
       scope: changeScope,
+      operations: structuredClone(input.operations),
       preview: prepared.preview,
       diff: prepared.diff,
     };
@@ -229,10 +231,26 @@ export async function previewManagerHubContentChange(input: {
     });
     return {
       scope: changeScope,
+      operations: prepared.operations,
       preview: prepared.preview,
       diff: prepared.diff,
     };
   }
 
   throw new Error("CM5_CHANGE_SCOPE_INVALID");
+}
+
+export async function previewManagerHubContentChange(input: {
+  hotelSlug: unknown;
+  scope: unknown;
+  operations?: unknown;
+  department?: unknown;
+  schedule?: unknown;
+}) {
+  const prepared = await prepareManagerHubContentChange(input);
+  return {
+    scope: prepared.scope,
+    preview: prepared.preview,
+    diff: prepared.diff,
+  };
 }
