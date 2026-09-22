@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "checkpoint": "ds3-design-assets",
+  "baseCheckpoint": "scanner-v2-persistence-relocation",
+  "expectedNeedsReview": 232,
+  "relocations": [
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "fromLine": 183,
+      "toLine": 180,
+      "table": "hub_design_workspaces",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "fromLine": 191,
+      "toLine": 188,
+      "table": "hub_design_draft_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "fromLine": 201,
+      "toLine": 198,
+      "table": "hub_design_draft_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "fromLine": 233,
+      "toLine": 234,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "fromLine": 269,
+      "toLine": 270,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "fromLine": 280,
+      "toLine": 281,
+      "table": "hub_design_draft_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/hub-design-draft-revisions.ts",
+      "fromLine": 306,
+      "toLine": 307,
+      "table": "hub_design_draft_revisions",
+      "operation": "select"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/hub-design-assets-server.ts",
+      "line": 138,
+      "rpc": "register_hub_design_asset_v1",
+      "tableExpression": "\"register_hub_design_asset_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "same_origin_authenticated_control_plane_asset_finalize_is_super_admin_or_operator_only; server_validates_declared_type_size_actual_bytes_sha256_random_uuid_and_deterministic_source_key_path_before_service_role_rpc; rpc_rechecks_active_admin_and_registers_immutable_pre_factory_asset_metadata_plus_audit_only; no_hotel_runtime_publication_or_live_activation"
+    },
+    {
+      "filePath": "lib/server/hub-design-assets-server.ts",
+      "line": 171,
+      "table": "hub_design_assets",
+      "tableExpression": "\"hub_design_assets\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authenticated_control_plane_design_asset_list_is_service_role_only_and_scoped_by_sha256_source_key_derived_from_normalized_canonical_hotel_url; table_is_pre_factory_authoring_metadata_with_direct_client_access_denied_and_private_storage_signed_preview_urls_only"
+    },
+    {
+      "filePath": "lib/server/hub-design-assets-server.ts",
+      "line": 203,
+      "table": "hub_design_assets",
+      "tableExpression": "\"hub_design_assets\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "authoritative_design_revision_save_validates_every_referenced_asset_id_against_the_same_normalized_canonical_url_source_key_before_revision_creation_and_rejects_foreign_or_missing_assets; cover_and_gallery_are_additionally_required_to_resolve_to_image_assets"
+    }
+  ]
+}
