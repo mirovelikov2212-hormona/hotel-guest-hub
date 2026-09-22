@@ -226,25 +226,35 @@ export async function assignStaffTraining(input: {
     dueAt: input.dueAt ?? null,
   });
 
-  const { data, error } = await supabaseAdmin
-    .from("staff_training_assignments")
-    .insert({
-      hotel_id: hotelId,
-      staff_user_id: staffUserId,
-      training_plan_revision_id: trainingPlanRevisionId,
-      assignment_hash: assignment.assignmentHash,
-      assigned_by_staff_user_id: assignedByStaffUserId,
-      assigned_at: assignment.assignedAt,
-      due_at: assignment.dueAt,
-      assignment_json: assignment,
-    })
-    .select("id,hotel_id,staff_user_id,training_plan_revision_id,assignment_hash,assigned_at,due_at")
-    .single();
-
-  if (error || !data) {
-    throw new Error(error?.message || "STAFF_TRAINING_ASSIGNMENT_PERSIST_FAILED");
+  if (!assignedByStaffUserId) {
+    throw new Error("STAFF_TRAINING_ASSIGNER_REQUIRED");
   }
-  return { ...data, assignment };
+
+  const { data, error } = await supabaseAdmin.rpc(
+    "assign_staff_training_v2",
+    {
+      p_hotel_id: hotelId,
+      p_staff_user_id: staffUserId,
+      p_training_plan_revision_id: trainingPlanRevisionId,
+      p_assigned_by_staff_user_id: assignedByStaffUserId,
+      p_assignment_json: assignment,
+    },
+  );
+
+  if (error) {
+    throw new Error(error.message || "STAFF_TRAINING_ASSIGNMENT_PERSIST_FAILED");
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error("STAFF_TRAINING_ASSIGNMENT_PERSIST_EMPTY");
+
+  return {
+    ...row,
+    hotel_id: hotelId,
+    staff_user_id: staffUserId,
+    training_plan_revision_id: trainingPlanRevisionId,
+    assignment,
+  };
 }
 
 export async function completeStaffTraining(input: {
