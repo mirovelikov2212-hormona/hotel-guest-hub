@@ -439,3 +439,35 @@ export async function publishStaffAssessmentAuthoring(input: {
     assessment,
   };
 }
+
+export async function getStaffAssessmentAiDraftContext(input: {
+  hotelSlug: unknown;
+  authoringId: unknown;
+}) {
+  const identity = await requireManagerIdentity(input.hotelSlug);
+  const authoring = await loadAuthoring({
+    identity,
+    authoringId: input.authoringId,
+    allowedStatuses: ["draft", "proposal_ready"],
+  });
+
+  if (!isRecord(authoring.plan.plan_json)) {
+    throw new Error("STAFF_AI_ASSESSMENT_PLAN_INVALID");
+  }
+
+  const existing = isRecord(authoring.structured_proposal_json)
+    ? authoring.structured_proposal_json
+    : null;
+
+  return {
+    authoringId: authoring.id,
+    assessmentKey: authoring.assessment_key,
+    trainingPlan: structuredClone(authoring.plan.plan_json),
+    minimumPassScore: Number(
+      existing?.minimumPassScore
+      ?? authoring.plan.plan_json.minimumPassScore
+      ?? 80,
+    ),
+  };
+}
+
