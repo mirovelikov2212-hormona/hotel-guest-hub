@@ -3,6 +3,7 @@ import "server-only";
 import { canMutateControlPlane, type PlatformAdminAuthority } from "@/lib/server/control-plane-auth";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { prepareFactoryOnboardingEnvelope } from "@/lib/product-factory/factory-onboarding-envelope-model.mjs";
+import { canonicalizeFactoryReleaseDesignBlueprint } from "@/lib/server/factory-release-design-authority";
 
 type EnvelopeProjectionRpcRow = {
   projection_run_id: string;
@@ -25,7 +26,8 @@ export async function projectFactoryOnboardingEnvelope(input: {
     throw new Error("P2_4_OPERATIONAL_PROJECTION_RUN_ID_INVALID");
   }
 
-  const prepared = prepareFactoryOnboardingEnvelope({ blueprint: input.blueprint });
+  const authoritativeBlueprint = await canonicalizeFactoryReleaseDesignBlueprint(input.blueprint);
+  const prepared = prepareFactoryOnboardingEnvelope({ blueprint: authoritativeBlueprint });
 
   // Reviewed platform-authority write: the RPC rechecks the active Platform Admin
   // and exact P2.3 lineage, then reserves only fail-closed onboarding envelope
