@@ -16,6 +16,7 @@ function standard(status = "published") {
       bg: "Стандарт за влизане в стая",
       en: "Guest room entry standard",
     },
+    standardScope: "department",
     departmentCodes: ["housekeeping"],
     roleCodes: ["staff", "department_manager"],
     effectiveFrom: "2026-10-01",
@@ -53,9 +54,10 @@ test("Staff standards are versioned, hotel-configurable content with exact immut
   changedInput.blocks[0].bodyByLang.en = "Knock twice and identify yourself before entering.";
   const second = normalizeHotelStaffStandard(changedInput);
 
-  assert.equal(first.schemaVersion, "hotel-staff-standard-v1");
+  assert.equal(first.schemaVersion, "hotel-staff-standard-v2");
   assert.equal(first.standardKey, "housekeeping-room-entry");
   assert.equal(first.revisionNo, 3);
+  assert.equal(first.standardScope, "department");
   assert.deepEqual(first.departmentCodes, ["housekeeping"]);
   assert.equal(first.minimumPassScore, 85);
   assert.match(first.standardHash, /^[a-f0-9]{64}$/);
@@ -74,6 +76,8 @@ test("Training can only derive from a published standard and keeps exact source 
   assert.equal(plan.sourceStandardKey, published.standardKey);
   assert.equal(plan.sourceStandardRevisionNo, published.revisionNo);
   assert.equal(plan.sourceStandardHash, published.standardHash);
+  assert.equal(plan.schemaVersion, "staff-training-plan-v2");
+  assert.equal(plan.standardScope, "department");
   assert.equal(plan.units.length, 2);
   assert.deepEqual(plan.units[0].sourceBlockIds, ["announce-entry"]);
   assert.match(plan.trainingPlanHash, /^[a-f0-9]{64}$/);
@@ -108,12 +112,32 @@ test("Training assignment belongs to an individual staff_user, never to a shared
   );
 });
 
-test("A standard cannot silently target no department, duplicate blocks or ambiguous effective dates", () => {
-  const noDepartment = standard();
-  noDepartment.departmentCodes = [];
+test("Scope is explicit: Hotel standards target the hotel, Department standards target concrete departments", () => {
+  const departmentWithoutDepartment = standard();
+  departmentWithoutDepartment.departmentCodes = [];
   assert.throws(
-    () => normalizeHotelStaffStandard(noDepartment),
-    /STAFF_STANDARD_DEPARTMENTS_INVALID/,
+    () => normalizeHotelStaffStandard(departmentWithoutDepartment),
+    /STAFF_STANDARD_DEPARTMENT_SCOPE_REQUIRED/,
+  );
+
+  const hotelWide = standard();
+  hotelWide.standardKey = "hotel-general-standard";
+  hotelWide.standardScope = "hotel";
+  hotelWide.departmentCodes = [];
+  const normalizedHotel = normalizeHotelStaffStandard(hotelWide);
+  const hotelPlan = deriveStaffTrainingPlan(hotelWide);
+
+  assert.equal(normalizedHotel.standardScope, "hotel");
+  assert.deepEqual(normalizedHotel.departmentCodes, []);
+  assert.equal(hotelPlan.standardScope, "hotel");
+  assert.deepEqual(hotelPlan.departmentCodes, []);
+
+  const invalidHotel = standard();
+  invalidHotel.standardScope = "hotel";
+  invalidHotel.departmentCodes = ["housekeeping"];
+  assert.throws(
+    () => normalizeHotelStaffStandard(invalidHotel),
+    /STAFF_STANDARD_HOTEL_SCOPE_DEPARTMENTS_FORBIDDEN/,
   );
 
   const duplicateBlocks = standard();
