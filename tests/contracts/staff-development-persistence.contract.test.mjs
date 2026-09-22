@@ -78,8 +78,8 @@ test("Assessment persistence uses atomic service-role RPCs for auto and human ve
   const source = await readProjectFile("lib/server/staff-development-persistence.ts");
 
   for (const fragment of [
-    '"record_staff_assessment_attempt_v1"',
-    '"verify_staff_assessment_attempt_v1"',
+    '"record_staff_assessment_attempt_v2"',
+    '"verify_staff_assessment_attempt_v2"',
     "p_hotel_id: hotelId",
     "p_staff_user_id: staffUserId",
     "p_reviewer_staff_user_id: reviewerStaffUserId",
@@ -88,6 +88,8 @@ test("Assessment persistence uses atomic service-role RPCs for auto and human ve
   }
 
   assertNotContains(source, '.from("staff_verified_results").insert');
+  assertNotContains(source, "p_attempt_no:");
+  assertNotContains(source, "input.attemptNo");
 });
 
 test("HR evaluation reads only verified results for the exact hotel and staff user", async () => {
@@ -99,4 +101,23 @@ test("HR evaluation reads only verified results for the exact hotel and staff us
   assertContains(segment, '.eq("hotel_id", hotelId)');
   assertContains(segment, '.eq("staff_user_id", staffUserId)');
   assertContains(source, "verifiedAt: row.verified_at");
+});
+
+
+test("Staff Development persistence keeps verified and HR history append-only", async () => {
+  const source = (
+    await readProjectFile("lib/server/staff-development-persistence.ts")
+  ).toLowerCase();
+
+  for (const forbidden of [
+    '.from("staff_verified_results").update',
+    '.from("staff_assessment_attempts").update',
+    '.from("staff_hr_evaluations").update',
+    "terminate_employee",
+    "fire_employee",
+    "salary_cut",
+    "demote_employee",
+  ]) {
+    assertNotContains(source, forbidden);
+  }
 });
