@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import {
   authenticateStaffDevelopmentIdentity,
+  bootstrapHotelManagerDevelopmentCredential,
   getCurrentStaffDevelopmentIdentity,
   listStaffDevelopmentIdentityCandidates,
   revokeCurrentStaffDevelopmentIdentity,
@@ -87,6 +88,29 @@ export async function POST(req: NextRequest) {
     if (!body) {
       return NextResponse.json(
         { ok: false, error: "STAFF_DEVELOPMENT_BODY_REQUIRED" },
+        { status: 400, headers: NO_STORE_HEADERS },
+      );
+    }
+
+    const action = String(body.action || "authenticate")
+      .trim()
+      .toLowerCase();
+
+    if (action === "bootstrap_manager") {
+      const credential = await bootstrapHotelManagerDevelopmentCredential({
+        hotelSlug: body.hotelSlug,
+        staffUserId: body.staffUserId,
+        personalPin: body.personalPin,
+      });
+      return NextResponse.json(
+        { ok: true, credential },
+        { headers: NO_STORE_HEADERS },
+      );
+    }
+
+    if (action !== "authenticate") {
+      return NextResponse.json(
+        { ok: false, error: "STAFF_DEVELOPMENT_IDENTITY_ACTION_INVALID" },
         { status: 400, headers: NO_STORE_HEADERS },
       );
     }
