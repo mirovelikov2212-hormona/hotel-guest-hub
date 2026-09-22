@@ -44,7 +44,8 @@ test("CM5.5 lifecycle keeps human gates explicit instead of auto-publishing afte
     assertContains(route, action);
   }
 
-  assertNotContains(route, "createManagerLifecycleDraft({").includes?.("");
+  assertNotContains(route, 'action === "confirm_and_activate"');
+  assertNotContains(route, 'action === "save_and_publish"');
 });
 
 test("CM5.5 typed Save is prepared server-side before persistence", async () => {
