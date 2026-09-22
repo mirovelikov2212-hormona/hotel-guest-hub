@@ -303,9 +303,28 @@ export async function GET(req: NextRequest) {
   };
 
   try {
+    // Platform directory is the trusted source for which tenant IDs this
+    // system-level cron is allowed to inspect. Operational rows are then
+    // explicitly constrained to that proven hotel_id set.
+    const { data: hotelData, error: hotelError } = await supabaseAdmin
+      .from("hotels")
+      .select("id,slug,name")
+      .eq("active", true)
+      .eq("is_sandbox", false);
+
+    if (hotelError) throw hotelError;
+
+    const hotels = (hotelData || []) as HotelRow[];
+    totals.hotels = hotels.length;
+    if (!hotels.length) {
+      return NextResponse.json({ ok: true, totals }, { headers: NO_STORE_HEADERS });
+    }
+
+    const activeHotelIds = hotels.map((hotel) => hotel.id);
     const { data: requestData, error: requestError } = await supabaseAdmin
       .from("guest_requests")
       .select("id,hotel_id,room_number_snapshot,request_type,title,title_bg,created_at,status,metadata_json")
+      .in("hotel_id", activeHotelIds)
       .in("status", [...OPEN_REQUEST_STATUSES])
       .or("is_test.is.null,is_test.eq.false")
       .order("created_at", { ascending: true });
@@ -317,19 +336,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: true, totals }, { headers: NO_STORE_HEADERS });
     }
 
-    const hotelIds = Array.from(new Set(requests.map((request) => request.hotel_id)));
-    const { data: hotelData, error: hotelError } = await supabaseAdmin
-      .from("hotels")
-      .select("id,slug,name")
-      .in("id", hotelIds)
-      .eq("active", true)
-      .eq("is_sandbox", false);
-
-    if (hotelError) throw hotelError;
-
-    const hotels = (hotelData || []) as HotelRow[];
     const requestsByHotel = groupRequestsByHotel(requests);
-    totals.hotels = hotels.length;
 
     for (const hotel of hotels) {
       const hotelRequests = requestsByHotel.get(hotel.id) || [];
