@@ -89,21 +89,44 @@ function assertManagerCanManageTarget(
 }
 
 async function nextRevisionNo(input: {
-  table:
-    | "hotel_staff_standard_revisions"
-    | "staff_assessment_revisions"
-    | "hotel_staff_hr_rule_revisions";
+  kind: "standard" | "assessment" | "hr_rules";
   hotelId: string;
-  keyColumn: "standard_key" | "assessment_key" | "rule_set_key";
   keyValue: string;
 }) {
-  const { data, error } = await supabaseAdmin
-    .from(input.table)
-    .select("revision_no")
-    .eq("hotel_id", input.hotelId)
-    .eq(input.keyColumn, input.keyValue)
-    .order("revision_no", { ascending: false })
-    .limit(1);
+  let data: Array<{ revision_no: number | string }> | null = null;
+  let error: { message?: string } | null = null;
+
+  if (input.kind === "standard") {
+    const result = await supabaseAdmin
+      .from("hotel_staff_standard_revisions")
+      .select("revision_no")
+      .eq("hotel_id", input.hotelId)
+      .eq("standard_key", input.keyValue)
+      .order("revision_no", { ascending: false })
+      .limit(1);
+    data = result.data;
+    error = result.error;
+  } else if (input.kind === "assessment") {
+    const result = await supabaseAdmin
+      .from("staff_assessment_revisions")
+      .select("revision_no")
+      .eq("hotel_id", input.hotelId)
+      .eq("assessment_key", input.keyValue)
+      .order("revision_no", { ascending: false })
+      .limit(1);
+    data = result.data;
+    error = result.error;
+  } else {
+    const result = await supabaseAdmin
+      .from("hotel_staff_hr_rule_revisions")
+      .select("revision_no")
+      .eq("hotel_id", input.hotelId)
+      .eq("rule_set_key", input.keyValue)
+      .order("revision_no", { ascending: false })
+      .limit(1);
+    data = result.data;
+    error = result.error;
+  }
 
   if (error) throw new Error("STAFF_DEVELOPMENT_REVISION_READ_FAILED");
   const current = Number(data?.[0]?.revision_no || 0);
@@ -191,9 +214,8 @@ export async function publishStaffStandardAndTraining(input: {
   }
 
   const revisionNo = await nextRevisionNo({
-    table: "hotel_staff_standard_revisions",
+    kind: "standard",
     hotelId: identity.hotelId,
-    keyColumn: "standard_key",
     keyValue: standardKey,
   });
 
@@ -283,9 +305,8 @@ export async function publishStaffAssessment(input: {
     "STAFF_ASSESSMENT_KEY_INVALID",
   );
   const revisionNo = await nextRevisionNo({
-    table: "staff_assessment_revisions",
+    kind: "assessment",
     hotelId: identity.hotelId,
-    keyColumn: "assessment_key",
     keyValue: assessmentKey,
   });
 
@@ -370,9 +391,8 @@ export async function publishStaffHrRules(input: {
     "STAFF_HR_RULE_SET_KEY_INVALID",
   );
   const revisionNo = await nextRevisionNo({
-    table: "hotel_staff_hr_rule_revisions",
+    kind: "hr_rules",
     hotelId: identity.hotelId,
-    keyColumn: "rule_set_key",
     keyValue: ruleSetKey,
   });
 
