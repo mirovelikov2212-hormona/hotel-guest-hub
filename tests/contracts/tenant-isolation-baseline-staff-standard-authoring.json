@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "checkpoint": "staff-standard-authoring",
+  "baseCheckpoint": "staff-development-retraining-v2",
+  "expectedNeedsReview": 322,
+  "additions": [
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "line": 241,
+      "table": "hotel_staff_standard_authoring",
+      "tableExpression": "\"hotel_staff_standard_authoring\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only authoring loader first requires an individual department_manager or hotel_manager development identity, then reads one exact authoring row by identity-derived hotel_id plus authoring_id and optional allowed status; active department codes are revalidated and department_manager is restricted to its operational department"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "line": 279,
+      "table": "staff_standard_authoring_events",
+      "tableExpression": "\"staff_standard_authoring_events\"",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only append-only audit event insert uses identity-derived hotel_id, exact authoring_id and actor staff_user_id; composite same-hotel foreign keys prevent cross-tenant authoring or actor references"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "line": 325,
+      "table": "hotel_staff_standard_authoring",
+      "tableExpression": "\"hotel_staff_standard_authoring\"",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only draft creation requires individual Manager identity, validates every requested active department inside the identity hotel and restricts department_manager to exactly its own operational department before inserting hotel-owned source metadata"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "line": 381,
+      "table": "hotel_staff_standard_authoring",
+      "tableExpression": "\"hotel_staff_standard_authoring\"",
+      "operation": "update",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only source-text update first loads the exact same-hotel draft through Manager scope checks, then updates only that hotel_id+authoring_id while status remains draft; audit event stores source hash and length"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "line": 442,
+      "table": "hotel_staff_standard_authoring",
+      "tableExpression": "\"hotel_staff_standard_authoring\"",
+      "operation": "update",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only structured proposal save first loads same-hotel Manager-scoped authoring, then normalizes proposal while forcibly preserving stored standard_key and department_codes; update is constrained by identity hotel_id+authoring_id and draft/proposal_ready status"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "line": 581,
+      "table": "staff_standard_source_documents",
+      "tableExpression": "\"staff_standard_source_documents\"",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only document finalization follows Manager-scoped same-hotel authoring lookup, verifies expected tenant storage path, declaration, magic bytes and SHA256, then inserts immutable source metadata with composite same-hotel authoring and uploader foreign keys"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "line": 616,
+      "table": "hotel_staff_standard_authoring",
+      "tableExpression": "\"hotel_staff_standard_authoring\"",
+      "operation": "update",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only TXT source import updates source_text only for the exact identity hotel_id+authoring_id and only while draft; PDF/DOCX remain immutable private source documents and do not alter the proposal automatically"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "line": 658,
+      "table": "hotel_staff_standard_authoring",
+      "tableExpression": "\"hotel_staff_standard_authoring\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only authoring list requires individual Manager identity and reads only identity-derived hotel_id; department_manager results are additionally filtered to exactly its operational department while hotel_manager can view the hotel"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "line": 693,
+      "table": "staff_standard_source_documents",
+      "tableExpression": "\"staff_standard_source_documents\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only source-document listing first loads and authorizes exact same-hotel authoring, then selects documents by identity hotel_id plus that authoring_id and returns short-lived signed URLs from a private bucket"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "line": 733,
+      "table": "hotel_staff_standard_revisions",
+      "tableExpression": "\"hotel_staff_standard_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only human publish preparation reads only the latest revision number for identity-derived hotel_id plus the exact stored standard_key after same-hotel Manager-scoped proposal_ready authoring validation; DB publish RPC rechecks the expected next revision under an advisory lock"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "line": 755,
+      "rpc": "publish_staff_standard_authoring_v1",
+      "tableExpression": "\"publish_staff_standard_authoring_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only service_role_only human publish authority; database locks same-hotel proposal_ready authoring, checks exact proposal hash, active identified manager and department scope, compares published Standard content to the stored structured proposal excluding only revision/status/hash fields, verifies next revision plus Training Plan lineage, then atomically inserts immutable published Standard and Training Plan and records approval/publication audit state"
+    }
+  ]
+}
