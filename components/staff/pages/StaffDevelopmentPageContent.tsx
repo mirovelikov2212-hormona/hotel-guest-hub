@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import StaffStandardAuthoringPanel from "@/components/staff/StaffStandardAuthoringPanel";
+import StaffAssessmentAuthoringPanel from "@/components/staff/StaffAssessmentAuthoringPanel";
 
 type Candidate = {
   staffUserId: string;
@@ -833,6 +834,13 @@ function ManagerOverview({
         lang={lang}
         writesEnabled={writesEnabled}
         operationalRole={operationalRole}
+      />
+
+      <StaffAssessmentAuthoringPanel
+        hotelSlug={hotelSlug}
+        lang={lang}
+        writesEnabled={writesEnabled}
+        trainingPlans={plans}
       />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
