@@ -13,6 +13,7 @@ import {
 } from "@/lib/server/staff-assessment-authoring";
 import {
   getStaffStandardAiDraftContext,
+  listStaffStandardSourceDocuments,
 } from "@/lib/server/staff-standard-authoring";
 
 const CONTENT_LANGUAGES = ["bg", "en", "de", "ro", "cs", "ru"] as const;
@@ -106,6 +107,90 @@ async function createResponse(payload: Parameters<OpenAI["responses"]["create"]>
     console.error("staff development AI provider request failed", error);
     throw new Error("STAFF_AI_PROVIDER_FAILED");
   }
+}
+
+export async function extractStaffStandardSourceDocumentText(input: {
+  hotelSlug: unknown;
+  authoringId: unknown;
+  documentId: unknown;
+}) {
+  const documents = await listStaffStandardSourceDocuments({
+    hotelSlug: input.hotelSlug,
+    authoringId: input.authoringId,
+  });
+  const documentId = String(input.documentId || "").trim().toLowerCase();
+  const document = documents.find(
+    (row) => String(row.id).toLowerCase() === documentId,
+  );
+
+  if (!document) {
+    throw new Error("STAFF_AI_SOURCE_DOCUMENT_NOT_FOUND");
+  }
+
+  const mimeType = String(document.mime_type || "").toLowerCase();
+  if (
+    mimeType !== "application/pdf"
+    && mimeType
+      !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ) {
+    throw new Error("STAFF_AI_SOURCE_DOCUMENT_TYPE_UNSUPPORTED");
+  }
+
+  const response = await createResponse({
+    model: modelName(),
+    store: false,
+    max_output_tokens: 24_000,
+    reasoning: { effort: "none" },
+    instructions: [
+      "Transcribe the attached hotel Staff Standard document into plain text.",
+      "Preserve the document order, headings, rules, procedures, numbers, names and meaning.",
+      "Do not summarize, translate, improve, interpret or invent any content.",
+      "Do not add hotel policy that is not visible in the file.",
+      "If a fragment cannot be read reliably, write [UNREADABLE] instead of guessing.",
+      "Return only the extracted source text. This output is an editable candidate that a human Manager must review and explicitly save before it can become source authority.",
+    ].join("\n"),
+    input: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: "Extract the original Staff Standard text faithfully.",
+          },
+          {
+            type: "input_file",
+            file_url: document.previewUrl,
+            filename: String(document.original_name || "staff-standard"),
+          },
+        ],
+      },
+    ],
+  });
+
+  const result = response as {
+    status?: string | null;
+    output_text?: string | null;
+  };
+  if (result.status === "incomplete") {
+    throw new Error("STAFF_AI_SOURCE_EXTRACTION_INCOMPLETE");
+  }
+
+  const sourceText = String(result.output_text || "").trim();
+  if (!sourceText) {
+    throw new Error("STAFF_AI_SOURCE_EXTRACTION_EMPTY");
+  }
+  if (sourceText.length > 200_000) {
+    throw new Error("STAFF_AI_SOURCE_EXTRACTION_TOO_LONG");
+  }
+
+  return {
+    sourceText,
+    documentId: String(document.id),
+    documentSha256: String(document.sha256),
+    originalName: String(document.original_name),
+    humanReviewRequired: true,
+    persisted: false,
+  };
 }
 
 export async function generateStaffStandardAiProposal(input: {
