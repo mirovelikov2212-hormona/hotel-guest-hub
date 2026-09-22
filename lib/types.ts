@@ -122,9 +122,39 @@ export type DepartmentCoverageWindow = {
   label?: string;
 };
 
+export type DepartmentDailyCoverageWindow = {
+  open: string;
+  close: string;
+  label?: string;
+};
+
+export type DepartmentSeasonalSchedule = {
+  id: string;
+  /** Inclusive hotel-local calendar date. */
+  startDate: string;
+  /** Inclusive hotel-local calendar date. */
+  endDate: string;
+  is24h: boolean;
+  windows: DepartmentCoverageWindow[];
+  label?: string;
+};
+
+export type DepartmentDateScheduleOverride = {
+  /** Hotel-local YYYY-MM-DD date. */
+  date: string;
+  mode: "closed" | "24h" | "custom";
+  /** Used only for custom mode and anchored to this hotel-local date. */
+  windows?: DepartmentDailyCoverageWindow[];
+  label?: string;
+};
+
 export type DepartmentSchedule = {
   is24h: boolean;
   windows: DepartmentCoverageWindow[];
+  /** Optional date-bounded schedules. Overlapping periods are invalid. */
+  seasons?: DepartmentSeasonalSchedule[];
+  /** Exact-date authority. Takes precedence over seasons and weekly hours. */
+  dateOverrides?: DepartmentDateScheduleOverride[];
 };
 
 export type DepartmentHours = Record<
