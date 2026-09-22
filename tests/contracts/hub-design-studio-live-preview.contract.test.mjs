@@ -7,9 +7,8 @@ import {
 } from "../helpers/source-contract.mjs";
 
 const proposalPath = "lib/product-factory/hub-design-proposal.ts";
-const livePreviewPath = "app/design-studio/HubLivePreview.tsx";
-const builderPath = "app/design-studio/HubExperienceBuilder.tsx";
-const designStudioClientPath = "app/design-studio/DesignStudioClient.tsx";
+const studioPath = "app/design-studio/VersionedDesignStudioClient.tsx";
+const pagePath = "app/design-studio/page.tsx";
 
 test("Hub Design Proposal is deterministic and Intelligence Package based", async () => {
   const proposal = await readProjectFile(proposalPath);
@@ -38,28 +37,25 @@ test("Hub Design Proposal filters icon fonts before typography selection", async
   assertContains(proposal, "FALLBACK_FONT");
 });
 
-test("Hub Design Studio live preview delegates to Experience Builder V2 and remains draft-only", async () => {
-  const preview = await readProjectFile(livePreviewPath);
-  const builder = await readProjectFile(builderPath);
-  const client = await readProjectFile(designStudioClientPath);
+test("Versioned Design Studio owns the live preview and remains draft-only", async () => {
+  const studio = await readProjectFile(studioPath);
+  const page = await readProjectFile(pagePath);
 
-  assertContains(preview, "HubExperienceBuilder");
-  assertContains(preview, "<HubExperienceBuilder pkg={pkg} lang={lang} />");
-  assertContains(builder, 'const language: "bg" | "en" = lang === "en" ? "en" : "bg"');
-  assertContains(builder, "buildHubDesignProposal(pkg, language)");
-  assertContains(builder, "buildHubExperienceBlueprint(pkg, language)");
-  assertContains(builder, "setPrimaryColor");
-  assertContains(builder, "setSecondaryColor");
-  assertContains(builder, "setBackgroundColor");
-  assertContains(builder, "setHeadingFont");
-  assertContains(builder, "setBodyFont");
-  assertContains(builder, "toggleSection");
-  assertContains(builder, "Hero / welcome");
-  assertContains(client, "<HubLivePreview pkg={pkg} lang={lang} />");
-  assertNotContains(builder, "fetch(");
-  assertNotContains(builder, ".from(");
-  assertNotContains(builder, "publishRevision");
-  assertNotContains(builder, "activateLive");
-  assertNotContains(client, "publishRevision");
-  assertNotContains(client, "activateLive");
+  assertContains(page, 'import VersionedDesignStudioClient from "./VersionedDesignStudioClient"');
+  assertContains(page, "<VersionedDesignStudioClient");
+  assertContains(studio, 'const language: "bg" | "en" = lang === "en" ? "en" : "bg"');
+  assertContains(studio, "buildHubDesignProposal(pkg, language)");
+  assertContains(studio, "buildHubExperienceBlueprint(pkg, language)");
+  assertContains(studio, "setPrimaryColor");
+  assertContains(studio, "setSecondaryColor");
+  assertContains(studio, "setBackgroundColor");
+  assertContains(studio, "setHeadingFont");
+  assertContains(studio, "setBodyFont");
+  assertContains(studio, "setHiddenSectionIds");
+  assertContains(studio, 'activePage?.kind === "offers"');
+  assertContains(studio, "<nav");
+  assertContains(studio, 'materializationPolicy: "explicit_review_required"');
+  assertContains(studio, 'liveActivation: false');
+  assertNotContains(studio, "publish_hotel_config_revision");
+  assertNotContains(studio, "/production-live-activation");
 });
