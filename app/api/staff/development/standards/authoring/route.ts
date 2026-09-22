@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";
 import {
+  generateStaffStandardAiProposal,
+} from "@/lib/server/staff-development-ai-authoring";
+import {
   createStaffStandardAuthoringDraft,
   listStaffStandardAuthoring,
   publishStaffStandardAuthoring,
@@ -11,6 +14,7 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
@@ -27,7 +31,8 @@ function safeError(error: unknown) {
 
 function status(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
-  if (message.includes("WRITES_DISABLED")) return 503;
+  if (message.includes("WRITES_DISABLED") || message.includes("AI_CONFIG_MISSING")) return 503;
+  if (message.includes("STAFF_AI_")) return 502;
   if (message.includes("IDENTITY_REQUIRED")) return 401;
   if (
     message.includes("MANAGER_REQUIRED")
@@ -90,6 +95,14 @@ export async function POST(req: NextRequest) {
         hotelSlug,
         authoringId: body.authoringId,
         sourceText: body.sourceText,
+      });
+      return NextResponse.json({ ok: true, result }, { headers: NO_STORE_HEADERS });
+    }
+
+    if (action === "generate_ai_proposal") {
+      const result = await generateStaffStandardAiProposal({
+        hotelSlug,
+        authoringId: body.authoringId,
       });
       return NextResponse.json({ ok: true, result }, { headers: NO_STORE_HEADERS });
     }
