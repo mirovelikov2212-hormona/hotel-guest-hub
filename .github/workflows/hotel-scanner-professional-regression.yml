@@ -30,6 +30,10 @@ on:
       - "tests/contracts/hub-design-*.contract.test.mjs"
       - "tests/contracts/hub-experience-*.contract.test.mjs"
       - "tests/contracts/hub-offer-*.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-*.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - "tests/contracts/tenant-isolation-baseline-*.json"
+      - "scripts/tenant-isolation-guard.mjs"
       - ".github/workflows/hotel-scanner-professional-regression.yml"
   pull_request:
     paths:
