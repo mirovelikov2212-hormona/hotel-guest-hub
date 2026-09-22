@@ -95,7 +95,7 @@ export async function getOwnStaffDevelopmentState(hotelSlug: unknown) {
     supabaseAdmin
       .from("staff_training_assignments")
       .select(
-        "id,hotel_id,staff_user_id,training_plan_revision_id,assignment_hash,assigned_at,due_at,assignment_json",
+        "id,hotel_id,staff_user_id,training_plan_revision_id,assignment_cycle_no,assignment_hash,assigned_at,due_at,assignment_json",
       )
       .eq("hotel_id", hotelId)
       .eq("staff_user_id", staffUserId)
@@ -294,7 +294,7 @@ export async function getManagerStaffDevelopmentState(
     const { data, error } = await supabaseAdmin
       .from("staff_training_assignments")
       .select(
-        "id,hotel_id,staff_user_id,training_plan_revision_id,assignment_hash,assigned_by_staff_user_id,assigned_at,due_at,assignment_json",
+        "id,hotel_id,staff_user_id,training_plan_revision_id,assignment_cycle_no,assignment_hash,assigned_by_staff_user_id,assigned_at,due_at,assignment_json",
       )
       .eq("hotel_id", identity.hotelId)
       .in("staff_user_id", staffIds)
