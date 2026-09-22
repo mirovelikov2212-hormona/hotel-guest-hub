@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "checkpoint": "staff-development-retraining-v2",
+  "baseCheckpoint": "staff-development-read-bootstrap",
+  "expectedNeedsReview": 311,
+  "removals": [
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 229,
+      "table": "staff_training_assignments",
+      "operation": "insert"
+    }
+  ],
+  "relocations": [
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 268,
+      "toLine": 278,
+      "table": "staff_training_assignments",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 284,
+      "toLine": 294,
+      "table": "staff_training_plan_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 302,
+      "toLine": 312,
+      "table": "staff_training_completions",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 333,
+      "toLine": 343,
+      "table": "staff_training_plan_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 361,
+      "toLine": 371,
+      "table": "staff_assessment_revisions",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 404,
+      "toLine": 414,
+      "table": "staff_assessment_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 427,
+      "toLine": 437,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 471,
+      "toLine": 481,
+      "table": "staff_assessment_attempts",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 495,
+      "toLine": 505,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 536,
+      "toLine": 546,
+      "table": "hotel_staff_hr_rule_revisions",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 573,
+      "toLine": 583,
+      "table": "hotel_staff_hr_rule_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 584,
+      "toLine": 594,
+      "table": "staff_verified_results",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 607,
+      "toLine": 617,
+      "table": "staff_hr_evaluations",
+      "operation": "insert"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 233,
+      "rpc": "assign_staff_training_v2",
+      "tableExpression": "\"assign_staff_training_v2\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only service_role_only immutable retraining authority; server derives hotel staff plan and assigner identities from individual development-session-scoped actions and constructs a hash-bound assignment payload; database rechecks active same-hotel subject and manager assigner, enforces department_manager same-department scope, validates exact same-hotel training plan lineage, serializes by hotel+staff+plan advisory lock, rejects a second unfinished assignment, assigns the next cycle number atomically, and inserts a new immutable assignment row so completed training can be repeated without overwriting history"
+    }
+  ]
+}
