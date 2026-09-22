@@ -22,6 +22,13 @@ const NO_STORE_HEADERS = {
   Expires: "0",
 };
 
+function safeActionError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return /^[A-Z0-9_]+(?::[A-Z0-9_,.-]+)?$/.test(message)
+    ? message
+    : "STAFF_DEVELOPMENT_ACTION_FAILED";
+}
+
 function classify(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
 
@@ -155,10 +162,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         ok: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "STAFF_DEVELOPMENT_ACTION_FAILED",
+        error: safeActionError(error),
       },
       { status: classify(error), headers: NO_STORE_HEADERS },
     );
