@@ -220,8 +220,11 @@ function formatDate(value: unknown) {
 }
 
 function scoreFromResult(row: Record<string, any>) {
-  const payload = row?.result_json || row;
-  const score = Number(payload?.scorePercent ?? payload?.autoScorePercent);
+  const score = Number(
+    row?.scorePercent
+    ?? row?.result_json?.scorePercent
+    ?? row?.result_json?.autoScorePercent,
+  );
   return Number.isFinite(score) ? score : null;
 }
 
@@ -668,7 +671,7 @@ export default function StaffDevelopmentPageContent({
                                 latestAttempt.attempt_status === "pending_human_review"
                                   ? copy.pendingReview
                                   : (
-                                      latestAttempt.attempt_json?.passed
+                                      latestAttempt.passed
                                         ? copy.passed
                                         : copy.failed
                                     )
@@ -752,7 +755,7 @@ export default function StaffDevelopmentPageContent({
                   <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {(ownState?.verifiedResults || []).map((row) => {
                       const score = scoreFromResult(row);
-                      const passed = row.result_json?.passed;
+                      const passed = row.passed;
                       return (
                         <div key={String(row.id)} className="rounded-2xl border p-3">
                           <p className="text-sm font-semibold">
