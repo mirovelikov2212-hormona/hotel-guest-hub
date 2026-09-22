@@ -171,6 +171,15 @@ function PremiumSectionIcon({ id }: { id?: string }) {
     "aria-hidden": true,
   };
 
+  if (key.includes("offer") || key.includes("оферт") || key.includes("angebot")) {
+    return (
+      <svg {...commonProps}>
+        <path d="M4.5 7.5V5.8A1.8 1.8 0 0 1 6.3 4h5.2l8 8-7.5 7.5-8-8V7.5Z" />
+        <circle cx="8.2" cy="8.2" r="1.1" />
+      </svg>
+    );
+  }
+
   if (key.includes("wifi") || key.includes("wi-fi")) {
     return (
       <svg {...commonProps}>
@@ -217,6 +226,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import type { StaffDepartment, StaffRequestType, StaffServiceTime, StaffRequestStatus } from "@/lib/staff/types";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { HotelConfig, LangKey, HubSection, DepartmentKey, HubItem, RequestDef } from "@/lib/types";
+import GuestOffersPanel from "@/components/guest/GuestOffersPanel";
+import { getHotelOfferLocalizedText, getVisibleHotelOffers } from "@/lib/guest/hotel-offers.mjs";
 import { deriveGuestRuntimeCapabilities } from "@/lib/guest/guest-runtime-capabilities.mjs";
 import { resolveOperationalActionExecutionBridge } from "@/lib/guest/operational-action-execution-bridge.mjs";
 import { buildFactoryGuestDepartmentGroups } from "@/lib/guest/factory-guest-navigation.mjs";
@@ -7475,6 +7486,8 @@ EN: ${helpMsg}` : opsMsg,
   const brandSoft = String((config.theme as any)?.soft || "#E7F3F0");
   const brandMuted = String((config.theme as any)?.muted || "#707070");
   const brandText = String(config.theme?.text || "#F5F5F5");
+  const brandHeadingFont = String(config.theme?.headingFont || "Georgia, Times New Roman, serif");
+  const brandBodyFont = String(config.theme?.bodyFont || "Arial, Helvetica, sans-serif");
 
   const themeStyle = {
     "--stayhub-bg": brandBackground,
@@ -7487,9 +7500,12 @@ EN: ${helpMsg}` : opsMsg,
     "--stayhub-muted": brandMuted,
     "--stayhub-text": brandText,
     "--stayhub-on-primary": brandText,
+    "--stayhub-heading-font": brandHeadingFont,
+    "--stayhub-body-font": brandBodyFont,
     "--stayhub-border": "color-mix(in srgb, var(--stayhub-soft) 16%, transparent)",
     backgroundColor: brandBackground,
     color: brandText,
+    fontFamily: brandBodyFont,
   } as any;
 
   const wifiSection = (config.wifi?.ssid || config.wifi?.password)
@@ -8318,6 +8334,21 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   const housekeepingHubSection = sectionById("housekeeping");
   const maintenanceHubSection = sectionById("maintenance");
   const emergencyTileSection = sectionById("emergency");
+  const visibleHotelOffers = getVisibleHotelOffers(config.offers, {
+    timeZone: config.hotelTimezone || "UTC",
+  });
+  const offersTitleByLanguage: Record<string, string> = {
+    bg: "Оферти",
+    en: "Offers",
+    de: "Angebote",
+    ro: "Oferte",
+    cs: "Nabídky",
+    ru: "Предложения",
+  };
+  const offersTileTitle =
+    getCurrentGuestUiText("offers_title")
+    || offersTitleByLanguage[String(lang)]
+    || offersTitleByLanguage.en;
 
   type PremiumTileModel = {
     id: string;
@@ -8325,7 +8356,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     title: string;
     section?: HubSection | null;
     requiresRoom: boolean;
-    special?: "massage" | "emergency";
+    special?: "massage" | "emergency" | "offers";
     outletCategories?: string[];
   };
 
@@ -8404,9 +8435,22 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       : []),
   ];
 
-  const premiumTiles: PremiumTileModel[] = guestRuntimeCapabilities.factoryManaged
+  const basePremiumTiles: PremiumTileModel[] = guestRuntimeCapabilities.factoryManaged
     ? factoryPremiumTiles
     : legacyPremiumTiles;
+  const premiumTiles: PremiumTileModel[] = [
+    ...basePremiumTiles,
+    ...(visibleHotelOffers.length > 0
+      ? [{
+          id: "offers",
+          iconId: "offers",
+          title: offersTileTitle,
+          section: null,
+          requiresRoom: false,
+          special: "offers" as const,
+        }]
+      : []),
+  ];
 
   const selectedPremiumTile = openQuickServiceId
     ? premiumTiles.find((tile) => tile.id === openQuickServiceId) || null
@@ -9202,7 +9246,31 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
             </div>
 
             <div className="stayhub-section-window-body max-h-[72vh] overflow-y-auto pr-1">
-              {(selectedPremiumTile as any).special === "massage" ? (
+              {(selectedPremiumTile as any).special === "offers" ? (
+                <GuestOffersPanel
+                  offers={visibleHotelOffers}
+                  hotelSlug={hotelContentSlug}
+                  language={String(lang)}
+                  onInternalPage={() => setOpenQuickServiceId(null)}
+                  onRequestService={(requestType) => {
+                    const definition = requestDefs.find((candidate) =>
+                      String(candidate.requestType || candidate.id || "").trim() === requestType
+                    );
+                    if (definition) void handleRequestDefClick(definition);
+                  }}
+                  onTrackAction={(offer, action) => {
+                    trackGuestEvent({
+                      eventName: "offer_action_clicked",
+                      eventCategory: "offers",
+                      section: "offers",
+                      sectionKey: "offers",
+                      buttonKey: action,
+                      label: getHotelOfferLocalizedText(offer.titleByLang, String(lang)),
+                      value: offer.key,
+                    });
+                  }}
+                />
+              ) : (selectedPremiumTile as any).special === "massage" ? (
                 roomConfirmed && room.trim() ? (
                   <MassageBookingSection
                     hotelSlug={hotelContentSlug}

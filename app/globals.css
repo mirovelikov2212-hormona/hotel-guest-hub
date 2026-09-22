@@ -1477,7 +1477,7 @@ input.stayhub-card::placeholder {
 
 .stayhub-hero-title,
 .stayhub-hero-subtitle {
-  font-family: Georgia, 'Times New Roman', serif !important;
+  font-family: var(--stayhub-heading-font, Georgia, 'Times New Roman', serif) !important;
 }
 
 .stayhub-hero-subtitle {
