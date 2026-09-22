@@ -17,7 +17,6 @@ test("Staff AI authoring is source-bound and produces candidates without persist
     "buildStaffAssessmentAiDraftRequest",
     "validateStaffAssessmentAiDraft",
     "sourceExcerpt",
-    "STAFF_AI_STANDARD_EVIDENCE_INVALID",
     "STAFF_AI_ASSESSMENT_EVIDENCE_INVALID",
     "store: false",
     "humanApprovalRequired: true",
@@ -48,6 +47,7 @@ test("Pure AI boundary locks Hotel vs Department scope and requires source evide
     'standardScope === "department" && departmentCodes.length !== 1',
     "evidenceExcerptRequiredPerBlock: true",
     "sourceContainsEvidence(request.sourceText, sourceExcerpt)",
+    "STAFF_AI_STANDARD_EVIDENCE_INVALID",
     'persistenceStatus: "not_saved"',
     "humanApprovalRequired: true",
   ]) {
