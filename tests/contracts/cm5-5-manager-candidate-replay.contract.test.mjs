@@ -243,3 +243,37 @@ test("CM5.5 rebuilds Offer V2 operations into runtime offers without draft-only 
   assert.deepEqual(replayed.candidateConfig, expectedCandidate);
   assert.deepEqual(replayed.diff.changedCategories, ["content"]);
 });
+
+
+test("CM5.5 diffHash binds exact changed values, not only paths and categories", () => {
+  const base = baseConfig();
+
+  const candidateA = applyManagerServiceContentChanges({
+    liveConfig: base,
+    operations: [{
+      schemaVersion: "manager-service-change-v1",
+      kind: "service_content_update",
+      serviceId: "coffee",
+      patch: { title: { en: "Premium coffee" } },
+    }],
+  }).candidateConfig;
+
+  const candidateB = applyManagerServiceContentChanges({
+    liveConfig: base,
+    operations: [{
+      schemaVersion: "manager-service-change-v1",
+      kind: "service_content_update",
+      serviceId: "coffee",
+      patch: { title: { en: "Tampered coffee" } },
+    }],
+  }).candidateConfig;
+
+  const diffA = buildHotelConfigVersionDiff(base, candidateA);
+  const diffB = buildHotelConfigVersionDiff(base, candidateB);
+
+  assert.equal(diffA.changes[0].path, diffB.changes[0].path);
+  assert.equal(diffA.changes[0].kind, diffB.changes[0].kind);
+  assert.notEqual(diffA.changes[0].afterHash, diffB.changes[0].afterHash);
+  assert.notEqual(diffA.diffHash, diffB.diffHash);
+  assert.equal(diffA.valueBindingVersion, "sha256-canonical-v1");
+});
