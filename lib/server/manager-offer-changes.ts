@@ -57,7 +57,9 @@ type RuntimeOffer = {
     coverAssetId: string | null;
     galleryAssetIds: string[];
     attachmentAssetIds: string[];
+    readyCreativeByLang?: Record<string, { assetId: string; kind: "image" | "document" }>;
   };
+  presentationMode?: "structured" | "ready_asset";
   status: "active" | "scheduled";
   sortOrder: number;
 };
@@ -118,6 +120,22 @@ function normalizeAssetIds(value: unknown) {
   return ids;
 }
 
+function normalizeReadyCreativeByLang(value: unknown) {
+  if (value === undefined || value === null) return {};
+  if (!isRecord(value)) throw new Error("CM5_OFFER_READY_CREATIVE_INVALID");
+  const result: Record<string, { assetId: string; kind: "image" | "document" }> = {};
+  for (const [language, creative] of Object.entries(value)) {
+    if (!["default","bg","en","de","ro","cs","ru"].includes(language) || !isRecord(creative)) {
+      throw new Error("CM5_OFFER_READY_CREATIVE_INVALID");
+    }
+    const assetId = normalizeUuid(creative.assetId, "CM5_OFFER_ASSET_ID_INVALID");
+    const kind = String(creative.kind || "") as "image" | "document";
+    if (kind !== "image" && kind !== "document") throw new Error("CM5_OFFER_READY_CREATIVE_INVALID");
+    result[language] = { assetId, kind };
+  }
+  return result;
+}
+
 function runtimeOfferToEditorOffer(value: unknown, index: number): HubOfferV2 {
   if (!isRecord(value)) throw new Error("CM5_CURRENT_OFFER_INVALID");
   const pricing = isRecord(value.pricing) ? value.pricing : {};
@@ -151,7 +169,9 @@ function runtimeOfferToEditorOffer(value: unknown, index: number): HubOfferV2 {
       coverAssetId: normalizeAssetId(assets.coverAssetId),
       galleryAssetIds: normalizeAssetIds(assets.galleryAssetIds),
       attachmentAssetIds: normalizeAssetIds(assets.attachmentAssetIds),
+      readyCreativeByLang: normalizeReadyCreativeByLang(assets.readyCreativeByLang),
     },
+    presentationMode: String(value.presentationMode || "structured") as "structured" | "ready_asset",
     status: String(value.status || "active") as HubOfferStatus,
     sortOrder: Number.isInteger(Number(value.sortOrder)) ? Number(value.sortOrder) : index + 1,
     source: {
@@ -179,6 +199,7 @@ function collectOwnedAssetIds(offers: HubOfferV2[]) {
     if (offer.assets.coverAssetId) result.add(offer.assets.coverAssetId);
     for (const id of offer.assets.galleryAssetIds) result.add(id);
     for (const id of offer.assets.attachmentAssetIds) result.add(id);
+    for (const creative of Object.values(offer.assets.readyCreativeByLang || {})) result.add(creative.assetId);
   }
   return result;
 }
@@ -232,7 +253,15 @@ function normalizeManagerOffer(
   const coverAssetId = normalizeAssetId(assets.coverAssetId);
   const galleryAssetIds = normalizeAssetIds(assets.galleryAssetIds);
   const attachmentAssetIds = normalizeAssetIds(assets.attachmentAssetIds);
-  for (const assetId of [coverAssetId, ...galleryAssetIds, ...attachmentAssetIds].filter(Boolean) as string[]) {
+  const readyCreativeByLang = normalizeReadyCreativeByLang(assets.readyCreativeByLang);
+  const presentationMode = String(value.presentationMode || "structured") as "structured" | "ready_asset";
+  if (presentationMode !== "structured" && presentationMode !== "ready_asset") {
+    throw new Error("CM5_OFFER_PRESENTATION_INVALID");
+  }
+  if (presentationMode === "ready_asset" && Object.keys(readyCreativeByLang).length < 1) {
+    throw new Error("CM5_OFFER_READY_CREATIVE_REQUIRED");
+  }
+  for (const assetId of [coverAssetId, ...galleryAssetIds, ...attachmentAssetIds, ...Object.values(readyCreativeByLang).map((creative) => creative.assetId)].filter(Boolean) as string[]) {
     if (!ownedAssetIds.has(assetId)) throw new Error("CM5_OFFER_ASSET_NOT_OWNED");
   }
 
@@ -265,7 +294,9 @@ function normalizeManagerOffer(
       coverAssetId,
       galleryAssetIds,
       attachmentAssetIds,
+      readyCreativeByLang,
     },
+    presentationMode,
     status,
     sortOrder: index + 1,
     source: {
@@ -298,7 +329,14 @@ function toRuntimeOffer(offer: HubOfferV2): RuntimeOffer | null {
       coverAssetId: offer.assets.coverAssetId,
       galleryAssetIds: [...offer.assets.galleryAssetIds],
       attachmentAssetIds: [...offer.assets.attachmentAssetIds],
+      readyCreativeByLang: Object.fromEntries(
+        Object.entries(offer.assets.readyCreativeByLang || {}).map(([language, creative]) => [
+          language,
+          { ...creative },
+        ]),
+      ),
     },
+    presentationMode: offer.presentationMode || "structured",
     status: offer.status,
     sortOrder: offer.sortOrder,
   };

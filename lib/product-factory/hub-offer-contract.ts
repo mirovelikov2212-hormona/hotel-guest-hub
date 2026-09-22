@@ -4,6 +4,12 @@ export type HubLocalizedText = Record<string, string>;
 export type HubOfferStatus = "draft" | "scheduled" | "active" | "inactive" | "archived";
 export type HubOfferCtaAction = "internal_page" | "external_url" | "request_service" | "phone" | "email" | "none";
 export type HubOfferSourceKind = "design_studio" | "change_editor" | "import";
+export type HubOfferPresentationMode = "structured" | "ready_asset";
+export type HubOfferReadyCreativeKind = "image" | "document";
+export type HubOfferReadyCreative = {
+  assetId: string;
+  kind: HubOfferReadyCreativeKind;
+};
 
 export type HubOfferV2 = {
   schemaVersion: typeof HUB_OFFER_SCHEMA_VERSION;
@@ -31,7 +37,9 @@ export type HubOfferV2 = {
     coverAssetId: string | null;
     galleryAssetIds: string[];
     attachmentAssetIds: string[];
+    readyCreativeByLang?: Record<string, HubOfferReadyCreative>;
   };
+  presentationMode?: HubOfferPresentationMode;
   status: HubOfferStatus;
   sortOrder: number;
   source: {
@@ -53,6 +61,9 @@ const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 const CTA_ACTIONS = new Set<HubOfferCtaAction>(["internal_page", "external_url", "request_service", "phone", "email", "none"]);
 const STATUSES = new Set<HubOfferStatus>(["draft", "scheduled", "active", "inactive", "archived"]);
 const SOURCE_KINDS = new Set<HubOfferSourceKind>(["design_studio", "change_editor", "import"]);
+const PRESENTATION_MODES = new Set<HubOfferPresentationMode>(["structured", "ready_asset"]);
+const READY_CREATIVE_KINDS = new Set<HubOfferReadyCreativeKind>(["image", "document"]);
+const READY_CREATIVE_LANGS = new Set(["default", "bg", "en", "de", "ro", "cs", "ru"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -178,12 +189,41 @@ export function validateHubOfferV2(value: unknown): HubOfferValidation {
   }
 
   const assets = isRecord(value.assets) ? value.assets : null;
+  let readyCreativeCount = 0;
   if (!assets) {
     errors.push("OFFER_ASSETS_REQUIRED");
   } else {
     if (!isNullableUuid(assets.coverAssetId)) errors.push("OFFER_COVER_ASSET_INVALID");
     if (!validUuidArray(assets.galleryAssetIds, 20)) errors.push("OFFER_GALLERY_ASSETS_INVALID");
     if (!validUuidArray(assets.attachmentAssetIds, 20)) errors.push("OFFER_ATTACHMENT_ASSETS_INVALID");
+
+    if (assets.readyCreativeByLang !== undefined) {
+      if (!isRecord(assets.readyCreativeByLang)) {
+        errors.push("OFFER_READY_CREATIVE_OBJECT_INVALID");
+      } else {
+        for (const [language, creative] of Object.entries(assets.readyCreativeByLang)) {
+          if (!READY_CREATIVE_LANGS.has(language)) {
+            errors.push("OFFER_READY_CREATIVE_LANGUAGE_INVALID");
+            continue;
+          }
+          if (
+            !isRecord(creative)
+            || !UUID_PATTERN.test(String(creative.assetId || ""))
+            || !READY_CREATIVE_KINDS.has(String(creative.kind || "") as HubOfferReadyCreativeKind)
+          ) {
+            errors.push("OFFER_READY_CREATIVE_INVALID");
+            continue;
+          }
+          readyCreativeCount += 1;
+        }
+      }
+    }
+  }
+
+  const presentationMode = String(value.presentationMode || "structured") as HubOfferPresentationMode;
+  if (!PRESENTATION_MODES.has(presentationMode)) errors.push("OFFER_PRESENTATION_MODE_INVALID");
+  if (presentationMode === "ready_asset" && readyCreativeCount < 1) {
+    errors.push("OFFER_READY_CREATIVE_REQUIRED");
   }
 
   if (!STATUSES.has(String(value.status || "") as HubOfferStatus)) errors.push("OFFER_STATUS_INVALID");

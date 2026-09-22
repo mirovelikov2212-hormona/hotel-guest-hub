@@ -146,6 +146,7 @@ export function collectHubDesignAssetIds(offers: Array<{
     coverAssetId?: string | null;
     galleryAssetIds?: string[];
     attachmentAssetIds?: string[];
+    readyCreativeByLang?: Record<string, { assetId?: string | null; kind?: "image" | "document" }>;
   };
 }>) {
   const ids = new Set<string>();
@@ -155,6 +156,9 @@ export function collectHubDesignAssetIds(offers: Array<{
     if (assets.coverAssetId) ids.add(String(assets.coverAssetId));
     for (const id of assets.galleryAssetIds || []) ids.add(String(id));
     for (const id of assets.attachmentAssetIds || []) ids.add(String(id));
+    for (const creative of Object.values(assets.readyCreativeByLang || {})) {
+      if (creative?.assetId) ids.add(String(creative.assetId));
+    }
   }
   return [...ids];
 }

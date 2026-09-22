@@ -244,7 +244,12 @@ export type HotelOffer = {
     coverAssetId: string | null;
     galleryAssetIds: string[];
     attachmentAssetIds: string[];
+    readyCreativeByLang?: Record<string, {
+      assetId: string;
+      kind: "image" | "document";
+    }>;
   };
+  presentationMode?: "structured" | "ready_asset";
   status: "active" | "scheduled";
   sortOrder: number;
 };

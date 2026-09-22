@@ -222,5 +222,10 @@ export async function assertHubDesignOfferAssetReferences(input: {
     for (const id of offer.assets.galleryAssetIds) {
       if (byId.get(id) !== "image") throw new Error("HUB_DESIGN_ASSET_GALLERY_NOT_IMAGE");
     }
+    for (const creative of Object.values(offer.assets.readyCreativeByLang || {})) {
+      if (byId.get(creative.assetId) !== creative.kind) {
+        throw new Error("HUB_DESIGN_ASSET_READY_CREATIVE_KIND_MISMATCH");
+      }
+    }
   }
 }
