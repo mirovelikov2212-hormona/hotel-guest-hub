@@ -117,7 +117,7 @@ test("Scope is explicit: Hotel standards target the hotel, Department standards 
   departmentWithoutDepartment.departmentCodes = [];
   assert.throws(
     () => normalizeHotelStaffStandard(departmentWithoutDepartment),
-    /STAFF_STANDARD_DEPARTMENT_SCOPE_REQUIRED/,
+    /STAFF_STANDARD_DEPARTMENT_SCOPE_REQUIRES_ONE_DEPARTMENT/,
   );
 
   const hotelWide = standard();
