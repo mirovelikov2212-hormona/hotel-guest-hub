@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "checkpoint": "cm5-ready-offer-assets",
+  "baseCheckpoint": "cm5-3-offer-draft-server",
+  "expectedNeedsReview": 242,
+  "relocations": [
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 335,
+      "toLine": 373,
+      "table": "hotel_content_change_requests",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 400,
+      "toLine": 438,
+      "table": "hotel_content_change_requests",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 461,
+      "toLine": 499,
+      "operation": "rpc"
+    }
+  ]
+}
