@@ -3,6 +3,8 @@ import "server-only";
 import crypto from "node:crypto";
 
 import type { HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
+import { buildHubDesignProposal } from "@/lib/product-factory/hub-design-proposal";
+import { prepareFactoryDesignRuntime } from "@/lib/product-factory/factory-design-runtime-model.mjs";
 import {
   asHubDesignDraftPayload,
   getHubDesignApprovedIntelligenceLineage,
@@ -16,6 +18,8 @@ import {
   type PreparedFactoryOnboarding,
 } from "@/lib/product-factory/factory-onboarding-model.mjs";
 import { loadApprovedHotelIntelligenceEnvelope } from "@/lib/server/hotel-intelligence-revisions";
+import { assertHubDesignOfferAssetReferences } from "@/lib/server/hub-design-assets-server";
+import { buildHubDesignSourceKey } from "@/lib/server/hub-design-source-key";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -168,7 +172,7 @@ export async function loadVerifiedHubDesignFactoryHandoff(input: {
   };
 }
 
-function canonicalDesignHandoff(verified: VerifiedDesignHandoff) {
+function canonicalDesignHandoff(verified: VerifiedDesignHandoff, designRuntimeHash: string) {
   return {
     schemaVersion: verified.schemaVersion,
     authority: verified.authority,
@@ -183,6 +187,7 @@ function canonicalDesignHandoff(verified: VerifiedDesignHandoff) {
     sourceDesignRevisionId: verified.revisionId,
     sourceDesignRevisionVersion: verified.revisionNo,
     sourceDesignRevisionChecksum: verified.payloadChecksum,
+    designRuntimeHash,
     reviewedAtFactory: true,
     materializationPolicy: "sandbox_first_explicit_review",
     liveActivation: false,
@@ -202,9 +207,26 @@ export async function canonicalizeFactoryReleaseDesignBlueprint(
   const workspaceId = handoff.workspaceId;
   const revisionId = handoff.revisionId || handoff.sourceDesignRevisionId;
   const verified = await loadVerifiedHubDesignFactoryHandoff({ workspaceId, revisionId });
+
+  await assertHubDesignOfferAssetReferences({
+    canonicalUrl: verified.canonicalUrl,
+    offers: verified.designDraft.authoring.offers,
+  });
+
+  const fallbackTheme = buildHubDesignProposal(verified.sourcePackage, "en").theme;
+  const designRuntime = prepareFactoryDesignRuntime({
+    designDraft: verified.designDraft,
+    fallbackTheme,
+    sourceKey: buildHubDesignSourceKey(verified.canonicalUrl),
+    sourceDesignRevisionId: verified.revisionId,
+    sourceDesignRevisionChecksum: verified.payloadChecksum,
+  });
+  const designRuntimeHash = sha256(designRuntime);
+
   return {
     ...blueprint,
-    designHandoff: canonicalDesignHandoff(verified),
+    designRuntime,
+    designHandoff: canonicalDesignHandoff(verified, designRuntimeHash),
   };
 }
 
