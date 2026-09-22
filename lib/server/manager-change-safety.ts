@@ -37,6 +37,23 @@ export function managerChangeErrorCode(error: unknown) {
 export function classifyManagerChangeFailure(error: unknown): ManagerChangeFailure {
   const code = managerChangeErrorCode(error);
 
+  const protectedAuthorityFailure =
+    code.includes("CURRENT_LIVE_STATE_INVALID")
+    || code.includes("CURRENT_LIVE_REVISION_INVALID")
+    || code.includes("CURRENT_LIVE_STATE_READ_FAILED")
+    || code.includes("CURRENT_LIVE_REVISION_READ_FAILED")
+    || code.includes("MANAGER_HOTEL_READ_FAILED");
+
+  if (protectedAuthorityFailure) {
+    return {
+      code,
+      status: 409,
+      kind: "system",
+      messageKey: "manager_change_system_failed",
+      notifyPlatform: true,
+    };
+  }
+
   if (
     code.includes("SESSION_REQUIRED")
     || code.includes("HOTEL_FORBIDDEN")
@@ -57,7 +74,6 @@ export function classifyManagerChangeFailure(error: unknown): ManagerChangeFailu
     code.includes("STALE_")
     || code.includes("NOT_DRAFT")
     || code.includes("CONCURRENT_")
-    || code.includes("CURRENT_LIVE_STATE_INVALID")
   ) {
     return {
       code,
