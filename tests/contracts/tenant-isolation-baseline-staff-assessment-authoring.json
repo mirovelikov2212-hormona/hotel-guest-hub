@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "checkpoint": "staff-assessment-authoring",
+  "baseCheckpoint": "staff-standard-authoring",
+  "expectedNeedsReview": 331,
+  "additions": [
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "line": 73,
+      "table": "staff_training_plan_revisions",
+      "tableExpression": "\"staff_training_plan_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only assessment authoring plan resolver requires an individual Manager development identity and reads one exact training plan by identity-derived hotel_id plus plan revision id"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "line": 90,
+      "table": "hotel_staff_standard_revisions",
+      "tableExpression": "\"hotel_staff_standard_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only plan scope validation loads the exact same-hotel published Standard referenced by the selected plan; department_manager is then restricted to a Standard targeting exactly its operational department"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "line": 155,
+      "table": "staff_assessment_authoring",
+      "tableExpression": "\"staff_assessment_authoring\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only authoring loader reads one exact draft by identity-derived hotel_id plus authoring_id and allowed status, then revalidates the referenced plan and Standard Manager scope"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "line": 191,
+      "table": "staff_assessment_authoring_events",
+      "tableExpression": "\"staff_assessment_authoring_events\"",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only append-only assessment authoring event uses identity-derived hotel_id, exact authoring_id and actor staff_user_id with composite same-hotel foreign keys"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "line": 219,
+      "table": "staff_assessment_authoring",
+      "tableExpression": "\"staff_assessment_authoring\"",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only draft creation occurs only after same-hotel plan and published Standard scope validation and inserts identity hotel_id, plan revision id and identified Manager creator"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "line": 282,
+      "table": "staff_assessment_authoring",
+      "tableExpression": "\"staff_assessment_authoring\"",
+      "operation": "update",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only proposal save first reloads the same-hotel Manager-scoped authoring and normalizes assessment content while overriding source plan hash, Standard hash and training unit ids from persisted authority; update is constrained by hotel_id+authoring_id and draft/proposal_ready status"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "line": 323,
+      "table": "staff_assessment_authoring",
+      "tableExpression": "\"staff_assessment_authoring\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only authoring list reads only identity-derived hotel_id; hotel_manager sees the hotel while department_manager rows are filtered by revalidating each referenced plan/Standard operational department scope"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "line": 381,
+      "table": "staff_assessment_revisions",
+      "tableExpression": "\"staff_assessment_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only human publish preparation reads the latest revision number only for identity-derived hotel_id plus exact assessment_key after proposal_ready Manager-scope validation; DB publish RPC rechecks next revision under advisory lock"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "line": 402,
+      "rpc": "publish_staff_assessment_authoring_v1",
+      "tableExpression": "\"publish_staff_assessment_authoring_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only service_role_only human publish authority; database locks exact same-hotel proposal_ready assessment authoring, validates proposal hash, active manager identity, plan and published Standard lineage, enforces department_manager scope, compares published assessment payload to stored proposal excluding only revision/hash, verifies source hashes and next revision, then atomically inserts immutable assessment revision and publication audit state"
+    }
+  ]
+}
