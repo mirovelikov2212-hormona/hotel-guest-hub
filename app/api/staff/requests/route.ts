@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
 import { getDepartmentForRequestType } from "@/lib/staff/routing/request-routing";
 import { normalizeStaffRequestType } from "@/lib/staff/request-type-utils";
-import { isDepartmentWorkingHoursForConfig } from "@/lib/staff/operations-hours";
+import { resolveDepartmentCoverageForConfig } from "@/lib/staff/operations-hours";
 import { getHotelConfig } from "@/lib/config";
 import {
   getOperationalRequestDebugKey,
@@ -378,11 +378,11 @@ export async function GET(req: NextRequest) {
     let requests = hydratedRows.map(mapRowToStaffRequest);
 
     if (role === "housekeeping" || role === "maintenance") {
-      const afterHours = !isDepartmentWorkingHoursForConfig({
+      const coverage = resolveDepartmentCoverageForConfig({
         hotelConfig: operationalConfig,
         department: role,
       });
-      if (afterHours) {
+      if (coverage.workingHoursKnown && !coverage.working) {
         requests = requests.filter((request) => request.status === "completed");
       }
     }
