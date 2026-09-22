@@ -6,6 +6,7 @@ import {
   assertStaffDevelopmentWriteEnabled,
 } from "@/lib/server/staff-development-persistence";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import {
   createRawSessionToken,
   getCurrentStaffSession,
@@ -502,12 +503,16 @@ export async function getCurrentStaffDevelopmentIdentity(
   const rawToken = store.get(developmentCookieName(hotelSlug))?.value;
   if (!rawToken) return null;
 
+  const hotel = await resolveHotelByAnySlugAdmin(hotelSlug).catch(() => null);
+  if (!hotel?.id || hotel.active !== true) return null;
+
   const tokenHash = developmentTokenHash(rawToken);
   const { data: session, error } = await supabaseAdmin
     .from("staff_development_sessions")
     .select(
       "id,hotel_id,staff_user_id,operational_session_id,operational_role,expires_at,revoked_at",
     )
+    .eq("hotel_id", String(hotel.id))
     .eq("session_token_hash", tokenHash)
     .is("revoked_at", null)
     .maybeSingle();
@@ -589,10 +594,17 @@ export async function revokeCurrentStaffDevelopmentIdentity(
     return;
   }
 
+  const hotel = await resolveHotelByAnySlugAdmin(hotelSlug).catch(() => null);
+  if (!hotel?.id || hotel.active !== true) {
+    await clearStaffDevelopmentCookie(hotelSlug);
+    return;
+  }
+
   const tokenHash = developmentTokenHash(rawToken);
   await supabaseAdmin
     .from("staff_development_sessions")
     .update({ revoked_at: new Date().toISOString() })
+    .eq("hotel_id", String(hotel.id))
     .eq("session_token_hash", tokenHash)
     .is("revoked_at", null);
 
