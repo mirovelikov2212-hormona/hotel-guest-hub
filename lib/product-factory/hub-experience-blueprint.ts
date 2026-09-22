@@ -1,5 +1,6 @@
 import type { HotelIntelligencePackage } from "@/lib/product-factory/hotel-intelligence-package";
 import { buildHubDesignProposal, type HubDesignSection } from "@/lib/product-factory/hub-design-proposal";
+import { validateHubOfferV2, type HubOfferV2 } from "@/lib/product-factory/hub-offer-contract";
 
 export type HubExperiencePreset = "boutique" | "resort" | "family" | "business" | "minimal";
 export type HubSurfaceKind = "home" | "services" | "stay" | "offers" | "messages" | "hotel_info" | "custom";
@@ -46,16 +47,6 @@ export type HubPromotionDraft = {
   designDraft: true;
 };
 
-export type HubOfferDraft = {
-  id: string;
-  title: string;
-  discountLabel: string;
-  body: string;
-  validityLabel: string;
-  ctaLabel: string;
-  designDraft: true;
-};
-
 export type HubMessageDraft = {
   id: string;
   kind: "operational" | "stay" | "marketing";
@@ -83,7 +74,7 @@ export type HubDesignQaCheck = {
 };
 
 export type HubExperienceBlueprint = {
-  schemaVersion: "hub-experience-blueprint-v2";
+  schemaVersion: "hub-experience-blueprint-v3";
   hotelName: string;
   preset: HubExperiencePreset;
   sections: HubDesignSection[];
@@ -91,7 +82,7 @@ export type HubExperienceBlueprint = {
   navigation: HubNavigationItem[];
   modules: HubModuleKind[];
   promotions: HubPromotionDraft[];
-  offers: HubOfferDraft[];
+  offers: HubOfferV2[];
   messages: HubMessageDraft[];
   survey: HubSurveySurface;
   assetPolicy: "hotel_authorization_required";
@@ -123,9 +114,6 @@ const COPY = {
     promoTitle: "Специално за Вашия престой",
     promoBody: "Добавете предложение, което гостът може да разгледа без да прекъсва основния поток.",
     promoCta: "Разгледай",
-    offerTitle: "Оферта за престоя",
-    offerBody: "Design пример. Реална цена, отстъпка и валидност се потвърждават във Hotel Factory.",
-    offerValidity: "Валидност се задава във Factory",
     messageTitle: "Добре дошли",
     messageBody: "Design пример за in-app съобщение от хотела.",
   },
@@ -148,9 +136,6 @@ const COPY = {
     promoTitle: "Special for your stay",
     promoBody: "Add an offer guests can explore without interrupting the primary journey.",
     promoCta: "Explore",
-    offerTitle: "Stay offer",
-    offerBody: "Design sample. Real pricing, discount and validity are confirmed in Hotel Factory.",
-    offerValidity: "Validity is configured in Factory",
     messageTitle: "Welcome",
     messageBody: "Design sample for an in-app hotel message.",
   },
@@ -179,7 +164,7 @@ export function buildHubExperienceBlueprint(
   ];
 
   return {
-    schemaVersion: "hub-experience-blueprint-v2",
+    schemaVersion: "hub-experience-blueprint-v3",
     hotelName: proposal.hotelName,
     preset: "boutique",
     sections: proposal.sections,
@@ -213,17 +198,7 @@ export function buildHubExperienceBlueprint(
         designDraft: true,
       },
     ],
-    offers: [
-      {
-        id: "offer-sample",
-        title: copy.offerTitle,
-        discountLabel: "-15%",
-        body: copy.offerBody,
-        validityLabel: copy.offerValidity,
-        ctaLabel: copy.promoCta,
-        designDraft: true,
-      },
-    ],
+    offers: [],
     messages: [
       {
         id: "message-welcome-sample",
@@ -278,7 +253,7 @@ export function contrastRatio(foreground: string, background: string) {
 export function evaluateHubExperienceDesign(input: {
   navigation: HubNavigationItem[];
   promotions: HubPromotionDraft[];
-  offers: HubOfferDraft[];
+  offers: HubOfferV2[];
   messages: HubMessageDraft[];
   homeModuleCount: number;
   primaryColor: string;
@@ -330,11 +305,12 @@ export function evaluateHubExperienceDesign(input: {
     detail: marketingSafe ? "Marketing push respects explicit consent and is never time-sensitive" : "Require consent and disable Time Sensitive for marketing push",
   });
 
+  const invalidOffers = input.offers.filter((offer) => !validateHubOfferV2(offer).ok);
   checks.push({
-    id: "offer-completeness",
-    severity: input.offers.every((offer) => Boolean(offer.ctaLabel && offer.validityLabel)) ? "pass" : "warn",
-    title: "Offers have CTA and validity",
-    detail: input.offers.every((offer) => Boolean(offer.ctaLabel && offer.validityLabel)) ? "Offer intent is clear" : "Add CTA and validity to every offer",
+    id: "offer-contract",
+    severity: invalidOffers.length === 0 ? "pass" : "block",
+    title: "Offers satisfy the shared V2 contract",
+    detail: invalidOffers.length === 0 ? "Offer data is versioned and structurally valid" : invalidOffers.length + " offer(s) violate the shared contract",
   });
 
   checks.push({

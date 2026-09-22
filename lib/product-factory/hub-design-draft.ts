@@ -1,4 +1,5 @@
 import type { HubDesignSection } from "@/lib/product-factory/hub-design-proposal";
+import { validateHubOfferV2, type HubOfferV2 } from "@/lib/product-factory/hub-offer-contract";
 import type {
   HubExperienceBlueprint,
   HubExperiencePreset,
@@ -6,12 +7,11 @@ import type {
   HubMessageDraft,
   HubModuleKind,
   HubNavigationItem,
-  HubOfferDraft,
   HubPromotionDraft,
   HubSurveySurface,
 } from "@/lib/product-factory/hub-experience-blueprint";
 
-export const HUB_DESIGN_DRAFT_SCHEMA_VERSION = "hub-experience-design-draft-v1" as const;
+export const HUB_DESIGN_DRAFT_SCHEMA_VERSION = "hub-experience-design-draft-v2" as const;
 
 export type HubDesignDraftTheme = {
   primaryColor: string;
@@ -41,7 +41,7 @@ export type HubDesignDraftAuthoringState = {
   extraItems: Record<string, HubDesignSection["items"]>;
   pages: HubInternalPage[];
   navigation: HubNavigationItem[];
-  offers: HubOfferDraft[];
+  offers: HubOfferV2[];
   messages: HubMessageDraft[];
   promotions: HubPromotionDraft[];
   promotionEnabled: boolean;
@@ -178,10 +178,18 @@ export function validateHubDesignDraftPayload(value: unknown): HubDesignDraftVal
     const navigation = Array.isArray(authoring.navigation) ? authoring.navigation : [];
     const modules = Array.isArray(authoring.modules) ? authoring.modules : [];
     const hidden = Array.isArray(authoring.hiddenSectionIds) ? authoring.hiddenSectionIds : [];
+    const offers = Array.isArray(authoring.offers) ? authoring.offers : [];
     if (!uniqueNonEmpty(pages.map((page) => isRecord(page) ? String(page.id || "") : ""))) errors.push("PAGE_IDS_INVALID");
     if (!uniqueNonEmpty(navigation.map((item) => isRecord(item) ? String(item.id || "") : ""))) errors.push("NAVIGATION_IDS_INVALID");
     if (!uniqueNonEmpty(modules.map(String))) errors.push("MODULES_INVALID");
     if (!uniqueNonEmpty(hidden.map(String))) errors.push("HIDDEN_SECTION_IDS_INVALID");
+    if (!Array.isArray(authoring.offers)) errors.push("OFFERS_REQUIRED");
+    if (!uniqueNonEmpty(offers.map((offer) => isRecord(offer) ? String(offer.id || "") : ""))) errors.push("OFFER_IDS_INVALID");
+    if (!uniqueNonEmpty(offers.map((offer) => isRecord(offer) ? String(offer.key || "") : ""))) errors.push("OFFER_KEYS_INVALID");
+    offers.forEach((offer, index) => {
+      const offerValidation = validateHubOfferV2(offer);
+      for (const code of offerValidation.errors) errors.push("OFFER_" + index + "_" + code);
+    });
     if (!navigation.some((item) => isRecord(item) && item.role === "home" && item.pageId === "home")) errors.push("HOME_NAVIGATION_REQUIRED");
     if (navigation.length < 3 || navigation.length > 5) warnings.push("NAVIGATION_RECOMMENDED_3_TO_5");
     if (modules.length > 10) warnings.push("HOME_MODULE_COUNT_HIGH");
@@ -190,7 +198,15 @@ export function validateHubDesignDraftPayload(value: unknown): HubDesignDraftVal
   }
 
   const experience = isRecord(value.experience) ? value.experience : null;
-  if (!experience || experience.schemaVersion !== "hub-experience-blueprint-v2") errors.push("EXPERIENCE_BLUEPRINT_REQUIRED");
+  if (!experience || experience.schemaVersion !== "hub-experience-blueprint-v3") {
+    errors.push("EXPERIENCE_BLUEPRINT_REQUIRED");
+  } else if (
+    authoring
+    && stableDesignDraftStringify(Array.isArray(authoring.offers) ? authoring.offers : [])
+      !== stableDesignDraftStringify(Array.isArray(experience.offers) ? experience.offers : [])
+  ) {
+    errors.push("OFFER_AUTHORING_EXPERIENCE_MISMATCH");
+  }
 
   const policies = isRecord(value.policies) ? value.policies : null;
   if (!policies

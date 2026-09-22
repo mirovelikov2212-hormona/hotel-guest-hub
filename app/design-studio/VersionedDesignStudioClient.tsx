@@ -9,6 +9,12 @@ import {
   validateHubDesignDraftPayload,
   type HubDesignDraftPayload,
 } from "@/lib/product-factory/hub-design-draft";
+import {
+  getHubOfferLocalizedText,
+  setHubOfferLocalizedText,
+  type HubOfferCtaAction,
+  type HubOfferV2,
+} from "@/lib/product-factory/hub-offer-contract";
 import type { HotelIntelligencePackage, HotelOnboardingSourceCategory } from "@/lib/product-factory/hotel-intelligence-package";
 import { buildHubDesignProposal, type HubDesignSection } from "@/lib/product-factory/hub-design-proposal";
 import {
@@ -19,7 +25,6 @@ import {
   type HubMessageDraft,
   type HubModuleKind,
   type HubNavigationItem,
-  type HubOfferDraft,
   type HubPromotionDraft,
   type HubSurveySurface,
 } from "@/lib/product-factory/hub-experience-blueprint";
@@ -29,7 +34,7 @@ const TEST_HUB_STORAGE_KEY = "stayhub:test-hub-package:v1";
 const NEW_SECTION = "__new_section__";
 
 type Panel = "sources" | "structure" | "pages" | "campaigns" | "navigation" | "survey" | "style" | "versions" | "qa";
-type EditableOffer = HubOfferDraft & { ctaDestination: string };
+type EditableOffer = HubOfferV2;
 type EditablePromotion = HubPromotionDraft & { ctaDestination: string };
 type RevisionMeta = {
   id: string;
@@ -180,14 +185,62 @@ function destinationOptions(pages: HubInternalPage[]) {
   ];
 }
 
-function withOfferDestination(offer: HubOfferDraft): EditableOffer {
-  const candidate = offer as EditableOffer;
-  return { ...offer, ctaDestination: candidate.ctaDestination || "page-services" };
-}
-
 function withPromotionDestination(promo: HubPromotionDraft): EditablePromotion {
   const candidate = promo as EditablePromotion;
   return { ...promo, ctaDestination: candidate.ctaDestination || "page-services" };
+}
+
+function moneyInput(value: number | null) {
+  return value === null ? "" : (value / 100).toFixed(2);
+}
+
+function moneyMinor(value: string) {
+  const normalized = String(value || "").trim().replace(",", ".");
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed * 100) : null;
+}
+
+function formatOfferPrice(offer: HubOfferV2, language: "bg" | "en") {
+  if (offer.pricing.amountMinor === null || !offer.pricing.currency) return "";
+  try {
+    return new Intl.NumberFormat(language === "bg" ? "bg-BG" : "en-US", {
+      style: "currency",
+      currency: offer.pricing.currency,
+    }).format(offer.pricing.amountMinor / 100);
+  } catch {
+    return (offer.pricing.amountMinor / 100).toFixed(2) + " " + offer.pricing.currency;
+  }
+}
+
+function formatOfferValidity(offer: HubOfferV2) {
+  if (offer.validity.startDate && offer.validity.endDate) return offer.validity.startDate + " → " + offer.validity.endDate;
+  return offer.validity.startDate || offer.validity.endDate || "";
+}
+
+function createOfferDraft(language: "bg" | "en", sortOrder: number): HubOfferV2 {
+  const id = crypto.randomUUID();
+  return {
+    schemaVersion: "hub-offer-v2",
+    id,
+    key: "offer-" + id,
+    titleByLang: { [language]: language === "bg" ? "Нова оферта" : "New offer" },
+    shortDescriptionByLang: {},
+    descriptionByLang: {},
+    badgeByLang: {},
+    pricing: { amountMinor: null, previousAmountMinor: null, currency: null },
+    validity: { startDate: null, endDate: null },
+    cta: {
+      labelByLang: { [language]: language === "bg" ? "Разгледай" : "Explore" },
+      action: "internal_page",
+      destination: "page-services",
+    },
+    assets: { coverAssetId: null, galleryAssetIds: [], attachmentAssetIds: [] },
+    status: "draft",
+    sortOrder,
+    source: { kind: "design_studio", sourceRef: null },
+    designDraft: true,
+  };
 }
 
 export default function VersionedDesignStudioClient({ lang, scanRunId, quickPreview = false }: { lang: ControlPlaneLang; scanRunId?: string; quickPreview?: boolean }) {
@@ -326,7 +379,7 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
     setExtraItems({});
     setPages(generated.pages);
     setNavigation(generated.navigation);
-    setOffers(generated.offers.map(withOfferDestination));
+    setOffers(generated.offers);
     setMessages(generated.messages);
     setPromotions(generated.promotions.map(withPromotionDestination));
     setPromotionEnabled(true);
@@ -349,7 +402,7 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
     setExtraItems(a.extraItems);
     setPages(a.pages);
     setNavigation(a.navigation);
-    setOffers(a.offers.map(withOfferDestination));
+    setOffers(a.offers);
     setMessages(a.messages);
     setPromotions(a.promotions.map(withPromotionDestination));
     setPromotionEnabled(a.promotionEnabled);
@@ -528,11 +581,11 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
     const label = manualLabel.trim();
     const value = manualBody.trim();
     if (!label || !value) return;
-    const item = { id: `manual-item-${Date.now()}`, label, value, confidence: 0 };
+    const item = { id: `manual-item-${crypto.randomUUID()}`, label, value, confidence: 0 };
     if (targetSection === NEW_SECTION) {
       const title = manualSectionTitle.trim();
       if (!title) return;
-      const id = `manual-section-${Date.now()}`;
+      const id = `manual-section-${crypto.randomUUID()}`;
       setManualSections((current) => [...current, { id, category: "manual", title, items: [item], priority: 900 + current.length }]);
       setTargetSection(id);
       setManualSectionTitle("");
@@ -545,9 +598,32 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
   function addPage() {
     const title = newPageTitle.trim();
     if (!title) return;
-    const id = `page-custom-${Date.now()}`;
+    const id = `page-custom-${crypto.randomUUID()}`;
     setPages((current) => [...current, { id, kind: "custom", title, subtitle: "", sectionIds: [], designDraft: true }]);
     setNewPageTitle(""); setActiveScreen(id);
+  }
+
+  function updateOffer(offerId: string, updater: (offer: EditableOffer) => EditableOffer) {
+    setOffers((current) => current.map((offer) => offer.id === offerId ? updater(offer) : offer));
+  }
+
+  function updateOfferText(
+    offerId: string,
+    field: "titleByLang" | "shortDescriptionByLang" | "descriptionByLang" | "badgeByLang",
+    value: string,
+  ) {
+    updateOffer(offerId, (offer) => ({
+      ...offer,
+      [field]: setHubOfferLocalizedText(offer[field], language, value),
+    }));
+  }
+
+  function addOffer() {
+    setOffers((current) => [...current, createOfferDraft(language, current.length + 1)]);
+  }
+
+  function removeOffer(offerId: string) {
+    setOffers((current) => current.filter((offer) => offer.id !== offerId));
   }
 
   function moveNavigation(index: number, delta: -1 | 1) {
@@ -662,8 +738,69 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
           {panel === "pages" && <div className="space-y-4"><SectionTitle>{copy.pages}</SectionTitle>{pages.map((page) => <div key={page.id} className="rounded-2xl border border-white/5 p-4"><div className="grid gap-3 sm:grid-cols-2"><Input label="Title" value={page.title} onChange={(value) => setPages((current) => current.map((item) => item.id === page.id ? { ...item, title: value } : item))} /><Input label="Subtitle" value={page.subtitle} onChange={(value) => setPages((current) => current.map((item) => item.id === page.id ? { ...item, subtitle: value } : item))} /></div>{page.kind !== "offers" && page.kind !== "messages" && <div className="mt-3 flex flex-wrap gap-2">{pageSectionChoices.map((section) => <button key={`${page.id}:${section.id}`} type="button" onClick={() => setPages((current) => current.map((item) => item.id === page.id ? { ...item, sectionIds: item.sectionIds.includes(section.id) ? item.sectionIds.filter((id) => id !== section.id) : [...item.sectionIds, section.id] } : item))} className={`min-h-11 rounded-xl border px-3 text-xs ${page.sectionIds.includes(section.id) ? "border-cyan-300/20 text-cyan-100" : "border-white/5 text-neutral-600"}`}>{section.title}</button>)}</div>}<button type="button" onClick={() => setActiveScreen(page.id)} className="mt-3 text-xs text-violet-200">Preview</button>{page.kind === "custom" && <button type="button" onClick={() => setPages((current) => current.filter((item) => item.id !== page.id))} className="ml-4 mt-3 text-xs text-rose-300">Remove</button>}</div>)}<div className="flex gap-2"><input value={newPageTitle} onChange={(event) => setNewPageTitle(event.target.value)} className="min-h-11 flex-1 rounded-xl border border-white/10 bg-neutral-900 px-3 text-sm" placeholder="Custom page" /><button type="button" onClick={addPage} className="rounded-xl border border-violet-300/20 px-4 text-xs text-violet-100">{copy.addPage}</button></div></div>}
 
           {panel === "campaigns" && <div className="space-y-6"><SectionTitle>{copy.campaigns}</SectionTitle>{promotions.map((promo) => <div key={promo.id} className="rounded-2xl border border-amber-300/10 p-4"><label className="flex min-h-11 items-center gap-2 text-xs"><input type="checkbox" checked={promotionEnabled} onChange={(event) => setPromotionEnabled(event.target.checked)} />Promotion enabled in draft</label><div className="grid gap-3 sm:grid-cols-2"><Input label="Title" value={promo.title} onChange={(value) => setPromotions((current) => current.map((item) => item.id === promo.id ? { ...item, title: value } : item))} /><Input label="Body" value={promo.body} onChange={(value) => setPromotions((current) => current.map((item) => item.id === promo.id ? { ...item, body: value } : item))} /><Input label="CTA" value={promo.ctaLabel} onChange={(value) => setPromotions((current) => current.map((item) => item.id === promo.id ? { ...item, ctaLabel: value } : item))} /><Select label={copy.destination} value={promo.ctaDestination} onChange={(value) => setPromotions((current) => current.map((item) => item.id === promo.id ? { ...item, ctaDestination: value } : item))} options={destinations} /></div></div>)}
-            <div><div className="flex items-center justify-between"><SectionTitle>Offers</SectionTitle><button type="button" onClick={() => setOffers((current) => [...current, { id: `offer-${Date.now()}`, title: "New offer", discountLabel: "-10%", body: "Design draft", validityLabel: "Confirm in Factory", ctaLabel: "Explore", ctaDestination: "page-services", designDraft: true }])} className="text-xs text-cyan-200">{copy.addOffer}</button></div><div className="mt-3 space-y-3">{offers.map((offer) => <div key={offer.id} className="grid gap-3 rounded-2xl border border-white/5 p-4 sm:grid-cols-2"><Input label="Title" value={offer.title} onChange={(value) => setOffers((current) => current.map((item) => item.id === offer.id ? { ...item, title: value } : item))} /><Input label="Badge" value={offer.discountLabel} onChange={(value) => setOffers((current) => current.map((item) => item.id === offer.id ? { ...item, discountLabel: value } : item))} /><Input label="Body" value={offer.body} onChange={(value) => setOffers((current) => current.map((item) => item.id === offer.id ? { ...item, body: value } : item))} /><Input label="Validity" value={offer.validityLabel} onChange={(value) => setOffers((current) => current.map((item) => item.id === offer.id ? { ...item, validityLabel: value } : item))} /><Input label="CTA" value={offer.ctaLabel} onChange={(value) => setOffers((current) => current.map((item) => item.id === offer.id ? { ...item, ctaLabel: value } : item))} /><Select label={copy.destination} value={offer.ctaDestination} onChange={(value) => setOffers((current) => current.map((item) => item.id === offer.id ? { ...item, ctaDestination: value } : item))} options={destinations} /></div>)}</div></div>
-            <div><div className="flex items-center justify-between"><SectionTitle>Messages</SectionTitle><button type="button" onClick={() => setMessages((current) => [...current, { id: `message-${Date.now()}`, kind: "operational", channel: "in_app", title: "New message", body: "Design draft", marketingConsentRequired: false, timeSensitiveAllowed: false, designDraft: true }])} className="text-xs text-cyan-200">{copy.addMessage}</button></div><div className="mt-3 space-y-3">{messages.map((message) => <div key={message.id} className="grid gap-3 rounded-2xl border border-white/5 p-4 sm:grid-cols-2"><Input label="Title" value={message.title} onChange={(value) => setMessages((current) => current.map((item) => item.id === message.id ? { ...item, title: value } : item))} /><Input label="Body" value={message.body} onChange={(value) => setMessages((current) => current.map((item) => item.id === message.id ? { ...item, body: value } : item))} /><Select label="Kind" value={message.kind} onChange={(value) => setMessages((current) => current.map((item) => item.id === message.id ? { ...item, kind: value as HubMessageDraft["kind"], marketingConsentRequired: value === "marketing" ? true : item.marketingConsentRequired } : item))} options={[{ value: "operational", label: "Operational" }, { value: "stay", label: "Stay" }, { value: "marketing", label: "Marketing" }]} /><Select label="Channel" value={message.channel} onChange={(value) => setMessages((current) => current.map((item) => item.id === message.id ? { ...item, channel: value as HubMessageDraft["channel"] } : item))} options={[{ value: "in_app", label: "In-app" }, { value: "push", label: "Push" }]} />{message.kind === "marketing" && <label className="flex min-h-11 items-center gap-2 text-xs text-amber-100"><input type="checkbox" checked={message.marketingConsentRequired} onChange={(event) => setMessages((current) => current.map((item) => item.id === message.id ? { ...item, marketingConsentRequired: event.target.checked } : item))} />Marketing consent required</label>}</div>)}</div></div>
+            <div>
+              <div className="flex items-center justify-between">
+                <SectionTitle>Offers</SectionTitle>
+                <button type="button" onClick={addOffer} className="text-xs text-cyan-200">{copy.addOffer}</button>
+              </div>
+              <div className="mt-3 space-y-3">
+                {offers.map((offer) => <div key={offer.id} className="rounded-2xl border border-white/5 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">Hub Offer V2 · {offer.status}</p>
+                      <p className="mt-1 font-mono text-[9px] text-neutral-700">{offer.key}</p>
+                    </div>
+                    <button type="button" onClick={() => removeOffer(offer.id)} className="min-h-11 rounded-xl border border-rose-300/15 px-3 text-xs text-rose-200">
+                      {language === "bg" ? "Премахни от черновата" : "Remove from draft"}
+                    </button>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <Input label={language === "bg" ? "Заглавие" : "Title"} value={getHubOfferLocalizedText(offer.titleByLang, language)} onChange={(value) => updateOfferText(offer.id, "titleByLang", value)} />
+                    <Input label={language === "bg" ? "Badge / отстъпка" : "Badge / discount"} value={getHubOfferLocalizedText(offer.badgeByLang, language)} onChange={(value) => updateOfferText(offer.id, "badgeByLang", value)} />
+                    <Input label={language === "bg" ? "Кратко описание" : "Short description"} value={getHubOfferLocalizedText(offer.shortDescriptionByLang, language)} onChange={(value) => updateOfferText(offer.id, "shortDescriptionByLang", value)} />
+                    <Input label={language === "bg" ? "Пълно описание" : "Full description"} value={getHubOfferLocalizedText(offer.descriptionByLang, language)} onChange={(value) => updateOfferText(offer.id, "descriptionByLang", value)} />
+                    <Input label={language === "bg" ? "Цена" : "Price"} value={moneyInput(offer.pricing.amountMinor)} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, pricing: { ...current.pricing, amountMinor: moneyMinor(value) } }))} />
+                    <Input label={language === "bg" ? "Стара цена" : "Previous price"} value={moneyInput(offer.pricing.previousAmountMinor)} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, pricing: { ...current.pricing, previousAmountMinor: moneyMinor(value) } }))} />
+                    <Input label={language === "bg" ? "Валута (ISO)" : "Currency (ISO)"} value={offer.pricing.currency || ""} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, pricing: { ...current.pricing, currency: value.trim() ? value.trim().toUpperCase() : null } }))} />
+                    <Input label={language === "bg" ? "Валидна от (YYYY-MM-DD)" : "Valid from (YYYY-MM-DD)"} value={offer.validity.startDate || ""} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, validity: { ...current.validity, startDate: value.trim() || null } }))} />
+                    <Input label={language === "bg" ? "Валидна до (YYYY-MM-DD)" : "Valid until (YYYY-MM-DD)"} value={offer.validity.endDate || ""} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, validity: { ...current.validity, endDate: value.trim() || null } }))} />
+                    <Input label={language === "bg" ? "CTA текст" : "CTA label"} value={getHubOfferLocalizedText(offer.cta.labelByLang, language)} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, cta: { ...current.cta, labelByLang: setHubOfferLocalizedText(current.cta.labelByLang, language, value) } }))} />
+                    <Select
+                      label={language === "bg" ? "CTA действие" : "CTA action"}
+                      value={offer.cta.action}
+                      onChange={(value) => updateOffer(offer.id, (current) => {
+                        const action = value as HubOfferCtaAction;
+                        return {
+                          ...current,
+                          cta: {
+                            ...current.cta,
+                            action,
+                            destination: action === "none" ? null : action === "internal_page" ? "page-services" : null,
+                          },
+                        };
+                      })}
+                      options={[
+                        { value: "internal_page", label: "Internal page" },
+                        { value: "external_url", label: "External URL" },
+                        { value: "request_service", label: "Request service" },
+                        { value: "phone", label: "Phone" },
+                        { value: "email", label: "Email" },
+                        { value: "none", label: "No action" },
+                      ]}
+                    />
+                    {offer.cta.action === "internal_page"
+                      ? <Select label={copy.destination} value={offer.cta.destination || "page-services"} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, cta: { ...current.cta, destination: value } }))} options={destinations} />
+                      : offer.cta.action !== "none"
+                        ? <Input label={copy.destination} value={offer.cta.destination || ""} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, cta: { ...current.cta, destination: value.trim() || null } }))} />
+                        : null}
+                  </div>
+                  <p className="mt-3 text-[10px] text-neutral-600">
+                    {language === "bg" ? "Файлове и изображения се добавят в DS3 чрез versioned asset references." : "Files and images are added in DS3 through versioned asset references."}
+                  </p>
+                </div>)}
+              </div>
+            </div>
+            <div><div className="flex items-center justify-between"><SectionTitle>Messages</SectionTitle><button type="button" onClick={() => setMessages((current) => [...current, { id: `message-${crypto.randomUUID()}`, kind: "operational", channel: "in_app", title: "New message", body: "Design draft", marketingConsentRequired: false, timeSensitiveAllowed: false, designDraft: true }])} className="text-xs text-cyan-200">{copy.addMessage}</button></div><div className="mt-3 space-y-3">{messages.map((message) => <div key={message.id} className="grid gap-3 rounded-2xl border border-white/5 p-4 sm:grid-cols-2"><Input label="Title" value={message.title} onChange={(value) => setMessages((current) => current.map((item) => item.id === message.id ? { ...item, title: value } : item))} /><Input label="Body" value={message.body} onChange={(value) => setMessages((current) => current.map((item) => item.id === message.id ? { ...item, body: value } : item))} /><Select label="Kind" value={message.kind} onChange={(value) => setMessages((current) => current.map((item) => item.id === message.id ? { ...item, kind: value as HubMessageDraft["kind"], marketingConsentRequired: value === "marketing" ? true : item.marketingConsentRequired } : item))} options={[{ value: "operational", label: "Operational" }, { value: "stay", label: "Stay" }, { value: "marketing", label: "Marketing" }]} /><Select label="Channel" value={message.channel} onChange={(value) => setMessages((current) => current.map((item) => item.id === message.id ? { ...item, channel: value as HubMessageDraft["channel"] } : item))} options={[{ value: "in_app", label: "In-app" }, { value: "push", label: "Push" }]} />{message.kind === "marketing" && <label className="flex min-h-11 items-center gap-2 text-xs text-amber-100"><input type="checkbox" checked={message.marketingConsentRequired} onChange={(event) => setMessages((current) => current.map((item) => item.id === message.id ? { ...item, marketingConsentRequired: event.target.checked } : item))} />Marketing consent required</label>}</div>)}</div></div>
           </div>}
 
           {panel === "navigation" && <div className="space-y-3"><SectionTitle>{copy.navigation}</SectionTitle><label className="flex min-h-11 items-center gap-2 rounded-xl border border-white/5 px-3 text-xs"><input type="checkbox" checked={searchEnabled} onChange={(event) => setSearchEnabled(event.target.checked)} />Search enabled</label>{navigation.map((item, index) => <div key={item.id} className="grid gap-2 rounded-2xl border border-white/5 p-3 sm:grid-cols-[1fr_1fr_auto]"><input value={item.label} onChange={(event) => setNavigation((current) => current.map((nav) => nav.id === item.id ? { ...nav, label: event.target.value } : nav))} className="min-h-11 rounded-xl border border-white/10 bg-neutral-900 px-3 text-sm" /><select value={item.pageId} onChange={(event) => setNavigation((current) => current.map((nav) => nav.id === item.id ? { ...nav, pageId: event.target.value } : nav))} className="min-h-11 rounded-xl border border-white/10 bg-neutral-900 px-3 text-sm">{destinations.map((option) => <option key={`${item.id}:${option.value}`} value={option.value}>{option.label}</option>)}</select><div className="flex gap-1"><button type="button" onClick={() => moveNavigation(index, -1)} className="min-h-11 min-w-11 rounded-xl border border-white/10">↑</button><button type="button" onClick={() => moveNavigation(index, 1)} className="min-h-11 min-w-11 rounded-xl border border-white/10">↓</button></div></div>)}</div>}
@@ -755,7 +892,22 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
           {panel === "qa" && <div className="space-y-3"><SectionTitle>{copy.qa}</SectionTitle><div className={`rounded-2xl border p-4 ${validation.ok ? "border-emerald-300/20" : "border-rose-300/20"}`}><p className="text-sm font-semibold">Draft contract: {validation.ok ? "PASS" : "BLOCK"}</p>{validation.errors.map((item) => <p key={item} className="mt-1 text-xs text-rose-200">{item}</p>)}{validation.warnings.map((item) => <p key={item} className="mt-1 text-xs text-amber-200">{item}</p>)}</div>{qa.map((check) => <div key={check.id} className="rounded-2xl border border-white/5 p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold">{check.title}</p><p className="mt-1 text-xs text-neutral-500">{check.detail}</p></div><span className="text-[10px] font-bold uppercase">{check.severity}</span></div></div>)}</div>}
         </div>
 
-        <div className="2xl:sticky 2xl:top-4"><p className="mb-3 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-600">{copy.preview} · {PRESETS[preset]}</p><div className="mx-auto max-w-[400px] overflow-hidden rounded-[2.4rem] border-[7px] border-neutral-800 bg-white"><div className="h-[720px] overflow-y-auto pb-24" style={{ backgroundColor, color: proposal.theme.textColor, fontFamily: `\"${bodyFont}\",system-ui` }}>{activeScreen === "home" ? <><div className="p-6 text-white" style={{ background: `linear-gradient(145deg, ${secondaryColor}, ${primaryColor})` }}><p className="text-[10px] uppercase opacity-70">StayHub</p><h3 className="mt-2 text-2xl" style={{ fontFamily: `\"${headingFont}\",serif` }}>{proposal.hotelName}</h3><p className="mt-2 text-[11px] leading-5 opacity-80">{pkg.hotelProfileLayer.identity.summary}</p></div><div className="space-y-3 p-4">{searchEnabled && <div className="rounded-2xl border border-black/5 bg-white p-3 text-xs text-neutral-400">⌕ Search</div>}{visibleSections.slice(0, 6).map((section) => <div key={section.id} className="rounded-2xl border border-black/5 bg-white p-4"><p className="text-sm font-semibold text-neutral-800">{section.title}</p><p className="mt-2 text-[10px] text-neutral-500">{section.items[0]?.value}</p></div>)}{survey.enabled && survey.placement === "home" && <div className="rounded-2xl border border-black/5 bg-white p-4 text-xs text-neutral-700">Survey · {survey.presentation}</div>}</div></> : activePage?.kind === "offers" ? <div className="space-y-3 p-4">{offers.map((offer) => <div key={offer.id} className="rounded-2xl border border-black/5 bg-white p-4 text-neutral-800"><p className="text-xs font-bold" style={{ color: primaryColor }}>{offer.discountLabel}</p><p className="mt-2 font-semibold">{offer.title}</p><p className="mt-2 text-[10px] text-neutral-500">{offer.body}</p><p className="mt-3 text-[10px]">{offer.ctaLabel} → {offer.ctaDestination}</p></div>)}</div> : activePage?.kind === "messages" ? <div className="space-y-3 p-4">{messages.map((message) => <div key={message.id} className="rounded-2xl border border-black/5 bg-white p-4 text-neutral-800"><p className="text-[10px] uppercase" style={{ color: primaryColor }}>{message.kind} · {message.channel}</p><p className="mt-2 font-semibold">{message.title}</p><p className="mt-2 text-[10px] text-neutral-500">{message.body}</p></div>)}</div> : <div className="space-y-3 p-4"><h3 className="text-xl font-semibold text-neutral-800">{activePage?.title}</h3>{visibleSections.filter((section) => activePage?.sectionIds.includes(section.id)).map((section) => <div key={section.id} className="rounded-2xl border border-black/5 bg-white p-4 text-neutral-800"><p className="font-semibold">{section.title}</p><p className="mt-2 text-[10px] text-neutral-500">{section.items[0]?.value}</p></div>)}</div>}</div><nav className="grid min-h-[72px] border-t border-black/5 bg-white" style={{ gridTemplateColumns: `repeat(${Math.max(1, navigation.length)}, minmax(0,1fr))` }}>{navigation.map((item) => <button key={item.id} type="button" onClick={() => setActiveScreen(item.pageId)} className="min-h-11 px-1 text-[9px] font-semibold" style={{ color: item.pageId === activeScreen || (item.role === "home" && activeScreen === "home") ? primaryColor : "#777" }}>{item.label}</button>)}</nav></div></div>
+        <div className="2xl:sticky 2xl:top-4"><p className="mb-3 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-600">{copy.preview} · {PRESETS[preset]}</p><div className="mx-auto max-w-[400px] overflow-hidden rounded-[2.4rem] border-[7px] border-neutral-800 bg-white"><div className="h-[720px] overflow-y-auto pb-24" style={{ backgroundColor, color: proposal.theme.textColor, fontFamily: `\"${bodyFont}\",system-ui` }}>{activeScreen === "home" ? <><div className="p-6 text-white" style={{ background: `linear-gradient(145deg, ${secondaryColor}, ${primaryColor})` }}><p className="text-[10px] uppercase opacity-70">StayHub</p><h3 className="mt-2 text-2xl" style={{ fontFamily: `\"${headingFont}\",serif` }}>{proposal.hotelName}</h3><p className="mt-2 text-[11px] leading-5 opacity-80">{pkg.hotelProfileLayer.identity.summary}</p></div><div className="space-y-3 p-4">{searchEnabled && <div className="rounded-2xl border border-black/5 bg-white p-3 text-xs text-neutral-400">⌕ Search</div>}{visibleSections.slice(0, 6).map((section) => <div key={section.id} className="rounded-2xl border border-black/5 bg-white p-4"><p className="text-sm font-semibold text-neutral-800">{section.title}</p><p className="mt-2 text-[10px] text-neutral-500">{section.items[0]?.value}</p></div>)}{survey.enabled && survey.placement === "home" && <div className="rounded-2xl border border-black/5 bg-white p-4 text-xs text-neutral-700">Survey · {survey.presentation}</div>}</div></> : activePage?.kind === "offers" ? <div className="space-y-3 p-4">{offers.map((offer) => {
+            const title = getHubOfferLocalizedText(offer.titleByLang, language);
+            const badge = getHubOfferLocalizedText(offer.badgeByLang, language);
+            const body = getHubOfferLocalizedText(offer.shortDescriptionByLang, language) || getHubOfferLocalizedText(offer.descriptionByLang, language);
+            const price = formatOfferPrice(offer, language);
+            const validity = formatOfferValidity(offer);
+            const cta = getHubOfferLocalizedText(offer.cta.labelByLang, language);
+            return <div key={offer.id} className="rounded-2xl border border-black/5 bg-white p-4 text-neutral-800">
+              {badge && <p className="text-xs font-bold" style={{ color: primaryColor }}>{badge}</p>}
+              <p className="mt-2 font-semibold">{title || (language === "bg" ? "Оферта" : "Offer")}</p>
+              {body && <p className="mt-2 text-[10px] text-neutral-500">{body}</p>}
+              {price && <p className="mt-3 text-sm font-semibold">{price}</p>}
+              {validity && <p className="mt-1 text-[10px] text-neutral-500">{validity}</p>}
+              {offer.cta.action !== "none" && cta && <p className="mt-3 text-[10px]">{cta} → {offer.cta.destination || offer.cta.action}</p>}
+            </div>;
+          })}</div> : activePage?.kind === "messages" ? <div className="space-y-3 p-4">{messages.map((message) => <div key={message.id} className="rounded-2xl border border-black/5 bg-white p-4 text-neutral-800"><p className="text-[10px] uppercase" style={{ color: primaryColor }}>{message.kind} · {message.channel}</p><p className="mt-2 font-semibold">{message.title}</p><p className="mt-2 text-[10px] text-neutral-500">{message.body}</p></div>)}</div> : <div className="space-y-3 p-4"><h3 className="text-xl font-semibold text-neutral-800">{activePage?.title}</h3>{visibleSections.filter((section) => activePage?.sectionIds.includes(section.id)).map((section) => <div key={section.id} className="rounded-2xl border border-black/5 bg-white p-4 text-neutral-800"><p className="font-semibold">{section.title}</p><p className="mt-2 text-[10px] text-neutral-500">{section.items[0]?.value}</p></div>)}</div>}</div><nav className="grid min-h-[72px] border-t border-black/5 bg-white" style={{ gridTemplateColumns: `repeat(${Math.max(1, navigation.length)}, minmax(0,1fr))` }}>{navigation.map((item) => <button key={item.id} type="button" onClick={() => setActiveScreen(item.pageId)} className="min-h-11 px-1 text-[9px] font-semibold" style={{ color: item.pageId === activeScreen || (item.role === "home" && activeScreen === "home") ? primaryColor : "#777" }}>{item.label}</button>)}</nav></div></div>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/5 p-4"><p className="text-xs text-neutral-500">assetPolicy=hotel_authorization_required · materialization=explicit_review_required · runtimeCampaignSend=false · liveActivation=false</p><button type="button" onClick={clearPackage} className="min-h-11 rounded-xl border border-white/10 px-3 text-xs text-neutral-500">{copy.clear}</button></div>

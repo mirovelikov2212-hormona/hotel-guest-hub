@@ -6,38 +6,31 @@ import {
   readProjectFile,
 } from "../helpers/source-contract.mjs";
 
-const clientPath = "app/design-studio/DesignStudioClient.tsx";
-const builderPath = "app/design-studio/HubExperienceBuilder.tsx";
+const pagePath = "app/design-studio/page.tsx";
+const studioPath = "app/design-studio/VersionedDesignStudioClient.tsx";
 
-test("Design Studio makes Design versus Factory ownership explicit", async () => {
-  const client = await readProjectFile(clientPath);
-
-  assertContains(client, 'workflow: "Работен поток и ownership"');
-  assertContains(client, 'designOwner: "Design Studio"');
-  assertContains(client, 'factoryOwner: "Hotel Factory"');
-  assertContains(client, "/hotel-factory/new?lang=${lang}");
-  assertContains(client, "Автоматичният package materialization ще бъде отделно изрично действие");
-  assertContains(client, "profile.contacts.socialLinks");
-  assertContains(client, "SocialLinks");
-  assertContains(client, 'stepLive: "6 · Live"');
-  assertNotContains(client, "publishRevision");
-  assertNotContains(client, "activateLive");
+test("One active versioned Design Studio owns onboarding authoring", async () => {
+  const page = await readProjectFile(pagePath);
+  assertContains(page, 'import VersionedDesignStudioClient from "./VersionedDesignStudioClient"');
+  assertContains(page, "<VersionedDesignStudioClient");
+  assertContains(page, "<DesignFactoryHandoffLauncher");
+  assertNotContains(page, 'import DesignStudioClient from "./DesignStudioClient"');
+  assertNotContains(page, 'import HubExperienceBuilder from "./HubExperienceBuilder"');
 });
 
-test("Experience Builder can compose local draft content without creating runtime objects", async () => {
-  const builder = await readProjectFile(builderPath);
-
-  assertContains(builder, 'manualContent: "Draft Content Composer"');
-  assertContains(builder, "manualSections");
-  assertContains(builder, "extraItems");
-  assertContains(builder, "addDraftContent");
-  assertContains(builder, "manual-section-");
-  assertContains(builder, "manual-item-");
-  assertContains(builder, "Този builder не изпраща съобщения и не публикува оферти");
-  assertContains(builder, "setManualSections([])");
-  assertContains(builder, "setExtraItems({})");
-  assertNotContains(builder, "fetch(");
-  assertNotContains(builder, ".from(");
-  assertNotContains(builder, "publishRevision");
-  assertNotContains(builder, "activateLive");
+test("Active Design Studio keeps authoring separate from LIVE publication", async () => {
+  const studio = await readProjectFile(studioPath);
+  for (const fragment of [
+    'materializationPolicy: "explicit_review_required"',
+    'runtimeCampaignSend: false',
+    'liveActivation: false',
+    "manualSections",
+    "extraItems",
+    "saveRevision",
+    "restoreRevision",
+    "compareRevision",
+  ]) assertContains(studio, fragment);
+  assertNotContains(studio, "publish_hotel_config_revision");
+  assertNotContains(studio, "/production-live-activation");
+  assertNotContains(studio, "vercel --prod");
 });

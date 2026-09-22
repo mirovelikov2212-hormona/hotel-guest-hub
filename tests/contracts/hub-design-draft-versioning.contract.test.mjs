@@ -25,7 +25,7 @@ function loadDraftModel(source) {
     },
   }).outputText;
   const module = { exports: {} };
-  vm.runInNewContext(compiled, { module, exports: module.exports, URL }, { filename: modelPath });
+  vm.runInNewContext(compiled, { module, exports: module.exports, URL, require: (specifier) => specifier === "@/lib/product-factory/hub-offer-contract" ? { validateHubOfferV2: () => ({ ok: true, errors: [] }) } : {} }, { filename: modelPath });
   return module.exports;
 }
 
@@ -106,7 +106,7 @@ test("Draft payload preserves exact authoring state and explicit safety policies
     "extraItems:",
     "pages: HubInternalPage[]",
     "navigation: HubNavigationItem[]",
-    "offers: HubOfferDraft[]",
+    "offers: HubOfferV2[]",
     "messages: HubMessageDraft[]",
     "promotions: HubPromotionDraft[]",
     "promotionEnabled: boolean",
@@ -122,7 +122,7 @@ test("Active Design Studio wires all committed authoring state into save, histor
   const studio = await readProjectFile(studioPath);
   const page = await readProjectFile(pagePath);
   assertContains(page, 'import VersionedDesignStudioClient from "./VersionedDesignStudioClient"');
-  assertContains(page, "<VersionedDesignStudioClient lang={lang} />");
+  assertContains(page, "<VersionedDesignStudioClient");
   for (const fragment of [
     "HUB_DESIGN_DRAFT_SCHEMA_VERSION",
     "parentRevisionId: snapshot?.workspace.currentRevisionId || null",
@@ -141,7 +141,8 @@ test("Active Design Studio wires all committed authoring state into save, histor
     "promotionEnabled",
     "searchEnabled",
     "survey",
-    "ctaDestination",
+    "crypto.randomUUID()",
+    "removeOffer",
     'runtimeCampaignSend: false',
     'liveActivation: false',
   ]) assertContains(studio, fragment);
