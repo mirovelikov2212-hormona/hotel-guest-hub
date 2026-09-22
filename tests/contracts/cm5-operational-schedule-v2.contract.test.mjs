@@ -10,6 +10,7 @@ import {
 import {
   hasConfiguredDepartmentScheduleForConfig,
   isDepartmentWorkingHoursForConfig,
+  resolveDepartmentCoverageForConfig,
 } from "../../lib/staff/operations-hours-model.mjs";
 import {
   boutiqueHotelBlueprint,
@@ -138,4 +139,70 @@ test("Operational authority no longer contains hotel-independent fixed work hour
     "7 * 60",
     "17 * 60",
   ]) assertNotContains(source,forbidden);
+});
+
+
+test("Routing changes only when continuous department coverage actually ends", () => {
+  const config = {
+    hotelTimezone: "UTC",
+    departmentSchedules: {
+      housekeeping: {
+        is24h: false,
+        windows: [
+          { days: ["tue"], open: "08:00", close: "17:00", label: "day" },
+          { days: ["tue"], open: "17:00", close: "23:00", label: "late" },
+        ],
+      },
+    },
+  };
+
+  assert.equal(isDepartmentWorkingHoursForConfig({
+    hotelConfig: config,
+    department: "housekeeping",
+    date: new Date("2026-09-22T16:59:00Z"),
+  }), true);
+  assert.equal(isDepartmentWorkingHoursForConfig({
+    hotelConfig: config,
+    department: "housekeeping",
+    date: new Date("2026-09-22T17:00:00Z"),
+  }), true);
+  assert.equal(isDepartmentWorkingHoursForConfig({
+    hotelConfig: config,
+    department: "housekeeping",
+    date: new Date("2026-09-22T22:59:00Z"),
+  }), true);
+  assert.equal(isDepartmentWorkingHoursForConfig({
+    hotelConfig: config,
+    department: "housekeeping",
+    date: new Date("2026-09-22T23:00:00Z"),
+  }), false);
+});
+
+test("Missing department schedule keeps legacy runtime available but marks hours as unknown", () => {
+  const coverage = resolveDepartmentCoverageForConfig({
+    hotelConfig: { hotelTimezone: "UTC" },
+    department: "housekeeping",
+    date: new Date("2026-09-22T23:00:00Z"),
+  });
+
+  assert.deepEqual(coverage, {
+    configured: false,
+    workingHoursKnown: false,
+    working: true,
+  });
+});
+
+test("Guest push, staff feed, and operational workflow share the same schedule authority", async () => {
+  const guestRoute = await readProjectFile("app/api/guest/request-create/route.ts");
+  const staffRoute = await readProjectFile("app/api/staff/requests/route.ts");
+  const workflow = await readProjectFile("lib/server/operational-workflow-resolution.mjs");
+
+  for (const source of [guestRoute, staffRoute, workflow]) {
+    assert.match(source, /resolveDepartmentCoverageForConfig/);
+  }
+
+  assert.doesNotMatch(
+    guestRoute,
+    /Object\.entries\(input\.hotelConfig\.departmentHours/,
+  );
 });
