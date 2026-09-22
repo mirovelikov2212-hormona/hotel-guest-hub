@@ -282,7 +282,9 @@ export default function StaffStandardAuthoringPanel({
 
   const [sourceKind, setSourceKind] = useState<SourceKind>("manual");
   const [newKey, setNewKey] = useState("");
-  const [departmentText, setDepartmentText] = useState(operationalRole);
+  const [departmentText, setDepartmentText] = useState(
+    operationalRole === "manager" ? "" : operationalRole,
+  );
   const [newSourceText, setNewSourceText] = useState("");
   const [sourceText, setSourceText] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
