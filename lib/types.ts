@@ -113,15 +113,29 @@ export type ContactInfo = {
   email?: string;
 };
 
-export type DepartmentHours = Partial<
-  Record<
-    DepartmentKey,
-    {
-      open: string;
-      close: string;
-    }
-  >
+export type DepartmentWeekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+
+export type DepartmentCoverageWindow = {
+  days: DepartmentWeekday[];
+  open: string;
+  close: string;
+  label?: string;
+};
+
+export type DepartmentSchedule = {
+  is24h: boolean;
+  windows: DepartmentCoverageWindow[];
+};
+
+export type DepartmentHours = Record<
+  string,
+  {
+    open: string;
+    close: string;
+  }
 >;
+
+export type DepartmentSchedules = Record<string, DepartmentSchedule>;
 
 export type TaxiProvider = {
   name: string;
@@ -326,6 +340,8 @@ export type HotelConfig = {
   };
 
   departmentHours?: DepartmentHours;
+  /** Multi-window tenant operational authority. Preferred over legacy departmentHours. */
+  departmentSchedules?: DepartmentSchedules;
   /** Runtime-only marker; never persisted into an M9 configuration snapshot. */
   departmentRoutingRuntimeActivated?: boolean;
   housekeepingCutoff?: string;
