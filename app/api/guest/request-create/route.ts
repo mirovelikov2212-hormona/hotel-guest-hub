@@ -11,7 +11,7 @@ import type { StaffDepartment, StaffRequestStatus } from "@/lib/staff/types";
 import { getHotelConfig } from "@/lib/config";
 import { sendManagerPushNotification, sendStaffPushNotification } from "@/lib/staff-push/web-push";
 import type { PushStaffRole } from "@/lib/staff-push/manager-auth";
-import { isDepartmentWorkingHoursForConfig } from "@/lib/staff/operations-hours";
+import { resolveDepartmentCoverageForConfig } from "@/lib/staff/operations-hours";
 import { translateGuestText, translateGuestTextToBulgarian, hasBulgarianLetters } from "@/lib/server/staff-translation";
 import { getTestRoomPolicy } from "@/lib/server/test-rooms";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
@@ -70,17 +70,12 @@ function getStaffPushRolesForRequest(input: {
       return;
     }
 
-    const configuredHours = Object.entries(input.hotelConfig.departmentHours ?? {}).find(
-      ([departmentCode]) => departmentCode === role,
-    )?.[1];
-    const working = configuredHours
-      ? isDepartmentWorkingHoursForConfig({
-          hotelConfig: input.hotelConfig,
-          department: role,
-        })
-      : true;
+    const coverage = resolveDepartmentCoverageForConfig({
+      hotelConfig: input.hotelConfig,
+      department: role,
+    });
 
-    if (working) {
+    if (coverage.working) {
       roles.add(role);
       return;
     }
