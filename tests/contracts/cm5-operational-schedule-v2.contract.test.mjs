@@ -453,3 +453,46 @@ test("CM5 diff classifier reports departmentSchedules as hours changes", () => {
   assert.ok(diff.changedCategories.includes("hours"));
   assert.equal(diff.categoryCounts.hours > 0, true);
 });
+
+
+test("Operational Schedule V2 supports departments closed by default and open only in season", () => {
+  const blueprint = structuredClone(boutiqueHotelBlueprint);
+  blueprint.departments = blueprint.departments.map((department) => (
+    department.id === "housekeeping"
+      ? {
+          ...department,
+          hours: {
+            windows: [],
+            seasons: [{
+              id: "summer-only",
+              startDate: "2026-06-01",
+              endDate: "2026-09-30",
+              is24h: false,
+              windows: [{
+                days: ALL_DAYS,
+                open: "08:00",
+                close: "23:00",
+              }],
+            }],
+          },
+        }
+      : department
+  ));
+
+  const runtime = prepareFactoryGuestRuntimeConfig({ blueprint });
+  const schedule = runtime.config.departmentSchedules.housekeeping;
+  assert.deepEqual(schedule.windows, []);
+  assert.equal(schedule.seasons.length, 1);
+
+  assert.equal(isDepartmentWorkingHoursForConfig({
+    hotelConfig: runtime.config,
+    department: "housekeeping",
+    date: new Date("2026-07-15T12:00:00Z"),
+  }), true);
+
+  assert.equal(isDepartmentWorkingHoursForConfig({
+    hotelConfig: runtime.config,
+    department: "housekeeping",
+    date: new Date("2026-11-15T12:00:00Z"),
+  }), false);
+});
