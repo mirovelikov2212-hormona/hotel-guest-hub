@@ -58,7 +58,9 @@ test("Training plan is derived from a published persisted standard instead of ac
   }
 
   assertContains(source, '.eq("lifecycle_status", "published")');
-  assertNotContains(source, "input.trainingPlan");
+  const materializeSegment = source.slice(readIndex, insertIndex);
+  assertNotContains(materializeSegment, "trainingPlan:");
+  assertNotContains(materializeSegment, "input.trainingPlan");
 });
 
 test("Assessment revision inherits plan hashes and unit IDs server-side", async () => {

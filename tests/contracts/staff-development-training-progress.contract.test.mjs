@@ -9,6 +9,7 @@ import {
 const HOTEL_ID = "3d74f8f8-2f19-4eed-8ac9-22f4d42f6670";
 const STAFF_ID = "5b83d872-cb27-4e8d-8916-828f75d520b0";
 const MANAGER_ID = "0a2e1d92-39ec-48c9-9104-4ce9c10af776";
+const OTHER_STAFF_ID = "6c83d872-cb27-4e8d-8916-828f75d520b1";
 const PLAN_REVISION_ID = "378279e9-cf80-44b9-b490-70fc90e47ac6";
 const PLAN_HASH = "a".repeat(64);
 const STANDARD_HASH = "b".repeat(64);
@@ -104,7 +105,7 @@ test("Training completion refuses plan/standard lineage drift", () => {
 test("Training completion refuses tampered assignment and impossible timestamps", () => {
   const assignment = buildStaffTrainingAssignment(assignmentInput());
   const tampered = structuredClone(assignment);
-  tampered.staffUserId = MANAGER_ID;
+  tampered.staffUserId = OTHER_STAFF_ID;
 
   assert.throws(
     () => completeStaffTrainingAssignment({

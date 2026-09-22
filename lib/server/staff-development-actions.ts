@@ -46,15 +46,15 @@ async function requireManagerIdentity(hotelSlug: unknown) {
   return identity;
 }
 
-async function activeTargetStaffUser(input: {
+async function activeTargetStaffUser(params: {
   hotelId: string;
   targetStaffUserId: unknown;
 }) {
-  const targetStaffUserId = clean(input.targetStaffUserId).toLowerCase();
+  const targetStaffUserId = clean(params.targetStaffUserId).toLowerCase();
   const { data, error } = await supabaseAdmin
     .from("staff_users")
     .select("id,hotel_id,department_id,full_name,role,active")
-    .eq("hotel_id", input.hotelId)
+    .eq("hotel_id", params.hotelId)
     .eq("id", targetStaffUserId)
     .eq("active", true)
     .maybeSingle();
@@ -88,7 +88,7 @@ function assertManagerCanManageTarget(
   }
 }
 
-async function nextRevisionNo(input: {
+async function nextRevisionNo(params: {
   kind: "standard" | "assessment" | "hr_rules";
   hotelId: string;
   keyValue: string;
@@ -96,22 +96,22 @@ async function nextRevisionNo(input: {
   let data: Array<{ revision_no: number | string }> | null = null;
   let error: { message?: string } | null = null;
 
-  if (input.kind === "standard") {
+  if (params.kind === "standard") {
     const result = await supabaseAdmin
       .from("hotel_staff_standard_revisions")
       .select("revision_no")
-      .eq("hotel_id", input.hotelId)
-      .eq("standard_key", input.keyValue)
+      .eq("hotel_id", params.hotelId)
+      .eq("standard_key", params.keyValue)
       .order("revision_no", { ascending: false })
       .limit(1);
     data = result.data;
     error = result.error;
-  } else if (input.kind === "assessment") {
+  } else if (params.kind === "assessment") {
     const result = await supabaseAdmin
       .from("staff_assessment_revisions")
       .select("revision_no")
-      .eq("hotel_id", input.hotelId)
-      .eq("assessment_key", input.keyValue)
+      .eq("hotel_id", params.hotelId)
+      .eq("assessment_key", params.keyValue)
       .order("revision_no", { ascending: false })
       .limit(1);
     data = result.data;
@@ -120,8 +120,8 @@ async function nextRevisionNo(input: {
     const result = await supabaseAdmin
       .from("hotel_staff_hr_rule_revisions")
       .select("revision_no")
-      .eq("hotel_id", input.hotelId)
-      .eq("rule_set_key", input.keyValue)
+      .eq("hotel_id", params.hotelId)
+      .eq("rule_set_key", params.keyValue)
       .order("revision_no", { ascending: false })
       .limit(1);
     data = result.data;
