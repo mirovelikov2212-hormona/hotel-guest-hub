@@ -75,7 +75,7 @@ const COPY = {
     scope: "Обхват",
     hotelScope: "Общ стандарт на хотела",
     departmentScope: "Стандарт за департамент",
-    departments: "Отдели",
+    departments: "Департамент",
     sourceText: "Оригинален текст / източник",
     sourcePlaceholder: "Поставете оригиналния стандарт на хотела тук…",
     create: "Създай чернова",
@@ -127,7 +127,7 @@ const COPY = {
     scope: "Scope",
     hotelScope: "Hotel-wide standard",
     departmentScope: "Department standard",
-    departments: "Departments",
+    departments: "Department",
     sourceText: "Original text / source",
     sourcePlaceholder: "Paste the hotel's original standard here…",
     create: "Create draft",
@@ -179,7 +179,7 @@ const COPY = {
     scope: "Geltungsbereich",
     hotelScope: "Hotelweiter Standard",
     departmentScope: "Abteilungsstandard",
-    departments: "Abteilungen",
+    departments: "Abteilung",
     sourceText: "Originaltext / Quelle",
     sourcePlaceholder: "Originalen Hotelstandard hier einfügen…",
     create: "Entwurf erstellen",
@@ -422,12 +422,12 @@ export default function StaffStandardAuthoringPanel({
     setError("");
     setNotice("");
     try {
+      const departmentCode = departmentText.trim().toLowerCase();
       const departmentCodes = standardScope === "hotel"
         ? []
-        : departmentText
-            .split(",")
-            .map((value) => value.trim().toLowerCase())
-            .filter(Boolean);
+        : departmentCode
+          ? [departmentCode]
+          : [];
       const result = await postAuthoring({
         action: "create_draft",
         sourceKind,
