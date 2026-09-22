@@ -54,6 +54,7 @@ on:
       - "tests/contracts/cm5-*.contract.test.mjs"
       - "tests/contracts/tenant-isolation-baseline-*.json"
       - "scripts/tenant-isolation-guard.mjs"
+      - "tsconfig.json"
       - ".github/workflows/hotel-scanner-professional-regression.yml"
   pull_request:
     paths:
@@ -109,6 +110,7 @@ on:
       - "tests/contracts/cm5-*.contract.test.mjs"
       - "tests/contracts/tenant-isolation-baseline-*.json"
       - "scripts/tenant-isolation-guard.mjs"
+      - "tsconfig.json"
       - ".github/workflows/hotel-scanner-professional-regression.yml"
   workflow_dispatch:
 
