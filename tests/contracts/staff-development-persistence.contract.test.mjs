@@ -121,3 +121,14 @@ test("Staff Development persistence keeps verified and HR history append-only", 
     assertNotContains(source, forbidden);
   }
 });
+
+
+test("Training assignment uses atomic DB cycles and never directly inserts assignment rows", async () => {
+  const source = await readProjectFile("lib/server/staff-development-persistence.ts");
+
+  assertContains(source, '"assign_staff_training_v2"');
+  assertContains(source, "p_training_plan_revision_id: trainingPlanRevisionId");
+  assertContains(source, "p_assigned_by_staff_user_id: assignedByStaffUserId");
+  assertContains(source, "p_assignment_json: assignment");
+  assertNotContains(source, '.from("staff_training_assignments")\n    .insert');
+});
