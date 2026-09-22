@@ -34,6 +34,8 @@ type TrainingPlanRow = {
   training_plan_hash?: string;
   plan_json?: {
     sourceStandardKey?: string;
+    standardScope?: "hotel" | "department";
+    departmentCodes?: string[];
     units?: Array<{
       unitId: string;
       titleByLang?: Localized;
@@ -224,6 +226,12 @@ function displayLocalized(value: Localized | undefined, lang: ContentLang) {
     || Object.values(value).find(Boolean)
     || ""
   );
+}
+
+function planScopeLabel(plan: TrainingPlanRow) {
+  if (plan.plan_json?.standardScope === "hotel") return "Hotel";
+  const department = plan.plan_json?.departmentCodes?.[0];
+  return department ? `Department: ${department}` : "Department";
 }
 
 export default function StaffAssessmentAuthoringPanel({
@@ -522,7 +530,7 @@ export default function StaffAssessmentAuthoringPanel({
               <option value="">{copy.plan}</option>
               {trainingPlans.map((plan) => (
                 <option key={plan.id} value={plan.id}>
-                  {plan.plan_json?.sourceStandardKey || plan.training_plan_hash?.slice(0, 12) || plan.id}
+                  {plan.plan_json?.sourceStandardKey || plan.training_plan_hash?.slice(0, 12) || plan.id} · {planScopeLabel(plan)}
                 </option>
               ))}
             </select>
@@ -605,7 +613,7 @@ export default function StaffAssessmentAuthoringPanel({
             {selectedPlan ? (
               <div className="mt-3 rounded-xl border p-3 text-sm">
                 <strong>{copy.plan}:</strong>{" "}
-                {selectedPlan.plan_json?.sourceStandardKey || selectedPlan.id}
+                {selectedPlan.plan_json?.sourceStandardKey || selectedPlan.id} · {planScopeLabel(selectedPlan)}
                 <div className="mt-1 text-xs opacity-55">
                   {(units || [])
                     .map((unit) => displayLocalized(unit.titleByLang, editLanguage) || unit.unitId)
