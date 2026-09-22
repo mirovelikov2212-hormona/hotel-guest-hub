@@ -93,6 +93,8 @@ async function assertOwnedOfferDraft(input: {
     .select("id,status,change_scope")
     .eq("id", input.changeRequestId)
     .eq("hotel_id", input.hotelId)
+    .eq("status", "draft")
+    .contains("change_scope", ["offers"])
     .maybeSingle();
 
   if (error) throw new Error("CM5_CONTENT_ASSET_CHANGE_REQUEST_READ_FAILED");
