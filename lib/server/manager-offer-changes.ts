@@ -267,6 +267,57 @@ async function loadOwnedAssetKinds(input: {
   return result;
 }
 
+export async function validateManagerCandidateOfferAssets(input: {
+  hotelId: string;
+  changeRequestId: string;
+  liveConfig: JsonObject;
+  candidateConfig: JsonObject;
+}) {
+  const currentOffers = currentRuntimeOffers(input.liveConfig);
+  const candidateOffers = currentRuntimeOffers(input.candidateConfig);
+  const ownedAssetKinds = await loadOwnedAssetKinds({
+    hotelId: input.hotelId,
+    changeRequestId: input.changeRequestId,
+    liveConfig: input.liveConfig,
+    currentOffers,
+  });
+
+  const referenced = new Map<string, "image" | "document" | null>();
+
+  for (const offer of candidateOffers) {
+    if (offer.assets.coverAssetId) {
+      referenced.set(offer.assets.coverAssetId, "image");
+    }
+    for (const assetId of offer.assets.galleryAssetIds) {
+      referenced.set(assetId, "image");
+    }
+    for (const assetId of offer.assets.attachmentAssetIds) {
+      if (!referenced.has(assetId)) referenced.set(assetId, null);
+    }
+    for (const creative of Object.values(offer.assets.readyCreativeByLang || {})) {
+      const previous = referenced.get(creative.assetId);
+      if (previous && previous !== creative.kind) {
+        throw new Error("CM5_CANDIDATE_OFFER_ASSET_KIND_CONFLICT");
+      }
+      referenced.set(creative.assetId, creative.kind);
+    }
+  }
+
+  for (const [assetId, requiredKind] of referenced) {
+    const actualKind = ownedAssetKinds.get(assetId);
+    if (!actualKind) throw new Error("CM5_CANDIDATE_OFFER_ASSET_NOT_OWNED");
+    if (requiredKind && actualKind !== requiredKind) {
+      throw new Error("CM5_CANDIDATE_OFFER_ASSET_KIND_MISMATCH");
+    }
+  }
+
+  return {
+    ok: true as const,
+    referencedAssetIds: [...referenced.keys()].sort(),
+    referencedAssetCount: referenced.size,
+  };
+}
+
 function requestServiceDestinations(config: JsonObject) {
   const result = new Set<string>();
   for (const value of Array.isArray(config.requestDefs) ? config.requestDefs : []) {
