@@ -590,8 +590,16 @@ export default function StaffHrRulesPanel({
                           <p className="text-xs font-semibold opacity-60">
                             {copy.aiTraining}
                           </p>
-                          {analysis.trainingFocus.map((item: string) => (
-                            <p key={item} className="mt-1 text-sm">• {item}</p>
+                          {analysis.trainingFocus.map((item: any) => (
+                            <p
+                              key={`${item.sourceStandardHash}:${item.trainingUnitId}`}
+                              className="mt-1 text-sm"
+                            >
+                              • {item.text}
+                              <span className="ml-2 text-xs opacity-45">
+                                {item.trainingUnitId}
+                              </span>
+                            </p>
                           ))}
                         </div>
                       ) : null}
