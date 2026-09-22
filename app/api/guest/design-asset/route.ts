@@ -40,7 +40,6 @@ export async function GET(request: NextRequest) {
 
     const config = snapshot.config;
     const sourceKey = String(config.designAssetSourceKey || "").trim().toLowerCase();
-    if (!/^[a-f0-9]{64}$/.test(sourceKey)) return notFound();
 
     const timeZone = String(config.hotelTimezone || hotel.timezone || "UTC");
     const visibleOffers = getVisibleHotelOffers(config.offers, { timeZone });
@@ -49,22 +48,47 @@ export async function GET(request: NextRequest) {
     );
     if (!authorizedAssetIds.has(assetId)) return notFound();
 
-    const { data, error } = await supabaseAdmin
-      .from("hub_design_assets")
-      .select("id,source_key,storage_path,original_name,mime_type,asset_kind")
+    const { data: hotelAsset, error: hotelAssetError } = await supabaseAdmin
+      .from("hotel_content_assets")
+      .select("id,storage_path,original_name,mime_type,asset_kind")
       .eq("id", assetId)
-      .eq("source_key", sourceKey)
+      .eq("hotel_id", hotel.id)
+      .eq("lifecycle_status", "active")
+      .eq("hub_review_status", "approved")
+      .neq("quality_status", "fail")
       .maybeSingle();
 
-    if (error || !data) {
-      if (error) {
-        console.error("Guest design asset metadata lookup failed", {
-          hotelId: hotel.id,
-          assetId,
-          error: error.message,
-        });
-      }
+    if (hotelAssetError) {
+      console.error("Guest hotel content asset lookup failed", {
+        hotelId: hotel.id,
+        assetId,
+        error: hotelAssetError.message,
+      });
       return notFound();
+    }
+
+    let data = hotelAsset;
+    if (!data) {
+      if (!/^[a-f0-9]{64}$/.test(sourceKey)) return notFound();
+
+      const { data: designAsset, error: designAssetError } = await supabaseAdmin
+        .from("hub_design_assets")
+        .select("id,storage_path,original_name,mime_type,asset_kind")
+        .eq("id", assetId)
+        .eq("source_key", sourceKey)
+        .maybeSingle();
+
+      if (designAssetError || !designAsset) {
+        if (designAssetError) {
+          console.error("Guest design asset metadata lookup failed", {
+            hotelId: hotel.id,
+            assetId,
+            error: designAssetError.message,
+          });
+        }
+        return notFound();
+      }
+      data = designAsset;
     }
 
     const options = download

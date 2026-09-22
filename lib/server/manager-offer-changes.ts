@@ -193,13 +193,76 @@ function currentRuntimeOffers(config: JsonObject) {
   return offers.map((offer, index) => runtimeOfferToEditorOffer(offer, index));
 }
 
-function collectOwnedAssetIds(offers: HubOfferV2[]) {
+function collectOfferAssetIds(offers: HubOfferV2[]) {
   const result = new Set<string>();
   for (const offer of offers) {
     if (offer.assets.coverAssetId) result.add(offer.assets.coverAssetId);
     for (const id of offer.assets.galleryAssetIds) result.add(id);
     for (const id of offer.assets.attachmentAssetIds) result.add(id);
     for (const creative of Object.values(offer.assets.readyCreativeByLang || {})) result.add(creative.assetId);
+  }
+  return result;
+}
+
+async function loadOwnedAssetKinds(input: {
+  hotelId: string;
+  changeRequestId: string;
+  liveConfig: JsonObject;
+  currentOffers: HubOfferV2[];
+}) {
+  const currentIds = [...collectOfferAssetIds(input.currentOffers)];
+  const result = new Map<string, "image" | "document">();
+
+  const sourceKey = String(input.liveConfig.designAssetSourceKey || "").trim().toLowerCase();
+  if (currentIds.length && /^[a-f0-9]{64}$/.test(sourceKey)) {
+    const { data, error } = await supabaseAdmin
+      .from("hub_design_assets")
+      .select("id,asset_kind")
+      .eq("source_key", sourceKey)
+      .in("id", currentIds);
+    if (error) throw new Error("CM5_OFFER_DESIGN_ASSET_READ_FAILED");
+    for (const row of data || []) {
+      if (row.asset_kind === "image" || row.asset_kind === "document") {
+        result.set(String(row.id), row.asset_kind);
+      }
+    }
+  }
+
+  if (currentIds.length) {
+    const { data, error } = await supabaseAdmin
+      .from("hotel_content_assets")
+      .select("id,asset_kind")
+      .eq("hotel_id", input.hotelId)
+      .eq("lifecycle_status", "active")
+      .eq("hub_review_status", "approved")
+      .neq("quality_status", "fail")
+      .in("id", currentIds);
+    if (error) throw new Error("CM5_OFFER_LIVE_CONTENT_ASSET_READ_FAILED");
+    for (const row of data || []) {
+      if (row.asset_kind === "image" || row.asset_kind === "document") {
+        result.set(String(row.id), row.asset_kind);
+      }
+    }
+  }
+
+  const { data: draftAssets, error: draftAssetsError } = await supabaseAdmin
+    .from("hotel_content_assets")
+    .select("id,asset_kind")
+    .eq("hotel_id", input.hotelId)
+    .eq("change_request_id", input.changeRequestId)
+    .eq("lifecycle_status", "draft")
+    .eq("hub_review_status", "approved")
+    .neq("quality_status", "fail");
+
+  if (draftAssetsError) throw new Error("CM5_OFFER_DRAFT_CONTENT_ASSET_READ_FAILED");
+  for (const row of draftAssets || []) {
+    if (row.asset_kind === "image" || row.asset_kind === "document") {
+      result.set(String(row.id), row.asset_kind);
+    }
+  }
+
+  for (const id of currentIds) {
+    if (!result.has(id)) throw new Error("CM5_OFFER_CURRENT_ASSET_METADATA_MISSING");
   }
   return result;
 }
@@ -220,7 +283,7 @@ function normalizeManagerOffer(
   value: unknown,
   index: number,
   currentById: Map<string, HubOfferV2>,
-  ownedAssetIds: Set<string>,
+  ownedAssetKinds: Map<string, "image" | "document">,
   allowedRequestServices: Set<string>,
   changeRequestId: string,
 ) {
@@ -261,8 +324,28 @@ function normalizeManagerOffer(
   if (presentationMode === "ready_asset" && Object.keys(readyCreativeByLang).length < 1) {
     throw new Error("CM5_OFFER_READY_CREATIVE_REQUIRED");
   }
-  for (const assetId of [coverAssetId, ...galleryAssetIds, ...attachmentAssetIds, ...Object.values(readyCreativeByLang).map((creative) => creative.assetId)].filter(Boolean) as string[]) {
-    if (!ownedAssetIds.has(assetId)) throw new Error("CM5_OFFER_ASSET_NOT_OWNED");
+  const referencedAssetIds = [
+    coverAssetId,
+    ...galleryAssetIds,
+    ...attachmentAssetIds,
+    ...Object.values(readyCreativeByLang).map((creative) => creative.assetId),
+  ].filter(Boolean) as string[];
+
+  for (const assetId of referencedAssetIds) {
+    if (!ownedAssetKinds.has(assetId)) throw new Error("CM5_OFFER_ASSET_NOT_OWNED");
+  }
+  if (coverAssetId && ownedAssetKinds.get(coverAssetId) !== "image") {
+    throw new Error("CM5_OFFER_COVER_ASSET_NOT_IMAGE");
+  }
+  for (const assetId of galleryAssetIds) {
+    if (ownedAssetKinds.get(assetId) !== "image") {
+      throw new Error("CM5_OFFER_GALLERY_ASSET_NOT_IMAGE");
+    }
+  }
+  for (const creative of Object.values(readyCreativeByLang)) {
+    if (ownedAssetKinds.get(creative.assetId) !== creative.kind) {
+      throw new Error("CM5_OFFER_READY_CREATIVE_KIND_MISMATCH");
+    }
   }
 
   const status = String(value.status || "active") as HubOfferStatus;
@@ -460,14 +543,19 @@ export async function saveManagerOfferDraft(input: {
   }
 
   const currentById = new Map(currentOffers.map((offer) => [offer.id, offer]));
-  const ownedAssetIds = collectOwnedAssetIds(currentOffers);
+  const ownedAssetKinds = await loadOwnedAssetKinds({
+    hotelId: scope.hotelId,
+    changeRequestId,
+    liveConfig: live.config,
+    currentOffers,
+  });
   const allowedRequestServices = requestServiceDestinations(live.config);
 
   const offers = input.offers.map((offer, index) => normalizeManagerOffer(
     offer,
     index,
     currentById,
-    ownedAssetIds,
+    ownedAssetKinds,
     allowedRequestServices,
     changeRequestId!,
   ));
