@@ -1,0 +1,54 @@
+name: Staff Development Validation
+
+on:
+  pull_request:
+    paths:
+      - "lib/staff-development/**"
+      - "lib/server/staff-development-*.ts"
+      - "lib/server/staff-standard-authoring.ts"
+      - "lib/server/staff-assessment-authoring.ts"
+      - "components/staff/**"
+      - "app/api/staff/development/**"
+      - "tests/contracts/staff-development-*.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-staff-*.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/staff-development-validation.yml"
+  push:
+    branches-ignore:
+      - "main"
+    paths:
+      - "lib/staff-development/**"
+      - "lib/server/staff-development-*.ts"
+      - "lib/server/staff-standard-authoring.ts"
+      - "lib/server/staff-assessment-authoring.ts"
+      - "components/staff/**"
+      - "app/api/staff/development/**"
+      - "tests/contracts/staff-development-*.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-staff-*.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/staff-development-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts-tenant-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Staff Development contracts
+        run: node --test tests/contracts/staff-development-*.contract.test.mjs
+      - name: Tenant isolation guard
+        run: npm run test:tenant-isolation
+      - name: Next.js build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
