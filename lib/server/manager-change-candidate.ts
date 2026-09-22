@@ -1,5 +1,3 @@
-import "server-only";
-
 import {
   validateHubOfferV2,
   type HubOfferV2,
