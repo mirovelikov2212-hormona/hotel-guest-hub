@@ -44,4 +44,5 @@ export function decideRequestCoverageTransition(input: {
   now?: Date;
   createdAt?: Date;
   lastEventType?: string | null;
+  lastEffectiveDepartment?: string | null;
 }): DepartmentCoverageTransitionDecision;
