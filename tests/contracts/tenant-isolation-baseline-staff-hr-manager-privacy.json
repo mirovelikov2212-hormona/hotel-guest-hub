@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "checkpoint": "staff-hr-manager-privacy",
+  "baseCheckpoint": "staff-assessment-authoring",
+  "expectedNeedsReview": 331,
+  "relocations": [
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 73,
+      "toLine": 72,
+      "table": "staff_training_plan_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 90,
+      "toLine": 89,
+      "table": "hotel_staff_standard_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 155,
+      "toLine": 154,
+      "table": "staff_assessment_authoring",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 191,
+      "toLine": 190,
+      "table": "staff_assessment_authoring_events",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 219,
+      "toLine": 218,
+      "table": "staff_assessment_authoring",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 282,
+      "toLine": 281,
+      "table": "staff_assessment_authoring",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 323,
+      "toLine": 322,
+      "table": "staff_assessment_authoring",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 381,
+      "toLine": 380,
+      "table": "staff_assessment_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "fromLine": 351,
+      "toLine": 350,
+      "table": "staff_verified_results",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "fromLine": 359,
+      "toLine": 369,
+      "table": "staff_hr_evaluations",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "fromLine": 384,
+      "toLine": 385,
+      "table": "hotel_staff_hr_rule_revisions",
+      "operation": "select"
+    }
+  ]
+}
