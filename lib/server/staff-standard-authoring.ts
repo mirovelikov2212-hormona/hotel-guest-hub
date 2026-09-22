@@ -33,6 +33,7 @@ const MIME_EXTENSION = new Map([
 ]);
 
 type JsonObject = Record<string, unknown>;
+type StandardScope = "hotel" | "department";
 
 type DevelopmentIdentity = {
   hotelId: string;
@@ -62,19 +63,43 @@ function standardKey(value: unknown) {
   return key;
 }
 
-function normalizeDepartmentCodes(value: unknown) {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 40) {
+function normalizeStandardScope(value: unknown): StandardScope {
+  const scope = clean(value).toLowerCase();
+  if (scope !== "hotel" && scope !== "department") {
+    throw new Error("STAFF_STANDARD_AUTHORING_SCOPE_INVALID");
+  }
+  return scope;
+}
+
+function normalizeDepartmentCodes(
+  scope: StandardScope,
+  value: unknown,
+) {
+  const raw = value === undefined || value === null ? [] : value;
+  if (!Array.isArray(raw) || raw.length > 40) {
     throw new Error("STAFF_STANDARD_AUTHORING_DEPARTMENTS_INVALID");
   }
+
   const result = [...new Set(
-    value.map((entry) => clean(entry).toLowerCase()).filter(Boolean),
+    raw.map((entry) => clean(entry).toLowerCase()).filter(Boolean),
   )].sort();
 
   if (
-    result.length !== value.length
+    result.length !== raw.length
     || result.some((code) => !DEPARTMENT_RE.test(code))
   ) {
     throw new Error("STAFF_STANDARD_AUTHORING_DEPARTMENTS_INVALID");
+  }
+
+  if (scope === "hotel") {
+    if (result.length !== 0) {
+      throw new Error("STAFF_STANDARD_AUTHORING_HOTEL_SCOPE_DEPARTMENTS_FORBIDDEN");
+    }
+    return [];
+  }
+
+  if (result.length < 1) {
+    throw new Error("STAFF_STANDARD_AUTHORING_DEPARTMENT_SCOPE_REQUIRED");
   }
   return result;
 }
@@ -192,10 +217,21 @@ async function requireManagerIdentity(
   return identity;
 }
 
-async function assertActiveDepartments(
+async function assertStandardScopeAuthority(
   identity: DevelopmentIdentity,
+  standardScope: StandardScope,
   departmentCodes: string[],
 ) {
+  if (standardScope === "hotel") {
+    if (departmentCodes.length !== 0) {
+      throw new Error("STAFF_STANDARD_AUTHORING_HOTEL_SCOPE_DEPARTMENTS_FORBIDDEN");
+    }
+    if (identity.staffUserRole !== "hotel_manager") {
+      throw new Error("STAFF_STANDARD_AUTHORING_MANAGER_SCOPE_FORBIDDEN");
+    }
+    return;
+  }
+
   const { data, error } = await supabaseAdmin
     .from("departments")
     .select("id,code,active")
@@ -241,7 +277,7 @@ async function loadAuthoring(input: {
   let query = supabaseAdmin
     .from("hotel_staff_standard_authoring")
     .select(
-      "id,hotel_id,source_kind,status,standard_key,department_codes,source_text,structured_proposal_json,proposal_hash,created_by_staff_user_id,approved_by_staff_user_id,published_standard_revision_id,created_at,updated_at,approved_at,published_at",
+      "id,hotel_id,source_kind,status,standard_key,standard_scope,department_codes,source_text,structured_proposal_json,proposal_hash,created_by_staff_user_id,approved_by_staff_user_id,published_standard_revision_id,created_at,updated_at,approved_at,published_at",
     )
     .eq("hotel_id", input.identity.hotelId)
     .eq("id", authoringId);
@@ -255,17 +291,24 @@ async function loadAuthoring(input: {
     throw new Error("STAFF_STANDARD_AUTHORING_NOT_FOUND");
   }
 
-  const departments = Array.isArray(data.department_codes)
-    ? data.department_codes.map((value) => clean(value).toLowerCase())
-    : [];
+  const standardScope = normalizeStandardScope(data.standard_scope);
+  const departments = normalizeDepartmentCodes(
+    standardScope,
+    Array.isArray(data.department_codes) ? data.department_codes : [],
+  );
 
-  await assertActiveDepartments(input.identity, departments);
+  await assertStandardScopeAuthority(
+    input.identity,
+    standardScope,
+    departments,
+  );
 
   return {
     ...data,
     id: String(data.id),
     hotel_id: String(data.hotel_id),
     standard_key: String(data.standard_key),
+    standard_scope: standardScope,
     department_codes: departments,
   };
 }
@@ -306,6 +349,7 @@ export async function createStaffStandardAuthoringDraft(input: {
   hotelSlug: unknown;
   sourceKind: unknown;
   standardKey: unknown;
+  standardScope: unknown;
   departmentCodes: unknown;
   sourceText?: unknown;
 }) {
@@ -313,10 +357,18 @@ export async function createStaffStandardAuthoringDraft(input: {
   const identity = await requireManagerIdentity(input.hotelSlug);
   const sourceKind = normalizeSourceKind(input.sourceKind);
   const key = standardKey(input.standardKey);
-  const departmentCodes = normalizeDepartmentCodes(input.departmentCodes);
+  const standardScope = normalizeStandardScope(input.standardScope);
+  const departmentCodes = normalizeDepartmentCodes(
+    standardScope,
+    input.departmentCodes,
+  );
   const sourceText = normalizeSourceText(input.sourceText);
 
-  await assertActiveDepartments(identity, departmentCodes);
+  await assertStandardScopeAuthority(
+    identity,
+    standardScope,
+    departmentCodes,
+  );
 
   if (sourceKind === "manual" && !sourceText) {
     throw new Error("STAFF_STANDARD_AUTHORING_MANUAL_SOURCE_REQUIRED");
@@ -329,12 +381,13 @@ export async function createStaffStandardAuthoringDraft(input: {
       source_kind: sourceKind,
       status: "draft",
       standard_key: key,
+      standard_scope: standardScope,
       department_codes: departmentCodes,
       source_text: sourceText,
       created_by_staff_user_id: identity.staffUserId,
     })
     .select(
-      "id,hotel_id,source_kind,status,standard_key,department_codes,source_text,created_at,updated_at",
+      "id,hotel_id,source_kind,status,standard_key,standard_scope,department_codes,source_text,created_at,updated_at",
     )
     .single();
 
@@ -351,6 +404,7 @@ export async function createStaffStandardAuthoringDraft(input: {
     payload: {
       sourceKind,
       standardKey: key,
+      standardScope,
       departmentCodes,
       sourceTextSha256: sourceText
         ? crypto.createHash("sha256").update(sourceText).digest("hex")
@@ -432,6 +486,7 @@ export async function saveStaffStandardAuthoringProposal(input: {
   const normalized = normalizeHotelStaffStandard({
     ...input.proposal,
     standardKey: authoring.standard_key,
+    standardScope: authoring.standard_scope,
     departmentCodes: authoring.department_codes,
     revisionNo: 1,
     status: "draft",
@@ -453,7 +508,7 @@ export async function saveStaffStandardAuthoringProposal(input: {
     .eq("id", authoring.id)
     .in("status", ["draft", "proposal_ready"])
     .select(
-      "id,hotel_id,status,standard_key,department_codes,structured_proposal_json,proposal_hash,updated_at",
+      "id,hotel_id,status,standard_key,standard_scope,department_codes,structured_proposal_json,proposal_hash,updated_at",
     )
     .single();
 
@@ -658,7 +713,7 @@ export async function listStaffStandardAuthoring(input: {
   const { data, error } = await supabaseAdmin
     .from("hotel_staff_standard_authoring")
     .select(
-      "id,hotel_id,source_kind,status,standard_key,department_codes,source_text,structured_proposal_json,proposal_hash,created_by_staff_user_id,approved_by_staff_user_id,published_standard_revision_id,created_at,updated_at,approved_at,published_at",
+      "id,hotel_id,source_kind,status,standard_key,standard_scope,department_codes,source_text,structured_proposal_json,proposal_hash,created_by_staff_user_id,approved_by_staff_user_id,published_standard_revision_id,created_at,updated_at,approved_at,published_at",
     )
     .eq("hotel_id", identity.hotelId)
     .order("updated_at", { ascending: false })
@@ -668,6 +723,9 @@ export async function listStaffStandardAuthoring(input: {
 
   const rows = (data || []).filter((row) => {
     if (identity.staffUserRole === "hotel_manager") return true;
+    if (clean(row.standard_scope).toLowerCase() !== "department") {
+      return false;
+    }
     const departments = Array.isArray(row.department_codes)
       ? row.department_codes.map((value) => clean(value).toLowerCase())
       : [];
@@ -746,6 +804,7 @@ export async function publishStaffStandardAuthoring(input: {
   const publishedStandard = normalizeHotelStaffStandard({
     ...authoring.structured_proposal_json,
     standardKey: authoring.standard_key,
+    standardScope: authoring.standard_scope,
     departmentCodes: authoring.department_codes,
     revisionNo,
     status: "published",
@@ -753,7 +812,7 @@ export async function publishStaffStandardAuthoring(input: {
   const trainingPlan = deriveStaffTrainingPlan(publishedStandard);
 
   const { data, error } = await supabaseAdmin.rpc(
-    "publish_staff_standard_authoring_v1",
+    "publish_staff_standard_authoring_v2",
     {
       p_hotel_id: identity.hotelId,
       p_authoring_id: authoring.id,
