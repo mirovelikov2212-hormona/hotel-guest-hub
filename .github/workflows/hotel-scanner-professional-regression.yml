@@ -17,6 +17,8 @@ on:
       - "app/hotel-scanner-v2-workflow/**"
       - "workflows/hotel-scanner-v2-workflow.ts"
       - "app/design-studio/**"
+      - "lib/guest/hotel-offers.mjs"
+      - "app/api/guest/design-asset/**"
       - "app/api/control-plane/design-studio/**"
       - "lib/server/hub-design-*.ts"
       - "app/internal-tools-brand.css"
@@ -29,6 +31,7 @@ on:
       - "tests/contracts/hub-experience-*.contract.test.mjs"
       - "tests/contracts/hub-offer-*.contract.test.mjs"
       - "tests/contracts/ds4-*.contract.test.mjs"
+      - "tests/contracts/ds5-*.contract.test.mjs"
       - "tests/contracts/tenant-isolation-baseline-*.json"
       - "scripts/tenant-isolation-guard.mjs"
       - ".github/workflows/hotel-scanner-professional-regression.yml"
@@ -51,6 +54,8 @@ on:
       - "app/api/control-plane/design-studio/**"
       - "lib/server/hub-design-*.ts"
       - "lib/server/factory-*.ts"
+      - "lib/guest/hotel-offers.mjs"
+      - "app/api/guest/design-asset/**"
       - "app/internal-tools-brand.css"
       - "app/globals.css"
       - "tests/contracts/hotel-scanner-*.contract.test.mjs"
@@ -61,6 +66,7 @@ on:
       - "tests/contracts/hub-experience-*.contract.test.mjs"
       - "tests/contracts/hub-offer-*.contract.test.mjs"
       - "tests/contracts/ds4-*.contract.test.mjs"
+      - "tests/contracts/ds5-*.contract.test.mjs"
       - "tests/contracts/tenant-isolation-baseline-*.json"
       - "scripts/tenant-isolation-guard.mjs"
       - ".github/workflows/hotel-scanner-professional-regression.yml"
@@ -99,6 +105,8 @@ jobs:
           tests/contracts/hub-offer-*.contract.test.mjs
       - name: Factory design materialization contracts
         run: node --test tests/contracts/ds4-*.contract.test.mjs
+      - name: Guest offer and private asset contracts
+        run: node --test tests/contracts/ds5-*.contract.test.mjs
       - name: Blocking tenant isolation
         run: npm run test:tenant-isolation
       - name: Next.js build
