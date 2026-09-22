@@ -102,6 +102,9 @@ async function loadPlanWithScope(input: {
     throw new Error("STAFF_ASSESSMENT_AUTHORING_STANDARD_NOT_FOUND");
   }
 
+  const standardScope = clean(
+    standard.standard_json.standardScope,
+  ).toLowerCase();
   const departments = Array.isArray(standard.standard_json.departmentCodes)
     ? standard.standard_json.departmentCodes
         .map((value) => clean(value).toLowerCase())
@@ -109,9 +112,18 @@ async function loadPlanWithScope(input: {
     : [];
 
   if (
+    (standardScope !== "hotel" && standardScope !== "department")
+    || (standardScope === "hotel" && departments.length !== 0)
+    || (standardScope === "department" && departments.length < 1)
+  ) {
+    throw new Error("STAFF_ASSESSMENT_AUTHORING_STANDARD_SCOPE_INVALID");
+  }
+
+  if (
     input.identity.staffUserRole === "department_manager"
     && (
-      departments.length !== 1
+      standardScope !== "department"
+      || departments.length !== 1
       || departments[0] !== input.identity.operationalRole
     )
   ) {
@@ -137,6 +149,7 @@ async function loadPlanWithScope(input: {
     trainingPlanHash: String(plan.training_plan_hash),
     sourceStandardHash: String(plan.source_standard_hash),
     units,
+    standardScope,
     departments,
   };
 }
