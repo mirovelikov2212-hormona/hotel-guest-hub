@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "checkpoint": "cm5-3b-hotel-content-assets",
+  "baseCheckpoint": "cm5-ready-offer-assets",
+  "expectedNeedsReview": 251,
+  "relocations": [
+    {
+      "filePath": "app/api/guest/design-asset/route.ts",
+      "fromLine": 52,
+      "toLine": 74,
+      "table": "hub_design_assets",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 373,
+      "toLine": 456,
+      "table": "hotel_content_change_requests",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 438,
+      "toLine": 521,
+      "table": "hotel_content_change_requests",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 499,
+      "toLine": 587,
+      "operation": "rpc"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "app/api/guest/design-asset/route.ts",
+      "line": 51,
+      "table": "hotel_content_assets",
+      "tableExpression": "\"hotel_content_assets\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "guest_asset_route_first_resolves_active_hotel_and_exact_current_published_config_then_requires_asset_uuid_to_be_referenced_by_a_currently_visible_offer_for_that_hotel; manager_asset_metadata_read_is_scoped_by_asset_id_plus_hotel_id_and additionally_requires_lifecycle_active_hub_review_approved_and_quality_not_fail_before_any_short_lived_private_storage_url_is_created"
+    },
+    {
+      "filePath": "lib/server/hotel-content-assets.ts",
+      "line": 91,
+      "table": "hotel_content_change_requests",
+      "tableExpression": "\"hotel_content_change_requests\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "manager_content_asset_prepare_finalize_and_list_resolve_an_active_manager_session_and exact requested hotel before loading one offer change request by change_request_id_plus_hotel_id_status_draft_and_change_scope_contains_offers; foreign_or_non_draft_change_requests_fail_closed"
+    },
+    {
+      "filePath": "lib/server/hotel-content-assets.ts",
+      "line": 295,
+      "rpc": "register_hotel_content_asset_v1",
+      "tableExpression": "\"register_hotel_content_asset_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "server_downloads_the_uploaded_private_object_and_verifies_declared_size_actual_mime_magic_bytes_dimensions_sha256_and_technical_quality_before_rpc; database_revalidates_same_hotel_non_revoked_manager_session_same_hotel_offer_draft_and an exact storage_path containing hotel_id_change_request_id_asset_id before immutable draft asset metadata registration"
+    },
+    {
+      "filePath": "lib/server/hotel-content-assets.ts",
+      "line": 345,
+      "table": "hotel_content_assets",
+      "tableExpression": "\"hotel_content_assets\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "manager_asset_list_is_available_only_after_active_manager_scope_resolution_and same-hotel draft ownership validation_then_reads rows scoped_by_hotel_id_and_change_request_id; signed_preview_urls_are_short_lived_and_private"
+    },
+    {
+      "filePath": "lib/server/hotel-content-assets.ts",
+      "line": 383,
+      "table": "hotel_content_assets",
+      "tableExpression": "\"hotel_content_assets\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "asset_review_preflight_resolves_current_manager_hotel_then_reads_one_asset by_asset_id_and_hotel_id_before review RPC so foreign hotel assets fail_not_found"
+    },
+    {
+      "filePath": "lib/server/hotel-content-assets.ts",
+      "line": 393,
+      "rpc": "review_hotel_content_asset_v1",
+      "tableExpression": "\"review_hotel_content_asset_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "database_review_rpc_row_locks_asset_revalidates_non_revoked_manager_session_for_asset_hotel_and_same_hotel_draft_change_request; technical_quality_fail_cannot_be_approved and decision_is limited_to approve_or_reject"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "line": 218,
+      "table": "hub_design_assets",
+      "tableExpression": "\"hub_design_assets\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "offer_editor_resolves_asset_kinds_only_for_asset_ids_already_referenced_by_current_live_hotel_offers_and further_scopes_design_asset_lookup_by_the_current_published_config_designAssetSourceKey; no arbitrary design asset discovery"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "line": 232,
+      "table": "hotel_content_assets",
+      "tableExpression": "\"hotel_content_assets\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "offer_editor_resolves_kinds_for_current_manager_assets_only_for ids_already_referenced_by current live offers and rows scoped_by_hotel_id_lifecycle_active_hub_review_approved_quality_not_fail"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "line": 248,
+      "table": "hotel_content_assets",
+      "tableExpression": "\"hotel_content_assets\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "new offer draft assets are readable only for the resolved manager hotel plus exact change_request_id and lifecycle_draft_hub_review_approved_quality_not_fail; this prevents unreviewed_website_source_or_foreign_draft_assets from being referenced by an offer"
+    }
+  ]
+}
