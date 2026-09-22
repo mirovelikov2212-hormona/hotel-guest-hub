@@ -219,6 +219,36 @@ export type HotelInfoItem = {
   text: RequestDefTextMap;
 };
 
+export type HotelOffer = {
+  id: string;
+  key: string;
+  titleByLang: Record<string, string>;
+  shortDescriptionByLang: Record<string, string>;
+  descriptionByLang: Record<string, string>;
+  badgeByLang: Record<string, string>;
+  pricing: {
+    amountMinor: number | null;
+    previousAmountMinor: number | null;
+    currency: string | null;
+  };
+  validity: {
+    startDate: string | null;
+    endDate: string | null;
+  };
+  cta: {
+    labelByLang: Record<string, string>;
+    action: "internal_page" | "external_url" | "request_service" | "phone" | "email" | "none";
+    destination: string | null;
+  };
+  assets: {
+    coverAssetId: string | null;
+    galleryAssetIds: string[];
+    attachmentAssetIds: string[];
+  };
+  status: "active" | "scheduled";
+  sortOrder: number;
+};
+
 export type HotelConfig = {
   hotelId?: string;
   hotelSlug?: string;
@@ -276,6 +306,10 @@ export type HotelConfig = {
     soft?: string;
     /** Dark card/surface color used inside the hub. */
     surface?: string;
+    /** Design Studio-approved heading font family. */
+    headingFont?: string;
+    /** Design Studio-approved body font family. */
+    bodyFont?: string;
   };
 
   contacts: {
@@ -304,6 +338,12 @@ export type HotelConfig = {
   venueRows?: VenueRow[];
   hotelInfoItems?: HotelInfoItem[];
   requestDefs?: RequestDef[];
+  offers?: HotelOffer[];
+  designAssetSourceKey?: string | null;
+  designRevision?: {
+    revisionId: string;
+    checksum: string;
+  } | null;
 
   /** Active hotel rooms loaded from the optional ROOMS Google Sheet tab. */
   hotelRooms?: HotelRoom[];

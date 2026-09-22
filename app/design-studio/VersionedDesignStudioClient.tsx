@@ -243,7 +243,7 @@ function createOfferDraft(language: "bg" | "en", sortOrder: number): HubOfferV2 
       destination: "page-services",
     },
     assets: { coverAssetId: null, galleryAssetIds: [], attachmentAssetIds: [] },
-    status: "draft",
+    status: "active",
     sortOrder,
     source: { kind: "design_studio", sourceRef: null },
     designDraft: true,
@@ -904,6 +904,21 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
                     <Input label={language === "bg" ? "Цена" : "Price"} value={moneyInput(offer.pricing.amountMinor)} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, pricing: { ...current.pricing, amountMinor: moneyMinor(value) } }))} />
                     <Input label={language === "bg" ? "Стара цена" : "Previous price"} value={moneyInput(offer.pricing.previousAmountMinor)} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, pricing: { ...current.pricing, previousAmountMinor: moneyMinor(value) } }))} />
                     <Input label={language === "bg" ? "Валута (ISO)" : "Currency (ISO)"} value={offer.pricing.currency || ""} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, pricing: { ...current.pricing, currency: value.trim() ? value.trim().toUpperCase() : null } }))} />
+                    <Select
+                      label={language === "bg" ? "Статус при публикуване" : "Runtime status"}
+                      value={offer.status}
+                      onChange={(value) => updateOffer(offer.id, (current) => ({
+                        ...current,
+                        status: value as HubOfferV2["status"],
+                      }))}
+                      options={[
+                        { value: "active", label: language === "bg" ? "Активна" : "Active" },
+                        { value: "scheduled", label: language === "bg" ? "Планирана" : "Scheduled" },
+                        { value: "inactive", label: language === "bg" ? "Неактивна" : "Inactive" },
+                        { value: "archived", label: language === "bg" ? "Архивирана" : "Archived" },
+                        { value: "draft", label: language === "bg" ? "Чернова" : "Draft" },
+                      ]}
+                    />
                     <Input label={language === "bg" ? "Валидна от (YYYY-MM-DD)" : "Valid from (YYYY-MM-DD)"} value={offer.validity.startDate || ""} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, validity: { ...current.validity, startDate: value.trim() || null } }))} />
                     <Input label={language === "bg" ? "Валидна до (YYYY-MM-DD)" : "Valid until (YYYY-MM-DD)"} value={offer.validity.endDate || ""} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, validity: { ...current.validity, endDate: value.trim() || null } }))} />
                     <Input label={language === "bg" ? "CTA текст" : "CTA label"} value={getHubOfferLocalizedText(offer.cta.labelByLang, language)} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, cta: { ...current.cta, labelByLang: setHubOfferLocalizedText(current.cta.labelByLang, language, value) } }))} />

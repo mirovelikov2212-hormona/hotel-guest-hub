@@ -19,8 +19,6 @@ on:
       - "app/design-studio/**"
       - "app/api/control-plane/design-studio/**"
       - "lib/server/hub-design-*.ts"
-      - "app/api/control-plane/design-studio/**"
-      - "lib/server/hub-design-*.ts"
       - "app/internal-tools-brand.css"
       - "app/globals.css"
       - "tests/contracts/hotel-scanner-*.contract.test.mjs"
@@ -30,8 +28,7 @@ on:
       - "tests/contracts/hub-design-*.contract.test.mjs"
       - "tests/contracts/hub-experience-*.contract.test.mjs"
       - "tests/contracts/hub-offer-*.contract.test.mjs"
-      - "tests/contracts/tenant-isolation-baseline-*.json"
-      - "scripts/tenant-isolation-guard.mjs"
+      - "tests/contracts/ds4-*.contract.test.mjs"
       - "tests/contracts/tenant-isolation-baseline-*.json"
       - "scripts/tenant-isolation-guard.mjs"
       - ".github/workflows/hotel-scanner-professional-regression.yml"
@@ -51,6 +48,9 @@ on:
       - "app/hotel-scanner-v2-workflow/**"
       - "workflows/hotel-scanner-v2-workflow.ts"
       - "app/design-studio/**"
+      - "app/api/control-plane/design-studio/**"
+      - "lib/server/hub-design-*.ts"
+      - "lib/server/factory-*.ts"
       - "app/internal-tools-brand.css"
       - "app/globals.css"
       - "tests/contracts/hotel-scanner-*.contract.test.mjs"
@@ -60,6 +60,9 @@ on:
       - "tests/contracts/hub-design-*.contract.test.mjs"
       - "tests/contracts/hub-experience-*.contract.test.mjs"
       - "tests/contracts/hub-offer-*.contract.test.mjs"
+      - "tests/contracts/ds4-*.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-*.json"
+      - "scripts/tenant-isolation-guard.mjs"
       - ".github/workflows/hotel-scanner-professional-regression.yml"
   workflow_dispatch:
 
@@ -94,6 +97,8 @@ jobs:
           tests/contracts/hub-design-*.contract.test.mjs
           tests/contracts/hub-experience-*.contract.test.mjs
           tests/contracts/hub-offer-*.contract.test.mjs
+      - name: Factory design materialization contracts
+        run: node --test tests/contracts/ds4-*.contract.test.mjs
       - name: Blocking tenant isolation
         run: npm run test:tenant-isolation
       - name: Next.js build

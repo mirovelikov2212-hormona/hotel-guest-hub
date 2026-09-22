@@ -159,6 +159,9 @@ export function validateHubOfferV2(value: unknown): HubOfferValidation {
     ) {
       errors.push("OFFER_DATE_RANGE_INVALID");
     }
+    if (value.status === "scheduled" && typeof validity.startDate !== "string") {
+      errors.push("OFFER_SCHEDULED_START_REQUIRED");
+    }
   }
 
   const cta = isRecord(value.cta) ? value.cta : null;
