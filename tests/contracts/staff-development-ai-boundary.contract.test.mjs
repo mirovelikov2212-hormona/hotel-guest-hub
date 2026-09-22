@@ -8,7 +8,9 @@ import {
 
 function trainingPlan() {
   return {
-    schemaVersion: "staff-training-plan-v1",
+    schemaVersion: "staff-training-plan-v2",
+    standardScope: "department",
+    departmentCodes: ["housekeeping"],
     trainingPlanHash: "a".repeat(64),
     sourceStandardHash: "b".repeat(64),
     units: [
