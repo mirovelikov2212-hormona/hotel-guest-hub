@@ -1,0 +1,265 @@
+{
+  "version": 1,
+  "checkpoint": "staff-development-read-bootstrap",
+  "baseCheckpoint": "staff-development-identity-actions",
+  "expectedNeedsReview": 311,
+  "relocations": [
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 221,
+      "toLine": 294,
+      "table": "staff_development_credentials",
+      "operation": "upsert"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 279,
+      "toLine": 352,
+      "table": "staff_users",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 317,
+      "toLine": 390,
+      "table": "staff_development_credentials",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 381,
+      "toLine": 454,
+      "table": "staff_development_credentials",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 407,
+      "toLine": 480,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 428,
+      "toLine": 501,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 445,
+      "toLine": 518,
+      "table": "staff_development_sessions",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 459,
+      "toLine": 532,
+      "table": "staff_development_sessions",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 511,
+      "toLine": 584,
+      "table": "staff_development_sessions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 605,
+      "toLine": 678,
+      "table": "staff_development_sessions",
+      "operation": "update"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "line": 217,
+      "table": "staff_development_credentials",
+      "tableExpression": "\"staff_development_credentials\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only one-time bootstrap first validates the current shared Manager operational session, derives its hotel_id, resolves the selected active staff_user inside that hotel and requires role hotel_manager; this query checks only whether any active development credential already exists for that exact hotel and closes bootstrap permanently once one exists"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "line": 231,
+      "table": "staff_development_credentials",
+      "tableExpression": "\"staff_development_credentials\"",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only one-time bootstrap inserts only the validated same-hotel hotel_manager staff_user credential after confirming zero existing active credentials; only a salted scrypt PIN hash is persisted and the composite hotel_id+staff_user_id FK prevents cross-hotel identity"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 28,
+      "table": "staff_training_plan_revisions",
+      "tableExpression": "\"staff_training_plan_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only learner or manager helper reads training plans only by development-identity-derived hotel_id plus an explicit id set previously derived from same-hotel assignments or standards"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 45,
+      "table": "staff_assessment_revisions",
+      "tableExpression": "\"staff_assessment_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only learner helper reads assessments only by development-identity hotel_id and training_plan_revision_id values derived from that learner own assignments; assessment JSON is passed through learner materialization before response so correct answer keys are removed"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 69,
+      "table": "staff_training_assignments",
+      "tableExpression": "\"staff_training_assignments\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only learner state reads only assignments matching development-session-derived hotel_id plus exact staff_user_id"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 77,
+      "table": "staff_training_completions",
+      "tableExpression": "\"staff_training_completions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only learner state reads only completions matching development-session-derived hotel_id plus exact staff_user_id"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 85,
+      "table": "staff_assessment_attempts",
+      "tableExpression": "\"staff_assessment_attempts\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only learner state reads only assessment attempts matching development-session-derived hotel_id plus exact staff_user_id"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 93,
+      "table": "staff_verified_results",
+      "tableExpression": "\"staff_verified_results\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only learner state reads only immutable verified results matching development-session-derived hotel_id plus exact staff_user_id"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 194,
+      "table": "staff_users",
+      "tableExpression": "\"staff_users\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only manager overview first requires individual department_manager or hotel_manager development identity, reads only active staff_users for that identity hotel_id and then restricts department_manager results to the manager own department"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 224,
+      "table": "hotel_staff_standard_revisions",
+      "tableExpression": "\"hotel_staff_standard_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only manager standards overview is scoped by development-identity hotel_id; department_manager output is further filtered to standards whose departmentCodes include the current operational department while hotel_manager may view the hotel"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 249,
+      "table": "staff_training_plan_revisions",
+      "tableExpression": "\"staff_training_plan_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only manager overview reads plans only for development-identity hotel_id and standard revision ids already filtered to the manager hotel or department scope"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 265,
+      "table": "staff_training_assignments",
+      "tableExpression": "\"staff_training_assignments\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only manager overview reads assignments by development-identity hotel_id and intersects both allowed staff_user_ids and allowed training_plan_revision_ids"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 284,
+      "table": "staff_assessment_attempts",
+      "tableExpression": "\"staff_assessment_attempts\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only manager review queue reads only pending_human_review attempts inside the identity hotel and intersects allowed staff_user_ids plus allowed assignment ids from the same scoped overview"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 305,
+      "table": "staff_assessment_revisions",
+      "tableExpression": "\"staff_assessment_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only manager review queue loads assessment definitions only by identity hotel_id and assessment ids referenced by already scoped pending attempts; raw answer authority is exposed only to identified managers for review"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 322,
+      "table": "staff_verified_results",
+      "tableExpression": "\"staff_verified_results\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only manager results overview reads immutable verified results by identity hotel_id and the already department-scoped or hotel-scoped staff id set"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 330,
+      "table": "staff_hr_evaluations",
+      "tableExpression": "\"staff_hr_evaluations\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only manager HR evaluation overview reads advisory evaluations by identity hotel_id and the already scoped staff id set; evaluations themselves enforce human_manager decision authority and no automated employment decision"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "line": 355,
+      "table": "hotel_staff_hr_rule_revisions",
+      "tableExpression": "\"hotel_staff_hr_rule_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only HR rule definitions are read only when the individual development identity role is hotel_manager and remain scoped by that manager hotel_id; department_manager receives no hotel-level HR rule definitions"
+    }
+  ]
+}
