@@ -347,40 +347,41 @@ export async function getManagerStaffDevelopmentState(
   let verifiedResults: Array<Record<string, unknown>> = [];
   let hrEvaluations: Array<Record<string, unknown>> = [];
   if (staffIds.length) {
-    const [verifiedQuery, evaluationQuery] = await Promise.all([
-      supabaseAdmin
-        .from("staff_verified_results")
-        .select(
-          "id,hotel_id,staff_user_id,assessment_attempt_id,verification_kind,verified_by_staff_user_id,result_hash,result_json,verified_at",
-        )
-        .eq("hotel_id", identity.hotelId)
-        .in("staff_user_id", staffIds)
-        .order("verified_at", { ascending: false }),
-      supabaseAdmin
-        .from("staff_hr_evaluations")
-        .select(
-          "id,hotel_id,staff_user_id,hr_rule_revision_id,evaluation_hash,evaluation_json,evaluated_at",
-        )
-        .eq("hotel_id", identity.hotelId)
-        .in("staff_user_id", staffIds)
-        .order("evaluated_at", { ascending: false }),
-    ]);
+    const { data, error } = await supabaseAdmin
+      .from("staff_verified_results")
+      .select(
+        "id,hotel_id,staff_user_id,assessment_attempt_id,verification_kind,verified_by_staff_user_id,result_hash,result_json,verified_at",
+      )
+      .eq("hotel_id", identity.hotelId)
+      .in("staff_user_id", staffIds)
+      .order("verified_at", { ascending: false });
 
-    if (verifiedQuery.error) {
+    if (error) {
       throw new Error("STAFF_DEVELOPMENT_RESULTS_READ_FAILED");
     }
-    if (evaluationQuery.error) {
-      throw new Error("STAFF_DEVELOPMENT_HR_EVALUATIONS_READ_FAILED");
-    }
-
-    verifiedResults =
-      (verifiedQuery.data || []) as Array<Record<string, unknown>>;
-    hrEvaluations =
-      (evaluationQuery.data || []) as Array<Record<string, unknown>>;
+    verifiedResults = (data || []) as Array<Record<string, unknown>>;
   }
 
   let hrRules: Array<Record<string, unknown>> = [];
   if (identity.staffUserRole === "hotel_manager") {
+    if (staffIds.length) {
+      const { data: evaluationRows, error: evaluationError } =
+        await supabaseAdmin
+          .from("staff_hr_evaluations")
+          .select(
+            "id,hotel_id,staff_user_id,hr_rule_revision_id,evaluation_hash,evaluation_json,evaluated_at",
+          )
+          .eq("hotel_id", identity.hotelId)
+          .in("staff_user_id", staffIds)
+          .order("evaluated_at", { ascending: false });
+
+      if (evaluationError) {
+        throw new Error("STAFF_DEVELOPMENT_HR_EVALUATIONS_READ_FAILED");
+      }
+      hrEvaluations =
+        (evaluationRows || []) as Array<Record<string, unknown>>;
+    }
+
     const { data, error } = await supabaseAdmin
       .from("hotel_staff_hr_rule_revisions")
       .select(
