@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "checkpoint": "cm5-5-manager-lifecycle",
+  "baseCheckpoint": "cm5-4-typed-draft-persistence",
+  "expectedNeedsReview": 258,
+  "relocations": [
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "fromLine": 204,
+      "toLine": 205,
+      "table": "hotel_content_change_requests",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "fromLine": 249,
+      "toLine": 250,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "fromLine": 279,
+      "toLine": 280,
+      "table": "hotel_content_change_requests",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "fromLine": 289,
+      "toLine": 290,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "fromLine": 319,
+      "toLine": 320,
+      "table": "hotel_content_change_requests",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "fromLine": 329,
+      "toLine": 330,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 456,
+      "toLine": 507,
+      "table": "hotel_content_change_requests",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 521,
+      "toLine": 572,
+      "table": "hotel_content_change_requests",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 587,
+      "toLine": 638,
+      "operation": "rpc"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/manager-change-activation.ts",
+      "line": 32,
+      "table": null,
+      "tableExpression": "\"rollback_manager_content_activation_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only_post_activation_failure_path; rpc accepts exact change_request_id plus same_hotel_manager_session_id and deterministic_failure_code; database function verifies live change state, activated candidate identity, current publication_state points to that candidate, base revision checksum, then atomically restores exact base LIVE/LKG and archives only assets owned by the same hotel and change request"
+    },
+    {
+      "filePath": "lib/server/manager-change-activation.ts",
+      "line": 63,
+      "table": null,
+      "tableExpression": "\"activate_manager_content_candidate_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only_activation_authority; hotel scope is resolved from authenticated manager session before rpc; database revalidates same_hotel_manager_session certified_change exact_base_live_lkg candidate_lineage candidate_checksum certification_evidence before atomic revision publication_state and same_change_request_asset activation"
+    },
+    {
+      "filePath": "lib/server/manager-change-candidate-persistence.ts",
+      "line": 43,
+      "table": "hotel_content_change_requests",
+      "tableExpression": "hotel_content_change_requests",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only candidate preparation; query is explicitly constrained by change_request_id and hotel_id from authenticated manager scope before any candidate replay or mutation authority is reached"
+    },
+    {
+      "filePath": "lib/server/manager-change-candidate-persistence.ts",
+      "line": 128,
+      "table": null,
+      "tableExpression": "\"create_manager_content_candidate_v2\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only candidate creation after deterministic replay and runtime_shape validation; database service_role_only rpc rechecks same_hotel_manager_session confirmed_status current_live_lkg base_checksum changeHash_diffHash lineage and computes candidate checksum internally before inserting immutable manager_change revision"
+    },
+    {
+      "filePath": "lib/server/manager-change-certification.ts",
+      "line": 45,
+      "table": "hotel_content_change_requests",
+      "tableExpression": "hotel_content_change_requests",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only certification read; exact change_request_id is constrained by hotel_id from authenticated manager scope before candidate revision read deterministic replay runtime validation and asset ownership validation"
+    },
+    {
+      "filePath": "lib/server/manager-change-certification.ts",
+      "line": 199,
+      "table": null,
+      "tableExpression": "\"certify_manager_content_candidate_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only certification authority after stored_candidate_equals_deterministic_replay runtime_shape and offer_asset_ownership checks; database service_role_only rpc binds evidence to same_hotel manager session exact candidate checksum base_live_lkg changeHash and diffHash before marking only the change request certified"
+    }
+  ]
+}
