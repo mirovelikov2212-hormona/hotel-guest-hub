@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import StaffStandardAuthoringPanel from "@/components/staff/StaffStandardAuthoringPanel";
 import StaffAssessmentAuthoringPanel from "@/components/staff/StaffAssessmentAuthoringPanel";
+import StaffHrRulesPanel from "@/components/staff/StaffHrRulesPanel";
 
 type Candidate = {
   staffUserId: string;
@@ -1063,24 +1064,17 @@ function ManagerOverview({
         </div>
       </section>
 
-      <section className="rounded-3xl border p-5 shadow-sm">
-        <h3 className="font-semibold">{copy.hr}</h3>
-        <p className="mt-1 text-sm opacity-60">{copy.humanDecision}</p>
-        <div className="mt-3 space-y-2">
-          {(state.hrEvaluations || []).map((row: any) => (
-            <div key={row.id} className="rounded-2xl border p-3">
-              <p className="text-xs opacity-55">{formatDate(row.evaluated_at)}</p>
-              <div className="mt-2 space-y-1">
-                {(row.evaluation_json?.findings || []).map((finding: any) => (
-                  <p key={finding.ruleId} className="text-sm">
-                    <strong>{finding.action}</strong> · {finding.reason}
-                  </p>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {state.identity?.staffUserRole === "hotel_manager" ? (
+        <StaffHrRulesPanel
+          lang={lang}
+          writesEnabled={writesEnabled}
+          staff={staff}
+          standards={state.standards || []}
+          hrRules={state.hrRules || []}
+          hrEvaluations={state.hrEvaluations || []}
+          action={action}
+        />
+      ) : null}
     </div>
   );
 }
