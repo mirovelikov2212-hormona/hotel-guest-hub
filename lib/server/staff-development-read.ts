@@ -265,11 +265,23 @@ export async function getManagerStaffDevelopmentState(
   const standards = (standardRows || []).filter((row) => {
     if (identity.staffUserRole === "hotel_manager") return true;
     if (!isRecord(row.standard_json)) return false;
+
+    const standardScope = text(
+      row.standard_json.standardScope,
+    ).toLowerCase();
     const departments = Array.isArray(row.standard_json.departmentCodes)
       ? row.standard_json.departmentCodes
           .map((value) => text(value).toLowerCase())
       : [];
-    return departments.includes(identity.operationalRole);
+
+    if (standardScope === "hotel") {
+      return departments.length === 0;
+    }
+
+    return (
+      standardScope === "department"
+      && departments.includes(identity.operationalRole)
+    );
   });
 
   const standardIds = ids(standards.map((row) => row.id));
