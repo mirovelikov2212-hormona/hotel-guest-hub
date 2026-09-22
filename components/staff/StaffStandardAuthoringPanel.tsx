@@ -118,6 +118,9 @@ const COPY = {
     approvalWarning: "Publish създава нова immutable версия на стандарта и автоматично Training Plan. Това е човешкото одобрение.",
     saved: "Запазено.",
     uploaded: "Документът е качен и хеширан.",
+    aiExtract: "AI извлечи текст",
+    aiExtracting: "AI извлича…",
+    aiExtracted: "Текстът е зареден за човешки преглед. Проверете го и натиснете „Запази изходния текст“.",
     publishedNotice: "Стандартът и Training Plan са публикувани.",
     error: "Възникна грешка.",
   },
@@ -174,6 +177,9 @@ const COPY = {
     approvalWarning: "Publish creates a new immutable Standard version and Training Plan. This is the human approval step.",
     saved: "Saved.",
     uploaded: "Document uploaded and hashed.",
+    aiExtract: "AI extract text",
+    aiExtracting: "AI extracting…",
+    aiExtracted: "Text loaded for human review. Check it and click Save source text.",
     publishedNotice: "Standard and Training Plan published.",
     error: "Something went wrong.",
   },
@@ -230,6 +236,9 @@ const COPY = {
     approvalWarning: "Publish erstellt eine neue unveränderliche Standard-Version und automatisch einen Training Plan. Dies ist die menschliche Freigabe.",
     saved: "Gespeichert.",
     uploaded: "Dokument hochgeladen und gehasht.",
+    aiExtract: "KI-Text extrahieren",
+    aiExtracting: "KI extrahiert…",
+    aiExtracted: "Text zur menschlichen Prüfung geladen. Prüfen und anschließend Quelltext speichern.",
     publishedNotice: "Standard und Training Plan wurden veröffentlicht.",
     error: "Ein Fehler ist aufgetreten.",
   },
@@ -555,6 +564,41 @@ export default function StaffStandardAuthoringPanel({
     }
   }
 
+  async function extractDocumentText(documentId: string) {
+    if (!selected || !writesEnabled) return;
+    setWorking(true);
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch(
+        "/api/staff/development/standards/source-documents",
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "extract_ai_text",
+            hotelSlug,
+            authoringId: selected.id,
+            documentId,
+          }),
+        },
+      );
+      const body = await response.json().catch(() => null) as any;
+      if (!response.ok || !body?.ok || !body.result?.sourceText) {
+        throw new Error(
+          body?.error || "STAFF_AI_SOURCE_EXTRACTION_FAILED",
+        );
+      }
+      setSourceText(String(body.result.sourceText));
+      setNotice(copy.aiExtracted);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setWorking(false);
+    }
+  }
+
   function addBlock() {
     setProposal((current) => ({
       ...current,
@@ -857,18 +901,36 @@ export default function StaffStandardAuthoringPanel({
                   {documents.length ? (
                     <div className="mt-3 space-y-2">
                       {documents.map((document) => (
-                        <a
+                        <div
                           key={document.id}
-                          href={document.previewUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block rounded-xl border p-3 text-sm"
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm"
                         >
-                          <strong>{document.original_name}</strong>
-                          <span className="ml-2 opacity-55">
-                            {(Number(document.file_size) / 1024).toFixed(0)} KB
-                          </span>
-                        </a>
+                          <a
+                            href={document.previewUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="min-w-0 flex-1"
+                          >
+                            <strong>{document.original_name}</strong>
+                            <span className="ml-2 opacity-55">
+                              {(Number(document.file_size) / 1024).toFixed(0)} KB
+                            </span>
+                          </a>
+                          {document.mime_type !== "text/plain" ? (
+                            <button
+                              type="button"
+                              disabled={
+                                working
+                                || !writesEnabled
+                                || selected.status === "published"
+                              }
+                              onClick={() => void extractDocumentText(document.id)}
+                              className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                            >
+                              {working ? copy.aiExtracting : copy.aiExtract}
+                            </button>
+                          ) : null}
+                        </div>
                       ))}
                     </div>
                   ) : null}
