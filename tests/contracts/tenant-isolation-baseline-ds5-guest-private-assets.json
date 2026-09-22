@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "checkpoint": "ds5-guest-private-assets",
+  "baseCheckpoint": "ds4-factory-design-materialization",
+  "expectedNeedsReview": 233,
+  "additions": [
+    {
+      "filePath": "app/api/guest/design-asset/route.ts",
+      "line": 52,
+      "table": "hub_design_assets",
+      "tableExpression": "\"hub_design_assets\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "public_guest_asset_read_resolves_only_an_active_hotel_slug_then_the_exact_current_published_validated_hotel_config; asset_uuid_must_be_referenced_by_a_currently_visible_offer_in_that_config_using_hotel_local_date_rules; metadata_read_is_further_scoped_by_the_published_config_design_asset_source_key_before_a_short_lived_private_storage_signed_url_is_created; unknown_foreign_expired_or_unpublished_asset_references_all_fail_as_not_found"
+    }
+  ]
+}
