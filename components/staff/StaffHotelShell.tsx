@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import GuestCommunicationsWorkspace from "@/components/staff/GuestCommunicationsWorkspace";
@@ -20,6 +21,7 @@ export default function StaffHotelShell({ hotelSlug, brand, children }: { hotelS
   const t = staffText(lang);
   const storageKey = useMemo(() => `stayhub:staff-theme:v1:${hotelSlug}`, [hotelSlug]);
   const [theme, setTheme] = useState<StaffThemeMode>("light");
+  const trainingLabel = lang === "bg" ? "Обучение" : lang === "de" ? "Schulung" : "Training";
   const role = useMemo(() => {
     const parts = pathname.split("/").filter(Boolean);
     const candidate = parts[0] === "staff" && parts[1] ? String(parts[2] || "").toLowerCase() : "";
@@ -59,6 +61,14 @@ export default function StaffHotelShell({ hotelSlug, brand, children }: { hotelS
               <p className="mt-1 text-sm opacity-65">{t.simpleOperationalView}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {role ? (
+                <Link
+                  href={`/staff/${hotelSlug}/${role}/development`}
+                  className="stayhub-staff-select rounded-xl border px-3 py-2 text-sm font-semibold"
+                >
+                  {trainingLabel}
+                </Link>
+              ) : null}
               <div className="stayhub-staff-segmented flex rounded-xl border p-1" aria-label="Staff appearance">
                 <button type="button" onClick={() => selectTheme("light")} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${theme === "light" ? "is-active" : ""}`} aria-pressed={theme === "light"}>Light</button>
                 <button type="button" onClick={() => selectTheme("dark")} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${theme === "dark" ? "is-active" : ""}`} aria-pressed={theme === "dark"}>Dark</button>
