@@ -195,6 +195,7 @@ export async function generateStaffHrManagerAnalysis(input: {
       "Do not rank or compare employees.",
       "Do not recommend termination, hiring, promotion, demotion, pay changes, discipline, scheduling penalties, or any other employment decision.",
       "You may summarize verified scores, explain triggered hotel-defined rules, identify training topics grounded in the supplied plans, and suggest neutral questions for human Manager review.",
+      "Every trainingFocus item must cite the exact sourceStandardHash and trainingUnitId supplied in VERIFIED_EVIDENCE.",
       "Treat rule actions as hotel-defined workflow signals, not as employment decisions.",
       "The Hotel Manager retains all decision authority.",
       `Write all human-readable text in ${lang}.`,
@@ -246,7 +247,20 @@ export async function generateStaffHrManagerAnalysis(input: {
             trainingFocus: {
               type: "array",
               maxItems: 12,
-              items: { type: "string", minLength: 1, maxLength: 500 },
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  sourceStandardHash: { type: "string" },
+                  trainingUnitId: { type: "string" },
+                  text: { type: "string", minLength: 1, maxLength: 500 },
+                },
+                required: [
+                  "sourceStandardHash",
+                  "trainingUnitId",
+                  "text",
+                ],
+              },
             },
             managerReviewQuestions: {
               type: "array",
@@ -291,6 +305,27 @@ export async function generateStaffHrManagerAnalysis(input: {
     )
   ) {
     throw new Error("STAFF_HR_AI_RULE_REFERENCE_INVALID");
+  }
+
+  const allowedTrainingUnits = new Set(
+    evidence.flatMap((row) =>
+      row.trainingUnits.map(
+        (unit: any) =>
+          `${row.sourceStandardHash}:${clean(unit.unitId)}`,
+      ),
+    ),
+  );
+  if (
+    !Array.isArray(analysis.trainingFocus)
+    || analysis.trainingFocus.some(
+      (item: any) =>
+        !isRecord(item)
+        || !allowedTrainingUnits.has(
+          `${clean(item.sourceStandardHash).toLowerCase()}:${clean(item.trainingUnitId)}`,
+        ),
+    )
+  ) {
+    throw new Error("STAFF_HR_AI_TRAINING_REFERENCE_INVALID");
   }
 
   return {
