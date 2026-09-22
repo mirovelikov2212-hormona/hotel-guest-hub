@@ -117,6 +117,11 @@ const COPY = {
     internal: "Страница в Hub",
     requestService: "Заявка за услуга",
     readyAdded: "Готовата визия е добавена към черновата.",
+    validationError: "Проверете въведените данни. Промяната не е записана.",
+    conflictError: "Hub е променен междувременно. Презаредете данните преди нов опит.",
+    accessError: "Нямате право да извършите тази промяна.",
+    notFoundError: "Тази чернова или елемент вече не е наличен. Презаредете данните.",
+    systemError: "Възникна системен проблем. Промяната не е публикувана и екипът на GOSTAYA е уведомен.",
   },
   en: {
     eyebrow: "Hub changes",
@@ -183,6 +188,11 @@ const COPY = {
     internal: "Hub page",
     requestService: "Service request",
     readyAdded: "The ready creative was added to the draft.",
+    validationError: "Check the entered data. The change was not saved.",
+    conflictError: "The Hub changed in the meantime. Reload before trying again.",
+    accessError: "You do not have permission to make this change.",
+    notFoundError: "This draft or item is no longer available. Reload the data.",
+    systemError: "A system problem occurred. The change was not published and the GOSTAYA team has been notified.",
   },
   de: {
     eyebrow: "Hub-Änderungen",
@@ -249,6 +259,11 @@ const COPY = {
     internal: "Hub-Seite",
     requestService: "Serviceanfrage",
     readyAdded: "Die fertige Grafik wurde zum Entwurf hinzugefügt.",
+    validationError: "Prüfen Sie die eingegebenen Daten. Die Änderung wurde nicht gespeichert.",
+    conflictError: "Der Hub wurde inzwischen geändert. Laden Sie die Daten neu, bevor Sie es erneut versuchen.",
+    accessError: "Sie haben keine Berechtigung für diese Änderung.",
+    notFoundError: "Dieser Entwurf oder Eintrag ist nicht mehr verfügbar. Laden Sie die Daten neu.",
+    systemError: "Ein Systemproblem ist aufgetreten. Die Änderung wurde nicht veröffentlicht und das GOSTAYA-Team wurde benachrichtigt.",
   },
 } as const;
 
@@ -325,6 +340,19 @@ export default function ManagerContentOffersEditor({
   lang: ManagerUiLanguage;
 }) {
   const copy = COPY[lang] || COPY.bg;
+
+  function managerFailureMessage(
+    body: { error?: string; errorType?: string } | null,
+    fallback: string,
+  ) {
+    if (body?.errorType === "validation") return copy.validationError;
+    if (body?.errorType === "conflict") return copy.conflictError;
+    if (body?.errorType === "access") return copy.accessError;
+    if (body?.errorType === "not_found") return copy.notFoundError;
+    if (body?.errorType === "system") return copy.systemError;
+    return body?.error || fallback;
+  }
+
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -371,8 +399,10 @@ export default function ManagerContentOffersEditor({
         "/api/staff/content-changes/offers?hotelSlug=" + encodeURIComponent(hotelSlug),
         { cache: "no-store", credentials: "same-origin" },
       );
-      const body = await response.json().catch(() => null) as { ok?: boolean; editor?: EditorPayload; error?: string } | null;
-      if (!response.ok || !body?.ok || !body.editor) throw new Error(body?.error || "CM5_OFFER_EDITOR_LOAD_FAILED");
+      const body = await response.json().catch(() => null) as { ok?: boolean; editor?: EditorPayload; error?: string; errorType?: string } | null;
+      if (!response.ok || !body?.ok || !body.editor) {
+        throw new Error(managerFailureMessage(body, "CM5_OFFER_EDITOR_LOAD_FAILED"));
+      }
 
       const draft = body.editor.draft;
       const usableDraft = draft && !draft.stale ? draft : null;
@@ -414,9 +444,10 @@ export default function ManagerContentOffersEditor({
       ok?: boolean;
       change?: { id?: string };
       error?: string;
+      errorType?: string;
     } | null;
     if (!response.ok || !body?.ok || !body.change?.id) {
-      throw new Error(body?.error || "CM5_CHANGE_REQUEST_CREATE_FAILED");
+      throw new Error(managerFailureMessage(body, "CM5_CHANGE_REQUEST_CREATE_FAILED"));
     }
     setChangeRequestId(body.change.id);
     return body.change.id;
@@ -638,9 +669,10 @@ export default function ManagerContentOffersEditor({
         ok?: boolean;
         result?: { offers?: HubOfferV2[]; diff?: Record<string, unknown> };
         error?: string;
+        errorType?: string;
       } | null;
       if (!response.ok || !body?.ok || !body.result) {
-        throw new Error(body?.error || "CM5_OFFER_DRAFT_SAVE_FAILED");
+        throw new Error(managerFailureMessage(body, "CM5_OFFER_DRAFT_SAVE_FAILED"));
       }
 
       if (body.result.offers) setOffers(cloneOffers(body.result.offers));
