@@ -413,6 +413,9 @@ export async function evaluateStaffDevelopmentRules(input: {
   hrRuleRevisionId: unknown;
 }) {
   const identity = await requireManagerIdentity(input.hotelSlug);
+  if (identity.staffUserRole !== "hotel_manager") {
+    throw new Error("STAFF_HR_HOTEL_MANAGER_REQUIRED");
+  }
   const target = await activeTargetStaffUser({
     hotelId: identity.hotelId,
     targetStaffUserId: input.targetStaffUserId,
