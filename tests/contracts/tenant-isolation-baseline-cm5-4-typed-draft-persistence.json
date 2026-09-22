@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "checkpoint": "cm5-4-typed-draft-persistence",
+  "baseCheckpoint": "cm5-3b-hotel-content-assets",
+  "expectedNeedsReview": 252,
+  "additions": [
+    {
+      "filePath": "lib/server/manager-typed-content-drafts.ts",
+      "line": 136,
+      "rpc": "save_hotel_content_typed_draft_v1",
+      "tableExpression": "\"save_hotel_content_typed_draft_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only_adapter_accepts_only_services_venues_or_schedules_with_exact_scope_to_operation_schema_and_preview_schema_contracts_validates_nonempty_typed_operations_and_cm2_diff_changed_true_sha256_before_rpc; database_rpc_is_service_role_only_and revalidates_draft_scope_non_revoked_same_hotel_manager_session_current_live_last_known_good_revision_and base_config_checksum_before updating only operations_preview_diff_on_the_draft_never_live_config"
+    }
+  ]
+}
