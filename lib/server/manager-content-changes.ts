@@ -12,6 +12,7 @@ export const MANAGER_CONTENT_CHANGE_SCOPES = [
   "offers",
   "services",
   "venues",
+  "schedules",
 ] as const;
 
 export type ManagerContentChangeScope = typeof MANAGER_CONTENT_CHANGE_SCOPES[number];
