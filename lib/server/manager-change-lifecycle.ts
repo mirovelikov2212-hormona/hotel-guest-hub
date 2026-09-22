@@ -4,6 +4,7 @@ import {
   cancelManagerContentChangeDraft,
   confirmManagerContentChangeDraft,
   createManagerContentChangeDraft,
+  resolveManagerContentChangeScope,
 } from "@/lib/server/manager-content-changes";
 import { activateManagerChangeCandidate } from "@/lib/server/manager-change-activation";
 import { createManagerChangeCandidate } from "@/lib/server/manager-change-candidate-persistence";
@@ -54,12 +55,12 @@ export async function saveManagerLifecycleTypedDraft(input: {
     schedule: input.schedule,
   });
 
+  const authority = await resolveManagerContentChangeScope(input.hotelSlug);
+
   const persisted = await persistManagerTypedContentDraft({
     scope: prepared.scope,
     changeRequestId: input.changeRequestId,
-    actorSessionId: (
-      await import("@/lib/server/manager-content-changes")
-    ).resolveManagerContentChangeScope(input.hotelSlug).then((scope) => scope.sessionId),
+    actorSessionId: authority.sessionId,
     operations: prepared.operations,
     preview: prepared.preview,
     diff: prepared.diff,
