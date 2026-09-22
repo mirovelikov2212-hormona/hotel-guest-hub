@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "checkpoint": "cm5-3-offer-draft-server",
+  "baseCheckpoint": "cm5-2-manager-change-foundation",
+  "expectedNeedsReview": 242,
+  "relocations": [
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "fromLine": 153,
+      "toLine": 204,
+      "table": "hotel_content_change_requests",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "fromLine": 198,
+      "toLine": 249,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "fromLine": 228,
+      "toLine": 279,
+      "table": "hotel_content_change_requests",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "fromLine": 238,
+      "toLine": 289,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "fromLine": 268,
+      "toLine": 319,
+      "table": "hotel_content_change_requests",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "fromLine": 278,
+      "toLine": 329,
+      "operation": "rpc"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "line": 335,
+      "table": "hotel_content_change_requests",
+      "tableExpression": "\"hotel_content_change_requests\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "manager_offer_editor_state_first_resolves_exact_active_manager_session_and_requested_hotel_slug_then_reads_only_draft_change_requests_scoped_by_eq_hotel_id_scope_hotelId_status_draft_and_change_scope_contains_offers; no_cross_hotel_draft_discovery"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "line": 400,
+      "table": "hotel_content_change_requests",
+      "tableExpression": "\"hotel_content_change_requests\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "offer_draft_save_preflight_reads_one_change_request_by_id_and_eq_hotel_id_scope_hotelId_after_manager_session_scope_resolution_then_requires_status_draft_scope_offers_and_exact_current_live_base_revision_before_any_operation_generation"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "line": 461,
+      "rpc": "save_hotel_content_offer_draft_v1",
+      "tableExpression": "\"save_hotel_content_offer_draft_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "service_role_offer_draft_rpc_receives_only_server_normalized_offer_operations_preview_and_semantic_diff; database_row_locks_the_same_hotel_draft_revalidates_non_revoked_manager_session_current_publication_revision_and_database_sha256_of_base_config_before_update; assets_are_restricted_server_side_to_ids_already_owned_by_current_live_hotel_until_hotel_asset_binding_is_added"
+    }
+  ]
+}
