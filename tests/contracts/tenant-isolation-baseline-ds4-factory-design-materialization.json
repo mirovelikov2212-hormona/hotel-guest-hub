@@ -10,6 +10,12 @@
       "toLine": 99,
       "table": "hub_design_draft_revisions",
       "operation": "select"
+    },
+    {
+      "filePath": "lib/server/factory-onboarding-envelope.ts",
+      "fromLine": 33,
+      "toLine": 35,
+      "operation": "rpc"
     }
   ]
 }
