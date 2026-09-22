@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
         hotelSlug,
         sourceKind: body.sourceKind,
         standardKey: body.standardKey,
+        standardScope: body.standardScope,
         departmentCodes: body.departmentCodes,
         sourceText: body.sourceText,
       });
