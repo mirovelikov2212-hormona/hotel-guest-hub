@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "checkpoint": "ds4-factory-design-materialization",
+  "baseCheckpoint": "ds3-design-assets",
+  "expectedNeedsReview": 232,
+  "relocations": [
+    {
+      "filePath": "lib/server/factory-release-design-authority.ts",
+      "fromLine": 95,
+      "toLine": 99,
+      "table": "hub_design_draft_revisions",
+      "operation": "select"
+    }
+  ]
+}
