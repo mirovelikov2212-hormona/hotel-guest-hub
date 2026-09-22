@@ -280,7 +280,7 @@ export async function getManagerStaffDevelopmentState(
 
     return (
       standardScope === "department"
-      && departments.includes(identity.operationalRole)
+      && departments.length === 1 && departments[0] === identity.operationalRole
     );
   });
 

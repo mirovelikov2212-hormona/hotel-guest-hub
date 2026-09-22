@@ -27,6 +27,7 @@ test("Department Manager can author assessments only for its own operational dep
 
   for (const fragment of [
     'input.identity.staffUserRole === "department_manager"',
+    'standardScope === "department" && departments.length !== 1',
     "departments.length !== 1",
     "departments[0] !== input.identity.operationalRole",
     '"STAFF_ASSESSMENT_AUTHORING_MANAGER_SCOPE_FORBIDDEN"',

@@ -114,7 +114,7 @@ async function loadPlanWithScope(input: {
   if (
     (standardScope !== "hotel" && standardScope !== "department")
     || (standardScope === "hotel" && departments.length !== 0)
-    || (standardScope === "department" && departments.length < 1)
+    || (standardScope === "department" && departments.length !== 1)
   ) {
     throw new Error("STAFF_ASSESSMENT_AUTHORING_STANDARD_SCOPE_INVALID");
   }

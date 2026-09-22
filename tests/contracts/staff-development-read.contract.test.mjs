@@ -31,7 +31,7 @@ test("Manager Staff Development read stays inside hotel and department scope", a
     "identity.departmentId",
     '.eq("hotel_id", identity.hotelId)',
     '.in("staff_user_id", staffIds)',
-    "departments.includes(identity.operationalRole)",
+    "departments.length === 1 && departments[0] === identity.operationalRole",
   ]) {
     assertContains(source, fragment);
   }
