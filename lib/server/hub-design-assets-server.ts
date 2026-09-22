@@ -14,7 +14,7 @@ import {
   validateHubDesignAssetDeclaration,
   type HubDesignAssetMetadata,
 } from "@/lib/product-factory/hub-design-assets";
-import { buildHubDesignSourceKey } from "@/lib/server/hub-design-draft-revisions";
+import { buildHubDesignSourceKey } from "@/lib/server/hub-design-source-key";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 type AssetRow = {
@@ -127,7 +127,7 @@ export async function finalizeHubDesignAssetUpload(input: {
 
   if (
     bytes.byteLength !== input.fileSize
-    || (actualMime && actualMime !== expectedMime)
+    || (actualMime && actualMime !== expectedMime && actualMime !== "application/octet-stream")
     || !validateHubDesignAssetBytes(bytes, expectedMime)
   ) {
     await removeObjectQuietly(input.storagePath);

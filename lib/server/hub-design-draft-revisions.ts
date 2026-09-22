@@ -17,6 +17,7 @@ import {
   loadHotelIntelligenceWorkspaceByCanonicalUrl,
 } from "@/lib/server/hotel-intelligence-revisions";
 import { assertHubDesignOfferAssetReferences } from "@/lib/server/hub-design-assets-server";
+import { buildHubDesignSourceKey } from "@/lib/server/hub-design-source-key";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export type HubDesignRevisionMetadata = {
@@ -48,11 +49,6 @@ export type HubDesignWorkspaceSnapshot = {
 
 function sha256Hex(value: string) {
   return crypto.createHash("sha256").update(value).digest("hex");
-}
-
-export function buildHubDesignSourceKey(canonicalUrl: string) {
-  const normalized = normalizeCanonicalHotelSourceUrl(canonicalUrl);
-  return sha256Hex(`stayhub:hub-design-source:v1:${normalized}`);
 }
 
 function requireIntelligencePackage(value: unknown): HotelIntelligencePackage {
@@ -320,3 +316,5 @@ export async function compareHubDesignDraftRevisions(input: {
   if (!left || !right) throw new Error("HUB_DESIGN_COMPARE_REVISION_NOT_FOUND");
   return diffHubDesignDraftPayloads(left, right);
 }
+
+export { buildHubDesignSourceKey } from "@/lib/server/hub-design-source-key";

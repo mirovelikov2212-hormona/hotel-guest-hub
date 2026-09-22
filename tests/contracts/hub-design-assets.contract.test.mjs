@@ -75,6 +75,7 @@ test("Server issues random signed uploads, validates uploaded bytes and register
   ]) assertContains(server, fragment);
   assertNotContains(server, "getPublicUrl");
   assertNotContains(server, "public: true");
+  assertNotContains(server, "@/lib/server/hub-design-draft-revisions");
 });
 
 test("Control Plane asset route is same-origin, role-gated and never exposes service credentials", async () => {
