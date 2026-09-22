@@ -840,3 +840,43 @@ export async function publishStaffStandardAuthoring(input: {
     trainingPlan,
   };
 }
+
+export async function getStaffStandardAiDraftContext(input: {
+  hotelSlug: unknown;
+  authoringId: unknown;
+}) {
+  const identity = await requireManagerIdentity(input.hotelSlug);
+  const authoring = await loadAuthoring({
+    identity,
+    authoringId: input.authoringId,
+    allowedStatuses: ["draft", "proposal_ready"],
+  });
+  const sourceText = normalizeSourceText(authoring.source_text);
+  if (!sourceText) {
+    throw new Error("STAFF_AI_STANDARD_SOURCE_TEXT_REQUIRED");
+  }
+
+  const existing = isRecord(authoring.structured_proposal_json)
+    ? authoring.structured_proposal_json
+    : null;
+  const assessmentRequired = existing?.assessmentRequired !== false;
+
+  return {
+    authoringId: authoring.id,
+    standardKey: authoring.standard_key,
+    standardScope: authoring.standard_scope,
+    departmentCodes: [...authoring.department_codes],
+    sourceText,
+    settings: {
+      roleCodes: Array.isArray(existing?.roleCodes) ? existing.roleCodes : [],
+      effectiveFrom: existing?.effectiveFrom ?? null,
+      effectiveTo: existing?.effectiveTo ?? null,
+      trainingRequired: existing?.trainingRequired !== false,
+      assessmentRequired,
+      minimumPassScore: assessmentRequired
+        ? Number(existing?.minimumPassScore ?? 80)
+        : null,
+    },
+  };
+}
+
