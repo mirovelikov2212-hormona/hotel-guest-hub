@@ -3,11 +3,11 @@ import "server-only";
 import {
   validateHubOfferV2,
   type HubOfferV2,
-} from "@/lib/product-factory/hub-offer-contract";
-import { buildHotelConfigVersionDiff } from "@/lib/server/factory-production-version-diff.mjs";
-import { applyManagerServiceContentChanges } from "@/lib/server/manager-service-content-model.mjs";
-import { applyManagerVenueContentChanges } from "@/lib/server/manager-venue-content-model.mjs";
-import { prepareManagerOperationalScheduleChange } from "@/lib/server/manager-operational-schedule-changes.mjs";
+} from "../product-factory/hub-offer-contract.ts";
+import { buildHotelConfigVersionDiff } from "./factory-production-version-diff.mjs";
+import { applyManagerServiceContentChanges } from "./manager-service-content-model.mjs";
+import { applyManagerVenueContentChanges } from "./manager-venue-content-model.mjs";
+import { prepareManagerOperationalScheduleChange } from "./manager-operational-schedule-changes.mjs";
 
 type JsonObject = Record<string, unknown>;
 type ManagerChangeScope = "offers" | "services" | "venues" | "schedules";
