@@ -16,6 +16,7 @@ import {
   loadApprovedHotelIntelligenceEnvelope,
   loadHotelIntelligenceWorkspaceByCanonicalUrl,
 } from "@/lib/server/hotel-intelligence-revisions";
+import { assertHubDesignOfferAssetReferences } from "@/lib/server/hub-design-assets-server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 export type HubDesignRevisionMetadata = {
@@ -230,6 +231,10 @@ export async function saveHubDesignDraftRevision(input: {
   payload: unknown;
 }) {
   const prepared = await prepareAuthoritativeHubDesignRevision(input.payload);
+  await assertHubDesignOfferAssetReferences({
+    canonicalUrl: prepared.canonicalUrl,
+    offers: prepared.payloadJson.authoring.offers,
+  });
   const { data, error } = await supabaseAdmin.rpc("save_hub_design_draft_revision_v1", {
     p_actor_admin_id: input.actorAdminId,
     p_source_key: prepared.sourceKey,

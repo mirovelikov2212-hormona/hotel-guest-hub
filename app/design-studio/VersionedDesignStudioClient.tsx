@@ -10,6 +10,13 @@ import {
   type HubDesignDraftPayload,
 } from "@/lib/product-factory/hub-design-draft";
 import {
+  HUB_DESIGN_ASSET_ACCEPT,
+  HUB_DESIGN_IMAGE_ACCEPT,
+  validateHubDesignAssetDeclaration,
+  type HubDesignAssetMetadata,
+  type HubDesignAssetRole,
+} from "@/lib/product-factory/hub-design-assets";
+import {
   getHubOfferLocalizedText,
   setHubOfferLocalizedText,
   type HubOfferCtaAction,
@@ -358,6 +365,9 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
   const [promotionEnabled, setPromotionEnabled] = useState(true);
   const [searchEnabled, setSearchEnabled] = useState(true);
   const [survey, setSurvey] = useState<HubSurveySurface>({ enabled: true, placement: "home", presentation: "card", runtimeOwned: true });
+  const [assets, setAssets] = useState<HubDesignAssetMetadata[]>([]);
+  const [assetStorageReady, setAssetStorageReady] = useState<boolean | null>(null);
+  const [assetBusyOfferId, setAssetBusyOfferId] = useState<string | null>(null);
 
   const [targetSection, setTargetSection] = useState(NEW_SECTION);
   const [manualSectionTitle, setManualSectionTitle] = useState("");
@@ -411,6 +421,136 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
     setActiveScreen("home");
   }
 
+  async function loadAssets(sourcePkg: HotelIntelligencePackage) {
+    if (previewAuthority) {
+      setAssets([]);
+      setAssetStorageReady(null);
+      return;
+    }
+
+    const response = await fetch("/api/control-plane/design-studio/assets?canonicalUrl=" + encodeURIComponent(sourcePkg.source.canonicalUrl), {
+      cache: "no-store",
+    });
+    const body = await response.json() as {
+      ok?: boolean;
+      ready?: boolean;
+      assets?: HubDesignAssetMetadata[];
+      error?: string;
+    };
+    if (!response.ok || !body.ok) throw new Error(body.error || "asset_list_failed");
+
+    setAssetStorageReady(body.ready !== false);
+    setAssets(body.assets || []);
+  }
+
+  async function uploadOfferAsset(offerId: string, role: HubDesignAssetRole, file: File) {
+    if (!pkg || previewAuthority || assetBusyOfferId) return;
+
+    const declaration = validateHubDesignAssetDeclaration({
+      originalName: file.name,
+      mimeType: file.type,
+      fileSize: file.size,
+    });
+    if (!declaration.ok) {
+      setError(declaration.errors.join(", "));
+      return;
+    }
+    if ((role === "cover" || role === "gallery") && declaration.rule?.kind !== "image") {
+      setError("asset_image_required");
+      return;
+    }
+
+    setError("");
+    setNotice("");
+    setAssetBusyOfferId(offerId);
+
+    try {
+      const prepareResponse = await fetch("/api/control-plane/design-studio/assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "prepare",
+          canonicalUrl: pkg.source.canonicalUrl,
+          originalName: file.name,
+          mimeType: file.type,
+          fileSize: file.size,
+        }),
+      });
+      const prepared = await prepareResponse.json() as {
+        ok?: boolean;
+        upload?: { assetId: string; storagePath: string; signedUrl: string };
+        error?: string;
+      };
+      if (!prepareResponse.ok || !prepared.ok || !prepared.upload) {
+        throw new Error(prepared.error || "asset_prepare_failed");
+      }
+
+      const uploadBody = new FormData();
+      uploadBody.append("cacheControl", "3600");
+      uploadBody.append("", file);
+      const uploadResponse = await fetch(prepared.upload.signedUrl, {
+        method: "PUT",
+        headers: { "x-upsert": "false" },
+        body: uploadBody,
+      });
+      if (!uploadResponse.ok) throw new Error("asset_upload_failed");
+
+      const finalizeResponse = await fetch("/api/control-plane/design-studio/assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "finalize",
+          canonicalUrl: pkg.source.canonicalUrl,
+          assetId: prepared.upload.assetId,
+          storagePath: prepared.upload.storagePath,
+          originalName: file.name,
+          mimeType: file.type,
+          fileSize: file.size,
+        }),
+      });
+      const finalized = await finalizeResponse.json() as {
+        ok?: boolean;
+        asset?: HubDesignAssetMetadata;
+        error?: string;
+      };
+      if (!finalizeResponse.ok || !finalized.ok || !finalized.asset) {
+        throw new Error(finalized.error || "asset_finalize_failed");
+      }
+
+      const asset = finalized.asset;
+      setAssets((current) => [asset, ...current.filter((item) => item.id !== asset.id)]);
+      setAssetStorageReady(true);
+      updateOffer(offerId, (offer) => ({
+        ...offer,
+        assets: role === "cover"
+          ? { ...offer.assets, coverAssetId: asset.id }
+          : role === "gallery"
+            ? { ...offer.assets, galleryAssetIds: [...new Set([...offer.assets.galleryAssetIds, asset.id])] }
+            : { ...offer.assets, attachmentAssetIds: [...new Set([...offer.assets.attachmentAssetIds, asset.id])] },
+      }));
+      setNotice(language === "bg" ? "Файлът е качен и свързан с офертата." : "File uploaded and linked to the offer.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setAssetBusyOfferId(null);
+    }
+  }
+
+  function detachOfferAsset(offerId: string, role: HubDesignAssetRole, assetId: string) {
+    updateOffer(offerId, (offer) => ({
+      ...offer,
+      assets: role === "cover"
+        ? { ...offer.assets, coverAssetId: null }
+        : role === "gallery"
+          ? { ...offer.assets, galleryAssetIds: offer.assets.galleryAssetIds.filter((id) => id !== assetId) }
+          : { ...offer.assets, attachmentAssetIds: offer.assets.attachmentAssetIds.filter((id) => id !== assetId) },
+    }));
+  }
+
+  function assetById(assetId: string | null | undefined) {
+    return assetId ? assets.find((asset) => asset.id === assetId) || null : null;
+  }
+
   async function loadWorkspace(sourcePkg: HotelIntelligencePackage, applyCurrent: boolean) {
     const response = await fetch(`/api/control-plane/design-studio/drafts?canonicalUrl=${encodeURIComponent(sourcePkg.source.canonicalUrl)}`, {
       cache: "no-store",
@@ -430,10 +570,12 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
     setError("");
     if (previewAuthority) {
       setSnapshot(null);
+      setAssets([]);
+      setAssetStorageReady(null);
       applyGeneratedBlueprint();
       return;
     }
-    void loadWorkspace(pkg, true).catch((reason) => {
+    void Promise.all([loadWorkspace(pkg, true), loadAssets(pkg)]).catch((reason) => {
       applyGeneratedBlueprint();
       setError(reason instanceof Error ? reason.message : String(reason));
     });
@@ -794,9 +936,80 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
                         ? <Input label={copy.destination} value={offer.cta.destination || ""} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, cta: { ...current.cta, destination: value.trim() || null } }))} />
                         : null}
                   </div>
-                  <p className="mt-3 text-[10px] text-neutral-600">
-                    {language === "bg" ? "Файлове и изображения се добавят в DS3 чрез versioned asset references." : "Files and images are added in DS3 through versioned asset references."}
-                  </p>
+                  <div className="mt-4 rounded-xl border border-cyan-300/10 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+                        {language === "bg" ? "Файлове към офертата" : "Offer assets"}
+                      </p>
+                      {assetStorageReady === false && <span className="text-[10px] text-amber-200">
+                        {language === "bg" ? "Storage schema още не е активирана" : "Storage schema is not active yet"}
+                      </span>}
+                    </div>
+
+                    {offer.assets.coverAssetId && (() => {
+                      const asset = assetById(offer.assets.coverAssetId);
+                      return <div className="mt-3 flex items-center gap-3 rounded-lg border border-white/5 p-2">
+                        {asset?.signedUrl && <img src={asset.signedUrl} alt="" className="h-12 w-12 rounded object-cover" />}
+                        <span className="min-w-0 flex-1 truncate text-[10px] text-neutral-400">{asset?.originalName || offer.assets.coverAssetId}</span>
+                        <button type="button" onClick={() => detachOfferAsset(offer.id, "cover", offer.assets.coverAssetId || "")} className="text-[10px] text-rose-200">
+                          {language === "bg" ? "Откачи" : "Detach"}
+                        </button>
+                      </div>;
+                    })()}
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <label className="min-h-11 cursor-pointer rounded-xl border border-cyan-300/20 px-3 py-3 text-xs text-cyan-100">
+                        Cover
+                        <input type="file" accept={HUB_DESIGN_IMAGE_ACCEPT} disabled={Boolean(previewAuthority) || Boolean(assetBusyOfferId) || assetStorageReady === false} className="hidden" onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) void uploadOfferAsset(offer.id, "cover", file);
+                          event.currentTarget.value = "";
+                        }} />
+                      </label>
+                      <label className="min-h-11 cursor-pointer rounded-xl border border-cyan-300/20 px-3 py-3 text-xs text-cyan-100">
+                        {language === "bg" ? "Gallery image" : "Gallery image"}
+                        <input type="file" accept={HUB_DESIGN_IMAGE_ACCEPT} disabled={Boolean(previewAuthority) || Boolean(assetBusyOfferId) || assetStorageReady === false} className="hidden" onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) void uploadOfferAsset(offer.id, "gallery", file);
+                          event.currentTarget.value = "";
+                        }} />
+                      </label>
+                      <label className="min-h-11 cursor-pointer rounded-xl border border-violet-300/20 px-3 py-3 text-xs text-violet-100">
+                        {language === "bg" ? "Attachment" : "Attachment"}
+                        <input type="file" accept={HUB_DESIGN_ASSET_ACCEPT} disabled={Boolean(previewAuthority) || Boolean(assetBusyOfferId) || assetStorageReady === false} className="hidden" onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) void uploadOfferAsset(offer.id, "attachment", file);
+                          event.currentTarget.value = "";
+                        }} />
+                      </label>
+                    </div>
+
+                    {offer.assets.galleryAssetIds.length > 0 && <div className="mt-3 space-y-1">
+                      <p className="text-[9px] uppercase text-neutral-600">Gallery</p>
+                      {offer.assets.galleryAssetIds.map((assetId) => {
+                        const asset = assetById(assetId);
+                        return <div key={assetId} className="flex items-center justify-between gap-2 rounded-lg border border-white/5 px-2 py-2">
+                          <span className="min-w-0 truncate text-[10px] text-neutral-400">{asset?.originalName || assetId}</span>
+                          <button type="button" onClick={() => detachOfferAsset(offer.id, "gallery", assetId)} className="text-[10px] text-rose-200">×</button>
+                        </div>;
+                      })}
+                    </div>}
+
+                    {offer.assets.attachmentAssetIds.length > 0 && <div className="mt-3 space-y-1">
+                      <p className="text-[9px] uppercase text-neutral-600">Attachments</p>
+                      {offer.assets.attachmentAssetIds.map((assetId) => {
+                        const asset = assetById(assetId);
+                        return <div key={assetId} className="flex items-center justify-between gap-2 rounded-lg border border-white/5 px-2 py-2">
+                          {asset?.signedUrl
+                            ? <a href={asset.signedUrl} target="_blank" rel="noreferrer" className="min-w-0 truncate text-[10px] text-violet-200">{asset.originalName}</a>
+                            : <span className="min-w-0 truncate text-[10px] text-neutral-400">{asset?.originalName || assetId}</span>}
+                          <button type="button" onClick={() => detachOfferAsset(offer.id, "attachment", assetId)} className="text-[10px] text-rose-200">
+                            {language === "bg" ? "Откачи" : "Detach"}
+                          </button>
+                        </div>;
+                      })}
+                    </div>}
+                  </div>
                 </div>)}
               </div>
             </div>
@@ -900,6 +1113,10 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
             const validity = formatOfferValidity(offer);
             const cta = getHubOfferLocalizedText(offer.cta.labelByLang, language);
             return <div key={offer.id} className="rounded-2xl border border-black/5 bg-white p-4 text-neutral-800">
+              {(() => {
+                const cover = assetById(offer.assets.coverAssetId);
+                return cover?.signedUrl ? <img src={cover.signedUrl} alt="" className="-mx-4 -mt-4 mb-3 h-32 w-[calc(100%+2rem)] object-cover" /> : null;
+              })()}
               {badge && <p className="text-xs font-bold" style={{ color: primaryColor }}>{badge}</p>}
               <p className="mt-2 font-semibold">{title || (language === "bg" ? "Оферта" : "Offer")}</p>
               {body && <p className="mt-2 text-[10px] text-neutral-500">{body}</p>}
