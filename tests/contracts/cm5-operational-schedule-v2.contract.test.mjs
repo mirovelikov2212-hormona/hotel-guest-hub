@@ -206,3 +206,228 @@ test("Guest push, staff feed, and operational workflow share the same schedule a
     /Object\.entries\(input\.hotelConfig\.departmentHours/,
   );
 });
+
+
+test("Operational Schedule V2 applies exact date before season before weekly schedule", () => {
+  const config = {
+    hotelTimezone: "UTC",
+    departmentSchedules: {
+      housekeeping: {
+        is24h: false,
+        windows: [
+          { days: ALL_DAYS, open: "08:00", close: "17:00" },
+        ],
+        seasons: [{
+          id: "summer",
+          startDate: "2026-06-01",
+          endDate: "2026-09-30",
+          is24h: false,
+          windows: [
+            { days: ALL_DAYS, open: "08:00", close: "23:00" },
+          ],
+        }],
+        dateOverrides: [
+          { date: "2026-09-22", mode: "closed", windows: [] },
+          {
+            date: "2026-09-23",
+            mode: "custom",
+            windows: [{ open: "10:00", close: "14:00" }],
+          },
+          { date: "2026-09-24", mode: "24h", windows: [] },
+        ],
+      },
+    },
+  };
+
+  // Exact-date closed overrides the active summer season.
+  assert.equal(isDepartmentWorkingHoursForConfig({
+    hotelConfig: config,
+    department: "housekeeping",
+    date: new Date("2026-09-22T12:00:00Z"),
+  }), false);
+
+  // Exact-date custom window overrides the wider summer shift.
+  assert.equal(isDepartmentWorkingHoursForConfig({
+    hotelConfig: config,
+    department: "housekeeping",
+    date: new Date("2026-09-23T09:00:00Z"),
+  }), false);
+  assert.equal(isDepartmentWorkingHoursForConfig({
+    hotelConfig: config,
+    department: "housekeeping",
+    date: new Date("2026-09-23T11:00:00Z"),
+  }), true);
+  assert.equal(isDepartmentWorkingHoursForConfig({
+    hotelConfig: config,
+    department: "housekeeping",
+    date: new Date("2026-09-23T15:00:00Z"),
+  }), false);
+
+  // Exact-date 24h also overrides the season.
+  assert.equal(isDepartmentWorkingHoursForConfig({
+    hotelConfig: config,
+    department: "housekeeping",
+    date: new Date("2026-09-24T03:00:00Z"),
+  }), true);
+
+  // With no date exception, the season beats the weekly 08:00-17:00 rule.
+  assert.equal(isDepartmentWorkingHoursForConfig({
+    hotelConfig: config,
+    department: "housekeeping",
+    date: new Date("2026-09-25T21:00:00Z"),
+  }), true);
+
+  // Outside the season, the weekly rule is authoritative again.
+  assert.equal(isDepartmentWorkingHoursForConfig({
+    hotelConfig: config,
+    department: "housekeeping",
+    date: new Date("2026-10-02T18:00:00Z"),
+  }), false);
+});
+
+test("Operational Schedule V2 rejects ambiguous overlapping seasons and duplicate date overrides", () => {
+  const overlappingSeasons = {
+    hotelTimezone: "UTC",
+    departmentSchedules: {
+      housekeeping: {
+        is24h: false,
+        windows: [{ days: ALL_DAYS, open: "08:00", close: "17:00" }],
+        seasons: [
+          {
+            id: "summer-a",
+            startDate: "2026-06-01",
+            endDate: "2026-09-15",
+            is24h: false,
+            windows: [{ days: ALL_DAYS, open: "08:00", close: "22:00" }],
+          },
+          {
+            id: "summer-b",
+            startDate: "2026-09-01",
+            endDate: "2026-09-30",
+            is24h: false,
+            windows: [{ days: ALL_DAYS, open: "09:00", close: "23:00" }],
+          },
+        ],
+      },
+    },
+  };
+  assert.equal(hasConfiguredDepartmentScheduleForConfig({
+    hotelConfig: overlappingSeasons,
+    department: "housekeeping",
+  }), false);
+
+  const duplicateDates = structuredClone(overlappingSeasons);
+  duplicateDates.departmentSchedules.housekeeping.seasons = [];
+  duplicateDates.departmentSchedules.housekeeping.dateOverrides = [
+    { date: "2026-12-25", mode: "closed", windows: [] },
+    { date: "2026-12-25", mode: "24h", windows: [] },
+  ];
+  assert.equal(hasConfiguredDepartmentScheduleForConfig({
+    hotelConfig: duplicateDates,
+    department: "housekeeping",
+  }), false);
+});
+
+test("Factory materializes seasonal and exact-date schedule authority unchanged", () => {
+  const blueprint = structuredClone(boutiqueHotelBlueprint);
+  blueprint.departments = blueprint.departments.map((department) => (
+    department.id === "housekeeping"
+      ? {
+          ...department,
+          hours: {
+            windows: [
+              { days: ALL_DAYS, open: "08:00", close: "17:00" },
+            ],
+            seasons: [{
+              id: "summer",
+              startDate: "2026-06-01",
+              endDate: "2026-09-30",
+              is24h: false,
+              windows: [
+                { days: ALL_DAYS, open: "08:00", close: "23:00" },
+              ],
+            }],
+            dateOverrides: [
+              { date: "2026-09-22", mode: "closed" },
+              {
+                date: "2026-09-23",
+                mode: "custom",
+                windows: [{ open: "10:00", close: "14:00" }],
+              },
+            ],
+          },
+        }
+      : department
+  ));
+
+  const normalized = normalizeFactoryDepartment(
+    blueprint.departments.find((department) => department.id === "housekeeping"),
+    "departments.housekeeping",
+  );
+  assert.equal(normalized.coverageSeasons.length, 1);
+  assert.equal(normalized.coverageDateOverrides.length, 2);
+
+  const runtime = prepareFactoryGuestRuntimeConfig({ blueprint });
+  const schedule = runtime.config.departmentSchedules.housekeeping;
+  assert.equal(schedule.seasons[0].id, "summer");
+  assert.equal(schedule.seasons[0].endDate, "2026-09-30");
+  assert.equal(schedule.dateOverrides[0].mode, "closed");
+  assert.equal(schedule.dateOverrides[1].windows[0].open, "10:00");
+});
+
+test("Factory blocks ambiguous schedule definitions before they can reach runtime", () => {
+  const blueprint = structuredClone(boutiqueHotelBlueprint);
+  blueprint.departments = blueprint.departments.map((department) => (
+    department.id === "housekeeping"
+      ? {
+          ...department,
+          hours: {
+            windows: [{ days: ALL_DAYS, open: "08:00", close: "17:00" }],
+            seasons: [
+              {
+                id: "a",
+                startDate: "2026-06-01",
+                endDate: "2026-09-15",
+                is24h: false,
+                windows: [{ days: ALL_DAYS, open: "08:00", close: "22:00" }],
+              },
+              {
+                id: "b",
+                startDate: "2026-09-01",
+                endDate: "2026-09-30",
+                is24h: false,
+                windows: [{ days: ALL_DAYS, open: "09:00", close: "23:00" }],
+              },
+            ],
+          },
+        }
+      : department
+  ));
+
+  assert.throws(
+    () => prepareFactoryGuestRuntimeConfig({ blueprint }),
+    /hours\.seasons\.overlap/,
+  );
+
+  const dateBlueprint = structuredClone(boutiqueHotelBlueprint);
+  dateBlueprint.departments = dateBlueprint.departments.map((department) => (
+    department.id === "housekeeping"
+      ? {
+          ...department,
+          hours: {
+            windows: [{ days: ALL_DAYS, open: "08:00", close: "17:00" }],
+            dateOverrides: [{
+              date: "2026-12-25",
+              mode: "custom",
+              windows: [{ open: "22:00", close: "06:00" }],
+            }],
+          },
+        }
+      : department
+  ));
+
+  assert.throws(
+    () => prepareFactoryGuestRuntimeConfig({ blueprint: dateBlueprint }),
+    /hours\.dateOverrides\.0\.windows\.0/,
+  );
+});
