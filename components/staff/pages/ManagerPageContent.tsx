@@ -6,6 +6,7 @@ import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
 import ManagerContentOffersEditor from "@/components/staff/ManagerContentOffersEditor";
+import ManagerHubContentEditor from "@/components/staff/ManagerHubContentEditor";
 import { buildSurveyDaySummaries, ManagerSurveyReportCard, ManagerTodaySurveysCard, useStaffSurveys } from "@/components/staff/StaffSurveyCards";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
 import { useStaffTabTitleAlert } from "@/components/staff/useStaffTabTitleAlert";
@@ -817,6 +818,8 @@ export default function ManagerPage() {
       />
 
       {hotelSlug ? <ManagerContentOffersEditor hotelSlug={hotelSlug} lang={lang} /> : null}
+
+      {hotelSlug ? <ManagerHubContentEditor hotelSlug={hotelSlug} lang={lang} /> : null}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <StaffSummaryCard label={t.total} value={summary.total} onClick={() => setSelectedDrilldown({ kind: "request_status", status: "all" })} />
