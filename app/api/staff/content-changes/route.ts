@@ -7,46 +7,20 @@ import {
   createManagerContentChangeDraft,
   getManagerContentChangeSnapshot,
 } from "@/lib/server/manager-content-changes";
+import {
+  classifyManagerChangeFailure,
+  managerChangeFailurePayload,
+  reportManagerChangeSystemFailure,
+} from "@/lib/server/manager-change-safety";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function errorCode(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error || "");
-  const match = message.match(/(CM5_[A-Z0-9_]+)/);
-  return match?.[1] || "CM5_UNEXPECTED_ERROR";
-}
-
-function errorStatus(code: string) {
-  if (
-    code.includes("SESSION_REQUIRED")
-    || code.includes("HOTEL_FORBIDDEN")
-    || code.includes("RUNTIME_ROLE_REQUIRED")
-    || code.includes("MANAGER_SESSION_FORBIDDEN")
-  ) return 403;
-
-  if (
-    code.includes("STALE_")
-    || code.includes("NOT_DRAFT")
-    || code.includes("CONCURRENT_")
-    || code.includes("OPERATIONS_REQUIRED")
-    || code.includes("CURRENT_LIVE_STATE_INVALID")
-  ) return 409;
-
-  if (
-    code.includes("INVALID")
-    || code.includes("REQUIRED")
-  ) return 400;
-
-  if (code.includes("NOT_FOUND")) return 404;
-  return 500;
-}
-
 function failure(error: unknown) {
-  const code = errorCode(error);
+  const failure = classifyManagerChangeFailure(error);
   return NextResponse.json(
-    { ok: false, error: code },
-    { status: errorStatus(code) },
+    managerChangeFailurePayload(error),
+    { status: failure.status },
   );
 }
 
@@ -57,6 +31,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, snapshot });
   } catch (error) {
     console.error("manager content changes GET failed", error);
+    const hotelSlug = String(req.nextUrl.searchParams.get("hotelSlug") || "").trim().toLowerCase();
+    if (classifyManagerChangeFailure(error).notifyPlatform) {
+      await reportManagerChangeSystemFailure({
+        hotelSlug,
+        operation: "content_change_snapshot_load",
+        error,
+      });
+    }
     return failure(error);
   }
 }
@@ -65,6 +47,8 @@ export async function POST(req: NextRequest) {
   const originError = enforceStaffSameOrigin(req);
   if (originError) return originError;
 
+  let hotelSlug = "";
+  let action = "unknown";
   try {
     const body = await req.json().catch(() => null) as Record<string, unknown> | null;
     if (!body) {
@@ -74,8 +58,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const action = String(body.action || "").trim().toLowerCase();
-    const hotelSlug = String(body.hotelSlug || "").trim().toLowerCase();
+    action = String(body.action || "").trim().toLowerCase();
+    hotelSlug = String(body.hotelSlug || "").trim().toLowerCase();
 
     if (action === "create_draft") {
       const change = await createManagerContentChangeDraft({
@@ -107,6 +91,13 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error("manager content changes POST failed", error);
+    if (classifyManagerChangeFailure(error).notifyPlatform) {
+      await reportManagerChangeSystemFailure({
+        hotelSlug,
+        operation: action,
+        error,
+      });
+    }
     return failure(error);
   }
 }
