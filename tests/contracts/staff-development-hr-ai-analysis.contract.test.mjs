@@ -26,8 +26,8 @@ test("AI Manager analysis has explanation authority only and cannot persist or e
   const source = await readProjectFile("lib/server/staff-hr-ai-analysis.ts");
 
   for (const fragment of [
-    '"summarization_and_explanation_only"',
-    'decisionAuthority: context.decisionAuthority',
+    "aiRole: context.aiRole",
+    "decisionAuthority: context.decisionAuthority",
     "automatedEmploymentDecision: false",
     "persisted: false",
     "Do not rank or compare employees.",
