@@ -98,8 +98,8 @@ function normalizeDepartmentCodes(
     return [];
   }
 
-  if (result.length < 1) {
-    throw new Error("STAFF_STANDARD_AUTHORING_DEPARTMENT_SCOPE_REQUIRED");
+  if (result.length !== 1) {
+    throw new Error("STAFF_STANDARD_AUTHORING_DEPARTMENT_SCOPE_REQUIRES_ONE_DEPARTMENT");
   }
   return result;
 }
