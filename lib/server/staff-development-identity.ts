@@ -244,6 +244,97 @@ export async function provisionStaffDevelopmentCredential(input: {
   return data;
 }
 
+export async function listStaffDevelopmentIdentityCandidates(input: {
+  hotelSlug: unknown;
+  operationalRole: unknown;
+}) {
+  const hotelSlug = sanitizeSegment(input.hotelSlug);
+  const operationalRole = normalizeStaffRoleCode(input.operationalRole);
+  if (!hotelSlug || !operationalRole) {
+    throw new Error("STAFF_DEVELOPMENT_OPERATIONAL_CONTEXT_INVALID");
+  }
+
+  const operationalSession = await getCurrentStaffSession(
+    hotelSlug,
+    operationalRole,
+  );
+  if (!operationalSession) {
+    throw new Error("STAFF_DEVELOPMENT_OPERATIONAL_SESSION_REQUIRED");
+  }
+
+  const hotelId = uuid(
+    operationalSession.hotel_id,
+    "STAFF_DEVELOPMENT_HOTEL_ID_INVALID",
+  );
+  const runtimeRole = await resolveStaffRuntimeRoleForHotelId(
+    hotelId,
+    operationalRole,
+  );
+  if (!runtimeRole) {
+    throw new Error("STAFF_DEVELOPMENT_OPERATIONAL_ROLE_INVALID");
+  }
+
+  const { data: users, error } = await supabaseAdmin
+    .from("staff_users")
+    .select("id,department_id,full_name,role,active")
+    .eq("hotel_id", hotelId)
+    .eq("active", true)
+    .order("full_name", { ascending: true });
+
+  if (error) {
+    throw new Error("STAFF_DEVELOPMENT_IDENTITY_LIST_FAILED");
+  }
+
+  const eligible = (users || []).filter((user) => {
+    const role = clean(user.role).toLowerCase();
+    const departmentId = user.department_id
+      ? String(user.department_id)
+      : null;
+
+    if (runtimeRole.kind === "manager") {
+      return role === "hotel_manager";
+    }
+
+    if (
+      runtimeRole.departmentCode === "reception"
+      && role === "reception"
+    ) {
+      return true;
+    }
+
+    return (
+      departmentId === runtimeRole.departmentId
+      && ["staff", "department_manager", "reception"].includes(role)
+    );
+  });
+
+  const ids = eligible.map((user) => String(user.id));
+  let configured = new Set<string>();
+  if (ids.length) {
+    const { data: credentials, error: credentialError } =
+      await supabaseAdmin
+        .from("staff_development_credentials")
+        .select("staff_user_id")
+        .eq("hotel_id", hotelId)
+        .eq("active", true)
+        .in("staff_user_id", ids);
+
+    if (credentialError) {
+      throw new Error("STAFF_DEVELOPMENT_CREDENTIAL_LIST_FAILED");
+    }
+    configured = new Set(
+      (credentials || []).map((row) => String(row.staff_user_id)),
+    );
+  }
+
+  return eligible.map((user) => ({
+    staffUserId: String(user.id),
+    fullName: user.full_name ? String(user.full_name) : "",
+    role: clean(user.role).toLowerCase(),
+    credentialConfigured: configured.has(String(user.id)),
+  }));
+}
+
 export async function authenticateStaffDevelopmentIdentity(input: {
   hotelSlug: unknown;
   operationalRole: unknown;
@@ -452,29 +543,13 @@ export async function getCurrentStaffDevelopmentIdentity(
   ).catch(() => null);
   if (!staffUser) return null;
 
-  await assertIdentityMatchesOperationalRole({
-    hotelId: String(session.hotel_id),
-    operationalRole,
-    staffUser,
-  }).catch(() => null);
-
-  const runtimeRole = await resolveStaffRuntimeRoleForHotelId(
-    String(session.hotel_id),
-    operationalRole,
-  );
-  if (!runtimeRole) return null;
-
-  if (
-    runtimeRole.kind === "manager"
-      ? staffUser.role !== "hotel_manager"
-      : (
-          !(
-            runtimeRole.departmentCode === "reception"
-            && staffUser.role === "reception"
-          )
-          && staffUser.department_id !== runtimeRole.departmentId
-        )
-  ) {
+  try {
+    await assertIdentityMatchesOperationalRole({
+      hotelId: String(session.hotel_id),
+      operationalRole,
+      staffUser,
+    });
+  } catch {
     return null;
   }
 
