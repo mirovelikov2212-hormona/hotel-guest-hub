@@ -178,6 +178,79 @@ async function assertIdentityMatchesOperationalRole(input: {
   return runtimeRole;
 }
 
+export async function bootstrapHotelManagerDevelopmentCredential(input: {
+  hotelSlug: unknown;
+  staffUserId: unknown;
+  personalPin: unknown;
+}) {
+  assertStaffDevelopmentWriteEnabled();
+
+  const hotelSlug = sanitizeSegment(input.hotelSlug);
+  if (!hotelSlug) {
+    throw new Error("STAFF_DEVELOPMENT_OPERATIONAL_CONTEXT_INVALID");
+  }
+
+  const operationalSession = await getCurrentStaffSession(
+    hotelSlug,
+    "manager",
+  );
+  if (!operationalSession) {
+    throw new Error("STAFF_DEVELOPMENT_OPERATIONAL_SESSION_REQUIRED");
+  }
+
+  const hotelId = uuid(
+    operationalSession.hotel_id,
+    "STAFF_DEVELOPMENT_HOTEL_ID_INVALID",
+  );
+  const staffUserId = uuid(
+    input.staffUserId,
+    "STAFF_DEVELOPMENT_STAFF_USER_ID_INVALID",
+  );
+  const pin = normalizePersonalPin(input.personalPin);
+  const target = await activeStaffUser(hotelId, staffUserId);
+
+  if (target.role !== "hotel_manager") {
+    throw new Error("STAFF_DEVELOPMENT_BOOTSTRAP_MANAGER_REQUIRED");
+  }
+
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from("staff_development_credentials")
+    .select("id")
+    .eq("hotel_id", hotelId)
+    .eq("active", true)
+    .limit(1);
+
+  if (existingError) {
+    throw new Error("STAFF_DEVELOPMENT_BOOTSTRAP_CHECK_FAILED");
+  }
+  if ((existing || []).length > 0) {
+    throw new Error("STAFF_DEVELOPMENT_BOOTSTRAP_ALREADY_COMPLETED");
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("staff_development_credentials")
+    .insert({
+      hotel_id: hotelId,
+      staff_user_id: staffUserId,
+      pin_hash: hashPin(pin),
+      active: true,
+      failed_attempts: 0,
+      locked_until: null,
+      last_failed_at: null,
+      created_by_staff_user_id: null,
+    })
+    .select("id,hotel_id,staff_user_id,active,created_at,updated_at")
+    .single();
+
+  if (error || !data) {
+    throw new Error(
+      error?.message || "STAFF_DEVELOPMENT_BOOTSTRAP_PERSIST_FAILED",
+    );
+  }
+
+  return data;
+}
+
 export async function provisionStaffDevelopmentCredential(input: {
   hotelId: unknown;
   staffUserId: unknown;
