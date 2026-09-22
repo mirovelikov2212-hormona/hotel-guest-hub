@@ -7,28 +7,28 @@
     {
       "filePath": "lib/server/staff-development-identity.ts",
       "fromLine": 221,
-      "toLine": 294,
+      "toLine": 293,
       "table": "staff_development_credentials",
       "operation": "upsert"
     },
     {
       "filePath": "lib/server/staff-development-identity.ts",
       "fromLine": 279,
-      "toLine": 352,
+      "toLine": 351,
       "table": "staff_users",
       "operation": "select"
     },
     {
       "filePath": "lib/server/staff-development-identity.ts",
       "fromLine": 317,
-      "toLine": 390,
+      "toLine": 389,
       "table": "staff_development_credentials",
       "operation": "select"
     },
     {
       "filePath": "lib/server/staff-development-identity.ts",
       "fromLine": 381,
-      "toLine": 454,
+      "toLine": 453,
       "table": "staff_development_credentials",
       "operation": "select"
     },
@@ -47,28 +47,28 @@
     {
       "filePath": "lib/server/staff-development-identity.ts",
       "fromLine": 445,
-      "toLine": 518,
+      "toLine": 517,
       "table": "staff_development_sessions",
       "operation": "update"
     },
     {
       "filePath": "lib/server/staff-development-identity.ts",
       "fromLine": 459,
-      "toLine": 532,
+      "toLine": 531,
       "table": "staff_development_sessions",
       "operation": "insert"
     },
     {
       "filePath": "lib/server/staff-development-identity.ts",
       "fromLine": 511,
-      "toLine": 584,
+      "toLine": 583,
       "table": "staff_development_sessions",
       "operation": "select"
     },
     {
       "filePath": "lib/server/staff-development-identity.ts",
       "fromLine": 605,
-      "toLine": 678,
+      "toLine": 677,
       "table": "staff_development_sessions",
       "operation": "update"
     }
@@ -76,7 +76,7 @@
   "additions": [
     {
       "filePath": "lib/server/staff-development-identity.ts",
-      "line": 217,
+      "line": 216,
       "table": "staff_development_credentials",
       "tableExpression": "\"staff_development_credentials\"",
       "operation": "select",
@@ -87,7 +87,7 @@
     },
     {
       "filePath": "lib/server/staff-development-identity.ts",
-      "line": 231,
+      "line": 230,
       "table": "staff_development_credentials",
       "tableExpression": "\"staff_development_credentials\"",
       "operation": "insert",
@@ -98,7 +98,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 28,
+      "line": 27,
       "table": "staff_training_plan_revisions",
       "tableExpression": "\"staff_training_plan_revisions\"",
       "operation": "select",
@@ -109,7 +109,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 45,
+      "line": 44,
       "table": "staff_assessment_revisions",
       "tableExpression": "\"staff_assessment_revisions\"",
       "operation": "select",
@@ -120,7 +120,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 69,
+      "line": 68,
       "table": "staff_training_assignments",
       "tableExpression": "\"staff_training_assignments\"",
       "operation": "select",
@@ -131,7 +131,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 77,
+      "line": 76,
       "table": "staff_training_completions",
       "tableExpression": "\"staff_training_completions\"",
       "operation": "select",
@@ -142,7 +142,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 85,
+      "line": 84,
       "table": "staff_assessment_attempts",
       "tableExpression": "\"staff_assessment_attempts\"",
       "operation": "select",
@@ -153,7 +153,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 93,
+      "line": 92,
       "table": "staff_verified_results",
       "tableExpression": "\"staff_verified_results\"",
       "operation": "select",
@@ -164,7 +164,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 194,
+      "line": 193,
       "table": "staff_users",
       "tableExpression": "\"staff_users\"",
       "operation": "select",
@@ -175,7 +175,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 224,
+      "line": 223,
       "table": "hotel_staff_standard_revisions",
       "tableExpression": "\"hotel_staff_standard_revisions\"",
       "operation": "select",
@@ -186,7 +186,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 249,
+      "line": 248,
       "table": "staff_training_plan_revisions",
       "tableExpression": "\"staff_training_plan_revisions\"",
       "operation": "select",
@@ -197,7 +197,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 265,
+      "line": 264,
       "table": "staff_training_assignments",
       "tableExpression": "\"staff_training_assignments\"",
       "operation": "select",
@@ -208,7 +208,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 284,
+      "line": 283,
       "table": "staff_assessment_attempts",
       "tableExpression": "\"staff_assessment_attempts\"",
       "operation": "select",
@@ -219,7 +219,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 305,
+      "line": 304,
       "table": "staff_assessment_revisions",
       "tableExpression": "\"staff_assessment_revisions\"",
       "operation": "select",
@@ -230,7 +230,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 322,
+      "line": 321,
       "table": "staff_verified_results",
       "tableExpression": "\"staff_verified_results\"",
       "operation": "select",
@@ -241,7 +241,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 330,
+      "line": 329,
       "table": "staff_hr_evaluations",
       "tableExpression": "\"staff_hr_evaluations\"",
       "operation": "select",
@@ -252,7 +252,7 @@
     },
     {
       "filePath": "lib/server/staff-development-read.ts",
-      "line": 355,
+      "line": 354,
       "table": "hotel_staff_hr_rule_revisions",
       "tableExpression": "\"hotel_staff_hr_rule_revisions\"",
       "operation": "select",
