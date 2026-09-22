@@ -43,9 +43,10 @@ test("Hotel Standard source documents are private, declaration-bound and content
   }
 });
 
-test("Structured Standard proposal never changes department scope supplied by Manager identity", async () => {
+test("Structured Standard proposal preserves explicit Hotel vs Department scope supplied by Manager authority", async () => {
   const source = await readProjectFile("lib/server/staff-standard-authoring.ts");
 
+  assertContains(source, "standardScope: authoring.standard_scope");
   assertContains(source, "departmentCodes: authoring.department_codes");
   assertContains(source, "standardKey: authoring.standard_key");
   assertContains(source, "revisionNo: 1");
@@ -66,7 +67,7 @@ test("Publishing is a separate human Manager action and atomically creates Stand
     "requireManagerIdentity(input.hotelSlug)",
     'allowedStatuses: ["proposal_ready"]',
     "deriveStaffTrainingPlan(publishedStandard)",
-    '"publish_staff_standard_authoring_v1"',
+    '"publish_staff_standard_authoring_v2"',
     'action === "publish"',
     "window.confirm(copy.approvalWarning)",
   ]) {
@@ -83,8 +84,12 @@ test("Authoring UI makes hotel ownership of Standards explicit and supports manu
   );
 
   for (const fragment of [
-    '"Стандартът идва от хотела.',
+    '"Хотелът качва собствените си стандарти.',
     'sourceKind === "manual"',
+    'standardScope === "hotel"',
+    'standardScope === "department"',
+    "copy.hotelScope",
+    "copy.departmentScope",
     'selected.source_kind === "document"',
     '".pdf,.docx,.txt',
     '"save_proposal"',
