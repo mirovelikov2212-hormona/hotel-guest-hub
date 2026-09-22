@@ -8,6 +8,7 @@ import {
   revokeCurrentStaffDevelopmentIdentity,
 } from "@/lib/server/staff-development-identity";
 import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";
+import { isStaffDevelopmentWriteEnabled } from "@/lib/server/staff-development-persistence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,6 +69,7 @@ export async function GET(req: NextRequest) {
         ok: true,
         identity,
         candidates,
+        writesEnabled: isStaffDevelopmentWriteEnabled(),
       },
       { headers: NO_STORE_HEADERS },
     );
