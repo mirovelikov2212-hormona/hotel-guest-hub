@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
+import StaffStandardAuthoringPanel from "@/components/staff/StaffStandardAuthoringPanel";
 
 type Candidate = {
   staffUserId: string;
@@ -773,6 +774,8 @@ export default function StaffDevelopmentPageContent({
             </div>
           ) : (
             <ManagerOverview
+              hotelSlug={hotelSlug}
+              operationalRole={operationalRole}
               state={managerState}
               lang={lang}
               copy={copy}
@@ -798,6 +801,8 @@ export default function StaffDevelopmentPageContent({
 }
 
 function ManagerOverview({
+  hotelSlug,
+  operationalRole,
   state,
   lang,
   copy,
@@ -823,6 +828,13 @@ function ManagerOverview({
 
   return (
     <div className="space-y-4">
+      <StaffStandardAuthoringPanel
+        hotelSlug={hotelSlug}
+        lang={lang}
+        writesEnabled={writesEnabled}
+        operationalRole={operationalRole}
+      />
+
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {[
           [copy.staff, staff.length],
