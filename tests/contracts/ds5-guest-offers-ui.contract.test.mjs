@@ -46,3 +46,31 @@ test("Guest Hub consumes runtime brand fonts without hotel-specific CSS conditio
     assertNotContains(hub.toLowerCase(),forbidden.toLowerCase());
   }
 });
+
+
+test("Guest offer UI is complete for all six supported guest languages", async () => {
+  const panel=await readProjectFile("components/guest/GuestOffersPanel.tsx");
+  for(const fragment of [
+    'bg: { empty:',
+    'en: { empty:',
+    'de: { empty:',
+    'ro: { empty:',
+    'cs: { empty:',
+    'ru: { empty:',
+    'copyFor(language).validity',
+    'copyFor(language).attachment',
+  ]) assertContains(panel,fragment);
+});
+
+test("Offer internal-page CTA is fail-closed to runtime destinations the Guest Hub can execute", async () => {
+  const studio=await readProjectFile("app/design-studio/VersionedDesignStudioClient.tsx");
+  const runtime=await readProjectFile("lib/product-factory/factory-design-runtime-model.mjs");
+  const hub=await readProjectFile("components/GuestHub.tsx");
+
+  assertContains(studio,'const supported = new Set(["page-services", "page-offers"])');
+  assertContains(studio,"options={offerDestinations}");
+  assertContains(runtime,'RUNTIME_INTERNAL_PAGE_DESTINATIONS = new Set(["home", "page-services", "page-offers"])');
+  assertContains(runtime,"FACTORY_DESIGN_OFFER_INTERNAL_PAGE_UNSUPPORTED");
+  assertContains(hub,'destination === "page-offers"');
+  assertContains(hub,'destination === "home" || destination === "page-services"');
+});

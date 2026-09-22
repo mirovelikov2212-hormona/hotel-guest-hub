@@ -9251,7 +9251,15 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
                   offers={visibleHotelOffers}
                   hotelSlug={hotelContentSlug}
                   language={String(lang)}
-                  onInternalPage={() => setOpenQuickServiceId(null)}
+                  onInternalPage={(destination) => {
+                    if (destination === "page-offers") {
+                      setOpenQuickServiceId("offers");
+                      return;
+                    }
+                    if (destination === "home" || destination === "page-services") {
+                      setOpenQuickServiceId(null);
+                    }
+                  }}
                   onRequestService={(requestType) => {
                     const definition = requestDefs.find((candidate) =>
                       String(candidate.requestType || candidate.id || "").trim() === requestType

@@ -192,6 +192,16 @@ function destinationOptions(pages: HubInternalPage[]) {
   ];
 }
 
+function offerDestinationOptions(pages: HubInternalPage[]) {
+  const supported = new Set(["page-services", "page-offers"]);
+  return [
+    { value: "home", label: "Home" },
+    ...pages
+      .filter((page) => supported.has(page.id))
+      .map((page) => ({ value: page.id, label: page.title || page.id })),
+  ];
+}
+
 function withPromotionDestination(promo: HubPromotionDraft): EditablePromotion {
   const candidate = promo as EditablePromotion;
   return { ...promo, ctaDestination: candidate.ctaDestination || "page-services" };
@@ -791,6 +801,7 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
   const currentRevisionId = snapshot?.workspace.currentRevisionId || null;
   const currentRevision = snapshot?.revisions.find((revision) => revision.id === currentRevisionId);
   const destinations = destinationOptions(pages);
+  const offerDestinations = offerDestinationOptions(pages);
 
   return (
     <section className="rounded-[2rem] border border-violet-300/15 bg-neutral-900/85 p-4 sm:p-6">
@@ -946,7 +957,7 @@ export default function VersionedDesignStudioClient({ lang, scanRunId, quickPrev
                       ]}
                     />
                     {offer.cta.action === "internal_page"
-                      ? <Select label={copy.destination} value={offer.cta.destination || "page-services"} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, cta: { ...current.cta, destination: value } }))} options={destinations} />
+                      ? <Select label={copy.destination} value={offer.cta.destination || "page-services"} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, cta: { ...current.cta, destination: value } }))} options={offerDestinations} />
                       : offer.cta.action !== "none"
                         ? <Input label={copy.destination} value={offer.cta.destination || ""} onChange={(value) => updateOffer(offer.id, (current) => ({ ...current, cta: { ...current.cta, destination: value.trim() || null } }))} />
                         : null}

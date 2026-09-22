@@ -15,6 +15,24 @@ type GuestOffersPanelProps = {
   onTrackAction?: (offer: HotelOffer, action: string) => void;
 };
 
+const OFFER_UI_COPY: Record<string, {
+  empty: string;
+  validity: string;
+  attachment: string;
+}> = {
+  bg: { empty: "В момента няма активни оферти.", validity: "Валидност", attachment: "Файл" },
+  en: { empty: "There are no active offers at the moment.", validity: "Valid", attachment: "Attachment" },
+  de: { empty: "Zurzeit gibt es keine aktiven Angebote.", validity: "Gültigkeit", attachment: "Anhang" },
+  ro: { empty: "Momentan nu există oferte active.", validity: "Valabilitate", attachment: "Fișier" },
+  cs: { empty: "Momentálně nejsou k dispozici žádné aktivní nabídky.", validity: "Platnost", attachment: "Soubor" },
+  ru: { empty: "Сейчас нет активных предложений.", validity: "Срок действия", attachment: "Файл" },
+};
+
+function copyFor(language: string) {
+  const locale = String(language || "").trim().toLowerCase().split("-")[0];
+  return OFFER_UI_COPY[locale] || OFFER_UI_COPY.en;
+}
+
 function localized(values: Record<string, string>, language: string) {
   return getHotelOfferLocalizedText(values, language);
 }
@@ -43,13 +61,26 @@ function previousPriceLabel(offer: HotelOffer, language: string) {
   }
 }
 
+function formatDate(value: string, language: string) {
+  try {
+    return new Intl.DateTimeFormat(language || "en", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(value + "T00:00:00Z"));
+  } catch {
+    return value;
+  }
+}
+
 function validityLabel(offer: HotelOffer, language: string) {
   const start = offer.validity.startDate;
   const end = offer.validity.endDate;
   if (!start && !end) return "";
-  const prefix = language === "bg" ? "Валидност" : language === "de" ? "Gültigkeit" : "Valid";
-  if (start && end) return prefix + ": " + start + " – " + end;
-  return prefix + ": " + (start || end);
+  const prefix = copyFor(language).validity;
+  if (start && end) return prefix + ": " + formatDate(start, language) + " – " + formatDate(end, language);
+  return prefix + ": " + formatDate(start || end || "", language);
 }
 
 function externalHref(action: HotelOffer["cta"]["action"], destination: string) {
@@ -70,7 +101,7 @@ export default function GuestOffersPanel({
   if (!offers.length) {
     return (
       <div className="rounded-2xl border border-[color:var(--stayhub-border)] bg-white/80 p-4 text-sm text-[color:var(--stayhub-muted)]">
-        {language === "bg" ? "В момента няма активни оферти." : "There are no active offers at the moment."}
+        {copyFor(language).empty}
       </div>
     );
   }
@@ -168,7 +199,7 @@ export default function GuestOffersPanel({
                       className="flex min-h-11 items-center justify-between rounded-xl border border-[color:var(--stayhub-border)] px-3 py-2 text-sm font-medium text-[color:var(--stayhub-primary)]"
                       onClick={() => onTrackAction?.(offer, "attachment")}
                     >
-                      <span>{language === "bg" ? "Файл" : "Attachment"} {index + 1}</span>
+                      <span>{copyFor(language).attachment} {index + 1}</span>
                       <span aria-hidden="true">↓</span>
                     </a>
                   ))}
