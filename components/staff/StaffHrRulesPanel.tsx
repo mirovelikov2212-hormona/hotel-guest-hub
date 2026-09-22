@@ -91,6 +91,15 @@ const COPY = {
     locked: "Записването е заключено до финалния E2E тест.",
     saved: "HR правилата са публикувани.",
     evaluated: "HR evaluation е записан.",
+    aiAnalyze: "AI обясни verified evidence",
+    aiAnalyzing: "AI анализира…",
+    aiAnalysis: "AI Manager анализ",
+    aiSummary: "Обобщение",
+    aiEvidence: "Проверими факти",
+    aiRules: "Обяснение на правилата",
+    aiTraining: "Теми за обучение",
+    aiQuestions: "Въпроси за Manager review",
+    aiReadOnly: "AI анализът е read-only и няма HR decision authority.",
   },
   en: {
     title: "HR Rules & Manager Analysis",
@@ -125,6 +134,15 @@ const COPY = {
     locked: "Writes are locked until the final E2E test.",
     saved: "HR rules published.",
     evaluated: "HR evaluation saved.",
+    aiAnalyze: "AI explain verified evidence",
+    aiAnalyzing: "AI analyzing…",
+    aiAnalysis: "AI Manager analysis",
+    aiSummary: "Summary",
+    aiEvidence: "Verified evidence",
+    aiRules: "Rule explanations",
+    aiTraining: "Training focus",
+    aiQuestions: "Manager review questions",
+    aiReadOnly: "AI analysis is read-only and has no employment decision authority.",
   },
   de: {
     title: "HR-Regeln & Manager-Analyse",
@@ -159,6 +177,15 @@ const COPY = {
     locked: "Schreibzugriffe bleiben bis zum finalen E2E-Test gesperrt.",
     saved: "HR-Regeln veröffentlicht.",
     evaluated: "HR-Auswertung gespeichert.",
+    aiAnalyze: "KI erklärt verifizierte Evidenz",
+    aiAnalyzing: "KI analysiert…",
+    aiAnalysis: "KI-Manager-Analyse",
+    aiSummary: "Zusammenfassung",
+    aiEvidence: "Verifizierte Evidenz",
+    aiRules: "Regelerklärungen",
+    aiTraining: "Schulungsschwerpunkte",
+    aiQuestions: "Fragen für die Manager-Prüfung",
+    aiReadOnly: "Die KI-Analyse ist schreibgeschützt und hat keine Personalentscheidungsbefugnis.",
   },
 } as const;
 
@@ -182,6 +209,7 @@ function actionLabel(action: string, copy: typeof COPY.bg) {
 }
 
 export default function StaffHrRulesPanel({
+  hotelSlug,
   lang,
   writesEnabled,
   staff,
@@ -190,6 +218,7 @@ export default function StaffHrRulesPanel({
   hrEvaluations,
   action,
 }: {
+  hotelSlug: string;
   lang: UiLang;
   writesEnabled: boolean;
   staff: StaffRow[];
@@ -204,6 +233,11 @@ export default function StaffHrRulesPanel({
   const [staffUserId, setStaffUserId] = useState("");
   const [hrRuleRevisionId, setHrRuleRevisionId] = useState("");
   const [notice, setNotice] = useState("");
+  const [aiAnalysisByEvaluation, setAiAnalysisByEvaluation] = useState<
+    Record<string, Record<string, any>>
+  >({});
+  const [aiWorkingId, setAiWorkingId] = useState("");
+  const [aiError, setAiError] = useState("");
 
   const latestRules = useMemo(
     () =>
@@ -247,6 +281,35 @@ export default function StaffHrRulesPanel({
       hrRuleRevisionId,
     });
     if (result) setNotice(copy.evaluated);
+  }
+
+  async function analyzeEvaluation(evaluationId: string) {
+    setAiWorkingId(evaluationId);
+    setAiError("");
+    try {
+      const response = await fetch("/api/staff/development/hr/analysis", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hotelSlug,
+          evaluationId,
+          language: lang,
+        }),
+      });
+      const body = await response.json().catch(() => null) as any;
+      if (!response.ok || !body?.ok || !body.result?.analysis) {
+        throw new Error(body?.error || "STAFF_HR_AI_ANALYSIS_FAILED");
+      }
+      setAiAnalysisByEvaluation((current) => ({
+        ...current,
+        [evaluationId]: body.result,
+      }));
+    } catch (reason) {
+      setAiError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setAiWorkingId("");
+    }
   }
 
   function updateRule(index: number, patch: Partial<RuleDraft>) {
@@ -436,6 +499,12 @@ export default function StaffHrRulesPanel({
       <div className="mt-4 rounded-2xl border p-4">
         <h4 className="font-semibold">{copy.findings}</h4>
         <p className="mt-1 text-xs opacity-55">{copy.humanDecision}</p>
+        <p className="mt-1 text-xs opacity-55">{copy.aiReadOnly}</p>
+        {aiError ? (
+          <div className="mt-3 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-sm">
+            {aiError}
+          </div>
+        ) : null}
         <div className="mt-3 space-y-2">
           {!hrEvaluations.length ? (
             <p className="text-sm opacity-60">{copy.noFindings}</p>
@@ -464,6 +533,83 @@ export default function StaffHrRulesPanel({
                     </p>
                   ))}
                 </div>
+
+                <button
+                  type="button"
+                  disabled={aiWorkingId === evaluation.id}
+                  onClick={() => void analyzeEvaluation(evaluation.id)}
+                  className="mt-3 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-xs font-semibold disabled:opacity-40"
+                >
+                  {aiWorkingId === evaluation.id
+                    ? copy.aiAnalyzing
+                    : copy.aiAnalyze}
+                </button>
+
+                {aiAnalysisByEvaluation[evaluation.id]?.analysis ? (() => {
+                  const analysis =
+                    aiAnalysisByEvaluation[evaluation.id].analysis as any;
+                  return (
+                    <div className="mt-3 rounded-xl border border-violet-500/20 p-3">
+                      <p className="text-sm font-semibold">{copy.aiAnalysis}</p>
+                      <p className="mt-2 text-xs font-semibold opacity-60">
+                        {copy.aiSummary}
+                      </p>
+                      <p className="mt-1 text-sm">{analysis.summary}</p>
+
+                      {Array.isArray(analysis.evidenceHighlights)
+                        && analysis.evidenceHighlights.length ? (
+                        <div className="mt-3">
+                          <p className="text-xs font-semibold opacity-60">
+                            {copy.aiEvidence}
+                          </p>
+                          {analysis.evidenceHighlights.map((item: any) => (
+                            <p key={item.resultHash} className="mt-1 text-sm">
+                              {item.text}
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {Array.isArray(analysis.ruleExplanations)
+                        && analysis.ruleExplanations.length ? (
+                        <div className="mt-3">
+                          <p className="text-xs font-semibold opacity-60">
+                            {copy.aiRules}
+                          </p>
+                          {analysis.ruleExplanations.map((item: any) => (
+                            <p key={item.ruleId} className="mt-1 text-sm">
+                              <strong>{item.ruleId}:</strong> {item.text}
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {Array.isArray(analysis.trainingFocus)
+                        && analysis.trainingFocus.length ? (
+                        <div className="mt-3">
+                          <p className="text-xs font-semibold opacity-60">
+                            {copy.aiTraining}
+                          </p>
+                          {analysis.trainingFocus.map((item: string) => (
+                            <p key={item} className="mt-1 text-sm">• {item}</p>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {Array.isArray(analysis.managerReviewQuestions)
+                        && analysis.managerReviewQuestions.length ? (
+                        <div className="mt-3">
+                          <p className="text-xs font-semibold opacity-60">
+                            {copy.aiQuestions}
+                          </p>
+                          {analysis.managerReviewQuestions.map((item: string) => (
+                            <p key={item} className="mt-1 text-sm">• {item}</p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })() : null}
               </div>
             );
           })}
