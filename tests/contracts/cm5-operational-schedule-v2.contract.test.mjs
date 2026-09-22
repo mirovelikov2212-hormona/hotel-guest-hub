@@ -8,6 +8,9 @@ import {
   prepareFactoryGuestRuntimeConfig,
 } from "../../lib/product-factory/factory-guest-runtime-config-model.mjs";
 import {
+  buildHotelConfigVersionDiff,
+} from "../../lib/server/factory-production-version-diff.mjs";
+import {
   hasConfiguredDepartmentScheduleForConfig,
   isDepartmentWorkingHoursForConfig,
   resolveDepartmentCoverageForConfig,
@@ -430,4 +433,23 @@ test("Factory blocks ambiguous schedule definitions before they can reach runtim
     () => prepareFactoryGuestRuntimeConfig({ blueprint: dateBlueprint }),
     /hours\.dateOverrides\.0\.windows\.0/,
   );
+});
+
+
+test("CM5 diff classifier reports departmentSchedules as hours changes", () => {
+  const current = {
+    departmentSchedules: {
+      housekeeping: {
+        is24h: false,
+        windows: [{ days: ALL_DAYS, open: "08:00", close: "17:00" }],
+      },
+    },
+  };
+  const candidate = structuredClone(current);
+  candidate.departmentSchedules.housekeeping.windows[0].close = "23:00";
+
+  const diff = buildHotelConfigVersionDiff(current, candidate);
+  assert.equal(diff.changed, true);
+  assert.ok(diff.changedCategories.includes("hours"));
+  assert.equal(diff.categoryCounts.hours > 0, true);
 });
