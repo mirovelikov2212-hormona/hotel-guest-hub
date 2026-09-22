@@ -139,6 +139,7 @@ async function nextRevisionNo(input: {
 async function assertPlanWithinManagerScope(input: {
   identity: Awaited<ReturnType<typeof requireManagerIdentity>>;
   trainingPlanRevisionId: unknown;
+  allowHotelScopeForDepartmentManager?: boolean;
 }) {
   const trainingPlanRevisionId = clean(input.trainingPlanRevisionId).toLowerCase();
 
@@ -173,14 +174,27 @@ async function assertPlanWithinManagerScope(input: {
     throw new Error("STAFF_STANDARD_REVISION_NOT_FOUND");
   }
 
+  const standardScope = clean(
+    standard.standard_json.standardScope,
+  ).toLowerCase();
   const departments = standard.standard_json.departmentCodes
     .map((value) => clean(value).toLowerCase());
 
+  if (standardScope === "hotel") {
+    if (departments.length !== 0) {
+      throw new Error("STAFF_STANDARD_REVISION_SCOPE_INVALID");
+    }
+    if (!input.allowHotelScopeForDepartmentManager) {
+      throw new Error("STAFF_DEVELOPMENT_MANAGER_SCOPE_FORBIDDEN");
+    }
+    return String(plan.id);
+  }
+
   if (
-    !input.identity.operationalRole
-    || departments.some(
-      (department) => department !== input.identity.operationalRole,
-    )
+    standardScope !== "department"
+    || !input.identity.operationalRole
+    || departments.length !== 1
+    || departments[0] !== input.identity.operationalRole
   ) {
     throw new Error("STAFF_DEVELOPMENT_MANAGER_SCOPE_FORBIDDEN");
   }
@@ -202,15 +216,31 @@ export async function publishStaffStandardAndTraining(input: {
     "STAFF_STANDARD_KEY_INVALID",
   );
 
+  const standardScope = clean(
+    input.standard.standardScope,
+  ).toLowerCase();
+
   if (identity.staffUserRole === "department_manager") {
     if (
-      !Array.isArray(input.standard.departmentCodes)
+      standardScope !== "department"
+      || !Array.isArray(input.standard.departmentCodes)
       || input.standard.departmentCodes.length !== 1
       || clean(input.standard.departmentCodes[0]).toLowerCase()
         !== identity.operationalRole
     ) {
       throw new Error("STAFF_DEVELOPMENT_MANAGER_SCOPE_FORBIDDEN");
     }
+  }
+
+  if (
+    identity.staffUserRole === "hotel_manager"
+    && standardScope === "hotel"
+    && (
+      !Array.isArray(input.standard.departmentCodes)
+      || input.standard.departmentCodes.length !== 0
+    )
+  ) {
+    throw new Error("STAFF_STANDARD_HOTEL_SCOPE_DEPARTMENTS_FORBIDDEN");
   }
 
   const revisionNo = await nextRevisionNo({
@@ -257,6 +287,7 @@ export async function assignTrainingToStaff(input: {
   await assertPlanWithinManagerScope({
     identity,
     trainingPlanRevisionId: input.trainingPlanRevisionId,
+    allowHotelScopeForDepartmentManager: true,
   });
 
   return assignStaffTraining({
