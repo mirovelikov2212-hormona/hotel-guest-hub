@@ -385,8 +385,10 @@ export default function ManagerContentOffersEditor({
         + encodeURIComponent(draftId),
       { cache: "no-store", credentials: "same-origin" },
     );
-    const body = await response.json().catch(() => null) as { ok?: boolean; assets?: ContentAsset[]; error?: string } | null;
-    if (!response.ok || !body?.ok) throw new Error(body?.error || "CM5_CONTENT_ASSET_LIST_FAILED");
+    const body = await response.json().catch(() => null) as { ok?: boolean; assets?: ContentAsset[]; error?: string; errorType?: string } | null;
+    if (!response.ok || !body?.ok) {
+      throw new Error(managerFailureMessage(body, "CM5_CONTENT_ASSET_LIST_FAILED"));
+    }
     setAssets(body.assets || []);
   }
 
@@ -543,9 +545,10 @@ export default function ManagerContentOffersEditor({
         ok?: boolean;
         upload?: { assetId: string; storagePath: string; token: string };
         error?: string;
+        errorType?: string;
       } | null;
       if (!prepareResponse.ok || !prepared?.ok || !prepared.upload) {
-        throw new Error(prepared?.error || "CM5_CONTENT_ASSET_PREPARE_FAILED");
+        throw new Error(managerFailureMessage(prepared, "CM5_CONTENT_ASSET_PREPARE_FAILED"));
       }
 
       const storage = getStorageClient();
@@ -579,9 +582,10 @@ export default function ManagerContentOffersEditor({
         ok?: boolean;
         asset?: ContentAsset;
         error?: string;
+        errorType?: string;
       } | null;
       if (!finalizeResponse.ok || !finalized?.ok || !finalized.asset) {
-        throw new Error(finalized?.error || "CM5_CONTENT_ASSET_FINALIZE_FAILED");
+        throw new Error(managerFailureMessage(finalized, "CM5_CONTENT_ASSET_FINALIZE_FAILED"));
       }
 
       const asset = finalized.asset;
@@ -618,9 +622,10 @@ export default function ManagerContentOffersEditor({
           previewUrl: string | null;
         };
         error?: string;
+        errorType?: string;
       } | null;
       if (!response.ok || !body?.ok || !body.review) {
-        throw new Error(body?.error || "CM5_CONTENT_ASSET_REVIEW_FAILED");
+        throw new Error(managerFailureMessage(body, "CM5_CONTENT_ASSET_REVIEW_FAILED"));
       }
 
       const updated: ContentAsset = {
