@@ -49,14 +49,15 @@ function localizedSchema(maxLength: number) {
   };
 }
 
-function parseStructuredOutput(response: {
-  status?: string | null;
-  output_text?: string | null;
-}) {
-  if (response.status === "incomplete") {
+function parseStructuredOutput(response: unknown) {
+  const result = response as {
+    status?: string | null;
+    output_text?: string | null;
+  };
+  if (result.status === "incomplete") {
     throw new Error("STAFF_AI_RESPONSE_INCOMPLETE");
   }
-  const outputText = String(response.output_text || "").trim();
+  const outputText = String(result.output_text || "").trim();
   if (!outputText) throw new Error("STAFF_AI_RESPONSE_EMPTY");
   try {
     const parsed = JSON.parse(outputText);
