@@ -53,6 +53,12 @@ type TransitionEventRow = {
   request_id: string | null;
   event_type: string;
   created_at: string;
+  metadata_json: Record<string, unknown> | null;
+};
+
+type LastTransitionState = {
+  eventType: string;
+  effectiveDepartment: string | null;
 };
 
 function isAuthorizedCronRequest(req: NextRequest) {
@@ -84,12 +90,12 @@ async function loadLastTransitionEvents(
   hotelId: string,
   requestIds: string[],
 ) {
-  const latestByRequest = new Map<string, string>();
+  const latestByRequest = new Map<string, LastTransitionState>();
   if (!requestIds.length) return latestByRequest;
 
   const { data, error } = await supabaseAdmin
     .from("system_events")
-    .select("request_id,event_type,created_at")
+    .select("request_id,event_type,created_at,metadata_json")
     .eq("hotel_id", hotelId)
     .in("request_id", requestIds)
     .in("event_type", [
@@ -103,7 +109,10 @@ async function loadLastTransitionEvents(
   for (const row of (data || []) as TransitionEventRow[]) {
     const requestId = clean(row.request_id);
     if (requestId && !latestByRequest.has(requestId)) {
-      latestByRequest.set(requestId, clean(row.event_type));
+      latestByRequest.set(requestId, {
+        eventType: clean(row.event_type),
+        effectiveDepartment: clean(row.metadata_json?.effectiveDepartment) || null,
+      });
     }
   }
 
@@ -196,11 +205,13 @@ async function processHotelTransitions(input: {
   };
 
   for (const request of input.requests) {
+    const lastTransition = lastEvents.get(request.id) || null;
     const decision = decideRequestCoverageTransition({
       request,
       hotelConfig: config,
       now: input.now,
-      lastEventType: lastEvents.get(request.id) || null,
+      lastEventType: lastTransition?.eventType || null,
+      lastEffectiveDepartment: lastTransition?.effectiveDepartment || null,
     });
 
     if (!decision.ok || decision.action === "skip") {
