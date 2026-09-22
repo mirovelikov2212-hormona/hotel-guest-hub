@@ -26,6 +26,9 @@ on:
       - "lib/server/manager-offer-changes.ts"
       - "lib/server/hotel-content-assets.ts"
       - "lib/product-factory/hub-creative-quality.mjs"
+      - "components/staff/ManagerContentOffersEditor.tsx"
+      - "components/staff/pages/ManagerPageContent.tsx"
+      - "components/guest/GuestOffersPanel.tsx"
       - "app/internal-tools-brand.css"
       - "app/globals.css"
       - "tests/contracts/hotel-scanner-*.contract.test.mjs"
@@ -65,6 +68,9 @@ on:
       - "lib/server/manager-offer-changes.ts"
       - "lib/server/hotel-content-assets.ts"
       - "lib/product-factory/hub-creative-quality.mjs"
+      - "components/staff/ManagerContentOffersEditor.tsx"
+      - "components/staff/pages/ManagerPageContent.tsx"
+      - "components/guest/GuestOffersPanel.tsx"
       - "lib/guest/hotel-offers.mjs"
       - "app/api/guest/design-asset/**"
       - "app/internal-tools-brand.css"
@@ -128,3 +134,4 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key

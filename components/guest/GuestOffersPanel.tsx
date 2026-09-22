@@ -4,6 +4,7 @@ import type { HotelOffer } from "@/lib/types";
 import {
   buildGuestDesignAssetUrl,
   getHotelOfferLocalizedText,
+  getHotelOfferReadyCreative,
 } from "@/lib/guest/hotel-offers.mjs";
 
 type GuestOffersPanelProps = {
@@ -19,13 +20,14 @@ const OFFER_UI_COPY: Record<string, {
   empty: string;
   validity: string;
   attachment: string;
+  openReadyOffer: string;
 }> = {
-  bg: { empty: "В момента няма активни оферти.", validity: "Валидност", attachment: "Файл" },
-  en: { empty: "There are no active offers at the moment.", validity: "Valid", attachment: "Attachment" },
-  de: { empty: "Zurzeit gibt es keine aktiven Angebote.", validity: "Gültigkeit", attachment: "Anhang" },
-  ro: { empty: "Momentan nu există oferte active.", validity: "Valabilitate", attachment: "Fișier" },
-  cs: { empty: "Momentálně nejsou k dispozici žádné aktivní nabídky.", validity: "Platnost", attachment: "Soubor" },
-  ru: { empty: "Сейчас нет активных предложений.", validity: "Срок действия", attachment: "Файл" },
+  bg: { empty: "В момента няма активни оферти.", validity: "Валидност", attachment: "Файл", openReadyOffer: "Виж офертата" },
+  en: { empty: "There are no active offers at the moment.", validity: "Valid", attachment: "Attachment", openReadyOffer: "View offer" },
+  de: { empty: "Zurzeit gibt es keine aktiven Angebote.", validity: "Gültigkeit", attachment: "Anhang", openReadyOffer: "Angebot ansehen" },
+  ro: { empty: "Momentan nu există oferte active.", validity: "Valabilitate", attachment: "Fișier", openReadyOffer: "Vezi oferta" },
+  cs: { empty: "Momentálně nejsou k dispozici žádné aktivní nabídky.", validity: "Platnost", attachment: "Soubor", openReadyOffer: "Zobrazit nabídku" },
+  ru: { empty: "Сейчас нет активных предложений.", validity: "Срок действия", attachment: "Файл", openReadyOffer: "Посмотреть предложение" },
 };
 
 function copyFor(language: string) {
@@ -117,7 +119,13 @@ export default function GuestOffersPanel({
         const price = priceLabel(offer, language);
         const previousPrice = previousPriceLabel(offer, language);
         const validity = validityLabel(offer, language);
-        const coverUrl = offer.assets.coverAssetId
+        const readyCreative = offer.presentationMode === "ready_asset"
+          ? getHotelOfferReadyCreative(offer, language)
+          : null;
+        const readyCreativeUrl = readyCreative
+          ? buildGuestDesignAssetUrl(hotelSlug, readyCreative.assetId)
+          : "";
+        const coverUrl = !readyCreative && offer.assets.coverAssetId
           ? buildGuestDesignAssetUrl(hotelSlug, offer.assets.coverAssetId)
           : "";
 
@@ -127,7 +135,17 @@ export default function GuestOffersPanel({
             className="overflow-hidden rounded-2xl border border-[color:var(--stayhub-border)] bg-white/90 shadow-sm"
             data-stayhub-offer={offer.key}
           >
-            {coverUrl ? (
+            {readyCreative?.kind === "image" && readyCreativeUrl ? (
+              <div className="bg-[color:var(--stayhub-soft)] p-2">
+                <img
+                  src={readyCreativeUrl}
+                  alt={title || ""}
+                  className="max-h-[72vh] w-full object-contain"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+            ) : coverUrl ? (
               <img
                 src={coverUrl}
                 alt={title || ""}
@@ -164,6 +182,18 @@ export default function GuestOffersPanel({
                 <p className="mt-2 whitespace-pre-line text-sm leading-6 text-[color:var(--stayhub-muted)]">
                   {shortDescription || description}
                 </p>
+              ) : null}
+
+              {readyCreative?.kind === "document" && readyCreativeUrl ? (
+                <a
+                  href={readyCreativeUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 flex min-h-11 w-full items-center justify-center rounded-xl border border-[color:var(--stayhub-border)] px-4 py-3 text-sm font-semibold text-[color:var(--stayhub-primary)]"
+                  onClick={() => onTrackAction?.(offer, "ready_document")}
+                >
+                  {copyFor(language).openReadyOffer}
+                </a>
               ) : null}
 
               {price || previousPrice ? (
