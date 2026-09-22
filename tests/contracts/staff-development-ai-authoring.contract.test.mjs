@@ -98,3 +98,47 @@ test("AI generation reuses Manager-scoped persisted authoring context", async ()
     assertContains(assessment, fragment);
   }
 });
+
+
+test("Document extraction is review-only and never becomes source authority automatically", async () => {
+  const ai = await readProjectFile(
+    "lib/server/staff-development-ai-authoring.ts",
+  );
+  const route = await readProjectFile(
+    "app/api/staff/development/standards/source-documents/route.ts",
+  );
+  const panel = await readProjectFile(
+    "components/staff/StaffStandardAuthoringPanel.tsx",
+  );
+
+  for (const fragment of [
+    "extractStaffStandardSourceDocumentText",
+    'type: "input_file"',
+    "file_url: document.previewUrl",
+    "humanReviewRequired: true",
+    "persisted: false",
+  ]) {
+    assertContains(ai, fragment);
+  }
+
+  for (const fragment of [
+    'action === "extract_ai_text"',
+    "enforceStaffSameOrigin(req)",
+  ]) {
+    assertContains(route, fragment);
+  }
+
+  for (const fragment of [
+    "extractDocumentText",
+    "setSourceText(String(body.result.sourceText))",
+    "copy.aiExtracted",
+    "saveSource",
+  ]) {
+    assertContains(panel, fragment);
+  }
+
+  assertNotContains(ai, "updateStaffStandardAuthoringSourceText");
+  assertNotContains(ai, "saveStaffStandardAuthoringProposal");
+  assertNotContains(route, "body.hotelId");
+  assertNotContains(route, "body.actorStaffUserId");
+});
