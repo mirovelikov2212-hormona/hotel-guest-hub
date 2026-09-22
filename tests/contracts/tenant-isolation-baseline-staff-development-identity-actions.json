@@ -18,113 +18,43 @@
   "relocations": [
     {
       "filePath": "lib/server/staff-development-persistence.ts",
-      "fromLine": 64,
-      "toLine": 65,
-      "table": "staff_users",
-      "operation": "select"
-    },
-    {
-      "filePath": "lib/server/staff-development-persistence.ts",
-      "fromLine": 107,
-      "toLine": 108,
-      "table": "hotel_staff_standard_revisions",
-      "operation": "insert"
-    },
-    {
-      "filePath": "lib/server/staff-development-persistence.ts",
-      "fromLine": 138,
-      "toLine": 139,
-      "table": "hotel_staff_standard_revisions",
-      "operation": "select"
-    },
-    {
-      "filePath": "lib/server/staff-development-persistence.ts",
-      "fromLine": 155,
-      "toLine": 156,
-      "table": "staff_training_plan_revisions",
-      "operation": "insert"
-    },
-    {
-      "filePath": "lib/server/staff-development-persistence.ts",
-      "fromLine": 207,
-      "toLine": 208,
-      "table": "staff_training_plan_revisions",
-      "operation": "select"
-    },
-    {
-      "filePath": "lib/server/staff-development-persistence.ts",
-      "fromLine": 229,
-      "toLine": 230,
-      "table": "staff_training_assignments",
-      "operation": "insert"
-    },
-    {
-      "filePath": "lib/server/staff-development-persistence.ts",
-      "fromLine": 268,
-      "toLine": 269,
-      "table": "staff_training_assignments",
-      "operation": "select"
-    },
-    {
-      "filePath": "lib/server/staff-development-persistence.ts",
-      "fromLine": 284,
-      "toLine": 285,
-      "table": "staff_training_plan_revisions",
-      "operation": "select"
-    },
-    {
-      "filePath": "lib/server/staff-development-persistence.ts",
-      "fromLine": 302,
-      "toLine": 303,
-      "table": "staff_training_completions",
-      "operation": "insert"
-    },
-    {
-      "filePath": "lib/server/staff-development-persistence.ts",
-      "fromLine": 333,
-      "toLine": 334,
-      "table": "staff_training_plan_revisions",
-      "operation": "select"
-    },
-    {
-      "filePath": "lib/server/staff-development-persistence.ts",
-      "fromLine": 361,
-      "toLine": 362,
+      "fromLine": 405,
+      "toLine": 404,
       "table": "staff_assessment_revisions",
-      "operation": "insert"
+      "operation": "select"
     },
     {
       "filePath": "lib/server/staff-development-persistence.ts",
       "fromLine": 478,
-      "toLine": 472,
+      "toLine": 471,
       "table": "staff_assessment_attempts",
       "operation": "select"
     },
     {
       "filePath": "lib/server/staff-development-persistence.ts",
       "fromLine": 543,
-      "toLine": 537,
+      "toLine": 536,
       "table": "hotel_staff_hr_rule_revisions",
       "operation": "insert"
     },
     {
       "filePath": "lib/server/staff-development-persistence.ts",
       "fromLine": 580,
-      "toLine": 574,
+      "toLine": 573,
       "table": "hotel_staff_hr_rule_revisions",
       "operation": "select"
     },
     {
       "filePath": "lib/server/staff-development-persistence.ts",
       "fromLine": 591,
-      "toLine": 585,
+      "toLine": 584,
       "table": "staff_verified_results",
       "operation": "select"
     },
     {
       "filePath": "lib/server/staff-development-persistence.ts",
       "fromLine": 614,
-      "toLine": 608,
+      "toLine": 607,
       "table": "staff_hr_evaluations",
       "operation": "insert"
     }
@@ -154,7 +84,7 @@
     },
     {
       "filePath": "lib/server/staff-development-actions.ts",
-      "line": 55,
+      "line": 54,
       "table": "staff_users",
       "tableExpression": "\"staff_users\"",
       "operation": "select",
@@ -165,7 +95,7 @@
     },
     {
       "filePath": "lib/server/staff-development-actions.ts",
-      "line": 101,
+      "line": 100,
       "table": "hotel_staff_standard_revisions",
       "tableExpression": "\"hotel_staff_standard_revisions\"",
       "operation": "select",
@@ -176,7 +106,7 @@
     },
     {
       "filePath": "lib/server/staff-development-actions.ts",
-      "line": 111,
+      "line": 110,
       "table": "staff_assessment_revisions",
       "tableExpression": "\"staff_assessment_revisions\"",
       "operation": "select",
@@ -187,7 +117,7 @@
     },
     {
       "filePath": "lib/server/staff-development-actions.ts",
-      "line": 121,
+      "line": 120,
       "table": "hotel_staff_hr_rule_revisions",
       "tableExpression": "\"hotel_staff_hr_rule_revisions\"",
       "operation": "select",
@@ -198,7 +128,7 @@
     },
     {
       "filePath": "lib/server/staff-development-actions.ts",
-      "line": 146,
+      "line": 145,
       "table": "staff_training_plan_revisions",
       "tableExpression": "\"staff_training_plan_revisions\"",
       "operation": "select",
@@ -209,7 +139,7 @@
     },
     {
       "filePath": "lib/server/staff-development-actions.ts",
-      "line": 161,
+      "line": 160,
       "table": "hotel_staff_standard_revisions",
       "tableExpression": "\"hotel_staff_standard_revisions\"",
       "operation": "select",
@@ -220,7 +150,7 @@
     },
     {
       "filePath": "lib/server/staff-development-identity.ts",
-      "line": 120,
+      "line": 119,
       "table": "staff_users",
       "tableExpression": "\"staff_users\"",
       "operation": "select",
