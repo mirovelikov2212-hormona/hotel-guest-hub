@@ -22,6 +22,33 @@ function ids(values: unknown[]) {
   return [...new Set(values.map((value) => text(value)).filter(Boolean))];
 }
 
+function learnerAttemptSummary(row: Record<string, any>) {
+  const payload = isRecord(row.attempt_json) ? row.attempt_json : {};
+  const score = Number(payload.scorePercent ?? payload.autoScorePercent);
+  return {
+    id: String(row.id),
+    assessmentRevisionId: String(row.assessment_revision_id),
+    attemptNo: Number(row.attempt_no),
+    status: String(row.attempt_status),
+    submittedAt: String(row.submitted_at || ""),
+    scorePercent: Number.isFinite(score) ? score : null,
+    passed: typeof payload.passed === "boolean" ? payload.passed : null,
+  };
+}
+
+function learnerVerifiedResultSummary(row: Record<string, any>) {
+  const payload = isRecord(row.result_json) ? row.result_json : {};
+  const score = Number(payload.scorePercent ?? payload.autoScorePercent);
+  return {
+    id: String(row.id),
+    assessmentAttemptId: String(row.assessment_attempt_id),
+    verificationKind: String(row.verification_kind || ""),
+    verifiedAt: String(row.verified_at || ""),
+    scorePercent: Number.isFinite(score) ? score : null,
+    passed: typeof payload.passed === "boolean" ? payload.passed : null,
+  };
+}
+
 async function fetchPlans(hotelId: string, planIds: string[]) {
   if (!planIds.length) return [];
   const { data, error } = await supabaseAdmin
@@ -147,7 +174,8 @@ export async function getOwnStaffDevelopmentState(hotelSlug: unknown) {
       assessmentKey: String(row.assessment_key),
       revisionNo: Number(row.revision_no),
       learner: materializeStaffAssessmentForLearner(row.assessment_json),
-      attempts: attemptsByAssessment.get(String(row.id)) || [],
+      attempts: (attemptsByAssessment.get(String(row.id)) || [])
+        .map((attempt) => learnerAttemptSummary(attempt)),
     };
   });
 
@@ -176,7 +204,9 @@ export async function getOwnStaffDevelopmentState(hotelSlug: unknown) {
         ),
       };
     }),
-    verifiedResults,
+    verifiedResults: verifiedResults.map((row) =>
+      learnerVerifiedResultSummary(row),
+    ),
   };
 }
 
