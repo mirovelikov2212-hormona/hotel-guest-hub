@@ -1,0 +1,209 @@
+{
+  "version": 1,
+  "checkpoint": "staff-standard-scope-v2",
+  "baseCheckpoint": "staff-hr-manager-privacy",
+  "expectedNeedsReview": 331,
+  "removals": [
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "line": 755,
+      "operation": "rpc"
+    }
+  ],
+  "relocations": [
+    {
+      "filePath": "lib/server/staff-development-actions.ts",
+      "fromLine": 145,
+      "toLine": 146,
+      "table": "staff_training_plan_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-actions.ts",
+      "fromLine": 160,
+      "toLine": 161,
+      "table": "hotel_staff_standard_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "fromLine": 278,
+      "toLine": 290,
+      "table": "staff_training_plan_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "fromLine": 294,
+      "toLine": 306,
+      "table": "staff_training_assignments",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "fromLine": 313,
+      "toLine": 325,
+      "table": "staff_assessment_attempts",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "fromLine": 334,
+      "toLine": 346,
+      "table": "staff_assessment_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "fromLine": 350,
+      "toLine": 362,
+      "table": "staff_verified_results",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "fromLine": 369,
+      "toLine": 381,
+      "table": "staff_hr_evaluations",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-read.ts",
+      "fromLine": 385,
+      "toLine": 397,
+      "table": "hotel_staff_hr_rule_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "fromLine": 241,
+      "toLine": 277,
+      "table": "hotel_staff_standard_authoring",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "fromLine": 279,
+      "toLine": 322,
+      "table": "staff_standard_authoring_events",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "fromLine": 325,
+      "toLine": 377,
+      "table": "hotel_staff_standard_authoring",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "fromLine": 381,
+      "toLine": 435,
+      "table": "hotel_staff_standard_authoring",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "fromLine": 442,
+      "toLine": 497,
+      "table": "hotel_staff_standard_authoring",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "fromLine": 581,
+      "toLine": 636,
+      "table": "staff_standard_source_documents",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "fromLine": 616,
+      "toLine": 671,
+      "table": "hotel_staff_standard_authoring",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "fromLine": 658,
+      "toLine": 713,
+      "table": "hotel_staff_standard_authoring",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "fromLine": 693,
+      "toLine": 751,
+      "table": "staff_standard_source_documents",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "fromLine": 733,
+      "toLine": 791,
+      "table": "hotel_staff_standard_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 154,
+      "toLine": 167,
+      "table": "staff_assessment_authoring",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 190,
+      "toLine": 203,
+      "table": "staff_assessment_authoring_events",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 218,
+      "toLine": 231,
+      "table": "staff_assessment_authoring",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 281,
+      "toLine": 294,
+      "table": "staff_assessment_authoring",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 322,
+      "toLine": 335,
+      "table": "staff_assessment_authoring",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 380,
+      "toLine": 393,
+      "table": "staff_assessment_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-assessment-authoring.ts",
+      "fromLine": 402,
+      "toLine": 415,
+      "operation": "rpc"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/staff-standard-authoring.ts",
+      "line": 814,
+      "rpc": "publish_staff_standard_authoring_v2",
+      "tableExpression": "\"publish_staff_standard_authoring_v2\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only service_role_only human publish authority for explicit Standard scope v2; database locks exact same-hotel proposal_ready authoring, verifies exact proposal hash and active identified Manager, permits Hotel scope only to hotel_manager with zero department codes, permits Department scope only for exactly one active same-hotel department and restricts department_manager to that department, requires Standard v2 and Training Plan v2 scope/department lineage to match the stored proposal, then atomically inserts immutable Standard and Training Plan revisions and publication audit evidence"
+    }
+  ]
+}
