@@ -14,6 +14,9 @@ export type FactoryCoreDepartment = {
   opens_at: string | null;
   closes_at: string | null;
   is_24h: boolean;
+  coverage_windows?: Array<Record<string, unknown>>;
+  coverage_seasons?: Array<Record<string, unknown>>;
+  coverage_date_overrides?: Array<Record<string, unknown>>;
   active: boolean;
   after_hours_department_code: string | null;
 };
