@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 type UiLang = "bg" | "en" | "de";
 type ContentLang = "bg" | "en" | "de" | "ro" | "cs" | "ru";
 type SourceKind = "manual" | "document";
+type StandardScope = "hotel" | "department";
 type Severity = "normal" | "important" | "critical";
 
 type Localized = Partial<Record<ContentLang, string>>;
@@ -34,6 +35,7 @@ type AuthoringRow = {
   source_kind: SourceKind;
   status: "draft" | "proposal_ready" | "approved" | "published" | "cancelled";
   standard_key: string;
+  standard_scope: StandardScope;
   department_codes: string[];
   source_text: string | null;
   structured_proposal_json: Record<string, any> | null;
@@ -64,12 +66,15 @@ const LANGUAGES: Array<{ id: ContentLang; label: string }> = [
 
 const COPY = {
   bg: {
-    title: "Хотелски стандарти",
-    intro: "Стандартът идва от хотела. Въведете го ръчно или качете готов PDF, Word или TXT документ. Структурираното предложение се публикува само след преглед от Manager.",
+    title: "Стандарти на хотела и департаментите",
+    intro: "Хотелът качва собствените си стандарти. Общият Hotel Standard важи за целия хотел, а Department Standard съдържа специфичните правила и процедури на конкретен отдел. Ние предоставяме рамката; съдържанието остава изцяло хотелско.",
     new: "Нов стандарт",
     sourceManual: "Ръчно",
     sourceDocument: "Документ",
     key: "Ключ на стандарта",
+    scope: "Обхват",
+    hotelScope: "Общ стандарт на хотела",
+    departmentScope: "Стандарт за департамент",
     departments: "Отдели",
     sourceText: "Оригинален текст / източник",
     sourcePlaceholder: "Поставете оригиналния стандарт на хотела тук…",
@@ -113,12 +118,15 @@ const COPY = {
     error: "Възникна грешка.",
   },
   en: {
-    title: "Hotel Standards",
-    intro: "The standard comes from the hotel. Enter it manually or upload an existing PDF, Word or TXT document. The structured proposal is published only after Manager review.",
+    title: "Hotel & Department Standards",
+    intro: "The hotel uploads its own standards. Hotel Standards apply across the property, while Department Standards contain department-specific procedures. The platform provides the framework; the content remains hotel-owned.",
     new: "New standard",
     sourceManual: "Manual",
     sourceDocument: "Document",
     key: "Standard key",
+    scope: "Scope",
+    hotelScope: "Hotel-wide standard",
+    departmentScope: "Department standard",
     departments: "Departments",
     sourceText: "Original text / source",
     sourcePlaceholder: "Paste the hotel's original standard here…",
@@ -162,12 +170,15 @@ const COPY = {
     error: "Something went wrong.",
   },
   de: {
-    title: "Hotelstandards",
-    intro: "Der Standard kommt vom Hotel. Er kann manuell eingegeben oder als vorhandenes PDF-, Word- oder TXT-Dokument hochgeladen werden. Veröffentlicht wird erst nach Manager-Prüfung.",
+    title: "Hotel- & Abteilungsstandards",
+    intro: "Das Hotel lädt seine eigenen Standards hoch. Hotelstandards gelten hotelweit, Abteilungsstandards enthalten die spezifischen Abläufe eines Bereichs. Die Plattform stellt die Struktur bereit; die Inhalte gehören dem Hotel.",
     new: "Neuer Standard",
     sourceManual: "Manuell",
     sourceDocument: "Dokument",
     key: "Standard-Schlüssel",
+    scope: "Geltungsbereich",
+    hotelScope: "Hotelweiter Standard",
+    departmentScope: "Abteilungsstandard",
     departments: "Abteilungen",
     sourceText: "Originaltext / Quelle",
     sourcePlaceholder: "Originalen Hotelstandard hier einfügen…",
@@ -281,6 +292,9 @@ export default function StaffStandardAuthoringPanel({
   const [error, setError] = useState("");
 
   const [sourceKind, setSourceKind] = useState<SourceKind>("manual");
+  const [standardScope, setStandardScope] = useState<StandardScope>(
+    operationalRole === "manager" ? "hotel" : "department",
+  );
   const [newKey, setNewKey] = useState("");
   const [departmentText, setDepartmentText] = useState(
     operationalRole === "manager" ? "" : operationalRole,
@@ -408,14 +422,17 @@ export default function StaffStandardAuthoringPanel({
     setError("");
     setNotice("");
     try {
-      const departmentCodes = departmentText
-        .split(",")
-        .map((value) => value.trim().toLowerCase())
-        .filter(Boolean);
+      const departmentCodes = standardScope === "hotel"
+        ? []
+        : departmentText
+            .split(",")
+            .map((value) => value.trim().toLowerCase())
+            .filter(Boolean);
       const result = await postAuthoring({
         action: "create_draft",
         sourceKind,
         standardKey: newKey,
+        standardScope,
         departmentCodes,
         sourceText: sourceKind === "manual" ? newSourceText : null,
       });
@@ -672,19 +689,37 @@ export default function StaffStandardAuthoringPanel({
                 value={newKey}
                 onChange={(event) => setNewKey(event.target.value)}
                 className="w-full rounded-xl border bg-transparent px-3 py-2"
-                placeholder="housekeeping-room-entry"
+                placeholder={standardScope === "hotel" ? "hotel-general-standard" : "housekeeping-room-entry"}
               />
             </label>
 
             <label className="mt-3 block text-sm">
-              <span className="mb-1 block text-xs font-semibold opacity-60">{copy.departments}</span>
-              <input
-                value={departmentText}
-                onChange={(event) => setDepartmentText(event.target.value)}
-                className="w-full rounded-xl border bg-transparent px-3 py-2"
-                placeholder="housekeeping"
-              />
+              <span className="mb-1 block text-xs font-semibold opacity-60">{copy.scope}</span>
+              <select
+                value={standardScope}
+                onChange={(event) => setStandardScope(event.target.value as StandardScope)}
+                disabled={operationalRole !== "manager"}
+                className="w-full rounded-xl border bg-transparent px-3 py-2 disabled:opacity-60"
+              >
+                {operationalRole === "manager" ? (
+                  <option value="hotel">{copy.hotelScope}</option>
+                ) : null}
+                <option value="department">{copy.departmentScope}</option>
+              </select>
             </label>
+
+            {standardScope === "department" ? (
+              <label className="mt-3 block text-sm">
+                <span className="mb-1 block text-xs font-semibold opacity-60">{copy.departments}</span>
+                <input
+                  value={departmentText}
+                  onChange={(event) => setDepartmentText(event.target.value)}
+                  disabled={operationalRole !== "manager"}
+                  className="w-full rounded-xl border bg-transparent px-3 py-2 disabled:opacity-60"
+                  placeholder="housekeeping"
+                />
+              </label>
+            ) : null}
 
             {sourceKind === "manual" ? (
               <textarea
@@ -721,7 +756,9 @@ export default function StaffStandardAuthoringPanel({
                 >
                   <p className="font-semibold">{row.standard_key}</p>
                   <p className="mt-1 text-xs opacity-55">
-                    {displayStatus(row, copy as any)} · {row.department_codes.join(", ")}
+                    {displayStatus(row, copy as any)} · {row.standard_scope === "hotel"
+                      ? copy.hotelScope
+                      : `${copy.departmentScope}: ${row.department_codes.join(", ")}`}
                   </p>
                 </button>
               ))}
@@ -736,7 +773,9 @@ export default function StaffStandardAuthoringPanel({
                 <div>
                   <h4 className="font-semibold">{selected.standard_key}</h4>
                   <p className="text-xs opacity-55">
-                    {copy.status}: {displayStatus(selected, copy as any)} · {copy.source}: {selected.source_kind}
+                    {copy.status}: {displayStatus(selected, copy as any)} · {selected.standard_scope === "hotel"
+                      ? copy.hotelScope
+                      : `${copy.departmentScope}: ${selected.department_codes.join(", ")}`} · {copy.source}: {selected.source_kind}
                   </p>
                 </div>
                 {selected.status === "proposal_ready" ? (
