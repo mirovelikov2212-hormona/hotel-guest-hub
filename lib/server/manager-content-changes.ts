@@ -65,7 +65,7 @@ export function normalizeManagerContentChangeScopes(value: unknown): ManagerCont
   return scopes as ManagerContentChangeScope[];
 }
 
-async function resolveAuthorizedManagerScope(hotelSlugInput: unknown): Promise<AuthorizedManagerScope> {
+export async function resolveManagerContentChangeScope(hotelSlugInput: unknown): Promise<AuthorizedManagerScope> {
   const hotelSlug = normalizeHotelSlug(hotelSlugInput);
   const session = await getCurrentStaffSession(hotelSlug, "manager");
   if (!session || session.role !== "manager") {
@@ -96,6 +96,57 @@ async function resolveAuthorizedManagerScope(hotelSlugInput: unknown): Promise<A
     hotelName: String(hotel.name || hotel.slug || "").trim(),
     isSandbox: Boolean(hotel.is_sandbox),
     sessionId: normalizeUuid(session.id, "CM5_MANAGER_SESSION_ID_INVALID"),
+  };
+}
+
+export async function loadManagerCurrentLiveConfig(hotelIdInput: unknown) {
+  const hotelId = normalizeUuid(hotelIdInput, "CM5_MANAGER_HOTEL_ID_INVALID");
+
+  const { data: state, error: stateError } = await supabaseAdmin
+    .from("hotel_config_publication_state")
+    .select("published_revision_id,last_known_good_revision_id,updated_at")
+    .eq("hotel_id", hotelId)
+    .maybeSingle();
+
+  if (stateError) throw new Error("CM5_CURRENT_LIVE_STATE_READ_FAILED");
+  if (
+    !state
+    || !state.published_revision_id
+    || !state.last_known_good_revision_id
+    || String(state.published_revision_id).toLowerCase() !== String(state.last_known_good_revision_id).toLowerCase()
+  ) {
+    throw new Error("CM5_CURRENT_LIVE_STATE_INVALID");
+  }
+
+  const revisionId = normalizeUuid(state.published_revision_id, "CM5_CURRENT_LIVE_REVISION_ID_INVALID");
+  const { data: revision, error: revisionError } = await supabaseAdmin
+    .from("hotel_config_revisions")
+    .select("id,revision_no,status,source_type,source_checksum,config_json,created_at,published_at")
+    .eq("hotel_id", hotelId)
+    .eq("id", revisionId)
+    .eq("status", "published")
+    .maybeSingle();
+
+  if (revisionError) throw new Error("CM5_CURRENT_LIVE_REVISION_READ_FAILED");
+  if (
+    !revision
+    || !revision.config_json
+    || typeof revision.config_json !== "object"
+    || Array.isArray(revision.config_json)
+    || !CHECKSUM_PATTERN.test(String(revision.source_checksum || ""))
+  ) {
+    throw new Error("CM5_CURRENT_LIVE_REVISION_INVALID");
+  }
+
+  return {
+    revisionId,
+    revisionNo: Number(revision.revision_no),
+    sourceType: String(revision.source_type || ""),
+    sourceChecksum: String(revision.source_checksum || "").toLowerCase(),
+    config: revision.config_json as Record<string, unknown>,
+    createdAt: String(revision.created_at || ""),
+    publishedAt: revision.published_at ? String(revision.published_at) : null,
+    publicationStateUpdatedAt: state.updated_at ? String(state.updated_at) : null,
   };
 }
 
@@ -147,7 +198,7 @@ function firstRpcRow<T>(value: T[] | T | null): T | null {
 }
 
 export async function getManagerContentChangeSnapshot(hotelSlugInput: unknown) {
-  const scope = await resolveAuthorizedManagerScope(hotelSlugInput);
+  const scope = await resolveManagerContentChangeScope(hotelSlugInput);
   const currentLive = await loadCurrentLiveIdentity(scope.hotelId);
 
   const { data: changes, error } = await supabaseAdmin
@@ -192,7 +243,7 @@ export async function createManagerContentChangeDraft(input: {
   hotelSlug: unknown;
   changeScope: unknown;
 }) {
-  const scope = await resolveAuthorizedManagerScope(input.hotelSlug);
+  const scope = await resolveManagerContentChangeScope(input.hotelSlug);
   const changeScope = normalizeManagerContentChangeScopes(input.changeScope);
 
   const { data, error } = await supabaseAdmin.rpc(
@@ -222,7 +273,7 @@ export async function confirmManagerContentChangeDraft(input: {
   hotelSlug: unknown;
   changeRequestId: unknown;
 }) {
-  const scope = await resolveAuthorizedManagerScope(input.hotelSlug);
+  const scope = await resolveManagerContentChangeScope(input.hotelSlug);
   const changeRequestId = normalizeUuid(input.changeRequestId, "CM5_CHANGE_REQUEST_ID_INVALID");
 
   const { data: owned, error: ownedError } = await supabaseAdmin
@@ -262,7 +313,7 @@ export async function cancelManagerContentChangeDraft(input: {
   hotelSlug: unknown;
   changeRequestId: unknown;
 }) {
-  const scope = await resolveAuthorizedManagerScope(input.hotelSlug);
+  const scope = await resolveManagerContentChangeScope(input.hotelSlug);
   const changeRequestId = normalizeUuid(input.changeRequestId, "CM5_CHANGE_REQUEST_ID_INVALID");
 
   const { data: owned, error: ownedError } = await supabaseAdmin
