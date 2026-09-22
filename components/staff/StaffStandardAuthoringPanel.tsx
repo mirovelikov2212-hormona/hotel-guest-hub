@@ -104,6 +104,10 @@ const COPY = {
     critical: "Критично",
     remove: "Премахни",
     seed: "Създай първи блок от изходния текст",
+    aiGenerate: "AI структурирай от източника",
+    aiGenerating: "AI подготвя…",
+    aiGenerated: "AI предложението е заредено за преглед. Нищо не е записано автоматично.",
+    aiSaveSourceFirst: "Първо запазете изходния текст. AI използва само записания хотелски източник.",
     saveProposal: "Запази предложение",
     publish: "Одобри и публикувай",
     published: "Публикувано",
@@ -156,6 +160,10 @@ const COPY = {
     critical: "Critical",
     remove: "Remove",
     seed: "Create first block from source text",
+    aiGenerate: "AI structure from source",
+    aiGenerating: "AI drafting…",
+    aiGenerated: "AI candidate loaded for review. Nothing was saved automatically.",
+    aiSaveSourceFirst: "Save the source text first. AI uses only the persisted hotel source.",
     saveProposal: "Save proposal",
     publish: "Approve and publish",
     published: "Published",
@@ -208,6 +216,10 @@ const COPY = {
     critical: "Kritisch",
     remove: "Entfernen",
     seed: "Ersten Block aus Quelltext erstellen",
+    aiGenerate: "KI aus Quelle strukturieren",
+    aiGenerating: "KI erstellt Entwurf…",
+    aiGenerated: "KI-Vorschlag zur Prüfung geladen. Es wurde nichts automatisch gespeichert.",
+    aiSaveSourceFirst: "Zuerst den Quelltext speichern. Die KI nutzt nur die gespeicherte Hotelquelle.",
     saveProposal: "Vorschlag speichern",
     publish: "Freigeben und veröffentlichen",
     published: "Veröffentlicht",
@@ -578,6 +590,36 @@ export default function StaffStandardAuthoringPanel({
     }));
   }
 
+  async function generateAiProposal() {
+    if (!selected) return;
+    if (
+      sourceText.trim()
+      !== String(selected.source_text || "").trim()
+    ) {
+      setError(copy.aiSaveSourceFirst);
+      return;
+    }
+
+    setWorking(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await postAuthoring({
+        action: "generate_ai_proposal",
+        authoringId: selected.id,
+      });
+      if (!result?.proposal) {
+        throw new Error("STAFF_AI_STANDARD_CANDIDATE_EMPTY");
+      }
+      setProposal(result.proposal as Proposal);
+      setNotice(copy.aiGenerated);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setWorking(false);
+    }
+  }
+
   function updateBlock(index: number, mutator: (block: ProposalBlock) => ProposalBlock) {
     setProposal((current) => ({
       ...current,
@@ -923,6 +965,25 @@ export default function StaffStandardAuthoringPanel({
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={
+                    working
+                    || !writesEnabled
+                    || selected.status === "published"
+                    || !sourceText.trim()
+                    || sourceText.trim() !== String(selected.source_text || "").trim()
+                  }
+                  onClick={() => void generateAiProposal()}
+                  title={
+                    sourceText.trim() !== String(selected.source_text || "").trim()
+                      ? copy.aiSaveSourceFirst
+                      : undefined
+                  }
+                  className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-sm font-semibold disabled:opacity-40"
+                >
+                  {working ? copy.aiGenerating : copy.aiGenerate}
+                </button>
                 <button
                   type="button"
                   onClick={addBlock}
