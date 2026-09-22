@@ -66,6 +66,22 @@ test("an unresolved request falls back when continuous department coverage ends"
   assert.equal(decision.reason, "primary_coverage_ended");
 });
 
+
+
+test("changing the configured fallback department re-routes an already active fallback period", () => {
+  const decision = decideRequestCoverageTransition({
+    request: request(),
+    hotelConfig,
+    now: new Date("2026-09-22T23:15:00Z"),
+    lastEventType: DEPARTMENT_COVERAGE_FALLBACK_EVENT,
+    lastEffectiveDepartment: "security",
+  });
+
+  assert.equal(decision.action, "start_fallback");
+  assert.equal(decision.effectiveDepartment, "reception");
+  assert.equal(decision.reason, "fallback_department_changed");
+});
+
 test("fallback transition is idempotent and never re-pushes every minute", () => {
   const decision = decideRequestCoverageTransition({
     request: request(),
