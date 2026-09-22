@@ -38,8 +38,11 @@ test("Department managers are restricted to their own department while hotel man
     "identity.departmentId !== target.departmentId",
     'target.role === "hotel_manager"',
     '"STAFF_DEVELOPMENT_MANAGER_SCOPE_FORBIDDEN"',
-    "departments.some(",
-    "department !== input.identity.operationalRole",
+    'standardScope === "hotel"',
+    'standardScope !== "department"',
+    "departments.length !== 1",
+    "departments[0] !== input.identity.operationalRole",
+    "allowHotelScopeForDepartmentManager: true",
   ]) {
     assertContains(source, fragment);
   }
