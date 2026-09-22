@@ -42,7 +42,9 @@ function validOffer() {
 
 test("Offer V2 validator accepts a tenant-neutral well-formed offer", async () => {
   const model = await loadOfferModel();
-  assert.deepEqual(model.validateHubOfferV2(validOffer()), { ok: true, errors: [] });
+  const result = model.validateHubOfferV2(validOffer());
+  assert.equal(result.ok, true);
+  assert.deepEqual([...result.errors], []);
 });
 
 test("Offer V2 rejects unsafe external CTA and inverted validity", async () => {

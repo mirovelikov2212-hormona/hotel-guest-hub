@@ -23,6 +23,9 @@ on:
       - "tests/contracts/hotel-intelligence-*.contract.test.mjs"
       - "tests/contracts/hotel-technology-discovery-v1.contract.test.mjs"
       - "tests/contracts/control-plane-tools-theme.contract.test.mjs"
+      - "tests/contracts/hub-design-*.contract.test.mjs"
+      - "tests/contracts/hub-experience-*.contract.test.mjs"
+      - "tests/contracts/hub-offer-*.contract.test.mjs"
       - ".github/workflows/hotel-scanner-professional-regression.yml"
   pull_request:
     paths:
@@ -46,6 +49,9 @@ on:
       - "tests/contracts/hotel-intelligence-*.contract.test.mjs"
       - "tests/contracts/hotel-technology-discovery-v1.contract.test.mjs"
       - "tests/contracts/control-plane-tools-theme.contract.test.mjs"
+      - "tests/contracts/hub-design-*.contract.test.mjs"
+      - "tests/contracts/hub-experience-*.contract.test.mjs"
+      - "tests/contracts/hub-offer-*.contract.test.mjs"
       - ".github/workflows/hotel-scanner-professional-regression.yml"
   workflow_dispatch:
 
@@ -74,6 +80,12 @@ jobs:
           tests/contracts/hotel-technology-discovery-v1.contract.test.mjs
       - name: Shared internal tools light-dark theme contract
         run: node --test tests/contracts/control-plane-tools-theme.contract.test.mjs
+      - name: Design Studio contracts
+        run: >-
+          node --test
+          tests/contracts/hub-design-*.contract.test.mjs
+          tests/contracts/hub-experience-*.contract.test.mjs
+          tests/contracts/hub-offer-*.contract.test.mjs
       - name: Blocking tenant isolation
         run: npm run test:tenant-isolation
       - name: Next.js build
