@@ -1,0 +1,200 @@
+{
+  "version": 1,
+  "checkpoint": "staff-development-persistence",
+  "baseCheckpoint": "cm5-5-manager-lifecycle",
+  "expectedNeedsReview": 277,
+  "additions": [
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 64,
+      "table": "staff_users",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "active staff_user lookup is constrained by hotel_id plus exact staff_user_id; caller provides server-validated tenant context and optional role allowlist"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 107,
+      "table": "hotel_staff_standard_revisions",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "immutable standard revision insert includes explicit hotel_id and optional creator uses composite hotel_id+staff_user_id FK; table RLS denies browser roles"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 138,
+      "table": "hotel_staff_standard_revisions",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "training materialization reads exact standard_revision_id within hotel_id and requires lifecycle_status published before derivation"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 155,
+      "table": "staff_training_plan_revisions",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "immutable plan insert carries hotel_id and composite FK to same-hotel standard revision; source hashes are derived server-side from persisted published standard"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 207,
+      "table": "staff_training_plan_revisions",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "assignment reads exact training plan revision constrained by hotel_id and revision id before constructing assignment lineage"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 229,
+      "table": "staff_training_assignments",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "assignment insert carries hotel_id+staff_user_id+plan revision; database composite FKs prevent cross-hotel staff or plan references"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 268,
+      "table": "staff_training_assignments",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "completion reads exact assignment constrained by hotel_id, assignment id and staff_user_id"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 284,
+      "table": "staff_training_plan_revisions",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "completion reads exact plan constrained by hotel_id and assignment-bound plan revision id"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 302,
+      "table": "staff_training_completions",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "immutable completion insert uses hotel_id, assignment_id and staff_user_id with composite assignment+staff FK; completion JSON is hash/identity constrained"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 333,
+      "table": "staff_training_plan_revisions",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "assessment authoring reads exact plan revision constrained by hotel_id and derives source hashes/unit IDs server-side"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 361,
+      "table": "staff_assessment_revisions",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "immutable assessment revision insert includes hotel_id and same-hotel training plan composite FK; assessment hash/lineage constrained in DB"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 405,
+      "table": "staff_assessment_revisions",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "attempt preparation reads exact assessment revision constrained by hotel_id and assessment revision id"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 433,
+      "table": null,
+      "tableExpression": "\"record_staff_assessment_attempt_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "record_staff_assessment_attempt_v1 is service_role-only; RPC rechecks active same-hotel staff_user, same-hotel assignment+staff, completed training, same-plan assessment lineage, and atomically inserts automatic verified result only for a verified attempt"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 478,
+      "table": "staff_assessment_attempts",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "human review reads exact pending attempt constrained by hotel_id and attempt id; reviewer identity is separately resolved as active same-hotel manager"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 502,
+      "table": null,
+      "tableExpression": "\"verify_staff_assessment_attempt_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "verify_staff_assessment_attempt_v1 is service_role-only; RPC binds pending attempt, same-hotel identified manager reviewer, non-self-review, sourceAttemptHash and verified result lineage before immutable insert"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 543,
+      "table": "hotel_staff_hr_rule_revisions",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "immutable HR rule revision insert includes hotel_id and optional identified manager creator via composite tenant FK; rules model permits advisory actions only"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 580,
+      "table": "hotel_staff_hr_rule_revisions",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "HR evaluation reads exact rule revision constrained by hotel_id and revision id"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 591,
+      "table": "staff_verified_results",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "HR evaluation evidence read is constrained by exact hotel_id and staff_user_id and uses only immutable verified result rows"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 614,
+      "table": "staff_hr_evaluations",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "immutable advisory HR evaluation insert carries hotel_id+staff_user_id and same-hotel rule revision FK; JSON enforces human_manager decision authority and automatedEmploymentDecision=false"
+    }
+  ]
+}
