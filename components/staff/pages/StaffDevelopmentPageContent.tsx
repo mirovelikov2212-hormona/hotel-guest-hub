@@ -1066,6 +1066,7 @@ function ManagerOverview({
 
       {state.identity?.staffUserRole === "hotel_manager" ? (
         <StaffHrRulesPanel
+          hotelSlug={hotelSlug}
           lang={lang}
           writesEnabled={writesEnabled}
           staff={staff}
