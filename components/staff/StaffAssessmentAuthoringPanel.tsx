@@ -84,6 +84,9 @@ const COPY = {
     addChoice: "Добави въпрос",
     addScenario: "Добави сценарий",
     addFreeText: "Добави свободен отговор",
+    aiGenerate: "AI предложи тест",
+    aiGenerating: "AI подготвя…",
+    aiGenerated: "AI тестът е зареден за преглед. Нищо не е записано автоматично.",
     questionId: "ID на въпроса",
     prompt: "Въпрос",
     scenario: "Ситуация / сценарий",
@@ -119,6 +122,9 @@ const COPY = {
     addChoice: "Add question",
     addScenario: "Add scenario",
     addFreeText: "Add free-text question",
+    aiGenerate: "AI draft assessment",
+    aiGenerating: "AI drafting…",
+    aiGenerated: "AI assessment candidate loaded for review. Nothing was saved automatically.",
     questionId: "Question ID",
     prompt: "Question",
     scenario: "Situation / scenario",
@@ -154,6 +160,9 @@ const COPY = {
     addChoice: "Frage hinzufügen",
     addScenario: "Szenario hinzufügen",
     addFreeText: "Freitext-Frage hinzufügen",
+    aiGenerate: "KI-Test vorschlagen",
+    aiGenerating: "KI erstellt Entwurf…",
+    aiGenerated: "KI-Testvorschlag zur Prüfung geladen. Es wurde nichts automatisch gespeichert.",
     questionId: "Frage-ID",
     prompt: "Frage",
     scenario: "Situation / Szenario",
@@ -414,6 +423,28 @@ export default function StaffAssessmentAuthoringPanel({
     });
   }
 
+  async function generateAiProposal() {
+    if (!selected) return;
+    setWorking(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await post({
+        action: "generate_ai_proposal",
+        authoringId: selected.id,
+      });
+      if (!result?.proposal) {
+        throw new Error("STAFF_AI_ASSESSMENT_CANDIDATE_EMPTY");
+      }
+      setProposal(result.proposal as Proposal);
+      setNotice(copy.aiGenerated);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setWorking(false);
+    }
+  }
+
   async function saveProposal() {
     if (!selected) return;
     setWorking(true);
@@ -638,6 +669,18 @@ export default function StaffAssessmentAuthoringPanel({
             </label>
 
             <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={
+                  working
+                  || !writesEnabled
+                  || selected.status === "published"
+                }
+                onClick={() => void generateAiProposal()}
+                className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-sm font-semibold disabled:opacity-40"
+              >
+                {working ? copy.aiGenerating : copy.aiGenerate}
+              </button>
               <button
                 type="button"
                 onClick={() => addQuestion("single_choice")}
