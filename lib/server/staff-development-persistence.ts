@@ -384,7 +384,6 @@ export async function recordStaffAssessmentAttempt(input: {
   staffUserId: unknown;
   trainingAssignmentId: unknown;
   assessmentRevisionId: unknown;
-  attemptNo: unknown;
   answers: unknown;
 }) {
   assertStaffDevelopmentWriteEnabled();
@@ -425,19 +424,13 @@ export async function recordStaffAssessmentAttempt(input: {
     answers: input.answers,
   });
 
-  const attemptNo = Number(input.attemptNo);
-  if (!Number.isInteger(attemptNo) || attemptNo < 1) {
-    throw new Error("STAFF_ASSESSMENT_ATTEMPT_NO_INVALID");
-  }
-
   const { data, error } = await supabaseAdmin.rpc(
-    "record_staff_assessment_attempt_v1",
+    "record_staff_assessment_attempt_v2",
     {
       p_hotel_id: hotelId,
       p_staff_user_id: staffUserId,
       p_training_assignment_id: trainingAssignmentId,
       p_assessment_revision_id: assessmentRevisionId,
-      p_attempt_no: attemptNo,
       p_attempt_json: attempt,
     },
   );
@@ -500,7 +493,7 @@ export async function verifyStaffAssessmentAttempt(input: {
   });
 
   const { data, error } = await supabaseAdmin.rpc(
-    "verify_staff_assessment_attempt_v1",
+    "verify_staff_assessment_attempt_v2",
     {
       p_hotel_id: hotelId,
       p_assessment_attempt_id: assessmentAttemptId,
