@@ -1,0 +1,343 @@
+{
+  "version": 1,
+  "checkpoint": "staff-development-identity-actions",
+  "baseCheckpoint": "staff-development-persistence",
+  "expectedNeedsReview": 294,
+  "removals": [
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 433,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 502,
+      "operation": "rpc"
+    }
+  ],
+  "relocations": [
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 64,
+      "toLine": 65,
+      "table": "staff_users",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 107,
+      "toLine": 108,
+      "table": "hotel_staff_standard_revisions",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 138,
+      "toLine": 139,
+      "table": "hotel_staff_standard_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 155,
+      "toLine": 156,
+      "table": "staff_training_plan_revisions",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 207,
+      "toLine": 208,
+      "table": "staff_training_plan_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 229,
+      "toLine": 230,
+      "table": "staff_training_assignments",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 268,
+      "toLine": 269,
+      "table": "staff_training_assignments",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 284,
+      "toLine": 285,
+      "table": "staff_training_plan_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 302,
+      "toLine": 303,
+      "table": "staff_training_completions",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 333,
+      "toLine": 334,
+      "table": "staff_training_plan_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 361,
+      "toLine": 362,
+      "table": "staff_assessment_revisions",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 478,
+      "toLine": 472,
+      "table": "staff_assessment_attempts",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 543,
+      "toLine": 537,
+      "table": "hotel_staff_hr_rule_revisions",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 580,
+      "toLine": 574,
+      "table": "hotel_staff_hr_rule_revisions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 591,
+      "toLine": 585,
+      "table": "staff_verified_results",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "fromLine": 614,
+      "toLine": 608,
+      "table": "staff_hr_evaluations",
+      "operation": "insert"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 427,
+      "rpc": "record_staff_assessment_attempt_v2",
+      "tableExpression": "\"record_staff_assessment_attempt_v2\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only service_role_only assessment submit authority; server grades exact persisted assessment for the development-session-derived hotel and staff user; database rechecks active same-hotel staff user, same-hotel assignment identity, completed training, same-plan assessment lineage and exact hashes, then uses a per-hotel-staff-assessment advisory lock to assign attempt_no atomically and inserts an automatic verified result only when the graded attempt is already verified"
+    },
+    {
+      "filePath": "lib/server/staff-development-persistence.ts",
+      "line": 495,
+      "rpc": "verify_staff_assessment_attempt_v2",
+      "tableExpression": "\"verify_staff_assessment_attempt_v2\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only service_role_only human-review authority; server binds review to exact pending attempt and individual reviewer identity; database rechecks same hotel, active subject and reviewer, forbids self review, permits only department_manager or hotel_manager, enforces same department for department_manager, rejects an already verified attempt and binds sourceAttemptHash plus reviewer identity before immutable verified-result insert"
+    },
+    {
+      "filePath": "lib/server/staff-development-actions.ts",
+      "line": 55,
+      "table": "staff_users",
+      "tableExpression": "\"staff_users\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only manager action target lookup derives hotel_id from the authenticated individual development identity and reads only one exact active target staff_user by hotel_id plus staff_user_id before department-scope authorization"
+    },
+    {
+      "filePath": "lib/server/staff-development-actions.ts",
+      "line": 101,
+      "table": "hotel_staff_standard_revisions",
+      "tableExpression": "\"hotel_staff_standard_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only revision allocator reads only revision_no rows scoped by development-identity hotel_id plus validated standard_key; result is used to choose the next immutable standard revision and never discovers another hotel"
+    },
+    {
+      "filePath": "lib/server/staff-development-actions.ts",
+      "line": 111,
+      "table": "staff_assessment_revisions",
+      "tableExpression": "\"staff_assessment_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only revision allocator reads only revision_no rows scoped by development-identity hotel_id plus validated assessment_key before immutable assessment publication"
+    },
+    {
+      "filePath": "lib/server/staff-development-actions.ts",
+      "line": 121,
+      "table": "hotel_staff_hr_rule_revisions",
+      "tableExpression": "\"hotel_staff_hr_rule_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only hotel-manager-only HR rule revision allocator reads only revision_no rows scoped by the manager development identity hotel_id plus validated rule_set_key"
+    },
+    {
+      "filePath": "lib/server/staff-development-actions.ts",
+      "line": 146,
+      "table": "staff_training_plan_revisions",
+      "tableExpression": "\"staff_training_plan_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only manager scope validation reads one exact training plan revision by development-identity hotel_id plus revision id before assignment or assessment authoring"
+    },
+    {
+      "filePath": "lib/server/staff-development-actions.ts",
+      "line": 161,
+      "table": "hotel_staff_standard_revisions",
+      "tableExpression": "\"hotel_staff_standard_revisions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only department-manager scope validation reads the exact same-hotel standard revision referenced by the selected training plan and verifies every departmentCode matches the manager operational department"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "line": 120,
+      "table": "staff_users",
+      "tableExpression": "\"staff_users\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only individual identity resolver reads one active staff_user by exact hotel_id and staff_user_id; hotel_id is derived from an already validated operational staff session or development session"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "line": 221,
+      "table": "staff_development_credentials",
+      "tableExpression": "\"staff_development_credentials\"",
+      "operation": "upsert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only personal PIN provisioning occurs only after individual manager authority; target is an exact same-hotel staff_user and department_manager is restricted to the same department while hotel_manager may manage the hotel; stored value is a salted scrypt hash and composite tenant FKs prevent cross-hotel identity"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "line": 279,
+      "table": "staff_users",
+      "tableExpression": "\"staff_users\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only identity candidate list requires a valid current operational session and reads only active staff_users for that operational-session-derived hotel before filtering to the active manager or department runtime scope"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "line": 317,
+      "table": "staff_development_credentials",
+      "tableExpression": "\"staff_development_credentials\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only candidate list checks only whether eligible same-hotel staff_user ids have an active personal credential; pin hashes are not selected or returned"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "line": 381,
+      "table": "staff_development_credentials",
+      "tableExpression": "\"staff_development_credentials\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only identity authentication reads one active credential by operational-session-derived hotel_id plus exact selected staff_user_id only after role or department identity matching; secret PIN is verified with scrypt server-side"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "line": 407,
+      "rpc": "record_staff_development_pin_failure_v1",
+      "tableExpression": "\"record_staff_development_pin_failure_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only service_role_only personal-PIN throttle RPC receives exact operational-session-derived hotel_id and matched staff_user_id, row-locks only that active credential and applies bounded failed-attempt and 15-minute lock state"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "line": 428,
+      "rpc": "clear_staff_development_pin_failures_v1",
+      "tableExpression": "\"clear_staff_development_pin_failures_v1\"",
+      "operation": "rpc",
+      "reasons": [
+        "rpc_requires_review"
+      ],
+      "provenance": "server_only service_role_only PIN-throttle reset runs only after successful scrypt verification and resets only the exact active credential scoped by hotel_id plus staff_user_id"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "line": 445,
+      "table": "staff_development_sessions",
+      "tableExpression": "\"staff_development_sessions\"",
+      "operation": "update",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only successful identity login revokes any prior active development session for the exact operational-session-derived hotel_id plus operational_session_id before creating a replacement"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "line": 459,
+      "table": "staff_development_sessions",
+      "tableExpression": "\"staff_development_sessions\"",
+      "operation": "insert",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only development session insert binds exact hotel_id, individual staff_user_id and current operational_session_id with composite same-hotel FKs plus a secret SHA256 session token and an expiry capped by the operational session"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "line": 511,
+      "table": "staff_development_sessions",
+      "tableExpression": "\"staff_development_sessions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only development-session lookup first resolves the requested hotel slug and then requires both hotel_id and secret token hash; it additionally revalidates the referenced current operational session, active staff_user and role or department match before returning identity"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "line": 605,
+      "table": "staff_development_sessions",
+      "tableExpression": "\"staff_development_sessions\"",
+      "operation": "update",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only development logout resolves hotel slug then revokes only the session matching that hotel_id plus secret token hash; no cross-hotel token-only update remains"
+    }
+  ]
+}
