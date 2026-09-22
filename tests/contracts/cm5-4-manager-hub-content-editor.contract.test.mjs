@@ -9,6 +9,7 @@ import {
 test("CM5.4 Manager Hub editor is mounted and exposes Services Venues and Schedules", async () => {
   const managerPage = await readProjectFile("components/staff/pages/ManagerPageContent.tsx");
   const editor = await readProjectFile("components/staff/ManagerHubContentEditor.tsx");
+  const scheduleServer = await readProjectFile("lib/server/manager-operational-schedule-changes.mjs");
 
   assertContains(managerPage, 'import ManagerHubContentEditor from "@/components/staff/ManagerHubContentEditor"');
   assertContains(managerPage, "<ManagerHubContentEditor");
@@ -19,7 +20,6 @@ test("CM5.4 Manager Hub editor is mounted and exposes Services Venues and Schedu
     '"schedules"',
     "manager-service-change-v1",
     "manager-venue-change-v1",
-    "set_department_schedule",
     "dateOverrides",
     "seasons",
     "fallbackDepartment",
@@ -27,6 +27,7 @@ test("CM5.4 Manager Hub editor is mounted and exposes Services Venues and Schedu
   ]) {
     assertContains(editor, fragment);
   }
+  assertContains(scheduleServer, "set_department_schedule");
 });
 
 test("CM5.4 Manager Hub editor previews server-side and never writes LIVE directly", async () => {
