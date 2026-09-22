@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "checkpoint": "cm5-2-manager-change-foundation",
+  "baseCheckpoint": "ds5-guest-private-assets",
+  "expectedNeedsReview": 239,
+  "additions": [
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "line": 153,
+      "table": "hotel_content_change_requests",
+      "tableExpression": "\"hotel_content_change_requests\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "manager_only_server_snapshot_resolves_an_active_staff_session_for_role_manager_then_loads_the_exact_session_hotel_and_requires_requested_slug_match_before_reading_change_requests_scoped_by_eq_hotel_id_scope_hotelId; no_cross_hotel_listing_or_browser_direct_table_access"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "line": 198,
+      "rpc": "create_hotel_content_change_request_v1",
+      "tableExpression": "\"create_hotel_content_change_request_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "service_role_rpc_receives_hotel_id_and_manager_session_id_only_from_server_resolved_scope; database_revalidates_non_revoked_non_expired_manager_session_for_same_hotel_and_derives_current_live_revision_and_checksum_from_publication_state_instead_of_accepting_browser_live_identity"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "line": 228,
+      "table": "hotel_content_change_requests",
+      "tableExpression": "\"hotel_content_change_requests\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "confirm_preflight_ownership_check_requires_change_request_id_and_eq_hotel_id_scope_hotelId_after_manager_session_hotel_slug_validation; foreign_hotel_change_ids_fail_not_found_before_rpc"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "line": 238,
+      "rpc": "confirm_hotel_content_change_request_v1",
+      "tableExpression": "\"confirm_hotel_content_change_request_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "service_role_confirm_rpc_reloads_change_request_under_row_lock_revalidates_same_hotel_manager_session_requires_nonempty_operations_then_locks_publication_state_and_compares_exact_base_live_revision_plus_database_sha256_of_the_same_published_config_before_confirming; stale_or_cross_hotel_confirmation_fails_closed"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "line": 268,
+      "table": "hotel_content_change_requests",
+      "tableExpression": "\"hotel_content_change_requests\"",
+      "operation": "select",
+      "reasons": ["unclassified_table"],
+      "provenance": "cancel_preflight_ownership_check_is_manager_session_scoped_and_requires_eq_hotel_id_scope_hotelId_so_a_manager_cannot_cancel_another_hotels_change_request"
+    },
+    {
+      "filePath": "lib/server/manager-content-changes.ts",
+      "line": 278,
+      "rpc": "cancel_hotel_content_change_request_v1",
+      "tableExpression": "\"cancel_hotel_content_change_request_v1\"",
+      "operation": "rpc",
+      "reasons": ["rpc_requires_review"],
+      "provenance": "service_role_cancel_rpc_row_locks_the_draft_and_revalidates_non_revoked_non_expired_manager_session_for_the_same_hotel_before_status_transition_and_audit_event_insert"
+    }
+  ]
+}
