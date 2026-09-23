@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
+import StaffDevelopmentAccessCard from "@/components/staff/StaffDevelopmentAccessCard";
 import StaffFilterButton from "@/components/staff/StaffFilterButton";
 import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
@@ -493,6 +494,10 @@ export default function ReceptionPage({
       </section>
 
       {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="reception" /> : null}
+
+      {hotelSlug ? (
+        <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="reception" />
+      ) : null}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StaffSummaryCard
