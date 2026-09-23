@@ -6,6 +6,10 @@ import {
   requireHotelCommercialRuntimeAccess,
 } from "@/lib/server/commercial-runtime-entitlement";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import {
+  isProductModuleAccessDeniedError,
+  requireHotelProductModuleAccess,
+} from "@/lib/server/product-module-entitlements";
 import { getStaffSessionCookieName, type StaffRole } from "@/lib/staff-auth/cookie-name";
 
 export const STAFF_SESSION_COOKIE = "stayhub_staff_session";
@@ -101,9 +105,15 @@ export async function getCurrentStaffSession(hotelSlug: string, role: StaffRole)
 
   try {
     await requireHotelCommercialRuntimeAccess(data.hotel_id);
-  } catch (commercialError) {
-    if (isCommercialRuntimeAccessDeniedError(commercialError)) return null;
-    throw commercialError;
+    await requireHotelProductModuleAccess(data.hotel_id, "staff_operations");
+  } catch (accessError) {
+    if (
+      isCommercialRuntimeAccessDeniedError(accessError)
+      || isProductModuleAccessDeniedError(accessError)
+    ) {
+      return null;
+    }
+    throw accessError;
   }
 
   return data;
