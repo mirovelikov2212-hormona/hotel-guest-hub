@@ -46,7 +46,24 @@ function resolveDays(value: unknown) {
   return [7, 30, 90, 365].includes(days) ? days : 30;
 }
 
-function resolvePeriod(daysInput: unknown, now = new Date()): RevenuePeriod {
+function resolvePeriod(
+  daysInput: unknown,
+  now = new Date(),
+  override?: { from: string; to: string },
+): RevenuePeriod {
+  if (override) {
+    const fromMs = Date.parse(String(override.from || ""));
+    const toMs = Date.parse(String(override.to || ""));
+    if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || fromMs >= toMs) {
+      throw new Error("REVENUE_PERIOD_INVALID");
+    }
+    return {
+      days: Math.max(1, Math.ceil((toMs - fromMs) / 86_400_000)),
+      from: new Date(fromMs).toISOString(),
+      to: new Date(toMs).toISOString(),
+    };
+  }
+
   const days = resolveDays(daysInput);
   const toMs = now.getTime();
   const fromMs = toMs - days * 24 * 60 * 60 * 1000;
@@ -191,9 +208,14 @@ export async function getAncillaryRevenueManagerSnapshot(input: {
   hotelSlug: unknown;
   days?: unknown;
   now?: Date;
+  periodOverride?: { from: string; to: string };
 }) {
   const hotel = await resolveRevenueManagerAccess(input.hotelSlug);
-  const period = resolvePeriod(input.days, input.now);
+  const period = resolvePeriod(
+    input.days,
+    input.now,
+    input.periodOverride,
+  );
   const config = await getHotelConfig(hotel.slug);
   const billableServiceKeys = billableServiceKeysFromConfig(config);
 
