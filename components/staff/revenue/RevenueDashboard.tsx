@@ -382,6 +382,14 @@ export default function RevenueDashboard({
     [copy.unattributed, money.unattributedRevenue, snapshot.attribution.sourceCounts.unattributed],
   ] as const;
 
+  const revenueKpis: Array<{ label: string; value: MoneyMap }> = [
+    { label: copy.tracked, value: money.trackedRevenue },
+    { label: copy.gross, value: money.grossRecognized },
+    { label: copy.reversals, value: money.reversals },
+    { label: copy.pending, value: money.pendingValue },
+    { label: copy.aiRevenue, value: money.aiAttributedRevenue },
+  ];
+
   return (
     <main className="space-y-5 pb-safe">
       <section className="rounded-2xl border border-emerald-300/20 bg-emerald-400/5 p-5">
@@ -426,17 +434,11 @@ export default function RevenueDashboard({
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {[
-          [copy.tracked, money.trackedRevenue],
-          [copy.gross, money.grossRecognized],
-          [copy.reversals, money.reversals],
-          [copy.pending, money.pendingValue],
-          [copy.aiRevenue, money.aiAttributedRevenue],
-        ].map(([label, value]) => (
-          <div key={String(label)} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        {revenueKpis.map(({ label, value }) => (
+          <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <p className="text-sm text-white/50">{label}</p>
             <p className="mt-2 text-2xl font-semibold text-white">
-              {formatMoneyMap(value as MoneyMap, lang)}
+              {formatMoneyMap(value, lang)}
             </p>
           </div>
         ))}
