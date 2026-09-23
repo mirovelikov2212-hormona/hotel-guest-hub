@@ -7,6 +7,7 @@ import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import StaffStandardAuthoringPanel from "@/components/staff/StaffStandardAuthoringPanel";
 import StaffAssessmentAuthoringPanel from "@/components/staff/StaffAssessmentAuthoringPanel";
 import StaffHrRulesPanel from "@/components/staff/StaffHrRulesPanel";
+import StaffDevelopmentReportingPanel from "@/components/staff/StaffDevelopmentReportingPanel";
 
 type Candidate = {
   staffUserId: string;
@@ -842,6 +843,11 @@ function ManagerOverview({
         lang={lang}
         writesEnabled={writesEnabled}
         trainingPlans={plans}
+      />
+
+      <StaffDevelopmentReportingPanel
+        hotelSlug={hotelSlug}
+        lang={lang}
       />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
