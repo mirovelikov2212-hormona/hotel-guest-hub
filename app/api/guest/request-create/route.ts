@@ -16,6 +16,7 @@ import { translateGuestText, translateGuestTextToBulgarian, hasBulgarianLetters 
 import { getTestRoomPolicy } from "@/lib/server/test-rooms";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import { resolveGuestRequestRelationalIds } from "@/lib/server/guest-request-relational-ids.mjs";
+import { buildHistoricalServiceIdentitySnapshot } from "@/lib/change-management/historical-service-identity.mjs";
 import {
   markLateCheckoutRequested,
   validateGuestStayIdentity,
@@ -375,6 +376,14 @@ export async function POST(req: NextRequest) {
       normalizedRelationalIdsActive: relationalIds.active,
       normalizedRelationalRevisionId: relationalIds.revisionId,
       normalizedRelationalSourceChecksum: relationalIds.sourceChecksum,
+      historicalServiceIdentity: buildHistoricalServiceIdentitySnapshot({
+        sourceRequestDef,
+        requestType: authoritativeRequestType,
+        canonicalRequestType: legacyNormalizedType,
+        title: typeLabel || null,
+        configRevisionId: relationalIds.revisionId,
+        configSourceChecksum: relationalIds.sourceChecksum,
+      }),
       revenuePriceSnapshot: requiresBilling
         ? {
             schemaVersion: "revenue-price-snapshot-v1",
