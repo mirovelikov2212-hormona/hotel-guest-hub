@@ -1,0 +1,74 @@
+name: Revenue Intelligence Validation
+
+on:
+  pull_request:
+    paths:
+      - "lib/revenue/**"
+      - "lib/server/revenue-intelligence.ts"
+      - "lib/commercial/product-module-entitlements.mjs"
+      - "lib/server/product-module-entitlements.ts"
+      - "lib/server/staff-module-availability.ts"
+      - "app/api/staff/revenue/**"
+      - "app/api/staff/request-billing/route.ts"
+      - "app/staff/[hotelSlug]/manager/revenue/**"
+      - "components/staff/revenue/**"
+      - "components/staff/RevenueAccessCard.tsx"
+      - "components/staff/pages/ManagerPageContent.tsx"
+      - "app/control-plane/CommercialModuleEntitlementsPanel.tsx"
+      - "tests/contracts/revenue-intelligence.contract.test.mjs"
+      - "tests/contracts/staff-development-module-entitlements.contract.test.mjs"
+      - "scripts/tenant-isolation-guard.mjs"
+      - "tests/contracts/tenant-isolation-baseline-*.json"
+      - ".github/workflows/revenue-intelligence-validation.yml"
+  push:
+    branches-ignore:
+      - "main"
+    paths:
+      - "lib/revenue/**"
+      - "lib/server/revenue-intelligence.ts"
+      - "lib/commercial/product-module-entitlements.mjs"
+      - "lib/server/product-module-entitlements.ts"
+      - "lib/server/staff-module-availability.ts"
+      - "app/api/staff/revenue/**"
+      - "app/api/staff/request-billing/route.ts"
+      - "app/staff/[hotelSlug]/manager/revenue/**"
+      - "components/staff/revenue/**"
+      - "components/staff/RevenueAccessCard.tsx"
+      - "components/staff/pages/ManagerPageContent.tsx"
+      - "app/control-plane/CommercialModuleEntitlementsPanel.tsx"
+      - "tests/contracts/revenue-intelligence.contract.test.mjs"
+      - "tests/contracts/staff-development-module-entitlements.contract.test.mjs"
+      - "scripts/tenant-isolation-guard.mjs"
+      - "tests/contracts/tenant-isolation-baseline-*.json"
+      - ".github/workflows/revenue-intelligence-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  revenue-contracts-tenant-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Revenue Intelligence contracts
+        run: node --test tests/contracts/revenue-intelligence.contract.test.mjs
+      - name: Product entitlement regressions
+        run: node --test tests/contracts/staff-development-module-entitlements.contract.test.mjs
+      - name: Operational billing regressions
+        run: |
+          node --test tests/contracts/operational-contracts.test.mjs
+          node --test tests/contracts/request-type.contract.test.mjs
+      - name: Blocking tenant isolation
+        run: npm run test:tenant-isolation
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
