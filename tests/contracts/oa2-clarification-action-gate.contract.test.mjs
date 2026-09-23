@@ -12,9 +12,32 @@ test("OA2 suppresses executable AI actions while operational clarification is re
     guestHub,
     /const operationalStatus = String\(data\?\.operationalActionStatus \|\| ""\)\.trim\(\);/,
   );
-  assert.match(
-    guestHub,
-    /const actions = operationalAction\s*\? \[operationalAction\]\s*:\s*operationalStatus === "clarification_required"\s*\? \[\]\s*:\s*buildAiActions\(data\?\.diagnostics\?\.matchedIds\);/s,
+  const actionsStart = guestHub.indexOf("const actions = (");
+  const clarificationGate = guestHub.indexOf(
+    'operationalStatus === "clarification_required"',
+    actionsStart,
+  );
+  const fallbackActions = guestHub.indexOf(
+    "buildAiActions(data?.diagnostics?.matchedIds)",
+    clarificationGate,
+  );
+  const lineageMap = guestHub.indexOf(
+    "interactionId: aiInteractionId",
+    fallbackActions,
+  );
+
+  assert.ok(actionsStart >= 0, "operational action selection must exist");
+  assert.ok(
+    clarificationGate > actionsStart,
+    "clarification must gate executable actions",
+  );
+  assert.ok(
+    fallbackActions > clarificationGate,
+    "catalog actions must remain behind clarification gate",
+  );
+  assert.ok(
+    lineageMap > fallbackActions,
+    "AI action lineage must be attached after gated selection",
   );
 });
 
@@ -25,12 +48,19 @@ test("OA2 still requires an explicit action click before the existing confirmati
   );
 
   const actionBranch = guestHub.indexOf('if (action.kind === "operational_request")');
-  const handlerCall = guestHub.indexOf("handleRequestDefClick(def, action.submission.note)", actionBranch);
+  const handlerSource = actionBranch >= 0 ? guestHub.slice(actionBranch) : "";
+  const handlerCall = /handleRequestDefClick\([\s\S]*?def,[\s\S]*?action\.submission\.note,[\s\S]*?action\.interactionId,[\s\S]*?\);/.test(
+    handlerSource,
+  );
   const confirmationDialog = guestHub.indexOf("openRequestDialog({");
   const canonicalSubmission = guestHub.indexOf("void performGuestRequestSubmission({");
 
   assert.ok(actionBranch >= 0, "operational action click branch must exist");
-  assert.ok(handlerCall > actionBranch, "click must enter the existing RequestDef handler");
+  assert.equal(
+    handlerCall,
+    true,
+    "click must enter the existing RequestDef handler with AI lineage",
+  );
   assert.ok(confirmationDialog >= 0, "existing confirmation dialog must remain present");
   assert.ok(canonicalSubmission > confirmationDialog, "canonical submission must remain behind confirmation");
 });
