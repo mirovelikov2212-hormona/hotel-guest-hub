@@ -63,6 +63,9 @@ export async function getStaffModuleAvailability(input: {
       revenueIntelligence:
         role === "manager"
         && entitlement.moduleAccess.revenue_intelligence,
+      integrationLayer:
+        role === "manager"
+        && entitlement.moduleAccess.integration_layer,
     },
     entitlementSource: entitlement.source,
   };
