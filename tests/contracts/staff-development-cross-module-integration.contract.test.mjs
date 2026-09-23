@@ -81,3 +81,40 @@ test("legacy Reception, Housekeeping and Maintenance workspaces expose the same 
     );
   }
 });
+
+
+test("Manager attention bridge requires personal Hotel Manager identity and returns aggregates only", () => {
+  const server = readFileSync(
+    new URL(
+      "../../lib/server/staff-development-attention.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const route = readFileSync(
+    new URL(
+      "../../app/api/staff/development/attention/route.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const card = readFileSync(
+    new URL(
+      "../../components/staff/StaffDevelopmentAccessCard.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(server, /getCurrentStaffDevelopmentIdentity\(hotelSlug\)/);
+  assert.match(server, /staffUserRole !== "hotel_manager"/);
+  assert.match(server, /getStaffDevelopmentManagerBrief\(hotelSlug\)/);
+  assert.doesNotMatch(server, /staffName/);
+  assert.doesNotMatch(server, /attentionItems:/);
+  assert.doesNotMatch(route, /hotelId/);
+  assert.doesNotMatch(route, /staffUserId/);
+  assert.match(card, /attentionResponse\.status === 401/);
+  assert.match(card, /pendingHumanReviews/);
+  assert.match(card, /overdueTrainingAssignments/);
+  assert.match(card, /hrRuleFindings/);
+});
