@@ -60,6 +60,9 @@ export async function getStaffModuleAvailability(input: {
       managerIntelligence:
         role === "manager"
         && entitlement.moduleAccess.manager_intelligence,
+      revenueIntelligence:
+        role === "manager"
+        && entitlement.moduleAccess.revenue_intelligence,
     },
     entitlementSource: entitlement.source,
   };
