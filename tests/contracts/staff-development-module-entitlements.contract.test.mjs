@@ -24,7 +24,7 @@ test("legacy and non-production compatibility keep existing modules available", 
     assert.equal(resolved.moduleAccess.staff_development, true);
     assert.equal(resolved.moduleAccess.manager_intelligence, true);
     assert.equal(resolved.moduleAccess.revenue_intelligence, true);
-  assert.equal(resolved.moduleAccess.integration_layer, true);
+    assert.equal(resolved.moduleAccess.integration_layer, true);
   }
 });
 
@@ -42,6 +42,7 @@ test("full_trial enables every product module without a stored module config", (
   assert.equal(resolved.enabledModules.length, 7);
   assert.equal(resolved.moduleAccess.manager_intelligence, true);
   assert.equal(resolved.moduleAccess.revenue_intelligence, true);
+  assert.equal(resolved.moduleAccess.integration_layer, true);
 });
 
 test("managed customer defaults to Guest Hub only until optional modules are explicit", () => {
@@ -127,6 +128,7 @@ test("commercial denial disables every module", () => {
   assert.equal(resolved.moduleAccess.guest_hub, false);
   assert.equal(resolved.moduleAccess.staff_development, false);
   assert.equal(resolved.moduleAccess.manager_intelligence, false);
+  assert.equal(resolved.moduleAccess.integration_layer, false);
 });
 
 test("runtime module config is hotel-scoped and Control Plane writes are Platform Admin audited", () => {
