@@ -6,6 +6,7 @@ import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import StaffDevelopmentAccessCard from "@/components/staff/StaffDevelopmentAccessCard";
 import RevenueAccessCard from "@/components/staff/RevenueAccessCard";
+import GostayaValueAccessCard from "@/components/staff/GostayaValueAccessCard";
 import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
 import ManagerContentOffersEditor from "@/components/staff/ManagerContentOffersEditor";
 import ManagerHubContentEditor from "@/components/staff/ManagerHubContentEditor";
@@ -817,6 +818,8 @@ export default function ManagerPage() {
       ) : null}
 
       {hotelSlug ? <RevenueAccessCard hotelSlug={hotelSlug} /> : null}
+
+      {hotelSlug ? <GostayaValueAccessCard hotelSlug={hotelSlug} /> : null}
 
       <ManagerTodaySurveysCard
         surveys={managerActiveSurveys}
