@@ -18,6 +18,10 @@ import {
   setStaffSessionCookie,
 } from "@/lib/staff-auth/session";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
+import {
+  isProductModuleAccessDeniedError,
+  requireHotelProductModuleAccess,
+} from "@/lib/server/product-module-entitlements";
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,6 +46,22 @@ export async function POST(req: NextRequest) {
         { ok: false, error: "Hotel not found or staff runtime inactive" },
         { status: 404 },
       );
+    }
+
+    try {
+      await requireHotelProductModuleAccess(String(hotel.id), "staff_operations");
+    } catch (moduleError) {
+      if (isProductModuleAccessDeniedError(moduleError)) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Staff Operations is not enabled for this hotel",
+            code: "STAFF_OPERATIONS_NOT_ENTITLED",
+          },
+          { status: 403 },
+        );
+      }
+      throw moduleError;
     }
 
     const runtimeRole = await resolveStaffRuntimeRoleForHotelId(String(hotel.id), role);
