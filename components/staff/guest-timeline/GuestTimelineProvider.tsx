@@ -56,6 +56,16 @@ type StayContext = {
   };
   observedServiceUsage: Array<{ serviceKey: string; count: number }>;
   attention: Array<{ type: string }>;
+  serviceRecovery: {
+    status: "clear" | "human_followup_required";
+    needsHumanFollowup: boolean;
+    signalCount: number;
+    byType: {
+      slaBreach: number;
+      returnedRequest: number;
+      criticalFeedback: number;
+    };
+  };
 };
 
 type TimelineResponse = {
@@ -111,6 +121,9 @@ function text(lang: string) {
       rating: "Последна оценка",
       language: "Наблюдаван език",
       usedServices: "Използвани услуги",
+      recovery: "Service recovery",
+      followupRequired: "Нужен е човешки follow-up",
+      recoveryClear: "Няма активен recovery сигнал",
       none: "Няма",
     };
   }
@@ -136,6 +149,9 @@ function text(lang: string) {
       rating: "Letzte Bewertung",
       language: "Beobachtete Sprache",
       usedServices: "Genutzte Services",
+      recovery: "Service Recovery",
+      followupRequired: "Menschliche Nachbearbeitung erforderlich",
+      recoveryClear: "Kein aktives Recovery-Signal",
       none: "Keine",
     };
   }
@@ -160,6 +176,9 @@ function text(lang: string) {
     rating: "Latest rating",
     language: "Observed language",
     usedServices: "Used services",
+    recovery: "Service recovery",
+    followupRequired: "Human follow-up required",
+    recoveryClear: "No active recovery signal",
     none: "None",
   };
 }
@@ -303,7 +322,7 @@ export default function GuestTimelineProvider({
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/80">StayHub · OA4/OA5</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/80">StayHub · OA4/OA5/OA6</p>
                 <h2 className="mt-2 text-2xl font-semibold text-white">{copy.title}</h2>
                 {data?.stay ? (
                   <p className="mt-2 text-sm text-white/55">
@@ -363,6 +382,15 @@ export default function GuestTimelineProvider({
                             .join(" · ")
                         : copy.none}
                     </div>
+                  </div>
+                </div>
+
+                <div className="mt-2 rounded-2xl border border-white/10 bg-black/15 px-3 py-3">
+                  <div className="text-xs text-white/45">{copy.recovery}</div>
+                  <div className="mt-1 text-sm font-semibold text-white">
+                    {stayContext.serviceRecovery.needsHumanFollowup
+                      ? `${copy.followupRequired} · ${stayContext.serviceRecovery.signalCount}`
+                      : copy.recoveryClear}
                   </div>
                 </div>
               </section>
