@@ -1,0 +1,82 @@
+name: GOSTAYA Value Measurement Validation
+
+on:
+  pull_request:
+    paths:
+      - "lib/value/**"
+      - "lib/server/gostaya-value-baseline.ts"
+      - "lib/server/gostaya-value-measurement.ts"
+      - "lib/server/revenue-intelligence.ts"
+      - "components/GuestHub.tsx"
+      - "components/staff/GostayaValueAccessCard.tsx"
+      - "components/staff/value/**"
+      - "components/staff/pages/ManagerPageContent.tsx"
+      - "app/api/control-plane/value-baseline/**"
+      - "app/api/staff/value/**"
+      - "app/api/guest/request-create/route.ts"
+      - "app/control-plane/GostayaValueBaselinePanel.tsx"
+      - "app/control-plane/page.tsx"
+      - "app/staff/[hotelSlug]/manager/value/**"
+      - "tests/contracts/gostaya-value-measurement.contract.test.mjs"
+      - "tests/contracts/revenue-intelligence.contract.test.mjs"
+      - "tests/contracts/oa6-operational-service-recovery.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-*.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/gostaya-value-measurement.yml"
+  push:
+    branches-ignore:
+      - "main"
+    paths:
+      - "lib/value/**"
+      - "lib/server/gostaya-value-baseline.ts"
+      - "lib/server/gostaya-value-measurement.ts"
+      - "lib/server/revenue-intelligence.ts"
+      - "components/GuestHub.tsx"
+      - "components/staff/GostayaValueAccessCard.tsx"
+      - "components/staff/value/**"
+      - "components/staff/pages/ManagerPageContent.tsx"
+      - "app/api/control-plane/value-baseline/**"
+      - "app/api/staff/value/**"
+      - "app/api/guest/request-create/route.ts"
+      - "app/control-plane/GostayaValueBaselinePanel.tsx"
+      - "app/control-plane/page.tsx"
+      - "app/staff/[hotelSlug]/manager/value/**"
+      - "tests/contracts/gostaya-value-measurement.contract.test.mjs"
+      - "tests/contracts/revenue-intelligence.contract.test.mjs"
+      - "tests/contracts/oa6-operational-service-recovery.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-*.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/gostaya-value-measurement.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  value-contracts-tenant-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: GOSTAYA Value Measurement contracts
+        run: node --test tests/contracts/gostaya-value-measurement.contract.test.mjs
+      - name: Revenue regression
+        run: node --test tests/contracts/revenue-intelligence.contract.test.mjs
+      - name: Service recovery regression
+        run: node --test tests/contracts/oa6-operational-service-recovery.contract.test.mjs
+      - name: Operational regressions
+        run: |
+          node --test tests/contracts/operational-contracts.test.mjs
+          node --test tests/contracts/request-type.contract.test.mjs
+      - name: Blocking tenant isolation
+        run: npm run test:tenant-isolation
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
