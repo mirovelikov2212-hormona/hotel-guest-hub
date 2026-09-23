@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
+import StaffDevelopmentAccessCard from "@/components/staff/StaffDevelopmentAccessCard";
 import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
 import ManagerContentOffersEditor from "@/components/staff/ManagerContentOffersEditor";
 import ManagerHubContentEditor from "@/components/staff/ManagerHubContentEditor";
@@ -809,6 +810,10 @@ export default function ManagerPage() {
       </section>
 
       {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="manager" /> : null}
+
+      {hotelSlug ? (
+        <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="manager" />
+      ) : null}
 
       <ManagerTodaySurveysCard
         surveys={managerActiveSurveys}
