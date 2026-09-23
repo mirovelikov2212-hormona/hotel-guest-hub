@@ -188,7 +188,9 @@ test("OA2 client wiring requires an action click and existing confirmation dialo
   assert.match(guestHub, /resolveOperationalActionExecutionBridge/);
   assert.match(guestHub, /operationalActionStatus/);
   assert.match(guestHub, /kind:\s*"operational_request"/);
-  assert.match(guestHub, /handleRequestDefClick\(def, action\.submission\.note\)/);
+  assert.match(guestHub, /interactionId\?: string/);
+  assert.match(guestHub, /action\.interactionId/);
+  assert.match(guestHub, /handleRequestDefClick\([\s\S]*?def,[\s\S]*?action\.submission\.note,[\s\S]*?action\.interactionId,[\s\S]*?\)/);
   assert.match(guestHub, /openRequestDialog\([\s\S]*?onConfirm:[\s\S]*?performGuestRequestSubmission/);
   assert.match(guestHub, /fetch\("\/api\/guest\/request-create"/);
   assert.doesNotMatch(bridgeSource, /fetch\(|supabase|guest_requests|\.insert\(/i);
