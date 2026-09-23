@@ -331,3 +331,125 @@ test("Revenue price provenance is captured at request creation and billing prefe
   assert.match(billing, /priceSnapshot\?\.price \?\? metadata\.price/);
   assert.match(billing, /priceSnapshot\?\.currency \?\? metadata\.currency/);
 });
+
+
+test("CM6 historical service identity survives later LIVE rename and config changes", () => {
+  const revisionId = "00000000-0000-4000-8000-000000000099";
+  const snapshot = buildAncillaryRevenueSnapshot({
+    from: "2026-09-01T00:00:00.000Z",
+    to: "2026-10-01T00:00:00.000Z",
+    generatedAt: "2026-09-23T10:00:00.000Z",
+    requests: [
+      {
+        id: "historical-service-request",
+        request_type: "late_checkout_v2",
+        source: "guest_hub",
+        channel: "pwa",
+        created_at: "2026-09-10T10:00:00.000Z",
+        is_test: false,
+        metadata_json: {
+          sourceRequestDef: "late_checkout_v2",
+          typeLabel: "Late checkout NEW",
+          requiresBilling: true,
+          billingStatus: "charged",
+          billingAmountMinor: 2500,
+          billingCurrencyCode: "EUR",
+          historicalServiceIdentity: {
+            schemaVersion: "service-identity-snapshot-v1",
+            serviceKey: "late_checkout",
+            sourceRequestDef: "late_checkout",
+            requestType: "late_checkout",
+            canonicalRequestType: "late_checkout",
+            title: "Late checkout",
+            configRevisionId: revisionId,
+            configSourceChecksum: "a".repeat(64),
+          },
+        },
+      },
+    ],
+    events: [
+      {
+        id: "historical-service-charge",
+        request_id: "historical-service-request",
+        event_name: "request_billing_charged",
+        created_at: "2026-09-10T10:30:00.000Z",
+        is_test: false,
+        extra: {
+          requestId: "historical-service-request",
+          billingAmountMinor: 2500,
+          billingCurrencyCode: "EUR",
+          revenueDeltaMinor: 2500,
+          revenueLedgerVersion: 1,
+        },
+      },
+    ],
+  });
+
+  assert.equal(snapshot.services.length, 1);
+  assert.equal(snapshot.services[0].serviceKey, "late_checkout");
+  assert.deepEqual(snapshot.services[0].serviceTitles, ["Late checkout"]);
+  assert.deepEqual(snapshot.services[0].configRevisionIds, [revisionId]);
+  assert.deepEqual(
+    snapshot.services[0].historicalIdentitySources,
+    ["historical_service_identity_v1"],
+  );
+});
+
+test("CM6 repeated charged event cannot double-count revenue even when native delta is inconsistent", () => {
+  const snapshot = buildAncillaryRevenueSnapshot({
+    from: "2026-09-01T00:00:00.000Z",
+    to: "2026-10-01T00:00:00.000Z",
+    generatedAt: "2026-09-23T10:00:00.000Z",
+    requests: [
+      {
+        id: "replay-request",
+        request_type: "late_checkout",
+        source: "guest_hub",
+        channel: "pwa",
+        created_at: "2026-09-10T10:00:00.000Z",
+        is_test: false,
+        metadata_json: {
+          requiresBilling: true,
+          billingStatus: "charged",
+          billingAmountMinor: 2500,
+          billingCurrencyCode: "EUR",
+        },
+      },
+    ],
+    events: [
+      {
+        id: "charge-original",
+        request_id: "replay-request",
+        event_name: "request_billing_charged",
+        created_at: "2026-09-10T10:30:00.000Z",
+        is_test: false,
+        extra: {
+          requestId: "replay-request",
+          billingAmountMinor: 2500,
+          billingCurrencyCode: "EUR",
+          revenueDeltaMinor: 2500,
+          revenueLedgerVersion: 1,
+        },
+      },
+      {
+        id: "charge-replayed",
+        request_id: "replay-request",
+        event_name: "request_billing_charged",
+        created_at: "2026-09-10T10:31:00.000Z",
+        is_test: false,
+        extra: {
+          requestId: "replay-request",
+          billingAmountMinor: 2500,
+          billingCurrencyCode: "EUR",
+          revenueDeltaMinor: 2500,
+          revenueLedgerVersion: 1,
+        },
+      },
+    ],
+  });
+
+  assert.equal(snapshot.moneyMinorByCurrency.grossRecognized.EUR, 2500);
+  assert.equal(snapshot.moneyMinorByCurrency.trackedRevenue.EUR, 2500);
+  assert.equal(snapshot.revenueLedger.recognitionEvents, 1);
+  assert.equal(snapshot.revenueLedger.deltaMismatches, 1);
+});
