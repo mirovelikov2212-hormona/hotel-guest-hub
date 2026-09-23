@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "checkpoint": "incident-center-v1",
+  "baseCheckpoint": "integration-layer-v1",
+  "expectedNeedsReview": 341,
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/incident-center.ts",
+      "line": 43,
+      "table": "system_events",
+      "tableExpression": "\"system_events\"",
+      "operation": "select",
+      "reasons": [
+        "hybrid_scope_requires_review"
+      ],
+      "provenance": "server_only Platform Admin Incident Center global read across hotel-scoped system_events; only incident-tagged metadata is selected, the route requires Platform Admin session, and Manager reporting remains separately hotel/session scoped"
+    }
+  ]
+}
