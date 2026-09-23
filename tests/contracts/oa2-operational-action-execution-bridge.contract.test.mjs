@@ -184,12 +184,14 @@ test("OA2 client wiring requires an action click and existing confirmation dialo
   const guestHub = await readFile(new URL("../../components/GuestHub.tsx", import.meta.url), "utf8");
   const requestRoute = await readFile(new URL("../../app/api/guest/request-create/route.ts", import.meta.url), "utf8");
   const bridgeSource = await readFile(new URL("../../lib/guest/operational-action-execution-bridge.mjs", import.meta.url), "utf8");
+  const inputTypes = await readFile(new URL("../../lib/server/guest-request-input-validation.d.mts", import.meta.url), "utf8");
 
   assert.match(guestHub, /resolveOperationalActionExecutionBridge/);
   assert.match(guestHub, /operationalActionStatus/);
   assert.match(guestHub, /kind:\s*"operational_request"/);
   assert.match(guestHub, /interactionId\?: string/);
   assert.match(guestHub, /action\.interactionId/);
+  assert.match(inputTypes, /aiInteractionId: string \| null/);
   assert.match(guestHub, /handleRequestDefClick\([\s\S]*?def,[\s\S]*?action\.submission\.note,[\s\S]*?action\.interactionId,[\s\S]*?\)/);
   assert.match(guestHub, /openRequestDialog\([\s\S]*?onConfirm:[\s\S]*?performGuestRequestSubmission/);
   assert.match(guestHub, /fetch\("\/api\/guest\/request-create"/);
