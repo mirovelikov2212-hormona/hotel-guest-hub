@@ -10,6 +10,7 @@ export type ValidGuestRequestCreatePayload = {
   stayId: string;
   stayDeviceId: string;
   lateCheckoutRequestedTime: string | null;
+  aiInteractionId: string | null;
 };
 
 export type GuestRequestCreateValidationResult =
