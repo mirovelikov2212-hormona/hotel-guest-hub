@@ -10,7 +10,8 @@ type ModuleKey =
   | "operational_ai"
   | "staff_development"
   | "manager_intelligence"
-  | "revenue_intelligence";
+  | "revenue_intelligence"
+  | "integration_layer";
 
 type Config = {
   propertyId: string;
@@ -48,6 +49,7 @@ const MODULES: Array<{
   { key: "staff_development", dependencies: ["staff_operations"] },
   { key: "manager_intelligence", dependencies: ["staff_development"] },
   { key: "revenue_intelligence", dependencies: ["staff_operations"] },
+  { key: "integration_layer", dependencies: ["guest_hub"] },
 ];
 
 const COPY = {
@@ -61,6 +63,7 @@ const COPY = {
     staff_development: "Standards & Training",
     manager_intelligence: "Manager Intelligence",
     revenue_intelligence: "Revenue & Upsell",
+    integration_layer: "Integration Layer",
     core: "Основен модул",
     runtime: "Runtime",
     configured: "Записана конфигурация",
@@ -89,6 +92,7 @@ const COPY = {
     staff_development: "Standards & Training",
     manager_intelligence: "Manager Intelligence",
     revenue_intelligence: "Revenue & Upsell",
+    integration_layer: "Integration Layer",
     core: "Core module",
     runtime: "Runtime",
     configured: "Stored configuration",
