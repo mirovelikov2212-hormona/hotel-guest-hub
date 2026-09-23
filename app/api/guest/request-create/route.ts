@@ -373,6 +373,17 @@ export async function POST(req: NextRequest) {
       normalizedRelationalIdsActive: relationalIds.active,
       normalizedRelationalRevisionId: relationalIds.revisionId,
       normalizedRelationalSourceChecksum: relationalIds.sourceChecksum,
+      revenuePriceSnapshot: requiresBilling
+        ? {
+            schemaVersion: "revenue-price-snapshot-v1",
+            price: price ?? null,
+            currency: currency ?? null,
+            requiresBilling: true,
+            sourceRequestDef: sourceRequestDef ?? null,
+            configRevisionId: relationalIds.revisionId,
+            configSourceChecksum: relationalIds.sourceChecksum,
+          }
+        : undefined,
       ...isolationMetadata,
     };
     const staffTitleBg = authoritativeStaffLabels?.bg || getOperationalRequestTitleBg({
