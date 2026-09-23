@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import StaffCollapsiblePanel from "@/components/staff/StaffCollapsiblePanel";
+import StaffDevelopmentAccessCard from "@/components/staff/StaffDevelopmentAccessCard";
 import GenericDepartmentPushControls from "@/components/staff/GenericDepartmentPushControls";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
 import { useStaffTabTitleAlert } from "@/components/staff/useStaffTabTitleAlert";
@@ -222,6 +223,11 @@ export default function GenericDepartmentPageContent({
           </div>
         </div>
       </header>
+
+      <StaffDevelopmentAccessCard
+        hotelSlug={hotelSlug}
+        role={departmentCode}
+      />
 
       <section className="grid gap-3 sm:grid-cols-3">
         {([
