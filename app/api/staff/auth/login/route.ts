@@ -11,6 +11,10 @@ import {
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import {
+  isProductModuleAccessDeniedError,
+  requireHotelProductModuleAccess,
+} from "@/lib/server/product-module-entitlements";
+import {
   createRawSessionToken,
   getSessionExpiryDate,
   hashSessionToken,
@@ -52,6 +56,22 @@ export async function POST(req: NextRequest) {
         { ok: false, error: "Hotel not found" },
         { status: 404 }
       );
+    }
+
+    try {
+      await requireHotelProductModuleAccess(hotel.id, "staff_operations");
+    } catch (moduleError) {
+      if (isProductModuleAccessDeniedError(moduleError)) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Staff Operations is not enabled for this hotel",
+            code: "STAFF_OPERATIONS_NOT_ENTITLED",
+          },
+          { status: 403 },
+        );
+      }
+      throw moduleError;
     }
 
     const sourceKey = getStaffLoginSourceKey(req);
