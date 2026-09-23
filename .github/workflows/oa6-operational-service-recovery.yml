@@ -15,6 +15,10 @@ on:
       - "tests/contracts/oa5-guest-stay-context.contract.test.mjs"
       - "tests/contracts/oa5-ai-stay-context.contract.test.mjs"
       - "tests/contracts/oa4-unified-guest-timeline.contract.test.mjs"
+      - "tests/contracts/oa1-operational-workflow-resolution.contract.test.mjs"
+      - "tests/contracts/oa2-operational-action-execution-bridge.contract.test.mjs"
+      - "tests/contracts/oa2-clarification-action-gate.contract.test.mjs"
+      - "tests/contracts/oa3-operational-sla-escalation.contract.test.mjs"
       - "scripts/tenant-isolation-guard.mjs"
       - ".github/workflows/oa6-operational-service-recovery.yml"
   push:
@@ -33,6 +37,10 @@ on:
       - "tests/contracts/oa5-guest-stay-context.contract.test.mjs"
       - "tests/contracts/oa5-ai-stay-context.contract.test.mjs"
       - "tests/contracts/oa4-unified-guest-timeline.contract.test.mjs"
+      - "tests/contracts/oa1-operational-workflow-resolution.contract.test.mjs"
+      - "tests/contracts/oa2-operational-action-execution-bridge.contract.test.mjs"
+      - "tests/contracts/oa2-clarification-action-gate.contract.test.mjs"
+      - "tests/contracts/oa3-operational-sla-escalation.contract.test.mjs"
       - "scripts/tenant-isolation-guard.mjs"
       - ".github/workflows/oa6-operational-service-recovery.yml"
   workflow_dispatch:
