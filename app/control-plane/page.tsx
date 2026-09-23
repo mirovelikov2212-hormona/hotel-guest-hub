@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import CommercialLifecyclePanel from "@/app/control-plane/CommercialLifecyclePanel";
 import CommercialModuleEntitlementsPanel from "@/app/control-plane/CommercialModuleEntitlementsPanel";
+import GostayaValueBaselinePanel from "@/app/control-plane/GostayaValueBaselinePanel";
 import {
   controlPlaneHref,
   normalizeControlPlaneLang,
@@ -475,6 +476,15 @@ export default async function ControlPlanePage({
                       (environment) => environment.environment === "production",
                     ) ? (
                       <CommercialModuleEntitlementsPanel
+                        lang={lang}
+                        propertyId={property.id}
+                      />
+                    ) : null}
+
+                    {property.environments.some(
+                      (environment) => environment.environment === "production",
+                    ) ? (
+                      <GostayaValueBaselinePanel
                         lang={lang}
                         propertyId={property.id}
                       />
