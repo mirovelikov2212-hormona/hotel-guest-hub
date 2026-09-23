@@ -77,6 +77,60 @@ function isBillableMetadata(metadata: Record<string, unknown>) {
   return false;
 }
 
+function parseMoneyToMinor(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return 0;
+
+  const normalized = raw
+    .replace(/[^0-9,.-]/g, "")
+    .replace(/\.(?=\d{3}(\D|$))/g, "")
+    .replace(",", ".");
+
+  const amount = Number.parseFloat(normalized);
+  if (!Number.isFinite(amount)) return 0;
+  return Math.round(amount * 100);
+}
+
+function canonicalCurrencyCode(value: unknown) {
+  const currency = String(value ?? "").trim().toUpperCase();
+  if (!currency || currency === "€" || currency === "EURO") return "EUR";
+  return currency.slice(0, 8);
+}
+
+function currentBillingStatus(metadata: Record<string, unknown>): StaffBillingStatus {
+  const status = String(metadata.billingStatus || "").trim().toLowerCase();
+  return isValidBillingStatus(status) ? status : "pending";
+}
+
+function buildRevenueLedgerDelta(
+  metadata: Record<string, unknown>,
+  nextStatus: StaffBillingStatus,
+) {
+  const previousStatus = currentBillingStatus(metadata);
+  const amountMinor = parseMoneyToMinor(metadata.price);
+  const currencyCode = canonicalCurrencyCode(metadata.currency);
+
+  let revenueDeltaMinor = 0;
+  if (previousStatus !== "charged" && nextStatus === "charged") {
+    revenueDeltaMinor = amountMinor;
+  } else if (previousStatus === "charged" && nextStatus !== "charged") {
+    revenueDeltaMinor = -amountMinor;
+  }
+
+  return {
+    previousStatus,
+    amountMinor,
+    currencyCode,
+    revenueDeltaMinor,
+    revenueEventKind:
+      revenueDeltaMinor > 0
+        ? "recognition"
+        : revenueDeltaMinor < 0
+          ? "reversal"
+          : "state_change",
+  };
+}
+
 function normalizeMassageSignal(value: unknown) {
   return String(value ?? "")
     .trim()
@@ -132,12 +186,17 @@ function applyBillingStatus(
   role: StaffRole,
 ) {
   const now = new Date().toISOString();
+  const amountMinor = parseMoneyToMinor(metadata.price);
+  const currencyCode = canonicalCurrencyCode(metadata.currency);
   const nextMetadata: Record<string, unknown> = {
     ...metadata,
     requiresBilling: true,
     billingStatus,
     billingUpdatedAt: now,
     billingUpdatedByRole: role,
+    billingAmountMinor: amountMinor,
+    billingCurrencyCode: currencyCode,
+    billingRevenueLedgerVersion: 1,
   };
 
   if (billingStatus === "charged") {
@@ -218,7 +277,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { nextMetadata, changedAt } = applyBillingStatus(currentMetadata, billingStatus, role);
+    const revenueLedger = buildRevenueLedgerDelta(
+      currentMetadata,
+      billingStatus,
+    );
+    const { nextMetadata, changedAt } = applyBillingStatus(
+      currentMetadata,
+      billingStatus,
+      role,
+    );
     const wasRecognizedAsMassageRequest = isMassageBookingRequest(
       requestRow.request_type,
       requestRow.title,
@@ -283,6 +350,12 @@ export async function POST(req: NextRequest) {
         price: currentMetadata.price ?? null,
         currency: currentMetadata.currency ?? null,
         sourceRequestDef: currentMetadata.sourceRequestDef ?? null,
+        previousBillingStatus: revenueLedger.previousStatus,
+        billingAmountMinor: revenueLedger.amountMinor,
+        billingCurrencyCode: revenueLedger.currencyCode,
+        revenueDeltaMinor: revenueLedger.revenueDeltaMinor,
+        revenueEventKind: revenueLedger.revenueEventKind,
+        revenueLedgerVersion: 1,
         changedAt,
         closedByBilling: shouldCloseBillingRequest,
         massageBookingDetected: wasRecognizedAsMassageRequest,
