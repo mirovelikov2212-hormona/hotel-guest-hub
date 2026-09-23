@@ -64,24 +64,32 @@ test("Value Engine keeps Measured Value separate from Estimated Value", () => {
         id: "r1",
         created_at: "2026-09-11T09:00:00.000Z",
         is_test: false,
+        source: "guest_hub",
+        channel: "pwa",
         metadata_json: { department: "housekeeping" },
       },
       {
         id: "r2",
         created_at: "2026-09-11T10:00:00.000Z",
         is_test: false,
+        source: "guest_hub",
+        channel: "pwa",
         metadata_json: { department: "maintenance" },
       },
       {
         id: "r3",
         created_at: "2026-09-11T11:00:00.000Z",
         is_test: false,
+        source: "guest_hub",
+        channel: "pwa",
         metadata_json: { department: "restaurant" },
       },
       {
         id: "r4",
         created_at: "2026-09-11T12:00:00.000Z",
         is_test: false,
+        source: "guest_hub",
+        channel: "pwa",
         metadata_json: { department: "reception" },
       },
     ],
@@ -124,19 +132,19 @@ test("Value Engine keeps Measured Value separate from Estimated Value", () => {
       },
       {
         id: "ret1",
-        request_id: "r5",
+        request_id: "r4",
         event_name: "request_returned",
         created_at: "2026-09-13T10:00:00.000Z",
         is_test: false,
-        extra: { requestId: "r5" },
+        extra: { requestId: "r4" },
       },
       {
         id: "done1",
-        request_id: "r5",
+        request_id: "r4",
         event_name: "request_completed",
         created_at: "2026-09-13T10:30:00.000Z",
         is_test: false,
-        extra: { requestId: "r5" },
+        extra: { requestId: "r4" },
       },
     ],
     revenueSnapshot: {
@@ -241,41 +249,49 @@ test("Estimated Value can be negative when post-Go-Live performance is worse tha
         id: "r1",
         created_at: "2026-09-11T09:00:00.000Z",
         is_test: false,
+        source: "guest_hub",
+        channel: "pwa",
         metadata_json: { department: "reception" },
       },
       {
         id: "r2",
         created_at: "2026-09-11T10:00:00.000Z",
         is_test: false,
+        source: "guest_hub",
+        channel: "pwa",
         metadata_json: { department: "reception" },
       },
       {
         id: "r3",
         created_at: "2026-09-11T11:00:00.000Z",
         is_test: false,
+        source: "guest_hub",
+        channel: "pwa",
         metadata_json: { department: "housekeeping" },
       },
       {
         id: "r4",
         created_at: "2026-09-11T12:00:00.000Z",
         is_test: false,
+        source: "guest_hub",
+        channel: "pwa",
         metadata_json: { department: "reception" },
       },
     ],
     events: [
       {
-        request_id: "r5",
+        request_id: "r4",
         event_name: "request_returned",
         created_at: "2026-09-13T10:00:00.000Z",
         is_test: false,
-        extra: { requestId: "r5" },
+        extra: { requestId: "r4" },
       },
       {
-        request_id: "r5",
+        request_id: "r4",
         event_name: "request_completed",
         created_at: "2026-09-13T11:30:00.000Z",
         is_test: false,
-        extra: { requestId: "r5" },
+        extra: { requestId: "r4" },
       },
     ],
     revenueSnapshot: {
@@ -431,4 +447,44 @@ test("Manager dashboard visibly separates Measured, Estimated and future benchma
   assert.match(dashboard, /Service Recovery/);
   assert.match(dashboard, /Industry Benchmarks/);
   assert.match(dashboard, /anonymized cohort/i);
+});
+
+
+test("Staff-originated operational requests cannot inflate Reception Bypass or Direct Routing value", () => {
+  const measurement = buildGostayaValueMeasurement({
+    baseline: baseline(),
+    goLiveAt: "2026-09-01T00:00:00.000Z",
+    period: {
+      from: "2026-09-10T00:00:00.000Z",
+      to: "2026-09-17T00:00:00.000Z",
+    },
+    requests: [
+      {
+        id: "guest-request",
+        created_at: "2026-09-11T09:00:00.000Z",
+        is_test: false,
+        source: "guest_hub",
+        channel: "pwa",
+        metadata_json: { department: "housekeeping" },
+      },
+      {
+        id: "staff-request",
+        created_at: "2026-09-11T10:00:00.000Z",
+        is_test: false,
+        source: "staff_hub",
+        channel: "staff",
+        metadata_json: { department: "maintenance" },
+      },
+    ],
+    events: [],
+    revenueSnapshot: {
+      moneyMinorByCurrency: { trackedRevenue: {} },
+    },
+  });
+
+  assert.equal(measurement.measuredOperationalImpact.guestRequests, 1);
+  assert.equal(
+    measurement.measuredOperationalImpact.directDepartmentRequests,
+    1,
+  );
 });
