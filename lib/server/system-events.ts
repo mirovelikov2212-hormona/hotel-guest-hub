@@ -2,6 +2,7 @@ import "server-only";
 
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { sendCriticalSystemEventAlert } from "@/lib/server/critical-email-alerts";
+import { buildAutomaticIncidentEnvelope } from "@/lib/incidents/incident-model.mjs";
 
 export type SystemEventSeverity = "info" | "warning" | "error" | "critical";
 
@@ -15,7 +16,8 @@ export type SystemEventSource =
   | "survey"
   | "massage"
   | "supabase"
-  | "cron";
+  | "cron"
+  | "integration";
 
 type SystemEventMetadata = Record<string, unknown>;
 
@@ -128,17 +130,48 @@ function normalizeSource(value: SystemEventSource): SystemEventSource {
 }
 
 export async function logSystemEvent(input: LogSystemEventInput) {
+  const hotelId = normalizeUuid(input.hotelId);
+  const severity = normalizeSeverity(input.severity);
+  const source = normalizeSource(input.source);
+  const eventType = normalizeText(input.eventType, 120) || "unknown_event";
+  const sanitizedMetadata = sanitizeMetadata(input.metadata || {});
+  const nestedError =
+    sanitizedMetadata.error
+    && typeof sanitizedMetadata.error === "object"
+    && !Array.isArray(sanitizedMetadata.error)
+      ? (sanitizedMetadata.error as Record<string, unknown>)
+      : {};
+  const automaticIncident = buildAutomaticIncidentEnvelope({
+    hotelId,
+    severity,
+    source,
+    eventType,
+    module: sanitizedMetadata.module || source,
+    environment:
+      sanitizedMetadata.environment
+      || process.env.VERCEL_ENV
+      || process.env.NODE_ENV,
+    releaseSha: process.env.VERCEL_GIT_COMMIT_SHA,
+    deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
+    errorCode: nestedError.code || sanitizedMetadata.errorCode,
+  });
+
   const payload = {
-    hotel_id: normalizeUuid(input.hotelId),
-    severity: normalizeSeverity(input.severity),
-    source: normalizeSource(input.source),
-    event_type: normalizeText(input.eventType, 120) || "unknown_event",
+    hotel_id: hotelId,
+    severity,
+    source,
+    event_type: eventType,
     message: normalizeText(input.message, 500) || "System event",
     room_number: normalizeOptionalText(input.roomNumber, 40),
     department_id: normalizeOptionalText(input.departmentId, 80),
     request_id: normalizeUuid(input.requestId),
     survey_id: normalizeUuid(input.surveyId),
-    metadata_json: sanitizeMetadata(input.metadata || {}),
+    metadata_json: automaticIncident
+      ? {
+          ...sanitizedMetadata,
+          incident: automaticIncident,
+        }
+      : sanitizedMetadata,
   };
 
   try {
