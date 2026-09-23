@@ -471,10 +471,14 @@ export default async function ControlPlanePage({
                       }}
                     />
 
-                    <CommercialModuleEntitlementsPanel
-                      lang={lang}
-                      propertyId={property.id}
-                    />
+                    {property.environments.some(
+                      (environment) => environment.environment === "production",
+                    ) ? (
+                      <CommercialModuleEntitlementsPanel
+                        lang={lang}
+                        propertyId={property.id}
+                      />
+                    ) : null}
 
                     <div className="mt-4 space-y-3">
                       {property.environments.map((environment) => (
