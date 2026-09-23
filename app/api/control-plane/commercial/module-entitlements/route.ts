@@ -6,6 +6,7 @@ import {
   getPropertyCommercialModuleConfig,
   updatePropertyCommercialModuleConfig,
 } from "@/lib/server/property-module-entitlements";
+import { getHotelProductModuleEntitlement } from "@/lib/server/product-module-entitlements";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,7 +49,8 @@ export async function GET(req: NextRequest) {
   const propertyId = req.nextUrl.searchParams.get("propertyId");
   try {
     const config = await getPropertyCommercialModuleConfig(propertyId);
-    return jsonResponse({ ok: true, config });
+    const runtime = await getHotelProductModuleEntitlement(config.hotelId);
+    return jsonResponse({ ok: true, config, runtime });
   } catch (error) {
     const mapped = mapError(error);
     return jsonResponse({ ok: false, error: mapped.code }, mapped.status);
@@ -85,7 +87,8 @@ export async function POST(req: NextRequest) {
       enabledModules: body.enabledModules,
     });
 
-    return jsonResponse({ ok: true, config }, 200);
+    const runtime = await getHotelProductModuleEntitlement(config.hotelId);
+    return jsonResponse({ ok: true, config, runtime }, 200);
   } catch (error) {
     const mapped = mapError(error);
     console.error("Control Plane module entitlement update failed", error);
