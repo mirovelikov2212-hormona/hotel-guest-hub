@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "checkpoint": "integration-layer-v1",
+  "baseCheckpoint": "gostaya-value-measurement-v1",
+  "expectedNeedsReview": 340,
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/integration-connections.ts",
+      "line": 37,
+      "table": "properties",
+      "tableExpression": "\"properties\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only Platform Admin integration target resolution; exact validated property_id resolves organization audit authority and does not enumerate unrelated properties"
+    },
+    {
+      "filePath": "lib/server/integration-connections.ts",
+      "line": 42,
+      "table": "property_environments",
+      "tableExpression": "\"property_environments\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only Platform Admin integration target resolution; exact validated property_id plus environment=production resolves the authoritative production hotel before hotel-scoped integration config reads or writes"
+    }
+  ]
+}
