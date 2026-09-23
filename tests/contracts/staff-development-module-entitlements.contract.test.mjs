@@ -23,6 +23,7 @@ test("legacy and non-production compatibility keep existing modules available", 
     assert.equal(resolved.moduleAccess.operational_ai, true);
     assert.equal(resolved.moduleAccess.staff_development, true);
     assert.equal(resolved.moduleAccess.manager_intelligence, true);
+    assert.equal(resolved.moduleAccess.revenue_intelligence, true);
   }
 });
 
@@ -37,8 +38,9 @@ test("full_trial enables every product module without a stored module config", (
   });
 
   assert.equal(resolved.source, "full_trial");
-  assert.equal(resolved.enabledModules.length, 5);
+  assert.equal(resolved.enabledModules.length, 6);
   assert.equal(resolved.moduleAccess.manager_intelligence, true);
+  assert.equal(resolved.moduleAccess.revenue_intelligence, true);
 });
 
 test("managed customer defaults to Guest Hub only until optional modules are explicit", () => {
@@ -56,6 +58,7 @@ test("managed customer defaults to Guest Hub only until optional modules are exp
   assert.equal(resolved.moduleAccess.staff_operations, false);
   assert.equal(resolved.moduleAccess.staff_development, false);
   assert.equal(resolved.moduleAccess.manager_intelligence, false);
+  assert.equal(resolved.moduleAccess.revenue_intelligence, false);
 });
 
 test("module config enforces capability dependencies", () => {
@@ -67,6 +70,16 @@ test("module config enforces capability dependencies", () => {
       }),
     /COMMERCIAL_MODULE_DEPENDENCY_MISSING/,
   );
+
+  assert.throws(
+    () =>
+      buildCommercialModuleConfig({
+        currentRevision: 0,
+        enabledModules: ["revenue_intelligence"],
+      }),
+    /COMMERCIAL_MODULE_DEPENDENCY_MISSING/,
+  );
+
 
   const config = buildCommercialModuleConfig({
     currentRevision: 3,
@@ -171,6 +184,7 @@ test("Control Plane module UI keeps entitlement management outside hotel Manager
   assert.match(panel, /expectedRevision: config\.revision/);
   assert.match(panel, /staff_development/);
   assert.match(panel, /manager_intelligence/);
+  assert.match(panel, /revenue_intelligence/);
   assert.match(panel, /addWithDependencies/);
   assert.match(panel, /removeWithDependents/);
 });
