@@ -65,3 +65,19 @@ test("Manager and department operational workspaces link into the shared develop
   assert.match(department, /StaffDevelopmentAccessCard/);
   assert.match(department, /role=\{departmentCode\}/);
 });
+
+
+test("legacy Reception, Housekeeping and Maintenance workspaces expose the same entitled development bridge", () => {
+  for (const [path, role] of [
+    ["../../components/staff/pages/HousekeepingPageContent.tsx", "housekeeping"],
+    ["../../components/staff/pages/MaintenancePageContent.tsx", "maintenance"],
+    ["../../components/staff/pages/ReceptionPageContent.tsx", "reception"],
+  ]) {
+    const source = readFileSync(new URL(path, import.meta.url), "utf8");
+    assert.match(source, /StaffDevelopmentAccessCard/);
+    assert.match(
+      source,
+      new RegExp(`StaffDevelopmentAccessCard hotelSlug=\\{hotelSlug\\} role="${role}"`),
+    );
+  }
+});
