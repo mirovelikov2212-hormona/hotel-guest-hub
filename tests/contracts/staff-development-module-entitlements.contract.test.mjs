@@ -174,3 +174,35 @@ test("Control Plane module UI keeps entitlement management outside hotel Manager
   assert.match(panel, /addWithDependencies/);
   assert.match(panel, /removeWithDependents/);
 });
+
+
+test("Staff Operations and Operational AI have server-side runtime enforcement", () => {
+  const session = readFileSync(
+    new URL("../../lib/staff-auth/session.ts", import.meta.url),
+    "utf8",
+  );
+  const staffLogin = readFileSync(
+    new URL("../../app/api/staff/auth/login/route.ts", import.meta.url),
+    "utf8",
+  );
+  const departmentLogin = readFileSync(
+    new URL(
+      "../../app/api/staff/auth/department-login/route.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const aiRoute = readFileSync(
+    new URL("../../app/api/ai/route.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(session, /requireHotelProductModuleAccess\(data\.hotel_id, "staff_operations"\)/);
+  assert.match(session, /isProductModuleAccessDeniedError/);
+  assert.match(staffLogin, /"staff_operations"/);
+  assert.match(staffLogin, /STAFF_OPERATIONS_NOT_ENTITLED/);
+  assert.match(departmentLogin, /"staff_operations"/);
+  assert.match(departmentLogin, /STAFF_OPERATIONS_NOT_ENTITLED/);
+  assert.match(aiRoute, /requireHotelProductModuleAccess\(hotel\.id, "operational_ai"\)/);
+  assert.match(aiRoute, /ai_module_not_entitled/);
+});
