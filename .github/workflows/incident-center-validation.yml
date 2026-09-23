@@ -1,0 +1,70 @@
+name: Incident Center Validation
+
+on:
+  pull_request:
+    paths:
+      - "lib/incidents/**"
+      - "lib/server/incident-center.ts"
+      - "lib/server/system-events.ts"
+      - "app/api/staff/incidents/**"
+      - "app/api/control-plane/incidents/**"
+      - "components/staff/ManagerProblemReportCard.tsx"
+      - "components/staff/pages/ManagerPageContent.tsx"
+      - "app/control-plane/IncidentCenterPanel.tsx"
+      - "app/control-plane/page.tsx"
+      - "tests/contracts/incident-center.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-*.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/incident-center-validation.yml"
+  push:
+    branches-ignore:
+      - "main"
+    paths:
+      - "lib/incidents/**"
+      - "lib/server/incident-center.ts"
+      - "lib/server/system-events.ts"
+      - "app/api/staff/incidents/**"
+      - "app/api/control-plane/incidents/**"
+      - "components/staff/ManagerProblemReportCard.tsx"
+      - "components/staff/pages/ManagerPageContent.tsx"
+      - "app/control-plane/IncidentCenterPanel.tsx"
+      - "app/control-plane/page.tsx"
+      - "tests/contracts/incident-center.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-*.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/incident-center-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  incident-contracts-tenant-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Incident Center contracts
+        run: node --test tests/contracts/incident-center.contract.test.mjs
+      - name: Integration regression
+        run: node --test tests/contracts/integration-layer.contract.test.mjs
+      - name: Operational AI / recovery regressions
+        run: |
+          node --test tests/contracts/oa6-operational-service-recovery.contract.test.mjs
+          node --test tests/contracts/operational-contracts.test.mjs
+      - name: Revenue / ROI regressions
+        run: |
+          node --test tests/contracts/revenue-intelligence.contract.test.mjs
+          node --test tests/contracts/gostaya-value-measurement.contract.test.mjs
+      - name: Blocking tenant isolation
+        run: npm run test:tenant-isolation
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
