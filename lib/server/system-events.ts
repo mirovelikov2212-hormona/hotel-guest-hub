@@ -141,20 +141,26 @@ export async function logSystemEvent(input: LogSystemEventInput) {
     && !Array.isArray(sanitizedMetadata.error)
       ? (sanitizedMetadata.error as Record<string, unknown>)
       : {};
-  const automaticIncident = buildAutomaticIncidentEnvelope({
-    hotelId,
-    severity,
-    source,
-    eventType,
-    module: sanitizedMetadata.module || source,
-    environment:
-      sanitizedMetadata.environment
-      || process.env.VERCEL_ENV
-      || process.env.NODE_ENV,
-    releaseSha: process.env.VERCEL_GIT_COMMIT_SHA,
-    deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
-    errorCode: nestedError.code || sanitizedMetadata.errorCode,
-  });
+  const hasExplicitIncident =
+    sanitizedMetadata.incident
+    && typeof sanitizedMetadata.incident === "object"
+    && !Array.isArray(sanitizedMetadata.incident);
+  const automaticIncident = hasExplicitIncident
+    ? null
+    : buildAutomaticIncidentEnvelope({
+        hotelId,
+        severity,
+        source,
+        eventType,
+        module: sanitizedMetadata.module || source,
+        environment:
+          sanitizedMetadata.environment
+          || process.env.VERCEL_ENV
+          || process.env.NODE_ENV,
+        releaseSha: process.env.VERCEL_GIT_COMMIT_SHA,
+        deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
+        errorCode: nestedError.code || sanitizedMetadata.errorCode,
+      });
 
   const payload = {
     hotel_id: hotelId,
@@ -207,7 +213,7 @@ export async function logSystemEvent(input: LogSystemEventInput) {
           },
         });
       }
-      return;
+      return { ok: false as const, id: null, createdAt: null };
     }
 
     if (payload.severity === "critical") {
@@ -226,6 +232,12 @@ export async function logSystemEvent(input: LogSystemEventInput) {
         metadata: payload.metadata_json,
       });
     }
+
+    return {
+      ok: true as const,
+      id: data?.id ? String(data.id) : null,
+      createdAt: data?.created_at ? String(data.created_at) : null,
+    };
   } catch (error) {
     console.error("system_events logging failed", {
       eventType: payload.event_type,
@@ -252,6 +264,8 @@ export async function logSystemEvent(input: LogSystemEventInput) {
         },
       });
     }
+
+    return { ok: false as const, id: null, createdAt: null };
   }
 }
 
