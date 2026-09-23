@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "checkpoint": "gostaya-value-measurement-v1",
+  "baseCheckpoint": "commercial-module-entitlements-v1",
+  "expectedNeedsReview": 338,
+  "relocations": [],
+  "additions": [
+    {
+      "filePath": "lib/server/gostaya-value-baseline.ts",
+      "line": 38,
+      "table": "properties",
+      "tableExpression": "\"properties\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only Platform Admin baseline target resolution; exact validated property_id resolves organization audit authority and cannot enumerate unrelated properties"
+    },
+    {
+      "filePath": "lib/server/gostaya-value-baseline.ts",
+      "line": 43,
+      "table": "property_environments",
+      "tableExpression": "\"property_environments\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only Platform Admin baseline target resolution; exact validated property_id plus environment=production resolves the authoritative production hotel before any hotel-scoped baseline read or write"
+    },
+    {
+      "filePath": "lib/server/gostaya-value-baseline.ts",
+      "line": 83,
+      "table": "factory_production_live_activation_runs",
+      "tableExpression": "\"factory_production_live_activation_runs\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only Go-Live authority lookup scoped by exact production_hotel_id and status=live; used only to lock the hotel baseline and anchor ROI periods to the first actual Production activation"
+    }
+  ]
+}
