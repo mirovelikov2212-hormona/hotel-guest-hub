@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import CommercialLifecyclePanel from "@/app/control-plane/CommercialLifecyclePanel";
+import CommercialModuleEntitlementsPanel from "@/app/control-plane/CommercialModuleEntitlementsPanel";
 import {
   controlPlaneHref,
   normalizeControlPlaneLang,
@@ -468,6 +469,11 @@ export default async function ControlPlanePage({
                         planCode: property.commercial.planCode,
                         trialEndsAt: property.commercial.trialEndsAt,
                       }}
+                    />
+
+                    <CommercialModuleEntitlementsPanel
+                      lang={lang}
+                      propertyId={property.id}
                     />
 
                     <div className="mt-4 space-y-3">
