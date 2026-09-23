@@ -144,6 +144,7 @@ export async function POST(req: NextRequest) {
       stayId,
       stayDeviceId,
       lateCheckoutRequestedTime,
+      aiInteractionId,
     } = payloadValidation.value;
 
     const factoryWriteContext = await resolveFactoryGuestWriteContextFastPath({
@@ -370,6 +371,7 @@ export async function POST(req: NextRequest) {
       stayId: stayIdentity?.stay.id ?? null,
       stayDeviceId: stayIdentity?.device.id ?? null,
       lateCheckoutRequestedTime: legacyNormalizedType === "late_checkout" ? lateCheckoutRequestedTime : null,
+      aiInteractionId: aiInteractionId || null,
       normalizedRelationalIdsActive: relationalIds.active,
       normalizedRelationalRevisionId: relationalIds.revisionId,
       normalizedRelationalSourceChecksum: relationalIds.sourceChecksum,
