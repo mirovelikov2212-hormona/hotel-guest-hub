@@ -178,7 +178,7 @@ export async function reportManagerIncident(input: {
     source: "staff_hub",
     eventType: "incident_human_reported",
     message: summary,
-    roomNumber: input.roomNumber,
+    roomNumber: clean(input.roomNumber, 40) || null,
     departmentId: clean(input.departmentId, 80) || null,
     requestId: clean(input.requestId, 80) || null,
     metadata: {
