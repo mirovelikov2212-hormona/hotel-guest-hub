@@ -35,7 +35,7 @@ export class ProductModuleAccessDeniedError extends Error {
     moduleKey: ProductModuleKey;
     source: string;
   }) {
-    super("StayHub product module is not entitled for this hotel.");
+    super(`PRODUCT_MODULE_ACCESS_BLOCKED:${input.moduleKey}`);
     this.name = "ProductModuleAccessDeniedError";
     this.hotelId = input.hotelId;
     this.moduleKey = input.moduleKey;
