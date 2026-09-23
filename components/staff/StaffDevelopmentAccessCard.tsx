@@ -21,6 +21,21 @@ type Availability = {
   entitlementSource: string;
 };
 
+type AttentionSummary = {
+  reportingDay: string;
+  pendingHumanReviews: number;
+  overdueTrainingAssignments: number;
+  hrRuleFindings: number;
+  notificationCandidates: number;
+  hasAttention: boolean;
+  decisionAuthority: "human_manager";
+};
+
+type AttentionState =
+  | { status: "idle"; summary: null }
+  | { status: "identity_required"; summary: null }
+  | { status: "ready"; summary: AttentionSummary };
+
 const COPY = {
   bg: {
     title: "Развитие на персонала",
@@ -31,6 +46,11 @@ const COPY = {
     open: "Отвори модула",
     intelligenceOn: "Manager Intelligence активен",
     intelligenceOff: "Manager Intelligence не е активен",
+    identify:
+      "Влезте с личния Manager PIN в модула, за да виждате Staff Development сигналите тук.",
+    reviews: "За проверка",
+    overdue: "Просрочени обучения",
+    hrSignals: "HR сигнали",
   },
   en: {
     title: "Staff Development",
@@ -41,6 +61,11 @@ const COPY = {
     open: "Open module",
     intelligenceOn: "Manager Intelligence enabled",
     intelligenceOff: "Manager Intelligence not enabled",
+    identify:
+      "Identify with your personal Manager PIN in the module to see Staff Development attention here.",
+    reviews: "Reviews",
+    overdue: "Overdue training",
+    hrSignals: "HR signals",
   },
   de: {
     title: "Personalentwicklung",
@@ -51,6 +76,11 @@ const COPY = {
     open: "Modul öffnen",
     intelligenceOn: "Manager Intelligence aktiv",
     intelligenceOff: "Manager Intelligence nicht aktiv",
+    identify:
+      "Identifizieren Sie sich im Modul mit Ihrer persönlichen Manager-PIN, um Hinweise hier zu sehen.",
+    reviews: "Prüfungen",
+    overdue: "Überfällige Schulungen",
+    hrSignals: "HR-Hinweise",
   },
 } as const;
 
@@ -64,6 +94,10 @@ export default function StaffDevelopmentAccessCard({
   const { lang } = useStaffUi();
   const copy = COPY[lang] || COPY.en;
   const [availability, setAvailability] = useState<Availability | null>(null);
+  const [attention, setAttention] = useState<AttentionState>({
+    status: "idle",
+    summary: null,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -83,17 +117,62 @@ export default function StaffDevelopmentAccessCard({
           | null;
 
         if (
-          !cancelled
-          && response.ok
-          && body?.ok
-          && body.availability?.modules.staffDevelopment
+          cancelled
+          || !response.ok
+          || !body?.ok
+          || !body.availability?.modules.staffDevelopment
         ) {
-          setAvailability(body.availability);
-        } else if (!cancelled) {
-          setAvailability(null);
+          if (!cancelled) {
+            setAvailability(null);
+            setAttention({ status: "idle", summary: null });
+          }
+          return;
+        }
+
+        setAvailability(body.availability);
+
+        if (
+          body.availability.runtimeRole.kind !== "manager"
+          || !body.availability.modules.managerIntelligence
+        ) {
+          setAttention({ status: "idle", summary: null });
+          return;
+        }
+
+        const attentionResponse = await fetch(
+          `/api/staff/development/attention?hotelSlug=${encodeURIComponent(
+            body.availability.hotelSlug,
+          )}`,
+          {
+            cache: "no-store",
+            credentials: "same-origin",
+          },
+        );
+        const attentionBody = (await attentionResponse.json().catch(() => null)) as
+          | { ok?: boolean; summary?: AttentionSummary }
+          | null;
+
+        if (cancelled) return;
+
+        if (
+          attentionResponse.ok
+          && attentionBody?.ok
+          && attentionBody.summary
+        ) {
+          setAttention({
+            status: "ready",
+            summary: attentionBody.summary,
+          });
+        } else if (attentionResponse.status === 401) {
+          setAttention({ status: "identity_required", summary: null });
+        } else {
+          setAttention({ status: "idle", summary: null });
         }
       } catch {
-        if (!cancelled) setAvailability(null);
+        if (!cancelled) {
+          setAvailability(null);
+          setAttention({ status: "idle", summary: null });
+        }
       }
     }
 
@@ -113,13 +192,14 @@ export default function StaffDevelopmentAccessCard({
   return (
     <section className="rounded-2xl border border-white/10 bg-white/5 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">
             {isManager ? copy.managerTitle : copy.title}
           </p>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-white/65">
             {isManager ? copy.managerBody : copy.body}
           </p>
+
           {isManager ? (
             <p className="mt-2 text-xs text-white/50">
               {availability.modules.managerIntelligence
@@ -127,7 +207,31 @@ export default function StaffDevelopmentAccessCard({
                 : copy.intelligenceOff}
             </p>
           ) : null}
+
+          {isManager && attention.status === "identity_required" ? (
+            <p className="mt-2 max-w-2xl text-xs leading-5 text-white/45">
+              {copy.identify}
+            </p>
+          ) : null}
+
+          {isManager && attention.status === "ready" ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[
+                [copy.reviews, attention.summary.pendingHumanReviews],
+                [copy.overdue, attention.summary.overdueTrainingAssignments],
+                [copy.hrSignals, attention.summary.hrRuleFindings],
+              ].map(([label, value]) => (
+                <span
+                  key={String(label)}
+                  className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-xs text-white/65"
+                >
+                  {label}: <strong className="text-white/90">{value}</strong>
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
+
         <Link
           href={`/staff/${availability.hotelSlug}/${developmentRole}/development`}
           className="inline-flex shrink-0 items-center justify-center rounded-xl border border-white/15 bg-black/20 px-4 py-2.5 text-sm font-semibold text-white/90 transition hover:border-white/30"
