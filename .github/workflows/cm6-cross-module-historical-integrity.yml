@@ -1,0 +1,118 @@
+name: CM6 Cross-Module Historical Integrity
+
+on:
+  pull_request:
+    paths:
+      - "lib/change-management/**"
+      - "lib/revenue/**"
+      - "lib/value/**"
+      - "lib/server/gostaya-value-baseline.ts"
+      - "lib/server/gostaya-value-measurement.ts"
+      - "lib/server/revenue-intelligence.ts"
+      - "lib/server/factory-production-version-transition.ts"
+      - "lib/server/factory-production-version-restore.ts"
+      - "lib/server/manager-change-activation.ts"
+      - "app/api/guest/request-create/route.ts"
+      - "app/api/staff/request-billing/route.ts"
+      - "supabase/migrations/20260909120000_cm1_post_live_version_transition_v1.sql"
+      - "supabase/migrations/20260909200000_cm3_historical_version_restore_v1.sql"
+      - "tests/contracts/cm1-*.mjs"
+      - "tests/contracts/cm2-*.mjs"
+      - "tests/contracts/cm3-*.mjs"
+      - "tests/contracts/cm4-*.mjs"
+      - "tests/contracts/cm5-*.mjs"
+      - "tests/contracts/cm6-cross-module-historical-integrity.contract.test.mjs"
+      - "tests/contracts/revenue-intelligence.contract.test.mjs"
+      - "tests/contracts/gostaya-value-measurement.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-*.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/cm6-cross-module-historical-integrity.yml"
+  push:
+    branches-ignore:
+      - "main"
+    paths:
+      - "lib/change-management/**"
+      - "lib/revenue/**"
+      - "lib/value/**"
+      - "lib/server/gostaya-value-baseline.ts"
+      - "lib/server/gostaya-value-measurement.ts"
+      - "lib/server/revenue-intelligence.ts"
+      - "lib/server/factory-production-version-transition.ts"
+      - "lib/server/factory-production-version-restore.ts"
+      - "lib/server/manager-change-activation.ts"
+      - "app/api/guest/request-create/route.ts"
+      - "app/api/staff/request-billing/route.ts"
+      - "supabase/migrations/20260909120000_cm1_post_live_version_transition_v1.sql"
+      - "supabase/migrations/20260909200000_cm3_historical_version_restore_v1.sql"
+      - "tests/contracts/cm1-*.mjs"
+      - "tests/contracts/cm2-*.mjs"
+      - "tests/contracts/cm3-*.mjs"
+      - "tests/contracts/cm4-*.mjs"
+      - "tests/contracts/cm5-*.mjs"
+      - "tests/contracts/cm6-cross-module-historical-integrity.contract.test.mjs"
+      - "tests/contracts/revenue-intelligence.contract.test.mjs"
+      - "tests/contracts/gostaya-value-measurement.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-*.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/cm6-cross-module-historical-integrity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  historical-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: CM6 historical integrity contracts
+        run: node --test tests/contracts/cm6-cross-module-historical-integrity.contract.test.mjs
+
+      - name: CM1 transition regressions
+        run: |
+          node --test tests/contracts/cm1-post-live-version-transition.contract.test.mjs
+          node --test tests/contracts/cm1-trusted-server-integration.contract.test.mjs
+          node --test tests/contracts/cm1-transition-readiness-v2.contract.test.mjs
+
+      - name: CM2 diff regression
+        run: node --test tests/contracts/cm2-version-diff.contract.test.mjs
+
+      - name: CM3 restore regressions
+        run: |
+          node --test tests/contracts/cm3-historical-version-restore.contract.test.mjs
+          node --test tests/contracts/cm3-restore-live-episode-idempotency.contract.test.mjs
+
+      - name: CM4 version management regression
+        run: node --test tests/contracts/cm4-version-management-control-plane.contract.test.mjs
+
+      - name: CM5 Manager lifecycle regressions
+        run: |
+          node --test tests/contracts/cm5-5-manager-lifecycle-gate.contract.test.mjs
+          node --test tests/contracts/cm5-5-certification-activation.contract.test.mjs
+          node --test tests/contracts/cm5-5-manager-candidate-persistence.contract.test.mjs
+          node --test tests/contracts/cm5-5-manager-candidate-replay.contract.test.mjs
+          node --test tests/contracts/cm5-manager-change-foundation.contract.test.mjs
+          node --test tests/contracts/cm5-manager-service-safety.contract.test.mjs
+          node --test tests/contracts/cm5-manager-operational-schedule-safety.contract.test.mjs
+
+      - name: Revenue historical integrity regression
+        run: node --test tests/contracts/revenue-intelligence.contract.test.mjs
+
+      - name: ROI historical integrity regression
+        run: node --test tests/contracts/gostaya-value-measurement.contract.test.mjs
+
+      - name: Blocking tenant isolation
+        run: npm run test:tenant-isolation
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
