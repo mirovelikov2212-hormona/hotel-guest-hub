@@ -140,7 +140,10 @@ const COPY = {
   },
 } as const;
 
-function attentionLabel(\n  kind: string,\n  copy: { pendingReview: string; overdueTraining: string; hrRule: string },\n) {
+function attentionLabel(
+  kind: string,
+  copy: { pendingReview: string; overdueTraining: string; hrRule: string },
+) {
   if (kind === "pending_review") return copy.pendingReview;
   if (kind === "overdue_training") return copy.overdueTraining;
   if (kind === "hr_rule") return copy.hrRule;
