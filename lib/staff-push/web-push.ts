@@ -12,6 +12,7 @@ type StaffPushInput = {
   requestTitle: string;
   targetRoles: PushStaffRole[];
   notificationTitle?: string;
+  notificationBody?: string;
   notificationUrl?: string;
   notificationRole?: PushStaffRole;
 };
@@ -208,7 +209,7 @@ export async function sendStaffPushNotification(input: StaffPushInput) {
 
       const payload = JSON.stringify({
         title: input.notificationTitle || getRoleNotificationTitle(role),
-        body: `Стая ${input.room} · ${input.requestTitle}`,
+        body: input.notificationBody || `Стая ${input.room} · ${input.requestTitle}`,
         icon: "/icons/manager-192.png",
         badge: "/icons/manager-192.png",
         tag: `stayhub-request-${input.requestId}`,
