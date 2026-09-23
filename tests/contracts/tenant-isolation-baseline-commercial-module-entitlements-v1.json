@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "checkpoint": "commercial-module-entitlements-v1",
+  "baseCheckpoint": "staff-development-reporting-v1",
+  "expectedNeedsReview": 335,
+  "relocations": [
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 119,
+      "toLine": 120,
+      "table": "staff_users",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 216,
+      "toLine": 218,
+      "table": "staff_development_credentials",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 230,
+      "toLine": 232,
+      "table": "staff_development_credentials",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 293,
+      "toLine": 296,
+      "table": "staff_development_credentials",
+      "operation": "upsert"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 351,
+      "toLine": 355,
+      "table": "staff_users",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 389,
+      "toLine": 393,
+      "table": "staff_development_credentials",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 453,
+      "toLine": 458,
+      "table": "staff_development_credentials",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 480,
+      "toLine": 485,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 501,
+      "toLine": 506,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 517,
+      "toLine": 522,
+      "table": "staff_development_sessions",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 531,
+      "toLine": 536,
+      "table": "staff_development_sessions",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 583,
+      "toLine": 588,
+      "table": "staff_development_sessions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 677,
+      "toLine": 683,
+      "table": "staff_development_sessions",
+      "operation": "update"
+    },
+    {
+      "filePath": "lib/server/staff-development-reporting.ts",
+      "fromLine": 38,
+      "toLine": 44,
+      "table": "staff_training_completions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-reporting.ts",
+      "fromLine": 46,
+      "toLine": 52,
+      "table": "staff_assessment_attempts",
+      "operation": "select"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/property-module-entitlements.ts",
+      "line": 34,
+      "table": "properties",
+      "tableExpression": "\"properties\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only Platform Admin module entitlement target resolution; exact validated property_id is supplied to the query and the result is used only to derive the authoritative organization for audit and matching Production runtime target"
+    },
+    {
+      "filePath": "lib/server/property-module-entitlements.ts",
+      "line": 39,
+      "table": "property_environments",
+      "tableExpression": "\"property_environments\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only Platform Admin module entitlement target resolution; exact validated property_id plus environment=production selects the single authoritative Production hotel before any hotel_settings entitlement read or write"
+    }
+  ]
+}
