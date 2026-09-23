@@ -291,7 +291,7 @@ export async function getAncillaryRevenueManagerSnapshot(input: {
   const analyticsEvents = mergeUniqueRows(
     billingEvents,
     requestCreatedEvents,
-    periodAiEventsResult.data as Record<string, unknown>[],
+    (periodAiEventsResult.data || []) as Record<string, unknown>[],
     attributionClicks,
   );
 
