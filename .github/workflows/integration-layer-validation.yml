@@ -1,0 +1,78 @@
+name: Integration Layer Validation
+
+on:
+  pull_request:
+    paths:
+      - "lib/integrations/**"
+      - "lib/server/integration-connections.ts"
+      - "lib/server/integration-status.ts"
+      - "lib/server/staff-module-availability.ts"
+      - "lib/commercial/product-module-entitlements.mjs"
+      - "app/api/control-plane/integrations/**"
+      - "app/api/staff/integrations/**"
+      - "app/control-plane/IntegrationConnectionsPanel.tsx"
+      - "app/control-plane/CommercialModuleEntitlementsPanel.tsx"
+      - "app/control-plane/page.tsx"
+      - "components/staff/IntegrationStatusCard.tsx"
+      - "components/staff/pages/ManagerPageContent.tsx"
+      - "tests/contracts/integration-layer.contract.test.mjs"
+      - "tests/contracts/staff-development-module-entitlements.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-*.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/integration-layer-validation.yml"
+  push:
+    branches-ignore:
+      - "main"
+    paths:
+      - "lib/integrations/**"
+      - "lib/server/integration-connections.ts"
+      - "lib/server/integration-status.ts"
+      - "lib/server/staff-module-availability.ts"
+      - "lib/commercial/product-module-entitlements.mjs"
+      - "app/api/control-plane/integrations/**"
+      - "app/api/staff/integrations/**"
+      - "app/control-plane/IntegrationConnectionsPanel.tsx"
+      - "app/control-plane/CommercialModuleEntitlementsPanel.tsx"
+      - "app/control-plane/page.tsx"
+      - "components/staff/IntegrationStatusCard.tsx"
+      - "components/staff/pages/ManagerPageContent.tsx"
+      - "tests/contracts/integration-layer.contract.test.mjs"
+      - "tests/contracts/staff-development-module-entitlements.contract.test.mjs"
+      - "tests/contracts/tenant-isolation-baseline-*.json"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/integration-layer-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration-contracts-tenant-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Integration Layer contracts
+        run: node --test tests/contracts/integration-layer.contract.test.mjs
+      - name: Product entitlement regression
+        run: node --test tests/contracts/staff-development-module-entitlements.contract.test.mjs
+      - name: Guest stay regression
+        run: |
+          node --test tests/contracts/guest-preview-entry-and-stay-confirm.contract.test.mjs
+          node --test tests/contracts/guest-stay-recovery.contract.test.mjs
+      - name: Revenue and ROI regressions
+        run: |
+          node --test tests/contracts/revenue-intelligence.contract.test.mjs
+          node --test tests/contracts/gostaya-value-measurement.contract.test.mjs
+      - name: Blocking tenant isolation
+        run: npm run test:tenant-isolation
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
