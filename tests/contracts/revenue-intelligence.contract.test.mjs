@@ -274,3 +274,60 @@ test("Revenue UI labels StayHub-only scope and does not fabricate PMS/RMS metric
   assert.match(accessCard, /revenueIntelligence/);
   assert.match(accessCard, /\/manager\/revenue/);
 });
+
+
+test("Revenue price snapshot keeps historical request value stable across later LIVE price changes", () => {
+  const snapshot = buildAncillaryRevenueSnapshot({
+    from: "2026-09-01T00:00:00.000Z",
+    to: "2026-10-01T00:00:00.000Z",
+    generatedAt: "2026-09-23T10:00:00.000Z",
+    requests: [
+      {
+        id: "request-price-snapshot",
+        request_type: "late_checkout",
+        source: "guest_hub",
+        channel: "pwa",
+        created_at: "2026-09-20T10:00:00.000Z",
+        is_test: false,
+        metadata_json: {
+          requiresBilling: true,
+          price: "40.00",
+          currency: "EUR",
+          billingStatus: "pending",
+          revenuePriceSnapshot: {
+            schemaVersion: "revenue-price-snapshot-v1",
+            price: "25.00",
+            currency: "EUR",
+            requiresBilling: true,
+            sourceRequestDef: "late_checkout",
+            configRevisionId: "00000000-0000-4000-8000-000000000001",
+            configSourceChecksum: "a".repeat(64),
+          },
+        },
+      },
+    ],
+    events: [],
+  });
+
+  assert.equal(snapshot.moneyMinorByCurrency.requestedValue.EUR, 2500);
+  assert.equal(snapshot.moneyMinorByCurrency.pendingValue.EUR, 2500);
+});
+
+test("Revenue price provenance is captured at request creation and billing prefers the immutable snapshot", () => {
+  const createRoute = readFileSync(
+    new URL("../../app/api/guest/request-create/route.ts", import.meta.url),
+    "utf8",
+  );
+  const billing = readFileSync(
+    new URL("../../app/api/staff/request-billing/route.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(createRoute, /revenuePriceSnapshot/);
+  assert.match(createRoute, /revenue-price-snapshot-v1/);
+  assert.match(createRoute, /configRevisionId: relationalIds\.revisionId/);
+  assert.match(createRoute, /configSourceChecksum: relationalIds\.sourceChecksum/);
+  assert.match(billing, /revenuePriceSnapshot\(metadata\)/);
+  assert.match(billing, /priceSnapshot\?\.price \?\? metadata\.price/);
+  assert.match(billing, /priceSnapshot\?\.currency \?\? metadata\.currency/);
+});
