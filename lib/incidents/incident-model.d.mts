@@ -50,6 +50,27 @@ export function readIncidentEnvelope(
   metadata: unknown,
 ): IncidentEnvelope | null;
 
+export type IncidentProjection = {
+  incidentId: string;
+  fingerprint: string;
+  hotelId: string | null;
+  severity: "info" | "warning" | "error" | "critical";
+  source: string;
+  kind: IncidentKind;
+  module: string;
+  environment: string;
+  releaseSha: string | null;
+  deploymentId: string | null;
+  status: IncidentStatus;
+  summary: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  occurrenceCount: number;
+  eventIds: readonly string[];
+  hotelsWithSameFingerprint: number;
+  resolvedAt: string | null;
+};
+
 export function deriveIncidentProjections(
   events?: unknown[],
-): Array<Record<string, unknown>>;
+): IncidentProjection[];
