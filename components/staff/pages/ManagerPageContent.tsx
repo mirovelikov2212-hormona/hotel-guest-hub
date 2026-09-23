@@ -5,6 +5,7 @@ import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import StaffDevelopmentAccessCard from "@/components/staff/StaffDevelopmentAccessCard";
+import RevenueAccessCard from "@/components/staff/RevenueAccessCard";
 import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
 import ManagerContentOffersEditor from "@/components/staff/ManagerContentOffersEditor";
 import ManagerHubContentEditor from "@/components/staff/ManagerHubContentEditor";
@@ -814,6 +815,8 @@ export default function ManagerPage() {
       {hotelSlug ? (
         <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="manager" />
       ) : null}
+
+      {hotelSlug ? <RevenueAccessCard hotelSlug={hotelSlug} /> : null}
 
       <ManagerTodaySurveysCard
         surveys={managerActiveSurveys}
