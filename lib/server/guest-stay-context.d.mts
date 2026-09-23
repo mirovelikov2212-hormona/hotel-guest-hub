@@ -1,3 +1,5 @@
+import type { OperationalServiceRecoveryState } from "./operational-service-recovery.mjs";
+
 export type GuestStayContextAttention =
   | {
       type: "sla_breach";
@@ -63,6 +65,7 @@ export type GuestStayContext = {
   };
   observedServiceUsage: Array<{ serviceKey: string; count: number }>;
   attention: GuestStayContextAttention[];
+  serviceRecovery: OperationalServiceRecoveryState;
   preferences: {
     scope: "current_stay";
     explicit: readonly unknown[];
