@@ -1,0 +1,74 @@
+name: OA6 Operational Service Recovery
+
+on:
+  pull_request:
+    paths:
+      - "lib/server/operational-service-recovery.mjs"
+      - "lib/server/operational-service-recovery.d.mts"
+      - "lib/server/guest-stay-context.mjs"
+      - "lib/server/guest-stay-context.d.mts"
+      - "lib/ai/guest-stay-context.mjs"
+      - "lib/ai/guest-stay-context.d.mts"
+      - "app/api/ai/route.ts"
+      - "components/staff/guest-timeline/**"
+      - "tests/contracts/oa6-operational-service-recovery.contract.test.mjs"
+      - "tests/contracts/oa5-guest-stay-context.contract.test.mjs"
+      - "tests/contracts/oa5-ai-stay-context.contract.test.mjs"
+      - "tests/contracts/oa4-unified-guest-timeline.contract.test.mjs"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/oa6-operational-service-recovery.yml"
+  push:
+    branches-ignore:
+      - "main"
+    paths:
+      - "lib/server/operational-service-recovery.mjs"
+      - "lib/server/operational-service-recovery.d.mts"
+      - "lib/server/guest-stay-context.mjs"
+      - "lib/server/guest-stay-context.d.mts"
+      - "lib/ai/guest-stay-context.mjs"
+      - "lib/ai/guest-stay-context.d.mts"
+      - "app/api/ai/route.ts"
+      - "components/staff/guest-timeline/**"
+      - "tests/contracts/oa6-operational-service-recovery.contract.test.mjs"
+      - "tests/contracts/oa5-guest-stay-context.contract.test.mjs"
+      - "tests/contracts/oa5-ai-stay-context.contract.test.mjs"
+      - "tests/contracts/oa4-unified-guest-timeline.contract.test.mjs"
+      - "scripts/tenant-isolation-guard.mjs"
+      - ".github/workflows/oa6-operational-service-recovery.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: OA6 service recovery contracts
+        run: node --test tests/contracts/oa6-operational-service-recovery.contract.test.mjs
+      - name: OA5 stay context regressions
+        run: |
+          node --test tests/contracts/oa5-guest-stay-context.contract.test.mjs
+          node --test tests/contracts/oa5-ai-stay-context.contract.test.mjs
+      - name: OA4 timeline regression
+        run: node --test tests/contracts/oa4-unified-guest-timeline.contract.test.mjs
+      - name: Operational AI regressions
+        run: |
+          node --test tests/contracts/oa1-operational-workflow-resolution.contract.test.mjs
+          node --test tests/contracts/oa2-operational-action-execution-bridge.contract.test.mjs
+          node --test tests/contracts/oa2-clarification-action-gate.contract.test.mjs
+          node --test tests/contracts/oa3-operational-sla-escalation.contract.test.mjs
+      - name: Blocking tenant isolation
+        run: npm run test:tenant-isolation
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
