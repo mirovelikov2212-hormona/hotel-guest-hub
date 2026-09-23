@@ -1413,6 +1413,7 @@ type GuestRequestSubmissionInput = {
   currency?: string;
   sourceRequestDef?: string;
   lateCheckoutRequestedTime?: string;
+  aiInteractionId?: string;
 };
 
 type StoredGuestRoomState = {
@@ -2219,6 +2220,7 @@ type AiChatAction = {
   targetId: string;
   matchedId: string;
   label: string;
+  interactionId?: string;
   submission?: {
     type: string;
     sourceRequestDef: string;
@@ -5176,7 +5178,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     return Array.from(new Set([...departments, "reception"]));
   }
 
-  function handleRequestDefClick(def: RequestDef, initialNote?: string) {
+  function handleRequestDefClick(
+    def: RequestDef,
+    initialNote?: string,
+    aiInteractionId?: string,
+  ) {
     const infoMessage = getRequestDefMessage(def);
     const title = getRequestDefTitle(def) || def.id.replace(/_/g, " ");
 
@@ -5210,6 +5216,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         price: getRequestDefEffectivePrice(def),
         currency: getRequestDefEffectiveCurrency(def),
         sourceRequestDef: def.id,
+        aiInteractionId,
       });
     };
 
@@ -5922,6 +5929,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     currency,
     sourceRequestDef,
     lateCheckoutRequestedTime,
+    aiInteractionId,
   }: GuestRequestSubmissionInput) => {
     const roomValue = room.trim();
     const signatureLabel = cleanRequestTitle(typeLabel).toLowerCase() || String(type || "request");
@@ -5999,6 +6007,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           stayId: activeStayId || null,
           stayDeviceId: stayDeviceId || null,
           lateCheckoutRequestedTime: lateCheckoutRequestedTime || null,
+          aiInteractionId: aiInteractionId || null,
         },
       });
 
@@ -6024,6 +6033,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           currency,
           sourceRequestDef,
           lateCheckoutRequestedTime: lateCheckoutRequestedTime || null,
+          aiInteractionId: aiInteractionId || null,
           stayId: activeStayId || null,
           stayDeviceId: stayDeviceId || null,
           guestLanguage: String(lang),
@@ -6083,6 +6093,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           stayId: activeStayId || null,
           stayDeviceId: stayDeviceId || null,
           lateCheckoutRequestedTime: lateCheckoutRequestedTime || null,
+          aiInteractionId: aiInteractionId || null,
         },
       });
 
@@ -6618,6 +6629,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       buttonKey: action.kind,
       label: action.label,
       value: action.matchedId,
+      extra: {
+        aiInteractionId: action.interactionId || null,
+        actionKind: action.kind,
+      },
     });
 
     setAiPanelOpen(false);
@@ -6640,7 +6655,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           return;
         }
 
-        handleRequestDefClick(def, action.submission.note);
+        handleRequestDefClick(
+          def,
+          action.submission.note,
+          action.interactionId,
+        );
         return;
       }
 
@@ -6679,6 +6698,11 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     if (!questionText || aiLoading) return;
     if (!ensureConfirmedRoom()) return;
 
+    const aiInteractionId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `ai-${Date.now()}-${aiRequestSeqRef.current + 1}`;
+
     trackGuestEvent({
       eventName: "ai_question_sent",
       eventCategory: "ai",
@@ -6689,6 +6713,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       value: String(questionText.length),
       extra: {
         questionLength: questionText.length,
+        aiInteractionId,
       },
     });
 
@@ -6728,6 +6753,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           aiOutputTokens: 0,
           aiLatencyMs: 0,
           aiCacheHit: false,
+          aiInteractionId,
+          aiOperationalActionStatus: "not_applicable",
         },
       });
       return;
@@ -6761,6 +6788,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           sectionKey: "ai",
           label: "api_not_ok",
           value: "false",
+          extra: { aiInteractionId },
         });
         const errorText = String(tUI("ai_error") || "Възникна грешка при обработката.");
         setAiAnswer(errorText);
@@ -6774,11 +6802,16 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       const answerText = String(data.answer || tUI("ai_no_info") || "Все още нямам тази информация за хотела.");
       const operationalAction = buildAiOperationalAction(data, questionText);
       const operationalStatus = String(data?.operationalActionStatus || "").trim();
-      const actions = operationalAction
-        ? [operationalAction]
-        : operationalStatus === "clarification_required"
-          ? []
-          : buildAiActions(data?.diagnostics?.matchedIds);
+      const actions = (
+        operationalAction
+          ? [operationalAction]
+          : operationalStatus === "clarification_required"
+            ? []
+            : buildAiActions(data?.diagnostics?.matchedIds)
+      ).map((action) => ({
+        ...action,
+        interactionId: aiInteractionId,
+      }));
       setAiAnswer(answerText);
       setAiHistory((previous) => [
         ...previous,
@@ -6794,6 +6827,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           label: "action_count",
           value: String(actions.length),
           extra: {
+            aiInteractionId,
             actions: actions.map((action) => ({
               kind: action.kind,
               targetId: action.targetId,
@@ -6822,6 +6856,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           aiOutputTokens: Number(data?.diagnostics?.outputTokens || 0),
           aiLatencyMs: Number(data?.diagnostics?.latencyMs || 0),
           aiCacheHit: Boolean(data?.diagnostics?.cacheHit),
+          aiInteractionId,
+          aiOperationalActionStatus:
+            operationalStatus || "not_applicable",
+          aiActionKinds: actions.map((action) => action.kind),
         },
       });
     } catch {
@@ -6833,6 +6871,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         sectionKey: "ai",
         label: "request_failed",
         value: "false",
+        extra: { aiInteractionId },
       });
       const errorText = String(tUI("ai_error") || "Възникна грешка при обработката.");
       setAiAnswer(errorText);
