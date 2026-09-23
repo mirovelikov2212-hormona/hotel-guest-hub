@@ -233,7 +233,7 @@ test("Revenue runtime is Manager-scoped, entitlement-gated and refuses silent tr
   assert.match(server, /\.eq\("hotel_id", hotel\.id\)/);
   assert.match(server, /REVENUE_LEDGER_EVENT_CAP_EXCEEDED/);
   assert.match(route, /revenue_dataset_too_large/);
-  assert.match(route, /No partial result|partial result/i);
+  assert.match(route, /truncated result/i);
   assert.match(page, /requireStaffAccess\(hotelSlug, "manager"\)/);
   assert.match(page, /"revenue_intelligence"/);
 });
