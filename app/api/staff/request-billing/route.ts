@@ -102,13 +102,37 @@ function currentBillingStatus(metadata: Record<string, unknown>): StaffBillingSt
   return isValidBillingStatus(status) ? status : "pending";
 }
 
+function revenuePriceSnapshot(metadata: Record<string, unknown>) {
+  const candidate =
+    metadata.revenuePriceSnapshot
+    && typeof metadata.revenuePriceSnapshot === "object"
+    && !Array.isArray(metadata.revenuePriceSnapshot)
+      ? (metadata.revenuePriceSnapshot as Record<string, unknown>)
+      : null;
+
+  if (
+    candidate
+    && String(candidate.schemaVersion || "").trim()
+      === "revenue-price-snapshot-v1"
+  ) {
+    return candidate;
+  }
+
+  return null;
+}
+
 function buildRevenueLedgerDelta(
   metadata: Record<string, unknown>,
   nextStatus: StaffBillingStatus,
 ) {
   const previousStatus = currentBillingStatus(metadata);
-  const amountMinor = parseMoneyToMinor(metadata.price);
-  const currencyCode = canonicalCurrencyCode(metadata.currency);
+  const priceSnapshot = revenuePriceSnapshot(metadata);
+  const amountMinor = parseMoneyToMinor(
+    priceSnapshot?.price ?? metadata.price,
+  );
+  const currencyCode = canonicalCurrencyCode(
+    priceSnapshot?.currency ?? metadata.currency,
+  );
 
   let revenueDeltaMinor = 0;
   if (previousStatus !== "charged" && nextStatus === "charged") {
@@ -186,8 +210,13 @@ function applyBillingStatus(
   role: StaffRole,
 ) {
   const now = new Date().toISOString();
-  const amountMinor = parseMoneyToMinor(metadata.price);
-  const currencyCode = canonicalCurrencyCode(metadata.currency);
+  const priceSnapshot = revenuePriceSnapshot(metadata);
+  const amountMinor = parseMoneyToMinor(
+    priceSnapshot?.price ?? metadata.price,
+  );
+  const currencyCode = canonicalCurrencyCode(
+    priceSnapshot?.currency ?? metadata.currency,
+  );
   const nextMetadata: Record<string, unknown> = {
     ...metadata,
     requiresBilling: true,
@@ -356,6 +385,8 @@ export async function POST(req: NextRequest) {
         revenueDeltaMinor: revenueLedger.revenueDeltaMinor,
         revenueEventKind: revenueLedger.revenueEventKind,
         revenueLedgerVersion: 1,
+        revenuePriceSnapshot:
+          revenuePriceSnapshot(currentMetadata) ?? null,
         changedAt,
         closedByBilling: shouldCloseBillingRequest,
         massageBookingDetected: wasRecognizedAsMassageRequest,
