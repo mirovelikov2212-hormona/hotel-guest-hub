@@ -24,6 +24,7 @@ test("legacy and non-production compatibility keep existing modules available", 
     assert.equal(resolved.moduleAccess.staff_development, true);
     assert.equal(resolved.moduleAccess.manager_intelligence, true);
     assert.equal(resolved.moduleAccess.revenue_intelligence, true);
+  assert.equal(resolved.moduleAccess.integration_layer, true);
   }
 });
 
@@ -38,7 +39,7 @@ test("full_trial enables every product module without a stored module config", (
   });
 
   assert.equal(resolved.source, "full_trial");
-  assert.equal(resolved.enabledModules.length, 6);
+  assert.equal(resolved.enabledModules.length, 7);
   assert.equal(resolved.moduleAccess.manager_intelligence, true);
   assert.equal(resolved.moduleAccess.revenue_intelligence, true);
 });
@@ -59,6 +60,7 @@ test("managed customer defaults to Guest Hub only until optional modules are exp
   assert.equal(resolved.moduleAccess.staff_development, false);
   assert.equal(resolved.moduleAccess.manager_intelligence, false);
   assert.equal(resolved.moduleAccess.revenue_intelligence, false);
+  assert.equal(resolved.moduleAccess.integration_layer, false);
 });
 
 test("module config enforces capability dependencies", () => {
@@ -79,6 +81,12 @@ test("module config enforces capability dependencies", () => {
       }),
     /COMMERCIAL_MODULE_DEPENDENCY_MISSING/,
   );
+
+  const integrationOnly = buildCommercialModuleConfig({
+    currentRevision: 0,
+    enabledModules: ["integration_layer"],
+  });
+  assert.deepEqual(integrationOnly.enabledModules, ["integration_layer"]);
 
 
   const config = buildCommercialModuleConfig({
@@ -185,6 +193,7 @@ test("Control Plane module UI keeps entitlement management outside hotel Manager
   assert.match(panel, /staff_development/);
   assert.match(panel, /manager_intelligence/);
   assert.match(panel, /revenue_intelligence/);
+  assert.match(panel, /integration_layer/);
   assert.match(panel, /addWithDependencies/);
   assert.match(panel, /removeWithDependents/);
 });
