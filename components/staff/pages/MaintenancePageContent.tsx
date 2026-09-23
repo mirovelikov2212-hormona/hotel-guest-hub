@@ -5,6 +5,7 @@ import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
+import StaffDevelopmentAccessCard from "@/components/staff/StaffDevelopmentAccessCard";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
 import { useStaffTabTitleAlert } from "@/components/staff/useStaffTabTitleAlert";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
@@ -101,6 +102,10 @@ export default function MaintenancePage() {
       </section>
 
       {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="maintenance" /> : null}
+
+      {hotelSlug ? (
+        <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="maintenance" />
+      ) : null}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StaffSummaryCard
