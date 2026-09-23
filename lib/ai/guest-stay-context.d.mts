@@ -4,7 +4,8 @@ export type GuestStayContextIntent =
   | "stay_context_requests"
   | "stay_context_massage"
   | "stay_context_dates"
-  | "stay_context_service_usage";
+  | "stay_context_service_usage"
+  | "stay_context_service_recovery";
 
 export type GuestSafeStayContext = {
   scope: "current_stay" | null;
@@ -17,6 +18,11 @@ export type GuestSafeStayContext = {
   requests: { total: number; active: number; completed: number };
   bookings: { active: number; upcoming: number };
   serviceUsageCount: number;
+  serviceRecovery: {
+    status: "clear" | "human_followup_required";
+    needsHumanFollowup: boolean;
+    signalCount: number;
+  };
 };
 
 export function detectGuestStayContextIntent(question: unknown): GuestStayContextIntent | null;
@@ -35,4 +41,5 @@ export const GUEST_STAY_CONTEXT_INTENTS: Readonly<{
   MASSAGE: "stay_context_massage";
   STAY_DATES: "stay_context_dates";
   SERVICE_USAGE: "stay_context_service_usage";
+  SERVICE_RECOVERY: "stay_context_service_recovery";
 }>;
