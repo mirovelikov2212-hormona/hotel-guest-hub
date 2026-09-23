@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "checkpoint": "staff-development-reporting-v1",
+  "baseCheckpoint": "staff-standard-scope-v2",
+  "expectedNeedsReview": 333,
+  "additions": [
+    {
+      "filePath": "lib/server/staff-development-reporting.ts",
+      "line": 38,
+      "table": "staff_training_completions",
+      "tableExpression": "\"staff_training_completions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only read-only Manager reporting; authenticated Staff Development Manager state supplies the canonical hotel_id and already-scoped assignment IDs, query is explicitly constrained by that exact hotel_id plus assignment IDs from the same manager scope"
+    },
+    {
+      "filePath": "lib/server/staff-development-reporting.ts",
+      "line": 46,
+      "table": "staff_assessment_attempts",
+      "tableExpression": "\"staff_assessment_attempts\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server_only read-only Manager reporting; authenticated Staff Development Manager state supplies the canonical hotel_id and already-scoped assignment IDs, query is explicitly constrained by that exact hotel_id plus training_assignment IDs from the same manager scope"
+    }
+  ]
+}
