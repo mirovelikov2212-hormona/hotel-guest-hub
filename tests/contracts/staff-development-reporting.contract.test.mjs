@@ -152,3 +152,35 @@ test("reporting server derives scope from authenticated manager state", () => {
   assert.match(panel, /notificationDeliveryStatus/);
   assert.match(panel, /not delivered before the final system E2E/);
 });
+
+
+test("notification delivery is Hotel Manager-only, same-origin and write-gated", () => {
+  const delivery = readFileSync(
+    new URL("../../lib/server/staff-development-notifications.ts", import.meta.url),
+    "utf8",
+  );
+  const route = readFileSync(
+    new URL(
+      "../../app/api/staff/development/reporting/notify/route.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const push = readFileSync(
+    new URL("../../lib/staff-push/web-push.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(delivery, /staffUserRole !== "hotel_manager"/);
+  assert.match(delivery, /assertStaffDevelopmentWriteEnabled\(\)/);
+  assert.match(delivery, /sendManagerPushNotification/);
+  assert.match(delivery, /notificationCandidates\.length/);
+  assert.match(route, /enforceStaffSameOrigin\(req\)/);
+  assert.doesNotMatch(route, /hotelId/);
+  assert.doesNotMatch(route, /staffUserId/);
+  assert.match(push, /notificationBody\?: string/);
+  assert.match(
+    push,
+    /body: input\.notificationBody \|\| `Стая \$\{input\.room\} · \$\{input\.requestTitle\}`/,
+  );
+});
