@@ -94,6 +94,7 @@ const milestoneDeltaPaths = [
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-staff-hr-manager-privacy.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-staff-standard-scope-v2.json"),
   resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-staff-development-reporting-v1.json"),
+  resolve(projectRoot, "tests/contracts/tenant-isolation-baseline-commercial-module-entitlements-v1.json"),
 ];
 
 const baseBaseline = JSON.parse(await readFile(baselinePath, "utf8"));
