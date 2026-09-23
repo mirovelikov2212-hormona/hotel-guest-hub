@@ -15,6 +15,10 @@ import { getHotelConfig } from "@/lib/config";
 import { deriveGuestRuntimeCapabilities } from "@/lib/guest/guest-runtime-capabilities.mjs";
 import { isCommercialRuntimeAccessDeniedError } from "@/lib/server/commercial-runtime-entitlement";
 import {
+  isProductModuleAccessDeniedError,
+  requireHotelProductModuleAccess,
+} from "@/lib/server/product-module-entitlements";
+import {
   GuestStayAccessError,
   requireGuestStayReadAccess,
 } from "@/lib/server/guest-stay-access";
@@ -129,6 +133,15 @@ async function resolveAiHotelContext(request: Request, requestedHotelSlug: strin
 
   if (!hotelMatchesRequestedSlug(hotel, requestedHotelSlug)) {
     throw new AiAccessError("ai_tenant_scope_mismatch", 409);
+  }
+
+  try {
+    await requireHotelProductModuleAccess(hotel.id, "operational_ai");
+  } catch (moduleError) {
+    if (isProductModuleAccessDeniedError(moduleError)) {
+      throw new AiAccessError("ai_module_not_entitled", 403);
+    }
+    throw moduleError;
   }
 
   const refererSlug = getRefererHotelSlug(request);
