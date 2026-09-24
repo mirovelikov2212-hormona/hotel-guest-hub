@@ -101,12 +101,15 @@ test("P3.3 existing guest stay reads and writes are blocked through the shared a
 
 test("P3.3 existing staff sessions stop authorizing while commercial access is blocked", () => {
   assert.match(staffSession, /await requireHotelCommercialRuntimeAccess\(data\.hotel_id\)/);
-  assert.match(staffSession, /isCommercialRuntimeAccessDeniedError\(commercialError\)/);
+  assert.match(staffSession, /isCommercialRuntimeAccessDeniedError\(accessError\)/);
+  assert.match(staffSession, /isProductModuleAccessDeniedError\(accessError\)/);
   const commercialBlockStart = staffSession.indexOf("try {\n    await requireHotelCommercialRuntimeAccess");
   const commercialBlockEnd = staffSession.indexOf("\n\n  return data;", commercialBlockStart);
   assert.ok(commercialBlockStart >= 0 && commercialBlockEnd > commercialBlockStart);
   const commercialBlock = staffSession.slice(commercialBlockStart, commercialBlockEnd);
   assert.match(commercialBlock, /return null/);
+  assert.match(commercialBlock, /isCommercialRuntimeAccessDeniedError\(accessError\)/);
+  assert.match(commercialBlock, /isProductModuleAccessDeniedError\(accessError\)/);
   assert.doesNotMatch(commercialBlock, /revoked_at|\.update\(/);
 });
 
