@@ -5,6 +5,7 @@ const SCRYPT_N = 16384;
 const SCRYPT_R = 8;
 const SCRYPT_P = 1;
 const KEYLEN = 64;
+export const PUBLIC_DEMO_STAFF_PIN = "2026";
 
 export function hashPin(pin: string): string {
   const normalized = normalizePin(pin);
@@ -50,4 +51,11 @@ export function verifyPin(pin: string, storedHash: string): boolean {
 
 function normalizePin(pin: string): string {
   return String(pin).trim();
+}
+
+export function isPublicDemoStaffPin(hotelSlug: unknown, pin: unknown): boolean {
+  return (
+    String(hotelSlug ?? "").trim().toLowerCase() === "demo"
+    && String(pin ?? "").trim() === PUBLIC_DEMO_STAFF_PIN
+  );
 }
