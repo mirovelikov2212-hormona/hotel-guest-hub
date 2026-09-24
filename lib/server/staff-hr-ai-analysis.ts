@@ -200,6 +200,7 @@ export async function generateStaffHrManagerAnalysis(input: {
       "Do not rank or compare employees.",
       "Do not recommend termination, hiring, promotion, demotion, pay changes, discipline, scheduling penalties, or any other employment decision.",
       "You may summarize verified scores, explain triggered hotel-defined rules, identify training topics grounded in the supplied plans, and suggest neutral questions for human Manager review.",
+      "When describing score change over time, use only HR_CONTEXT.progressSummary and VERIFIED_EVIDENCE; do not invent trends, causes, or performance claims beyond those verified results.",
       "Every trainingFocus item must cite the exact sourceStandardHash and trainingUnitId supplied in VERIFIED_EVIDENCE.",
       "Treat rule actions as hotel-defined workflow signals, not as employment decisions.",
       "The Hotel Manager retains all decision authority.",
