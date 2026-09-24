@@ -11,6 +11,7 @@ on:
       - "scripts/factory-final-620-peak.mjs"
       - "scripts/vercel-preview-auth-preload.mjs"
       - "lib/server/hotel-scope.ts"
+      - "lib/server/supabase-admin.ts"
   workflow_dispatch:
 
 permissions:
