@@ -1,0 +1,73 @@
+name: System Routing and Time Wave 2
+
+on:
+  push:
+    branches:
+      - feat/hotel-lifecycle-v1-intelligence-review
+    paths:
+      - ".github/workflows/system-routing-time-wave2.yml"
+      - "tests/scenarios/system-operational-time-matrix.test.mjs"
+      - "tests/contracts/m10-department-routing-runtime-reads.contract.test.mjs"
+      - "tests/contracts/operations-hours-model.contract.test.mjs"
+      - "lib/staff/operations-hours-model.mjs"
+      - "lib/staff/routing/request-routing.ts"
+      - "lib/server/guest-request-authority.mjs"
+      - "app/api/guest/request-create/route.ts"
+      - "app/api/staff/requests/route.ts"
+      - "app/api/staff/request-status/route.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  routing-time-wave-2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run multi-hotel operational time matrix
+        run: node --test tests/scenarios/system-operational-time-matrix.test.mjs
+
+      - name: Run department-hours authority contracts
+        run: node --test tests/contracts/operations-hours-model.contract.test.mjs
+
+      - name: Run runtime routing wiring contracts
+        run: node --test tests/contracts/m10-department-routing-runtime-reads.contract.test.mjs
+
+      - name: Emit Wave 2 evidence
+        run: |
+          cat > system-routing-time-wave2-results.json <<'JSON'
+          {
+            "schemaVersion": "gostaya-system-routing-time-wave2-v1",
+            "scenarioFamilies": [
+              "exact opening and closing boundaries",
+              "24x7 departments",
+              "overnight shifts",
+              "split shifts",
+              "seasonal schedules",
+              "exact-date closures",
+              "exact-date 24h overrides",
+              "custom holiday hours",
+              "timezone-specific evaluation",
+              "invalid timezone fail-closed",
+              "overlapping season fail-closed",
+              "runtime guest/staff routing wiring",
+              "after-hours department authority wiring"
+            ],
+            "accepted": true
+          }
+          JSON
+          jq -e '.accepted == true' system-routing-time-wave2-results.json
+
+      - name: Upload Wave 2 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-routing-time-wave2-evidence
+          path: system-routing-time-wave2-results.json
