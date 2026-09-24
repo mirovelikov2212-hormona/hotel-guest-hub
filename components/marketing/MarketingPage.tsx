@@ -1,4 +1,6 @@
 import ProductWalkthrough from "./ProductWalkthrough";
+import DemoSpotlight from "./DemoSpotlight";
+import PilotEvidenceVisual from "./PilotEvidenceVisual";
 
 type Lang = "bg" | "en" | "de";
 
@@ -37,13 +39,13 @@ type Copy = {
 
 const COPY: Record<Lang, Copy> = {
   bg: {
-    nav: { product: "Продукт", evidence: "Резултати", platform: "Платформа", faq: "FAQ", demo: "Live demo" },
+    nav: { product: "Продукт", evidence: "Резултати", platform: "Платформа", faq: "FAQ", demo: "Demo · PIN 2026" },
     eyebrow: "AI GUEST EXPERIENCE + HOTEL OPERATIONS",
     heroTitle: "Една платформа между госта, хотелския екип и мениджмънта.",
     heroText: "GOSTAYA е multi-hotel AI guest-experience и operations платформа за дигитално обслужване на гостите, директно routing към отделите, AI concierge, staff operations, обучение, manager intelligence, revenue/ROI и интеграции.",
     heroPrimary: "Виж продукта",
-    heroSecondary: "Отвори live demo",
-    heroNote: "Работи в браузъра. Без задължителен app download. Hotel-specific логика и човешки контрол върху критичните действия.",
+    heroSecondary: "Live demo · PIN 2026",
+    heroNote: "Работи директно в браузъра и може да се добави на телефона като PWA / app shortcut. Hotel-specific логика и човешки контрол върху критичните действия.",
     heroChips: ["Guest Hub", "Staff Operations", "AI Concierge", "Manager Intelligence", "Staff Development", "Revenue & ROI"],
     clarityTitle: "Не е просто хотелски chatbot.",
     clarityText: "GOSTAYA свързва guest experience с реалните операции на хотела. Гостът не получава само отговор — заявката може да стане проследима задача, да стигне до правилния екип и да остави измерима следа за Manager-а.",
@@ -67,7 +69,7 @@ const COPY: Record<Lang, Copy> = {
       { title: "Product Factory", text: "Multi-hotel onboarding, Design Studio, sandbox certification, lifecycle and rollback." },
     ],
     evidenceEyebrow: "REAL PILOT EVIDENCE",
-    evidenceTitle: "Реален сезон. Реални interaction data.",
+    evidenceTitle: "Реален сезон.\nРеални данни.",
     evidenceText: "Анонимизиран сезонен pilot в български морски хотел. Показваме измерените данни отделно от моделираните operational estimates.",
     metrics: [
       { value: "5 347", label: "Guest Hub opens", note: "измерени събития" },
@@ -97,13 +99,13 @@ const COPY: Record<Lang, Copy> = {
     footer: "AI guest experience, hotel operations and manager intelligence in one multi-hotel platform.",
   },
   en: {
-    nav: { product: "Product", evidence: "Evidence", platform: "Platform", faq: "FAQ", demo: "Live demo" },
+    nav: { product: "Product", evidence: "Evidence", platform: "Platform", faq: "FAQ", demo: "Demo · PIN 2026" },
     eyebrow: "AI GUEST EXPERIENCE + HOTEL OPERATIONS",
     heroTitle: "One platform between the guest, the hotel team and management.",
     heroText: "GOSTAYA is a multi-hotel AI guest-experience and operations platform for digital guest service, direct department routing, AI concierge, staff operations, training, manager intelligence, revenue/ROI and integrations.",
     heroPrimary: "Explore the product",
-    heroSecondary: "Open live demo",
-    heroNote: "Browser-first. No mandatory app download. Hotel-specific logic with human control over critical actions.",
+    heroSecondary: "Live demo · PIN 2026",
+    heroNote: "Runs directly in the browser and can be added to the phone as a PWA / app shortcut. Hotel-specific logic with human control over critical actions.",
     heroChips: ["Guest Hub", "Staff Operations", "AI Concierge", "Manager Intelligence", "Staff Development", "Revenue & ROI"],
     clarityTitle: "Not just another hotel chatbot.",
     clarityText: "GOSTAYA connects guest experience to real hotel operations. A guest does not only receive an answer — an intent can become a traceable task, reach the right team and create measurable evidence for management.",
@@ -127,7 +129,7 @@ const COPY: Record<Lang, Copy> = {
       { title: "Product Factory", text: "Multi-hotel onboarding, Design Studio, sandbox certification, lifecycle and rollback." },
     ],
     evidenceEyebrow: "REAL PILOT EVIDENCE",
-    evidenceTitle: "A real season. Real interaction data.",
+    evidenceTitle: "A real season.\nReal interaction data.",
     evidenceText: "An anonymized seasonal pilot at a Bulgarian seaside hotel. Measured data is shown separately from modeled operational estimates.",
     metrics: [
       { value: "5,347", label: "Guest Hub opens", note: "measured events" },
@@ -157,13 +159,13 @@ const COPY: Record<Lang, Copy> = {
     footer: "AI guest experience, hotel operations and manager intelligence in one multi-hotel platform.",
   },
   de: {
-    nav: { product: "Produkt", evidence: "Ergebnisse", platform: "Plattform", faq: "FAQ", demo: "Live Demo" },
+    nav: { product: "Produkt", evidence: "Ergebnisse", platform: "Plattform", faq: "FAQ", demo: "Demo · PIN 2026" },
     eyebrow: "AI GUEST EXPERIENCE + HOTEL OPERATIONS",
     heroTitle: "Eine Plattform zwischen Gast, Hotelteam und Management.",
     heroText: "GOSTAYA ist eine Multi-Hotel-Plattform für AI Guest Experience und Hotel Operations: digitaler Gästeservice, direktes Department Routing, AI Concierge, Staff Operations, Training, Manager Intelligence, Revenue/ROI und Integrationen.",
     heroPrimary: "Produkt entdecken",
-    heroSecondary: "Live Demo öffnen",
-    heroNote: "Browser-first. Kein verpflichtender App-Download. Hotelspezifische Logik mit menschlicher Kontrolle über kritische Aktionen.",
+    heroSecondary: "Live Demo · PIN 2026",
+    heroNote: "Läuft direkt im Browser und kann als PWA / App-Shortcut zum Smartphone hinzugefügt werden. Hotelspezifische Logik mit menschlicher Kontrolle über kritische Aktionen.",
     heroChips: ["Guest Hub", "Staff Operations", "AI Concierge", "Manager Intelligence", "Staff Development", "Revenue & ROI"],
     clarityTitle: "Nicht nur ein weiterer Hotel-Chatbot.",
     clarityText: "GOSTAYA verbindet Guest Experience mit dem realen Hotelbetrieb. Ein Gast erhält nicht nur eine Antwort — ein Anliegen kann zu einer nachvollziehbaren Aufgabe werden, das richtige Team erreichen und messbare Management-Daten erzeugen.",
@@ -187,7 +189,7 @@ const COPY: Record<Lang, Copy> = {
       { title: "Product Factory", text: "Multi-Hotel Onboarding, Design Studio, Sandbox Certification, Lifecycle und Rollback." },
     ],
     evidenceEyebrow: "REAL PILOT EVIDENCE",
-    evidenceTitle: "Eine reale Saison. Reale Interaktionsdaten.",
+    evidenceTitle: "Eine reale Saison.\nReale Interaktionsdaten.",
     evidenceText: "Anonymisierter saisonaler Pilot in einem bulgarischen Küstenhotel. Gemessene Daten werden klar von modellierten Operational Estimates getrennt.",
     metrics: [
       { value: "5.347", label: "Guest Hub Opens", note: "gemessene Events" },
@@ -304,7 +306,7 @@ export default function MarketingPage({ lang }: { lang: Lang }) {
       </header>
 
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(34,211,238,.16),transparent_34%),radial-gradient(circle_at_85%_25%,rgba(139,92,246,.15),transparent_32%),radial-gradient(circle_at_50%_95%,rgba(16,185,129,.1),transparent_38%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(165,243,252,.22),transparent_32%),radial-gradient(circle_at_82%_25%,rgba(196,181,253,.20),transparent_31%),radial-gradient(circle_at_52%_92%,rgba(110,231,183,.13),transparent_38%),linear-gradient(180deg,rgba(255,255,255,.025),transparent)]" />
         <div className="relative mx-auto grid max-w-7xl gap-12 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-[1.08fr_.92fr] lg:items-center lg:pb-28 lg:pt-24">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.26em] text-cyan-300">{c.eyebrow}</p>
@@ -312,7 +314,7 @@ export default function MarketingPage({ lang }: { lang: Lang }) {
             <p className="mt-6 max-w-3xl text-base leading-7 text-slate-300 sm:text-lg">{c.heroText}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a href="#product" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 transition hover:-translate-y-0.5">{c.heroPrimary}</a>
-              <a href="/qr/demo?src=website&code=gostaya-hero" target="_blank" rel="noreferrer" className="rounded-2xl border border-white/15 bg-white/[0.05] px-5 py-3 text-sm font-bold text-white transition hover:bg-white/[0.09]">{c.heroSecondary}</a>
+              <a href="/qr/demo?src=website&code=gostaya-hero" target="_blank" rel="noreferrer" className="rounded-2xl border border-cyan-200/30 bg-cyan-200/[0.08] px-5 py-3 text-sm font-bold text-cyan-50 shadow-[0_0_28px_rgba(165,243,252,.08)] transition hover:bg-cyan-200/[0.14]">{c.heroSecondary}</a>
             </div>
             <p className="mt-4 max-w-2xl text-xs leading-5 text-white/40">{c.heroNote}</p>
             <div className="mt-7 flex flex-wrap gap-2">
@@ -353,9 +355,7 @@ export default function MarketingPage({ lang }: { lang: Lang }) {
             </div>
           </div>
         </div>
-      </section>
-
-      <section className="border-y border-white/10 bg-white/[0.02]">
+      </section>\n\n      <DemoSpotlight lang={lang} />\n\n      <section className="border-y border-white/10 bg-white/[0.02]">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20">
           <div className="max-w-3xl">
             <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{c.clarityTitle}</h2>
@@ -375,12 +375,15 @@ export default function MarketingPage({ lang }: { lang: Lang }) {
 
       <ProductWalkthrough lang={lang} />
 
-      <section id="evidence" className="border-y border-white/10 bg-[#0a1620]">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-24">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-300">{c.evidenceEyebrow}</p>
+      <section id="evidence" className="relative overflow-hidden border-y border-white/10 bg-[#0b1823]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(110,231,183,.14),transparent_30%),radial-gradient(circle_at_16%_80%,rgba(165,243,252,.08),transparent_34%)]" />\n        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-24">\n          <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-300">{c.evidenceEyebrow}</p>
           <div className="mt-3 grid gap-6 lg:grid-cols-[.85fr_1.15fr] lg:items-end">
             <div>
-              <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{c.evidenceTitle}</h2>
+              <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">
+                {c.evidenceTitle.split("\\n").map((line) => (
+                  <span key={line} className="block">{line}</span>
+                ))}
+              </h2>
               <p className="mt-4 max-w-xl text-base leading-7 text-slate-300">{c.evidenceText}</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -393,7 +396,7 @@ export default function MarketingPage({ lang }: { lang: Lang }) {
               ))}
             </div>
           </div>
-          <p className="mt-6 max-w-5xl text-xs leading-5 text-white/35">{c.evidenceFoot}</p>
+          <div className="mt-6"><PilotEvidenceVisual lang={lang} /></div>\n          <p className="mt-6 max-w-5xl text-xs leading-5 text-white/35">{c.evidenceFoot}</p>
         </div>
       </section>
 
