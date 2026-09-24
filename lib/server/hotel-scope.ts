@@ -77,7 +77,35 @@ export async function resolveHotelByAnySlugAdmin(inputSlug: string): Promise<Hot
     .limit(1)
     .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
+    let supabaseHost: string | null = null;
+    try {
+      supabaseHost = new URL(String(process.env.NEXT_PUBLIC_SUPABASE_URL || "")).hostname || null;
+    } catch {
+      supabaseHost = null;
+    }
+    console.error("Hotel scope authoritative lookup failed", {
+      candidates,
+      supabaseHost,
+      code: error.code || null,
+      details: error.details || null,
+      hint: error.hint || null,
+      message: error.message || null,
+    });
+    throw new Error("HOTEL_SCOPE_LOOKUP_FAILED");
+  }
+
+  if (!data) {
+    let supabaseHost: string | null = null;
+    try {
+      supabaseHost = new URL(String(process.env.NEXT_PUBLIC_SUPABASE_URL || "")).hostname || null;
+    } catch {
+      supabaseHost = null;
+    }
+    console.error("Hotel scope authoritative lookup returned no active hotel", {
+      candidates,
+      supabaseHost,
+    });
     throw new Error(`Hotel not found for slug: ${candidates.join("|")}`);
   }
 
