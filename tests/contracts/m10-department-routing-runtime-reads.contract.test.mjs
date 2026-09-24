@@ -107,7 +107,10 @@ test("M14.4 routes with tenant-authoritative hotel timezone and department hours
   assertContains(modelSource, "afterHoursDepartment:");
   assertContains(modelSource, "departmentRoutingRuntimeActivated: true");
   assertContains(hoursSource, "config.hotelTimezone");
-  assertContains(hoursSource, "config.departmentHours?.[department]");
+  assertContains(hoursSource, "config?.departmentSchedules?.[department]");
+  assertContains(hoursSource, "config?.departmentHours?.[department]");
+  assertContains(hoursSource, "scheduleForConfig(config, department)");
+  assertContains(hoursSource, "legacyHoursForConfig(config, department)");
   assertContains(guestRouteSource, "requestAuthority.afterHoursDepartment");
   assertContains(guestRouteSource, "isDepartmentWorkingHoursForConfig({");
   assertContains(staffListSource, "isDepartmentWorkingHoursForConfig({");
