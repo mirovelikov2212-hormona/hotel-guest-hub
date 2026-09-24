@@ -37,6 +37,7 @@ export default function StaffPinGate({
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const isPublicDemo = hotelSlug.trim().toLowerCase() === "demo";
 
   const hotelLabel = useMemo(() => getHotelDisplayName(hotelSlug), [hotelSlug]);
   const roleLabel = useMemo(
@@ -95,6 +96,21 @@ export default function StaffPinGate({
           <p className="mt-2 text-sm text-white/60">
             Enter the department PIN to continue.
           </p>
+
+          {isPublicDemo ? (
+            <div className="mt-4 rounded-2xl border border-cyan-300/25 bg-cyan-300/10 px-4 py-3">
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-200">
+                GOSTAYA PUBLIC DEMO
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/80">
+                <span>Demo room <strong className="text-white">901</strong></span>
+                <span>PIN <strong className="tracking-[0.16em] text-white">2026</strong></span>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-white/45">
+                Demo tenant only · no access to a real hotel.
+              </p>
+            </div>
+          ) : null}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -104,7 +120,7 @@ export default function StaffPinGate({
             </label>
             <input
               id="pin"
-              type="password"
+              type={isPublicDemo ? "text" : "password"}
               inputMode="numeric"
               autoComplete="off"
               value={pin}
