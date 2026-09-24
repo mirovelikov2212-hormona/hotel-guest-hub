@@ -52,6 +52,34 @@ test("public marketing demo is isolated to the demo gate and advertises the dedi
   assert.match(accessRouteSource, /"\/h\/demo"/);
 });
 
+test("public demo room 901 is configured as an isolated test room with guided tour", async () => {
+  const demoConfig = JSON.parse(
+    await readFile(new URL("../../data/hotels/demo.json", import.meta.url), "utf8"),
+  );
+  const guestHubSource = await readFile(
+    new URL("../../components/GuestHub.tsx", import.meta.url),
+    "utf8",
+  );
+  const guideSource = await readFile(
+    new URL("../../components/guest/DemoJourneyGuide.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.deepEqual(demoConfig.validRoomNumbers, ["901"]);
+  assert.deepEqual(demoConfig.testRoomNumbers, ["901"]);
+  assert.equal(demoConfig.testModeEnabled, true);
+  assert.equal(demoConfig.geoGuardEnabled, false);
+  assert.ok(demoConfig.hotelRooms.some((room) => room.roomNumber === "901" && room.active === true));
+
+  assert.match(guestHubSource, /isPublicDemoHotel/);
+  assert.match(guestHubSource, /setManualRoomInput\(storedRoom \|\| \(isPublicDemoHotel \? "901" : ""\)\)/);
+  assert.match(guestHubSource, /<DemoJourneyGuide/);
+  assert.match(guideSource, /Step 1/);
+  assert.match(guideSource, /901/);
+  assert.match(guideSource, /\/staff\/demo\/housekeeping/);
+  assert.match(guideSource, /\/staff\/demo\/manager/);
+});
+
 test("invalid preview slug cannot escape the hotel route", () => {
   assert.equal(
     resolveGuestRootEntry({
