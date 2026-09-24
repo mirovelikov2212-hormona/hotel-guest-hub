@@ -168,3 +168,21 @@ test("Factory ready runtime is invalidated on every identity and authority drift
   assertContains(priorInvalidation, "trg_invalidate_factory_runtime_routing_v1");
   assertContains(priorInvalidation, "trg_invalidate_factory_runtime_test_rooms_v1");
 });
+
+test("Factory ready-runtime invalidation trigger functions are internal-only", async () => {
+  const migration = await readProjectFile(readyRuntimeMigrationPath);
+
+  for (const functionName of [
+    "invalidate_factory_tenant_runtime_hotel_identity_v1",
+    "invalidate_factory_tenant_runtime_projection_delete_v1",
+    "invalidate_factory_tenant_runtime_publication_delete_v1",
+  ]) {
+    assert.match(
+      migration,
+      new RegExp(
+        `revoke all on function public\\.${functionName}\\(\\)\\s+from public, anon, authenticated, service_role;`,
+      ),
+      `${functionName} must not be directly executable by client or service roles`,
+    );
+  }
+});

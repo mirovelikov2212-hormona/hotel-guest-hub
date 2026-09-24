@@ -119,6 +119,10 @@ begin
 end;
 $function$;
 
+-- Trigger-only authority: callers must never execute this SECURITY DEFINER function directly.
+revoke all on function public.invalidate_factory_tenant_runtime_hotel_identity_v1()
+  from public, anon, authenticated, service_role;
+
 drop trigger if exists trg_invalidate_factory_runtime_hotel_identity_update_v1 on public.hotels;
 create trigger trg_invalidate_factory_runtime_hotel_identity_update_v1
 after update of active, is_sandbox, slug, public_slug, production_hotel_id, name, timezone
@@ -142,6 +146,10 @@ begin
 end;
 $function$;
 
+-- Trigger-only authority: callers must never execute this SECURITY DEFINER function directly.
+revoke all on function public.invalidate_factory_tenant_runtime_projection_delete_v1()
+  from public, anon, authenticated, service_role;
+
 drop trigger if exists trg_invalidate_factory_runtime_projection_delete_v1 on public.hotel_config_projection_state;
 create trigger trg_invalidate_factory_runtime_projection_delete_v1
 after delete on public.hotel_config_projection_state
@@ -158,6 +166,10 @@ begin
   return old;
 end;
 $function$;
+
+-- Trigger-only authority: callers must never execute this SECURITY DEFINER function directly.
+revoke all on function public.invalidate_factory_tenant_runtime_publication_delete_v1()
+  from public, anon, authenticated, service_role;
 
 drop trigger if exists trg_invalidate_factory_runtime_publication_delete_v1 on public.hotel_config_publication_state;
 create trigger trg_invalidate_factory_runtime_publication_delete_v1
