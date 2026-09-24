@@ -380,7 +380,7 @@ export default function MarketingPage({ lang }: { lang: Lang }) {
           <div className="mt-3 grid gap-6 lg:grid-cols-[.85fr_1.15fr] lg:items-end">
             <div>
               <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">
-                {c.evidenceTitle.split("\\n").map((line) => (
+                {c.evidenceTitle.split("\n").map((line) => (
                   <span key={line} className="block">{line}</span>
                 ))}
               </h2>
