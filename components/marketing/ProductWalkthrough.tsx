@@ -133,7 +133,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
             ))}
           </div>
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            <a href="/qr/demo?src=website&code=gostaya-product-explorer" target="_blank" rel="noreferrer" className="rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:-translate-y-0.5">{copy.live}</a>
+            <a href="/h/demo" target="_blank" rel="noreferrer" className="rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:-translate-y-0.5">{copy.live}</a>
             <span className="text-xs text-white/45">{copy.safe}</span>
           </div>
         </div>
