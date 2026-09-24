@@ -9,6 +9,7 @@ import GuestHub from "@/components/GuestHub";
 import { getHotelConfig } from "@/lib/config";
 import {
   DEMO_ACCESS_COOKIE_NAME,
+  PUBLIC_MARKETING_DEMO_PIN,
   hasValidDemoAccessCookie,
   isDemoAccessConfigured,
 } from "@/lib/demo-access";
@@ -41,12 +42,20 @@ function DemoAccessGate({
     <main className="flex min-h-screen items-center justify-center bg-neutral-950 px-4 text-neutral-50">
       <section className="w-full max-w-md rounded-3xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-neutral-400">
-          StayHub Demo
+          GOSTAYA LIVE DEMO
         </p>
-        <h1 className="mt-3 text-2xl font-bold">Защитен демо достъп</h1>
+        <h1 className="mt-3 text-2xl font-bold">Истинският Guest Hub</h1>
         <p className="mt-3 text-sm leading-6 text-neutral-300">
-          Демонстрационната версия е достъпна само с код за достъп.
+          Това е реалният GOSTAYA demo tenant. Въведете публичния demo PIN, за да го тествате.
         </p>
+        <div className="mt-5 rounded-2xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-3">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+            Demo PIN
+          </div>
+          <div className="mt-1 text-3xl font-bold tracking-[0.2em] text-white">
+            {PUBLIC_MARKETING_DEMO_PIN}
+          </div>
+        </div>
 
         {isUnavailable ? (
           <div className="mt-6 rounded-2xl border border-amber-700/60 bg-amber-950/30 px-4 py-3 text-sm text-amber-100">
@@ -61,8 +70,9 @@ function DemoAccessGate({
             <input
               id="demo-pin"
               name="pin"
-              type="password"
+              type="text"
               inputMode="numeric"
+              pattern="[0-9]*"
               autoComplete="current-password"
               required
               autoFocus
@@ -73,10 +83,13 @@ function DemoAccessGate({
             ) : null}
             <button
               type="submit"
-              className="w-full rounded-2xl bg-neutral-50 px-4 py-3 font-semibold text-neutral-950 transition hover:bg-white"
+              className="w-full rounded-2xl bg-cyan-300 px-4 py-3 font-semibold text-slate-950 transition hover:bg-cyan-200"
             >
-              Отвори демото
+              Отвори истинския Guest Hub
             </button>
+            <p className="text-center text-xs leading-5 text-neutral-500">
+              Demo среда — не изпраща заявки към реален хотел.
+            </p>
           </form>
         )}
       </section>
