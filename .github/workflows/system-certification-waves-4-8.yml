@@ -1,0 +1,100 @@
+name: System Certification Waves 4-8
+
+on:
+  push:
+    branches:
+      - feat/hotel-lifecycle-v1-intelligence-review
+    paths:
+      - ".github/workflows/system-certification-waves-4-8.yml"
+      - "tests/contracts/**"
+      - "lib/server/**"
+      - "lib/ai/**"
+      - "lib/revenue/**"
+      - "lib/integrations/**"
+      - "lib/incidents/**"
+      - "lib/staff-development/**"
+      - "lib/change-management/**"
+      - "lib/product-factory/**"
+      - "app/api/staff/**"
+      - "app/api/control-plane/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certification-wave:
+    name: Wave ${{ matrix.wave }} — ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - wave: 4
+            label: Staff Manager Operational AI
+          - wave: 5
+            label: Revenue ROI Analytics Reporting
+          - wave: 6
+            label: Staff Development HR
+          - wave: 7
+            label: Integrations Incidents Notifications
+          - wave: 8
+            label: Change Management Factory Lifecycle
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run Wave ${{ matrix.wave }} contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.wave }}" in
+            4)
+              node --test                 tests/contracts/legacy-unscoped-staff-routes.contract.test.mjs                 tests/contracts/staff-invalid-slug.contract.test.mjs                 tests/contracts/staff-pin-release-gate.contract.test.mjs                 tests/contracts/m12-staff-notification-parity.contract.test.mjs                 tests/contracts/operational-contracts.test.mjs                 tests/contracts/oa1-operational-workflow-resolution.contract.test.mjs                 tests/contracts/oa2-clarification-action-gate.contract.test.mjs                 tests/contracts/oa2-operational-action-execution-bridge.contract.test.mjs                 tests/contracts/oa3-operational-sla-escalation.contract.test.mjs                 tests/contracts/oa4-unified-guest-timeline.contract.test.mjs                 tests/contracts/oa5-guest-stay-context.contract.test.mjs                 tests/contracts/oa5-ai-stay-context.contract.test.mjs                 tests/contracts/oa6-operational-service-recovery.contract.test.mjs
+              ;;
+            5)
+              node --test                 tests/contracts/revenue-intelligence.contract.test.mjs                 tests/contracts/gostaya-value-measurement.contract.test.mjs                 tests/contracts/reporting-correctness.contract.test.mjs                 tests/contracts/survey-problem-map.contract.test.mjs                 tests/contracts/p3-1-commercial-lifecycle-trial-engine.contract.test.mjs                 tests/contracts/p3-3-runtime-entitlement-enforcement.contract.test.mjs                 tests/contracts/p3-4-commercial-observability-i18n.contract.test.mjs
+              ;;
+            6)
+              node --test                 tests/contracts/staff-development-access.contract.test.mjs                 tests/contracts/staff-development-actions.contract.test.mjs                 tests/contracts/staff-development-ai-authoring.contract.test.mjs                 tests/contracts/staff-development-ai-boundary.contract.test.mjs                 tests/contracts/staff-development-api.contract.test.mjs                 tests/contracts/staff-development-assessment-authoring.contract.test.mjs                 tests/contracts/staff-development-assessment.contract.test.mjs                 tests/contracts/staff-development-bootstrap.contract.test.mjs                 tests/contracts/staff-development-cross-module-integration.contract.test.mjs                 tests/contracts/staff-development-hr-ai-analysis.contract.test.mjs                 tests/contracts/staff-development-hr-rules.contract.test.mjs                 tests/contracts/staff-development-human-review.contract.test.mjs                 tests/contracts/staff-development-identity.contract.test.mjs                 tests/contracts/staff-development-module-entitlements.contract.test.mjs                 tests/contracts/staff-development-persistence.contract.test.mjs                 tests/contracts/staff-development-read.contract.test.mjs                 tests/contracts/staff-development-reporting.contract.test.mjs                 tests/contracts/staff-development-standard-authoring.contract.test.mjs                 tests/contracts/staff-development-standards.contract.test.mjs                 tests/contracts/staff-development-training-progress.contract.test.mjs
+              ;;
+            7)
+              node --test                 tests/contracts/integration-layer.contract.test.mjs                 tests/contracts/incident-center.contract.test.mjs                 tests/contracts/m12-staff-notification-parity.contract.test.mjs                 tests/contracts/oa6-operational-service-recovery.contract.test.mjs                 tests/contracts/revenue-intelligence.contract.test.mjs                 tests/contracts/gostaya-value-measurement.contract.test.mjs
+              ;;
+            8)
+              node --test                 tests/contracts/cm1-post-live-version-transition.contract.test.mjs                 tests/contracts/cm1-transition-readiness-v2.contract.test.mjs                 tests/contracts/cm1-trusted-server-integration.contract.test.mjs                 tests/contracts/cm2-version-diff.contract.test.mjs                 tests/contracts/cm3-historical-version-restore.contract.test.mjs                 tests/contracts/cm3-restore-live-episode-idempotency.contract.test.mjs                 tests/contracts/cm4-version-management-control-plane.contract.test.mjs                 tests/contracts/cm5-manager-change-foundation.contract.test.mjs                 tests/contracts/cm5-manager-operational-schedule-candidate.contract.test.mjs                 tests/contracts/cm5-manager-operational-schedule-safety.contract.test.mjs                 tests/contracts/cm5-manager-service-safety.contract.test.mjs                 tests/contracts/cm5-manager-venue-safety.contract.test.mjs                 tests/contracts/cm5-safe-content-candidates.contract.test.mjs                 tests/contracts/cm5-typed-draft-persistence.contract.test.mjs                 tests/contracts/cm5-5-certification-activation.contract.test.mjs                 tests/contracts/cm5-5-manager-candidate-persistence.contract.test.mjs                 tests/contracts/cm5-5-manager-candidate-replay.contract.test.mjs                 tests/contracts/cm5-5-manager-lifecycle-gate.contract.test.mjs                 tests/contracts/cm6-cross-module-historical-integrity.contract.test.mjs                 tests/contracts/p0-product-factory-architecture.contract.test.mjs                 tests/contracts/factory-runtime-self-healing.contract.test.mjs                 tests/contracts/factory-guest-write-context-wiring.contract.test.mjs                 tests/contracts/design-revision-factory-handoff.contract.test.mjs                 tests/contracts/ds4-factory-design-authority.contract.test.mjs                 tests/contracts/ds4-factory-design-runtime.contract.test.mjs                 tests/contracts/p3-3-runtime-entitlement-enforcement.contract.test.mjs                 tests/contracts/scanner-basic-intake-surface.contract.test.mjs
+              ;;
+            *)
+              echo "Unknown wave"
+              exit 1
+              ;;
+          esac
+
+      - name: Blocking tenant isolation
+        run: npm run test:tenant-isolation
+
+      - name: Write certification evidence
+        run: |
+          cat > "system-wave-${{ matrix.wave }}-results.json" <<JSON
+          {
+            "schemaVersion": "gostaya-system-certification-wave-v1",
+            "wave": ${{ matrix.wave }},
+            "label": "${{ matrix.label }}",
+            "headSha": "${{ github.sha }}",
+            "tenantIsolation": true,
+            "accepted": true
+          }
+          JSON
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: system-wave-${{ matrix.wave }}-evidence
+          path: system-wave-${{ matrix.wave }}-results.json
