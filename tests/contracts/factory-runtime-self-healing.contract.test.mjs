@@ -13,6 +13,8 @@ const hotPathMigrationPath =
   "supabase/migrations/20260903190000_factory_runtime_hot_path_invalidation.sql";
 const readyRuntimeMigrationPath =
   "supabase/migrations/20260904103500_factory_guest_hot_path_ready_runtime.sql";
+const readyRuntimeGrantHardeningMigrationPath =
+  "supabase/migrations/20260924063500_harden_factory_runtime_invalidation_function_grants.sql";
 
 test("certified Factory Sandbox metadata drives exact projector semantics without slug exceptions", async () => {
   const published = await readProjectFile("lib/server/published-hotel-config.ts");
@@ -170,7 +172,10 @@ test("Factory ready runtime is invalidated on every identity and authority drift
 });
 
 test("Factory ready-runtime invalidation trigger functions are internal-only", async () => {
-  const migration = await readProjectFile(readyRuntimeMigrationPath);
+  const migration = await readProjectFile(readyRuntimeGrantHardeningMigrationPath);
+
+  assertContains(migration, "FACTORY_RUNTIME_INVALIDATION_FUNCTION_MISSING");
+  assertContains(migration, "to_regprocedure");
 
   for (const functionName of [
     "invalidate_factory_tenant_runtime_hotel_identity_v1",
