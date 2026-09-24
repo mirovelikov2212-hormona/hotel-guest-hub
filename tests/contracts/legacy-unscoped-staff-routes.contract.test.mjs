@@ -35,12 +35,14 @@ test("legacy Staff surface contains no client-side supervisor credential", async
   assert.equal(housekeeping.includes("sessionStorage"), false);
 });
 
-test("hotel-scoped Staff layout remains the tenant authority boundary", async () => {
+test("hotel-scoped Staff layout remains the only store tenant authority boundary", async () => {
+  const rootLayout = await readProjectFile("app/staff/layout.tsx");
   const layout = await readProjectFile("app/staff/[hotelSlug]/layout.tsx");
   const genericDepartment = await readProjectFile(
     "app/staff/[hotelSlug]/[departmentCode]/page.tsx",
   );
 
+  assertNotContains(rootLayout, "StaffStoreProvider");
   assertContains(layout, "getHotelByAnySlug(hotelSlug)");
   assertContains(layout, "<StaffStoreProvider hotelSlug={hotelSlug} hotelId={hotel.id}>");
   assertContains(genericDepartment, "requireStaffAccess(hotelSlug, role)");
