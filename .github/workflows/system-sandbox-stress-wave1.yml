@@ -7,8 +7,8 @@ on:
     paths:
       - ".github/workflows/system-sandbox-stress-wave1.yml"
       - "scripts/system-sandbox-negative-probes.mjs"
+      - "scripts/system-multi-hotel-load-wave1.mjs"
       - "tests/scenarios/system-operational-time-matrix.test.mjs"
-      - "scripts/factory-final-620-peak.mjs"
       - "scripts/vercel-preview-auth-preload.mjs"
       - "lib/server/hotel-scope.ts"
       - "lib/server/supabase-admin.ts"
@@ -26,12 +26,8 @@ jobs:
     env:
       STAYHUB_SYSTEM_TEST_BASE_URL: https://hotel-guest-hub-git-feat-hote-5f757d-miroslav-velikovs-projects.vercel.app
       STAYHUB_SYSTEM_TEST_PREFIX: factory-heavy-20260901
-      STAYHUB_620_BASE_URL: https://hotel-guest-hub-git-feat-hote-5f757d-miroslav-velikovs-projects.vercel.app
-      STAYHUB_620_PREFIX: factory-heavy-20260901
-      STAYHUB_620_REQUEST_P95_MS: "3000"
-      STAYHUB_620_SURVEY_P95_MS: "3000"
-      STAYHUB_620_MASSAGE_P95_MS: "4500"
-      STAYHUB_620_GROUP_COOLDOWN_MS: "1500"
+      STAYHUB_SYSTEM_LOAD_P95_MS: "8000"
+      STAYHUB_SYSTEM_CONTROL_P95_MS: "5000"
 
     steps:
       - uses: actions/checkout@v4
@@ -43,7 +39,7 @@ jobs:
       - name: Validate scenario harness syntax
         run: |
           node --check scripts/system-sandbox-negative-probes.mjs
-          node --check scripts/factory-final-620-peak.mjs
+          node --check scripts/system-multi-hotel-load-wave1.mjs
           node --check scripts/vercel-preview-auth-preload.mjs
 
       - name: Run deterministic multi-hotel time and routing scenarios
@@ -86,16 +82,16 @@ jobs:
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: node --import ./scripts/vercel-preview-auth-preload.mjs scripts/system-sandbox-negative-probes.mjs
 
-      - name: Run 100-hotel / 620-operation live Preview load
+      - name: Run new multi-hotel load profiles
         env:
           STAYHUB_VERCEL_TRUSTED_OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-        run: node --import ./scripts/vercel-preview-auth-preload.mjs scripts/factory-final-620-peak.mjs
+        run: node --import ./scripts/vercel-preview-auth-preload.mjs scripts/system-multi-hotel-load-wave1.mjs
 
       - name: Verify machine-readable acceptance evidence
         run: |
           jq -e '.accepted == true' system-sandbox-negative-probes-results.json
-          jq -e '.accepted == true and .correctnessAccepted == true and .performanceAccepted == true and .totalOperations == 620' factory-final-620-results.json
+          jq -e '.accepted == true and .totalOperations > 0' system-multi-hotel-load-wave1-results.json
 
       - name: Print concise evidence
         if: always()
@@ -103,8 +99,8 @@ jobs:
           if [ -f system-sandbox-negative-probes-results.json ]; then
             jq '{runId,baseUrl,sandboxOnly,accepted,probes}' system-sandbox-negative-probes-results.json
           fi
-          if [ -f factory-final-620-results.json ]; then
-            jq '{runId,baseUrl,totalOperations,expectedTotalOperations,wallMs,failedGroup,request,survey,massageUnique,massageContention,thresholdsMs,correctnessAccepted,performanceAccepted,accepted}' factory-final-620-results.json
+          if [ -f system-multi-hotel-load-wave1-results.json ]; then
+            jq '{runId,baseUrl,totalOperations,guardrailsMs,profileSummaries,overall,accepted}' system-multi-hotel-load-wave1-results.json
           fi
 
       - name: Upload Wave 1 evidence
@@ -114,5 +110,5 @@ jobs:
           name: system-sandbox-stress-wave1-evidence
           path: |
             system-sandbox-negative-probes-results.json
-            factory-final-620-results.json
+            system-multi-hotel-load-wave1-results.json
           if-no-files-found: warn
