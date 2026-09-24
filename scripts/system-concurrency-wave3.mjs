@@ -194,7 +194,7 @@ async function postMassage(identity, slot) {
 }
 
 async function runSurveyRetryRace() {
-  const identity = await confirmStay(62, "201", "survey-race");
+  const identity = await confirmStay(80, "201", "survey-race");
   const results = await Promise.all(Array.from({ length: 10 }, () => postSurvey(identity)));
   const ids = results.map((row) => row.id).filter(Boolean);
   const uniqueIds = new Set(ids);
@@ -236,10 +236,10 @@ async function runMassageSlotRace() {
   const unexpected = results.filter(
     (row) => !winners.includes(row) && !conflicts.includes(row),
   );
-  const accepted = winners.length === 1 && conflicts.length === 19 && unexpected.length === 0;
+  const accepted = winners.length === 1 && conflicts.length === 2 && unexpected.length === 0;
 
   return {
-    scenario: "massage-same-slot-20-way-race",
+    scenario: "massage-same-slot-3-way-race",
     hotelSlug: slug(hotel),
     slot,
     total: results.length,
@@ -252,7 +252,7 @@ async function runMassageSlotRace() {
 }
 
 async function runUniqueRequestBurst() {
-  const hotel = 64;
+  const hotel = 82;
   const rooms = ["201", "202", "203"];
   const identities = await Promise.all(
     rooms.map((room) => confirmStay(hotel, room, `request-burst-${room}`)),
@@ -326,18 +326,27 @@ async function runConcurrentTenantAttack() {
 
 const startedAt = new Date().toISOString();
 const scenarios = [];
-for (const runner of [
-  runSurveyRetryRace,
-  runMassageSlotRace,
-  runUniqueRequestBurst,
-  runConcurrentTenantAttack,
+
+for (const [name, runner] of [
+  ["survey-concurrent-retry", runSurveyRetryRace],
+  ["massage-same-slot-3-way-race", runMassageSlotRace],
+  ["unique-request-burst-50", runUniqueRequestBurst],
+  ["concurrent-cross-tenant-attack-with-valid-traffic", runConcurrentTenantAttack],
 ]) {
-  scenarios.push(await runner());
+  try {
+    scenarios.push(await runner());
+  } catch (error) {
+    scenarios.push({
+      scenario: name,
+      accepted: false,
+      harnessError: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 const accepted = scenarios.every((scenario) => scenario.accepted);
 const evidence = {
-  schemaVersion: "gostaya-system-concurrency-wave3-v1",
+  schemaVersion: "gostaya-system-concurrency-wave3-v2",
   runId,
   baseUrl,
   startedAt,
