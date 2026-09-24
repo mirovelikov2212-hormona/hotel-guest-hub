@@ -52,7 +52,7 @@ export default function DemoSpotlight({ lang }: { lang: Lang }) {
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-200">{c.text}</p>
             <div className="mt-6 flex flex-wrap gap-3">
               <a
-                href="/qr/demo?src=website&code=gostaya-live-demo"
+                href="/h/demo"
                 target="_blank"
                 rel="noreferrer"
                 className="rounded-2xl bg-cyan-200 px-5 py-3 text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(165,243,252,.16)] transition hover:-translate-y-0.5 hover:bg-white"
