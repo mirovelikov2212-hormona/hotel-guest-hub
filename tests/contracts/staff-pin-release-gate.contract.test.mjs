@@ -90,6 +90,22 @@ test("Manager-protected Reception PIN repair rehashes the existing operator-know
   assertContains(form, "same 6-digit Reception PIN twice");
 });
 
+test("public staff demo PIN is hard-scoped to the demo tenant", async () => {
+  const pinSource = await readProjectFile("lib/staff-auth/pin.ts");
+  const loginRoute = await readProjectFile("app/api/staff/auth/login/route.ts");
+  const departmentLoginRoute = await readProjectFile("app/api/staff/auth/department-login/route.ts");
+  const gate = await readProjectFile("components/staff/StaffPinGate.tsx");
+
+  assertContains(pinSource, 'PUBLIC_DEMO_STAFF_PIN = "2026"');
+  assertContains(pinSource, '=== "demo"');
+  assertContains(loginRoute, "isPublicDemoStaffPin(hotelSlug, pin)");
+  assertContains(departmentLoginRoute, "isPublicDemoStaffPin(hotelSlug, pin)");
+  assertContains(gate, 'hotelSlug.trim().toLowerCase() === "demo"');
+  assertContains(gate, "Demo room");
+  assertContains(gate, "901");
+  assertContains(gate, "2026");
+});
+
 test("production release gate covers every scoped staff role without storing PINs", async () => {
   const runbook = await readProjectFile(
     "docs/runbooks/staff-pin-production-smoke.md",
