@@ -1,0 +1,73 @@
+name: System Completion Pre-Certification
+
+on:
+  push:
+    branches:
+      - feat/hotel-lifecycle-v1-intelligence-review
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pre-certification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit
+
+      - name: Core product contracts
+        run: npm test
+
+      - name: Staff Development contracts
+        run: node --test tests/contracts/staff-development-*.contract.test.mjs
+
+      - name: Operational AI OA1-OA6 contracts
+        run: |
+          node --test tests/contracts/oa1-operational-workflow-resolution.contract.test.mjs
+          node --test tests/contracts/oa2-operational-action-execution-bridge.contract.test.mjs
+          node --test tests/contracts/oa2-clarification-action-gate.contract.test.mjs
+          node --test tests/contracts/oa3-operational-sla-escalation.contract.test.mjs
+          node --test tests/contracts/oa4-unified-guest-timeline.contract.test.mjs
+          node --test tests/contracts/oa5-guest-stay-context.contract.test.mjs
+          node --test tests/contracts/oa5-ai-stay-context.contract.test.mjs
+          node --test tests/contracts/oa6-operational-service-recovery.contract.test.mjs
+
+      - name: Manager Intelligence and platform modules
+        run: |
+          node --test tests/contracts/revenue-intelligence.contract.test.mjs
+          node --test tests/contracts/gostaya-value-measurement.contract.test.mjs
+          node --test tests/contracts/integration-layer.contract.test.mjs
+          node --test tests/contracts/incident-center.contract.test.mjs
+
+      - name: Post-LIVE CM1-CM6 contracts
+        run: |
+          node --test tests/contracts/cm1-post-live-version-transition.contract.test.mjs
+          node --test tests/contracts/cm1-transition-readiness-v2.contract.test.mjs
+          node --test tests/contracts/cm1-trusted-server-integration.contract.test.mjs
+          node --test tests/contracts/cm2-version-diff.contract.test.mjs
+          node --test tests/contracts/cm3-historical-version-restore.contract.test.mjs
+          node --test tests/contracts/cm3-restore-live-episode-idempotency.contract.test.mjs
+          node --test tests/contracts/cm4-version-management-control-plane.contract.test.mjs
+          node --test tests/contracts/cm5-5-manager-lifecycle-gate.contract.test.mjs
+          node --test tests/contracts/cm5-5-certification-activation.contract.test.mjs
+          node --test tests/contracts/cm5-5-manager-candidate-persistence.contract.test.mjs
+          node --test tests/contracts/cm5-5-manager-candidate-replay.contract.test.mjs
+          node --test tests/contracts/cm6-cross-module-historical-integrity.contract.test.mjs
+
+      - name: Blocking tenant isolation
+        run: npm run test:tenant-isolation
+
+      - name: Production-style Next.js build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
