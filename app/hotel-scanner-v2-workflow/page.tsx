@@ -12,17 +12,17 @@ const COPY = {
   bg: {
     eyebrow: "StayHub Intelligence",
     title: "Hotel Scanner · Intake",
-    subtitle: "Вътрешен инструмент за бързо извличане на хотелска информация и подготовка на onboarding в Design Studio.",
-    back: "← Scanner",
-    preview: "Internal Intake · durable workflow · без Production handoff",
+    subtitle: "Вътрешен basic intake за публична хотелска информация, source links и design signals преди ръчния onboarding в Design Studio.",
+    back: "← Control Plane",
+    preview: "Basic Intake · bounded quick preview · без Production handoff",
     build: "Build",
   },
   en: {
     eyebrow: "StayHub Intelligence",
     title: "Hotel Scanner · Intake",
-    subtitle: "Internal tool for fast hotel-data extraction and onboarding preparation in Design Studio.",
-    back: "← Scanner",
-    preview: "Internal Intake · durable workflow · no Production handoff",
+    subtitle: "Internal basic intake for public hotel information, source links and design signals before manual onboarding in Design Studio.",
+    back: "← Control Plane",
+    preview: "Basic Intake · bounded quick preview · no Production handoff",
     build: "Build",
   },
 } as const;
@@ -58,7 +58,7 @@ export default async function HotelScannerV2WorkflowPage({ searchParams }: { sea
               <Link href="/hotel-scanner-v2-workflow?lang=en" className={`v2-pill ${lang === "en" ? "v2-pill-info" : ""}`}>EN</Link>
             </div>
           </div>
-          <Link href={`/hotel-scanner-v2?lang=${lang}`} className="v2-source-link mt-6 inline-flex text-sm font-semibold">{copy.back}</Link>
+          <Link href={`/control-plane?lang=${lang}`} className="v2-source-link mt-6 inline-flex text-sm font-semibold">{copy.back}</Link>
         </header>
 
         <HotelScannerV2WorkflowClient lang={lang} />
