@@ -112,7 +112,7 @@ test("M14.4 routes with tenant-authoritative hotel timezone and department hours
   assertContains(hoursSource, "scheduleForConfig(config, department)");
   assertContains(hoursSource, "legacyHoursForConfig(config, department)");
   assertContains(guestRouteSource, "requestAuthority.afterHoursDepartment");
-  assertContains(guestRouteSource, "isDepartmentWorkingHoursForConfig({");
-  assertContains(staffListSource, "isDepartmentWorkingHoursForConfig({");
+  assertContains(guestRouteSource, "resolveDepartmentCoverageForConfig({");
+  assertContains(staffListSource, "resolveDepartmentCoverageForConfig({");
   assertContains(staffStatusSource, "isDepartmentWorkingHoursForConfig({");
 });
