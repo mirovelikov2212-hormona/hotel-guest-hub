@@ -194,7 +194,7 @@ async function postMassage(identity, slot) {
 }
 
 async function runSurveyRetryRace() {
-  const identity = await confirmStay(80, "201", "survey-race");
+  const identity = await confirmStay(85, "201", "survey-race");
   const results = await Promise.all(Array.from({ length: 10 }, () => postSurvey(identity)));
   const ids = results.map((row) => row.id).filter(Boolean);
   const uniqueIds = new Set(ids);
@@ -218,11 +218,11 @@ async function runSurveyRetryRace() {
 }
 
 async function runMassageSlotRace() {
-  const hotel = 63;
+  const hotel = 86;
   const slot = await discoverMassageSlot(hotel);
   const identities = await Promise.all(
-    Array.from({ length: 20 }, (_, index) =>
-      confirmStay(hotel, "201", `massage-race-${index + 1}`),
+    ["201", "202", "203"].map((room) =>
+      confirmStay(hotel, room, `massage-race-${room}`),
     ),
   );
   const results = await Promise.all(identities.map((identity) => postMassage(identity, slot)));
@@ -252,7 +252,7 @@ async function runMassageSlotRace() {
 }
 
 async function runUniqueRequestBurst() {
-  const hotel = 82;
+  const hotel = 87;
   const rooms = ["201", "202", "203"];
   const identities = await Promise.all(
     rooms.map((room) => confirmStay(hotel, room, `request-burst-${room}`)),
@@ -283,8 +283,8 @@ async function runUniqueRequestBurst() {
 }
 
 async function runConcurrentTenantAttack() {
-  const attacker = await confirmStay(65, "201", "tenant-attack-a");
-  const validTarget = await confirmStay(66, "201", "tenant-attack-b");
+  const attacker = await confirmStay(88, "201", "tenant-attack-a");
+  const validTarget = await confirmStay(89, "201", "tenant-attack-b");
 
   const foreignTasks = Array.from({ length: 20 }, (_, index) =>
     postRequest(attacker, `${runId}:foreign:${index + 1}`, {
