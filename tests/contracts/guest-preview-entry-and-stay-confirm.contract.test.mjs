@@ -25,6 +25,33 @@ test("Production StayHub routing keeps hotel subdomains authoritative", () => {
   );
 });
 
+test("GOSTAYA public domain resolves to the marketing site, not a hotel tenant", () => {
+  assert.equal(
+    resolveGuestRootEntry({ host: "gostaya.com", vercelEnv: "production" }),
+    "/en",
+  );
+  assert.equal(
+    resolveGuestRootEntry({ host: "www.gostaya.com", vercelEnv: "production" }),
+    "/en",
+  );
+});
+
+test("public marketing demo is isolated to the demo gate and advertises the dedicated PIN", async () => {
+  const accessSource = await readFile(new URL("../../lib/demo-access.ts", import.meta.url), "utf8");
+  const hotelPageSource = await readFile(new URL("../../app/h/[hotelSlug]/page.tsx", import.meta.url), "utf8");
+  const accessRouteSource = await readFile(new URL("../../app/api/demo-access/route.ts", import.meta.url), "utf8");
+
+  assert.match(accessSource, /PUBLIC_MARKETING_DEMO_PIN = "2026"/);
+  assert.match(accessSource, /safeEqual\(submittedPin, PUBLIC_MARKETING_DEMO_PIN\)/);
+  assert.match(accessSource, /configuredPin \|\| PUBLIC_MARKETING_DEMO_PIN/);
+  assert.match(hotelPageSource, /hotelSlug\.trim\(\)\.toLowerCase\(\) === "demo"/);
+  assert.match(hotelPageSource, /PUBLIC_MARKETING_DEMO_PIN/);
+  assert.match(hotelPageSource, /Demo среда/);
+  assert.match(accessRouteSource, /validateDemoAccessPin/);
+  assert.match(accessRouteSource, /nextPath/);
+  assert.match(accessRouteSource, /"\/h\/demo"/);
+});
+
 test("invalid preview slug cannot escape the hotel route", () => {
   assert.equal(
     resolveGuestRootEntry({
