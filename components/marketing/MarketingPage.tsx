@@ -1,1067 +1,463 @@
-"use client";
+import ProductWalkthrough from "./ProductWalkthrough";
 
-import React from "react";
-import Section from "./Section";
-import Faq from "./Faq";
-
-type Lang = "bg" | "de" | "en";
+type Lang = "bg" | "en" | "de";
 
 type Copy = {
-  navDemo: string;
-  navCta: string;
-
+  nav: { product: string; evidence: string; platform: string; faq: string; demo: string };
+  eyebrow: string;
   heroTitle: string;
-  heroLines: string[];
-  heroBadges: string[];
-
-  challengeTitle: string;
-  challenges: { title: string; text: string }[];
-
-  solutionTitle: string;
-  solutionBullets: string[];
-
-  howTitle: string;
-  howSubtitle: string;
-  howSteps: { title: string; text: string }[];
-
-  trustTitle: string;
-  trustSubtitle: string;
-  trustBullets: string[];
-
-  featuresTitle: string;
-  featuresSubtitle: string;
-  features: { title: string; text: string }[];
-
-  pricingTitle: string;
-  pricingSubtitle: string;
-
-  pricingCard: {
-    price: string;
-    setup: string;
-    includesTitle: string;
-    includes: string[];
-    variableLabel: string;
-    variableText: string;
-    seasonalLines: string[];
-    cta: string;
-  };
-
-  pricingSide: {
-    title: string;
-    items: string[];
-  };
-
-  pricingImpl: {
-    title: string;
-    text: string;
-  };
-
+  heroText: string;
+  heroPrimary: string;
+  heroSecondary: string;
+  heroNote: string;
+  heroChips: string[];
+  clarityTitle: string;
+  clarityText: string;
+  clarityCards: { title: string; text: string }[];
+  platformEyebrow: string;
+  platformTitle: string;
+  platformText: string;
+  modules: { title: string; text: string }[];
+  evidenceEyebrow: string;
+  evidenceTitle: string;
+  evidenceText: string;
+  metrics: { value: string; label: string; note: string }[];
+  evidenceFoot: string;
+  aiTitle: string;
+  aiText: string;
+  aiPoints: string[];
   faqTitle: string;
   faqs: { q: string; a: string }[];
-
-  footerTagline: string;
-  footerNote: string;
+  finalTitle: string;
+  finalText: string;
+  finalDemo: string;
+  finalContact: string;
+  footer: string;
 };
 
-function clsx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
+const COPY: Record<Lang, Copy> = {
+  bg: {
+    nav: { product: "Продукт", evidence: "Резултати", platform: "Платформа", faq: "FAQ", demo: "Live demo" },
+    eyebrow: "AI GUEST EXPERIENCE + HOTEL OPERATIONS",
+    heroTitle: "Една платформа между госта, хотелския екип и мениджмънта.",
+    heroText: "GOSTAYA е multi-hotel AI guest-experience и operations платформа за дигитално обслужване на гостите, директно routing към отделите, AI concierge, staff operations, обучение, manager intelligence, revenue/ROI и интеграции.",
+    heroPrimary: "Виж продукта",
+    heroSecondary: "Отвори live demo",
+    heroNote: "Работи в браузъра. Без задължителен app download. Hotel-specific логика и човешки контрол върху критичните действия.",
+    heroChips: ["Guest Hub", "Staff Operations", "AI Concierge", "Manager Intelligence", "Staff Development", "Revenue & ROI"],
+    clarityTitle: "Не е просто хотелски chatbot.",
+    clarityText: "GOSTAYA свързва guest experience с реалните операции на хотела. Гостът не получава само отговор — заявката може да стане проследима задача, да стигне до правилния екип и да остави измерима следа за Manager-а.",
+    clarityCards: [
+      { title: "За госта", text: "Брандиран Guest Hub, информация, venues, AI concierge, услуги, заявки, масажи, surveys и push комуникация." },
+      { title: "За екипа", text: "Role-based Staff Hub за Reception, Housekeeping, Maintenance и Manager с routing, статуси, известия и after-hours логика." },
+      { title: "За Manager-а", text: "Operational overview, Incident Center, surveys, service recovery, revenue, ROI и AI-assisted management analysis." },
+      { title: "За развитието", text: "Hotel Standards → Training → Testing → Verified Results → HR Rules → AI Management Analysis." },
+    ],
+    platformEyebrow: "ONE OPERATING LAYER",
+    platformTitle: "Модулите работят като една система.",
+    platformText: "Модулите могат да се активират според нуждите на хотела, но споделят една tenant-scoped operational foundation.",
+    modules: [
+      { title: "Guest Hub", text: "QR/PWA guest experience, room confirmation, multilingual content and services." },
+      { title: "Staff Operations", text: "Department queues, direct routing, working-hours logic, alerts and request lifecycle." },
+      { title: "Operational AI", text: "Hotel-grounded AI concierge, safe action bridge, escalation and service recovery boundaries." },
+      { title: "Manager Intelligence", text: "Operational signals, KPI, incidents, surveys and management visibility." },
+      { title: "Staff Development", text: "Standards, training, assessments, verified results and deterministic HR rules." },
+      { title: "Revenue Intelligence", text: "Paid services, immutable price evidence, upsell and ROI/value measurement." },
+      { title: "Integration Layer", text: "Provider-neutral PMS and hotel-system contracts with idempotency and audit." },
+      { title: "Product Factory", text: "Multi-hotel onboarding, Design Studio, sandbox certification, lifecycle and rollback." },
+    ],
+    evidenceEyebrow: "REAL PILOT EVIDENCE",
+    evidenceTitle: "Реален сезон. Реални interaction data.",
+    evidenceText: "Анонимизиран сезонен pilot в български морски хотел. Показваме измерените данни отделно от моделираните operational estimates.",
+    metrics: [
+      { value: "5 347", label: "Guest Hub opens", note: "измерени събития" },
+      { value: "2 448", label: "дедуплицирани info interactions", note: "session + info item" },
+      { value: "145", label: "service requests", note: "non-test requests" },
+      { value: "56", label: "massage bookings", note: "реални сезонни резервации" },
+      { value: "€2 570", label: "charged massage value", note: "54 charged bookings" },
+      { value: "24–45 h", label: "estimated admin time avoided", note: "консервативен модел, не измерен stopwatch time" },
+    ],
+    evidenceFoot: "Идентифицирането на пилотния хотел и публичното използване на името му остават subject to hotel approval. Методологията отделя observed counts от modeled time savings.",
+    aiTitle: "AI, който знае границите си.",
+    aiText: "GOSTAYA използва AI за разбиране, обобщение и подпомагане на действията, но хотелът остава authority. Системата не трябва да измисля наличност, да потвърждава непроверено действие или да взема автоматични HR решения.",
+    aiPoints: ["Hotel-grounded context", "Human approval where required", "No fabricated action success", "Verified evidence for Manager analysis"],
+    faqTitle: "Често задавани въпроси",
+    faqs: [
+      { q: "Какво е GOSTAYA?", a: "Multi-hotel AI guest-experience и operations платформа, която свързва Guest Hub, хотелските отдели, Manager Intelligence, Staff Development, Revenue Intelligence и Integration Layer." },
+      { q: "Трябва ли гостът да инсталира приложение?", a: "Не. Guest Hub работи директно в браузъра и може да се добави като PWA shortcut." },
+      { q: "Заявките минават ли през рецепция?", a: "Не задължително. GOSTAYA може да route-ва заявките директно към Housekeeping, Maintenance или Reception според хотелските правила и работното време." },
+      { q: "Има ли реален продукт, който може да се види?", a: "Да. На тази страница има интерактивен product explorer, а live demo отваря реален demo Guest Hub tenant." },
+      { q: "Може ли да се свърже с PMS?", a: "Integration Layer е provider-neutral и е подготвен за PMS actions. Реалният connector се добавя за конкретния PMS и се тества в неговата sandbox/test среда." },
+      { q: "Как се измерва ROI?", a: "GOSTAYA разделя директно измерени operational events от deterministic derived metrics и моделирани стойности като saved time. Методологията и допусканията трябва да са видими." },
+    ],
+    finalTitle: "Покажи ни как работи хотелът ти. GOSTAYA ще се адаптира към него.",
+    finalText: "Започни с live demo, после можем да моделираме реалния guest flow, departmental routing и нужните модули за конкретния хотел.",
+    finalDemo: "Отвори live demo",
+    finalContact: "Заяви разговор",
+    footer: "AI guest experience, hotel operations and manager intelligence in one multi-hotel platform.",
+  },
+  en: {
+    nav: { product: "Product", evidence: "Evidence", platform: "Platform", faq: "FAQ", demo: "Live demo" },
+    eyebrow: "AI GUEST EXPERIENCE + HOTEL OPERATIONS",
+    heroTitle: "One platform between the guest, the hotel team and management.",
+    heroText: "GOSTAYA is a multi-hotel AI guest-experience and operations platform for digital guest service, direct department routing, AI concierge, staff operations, training, manager intelligence, revenue/ROI and integrations.",
+    heroPrimary: "Explore the product",
+    heroSecondary: "Open live demo",
+    heroNote: "Browser-first. No mandatory app download. Hotel-specific logic with human control over critical actions.",
+    heroChips: ["Guest Hub", "Staff Operations", "AI Concierge", "Manager Intelligence", "Staff Development", "Revenue & ROI"],
+    clarityTitle: "Not just another hotel chatbot.",
+    clarityText: "GOSTAYA connects guest experience to real hotel operations. A guest does not only receive an answer — an intent can become a traceable task, reach the right team and create measurable evidence for management.",
+    clarityCards: [
+      { title: "For guests", text: "Branded Guest Hub, hotel information, venues, AI concierge, services, requests, massage booking, surveys and push communication." },
+      { title: "For teams", text: "Role-based Staff Hub for Reception, Housekeeping, Maintenance and Manager with routing, statuses, alerts and after-hours logic." },
+      { title: "For managers", text: "Operational overview, Incident Center, surveys, service recovery, revenue, ROI and AI-assisted management analysis." },
+      { title: "For development", text: "Hotel Standards → Training → Testing → Verified Results → HR Rules → AI Management Analysis." },
+    ],
+    platformEyebrow: "ONE OPERATING LAYER",
+    platformTitle: "The modules operate as one system.",
+    platformText: "Hotels can enable modules according to scope, while the modules share the same tenant-scoped operational foundation.",
+    modules: [
+      { title: "Guest Hub", text: "QR/PWA guest experience, room confirmation, multilingual content and services." },
+      { title: "Staff Operations", text: "Department queues, direct routing, working-hours logic, alerts and request lifecycle." },
+      { title: "Operational AI", text: "Hotel-grounded AI concierge, safe action bridge, escalation and service recovery boundaries." },
+      { title: "Manager Intelligence", text: "Operational signals, KPI, incidents, surveys and management visibility." },
+      { title: "Staff Development", text: "Standards, training, assessments, verified results and deterministic HR rules." },
+      { title: "Revenue Intelligence", text: "Paid services, immutable price evidence, upsell and ROI/value measurement." },
+      { title: "Integration Layer", text: "Provider-neutral PMS and hotel-system contracts with idempotency and audit." },
+      { title: "Product Factory", text: "Multi-hotel onboarding, Design Studio, sandbox certification, lifecycle and rollback." },
+    ],
+    evidenceEyebrow: "REAL PILOT EVIDENCE",
+    evidenceTitle: "A real season. Real interaction data.",
+    evidenceText: "An anonymized seasonal pilot at a Bulgarian seaside hotel. Measured data is shown separately from modeled operational estimates.",
+    metrics: [
+      { value: "5,347", label: "Guest Hub opens", note: "measured events" },
+      { value: "2,448", label: "deduplicated info interactions", note: "session + info item" },
+      { value: "145", label: "service requests", note: "non-test requests" },
+      { value: "56", label: "massage bookings", note: "real seasonal bookings" },
+      { value: "€2,570", label: "charged massage value", note: "54 charged bookings" },
+      { value: "24–45 h", label: "estimated admin time avoided", note: "conservative model, not stopwatch-measured time" },
+    ],
+    evidenceFoot: "The pilot hotel remains anonymized until the hotel approves public identification. The methodology separates observed counts from modeled time savings.",
+    aiTitle: "AI that knows its boundaries.",
+    aiText: "GOSTAYA uses AI for understanding, summarization and assisted actions while the hotel remains the authority. The system should not invent availability, confirm an unverified action or make automated HR decisions.",
+    aiPoints: ["Hotel-grounded context", "Human approval where required", "No fabricated action success", "Verified evidence for Manager analysis"],
+    faqTitle: "Frequently asked questions",
+    faqs: [
+      { q: "What is GOSTAYA?", a: "A multi-hotel AI guest-experience and operations platform connecting the Guest Hub, hotel departments, Manager Intelligence, Staff Development, Revenue Intelligence and an Integration Layer." },
+      { q: "Does the guest need to install an app?", a: "No. The Guest Hub runs directly in the browser and can optionally be added as a PWA shortcut." },
+      { q: "Do guest requests always go through reception?", a: "No. GOSTAYA can route requests directly to Housekeeping, Maintenance or Reception according to hotel rules and working hours." },
+      { q: "Is there a real product demo?", a: "Yes. This page includes an interactive product explorer and the live demo opens a real GOSTAYA Guest Hub demo tenant." },
+      { q: "Can GOSTAYA connect to a PMS?", a: "The Integration Layer is provider-neutral and prepared for PMS actions. A real connector is added and tested for the specific PMS provider." },
+      { q: "How is ROI measured?", a: "GOSTAYA separates directly observed operational events, deterministic derived metrics and modeled values such as estimated time saved. Assumptions should remain visible." },
+    ],
+    finalTitle: "Show us how your hotel works. GOSTAYA adapts to the operation.",
+    finalText: "Start with the live demo, then map the real guest flow, departmental routing and modules for your property.",
+    finalDemo: "Open live demo",
+    finalContact: "Request a conversation",
+    footer: "AI guest experience, hotel operations and manager intelligence in one multi-hotel platform.",
+  },
+  de: {
+    nav: { product: "Produkt", evidence: "Ergebnisse", platform: "Plattform", faq: "FAQ", demo: "Live Demo" },
+    eyebrow: "AI GUEST EXPERIENCE + HOTEL OPERATIONS",
+    heroTitle: "Eine Plattform zwischen Gast, Hotelteam und Management.",
+    heroText: "GOSTAYA ist eine Multi-Hotel-Plattform für AI Guest Experience und Hotel Operations: digitaler Gästeservice, direktes Department Routing, AI Concierge, Staff Operations, Training, Manager Intelligence, Revenue/ROI und Integrationen.",
+    heroPrimary: "Produkt entdecken",
+    heroSecondary: "Live Demo öffnen",
+    heroNote: "Browser-first. Kein verpflichtender App-Download. Hotelspezifische Logik mit menschlicher Kontrolle über kritische Aktionen.",
+    heroChips: ["Guest Hub", "Staff Operations", "AI Concierge", "Manager Intelligence", "Staff Development", "Revenue & ROI"],
+    clarityTitle: "Nicht nur ein weiterer Hotel-Chatbot.",
+    clarityText: "GOSTAYA verbindet Guest Experience mit dem realen Hotelbetrieb. Ein Gast erhält nicht nur eine Antwort — ein Anliegen kann zu einer nachvollziehbaren Aufgabe werden, das richtige Team erreichen und messbare Management-Daten erzeugen.",
+    clarityCards: [
+      { title: "Für Gäste", text: "Gebrandeter Guest Hub, Hotelinformationen, Outlets, AI Concierge, Services, Anfragen, Massagebuchung, Surveys und Push-Kommunikation." },
+      { title: "Für Teams", text: "Rollenbasierter Staff Hub für Rezeption, Housekeeping, Technik und Manager mit Routing, Status, Alerts und After-hours-Logik." },
+      { title: "Für Manager", text: "Operational Overview, Incident Center, Surveys, Service Recovery, Revenue, ROI und AI-gestützte Management-Analyse." },
+      { title: "Für Entwicklung", text: "Hotel Standards → Training → Testing → Verified Results → HR Rules → AI Management Analysis." },
+    ],
+    platformEyebrow: "ONE OPERATING LAYER",
+    platformTitle: "Die Module arbeiten als ein System.",
+    platformText: "Hotels aktivieren Module nach Bedarf; alle Module teilen dieselbe tenant-isolierte operative Grundlage.",
+    modules: [
+      { title: "Guest Hub", text: "QR/PWA Guest Experience, Zimmerbestätigung, mehrsprachige Inhalte und Services." },
+      { title: "Staff Operations", text: "Department Queues, Direct Routing, Arbeitszeiten, Alerts und Request Lifecycle." },
+      { title: "Operational AI", text: "Hotel-grounded AI Concierge, sichere Actions, Eskalation und Service-Recovery-Grenzen." },
+      { title: "Manager Intelligence", text: "Operative Signale, KPI, Incidents, Surveys und Management Visibility." },
+      { title: "Staff Development", text: "Standards, Training, Assessments, Verified Results und deterministische HR Rules." },
+      { title: "Revenue Intelligence", text: "Paid Services, unveränderliche Preisdaten, Upsell und ROI/Value Measurement." },
+      { title: "Integration Layer", text: "Provider-neutrale PMS- und Hotel-System-Contracts mit Idempotency und Audit." },
+      { title: "Product Factory", text: "Multi-Hotel Onboarding, Design Studio, Sandbox Certification, Lifecycle und Rollback." },
+    ],
+    evidenceEyebrow: "REAL PILOT EVIDENCE",
+    evidenceTitle: "Eine reale Saison. Reale Interaktionsdaten.",
+    evidenceText: "Anonymisierter saisonaler Pilot in einem bulgarischen Küstenhotel. Gemessene Daten werden klar von modellierten Operational Estimates getrennt.",
+    metrics: [
+      { value: "5.347", label: "Guest Hub Opens", note: "gemessene Events" },
+      { value: "2.448", label: "deduplizierte Info-Interaktionen", note: "Session + Info Item" },
+      { value: "145", label: "Service Requests", note: "Non-test Requests" },
+      { value: "56", label: "Massagebuchungen", note: "reale Saisonbuchungen" },
+      { value: "€2.570", label: "berechneter Massagewert", note: "54 charged bookings" },
+      { value: "24–45 h", label: "geschätzte vermiedene Admin-Zeit", note: "konservatives Modell, keine Stoppuhrmessung" },
+    ],
+    evidenceFoot: "Das Pilot-Hotel bleibt anonym, bis die öffentliche Nennung freigegeben ist. Die Methodik trennt observed counts von modeled time savings.",
+    aiTitle: "AI, die ihre Grenzen kennt.",
+    aiText: "GOSTAYA nutzt AI für Verständnis, Zusammenfassung und unterstützte Aktionen, während das Hotel die Autorität behält. Keine erfundene Verfügbarkeit, kein unbestätigter Action-Erfolg und keine automatischen HR-Entscheidungen.",
+    aiPoints: ["Hotel-grounded Context", "Human Approval where required", "No fabricated action success", "Verified evidence for Manager analysis"],
+    faqTitle: "Häufige Fragen",
+    faqs: [
+      { q: "Was ist GOSTAYA?", a: "Eine Multi-Hotel-Plattform für AI Guest Experience und Operations, die Guest Hub, Hotelabteilungen, Manager Intelligence, Staff Development, Revenue Intelligence und Integration Layer verbindet." },
+      { q: "Muss der Gast eine App installieren?", a: "Nein. Der Guest Hub läuft direkt im Browser und kann optional als PWA-Shortcut hinzugefügt werden." },
+      { q: "Gehen Gästeanfragen immer über die Rezeption?", a: "Nein. GOSTAYA kann Anfragen nach Hotelregeln und Arbeitszeiten direkt an Housekeeping, Technik oder Rezeption routen." },
+      { q: "Gibt es ein echtes Produktdemo?", a: "Ja. Diese Seite enthält einen interaktiven Product Explorer; die Live Demo öffnet einen echten GOSTAYA Guest-Hub-Demo-Tenant." },
+      { q: "Kann GOSTAYA mit einem PMS verbunden werden?", a: "Der Integration Layer ist provider-neutral. Der reale Connector wird für den konkreten PMS-Anbieter ergänzt und getestet." },
+      { q: "Wie wird ROI gemessen?", a: "GOSTAYA trennt direkt gemessene Operational Events, deterministische Kennzahlen und modellierte Werte wie geschätzte Zeiteinsparungen." },
+    ],
+    finalTitle: "Zeig uns, wie dein Hotel arbeitet. GOSTAYA passt sich dem Betrieb an.",
+    finalText: "Starte mit der Live Demo. Danach können Guest Flow, Department Routing und Module für das konkrete Hotel modelliert werden.",
+    finalDemo: "Live Demo öffnen",
+    finalContact: "Gespräch anfragen",
+    footer: "AI Guest Experience, Hotel Operations und Manager Intelligence in einer Multi-Hotel-Plattform.",
+  },
+};
+
+function languagePath(lang: Lang) {
+  return lang === "bg" ? "/bg" : lang === "de" ? "/de" : "/en";
 }
 
-function splitInHalf<T>(arr: T[]) {
-  const mid = Math.ceil(arr.length / 2);
-  return [arr.slice(0, mid), arr.slice(mid)];
-}
-
-function BulletList({
-  items,
-  theme,
-  columns = 2,
-}: {
-  items: string[];
-  theme: { muted: string; lavender: string };
-  columns?: 1 | 2;
-}) {
-  const gridCols = columns === 2 ? "md:grid-cols-2" : "";
-  return (
-    <ul className={clsx("grid gap-3", gridCols)}>
-      {items.map((b) => (
-        <li key={b} className={clsx("text-sm leading-relaxed", theme.muted)}>
-          <div className="flex items-start gap-3">
-            <span className={clsx("mt-[2px] font-semibold", theme.lavender)}>✓</span>
-            <span className="text-white">{b}</span>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-export default function MarketingPage({
-  lang,
-  hubUrlExample = "/qr/demo?src=roomcard&code=roomcard",
-  contactEmail = "sales@yourdomain.com",
-  brandName = "Digital Concierge",
-}: {
-  lang: Lang;
-  hubUrlExample?: string;
-  contactEmail?: string;
-  brandName?: string;
-}) {
-  const c = getCopy(lang);
-
-  const mailto = (subject: string) =>
-    `mailto:${contactEmail}?subject=${encodeURIComponent(subject)}`;
-
-  const theme = {
-    topbar: "bg-[#0D1B2A]/70",
-    panel: "bg-white/[0.05]",
-    panelHover: "hover:bg-white/[0.07]",
-    ring: "ring-1 ring-white/10",
-    ringStrong: "ring-1 ring-white/14",
-    text: "text-white",
-    muted: "text-slate-300",
-    muted2: "text-slate-400",
-    accentBg: "bg-[#9B86BD]",
-    accentText: "text-[#0D1B2A]",
-    accentRing: "ring-1 ring-[#9B86BD]/35",
-    accentSoft: "bg-[#9B86BD]/14",
-    accentSoftRing: "ring-1 ring-[#9B86BD]/25",
-    lavender: "text-[#9B86BD]",
+function JsonLd({ lang, copy }: { lang: Lang; copy: Copy }) {
+  const base = "https://gostaya.com";
+  const page = base + languagePath(lang);
+  const graph = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": base + "/#organization",
+        name: "GOSTAYA",
+        url: base,
+        description: copy.heroText,
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": base + "/#software",
+        name: "GOSTAYA",
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web",
+        url: page,
+        description: copy.heroText,
+        featureList: copy.modules.map((m) => m.title),
+        publisher: { "@id": base + "/#organization" },
+      },
+      {
+        "@type": "WebSite",
+        "@id": base + "/#website",
+        name: "GOSTAYA",
+        url: base,
+        publisher: { "@id": base + "/#organization" },
+        inLanguage: ["en", "de", "bg"],
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: copy.faqs.map((item) => ({
+          "@type": "Question",
+          name: item.q,
+          acceptedAnswer: { "@type": "Answer", text: item.a },
+        })),
+      },
+    ],
   };
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(graph) }} />;
+}
 
-  const [solutionLeft, solutionRight] = splitInHalf(c.solutionBullets);
+export default function MarketingPage({ lang }: { lang: Lang }) {
+  const c = COPY[lang];
+  const paths = { bg: "/bg", en: "/en", de: "/de" };
 
   return (
-    <main
-      className={clsx("min-h-screen relative overflow-hidden", theme.text)}
-      style={{
-        backgroundColor: "#0D1B2A",
-        backgroundImage: `
-          radial-gradient(900px 600px at 15% 10%, rgba(155,134,189,0.18), transparent 60%),
-          radial-gradient(700px 520px at 85% 20%, rgba(155,134,189,0.12), transparent 55%),
-          radial-gradient(900px 700px at 50% 100%, rgba(255,255,255,0.06), transparent 60%)
-        `,
-      }}
-    >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-0"
-        style={{
-          backgroundImage: `
-            radial-gradient(80% 70% at 50% 45%, rgba(255,255,255,0.06), rgba(13,27,42,0) 55%),
-            radial-gradient(120% 120% at 50% 50%, rgba(13,27,42,0) 40%, rgba(0,0,0,0.58) 100%)
-          `,
-        }}
-      />
+    <main className="min-h-screen bg-[#07111a] text-white selection:bg-cyan-300 selection:text-slate-950">
+      <JsonLd lang={lang} copy={c} />
 
-      <div
-        className={clsx(
-          "sticky top-0 z-30 backdrop-blur relative",
-          theme.topbar,
-          "border-b border-white/10"
-        )}
-      >
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div
-              className={clsx(
-                "h-10 w-10 rounded-2xl flex items-center justify-center",
-                theme.panel,
-                theme.ring
-              )}
-            >
-              <span className="font-bold tracking-tight text-white">HG</span>
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#07111a]/85 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+          <a href={languagePath(lang)} className="flex items-center gap-3" aria-label="GOSTAYA home">
+            <div className="grid h-9 w-9 place-items-center rounded-xl border border-cyan-300/25 bg-cyan-300/10 text-sm font-black tracking-tight text-cyan-200">G</div>
+            <div>
+              <div className="text-sm font-black tracking-[0.16em]">GOSTAYA</div>
+              <div className="text-[9px] uppercase tracking-[0.18em] text-white/35">hotel intelligence layer</div>
             </div>
-            <div className="leading-tight">
-              <div className="font-semibold">{brandName}</div>
-              <div className={clsx("text-xs", theme.muted2)}>QR • Guest Hub • No App</div>
-            </div>
-          </div>
+          </a>
+
+          <nav className="hidden items-center gap-5 text-sm text-white/65 lg:flex" aria-label="Main navigation">
+            <a href="#product" className="hover:text-white">{c.nav.product}</a>
+            <a href="#evidence" className="hover:text-white">{c.nav.evidence}</a>
+            <a href="#platform" className="hover:text-white">{c.nav.platform}</a>
+            <a href="#faq" className="hover:text-white">{c.nav.faq}</a>
+          </nav>
 
           <div className="flex items-center gap-2">
-            <a
-              href={hubUrlExample}
-              className={clsx(
-                "rounded-xl px-3 py-2 text-sm font-semibold",
-                theme.panel,
-                theme.ring,
-                theme.panelHover,
-                "transition"
-              )}
-            >
-              {c.navDemo}
-            </a>
-
-            <a
-              href={mailto(`${brandName} — Demo / Offer`)}
-              className={clsx(
-                "rounded-xl px-3 py-2 text-sm font-semibold",
-                theme.accentBg,
-                theme.accentText,
-                theme.accentRing,
-                "hover:brightness-110 active:scale-[0.99] transition"
-              )}
-            >
-              {c.navCta}
-            </a>
+            <div className="hidden rounded-full border border-white/10 bg-white/[0.03] p-1 sm:flex">
+              {(Object.keys(paths) as Lang[]).map((key) => (
+                <a key={key} href={paths[key]} hrefLang={key} className={"rounded-full px-2.5 py-1 text-[10px] font-bold uppercase " + (key === lang ? "bg-white text-slate-950" : "text-white/50 hover:text-white")}>{key}</a>
+              ))}
+            </div>
+            <a href="/qr/demo?src=website&code=gostaya-nav" target="_blank" rel="noreferrer" className="rounded-xl bg-cyan-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-200">{c.nav.demo}</a>
           </div>
         </div>
-      </div>
+      </header>
 
-      <section className="mx-auto max-w-5xl px-4 pt-12 pb-6 relative z-10">
-        <div className="grid gap-6 md:grid-cols-2 md:items-center">
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(34,211,238,.16),transparent_34%),radial-gradient(circle_at_85%_25%,rgba(139,92,246,.15),transparent_32%),radial-gradient(circle_at_50%_95%,rgba(16,185,129,.1),transparent_38%)]" />
+        <div className="relative mx-auto grid max-w-7xl gap-12 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-[1.08fr_.92fr] lg:items-center lg:pb-28 lg:pt-24">
           <div>
-            <h1 className="text-3xl font-semibold leading-tight md:text-4xl tracking-tight">
-              {c.heroTitle.split("\n").map((line, i) => (
-                <span key={i} className="block">
-                  {line}
-                </span>
-              ))}
-            </h1>
-
-            <div className={clsx("mt-3 space-y-1.5 leading-relaxed", theme.muted)}>
-              {c.heroLines.map((line, idx) => (
-                <p
-                  key={idx}
-                  className={clsx(
-                    "text-sm md:text-[15px]",
-                    idx === c.heroLines.length - 1 ? "font-medium text-white" : ""
-                  )}
-                >
-                  {line}
-                </p>
-              ))}
+            <p className="text-xs font-black uppercase tracking-[0.26em] text-cyan-300">{c.eyebrow}</p>
+            <h1 className="mt-5 max-w-4xl text-4xl font-semibold leading-[1.02] tracking-[-0.04em] sm:text-6xl lg:text-7xl">{c.heroTitle}</h1>
+            <p className="mt-6 max-w-3xl text-base leading-7 text-slate-300 sm:text-lg">{c.heroText}</p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <a href="#product" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 transition hover:-translate-y-0.5">{c.heroPrimary}</a>
+              <a href="/qr/demo?src=website&code=gostaya-hero" target="_blank" rel="noreferrer" className="rounded-2xl border border-white/15 bg-white/[0.05] px-5 py-3 text-sm font-bold text-white transition hover:bg-white/[0.09]">{c.heroSecondary}</a>
             </div>
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              {c.heroBadges.map((b) => (
-                <span
-                  key={b}
-                  className={clsx(
-                    "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-                    theme.panel,
-                    theme.ring
-                  )}
-                >
-                  <span className={clsx("mr-2", theme.lavender)}>●</span>
-                  {b}
-                </span>
-              ))}
-            </div>
-
+            <p className="mt-4 max-w-2xl text-xs leading-5 text-white/40">{c.heroNote}</p>
             <div className="mt-7 flex flex-wrap gap-2">
-              <a
-                href={mailto(`${brandName} — Request demo`)}
-                className={clsx(
-                  "rounded-2xl px-4 py-3 text-sm font-semibold",
-                  theme.accentBg,
-                  theme.accentText,
-                  theme.accentRing,
-                  "hover:brightness-110 active:scale-[0.99] transition"
-                )}
-              >
-                {c.navCta}
-              </a>
-
-              <a
-                href={hubUrlExample}
-                className={clsx(
-                  "rounded-2xl px-4 py-3 text-sm font-semibold",
-                  theme.panel,
-                  theme.ring,
-                  theme.panelHover,
-                  "transition"
-                )}
-              >
-                {c.navDemo}
-              </a>
+              {c.heroChips.map((chip) => <span key={chip} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/65">{chip}</span>)}
             </div>
-
-            {c.footerNote ? (
-              <div className={clsx("mt-4 text-xs", theme.muted2)}>{c.footerNote}</div>
-            ) : null}
           </div>
 
-          <div className="flex md:justify-end">
-            <div
-              className={clsx("rounded-3xl overflow-hidden", theme.panel, theme.ringStrong)}
-              style={{ width: 320, maxWidth: "100%" }}
-            >
-              <div className="p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-white">{brandName} — Demo</div>
-                    <div className={clsx("mt-1 text-xs", theme.muted2)}>Guest Hub Preview</div>
-                  </div>
-                  <div
-                    className={clsx(
-                      "shrink-0 rounded-xl px-3 py-1 text-xs font-semibold",
-                      theme.accentSoft,
-                      theme.accentSoftRing
-                    )}
-                  >
-                    Room confirmed
-                  </div>
+          <div className="relative mx-auto w-full max-w-xl">
+            <div className="absolute -inset-8 rounded-full bg-cyan-300/10 blur-3xl" />
+            <div className="relative rounded-[34px] border border-white/10 bg-white/[0.045] p-4 shadow-2xl backdrop-blur-xl">
+              <div className="rounded-[26px] border border-white/10 bg-[#0a1722] p-5">
+                <div className="flex items-center justify-between">
+                  <div><div className="text-[10px] font-bold tracking-[0.22em] text-white/30">GOSTAYA / LIVE FLOW</div><div className="mt-1 text-sm font-semibold">Guest → Team → Manager</div></div>
+                  <div className="flex gap-1.5">{[0,1,2].map((i)=><span key={i} className="h-2 w-2 rounded-full bg-white/15" />)}</div>
                 </div>
-
-                <div className="mt-4 grid grid-cols-1 gap-2">
+                <div className="mt-5 space-y-3">
                   {[
-                    "📶 Wi-Fi",
-                    "ℹ️ Info",
-                    "🧺 Housekeeping",
-                    "🛎 Reception",
-                    "🛠 Maintenance",
-                    "🍽 Outlets",
-                  ].map((x) => (
-                    <div
-                      key={x}
-                      className={clsx(
-                        "rounded-2xl px-4 py-3 text-sm font-semibold",
-                        "bg-white/[0.06] ring-1 ring-white/10"
-                      )}
-                    >
-                      {x}
+                    ["01", "Guest intent", "Extra towels · Room 317", "Guest Hub"],
+                    ["02", "Direct routing", "Housekeeping queue", "Operations"],
+                    ["03", "Operational action", "Seen → in progress → completed", "Staff Hub"],
+                    ["04", "Evidence", "Request lifecycle + KPI", "Manager"],
+                  ].map(([n,title,text,tag]) => (
+                    <div key={n} className="grid grid-cols-[38px_1fr_auto] items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+                      <div className="grid h-9 w-9 place-items-center rounded-xl bg-cyan-300/10 text-xs font-black text-cyan-200">{n}</div>
+                      <div><div className="text-xs font-bold text-white/50">{title}</div><div className="mt-0.5 text-sm font-semibold text-white">{text}</div></div>
+                      <div className="hidden rounded-full border border-white/10 px-2 py-1 text-[9px] uppercase tracking-wider text-white/35 sm:block">{tag}</div>
                     </div>
                   ))}
                 </div>
-
-                <div className="mt-4" />
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  {[
+                    ["Hotel grounded", "AI"],
+                    ["Tenant scoped", "Data"],
+                    ["Human controlled", "Actions"],
+                  ].map(([v,l]) => <div key={l} className="rounded-xl border border-white/10 bg-black/10 px-3 py-3"><div className="text-xs font-semibold text-white">{v}</div><div className="mt-1 text-[9px] uppercase tracking-widest text-white/30">{l}</div></div>)}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <Section title={c.challengeTitle}>
-        <div className="grid gap-3 md:grid-cols-2">
-          {c.challenges.map((p) => (
-            <div
-              key={p.title}
-              className={clsx(
-                "rounded-3xl p-5",
-                theme.panel,
-                theme.ring,
-                "hover:bg-white/[0.07] transition"
-              )}
-            >
-              <div className="text-base font-semibold text-white">{p.title}</div>
-              <div className={clsx("mt-2 text-sm leading-relaxed", theme.muted)}>{p.text}</div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section title={c.solutionTitle}>
-        <div className="grid gap-3 md:grid-cols-2">
-          {[solutionLeft, solutionRight].map((col, idx) => (
-            <div key={idx} className={clsx("rounded-3xl p-5", theme.panel, theme.ring)}>
-              <BulletList items={col} theme={theme} columns={1} />
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section title={c.howTitle} subtitle={c.howSubtitle}>
-        <div className="grid gap-3 md:grid-cols-4">
-          {c.howSteps.map((s, i) => (
-            <div
-              key={`${s.title}-${i}`}
-              className={clsx(
-                "rounded-3xl p-5",
-                theme.panel,
-                theme.ring,
-                "hover:bg-white/[0.07] transition"
-              )}
-            >
-              <div className={clsx("text-xs font-semibold", theme.muted2)}>Step {i + 1}</div>
-
-              <div className="mt-2 text-base font-semibold text-white">
-                {s.title.split("\n").map((line, idx) => (
-                  <span key={idx} className="block">
-                    {line}
-                  </span>
-                ))}
-              </div>
-
-              <div className={clsx("mt-2 text-sm leading-relaxed", theme.muted)}>{s.text}</div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section title={c.trustTitle} subtitle={c.trustSubtitle}>
-        <div className={clsx("rounded-3xl p-5", theme.panel, theme.ring)}>
-          <BulletList items={c.trustBullets} theme={theme} columns={2} />
-        </div>
-      </Section>
-
-      <Section title={c.featuresTitle} subtitle={c.featuresSubtitle}>
-        <div className="grid gap-3 md:grid-cols-3">
-          {c.features.map((f) => (
-            <div
-              key={f.title}
-              className={clsx(
-                "rounded-3xl p-5",
-                theme.panel,
-                theme.ring,
-                "hover:bg-white/[0.07] transition"
-              )}
-            >
-              <div className="text-base font-semibold text-white">{f.title}</div>
-              <div className={clsx("mt-2 text-sm leading-relaxed", theme.muted)}>{f.text}</div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section title={c.pricingTitle} subtitle={c.pricingSubtitle}>
-        <div className={clsx("rounded-3xl p-6", theme.panel, theme.ringStrong)}>
-          <div className="grid grid-cols-12 gap-6 items-stretch">
-            <div className="col-span-12 md:col-span-7">
-              <div className={clsx("h-full rounded-2xl p-5", "bg-white/[0.06] ring-1 ring-white/10")}>
-                <div className={clsx("text-xs font-semibold", theme.muted2)}></div>
-
-                <div className="mt-2 text-3xl font-semibold text-white">{c.pricingCard.price}</div>
-
-                <div className="mt-5">
-                  <div className="text-sm font-semibold text-white">
-                    {c.pricingCard.includesTitle}
-                  </div>
-                  <div className="mt-3">
-                    <BulletList items={c.pricingCard.includes} theme={theme} columns={1} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-span-12 md:col-span-5 flex flex-col h-full md:border-l md:border-white/10 md:pl-6">
-              <div className={clsx("rounded-2xl p-5 pb-9", "bg-white/[0.06] ring-1 ring-white/10")}>
-                <div className="text-sm font-semibold text-white">{c.pricingSide.title}</div>
-                <div className="mt-3">
-                  <BulletList items={c.pricingSide.items} theme={theme} columns={1} />
-                </div>
-              </div>
-
-              <div className="h-6 md:h-10" />
-              <div className="hidden md:block flex-1" />
-
-              <div className={clsx("rounded-2xl p-5 pt-9", "bg-white/[0.06] ring-1 ring-white/10")}>
-                <div className="text-sm font-semibold text-white">{c.pricingImpl.title}</div>
-                <div className={clsx("mt-1 text-sm", theme.muted)}>{c.pricingImpl.text}</div>
-              </div>
-            </div>
+      <section className="border-y border-white/10 bg-white/[0.02]">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20">
+          <div className="max-w-3xl">
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{c.clarityTitle}</h2>
+            <p className="mt-4 text-base leading-7 text-slate-300">{c.clarityText}</p>
           </div>
+          <div className="mt-8 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {c.clarityCards.map((card, index) => (
+              <article key={card.title} className="rounded-[28px] border border-white/10 bg-white/[0.035] p-5">
+                <div className="text-[10px] font-black tracking-[0.2em] text-cyan-300/70">0{index+1}</div>
+                <h3 className="mt-4 text-lg font-semibold">{card.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-300">{card.text}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
 
-          <div className={clsx("mt-5 text-sm leading-relaxed", theme.muted)}>
-            <div className="text-white font-semibold">{c.pricingCard.setup}</div>
+      <ProductWalkthrough lang={lang} />
 
-            <div className="mt-2">
-              <span className="text-white font-semibold">{c.pricingCard.variableLabel}</span>{" "}
-              <span className="text-white font-semibold">{c.pricingCard.variableText}</span>
+      <section id="evidence" className="border-y border-white/10 bg-[#0a1620]">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-24">
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-300">{c.evidenceEyebrow}</p>
+          <div className="mt-3 grid gap-6 lg:grid-cols-[.85fr_1.15fr] lg:items-end">
+            <div>
+              <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{c.evidenceTitle}</h2>
+              <p className="mt-4 max-w-xl text-base leading-7 text-slate-300">{c.evidenceText}</p>
             </div>
-
-            <div className="mt-2 space-y-1">
-              {c.pricingCard.seasonalLines.map((line, i) => (
-                <p key={i}>{line}</p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {c.metrics.map((metric) => (
+                <div key={metric.label} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                  <div className="text-3xl font-semibold tracking-tight text-white">{metric.value}</div>
+                  <div className="mt-2 text-sm font-semibold text-white/85">{metric.label}</div>
+                  <div className="mt-1 text-xs leading-5 text-white/35">{metric.note}</div>
+                </div>
               ))}
             </div>
           </div>
+          <p className="mt-6 max-w-5xl text-xs leading-5 text-white/35">{c.evidenceFoot}</p>
+        </div>
+      </section>
 
-          <div className="mt-5 flex flex-wrap gap-2">
-            <a
-              href={mailto(`${brandName} — Pricing & demo`)}
-              className={clsx(
-                "inline-flex justify-center rounded-2xl px-4 py-3 text-sm font-semibold",
-                theme.accentBg,
-                theme.accentText,
-                theme.accentRing,
-                "hover:brightness-110 active:scale-[0.99] transition"
-              )}
-            >
-              {c.pricingCard.cta}
-            </a>
+      <section id="platform" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-24">
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-300">{c.platformEyebrow}</p>
+        <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight sm:text-5xl">{c.platformTitle}</h2>
+        <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300">{c.platformText}</p>
+        <div className="mt-8 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          {c.modules.map((module) => (
+            <article key={module.title} className="rounded-[26px] border border-white/10 bg-white/[0.03] p-5 transition hover:-translate-y-1 hover:bg-white/[0.05]">
+              <h3 className="text-base font-semibold">{module.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-300">{module.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
-            <a
-              href={hubUrlExample}
-              className={clsx(
-                "inline-flex justify-center rounded-2xl px-4 py-3 text-sm font-semibold",
-                theme.panel,
-                theme.ring,
-                theme.panelHover,
-                "transition"
-              )}
-            >
-              {c.navDemo}
-            </a>
+      <section className="border-y border-white/10 bg-gradient-to-br from-violet-500/10 via-transparent to-cyan-400/10">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_.8fr] lg:items-center lg:py-20">
+          <div>
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{c.aiTitle}</h2>
+            <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300">{c.aiText}</p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {c.aiPoints.map((point) => <div key={point} className="rounded-2xl border border-white/10 bg-black/10 p-4 text-sm font-semibold text-white/85">{point}</div>)}
           </div>
         </div>
-      </Section>
+      </section>
 
-      <Section title={c.faqTitle}>
-        <Faq items={c.faqs} />
-      </Section>
+      <section id="faq" className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:py-24">
+        <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{c.faqTitle}</h2>
+        <div className="mt-8 divide-y divide-white/10 rounded-[28px] border border-white/10 bg-white/[0.025]">
+          {c.faqs.map((item) => (
+            <details key={item.q} className="group p-5">
+              <summary className="cursor-pointer list-none pr-8 text-base font-semibold marker:hidden">{item.q}<span className="float-right text-white/35 group-open:rotate-45">+</span></summary>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <section className="px-4 pb-20 sm:px-6">
+        <div className="mx-auto max-w-7xl overflow-hidden rounded-[36px] border border-cyan-300/20 bg-cyan-300/[0.07] p-7 sm:p-10 lg:flex lg:items-end lg:justify-between lg:gap-10">
+          <div className="max-w-3xl">
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{c.finalTitle}</h2>
+            <p className="mt-4 text-base leading-7 text-slate-300">{c.finalText}</p>
+          </div>
+          <div className="mt-7 flex shrink-0 flex-wrap gap-3 lg:mt-0">
+            <a href="/qr/demo?src=website&code=gostaya-footer" target="_blank" rel="noreferrer" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950">{c.finalDemo}</a>
+            <a href="mailto:sales@gostaya.com?subject=GOSTAYA%20demo" className="rounded-2xl border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white">{c.finalContact}</a>
+          </div>
+        </div>
+      </section>
 
       <footer className="border-t border-white/10">
-        <div className="mx-auto max-w-5xl px-4 py-10 text-sm">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div className={clsx(theme.muted)}>
-              <span className="text-white font-semibold">{brandName}</span> — {c.footerTagline}
-            </div>
-            <div className={clsx(theme.muted)}>
-              <span className={clsx(theme.muted2)}>Contact: </span>
-              <a className="underline text-white" href={`mailto:${contactEmail}`}>
-                {contactEmail}
-              </a>
-            </div>
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-6 text-sm text-slate-400">
-            <a href="/impressum" className="underline hover:text-white transition">Impressum</a>
-            <a href="/datenschutz" className="underline hover:text-white transition">Datenschutz</a>
-            <a href="/agb" className="underline hover:text-white transition">AGB</a>
+        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-10 text-sm text-white/45 sm:px-6 md:flex-row md:items-center md:justify-between">
+          <div><span className="font-black tracking-[0.14em] text-white">GOSTAYA</span><span className="ml-3">{c.footer}</span></div>
+          <div className="flex flex-wrap gap-4">
+            <a href="/impressum" className="hover:text-white">Impressum</a>
+            <a href="/datenschutz" className="hover:text-white">Datenschutz</a>
+            <a href="/agb" className="hover:text-white">AGB</a>
           </div>
         </div>
       </footer>
     </main>
   );
-}
-
-function getCopy(lang: Lang): Copy {
-  if (lang === "bg") {
-    return {
-      navDemo: "Виж демо",
-      navCta: "Искам оферта",
-
-      heroTitle: "Дигитален консиерж,\nкойто решава реални хотелски проблеми.",
-      heroLines: [
-        "Гостът сканира един общ QR код и потвърждава стаята си.",
-        "Заявката отива директно към правилния отдел в системата.",
-        "Персоналът работи в отделни staff екрани, а мениджърът вижда всичко.",
-        "No app. Един ясен flow. Реални KPI за хотела.",
-      ],
-      heroBadges: ["One Shared QR", "No App", "Multi-language", "Department Routing"],
-
-      challengeTitle: "Ежедневни предизвикателства в хотела",
-      challenges: [
-        {
-          title: "Претоварена рецепция",
-          text: "Малки заявки прекъсват резервации, продажби, отчети и контрол. Това бави целия хотел.",
-        },
-        {
-          title: "Бавна вътрешна координация",
-          text: "Когато една заявка минава през няколко човека, губят се време, приоритет и яснота.",
-        },
-        {
-          title: "Липса на видимост",
-          text: "Мениджърът често не вижда навреме колко заявки има, къде се бавят и кой отдел е претоварен.",
-        },
-        {
-          title: "Разнородни гости и екипи",
-          text: "Гостите очакват бързина и удобство, а персоналът има нужда от ясен и прост работен поток.",
-        },
-      ],
-
-      solutionTitle: "Как помага дигиталният консиерж?",
-      solutionBullets: [
-        "Намалява натоварването на рецепцията в ежедневната работа.",
-        "Изпраща гостовите заявки към правилния отдел в структуриран формат.",
-        "Съкращава времето за реакция и изпълнение.",
-        "Позволява на госта да използва хъба на своя език.",
-        "Дава на staff екипа прост и ясен работен flow.",
-        "Мениджърът вижда всички заявки и техните статуси на едно място.",
-        "Работи с един общ QR код за всички стаи.",
-        "Гостът потвърждава стаята си в самия хъб — без нужда от отделен QR за всяка стая.",
-        "Поддържа хотелска информация, Wi-Fi, аутлети и резервационни точки.",
-        "Позволява събиране на KPI: сканирания, потвърдени стаи, заявки, завършени заявки.",
-        "Работи без app download — директно от браузъра.",
-      ],
-
-      howTitle: "Как работи StayHub?",
-      howSubtitle: "Един ясен гостов flow и отделни работни екрани за персонала.",
-      howSteps: [
-        {
-          title: "Гостът сканира \nедин общ QR код",
-          text: "Не е нужен отделен QR код за всяка стая. Гостът отваря хъба от общия код.",
-        },
-        {
-          title: "Гостът потвърждава \nсвоята стая",
-          text: "Стаята се записва за устройството и всички следващи действия се отчитат към нея.",
-        },
-        {
-          title: "Гостът подава \nструктурирана заявка",
-          text: "Хавлии, поддръжка, рецепция, минибар, късен check-out и други — според логиката на хотела.",
-        },
-        {
-          title: "Правилният отдел \nобработва заявката",
-          text: "Housekeeping, maintenance, reception и manager виждат точните заявки и работят по статуси.",
-        },
-      ],
-
-      trustTitle: "Защо работи в реален хотел",
-      trustSubtitle:
-        "Не добавяме хаос. Даваме прост guest flow, ясен staff flow и реална видимост за мениджмънта.",
-      trustBullets: [
-        "Един общ QR код вместо печат и поддръжка на код за всяка стая.",
-        "Структурирани заявки вместо свободен чат и устни предавания.",
-        "Всеки отдел вижда само своята работа, а мениджърът вижда цялата картина.",
-        "Подходящо за сезонни и целогодишни хотели.",
-      ],
-
-      featuresTitle: "Ключови функции",
-      featuresSubtitle:
-        "Функции, които влияят директно на скоростта на обслужване и на вътрешната организация.",
-      features: [
-        {
-          title: "Guest Hub",
-          text: "QR отваряне, потвърждение на стая, Wi-Fi, инфо секция, отдели, аутлети и заявки от телефона на госта.",
-        },
-        {
-          title: "Staff Hub",
-          text: "Отделни PIN защитени екрани за reception, housekeeping и maintenance със статуси и известия.",
-        },
-        {
-          title: "Manager Visibility",
-          text: "Мениджърски екран с видимост върху всички заявки, натоварване по отдели и KPI база за отчети.",
-        },
-      ],
-
-      pricingTitle: "Цена",
-      pricingSubtitle: "Офертата зависи от мащаба на хотела и нивото на внедряване.",
-
-      pricingCard: {
-        price: "от €99 / месец",
-        setup: "Setup: според хотел, данни, конфигурация, секции и внедряване.",
-        includesTitle: "Какво включва",
-        includes: [
-          "Guest hub с брандинг на хотела",
-          "One shared QR flow с потвърждение на стая",
-          "Staff hubs за reception, housekeeping и maintenance",
-          "Manager view",
-          "Мултиезичен интерфейс",
-          "Routing по отдели и статуси",
-          "KPI tracking основа",
-        ],
-        variableLabel: "Офертата се влияе от:",
-        variableText: "обхват, секции, брой outlets, request logic и ниво на настройка.",
-        seasonalLines: [
-          "Сезонни хотели могат да работят с подходящ operational модел.",
-          "Допълнителни секции, KPI и custom логика могат да се надграждат.",
-        ],
-        cta: "Искам оферта",
-      },
-
-      pricingSide: {
-        title: "Подходящо за:",
-        items: [
-          "Сезонни хотели",
-          "Спа хотели",
-          "All inclusive хотели",
-          "Бутикови хотели",
-          "Градски и бизнес хотели",
-        ],
-      },
-
-      pricingImpl: {
-        title: "Внедряване",
-        text: "След onboarding формата и материалите StayHub се настройва според реалната оперативна логика на хотела.",
-      },
-
-      faqTitle: "FAQ",
-      faqs: [
-        {
-          q: "Трябва ли отделен QR код за всяка стая?",
-          a: "Не. StayHub работи с един общ QR код. Гостът потвърждава стаята си вътре в хъба.",
-        },
-        {
-          q: "Трябва ли гостът да инсталира приложение?",
-          a: "Не. StayHub работи директно в браузъра и може да се добави като app shortcut.",
-        },
-        {
-          q: "Как заявките стигат до правилния отдел?",
-          a: "Всяка заявка е свързана с конкретен отдел и влиза в базата данни. Staff hub-овете показват правилните заявки по отдел.",
-        },
-        {
-          q: "Какво вижда мениджърът?",
-          a: "Мениджърът вижда всички заявки, статусите им и KPI база за натоварване и реакция.",
-        },
-        {
-          q: "Работи ли с един общ телефонен номер?",
-          a: "Да. StayHub не разчита на телефонните номера за routing на заявките. Routing-ът е database-driven.",
-        },
-        {
-          q: "Може ли хотелът да има собствена инфо секция?",
-          a: "Да. Могат да се показват закуска, басейн, СПА, паркинг, Wi-Fi, emergency информация и други важни guest info блокове.",
-        },
-        {
-          q: "Какви KPI се отчитат?",
-          a: "Могат да се отчитат QR scans, hub open, room confirmed, request submitted, staff status updates и други събития.",
-        },
-        {
-          q: "Може ли да се надгражда?",
-          a: "Да. Могат да се добавят нови секции, нови request logic сценарии, нови KPI и допълнителни integrations.",
-        },
-      ],
-
-      footerTagline: "дигитална система за по-бърз и ясен хотелски guest flow.",
-      footerNote: "",
-    };
-  }
-
-  if (lang === "de") {
-    return {
-      navDemo: "Demo ansehen",
-      navCta: "Angebot anfragen",
-
-      heroTitle: "Ein digitaler Concierge,\nder echte Hotelprobleme löst.",
-      heroLines: [
-        "Der Gast scannt einen gemeinsamen QR-Code und bestätigt sein Zimmer.",
-        "Die Anfrage geht direkt an die richtige Abteilung im System.",
-        "Das Team arbeitet in getrennten Staff-Screens und das Management sieht alles.",
-        "Keine App. Ein klarer Flow. Reale KPI für das Hotel.",
-      ],
-      heroBadges: ["One Shared QR", "Keine App", "Mehrsprachig", "Department Routing"],
-
-      challengeTitle: "Tägliche Herausforderungen im Hotel",
-      challenges: [
-        {
-          title: "Überlastete Rezeption",
-          text: "Kleine Gästeanfragen unterbrechen Reservierungen, Verkauf, Reporting und operative Kontrolle.",
-        },
-        {
-          title: "Langsame interne Koordination",
-          text: "Wenn eine Anfrage durch mehrere Personen geht, gehen Zeit, Priorität und Klarheit verloren.",
-        },
-        {
-          title: "Fehlende Sichtbarkeit",
-          text: "Das Management sieht oft zu spät, wie viele Anfragen offen sind, wo sich etwas staut und welche Abteilung überlastet ist.",
-        },
-        {
-          title: "Unterschiedliche Gäste und Teams",
-          text: "Gäste erwarten Schnelligkeit und Einfachheit, während das Team einen klaren und einfachen Arbeitsfluss braucht.",
-        },
-      ],
-
-      solutionTitle: "Wie hilft der digitale Concierge?",
-      solutionBullets: [
-        "Entlastet die Rezeption im Tagesgeschäft.",
-        "Leitet Gästeanfragen strukturiert an die richtige Abteilung weiter.",
-        "Verkürzt Reaktions- und Bearbeitungszeiten.",
-        "Erlaubt dem Gast die Nutzung in seiner Sprache.",
-        "Gibt dem Team einen klaren Staff-Flow.",
-        "Das Management sieht alle Anfragen und Status an einem Ort.",
-        "Arbeitet mit einem gemeinsamen QR-Code für alle Zimmer.",
-        "Der Gast bestätigt sein Zimmer direkt im Hub — kein eigener QR-Code pro Zimmer nötig.",
-        "Unterstützt Hotelinformationen, Wi-Fi, Outlets und Reservierungspunkte.",
-        "Ermöglicht KPI-Erfassung: Scans, bestätigte Zimmer, Requests, erledigte Requests.",
-        "Funktioniert direkt im Browser — ohne App-Download.",
-      ],
-
-      howTitle: "Wie funktioniert StayHub?",
-      howSubtitle: "Ein klarer Gästefluss und getrennte Arbeitsoberflächen für das Hotelteam.",
-      howSteps: [
-        {
-          title: "Der Gast scannt \neinen gemeinsamen QR-Code",
-          text: "Es ist kein separater QR-Code pro Zimmer nötig. Der Gast öffnet den Hub über einen gemeinsamen Code.",
-        },
-        {
-          title: "Der Gast bestätigt \nsein Zimmer",
-          text: "Das Zimmer wird für dieses Gerät gespeichert und alle weiteren Aktionen werden diesem Zimmer zugeordnet.",
-        },
-        {
-          title: "Der Gast sendet \neine strukturierte Anfrage",
-          text: "Handtücher, Wartung, Rezeption, Minibar, Late Check-out und weitere Services — abhängig von der Hotellogik.",
-        },
-        {
-          title: "Die richtige Abteilung \nbearbeitet die Anfrage",
-          text: "Housekeeping, Maintenance, Reception und Manager sehen die passenden Anfragen und Statusänderungen.",
-        },
-      ],
-
-      trustTitle: "Warum es in echten Hotels funktioniert",
-      trustSubtitle:
-        "Wir bringen keinen neuen Chaos-Kanal. Wir liefern einen klaren Gäste-Flow, einen klaren Staff-Flow und echte Management-Sichtbarkeit.",
-      trustBullets: [
-        "Ein gemeinsamer QR-Code statt Druck und Pflege eines Codes pro Zimmer.",
-        "Strukturierte Anfragen statt freiem Chat und mündlicher Weitergabe.",
-        "Jede Abteilung sieht ihre Arbeit, das Management sieht das Gesamtbild.",
-        "Geeignet für saisonale und ganzjährig geöffnete Hotels.",
-      ],
-
-      featuresTitle: "Schlüsselfunktionen",
-      featuresSubtitle:
-        "Funktionen, die Reaktionsgeschwindigkeit und interne Organisation direkt verbessern.",
-      features: [
-        {
-          title: "Guest Hub",
-          text: "QR-Öffnung, Zimmerbestätigung, Wi-Fi, Info-Bereich, Abteilungen, Outlets und Gästeanfragen direkt vom Telefon des Gastes.",
-        },
-        {
-          title: "Staff Hub",
-          text: "Getrennte PIN-geschützte Screens für Reception, Housekeeping und Maintenance mit Statuslogik und Benachrichtigungen.",
-        },
-        {
-          title: "Manager Visibility",
-          text: "Manager-Screen mit Sicht auf alle Anfragen, Abteilungsbelastung und KPI-Basis für Auswertung.",
-        },
-      ],
-
-      pricingTitle: "Preis",
-      pricingSubtitle: "Das Angebot hängt von Hotelgröße und Umsetzungsumfang ab.",
-
-      pricingCard: {
-        price: "ab €99 / Monat",
-        setup: "Setup: je nach Hotel, Daten, Konfiguration, Sektionen und Implementierung.",
-        includesTitle: "Was enthalten ist",
-        includes: [
-          "Guest Hub mit Hotel-Branding",
-          "One shared QR Flow mit Zimmerbestätigung",
-          "Staff Hubs für Reception, Housekeeping und Maintenance",
-          "Manager View",
-          "Mehrsprachige Oberfläche",
-          "Abteilungsrouting und Status-Flow",
-          "KPI-Tracking-Basis",
-        ],
-        variableLabel: "Das Angebot hängt ab von:",
-        variableText: "Umfang, Sektionen, Anzahl der Outlets, Request-Logik und Grad der Individualisierung.",
-        seasonalLines: [
-          "Saisonhotels können mit passendem Betriebsmodell arbeiten.",
-          "Zusätzliche Sektionen, KPI und Custom-Logik können später erweitert werden.",
-        ],
-        cta: "Angebot anfragen",
-      },
-
-      pricingSide: {
-        title: "Geeignet für:",
-        items: [
-          "Saisonhotels",
-          "Spa-Hotels",
-          "All-Inclusive-Hotels",
-          "Boutique-Hotels",
-          "Stadt- und Businesshotels",
-        ],
-      },
-
-      pricingImpl: {
-        title: "Implementierung",
-        text: "Nach Onboarding und gelieferten Materialien wird StayHub an die reale operative Logik des Hotels angepasst.",
-      },
-
-      faqTitle: "FAQ",
-      faqs: [
-        {
-          q: "Braucht jedes Zimmer einen eigenen QR-Code?",
-          a: "Nein. StayHub arbeitet mit einem gemeinsamen QR-Code. Der Gast bestätigt sein Zimmer direkt im Hub.",
-        },
-        {
-          q: "Muss der Gast eine App installieren?",
-          a: "Nein. StayHub läuft direkt im Browser und kann als App-Shortcut hinzugefügt werden.",
-        },
-        {
-          q: "Wie gelangen Anfragen zur richtigen Abteilung?",
-          a: "Jede Anfrage ist mit einer Abteilung verbunden und wird in der Datenbank gespeichert. Die Staff-Hubs zeigen die richtigen Anfragen pro Abteilung.",
-        },
-        {
-          q: "Was sieht das Management?",
-          a: "Das Management sieht alle Anfragen, ihre Status und eine KPI-Basis für Auslastung und Reaktionsfluss.",
-        },
-        {
-          q: "Funktioniert es auch mit einer gemeinsamen Telefonnummer?",
-          a: "Ja. StayHub nutzt keine Telefonnummern für das eigentliche Routing der Requests. Das Routing ist datenbankgesteuert.",
-        },
-        {
-          q: "Kann das Hotel einen eigenen Info-Bereich haben?",
-          a: "Ja. Frühstück, Pool, Spa, Parken, Wi-Fi, Notfallinformationen und andere Gastinfos können angezeigt werden.",
-        },
-        {
-          q: "Welche KPI können erfasst werden?",
-          a: "Zum Beispiel QR-Scans, Hub Open, Room Confirmed, Request Submitted, Staff-Statuswechsel und weitere Ereignisse.",
-        },
-        {
-          q: "Kann das System später erweitert werden?",
-          a: "Ja. Neue Sektionen, neue Request-Logik, neue KPI und weitere Integrationen können ergänzt werden.",
-        },
-      ],
-
-      footerTagline: "digitale Lösung für einen schnelleren und klareren Hotel-Gästefluss.",
-      footerNote: "",
-    };
-  }
-
-  return {
-    navDemo: "View demo",
-    navCta: "Request quote",
-
-    heroTitle: "A digital concierge\nthat solves real hotel problems.",
-    heroLines: [
-      "Guests scan one shared QR code and confirm their room.",
-      "Requests go directly to the right department inside the system.",
-      "Staff works in separate role-based screens and management sees everything.",
-      "No app. One clear flow. Real KPI for the hotel.",
-    ],
-    heroBadges: ["One Shared QR", "No App", "Multi-language", "Department Routing"],
-
-    challengeTitle: "Everyday hotel challenges",
-    challenges: [
-      {
-        title: "Overloaded reception",
-        text: "Small guest requests interrupt reservations, sales, reporting and operational control.",
-      },
-      {
-        title: "Slow internal coordination",
-        text: "When one request moves through several people, time, priority and clarity are lost.",
-      },
-      {
-        title: "Lack of visibility",
-        text: "Management often sees too late how many requests are open, where delays happen and which department is overloaded.",
-      },
-      {
-        title: "Different guest and staff needs",
-        text: "Guests expect speed and simplicity, while staff needs a clear and easy operational flow.",
-      },
-    ],
-
-    solutionTitle: "How does the digital concierge help?",
-    solutionBullets: [
-      "Reduces daily reception workload.",
-      "Routes guest requests to the correct department in a structured format.",
-      "Shortens response and handling time.",
-      "Lets guests use the hub in their own language.",
-      "Gives staff a clear and simple operational flow.",
-      "Manager sees all requests and statuses in one place.",
-      "Works with one shared QR code for all rooms.",
-      "Guest confirms the room inside the hub — no need for a separate QR per room.",
-      "Supports hotel info, Wi-Fi, outlets and reservation points.",
-      "Allows KPI tracking for scans, confirmed rooms, requests and completed requests.",
-      "Works directly in the browser with no app download.",
-    ],
-
-    howTitle: "How does StayHub work?",
-    howSubtitle: "One clear guest flow and dedicated working screens for the hotel team.",
-    howSteps: [
-      {
-        title: "Guest scans \none shared QR code",
-        text: "There is no need for a separate QR per room. The guest opens the hub from a shared code.",
-      },
-      {
-        title: "Guest confirms \nthe room",
-        text: "The room is stored for that device and all next actions are linked to it.",
-      },
-      {
-        title: "Guest submits \na structured request",
-        text: "Towels, maintenance, reception, minibar, late checkout and more — based on the hotel’s own logic.",
-      },
-      {
-        title: "The right department \nhandles the request",
-        text: "Housekeeping, maintenance, reception and manager all see the right requests and status flow.",
-      },
-    ],
-
-    trustTitle: "Why it works in a real hotel",
-    trustSubtitle:
-      "We do not add more chaos. We deliver a clear guest flow, a clear staff flow and real management visibility.",
-    trustBullets: [
-      "One shared QR code instead of printing and managing one code per room.",
-      "Structured requests instead of free chat and verbal handover.",
-      "Each department sees its own work, while management sees the full picture.",
-      "Suitable for both seasonal and year-round hotels.",
-    ],
-
-    featuresTitle: "Key features",
-    featuresSubtitle:
-      "Features that directly improve response speed and internal hotel organisation.",
-    features: [
-      {
-        title: "Guest Hub",
-        text: "QR opening, room confirmation, Wi-Fi, info section, departments, outlets and guest requests from the guest’s phone.",
-      },
-      {
-        title: "Staff Hub",
-        text: "Separate PIN-protected screens for reception, housekeeping and maintenance with status handling and alerts.",
-      },
-      {
-        title: "Manager Visibility",
-        text: "Manager screen with visibility across all requests, department workload and KPI base for reporting.",
-      },
-    ],
-
-    pricingTitle: "Pricing",
-    pricingSubtitle: "The final offer depends on hotel scope and implementation level.",
-
-    pricingCard: {
-      price: "from €99 / month",
-      setup: "Setup: depends on hotel scope, data, configuration, sections and implementation.",
-      includesTitle: "What is included",
-      includes: [
-        "Guest hub with hotel branding",
-        "One shared QR flow with room confirmation",
-        "Staff hubs for reception, housekeeping and maintenance",
-        "Manager view",
-        "Multi-language interface",
-        "Department routing and status flow",
-        "KPI tracking base",
-      ],
-      variableLabel: "The offer depends on:",
-      variableText: "scope, sections, number of outlets, request logic and customisation level.",
-      seasonalLines: [
-        "Seasonal hotels can work with an appropriate operational model.",
-        "Additional sections, KPI and custom logic can be expanded later.",
-      ],
-      cta: "Request quote",
-    },
-
-    pricingSide: {
-      title: "Best for:",
-      items: [
-        "Seasonal hotels",
-        "Spa hotels",
-        "All-inclusive hotels",
-        "Boutique hotels",
-        "City and business hotels",
-      ],
-    },
-
-    pricingImpl: {
-      title: "Implementation",
-      text: "After onboarding and materials, StayHub is configured around the real operational logic of the hotel.",
-    },
-
-    faqTitle: "FAQ",
-    faqs: [
-      {
-        q: "Does each room need its own QR code?",
-        a: "No. StayHub works with one shared QR code. The guest confirms the room inside the hub.",
-      },
-      {
-        q: "Does the guest need to install an app?",
-        a: "No. StayHub runs directly in the browser and can be added as an app shortcut.",
-      },
-      {
-        q: "How do requests reach the correct department?",
-        a: "Each request is linked to a department and stored in the database. Staff hubs show the correct requests for each team.",
-      },
-      {
-        q: "What does management see?",
-        a: "Management sees all requests, their statuses and a KPI base for workload and response flow.",
-      },
-      {
-        q: "Can it work with one shared phone number?",
-        a: "Yes. StayHub does not depend on phone numbers for the actual routing. Routing is database-driven.",
-      },
-      {
-        q: "Can the hotel have its own info section?",
-        a: "Yes. Breakfast, pool, spa, parking, Wi-Fi, emergency and other guest info blocks can be shown.",
-      },
-      {
-        q: "What KPI can be tracked?",
-        a: "For example QR scans, hub open, room confirmed, request submitted, staff status updates and more.",
-      },
-      {
-        q: "Can the system be expanded later?",
-        a: "Yes. New sections, new request logic, new KPI and additional integrations can be added.",
-      },
-    ],
-
-    footerTagline: "a digital system for a faster and clearer hotel guest flow.",
-    footerNote: "",
-  };
 }
