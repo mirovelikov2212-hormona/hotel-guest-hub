@@ -227,6 +227,7 @@ import type { StaffDepartment, StaffRequestType, StaffServiceTime, StaffRequestS
 import { usePathname, useSearchParams } from "next/navigation";
 import type { HotelConfig, LangKey, HubSection, DepartmentKey, HubItem, RequestDef } from "@/lib/types";
 import GuestOffersPanel from "@/components/guest/GuestOffersPanel";
+import DemoJourneyGuide from "@/components/guest/DemoJourneyGuide";
 import { getHotelOfferLocalizedText, getVisibleHotelOffers } from "@/lib/guest/hotel-offers.mjs";
 import { deriveGuestRuntimeCapabilities } from "@/lib/guest/guest-runtime-capabilities.mjs";
 import { resolveOperationalActionExecutionBridge } from "@/lib/guest/operational-action-execution-bridge.mjs";
@@ -2536,6 +2537,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       factoryOnboardingEnvelope,
     ]
   );
+  const isPublicDemoHotel =
+    String(config.hotelSlug || config.publicSlug || "").trim().toLowerCase() === "demo";
+
   // Keep the first server/client render identical. Browser, URL and localStorage
   // language detection runs after hydration to avoid React hydration error #418.
   const [lang, setLangState] = useState<LangKey>(() =>
@@ -2771,7 +2775,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         setRoom(storedRoom);
         setRoomConfirmed(true);
       } else {
-        setManualRoomInput(storedRoom || "");
+        setManualRoomInput(storedRoom || (isPublicDemoHotel ? "901" : ""));
         setRoom("");
         setRoomConfirmed(false);
       }
@@ -2823,7 +2827,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     setIgnoredQrRoom(null);
     setRoomModal(null);
     setRoomStateHydrated(true);
-  }, [roomStateKey, qrRoom, ignoredQrRoom, isKnownHotelRoom]);
+  }, [roomStateKey, qrRoom, ignoredQrRoom, isKnownHotelRoom, isPublicDemoHotel]);
 
   useEffect(() => {
     persistQrContextFromUrl();
@@ -9377,6 +9381,27 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
             </div>
           </div>
         </div>
+      ) : null}
+
+      {isPublicDemoHotel ? (
+        <DemoJourneyGuide
+          lang={String(lang)}
+          roomConfirmed={roomConfirmed}
+          room={room}
+          contactOpen={openQuickServiceId === "contact"}
+          hasRequest={showRequestSuccess || guestRequests.length > 0}
+          onFocusRoom={() => {
+            setManualRoomInput("901");
+            window.setTimeout(() => {
+              document
+                .getElementById("stayhub-room-confirmation")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 0);
+          }}
+          onOpenContact={() => {
+            setOpenQuickServiceId("contact");
+          }}
+        />
       ) : null}
 
       {guestRuntimeCapabilities.aiEnabled ? (
