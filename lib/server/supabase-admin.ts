@@ -4,8 +4,15 @@ if (typeof window !== "undefined") {
   throw new Error("supabaseAdmin can only be used on the server");
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const usePreviewTestSupabase = process.env.VERCEL_ENV === "preview";
+
+const supabaseUrl =
+  (usePreviewTestSupabase ? process.env.STAYHUB_TEST_SUPABASE_URL : "") ||
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+const serviceRoleKey =
+  (usePreviewTestSupabase ? process.env.STAYHUB_TEST_SUPABASE_SERVICE_ROLE_KEY : "") ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl) {
   throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL");
