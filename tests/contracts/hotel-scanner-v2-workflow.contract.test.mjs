@@ -119,12 +119,13 @@ test("Primary Intake ends after the quick request instead of resuming a durable 
   assert.doesNotMatch(source, /scan-v2-workflow|currentRunId|runAccessToken|pollStartedAt/);
 });
 
-test("Primary Scanner UI uses the quick Intake client while durable workflow stays internal", async () => {
+test("Primary Scanner entry converges on quick Intake while durable workflow stays internal", async () => {
   const page = await readProjectFile("app/hotel-scanner-v2/page.tsx");
   const client = await readProjectFile("app/hotel-scanner-v2-workflow/HotelScannerV2WorkflowClient.tsx");
   const workflowRoute = await readProjectFile("app/api/control-plane/hotel-scanner/scan-v2-workflow/route.ts");
 
-  assert.match(page, /HotelScannerV2WorkflowClient/);
+  assert.match(page, /redirect\(\`\/hotel-scanner-v2-workflow\?lang=\$\{lang\}\`\)/);
+  assert.doesNotMatch(page, /HotelScannerV2WorkflowClient/);
   assert.match(client, /scan-v2-preview/);
   assert.doesNotMatch(client, /scan-v2-workflow/);
   assert.match(workflowRoute, /start\(hotelScannerV2Workflow/);
