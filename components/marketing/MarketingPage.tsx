@@ -300,7 +300,7 @@ export default function MarketingPage({ lang }: { lang: Lang }) {
                 <a key={key} href={paths[key]} hrefLang={key} className={"rounded-full px-2.5 py-1 text-[10px] font-bold uppercase " + (key === lang ? "bg-white text-slate-950" : "text-white/50 hover:text-white")}>{key}</a>
               ))}
             </div>
-            <a href="/qr/demo?src=website&code=gostaya-nav" target="_blank" rel="noreferrer" className="rounded-xl bg-cyan-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-200">{c.nav.demo}</a>
+            <a href="/h/demo" target="_blank" rel="noreferrer" className="rounded-xl bg-cyan-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-200">{c.nav.demo}</a>
           </div>
         </div>
       </header>
@@ -314,7 +314,7 @@ export default function MarketingPage({ lang }: { lang: Lang }) {
             <p className="mt-6 max-w-3xl text-base leading-7 text-slate-300 sm:text-lg">{c.heroText}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a href="#product" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 transition hover:-translate-y-0.5">{c.heroPrimary}</a>
-              <a href="/qr/demo?src=website&code=gostaya-hero" target="_blank" rel="noreferrer" className="rounded-2xl border border-cyan-200/30 bg-cyan-200/[0.08] px-5 py-3 text-sm font-bold text-cyan-50 shadow-[0_0_28px_rgba(165,243,252,.08)] transition hover:bg-cyan-200/[0.14]">{c.heroSecondary}</a>
+              <a href="/h/demo" target="_blank" rel="noreferrer" className="rounded-2xl border border-cyan-200/30 bg-cyan-200/[0.08] px-5 py-3 text-sm font-bold text-cyan-50 shadow-[0_0_28px_rgba(165,243,252,.08)] transition hover:bg-cyan-200/[0.14]">{c.heroSecondary}</a>
             </div>
             <p className="mt-4 max-w-2xl text-xs leading-5 text-white/40">{c.heroNote}</p>
             <div className="mt-7 flex flex-wrap gap-2">
@@ -445,7 +445,7 @@ export default function MarketingPage({ lang }: { lang: Lang }) {
             <p className="mt-4 text-base leading-7 text-slate-300">{c.finalText}</p>
           </div>
           <div className="mt-7 flex shrink-0 flex-wrap gap-3 lg:mt-0">
-            <a href="/qr/demo?src=website&code=gostaya-footer" target="_blank" rel="noreferrer" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950">{c.finalDemo}</a>
+            <a href="/h/demo" target="_blank" rel="noreferrer" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950">{c.finalDemo}</a>
             <a href="mailto:sales@gostaya.com?subject=GOSTAYA%20demo" className="rounded-2xl border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white">{c.finalContact}</a>
           </div>
         </div>
