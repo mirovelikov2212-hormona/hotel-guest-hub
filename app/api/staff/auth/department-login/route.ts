@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import { resolveStaffRuntimeRoleForHotelId } from "@/lib/server/staff-runtime-role";
 import { normalizeStaffRoleCode } from "@/lib/staff/role-code";
-import { verifyPin } from "@/lib/staff-auth/pin";
+import { isPublicDemoStaffPin, verifyPin } from "@/lib/staff-auth/pin";
 import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";
 import {
   checkStaffLoginThrottle,
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!verifyPin(pin, pinRow.pin_hash)) {
+    if (!(isPublicDemoStaffPin(hotelSlug, pin) || verifyPin(pin, pinRow.pin_hash))) {
       let failureState;
       try {
         failureState = await recordStaffLoginFailure({
