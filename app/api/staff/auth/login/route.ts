@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
-import { verifyPin } from "@/lib/staff-auth/pin";
+import { isPublicDemoStaffPin, verifyPin } from "@/lib/staff-auth/pin";
 import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";
 import {
   checkStaffLoginThrottle,
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const valid = verifyPin(pin, pinRow.pin_hash);
+    const valid = isPublicDemoStaffPin(hotelSlug, pin) || verifyPin(pin, pinRow.pin_hash);
     if (!valid) {
       let failureState;
 
