@@ -10,6 +10,7 @@ on:
       - "tests/scenarios/system-operational-time-matrix.test.mjs"
       - "scripts/factory-final-620-peak.mjs"
       - "scripts/vercel-preview-auth-preload.mjs"
+      - "lib/server/hotel-scope.ts"
   workflow_dispatch:
 
 permissions:
