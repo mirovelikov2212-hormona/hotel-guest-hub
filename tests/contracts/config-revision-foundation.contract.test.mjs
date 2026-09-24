@@ -93,6 +93,7 @@ test("M9/M11 revision lifecycle vocabulary stays explicit and finite", () => {
     "manual",
     "local_demo",
     "production_clone",
+    "manager_change",
   ]);
 });
 
