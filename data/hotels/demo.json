@@ -2,28 +2,71 @@
   "hotelSlug": "demo",
   "hotelName": "Hotel Demo",
   "coverImage": "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=1600&q=80&auto=format&fit=crop",
-  "languages": ["bg", "de", "en"],
+  "languages": [
+    "bg",
+    "de",
+    "en"
+  ],
   "opsLanguage": "bg",
   "staffHelperEnabled": true,
   "staffHelperLanguage": "en",
   "departmentHours": {
-    "reception": { "open": "00:00", "close": "23:59" },
-    "housekeeping": { "open": "08:00", "close": "17:00" },
-    "restaurant": { "open": "12:00", "close": "22:00" },
-    "events": { "open": "10:00", "close": "18:00" },
-    "maintenance": { "open": "09:00", "close": "17:00" }
+    "reception": {
+      "open": "00:00",
+      "close": "23:59"
+    },
+    "housekeeping": {
+      "open": "08:00",
+      "close": "17:00"
+    },
+    "restaurant": {
+      "open": "12:00",
+      "close": "22:00"
+    },
+    "events": {
+      "open": "10:00",
+      "close": "18:00"
+    },
+    "maintenance": {
+      "open": "09:00",
+      "close": "17:00"
+    }
   },
-  "taxiProviders": [{ "name": "Uber", "url": "https://m.uber.com/" }],
-  "wifi": { "ssid": "HotelGuest", "password": "Welcome2026" },
+  "taxiProviders": [
+    {
+      "name": "Uber",
+      "url": "https://m.uber.com/"
+    }
+  ],
+  "wifi": {
+    "ssid": "HotelGuest",
+    "password": "Welcome2026"
+  },
   "contacts": {
-    "reception": { "phone": "+4917698245333", "whatsapp": "4917698245333" },
-    "housekeeping": { "whatsapp": "4917698245333" },
-    "restaurant": { "whatsapp": "4917698245333" },
-    "events": { "whatsapp": "4917698245333" },
-    "maintenance": { "whatsapp": "4917698245333" }
+    "reception": {
+      "phone": "+4917698245333",
+      "whatsapp": "4917698245333"
+    },
+    "housekeeping": {
+      "whatsapp": "4917698245333"
+    },
+    "restaurant": {
+      "whatsapp": "4917698245333"
+    },
+    "events": {
+      "whatsapp": "4917698245333"
+    },
+    "maintenance": {
+      "whatsapp": "4917698245333"
+    }
   },
-  "location": { "query": "Offenbach am Main" },
-  "reviews": { "google": "", "tripadvisor": "" },
+  "location": {
+    "query": "Offenbach am Main"
+  },
+  "reviews": {
+    "google": "",
+    "tripadvisor": ""
+  },
   "i18n": {
     "bg": {
       "hero_subtitle": "Всичко за вашия престой на едно място.",
@@ -61,20 +104,16 @@
       "leave_tripadvisor_review": "⭐ TripAdvisor Review",
       "notice": "Тази услуга е за реални заявки. Злоупотребата може да забави обслужването.",
       "install_app": "Инсталирай като App",
-
       "laundry": "🧺 Пране",
       "iron": "🧲 Ютия и дъска",
       "minibar": "🥤 Зареждане минибар",
       "blanket": "🛌 Допълнителна завивка",
       "room_service": "🛎 Room service",
-
       "maintenance_title": "🛠 Поддръжка",
       "ac_issue": "❄️ Климатик / отопление",
       "water_issue": "🚿 Проблем с водата",
       "coffee_machine": "☕ Кафе машина",
-
       "dept_closed_to_reception": "Отделът не работи в момента. Заявката ще бъде изпратена към рецепция.",
-
       "prompt_date": "Дата (ДД.ММ.ГГГГ):",
       "prompt_time": "Час (ЧЧ:ММ):",
       "invalid_date": "Невалидна дата. Пример: 09.03.2026",
@@ -88,46 +127,37 @@
       "prompt_occasion": "Повод (напр. рожден ден):",
       "example_date": "дд.мм.гггг",
       "example_time": "чч:мм",
-
       "ai_title": "AI Консиерж",
       "ai_placeholder": "Задай въпрос за хотела…",
       "ai_send": "Изпрати",
       "ai_loading": "Мисля…",
       "ai_error": "Грешка. Опитай пак.",
-
       "emergency_title": "Спешен случай",
       "emergency_call": "📞 Спешно обаждане към рецепция",
-
       "msg_reception_general": "Здравейте, имам въпрос относно престоя ми.",
       "msg_late_checkout": "Рецепция - Искам късен check-out. Благодаря!",
       "msg_taxi": "Рецепция - Моля, поръчайте такси. Час: ____",
       "msg_wakeup": "Рецепция - Моля, събуждане в ____ часа.",
-
       "msg_towels": "Housekeeping - Моля, донесете хавлии.",
       "msg_toilet_paper": "Housekeeping - Моля, донесете тоалетна хартия.",
       "msg_room_cleaning": "Housekeeping - Моля, почистване на стаята.",
       "msg_extra_pillows": "Housekeeping - Моля, допълнителни възглавници.",
-
       "msg_something_broken": "Maintenance - Нещо е счупено в стаята: ____",
       "msg_reserve_table": "Restaurant - Искам резервация за ____ човека на ____ (дата) в ____ часа. Повод: ____",
       "msg_allergens": "Restaurant - Имам въпрос за алергени: ____",
       "msg_themed_night": "Restaurant - Интересувам се от тематичната вечер.",
       "msg_events": "Events - Интересувам се от програмата/събитията.",
       "msg_kids": "Events - Интересувам се от детската програма.",
-
       "msg_laundry": "Housekeeping - Пране. Детайли: ____",
       "msg_iron": "Housekeeping - Ютия и дъска. Детайли: ____",
       "msg_minibar": "Housekeeping - Зареждане минибар. Детайли: ____",
       "msg_blanket": "Housekeeping - Допълнителна завивка.",
       "msg_room_service": "Restaurant - Room service заявка: ____",
-
       "msg_ac_issue": "Maintenance - Проблем с климатик/отопление. Детайли: ____",
       "msg_water_issue": "Maintenance - Проблем с водата. Детайли: ____",
       "msg_coffee_machine": "Maintenance - Кафе машината не работи. Детайли: ____",
-
       "msg_emergency": "EMERGENCY - Спешен случай. Детайли: ____"
     },
-
     "de": {
       "hero_subtitle": "Alles für Ihren Aufenthalt an einem Ort.",
       "wifi_title": "📶 WLAN",
@@ -164,20 +194,16 @@
       "leave_tripadvisor_review": "⭐ TripAdvisor Bewertung",
       "notice": "Bitte nur echte Anfragen. Missbrauch kann den Service verzögern.",
       "install_app": "Als App installieren",
-
       "laundry": "🧺 Wäsche",
       "iron": "🧲 Bügeleisen & Brett",
       "minibar": "🥤 Minibar auffüllen",
       "blanket": "🛌 Extra Decke",
       "room_service": "🛎 Zimmerservice",
-
       "maintenance_title": "🛠 Technik",
       "ac_issue": "❄️ Klima / Heizung",
       "water_issue": "🚿 Wasserproblem",
       "coffee_machine": "☕ Kaffeemaschine",
-
       "dept_closed_to_reception": "Die Abteilung ist aktuell geschlossen. Die Anfrage wird an die Rezeption weitergeleitet.",
-
       "prompt_date": "Datum (TT.MM.JJJJ):",
       "prompt_time": "Uhrzeit (HH:MM):",
       "invalid_date": "Ungültiges Datum. Beispiel: 09.03.2026",
@@ -191,46 +217,37 @@
       "prompt_occasion": "Anlass (z.B. Geburtstag):",
       "example_date": "TT.MM.JJJJ",
       "example_time": "HH:MM",
-
       "ai_title": "AI Concierge",
       "ai_placeholder": "Stelle eine Frage zum Hotel…",
       "ai_send": "Senden",
       "ai_loading": "Denke…",
       "ai_error": "Fehler. Bitte erneut versuchen.",
-
       "emergency_title": "Notfall",
       "emergency_call": "📞 Notruf an die Rezeption",
-
       "msg_reception_general": "Hallo, ich habe eine Frage zu meinem Aufenthalt.",
       "msg_late_checkout": "Rezeption - Ich wünsche einen Late Check-out. Danke!",
       "msg_taxi": "Rezeption - Bitte ein Taxi bestellen. Uhrzeit: ____",
       "msg_wakeup": "Rezeption - Bitte Weckruf um ____ Uhr.",
-
       "msg_towels": "Housekeeping - Bitte Handtücher bringen.",
       "msg_toilet_paper": "Housekeeping - Bitte Toilettenpapier bringen.",
       "msg_room_cleaning": "Housekeeping - Bitte Zimmer reinigen.",
       "msg_extra_pillows": "Housekeeping - Bitte extra Kissen.",
-
       "msg_something_broken": "Technik - Im Zimmer ist etwas kaputt: ____",
       "msg_reserve_table": "Restaurant - Tischreservierung für ____ Personen am ____ (Datum) um ____ Uhr. Anlass: ____",
       "msg_allergens": "Restaurant - Frage zu Allergenen: ____",
       "msg_themed_night": "Restaurant - Frage zum Themenabend.",
       "msg_events": "Events - Frage zum Programm/Events.",
       "msg_kids": "Events - Frage zum Kinderprogramm.",
-
       "msg_laundry": "Housekeeping - Wäsche. Details: ____",
       "msg_iron": "Housekeeping - Bügeleisen & Brett. Details: ____",
       "msg_minibar": "Housekeeping - Minibar auffüllen. Details: ____",
       "msg_blanket": "Housekeeping - Extra Decke.",
       "msg_room_service": "Restaurant - Zimmerservice Anfrage: ____",
-
       "msg_ac_issue": "Technik - Problem mit Klima/Heizung. Details: ____",
       "msg_water_issue": "Technik - Wasserproblem. Details: ____",
       "msg_coffee_machine": "Technik - Kaffeemaschine funktioniert nicht. Details: ____",
-
       "msg_emergency": "EMERGENCY - Notfall. Details: ____"
     },
-
     "en": {
       "hero_subtitle": "Everything for your stay in one place.",
       "wifi_title": "📶 WiFi",
@@ -267,20 +284,16 @@
       "leave_tripadvisor_review": "⭐ TripAdvisor Review",
       "notice": "For genuine requests only. Misuse may delay service.",
       "install_app": "Install as App",
-
       "laundry": "🧺 Laundry",
       "iron": "🧲 Iron & board",
       "minibar": "🥤 Refill minibar",
       "blanket": "🛌 Extra blanket",
       "room_service": "🛎 Room service",
-
       "maintenance_title": "🛠 Maintenance",
       "ac_issue": "❄️ AC / heating",
       "water_issue": "🚿 Water issue",
       "coffee_machine": "☕ Coffee machine",
-
       "dept_closed_to_reception": "This department is currently closed. Your request will be sent to reception.",
-
       "prompt_date": "Date (DD.MM.YYYY):",
       "prompt_time": "Time (HH:MM):",
       "invalid_date": "Invalid date. Example: 09.03.2026",
@@ -294,44 +307,54 @@
       "prompt_occasion": "Occasion (e.g. birthday):",
       "example_date": "dd.mm.yyyy",
       "example_time": "hh:mm",
-
       "ai_title": "AI Concierge",
       "ai_placeholder": "Ask a question about the hotel…",
       "ai_send": "Send",
       "ai_loading": "Thinking…",
       "ai_error": "Error. Please try again.",
-
       "emergency_title": "Emergency",
       "emergency_call": "📞 Call reception (emergency)",
-
       "msg_reception_general": "Hello, I have a question about my stay.",
       "msg_late_checkout": "Reception - I would like a late check-out. Thank you!",
       "msg_taxi": "Reception - Please order a taxi. Time: ____",
       "msg_wakeup": "Reception - Wake-up call at ____ please.",
-
       "msg_towels": "Housekeeping - Need towels please.",
       "msg_toilet_paper": "Housekeeping - Need toilet paper please.",
       "msg_room_cleaning": "Housekeeping - Room cleaning request.",
       "msg_extra_pillows": "Housekeeping - Extra pillows please.",
-
       "msg_something_broken": "Maintenance - Something is broken in the room: ____",
       "msg_reserve_table": "Restaurant - Table reservation for ____ people on ____ (date) at ____. Occasion: ____",
       "msg_allergens": "Restaurant - Question about allergens: ____",
       "msg_themed_night": "Restaurant - Asking about themed night.",
       "msg_events": "Events - Asking about events/program.",
       "msg_kids": "Events - Asking about kids program.",
-
       "msg_laundry": "Housekeeping - Laundry. Details: ____",
       "msg_iron": "Housekeeping - Iron & board. Details: ____",
       "msg_minibar": "Housekeeping - Refill minibar. Details: ____",
       "msg_blanket": "Housekeeping - Extra blanket.",
       "msg_room_service": "Restaurant - Room service request: ____",
-
       "msg_ac_issue": "Maintenance - AC/heating issue. Details: ____",
       "msg_water_issue": "Maintenance - Water issue. Details: ____",
       "msg_coffee_machine": "Maintenance - Coffee machine not working. Details: ____",
-
       "msg_emergency": "EMERGENCY - Please assist immediately. Details: ____"
     }
-  }
+  },
+  "hotelRooms": [
+    {
+      "roomNumber": "901",
+      "floor": "9",
+      "building": "Demo",
+      "roomType": "Demo room",
+      "active": true
+    }
+  ],
+  "validRoomNumbers": [
+    "901"
+  ],
+  "testRoomNumbers": [
+    "901"
+  ],
+  "testModeEnabled": true,
+  "geoGuardEnabled": false,
+  "hotelTimezone": "Europe/Sofia"
 }
