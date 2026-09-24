@@ -27,7 +27,7 @@ function createDemoAccessToken(pin: string) {
 }
 
 export function isDemoAccessConfigured() {
-  return getDemoAccessPin().length > 0;
+  return PUBLIC_MARKETING_DEMO_PIN.length > 0;
 }
 
 export function validateDemoAccessPin(inputPin: unknown) {
@@ -43,10 +43,7 @@ export function validateDemoAccessPin(inputPin: unknown) {
 
 export function getDemoAccessCookieValue() {
   const configuredPin = getDemoAccessPin();
-
-  if (!configuredPin) return "";
-
-  return createDemoAccessToken(configuredPin);
+  return createDemoAccessToken(configuredPin || PUBLIC_MARKETING_DEMO_PIN);
 }
 
 export function hasValidDemoAccessCookie(cookieValue: unknown) {
