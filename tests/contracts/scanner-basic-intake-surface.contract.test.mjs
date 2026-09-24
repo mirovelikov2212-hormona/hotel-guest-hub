@@ -32,6 +32,12 @@ test("active Scanner intake UI uses only quick preview and exposes no deep workf
     'fetch("/api/control-plane/hotel-scanner/scan"',
   );
   assertNotContains(source, "/scan-v2-workflow/resume");
+
+  const page = await readProjectFile("app/hotel-scanner-v2-workflow/page.tsx");
+  assertContains(page, "Basic Intake");
+  assertContains(page, "bounded quick preview");
+  assertContains(page, 'href={`/control-plane?lang=${lang}`}');
+  assertNotContains(page, "durable workflow");
 });
 
 test("quick preview remains non-production and does not launch deep continuation", async () => {
