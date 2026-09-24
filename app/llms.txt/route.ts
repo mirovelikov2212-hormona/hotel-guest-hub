@@ -45,7 +45,7 @@ The time-saved figure is a modeled estimate, not stopwatch-measured labor time. 
 
 ## Demo
 
-Live Guest Hub demo: https://gostaya.com/qr/demo?src=llms&code=gostaya-llms\nPublic demo PIN: 2026\nThe demo is an isolated demo tenant and does not send requests to a real hotel.
+Live Guest Hub demo: https://gostaya.com/h/demo\nPublic demo PIN: 2026\nThe demo is an isolated demo tenant and does not send requests to a real hotel.
 `;
 
 export function GET() {
