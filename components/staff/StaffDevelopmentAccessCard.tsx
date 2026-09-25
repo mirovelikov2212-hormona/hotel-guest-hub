@@ -42,7 +42,7 @@ const COPY = {
     managerTitle: "Развитие на персонала",
     body: "Стандарти, обучения, тестове и проверими резултати.",
     managerBody:
-      "Хотелски и departmental стандарти, обучения, тестове, проверими резултати и управленски анализ."
+      "Хотелски и departmental стандарти, обучения, тестове, проверими резултати и управленски анализ.",
     open: "Отвори модула",
     intelligenceOn: "Manager Intelligence активен",
     intelligenceOff: "Manager Intelligence не е активен",
@@ -57,7 +57,7 @@ const COPY = {
     managerTitle: "Staff Development",
     body: "Standards, training, assessments and verified results.",
     managerBody:
-      "Hotel and department standards, training, assessments, verified results and management analysis."
+      "Hotel and department standards, training, assessments, verified results and management analysis.",
     open: "Open module",
     intelligenceOn: "Manager Intelligence enabled",
     intelligenceOff: "Manager Intelligence not enabled",
@@ -72,7 +72,7 @@ const COPY = {
     managerTitle: "Personalentwicklung",
     body: "Standards, Schulungen, Tests und verifizierte Ergebnisse.",
     managerBody:
-      "Hotel- und Abteilungsstandards, Schulungen, Tests, verifizierte Ergebnisse und Management-Analyse."
+      "Hotel- und Abteilungsstandards, Schulungen, Tests, verifizierte Ergebnisse und Management-Analyse.",
     open: "Modul öffnen",
     intelligenceOn: "Manager Intelligence aktiv",
     intelligenceOff: "Manager Intelligence nicht aktiv",
@@ -234,7 +234,7 @@ export default function StaffDevelopmentAccessCard({
 
         <Link
           href={`/staff/${availability.hotelSlug}/${developmentRole}/development`}
-          className="inline-flex shrink-0 items-center justify-center rounded-xl border border-white/15 bg-black/20 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:border-white/30"
+          className="inline-flex shrink-0 items-center justify-center rounded-xl border border-violet-700 bg-violet-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-800"
         >
           {copy.open} →
         </Link>
