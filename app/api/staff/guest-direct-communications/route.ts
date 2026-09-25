@@ -112,7 +112,11 @@ export async function GET(req: NextRequest) {
         .eq("hotel_id", access.hotel.id)
         .eq("status", "active")
         .eq("lifecycle_state", "active")
-        .or(access.hotel.isSandbox ? "is_test.is.null,is_test.eq.false,is_test.eq.true" : "is_test.is.null,is_test.eq.false")
+        .or(
+          access.hotel.isSandbox || access.hotel.slug === "demo"
+            ? "is_test.is.null,is_test.eq.false,is_test.eq.true"
+            : "is_test.is.null,is_test.eq.false"
+        )
         .gt("effective_check_out_at", now)
         .order("room_number", { ascending: true })
         .limit(1000),
