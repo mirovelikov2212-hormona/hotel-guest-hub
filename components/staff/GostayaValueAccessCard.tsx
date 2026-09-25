@@ -16,22 +16,22 @@ type Availability = {
 
 const COPY = {
   bg: {
-    title: "GOSTAYA Value / ROI",
+    title: "Оперативна стойност и спестено време",
     body:
-      "Measured Value, Estimated Value, staff time saved, Revenue и финансов ROI спрямо baseline-а на хотела.",
-    open: "Отвори Value Engine",
+      "Измерва Direct Routing, Reception Bypass, AI Containment, service recovery, моделирано спестено време и стойността на доказаните допълнителни услуги спрямо baseline-а на хотела.",
+    open: "Отвори оперативния ефект",
   },
   en: {
-    title: "GOSTAYA Value / ROI",
+    title: "Operational Value & Time Saved",
     body:
-      "Measured Value, Estimated Value, staff time saved, Revenue and financial ROI against the hotel's baseline.",
-    open: "Open Value Engine",
+      "Measures Direct Routing, Reception Bypass, AI Containment, service recovery, modeled staff time saved and verified paid-service value against the hotel baseline.",
+    open: "Open operational value",
   },
   de: {
-    title: "GOSTAYA Value / ROI",
+    title: "Operativer Wert & Zeitersparnis",
     body:
-      "Measured Value, Estimated Value, eingesparte Personalzeit, Revenue und finanzieller ROI gegenüber der Hotel-Baseline.",
-    open: "Value Engine öffnen",
+      "Misst Direct Routing, Reception Bypass, AI Containment, Service Recovery, modellierte Zeiteinsparung und verifizierten Wert aus Zusatzleistungen gegenüber der Hotel-Baseline.",
+    open: "Operativen Wert öffnen",
   },
 } as const;
 
@@ -89,19 +89,19 @@ export default function GostayaValueAccessCard({
   if (!available) return null;
 
   return (
-    <section className="rounded-2xl border border-cyan-300/20 bg-cyan-400/5 p-4">
+    <section className="h-full rounded-2xl border border-cyan-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100/70">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-800">
             {copy.title}
           </p>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-white/65">
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
             {copy.body}
           </p>
         </div>
         <Link
           href={`/staff/${hotelSlug}/manager/value`}
-          className="inline-flex shrink-0 items-center justify-center rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-4 py-2.5 text-sm font-semibold text-cyan-50 transition hover:border-cyan-300/45"
+          className="inline-flex shrink-0 items-center justify-center rounded-xl border border-cyan-800 bg-cyan-800 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-cyan-900"
         >
           {copy.open} →
         </Link>
