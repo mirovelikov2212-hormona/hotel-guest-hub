@@ -7,6 +7,8 @@ import StaffDevelopmentAccessCard from "@/components/staff/StaffDevelopmentAcces
 import StaffFilterButton from "@/components/staff/StaffFilterButton";
 import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
+import GuestCommunicationsWorkspace from "@/components/staff/GuestCommunicationsWorkspace";
+import GuestDirectCommunicationsWorkspace from "@/components/staff/GuestDirectCommunicationsWorkspace";
 import { ReceptionTodaySurveysCard, useStaffSurveys } from "@/components/staff/StaffSurveyCards";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
 import { useStaffTabTitleAlert } from "@/components/staff/useStaffTabTitleAlert";
@@ -597,6 +599,18 @@ export default function ReceptionPage({
         markingId={markingSurveyId}
         onMarkRead={(id) => void markSurveyRead(id)}
       />
+
+
+      {hotelSlug ? (
+        <section id="reception-guest-messages" className="space-y-4">
+          <div id="reception-direct-message">
+            <GuestDirectCommunicationsWorkspace hotelSlug={hotelSlug} role="reception" />
+          </div>
+          <div id="reception-broadcast-message">
+            <GuestCommunicationsWorkspace hotelSlug={hotelSlug} role="reception" />
+          </div>
+        </section>
+      ) : null}
 
       <section className="space-y-4">
         <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-4">
