@@ -8452,13 +8452,14 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
   );
 
   const factoryPremiumTiles: PremiumTileModel[] = [
+    // Factory hotels follow the same visual rule: operational departments stay together.
+    ...factoryConfiguredDepartmentTiles,
     ...(infoCombinedSection
       ? [{ id: "info", iconId: "info", title: premiumSectionCopy.hotelInfo, section: infoCombinedSection, requiresRoom: true }]
       : []),
     ...(policyCombinedSection
       ? [{ id: "hotel_policies", iconId: "policy", title: getPremiumServiceTitle(lang, "hotelPolicy"), section: policyCombinedSection, requiresRoom: false }]
       : []),
-    ...factoryConfiguredDepartmentTiles,
     ...(emergencyTileSection
       ? [{ id: "emergency", iconId: "emergency", title: lang === "bg" ? "Спешно повикване" : String(emergencyTileSection.title || "Emergency call"), section: emergencyTileSection, requiresRoom: false, special: "emergency" as const }]
       : []),
