@@ -85,10 +85,10 @@ type RevenueResponse = {
 
 const COPY = {
   bg: {
-    eyebrow: "Revenue & Upsell",
-    title: "Ancillary Revenue",
+    eyebrow: "ПЛАТЕНИ УСЛУГИ",
+    title: "Приходи от допълнителни услуги",
     intro:
-      "Приходи от платени услуги, които StayHub може да докаже чрез request → billing ledger. Това не е RMS и не включва приходите от стаи.",
+      "Тук се виждат само доказуемите приходи от платени услуги в GOSTAYA — например масажи, late check-out и други хотелски extras, минали през request → billing ledger. Това не е RMS и не включва цени на стаи, ADR, RevPAR, Occupancy или общия приход на хотела.",
     tracked: "Проследен нетен приход",
     gross: "Брутно начислено",
     reversals: "Reversals",
@@ -141,10 +141,10 @@ const COPY = {
     days365: "365 дни",
   },
   en: {
-    eyebrow: "Revenue & Upsell",
-    title: "Ancillary Revenue",
+    eyebrow: "PAID SERVICES",
+    title: "Additional Service Revenue",
     intro:
-      "Paid-service revenue that StayHub can prove through request → billing ledger. This is not an RMS and does not include room revenue.",
+      "This view contains only paid-service revenue GOSTAYA can evidence through request → billing ledger, such as massages, late checkout and other hotel extras. It is not an RMS and does not include room rates, ADR, RevPAR, occupancy or total hotel revenue.",
     tracked: "Tracked net revenue",
     gross: "Gross recognized",
     reversals: "Reversals",
@@ -197,10 +197,10 @@ const COPY = {
     days365: "365 days",
   },
   de: {
-    eyebrow: "Revenue & Upsell",
-    title: "Ancillary Revenue",
+    eyebrow: "KOSTENPFLICHTIGE ZUSATZLEISTUNGEN",
+    title: "Umsatz aus Zusatzleistungen",
     intro:
-      "Umsatz aus kostenpflichtigen Leistungen, den StayHub über Request → Billing Ledger nachweisen kann. Dies ist kein RMS und enthält keinen Zimmerumsatz.",
+      "Hier erscheinen nur Umsätze aus kostenpflichtigen Leistungen, die GOSTAYA über Request → Billing Ledger belegen kann, z. B. Massagen, Late Check-out und weitere Extras. Kein RMS: keine Zimmerpreise, ADR, RevPAR, Occupancy oder Gesamtumsätze des Hotels.",
     tracked: "Erfasster Nettoumsatz",
     gross: "Brutto gebucht",
     reversals: "Stornierungen",
@@ -396,7 +396,7 @@ export default function RevenueDashboard({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200/70">
-              StayHub · {copy.eyebrow}
+              GOSTAYA · {copy.eyebrow}
             </p>
             <h2 className="mt-2 text-2xl font-semibold text-white">{copy.title}</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
