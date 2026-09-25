@@ -1,4 +1,5 @@
 import GostayaValueDashboard from "@/components/staff/value/GostayaValueDashboard";
+import ManagerModuleBackLink from "@/components/staff/ManagerModuleBackLink";
 import {
   requireHotelProductModuleAccess,
 } from "@/lib/server/product-module-entitlements";
@@ -21,5 +22,10 @@ export default async function ManagerValuePage({
     "revenue_intelligence",
   );
 
-  return <GostayaValueDashboard hotelSlug={hotelSlug} />;
+  return (
+    <>
+      <ManagerModuleBackLink hotelSlug={hotelSlug} />
+      <GostayaValueDashboard hotelSlug={hotelSlug} />
+    </>
+  );
 }
