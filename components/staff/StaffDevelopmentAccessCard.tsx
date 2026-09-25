@@ -39,10 +39,10 @@ type AttentionState =
 const COPY = {
   bg: {
     title: "Развитие на персонала",
-    managerTitle: "Персонал и Manager Intelligence",
+    managerTitle: "Развитие на персонала",
     body: "Стандарти, обучения, тестове и проверими резултати.",
     managerBody:
-      "Стандарти, обучения, тестове, verified results и управленски анализ.",
+      "Хотелски и departmental стандарти, обучения, тестове, проверими резултати и управленски анализ."
     open: "Отвори модула",
     intelligenceOn: "Manager Intelligence активен",
     intelligenceOff: "Manager Intelligence не е активен",
@@ -54,10 +54,10 @@ const COPY = {
   },
   en: {
     title: "Staff Development",
-    managerTitle: "Staff & Manager Intelligence",
+    managerTitle: "Staff Development",
     body: "Standards, training, assessments and verified results.",
     managerBody:
-      "Standards, training, assessments, verified results and management analysis.",
+      "Hotel and department standards, training, assessments, verified results and management analysis."
     open: "Open module",
     intelligenceOn: "Manager Intelligence enabled",
     intelligenceOff: "Manager Intelligence not enabled",
@@ -69,10 +69,10 @@ const COPY = {
   },
   de: {
     title: "Personalentwicklung",
-    managerTitle: "Personal & Manager Intelligence",
+    managerTitle: "Personalentwicklung",
     body: "Standards, Schulungen, Tests und verifizierte Ergebnisse.",
     managerBody:
-      "Standards, Schulungen, Tests, verifizierte Ergebnisse und Management-Analyse.",
+      "Hotel- und Abteilungsstandards, Schulungen, Tests, verifizierte Ergebnisse und Management-Analyse."
     open: "Modul öffnen",
     intelligenceOn: "Manager Intelligence aktiv",
     intelligenceOff: "Manager Intelligence nicht aktiv",
@@ -190,18 +190,18 @@ export default function StaffDevelopmentAccessCard({
     : availability.runtimeRole.departmentCode || role;
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/5 p-4">
+    <section className="h-full rounded-2xl border border-violet-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-700">
             {isManager ? copy.managerTitle : copy.title}
           </p>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-white/65">
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
             {isManager ? copy.managerBody : copy.body}
           </p>
 
           {isManager ? (
-            <p className="mt-2 text-xs text-white/50">
+            <p className="mt-2 text-xs text-slate-500">
               {availability.modules.managerIntelligence
                 ? copy.intelligenceOn
                 : copy.intelligenceOff}
@@ -209,7 +209,7 @@ export default function StaffDevelopmentAccessCard({
           ) : null}
 
           {isManager && attention.status === "identity_required" ? (
-            <p className="mt-2 max-w-2xl text-xs leading-5 text-white/45">
+            <p className="mt-2 max-w-2xl text-xs leading-5 text-violet-700">
               {copy.identify}
             </p>
           ) : null}
@@ -223,9 +223,9 @@ export default function StaffDevelopmentAccessCard({
               ].map(([label, value]) => (
                 <span
                   key={String(label)}
-                  className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-xs text-white/65"
+                  className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600"
                 >
-                  {label}: <strong className="text-white/90">{value}</strong>
+                  {label}: <strong className="text-slate-900">{value}</strong>
                 </span>
               ))}
             </div>
@@ -234,7 +234,7 @@ export default function StaffDevelopmentAccessCard({
 
         <Link
           href={`/staff/${availability.hotelSlug}/${developmentRole}/development`}
-          className="inline-flex shrink-0 items-center justify-center rounded-xl border border-white/15 bg-black/20 px-4 py-2.5 text-sm font-semibold text-white/90 transition hover:border-white/30"
+          className="inline-flex shrink-0 items-center justify-center rounded-xl border border-white/15 bg-black/20 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:border-white/30"
         >
           {copy.open} →
         </Link>
