@@ -108,10 +108,10 @@ type Result = {
 
 const COPY = {
   bg: {
-    eyebrow: "Manager Intelligence · Value Measurement",
-    title: "GOSTAYA ROI / Value Engine",
+    eyebrow: "MANAGER INTELLIGENCE · OPERATIONAL VALUE",
+    title: "Оперативна стойност и спестено време",
     intro:
-      "Измерва икономическата стойност върху реалния baseline на конкретния хотел. Реално осчетоводената стойност и моделираната икономия никога не се смесват.",
+      "Измерва ефекта на GOSTAYA спрямо baseline-а на конкретния хотел: Direct Routing, Reception Bypass, AI Containment, service recovery, моделирано спестено време и доказуеми приходи от допълнителни услуги. Това не е хотелски P&L и не включва приходите от стаи. Измерените данни и моделираните оценки остават отделени.",
     measured: "Measured Value",
     measuredHelp: "Реално признат ancillary revenue от billing ledger.",
     estimated: "Estimated Value",
@@ -180,10 +180,10 @@ const COPY = {
       "Estimated Value може да бъде отрицателна, ако operational резултатът е по-слаб от baseline-а.",
   },
   en: {
-    eyebrow: "Manager Intelligence · Value Measurement",
-    title: "GOSTAYA ROI / Value Engine",
+    eyebrow: "MANAGER INTELLIGENCE · OPERATIONAL VALUE",
+    title: "Operational Value & Time Saved",
     intro:
-      "Measures economic value against the real baseline of the specific hotel. Recognized value and modeled savings are never blended into the same category.",
+      "Measures GOSTAYA's effect against the hotel's own baseline: Direct Routing, Reception Bypass, AI Containment, service recovery, modeled staff time saved and evidenced additional-service revenue. This is not the hotel's P&L and excludes room revenue. Measured facts and modeled estimates remain separate.",
     measured: "Measured Value",
     measuredHelp: "Actual recognized ancillary revenue from the billing ledger.",
     estimated: "Estimated Value",
@@ -252,10 +252,10 @@ const COPY = {
       "Estimated Value can be negative when operational performance is worse than the hotel baseline.",
   },
   de: {
-    eyebrow: "Manager Intelligence · Value Measurement",
-    title: "GOSTAYA ROI / Value Engine",
+    eyebrow: "MANAGER INTELLIGENCE · OPERATIONAL VALUE",
+    title: "Operativer Wert & Zeitersparnis",
     intro:
-      "Misst den wirtschaftlichen Wert anhand der realen Baseline des jeweiligen Hotels. Tatsächlich erfasster Wert und modellierte Einsparungen bleiben getrennt.",
+      "Misst den Effekt von GOSTAYA gegenüber der hotelspezifischen Baseline: Direct Routing, Reception Bypass, AI Containment, Service Recovery, modellierte Zeitersparnis und belegte Umsätze aus Zusatzleistungen. Kein Hotel-P&L und keine Zimmerumsätze. Gemessene Fakten und modellierte Schätzungen bleiben getrennt.",
     measured: "Measured Value",
     measuredHelp: "Tatsächlich erfasster Ancillary Revenue aus dem Billing Ledger.",
     estimated: "Estimated Value",
