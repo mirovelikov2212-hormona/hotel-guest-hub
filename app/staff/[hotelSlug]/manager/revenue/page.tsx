@@ -1,4 +1,5 @@
 import RevenueDashboard from "@/components/staff/revenue/RevenueDashboard";
+import ManagerModuleBackLink from "@/components/staff/ManagerModuleBackLink";
 import {
   requireHotelProductModuleAccess,
 } from "@/lib/server/product-module-entitlements";
@@ -17,5 +18,10 @@ export default async function ManagerRevenuePage({
     "revenue_intelligence",
   );
 
-  return <RevenueDashboard hotelSlug={hotelSlug} />;
+  return (
+    <>
+      <ManagerModuleBackLink hotelSlug={hotelSlug} />
+      <RevenueDashboard hotelSlug={hotelSlug} />
+    </>
+  );
 }
