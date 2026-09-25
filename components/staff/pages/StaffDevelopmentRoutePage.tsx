@@ -1,3 +1,4 @@
+import ManagerModuleBackLink from "@/components/staff/ManagerModuleBackLink";
 import StaffDevelopmentPageContent from "@/components/staff/pages/StaffDevelopmentPageContent";
 import { requireStaffAccess } from "@/lib/staff-auth/guards";
 import { normalizeStaffRoleCode } from "@/lib/staff/role-code";
@@ -17,9 +18,12 @@ export default async function StaffDevelopmentRoutePage({
   await requireStaffAccess(hotelSlug, role);
 
   return (
-    <StaffDevelopmentPageContent
-      hotelSlug={hotelSlug}
-      operationalRole={role}
-    />
+    <>
+      {role === "manager" ? <ManagerModuleBackLink hotelSlug={hotelSlug} /> : null}
+      <StaffDevelopmentPageContent
+        hotelSlug={hotelSlug}
+        operationalRole={role}
+      />
+    </>
   );
 }
