@@ -532,7 +532,11 @@ export default function ManagerPage() {
     setRequestBillingStatus,
   } = useStaffStore();
   const requests = getAllRequests();
-  const reportRequests = useMemo(() => requests.filter((request) => !request.isTest), [requests]);
+  const isDemoHotel = String(hotelSlug || "").trim().toLowerCase() === "demo";
+  const reportRequests = useMemo(
+    () => isDemoHotel ? requests : requests.filter((request) => !request.isTest),
+    [isDemoHotel, requests],
+  );
   const operationalRequests = useMemo(
     () =>
       sortByTime(
@@ -816,16 +820,14 @@ export default function ManagerPage() {
       {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="manager" /> : null}
 
       {hotelSlug ? (
-        <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="manager" />
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Manager modules">
+          <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="manager" />
+          <RevenueAccessCard hotelSlug={hotelSlug} />
+          <GostayaValueAccessCard hotelSlug={hotelSlug} />
+          <IntegrationStatusCard hotelSlug={hotelSlug} />
+          <ManagerProblemReportCard hotelSlug={hotelSlug} />
+        </section>
       ) : null}
-
-      {hotelSlug ? <RevenueAccessCard hotelSlug={hotelSlug} /> : null}
-
-      {hotelSlug ? <GostayaValueAccessCard hotelSlug={hotelSlug} /> : null}
-
-      {hotelSlug ? <IntegrationStatusCard hotelSlug={hotelSlug} /> : null}
-
-      {hotelSlug ? <ManagerProblemReportCard hotelSlug={hotelSlug} /> : null}
 
       <ManagerTodaySurveysCard
         surveys={managerActiveSurveys}
