@@ -273,8 +273,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const status = action === "schedule" ? "scheduled" : action === "send_now" ? "queued" : "draft";
-    const displayFrom = status === "scheduled" ? scheduledAt : status === "queued" ? now.toISOString() : null;
+    const publicDemoHubOnly =
+      action === "send_now"
+      && access.hotel.slug === "demo"
+      && access.hotel.isSandbox === true;
+    const status =
+      action === "schedule"
+        ? "scheduled"
+        : action === "send_now"
+          ? (publicDemoHubOnly ? "sent" : "queued")
+          : "draft";
+    const displayFrom =
+      status === "scheduled"
+        ? scheduledAt
+        : action === "send_now"
+          ? now.toISOString()
+          : null;
 
     const { data, error } = await supabaseAdmin
       .from("guest_communications")
@@ -294,6 +308,7 @@ export async function POST(req: NextRequest) {
         status,
         scheduled_at: scheduledAt,
         queued_at: status === "queued" ? now.toISOString() : null,
+        sent_at: publicDemoHubOnly ? now.toISOString() : null,
         display_from: displayFrom,
         display_until: displayUntil,
       })
@@ -304,7 +319,11 @@ export async function POST(req: NextRequest) {
     return json({
       ok: true,
       message: data,
-      delivery: status === "queued" ? "queued_not_sent_yet" : status,
+      delivery: publicDemoHubOnly
+        ? "demo_hub_only_no_external_push"
+        : status === "queued"
+          ? "queued_not_sent_yet"
+          : status,
       translation: translationStatus,
       sourceLanguage,
       displayUntil,
