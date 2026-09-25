@@ -102,7 +102,7 @@ export default function RevenueAccessCard({
         </div>
         <Link
           href={`/staff/${hotelSlug}/manager/revenue`}
-          className="inline-flex shrink-0 items-center justify-center rounded-xl border border border-emerald-700 bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-800"
+          className="inline-flex shrink-0 items-center justify-center rounded-xl border border-emerald-700 bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-800"
         >
           {copy.open} →
         </Link>
