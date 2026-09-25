@@ -8424,13 +8424,14 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
       : [];
 
   const legacyPremiumTiles: PremiumTileModel[] = [
-    { id: "info", iconId: "info", title: premiumSectionCopy.hotelInfo, section: infoCombinedSection, requiresRoom: true },
-    { id: "hotel_policies", iconId: "policy", title: getPremiumServiceTitle(lang, "hotelPolicy"), section: policyCombinedSection, requiresRoom: false },
-    { id: "emergency", iconId: "emergency", title: lang === "bg" ? "Спешно повикване" : String(emergencyTileSection?.title || "Emergency call"), section: emergencyTileSection, requiresRoom: false, special: "emergency" as const },
-
+    // Keep the three operational hotel departments together on the first row.
     { id: "reception", iconId: "reception", title: premiumSectionCopy.onlineReception, section: receptionHubSection, requiresRoom: true },
     { id: "housekeeping", iconId: "housekeeping", title: premiumSectionCopy.onlineHousekeeping, section: housekeepingHubSection, requiresRoom: true },
     { id: "maintenance", iconId: "maintenance", title: premiumSectionCopy.onlineMaintenance, section: maintenanceHubSection, requiresRoom: true },
+
+    { id: "info", iconId: "info", title: premiumSectionCopy.hotelInfo, section: infoCombinedSection, requiresRoom: true },
+    { id: "hotel_policies", iconId: "policy", title: getPremiumServiceTitle(lang, "hotelPolicy"), section: policyCombinedSection, requiresRoom: false },
+    { id: "emergency", iconId: "emergency", title: lang === "bg" ? "Спешно повикване" : String(emergencyTileSection?.title || "Emergency call"), section: emergencyTileSection, requiresRoom: false, special: "emergency" as const },
 
     { id: "massage_booking", iconId: "massage", title: getPremiumServiceTitle(lang, "bookMassage"), section: null, requiresRoom: true, special: "massage" as const },
     { id: "pillow_menu", iconId: "pillow", title: getPremiumServiceTitle(lang, "sleepPillows"), section: pillowMenuDef || guestRuntimeCapabilities.legacyRequestFallbacksEnabled ? pillowMenuSection : null, requiresRoom: true },
