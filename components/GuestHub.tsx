@@ -8609,6 +8609,97 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
     );
   };
 
+  const forcePublicDemoSurvey = useCallback(() => {
+    if (!isPublicDemoHotel || !roomConfirmed || room !== "901") return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("survey", "force");
+    window.location.assign(url.toString());
+  }, [isPublicDemoHotel, room, roomConfirmed]);
+
+  const endPublicDemoStay = useCallback(async () => {
+    if (
+      !isPublicDemoHotel
+      || room !== "901"
+      || !activeStayId
+      || !stayDeviceId
+      || !stayDeviceToken
+    ) {
+      return false;
+    }
+
+    try {
+      const response = await fetch("/api/guest/demo/end-stay", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hotelSlug: "demo",
+          stayId: activeStayId,
+          stayDeviceId,
+          deviceToken: stayDeviceToken,
+        }),
+      });
+      const payload = await response.json().catch(() => null) as { ok?: boolean } | null;
+      if (!response.ok || !payload?.ok) return false;
+
+      const endedRoom = room;
+      setRoomConfirmed(false);
+      setRoom("");
+      setCheckInDate("");
+      setCheckOutDate("");
+      setActiveStayId("");
+      setStayDeviceId("");
+      setEffectiveCheckOutAt("");
+      setManualRoomInput("901");
+      setShowRoomSwitchCard(false);
+      setOpenQuickServiceId(null);
+      setGuestRequests([]);
+      setShowRequestSuccess(false);
+
+      const nextRequestRefs = readStoredGuestRequestRefs().filter(
+        (item) => item.room !== endedRoom,
+      );
+      writeStoredGuestRequestRefs(nextRequestRefs);
+      setGuestRequestRefs(nextRequestRefs);
+
+      writeStoredGuestRoomState(roomStateKey, {
+        manualRoomInput: "901",
+        room: "",
+        roomConfirmed: false,
+        checkInDate: "",
+        checkOutDate: "",
+        stayId: "",
+        stayDeviceId: "",
+        deviceToken: stayDeviceToken,
+        effectiveCheckOutAt: "",
+      });
+
+      trackGuestEvent({
+        eventName: "demo_stay_ended",
+        eventCategory: "demo",
+        section: "stay",
+        sectionKey: "demo_stay",
+        label: "public_demo",
+        value: "ended",
+        roomNumber: "901",
+        roomConfirmed: false,
+      });
+
+      return true;
+    } catch (error) {
+      console.error("public demo end-stay failed", error);
+      return false;
+    }
+  }, [
+    activeStayId,
+    isPublicDemoHotel,
+    room,
+    roomStateKey,
+    stayDeviceId,
+    stayDeviceToken,
+    trackGuestEvent,
+  ]);
+
   const closeAiPanel = () => {
     setAiPanelOpen(false);
     clearAiState();
@@ -9389,8 +9480,11 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
           lang={String(lang)}
           roomConfirmed={roomConfirmed}
           room={room}
-          contactOpen={openQuickServiceId === "contact"}
+          departmentOpen={["reception", "housekeeping", "maintenance"].includes(
+            String(openQuickServiceId || ""),
+          )}
           hasRequest={showRequestSuccess || guestRequests.length > 0}
+          requestCompleted={guestRequests.some((item) => item.status === "completed")}
           onFocusRoom={() => {
             setManualRoomInput("901");
             window.setTimeout(() => {
@@ -9399,9 +9493,16 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
                 ?.scrollIntoView({ behavior: "smooth", block: "start" });
             }, 0);
           }}
-          onOpenContact={() => {
-            setOpenQuickServiceId("contact");
+          onOpenDepartment={() => {
+            setOpenQuickServiceId("housekeeping");
+            window.setTimeout(() => {
+              document
+                .querySelector<HTMLElement>('[data-stayhub-premium-tile="housekeeping"]')
+                ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 0);
           }}
+          onForceSurvey={forcePublicDemoSurvey}
+          onEndStay={endPublicDemoStay}
         />
       ) : null}
 
