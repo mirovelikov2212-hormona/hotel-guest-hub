@@ -1,4 +1,5 @@
 import ReceptionPinRepair from "@/components/staff/ReceptionPinRepair";
+import ManagerModuleBackLink from "@/components/staff/ManagerModuleBackLink";
 import { requireStaffAccess } from "@/lib/staff-auth/guards";
 
 export default async function ReceptionPinRepairPage({
@@ -9,5 +10,10 @@ export default async function ReceptionPinRepairPage({
   const { hotelSlug } = await params;
   await requireStaffAccess(hotelSlug, "manager");
 
-  return <ReceptionPinRepair hotelSlug={hotelSlug} />;
+  return (
+    <>
+      <ManagerModuleBackLink hotelSlug={hotelSlug} />
+      <ReceptionPinRepair hotelSlug={hotelSlug} />
+    </>
+  );
 }
