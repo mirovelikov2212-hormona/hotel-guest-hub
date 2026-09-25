@@ -90,7 +90,9 @@ export async function GET(req: NextRequest) {
       messagesQuery = messagesQuery.eq("department_id", access.runtimeRole.departmentId);
     }
 
-    const testFilter = access.hotel.isSandbox
+    const includeTestStays =
+      access.hotel.isSandbox || access.hotel.slug === "demo";
+    const testFilter = includeTestStays
       ? "is_test.is.null,is_test.eq.false,is_test.eq.true"
       : "is_test.is.null,is_test.eq.false";
 
@@ -275,8 +277,7 @@ export async function POST(req: NextRequest) {
 
     const publicDemoHubOnly =
       action === "send_now"
-      && access.hotel.slug === "demo"
-      && access.hotel.isSandbox === true;
+      && access.hotel.slug === "demo";
     const status =
       action === "schedule"
         ? "scheduled"
