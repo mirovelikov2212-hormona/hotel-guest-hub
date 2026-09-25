@@ -18,22 +18,22 @@ type Availability = {
 
 const COPY = {
   bg: {
-    title: "Revenue & Upsell",
+    title: "Приходи от допълнителни услуги",
     body:
-      "Проследен ancillary revenue, billing ledger, pending pipeline и AI attribution.",
-    open: "Отвори Revenue",
+      "Начислени и чакащи приходи от масажи, късен check-out и други платени хотелски услуги. Не включва цени на стаи, ADR, RevPAR или общия приход на хотела.",
+    open: "Отвори приходите",
   },
   en: {
-    title: "Revenue & Upsell",
+    title: "Additional Service Revenue",
     body:
-      "Tracked ancillary revenue, billing ledger, pending pipeline and AI attribution.",
-    open: "Open Revenue",
+      "Charged and pending revenue from massages, late checkout and other paid hotel services. It does not include room rates, ADR, RevPAR or total hotel revenue.",
+    open: "Open service revenue",
   },
   de: {
-    title: "Revenue & Upsell",
+    title: "Umsatz aus Zusatzleistungen",
     body:
-      "Erfasster Ancillary Revenue, Billing Ledger, offene Pipeline und AI Attribution.",
-    open: "Revenue öffnen",
+      "Gebuchte und offene Umsätze aus Massagen, Late Check-out und weiteren kostenpflichtigen Hotelleistungen. Keine Zimmerpreise, ADR, RevPAR oder Gesamtumsätze des Hotels.",
+    open: "Service-Umsatz öffnen",
   },
 } as const;
 
@@ -90,19 +90,19 @@ export default function RevenueAccessCard({
   if (!available) return null;
 
   return (
-    <section className="rounded-2xl border border-emerald-300/20 bg-emerald-400/5 p-4">
+    <section className="h-full rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-200/70">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
             {copy.title}
           </p>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-white/65">
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
             {copy.body}
           </p>
         </div>
         <Link
           href={`/staff/${hotelSlug}/manager/revenue`}
-          className="inline-flex shrink-0 items-center justify-center rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-2.5 text-sm font-semibold text-emerald-50 transition hover:border-emerald-300/45"
+          className="inline-flex shrink-0 items-center justify-center rounded-xl border border border-emerald-700 bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-800"
         >
           {copy.open} →
         </Link>
