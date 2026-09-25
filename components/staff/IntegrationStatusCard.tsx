@@ -144,16 +144,16 @@ export default function IntegrationStatusCard({
   if (!visible && !loading) return null;
 
   return (
-    <section className="rounded-2xl border border-sky-300/20 bg-sky-400/5 p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-100/70">
+    <section className="h-full rounded-2xl border border-sky-200 bg-white p-5 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-800">
         {copy.title}
       </p>
 
       {loading ? (
-        <p className="mt-2 text-sm text-white/50">{copy.loading}</p>
+        <p className="mt-2 text-sm text-slate-500">{copy.loading}</p>
       ) : result ? (
         <>
-          <p className="mt-2 text-sm text-white/65">
+          <p className="mt-2 text-sm text-slate-600">
             {result.activeConnections} {copy.active} ·{" "}
             {result.configuredConnections} {copy.configured}
           </p>
@@ -163,19 +163,19 @@ export default function IntegrationStatusCard({
               result.connections.map((connection) => (
                 <div
                   key={connection.connectionId}
-                  className="rounded-xl border border-white/10 bg-black/20 p-3"
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-3"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <p className="text-sm font-semibold text-white">
+                      <p className="text-sm font-semibold text-slate-900">
                         {connection.displayName}
                       </p>
-                      <p className="mt-0.5 text-xs text-white/45">
+                      <p className="mt-0.5 text-xs text-slate-900/45">
                         {connection.systemType.toUpperCase()} ·{" "}
                         {connection.providerKey} · {connection.mode}
                       </p>
                     </div>
-                    <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-semibold uppercase text-white/55">
+                    <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-semibold uppercase text-slate-900/55">
                       {connection.state === "configured_unverified"
                         ? copy.configuredUnverified
                         : connection.state === "configuration_only"
@@ -183,17 +183,17 @@ export default function IntegrationStatusCard({
                           : copy.inactive}
                     </span>
                   </div>
-                  <p className="mt-2 text-[11px] leading-5 text-white/40">
+                  <p className="mt-2 text-[11px] leading-5 text-slate-900/40">
                     {connection.capabilities.join(" · ") || "—"}
                   </p>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-white/50">{copy.noConnections}</p>
+              <p className="text-sm text-slate-500">{copy.noConnections}</p>
             )}
           </div>
 
-          <p className="mt-3 text-[11px] leading-5 text-white/40">
+          <p className="mt-3 text-[11px] leading-5 text-slate-900/40">
             {copy.authority}
           </p>
         </>
