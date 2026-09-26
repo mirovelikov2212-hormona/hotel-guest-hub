@@ -10,7 +10,7 @@ const DATA = [
 const COPY = {
   bg: {
     title: "Активност през сезона",
-    subtitle: "Реални данни без тестови записи · часова зона Europe/Sofia",
+    subtitle: "Само реално използване след QR достъп · без PMS интеграция през пилотния период · Europe/Sofia",
     opens: "Отваряния",
     requests: "Заявки",
     massages: "Масажи",
