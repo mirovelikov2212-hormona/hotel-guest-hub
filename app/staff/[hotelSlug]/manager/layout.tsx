@@ -10,14 +10,14 @@ export async function generateMetadata({
   const encodedSlug = encodeURIComponent(hotelSlug);
 
   return {
-    title: "StayHub Manager",
-    description: "StayHub Manager operations and request notifications",
-    applicationName: "StayHub Manager",
+    title: "GOSTAYA Manager",
+    description: "GOSTAYA hotel operations, manager intelligence and request notifications",
+    applicationName: "GOSTAYA Manager",
     manifest: `/manager-pwa/${encodedSlug}/manifest.webmanifest`,
     appleWebApp: {
       capable: true,
-      statusBarStyle: "black-translucent",
-      title: "StayHub Manager",
+      statusBarStyle: "default",
+      title: "GOSTAYA Manager",
     },
     icons: {
       icon: [
@@ -32,8 +32,8 @@ export async function generateMetadata({
 }
 
 export const viewport: Viewport = {
-  themeColor: "#171717",
-  colorScheme: "dark",
+  themeColor: "#f5faff",
+  colorScheme: "light",
 };
 
 export default function ManagerLayout({ children }: { children: ReactNode }) {
