@@ -7,8 +7,8 @@ import "./staff-theme.css";
 import "./staff-theme-semantic.css";
 
 export const metadata = {
-  title: "GuestHub Staff",
-  description: "Staff Hub for hotel departments",
+  title: "GOSTAYA Staff",
+  description: "GOSTAYA operational panels for hotel teams",
 };
 
 export default function StaffLayout({ children }: { children: ReactNode }) {
