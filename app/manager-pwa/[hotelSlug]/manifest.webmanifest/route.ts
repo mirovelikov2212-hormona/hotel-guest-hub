@@ -13,15 +13,15 @@ export async function GET(
   return NextResponse.json(
     {
       id: managerPath,
-      name: "StayHub Manager",
+      name: "GOSTAYA Manager",
       short_name: "Manager",
-      description: "StayHub manager operations and hotel request notifications",
+      description: "GOSTAYA manager operations, intelligence and hotel request notifications",
       start_url: `${managerPath}?source=manager-pwa`,
       scope: `/staff/${hotelSlug}/`,
       display: "standalone",
       orientation: "portrait",
-      background_color: "#0a0a0a",
-      theme_color: "#171717",
+      background_color: "#f5faff",
+      theme_color: "#1479d3",
       icons: [
         {
           src: "/icons/manager-192.png",
