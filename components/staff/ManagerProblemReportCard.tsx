@@ -166,7 +166,7 @@ function ChoiceGrid({
 }) {
   return (
     <fieldset>
-      <legend className="text-sm font-bold text-slate-800">{title}</legend>
+      <legend className="text-sm font-bold text-[#102a43]">{title}</legend>
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
         {options.map(([id, label]) => {
           const selected = value === id;
@@ -179,8 +179,8 @@ function ChoiceGrid({
               className={
                 "min-h-11 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold transition " +
                 (selected
-                  ? "border-slate-800 bg-slate-800 text-white shadow-sm"
-                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50")
+                  ? "border-[#1479d3] bg-[#1479d3] text-white shadow-sm"
+                   : "border-slate-200 bg-white text-slate-700 hover:border-sky-300 hover:bg-sky-50")
               }
             >
               {label}
@@ -246,10 +246,10 @@ export default function ManagerProblemReportCard({
   }
 
   return (
-    <section className="h-full rounded-2xl border border-amber-200 bg-white p-5 shadow-sm">
+    <section className="h-full rounded-2xl border border-sky-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,58,91,.08)]">
       <div className="flex h-full flex-col">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-700">{copy.eyebrow}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#1479d3]">{copy.eyebrow}</p>
           <h3 className="mt-2 text-lg font-bold text-slate-900">{copy.title}</h3>
           <p className="mt-2 text-sm leading-6 text-slate-600">{copy.intro}</p>
         </div>
@@ -259,7 +259,7 @@ export default function ManagerProblemReportCard({
             setOpen((value) => !value);
             setFeedback(null);
           }}
-          className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-amber-700 bg-amber-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-amber-800"
+          className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-[#1479d3] bg-[#1479d3] px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-sky-100 transition hover:bg-[#0f68b7]"
         >
           {open ? copy.close : copy.open}
         </button>
@@ -297,7 +297,7 @@ export default function ManagerProblemReportCard({
               type="button"
               onClick={() => void submit()}
               disabled={sending || summary.trim().length < 5}
-              className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+              className="w-full rounded-xl bg-[#1479d3] px-4 py-3 text-sm font-bold text-white shadow-md shadow-sky-100 transition hover:bg-[#0f68b7] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
             >
               {sending ? copy.sending : copy.send}
             </button>
