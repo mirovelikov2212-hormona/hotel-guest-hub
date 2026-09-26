@@ -37,7 +37,7 @@ const COPY: Record<Lang, ProductCopy> = {
     explorerLabel: "РАЗГЛЕДАЙ ПЛАТФОРМАТА",
     flowTitle: "Разгледайте платформата отвътре",
     flowText:
-      "Изберете модул, за да видите неговата роля и основните функции, които хотелът използва в ежедневната работа.",
+      "Изберете модул, за да видите неговата роля и основните функции,\nкоито хотелът използва в ежедневната работа.",
     live: "Отвори демото · PIN 2026",
     safe: "Изолирана тестова среда · без реални хотелски заявки",
     views: [
@@ -619,7 +619,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
         <h2 className="mt-3 max-w-3xl text-balance text-3xl font-semibold leading-tight tracking-tight text-[#102a43] sm:text-4xl">
           {copy.flowTitle}
         </h2>
-        <p className="mt-3 max-w-2xl text-pretty text-base leading-7 text-slate-600">
+        <p className="mt-3 max-w-3xl whitespace-pre-line text-pretty text-base leading-7 text-slate-600">
           {copy.flowText}
         </p>
       </div>
