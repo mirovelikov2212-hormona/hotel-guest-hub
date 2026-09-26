@@ -399,11 +399,11 @@
   color: #0f6b63 !important;
 }
 
-/* Primary operational actions use the hotel's brand in Light mode. */
+/* Primary operational actions use the GOSTAYA light brand palette. */
 .stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button.bg-sky-500 {
   background: var(--staff-brand-primary) !important;
-  color: #075255 !important;
-  border: 1px solid color-mix(in srgb, var(--staff-brand-primary) 62%, #075255 38%) !important;
+  color: #ffffff !important;
+  border: 1px solid color-mix(in srgb, var(--staff-brand-primary) 78%, #0f68b7 22%) !important;
   box-shadow: 0 10px 22px color-mix(in srgb, var(--staff-brand-primary) 18%, transparent);
 }
 
@@ -430,8 +430,8 @@
 
 .stayhub-staff-shell[data-staff-theme="light"] .stayhub-communication-send {
   background: var(--staff-brand-primary);
-  border-color: color-mix(in srgb, var(--staff-brand-primary) 62%, #075255 38%);
-  color: #075255;
+  border-color: color-mix(in srgb, var(--staff-brand-primary) 78%, #0f68b7 22%);
+  color: #ffffff;
   box-shadow: 0 9px 20px color-mix(in srgb, var(--staff-brand-primary) 16%, transparent);
 }
 
