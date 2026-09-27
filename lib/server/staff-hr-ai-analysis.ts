@@ -8,7 +8,7 @@ import {
 import {
   getManagerStaffDevelopmentState,
 } from "@/lib/server/staff-development-read";
-import { requireHotelProductModuleAccess } from "@/lib/server/product-module-entitlements";
+import { requireHotelPaidProductModuleAccess } from "@/lib/server/product-module-entitlements";
 
 type JsonObject = Record<string, any>;
 
@@ -72,7 +72,7 @@ export async function generateStaffHrManagerAnalysis(input: {
   if (state.identity.staffUserRole !== "hotel_manager") {
     throw new Error("STAFF_HR_HOTEL_MANAGER_REQUIRED");
   }
-  await requireHotelProductModuleAccess(
+  await requireHotelPaidProductModuleAccess(
     state.identity.hotelId,
     "manager_intelligence",
   );
