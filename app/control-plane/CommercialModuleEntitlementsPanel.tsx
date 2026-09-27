@@ -47,7 +47,7 @@ const MODULES: Array<{
   { key: "staff_operations", dependencies: [] },
   { key: "operational_ai", dependencies: ["guest_hub"] },
   { key: "staff_development", dependencies: ["staff_operations"] },
-  { key: "manager_intelligence", dependencies: ["staff_development"] },
+  { key: "manager_intelligence", dependencies: ["staff_operations"] },
   { key: "revenue_intelligence", dependencies: ["staff_operations"] },
   { key: "integration_layer", dependencies: ["guest_hub"] },
 ];
