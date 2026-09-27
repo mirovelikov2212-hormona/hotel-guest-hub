@@ -1,5 +1,6 @@
 import ManagerModuleBackLink from "@/components/staff/ManagerModuleBackLink";
 import StaffDevelopmentPageContent from "@/components/staff/pages/StaffDevelopmentPageContent";
+import { requireHotelProductModuleAccess } from "@/lib/server/product-module-entitlements";
 import { requireStaffAccess } from "@/lib/staff-auth/guards";
 import { normalizeStaffRoleCode } from "@/lib/staff/role-code";
 
@@ -15,7 +16,11 @@ export default async function StaffDevelopmentRoutePage({
     throw new Error("STAFF_DEVELOPMENT_OPERATIONAL_ROLE_INVALID");
   }
 
-  await requireStaffAccess(hotelSlug, role);
+  const access = await requireStaffAccess(hotelSlug, role);
+  await requireHotelProductModuleAccess(
+    String(access.hotelId),
+    "staff_development",
+  );
 
   return (
     <>
