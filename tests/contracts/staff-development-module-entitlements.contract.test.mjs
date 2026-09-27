@@ -174,7 +174,7 @@ test("Staff Development and Manager Intelligence are server-gated by module enti
 
   assert.match(
     identity,
-    /requireHotelProductModuleAccess\(identity\.hotelId, "staff_development"\)/,
+    /requireHotelPaidProductModuleAccess\(identity\.hotelId, "staff_development"\)/,
   );
   assert.match(identity, /"staff_development"/);
   assert.match(analysis, /"manager_intelligence"/);
@@ -250,10 +250,33 @@ test("Staff Development routes fail closed and Manager Intelligence dependent HR
     "utf8",
   );
 
-  assert.match(routePage, /requireHotelProductModuleAccess/);
+  assert.match(routePage, /requireHotelPaidProductModuleAccess/);
   assert.match(routePage, /"staff_development"/);
   assert.match(analysis, /requireHotelPaidProductModuleAccess/);
   assert.match(reporting, /requireHotelPaidProductModuleAccess/);
   assert.match(availability, /hasHotelPaidProductModuleAccess/);
   assert.match(availability, /"manager_intelligence"/);
+});
+
+
+test("paid Staff Development runtime does not inherit legacy unmanaged Production compatibility", () => {
+  const identity = readFileSync(
+    new URL("../../lib/server/staff-development-identity.ts", import.meta.url),
+    "utf8",
+  );
+  const routePage = readFileSync(
+    new URL("../../components/staff/pages/StaffDevelopmentRoutePage.tsx", import.meta.url),
+    "utf8",
+  );
+  const availability = readFileSync(
+    new URL("../../lib/server/staff-module-availability.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(identity, /requireHotelPaidProductModuleAccess/);
+  assert.match(identity, /"staff_development"/);
+  assert.match(routePage, /requireHotelPaidProductModuleAccess/);
+  assert.match(routePage, /"staff_development"/);
+  assert.match(availability, /hasHotelPaidProductModuleAccess/);
+  assert.match(availability, /"staff_development"/);
 });

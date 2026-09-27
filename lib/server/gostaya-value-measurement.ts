@@ -9,7 +9,6 @@ import {
 } from "@/lib/server/gostaya-value-baseline";
 import {
   requireHotelPaidProductModuleAccess,
-  requireHotelProductModuleAccess,
 } from "@/lib/server/product-module-entitlements";
 import {
   getAncillaryRevenueManagerSnapshot,
@@ -66,7 +65,7 @@ async function resolveManagerValueScope(hotelSlugInput: unknown) {
     String(hotel.id),
     "manager_intelligence",
   );
-  await requireHotelProductModuleAccess(
+  await requireHotelPaidProductModuleAccess(
     String(hotel.id),
     "revenue_intelligence",
   );

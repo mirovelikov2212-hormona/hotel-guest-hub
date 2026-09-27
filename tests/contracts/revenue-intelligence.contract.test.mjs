@@ -453,3 +453,26 @@ test("CM6 repeated charged event cannot double-count revenue even when native de
   assert.equal(snapshot.revenueLedger.recognitionEvents, 1);
   assert.equal(snapshot.revenueLedger.deltaMismatches, 1);
 });
+
+
+test("Revenue Intelligence uses strict paid runtime entitlement instead of legacy Production compatibility", () => {
+  const server = readFileSync(
+    new URL("../../lib/server/revenue-intelligence.ts", import.meta.url),
+    "utf8",
+  );
+  const page = readFileSync(
+    new URL("../../app/staff/[hotelSlug]/manager/revenue/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const availability = readFileSync(
+    new URL("../../lib/server/staff-module-availability.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(server, /requireHotelPaidProductModuleAccess/);
+  assert.match(server, /"revenue_intelligence"/);
+  assert.match(page, /requireHotelPaidProductModuleAccess/);
+  assert.match(page, /"revenue_intelligence"/);
+  assert.match(availability, /hasHotelPaidProductModuleAccess/);
+  assert.match(availability, /"revenue_intelligence"/);
+});
