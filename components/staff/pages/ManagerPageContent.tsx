@@ -826,7 +826,7 @@ export default function ManagerPage() {
 
       {hotelSlug ? (
         <>
-          <section className="grid items-start gap-4 md:grid-cols-3" aria-label="Manager primary modules">
+          <section className="grid items-stretch gap-4 md:grid-cols-3" aria-label="Manager primary modules">
             <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="manager" />
             <RevenueAccessCard hotelSlug={hotelSlug} />
             <GostayaValueAccessCard hotelSlug={hotelSlug} />
