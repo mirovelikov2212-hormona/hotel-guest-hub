@@ -15,7 +15,7 @@ test("Manager Intelligence is a separately entitled Manager module and is visibl
 
   assert.match(catalog, /"manager_intelligence"/);
   assert.match(catalog, /manager_intelligence: \["staff_operations"\]/);
-  assert.match(server, /requireHotelProductModuleAccess\(hotel\.id, "manager_intelligence"\)/);
+  assert.match(server, /requireHotelProductModuleAccess\(String\(hotel\.id\), "manager_intelligence"\)/);
   assert.match(page, /requireHotelProductModuleAccess\(String\(access\.hotelId\), "manager_intelligence"\)/);
   assert.match(card, /ДОПЪЛНИТЕЛЕН ПЛАТЕН МОДУЛ/);
   assert.match(card, /\/api\/staff\/manager-intelligence/);
