@@ -89,19 +89,19 @@ export default function GostayaValueAccessCard({
   if (!available) return null;
 
   return (
-    <section className="h-full rounded-2xl border border-cyan-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <section className="rounded-2xl border border-cyan-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-800">
             {copy.title}
           </p>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+          <p className="mt-1 text-sm leading-6 text-slate-600">
             {copy.body}
           </p>
         </div>
         <Link
           href={`/staff/${hotelSlug}/manager/value`}
-          className="inline-flex shrink-0 items-center justify-center rounded-xl border border-cyan-800 bg-cyan-800 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-cyan-900"
+          className="inline-flex w-fit items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-bold text-cyan-800 transition hover:bg-cyan-100"
         >
           {copy.open} →
         </Link>
