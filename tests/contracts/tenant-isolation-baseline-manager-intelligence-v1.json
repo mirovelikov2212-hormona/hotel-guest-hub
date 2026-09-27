@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "checkpoint": "manager-intelligence-v1",
+  "baseCheckpoint": "incident-center-v1",
+  "expectedNeedsReview": 345,
+  "relocations": [
+    {
+      "filePath": "app/api/staff/guest-communications/route.ts",
+      "fromLine": 194,
+      "toLine": 196,
+      "table": "guest_communications",
+      "operation": "update"
+    },
+    {
+      "filePath": "app/api/staff/guest-communications/route.ts",
+      "fromLine": 279,
+      "toLine": 294,
+      "table": "guest_communications",
+      "operation": "insert"
+    },
+    {
+      "filePath": "app/api/staff/guest-direct-communications/route.ts",
+      "fromLine": 119,
+      "toLine": 123,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "app/api/staff/guest-direct-communications/route.ts",
+      "fromLine": 189,
+      "toLine": 193,
+      "table": "\"append_guest_direct_communication_v1\"",
+      "operation": "rpc"
+    },
+    {
+      "filePath": "app/api/staff/guest-direct-communications/route.ts",
+      "fromLine": 208,
+      "toLine": 212,
+      "table": "guest_communications",
+      "operation": "select"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/manager-intelligence.ts",
+      "line": 444,
+      "table": "staff_training_assignments",
+      "tableExpression": "\"staff_training_assignments\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server-only Manager Intelligence read after authoritative manager/hotel resolution; query is explicitly scoped by hotel_id and is read-only"
+    },
+    {
+      "filePath": "lib/server/manager-intelligence.ts",
+      "line": 449,
+      "table": "staff_training_completions",
+      "tableExpression": "\"staff_training_completions\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server-only Manager Intelligence read after authoritative manager/hotel resolution; query is explicitly scoped by hotel_id and is read-only"
+    },
+    {
+      "filePath": "lib/server/manager-intelligence.ts",
+      "line": 454,
+      "table": "staff_assessment_attempts",
+      "tableExpression": "\"staff_assessment_attempts\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server-only Manager Intelligence read after authoritative manager/hotel resolution; query is explicitly scoped by hotel_id and is read-only"
+    },
+    {
+      "filePath": "lib/server/manager-intelligence.ts",
+      "line": 460,
+      "table": "staff_hr_evaluations",
+      "tableExpression": "\"staff_hr_evaluations\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "server-only Manager Intelligence read after authoritative manager/hotel resolution; query is explicitly scoped by hotel_id and is read-only"
+    }
+  ]
+}
