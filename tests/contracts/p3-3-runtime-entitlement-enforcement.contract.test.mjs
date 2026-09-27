@@ -144,7 +144,14 @@ test("P3.3 AI resolves authoritative hotel identity before loading or caching te
 
 test("P3.3 AI paid capability is enforced server-side with the same Factory READ semantics as Guest Hub", () => {
   assert.match(guestCapabilities, /return actions\?\.READ === true/);
-  assert.match(guestCapabilities, /const aiEnabled = factoryManaged \? isFactoryAiReadEnabled\(config\) : true/);
+  assert.match(
+    guestCapabilities,
+    /const operationalAiEntitled = config\\.operationalAiEntitled !== false/,
+  );
+  assert.match(
+    guestCapabilities,
+    /operationalAiEntitled\\s*&&\\s*\\(factoryManaged \\? isFactoryAiReadEnabled\\(config\\) : true\\)/s,
+  );
   assert.match(aiRoute, /const capabilities = deriveGuestRuntimeCapabilities\(config\)/);
   assert.match(aiRoute, /if \(!capabilities\.aiEnabled\)/);
   assert.match(aiRoute, /ai_not_enabled_for_hotel/);

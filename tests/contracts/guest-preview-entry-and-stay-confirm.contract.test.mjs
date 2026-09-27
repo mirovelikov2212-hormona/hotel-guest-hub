@@ -104,7 +104,10 @@ test("validated hotel route remains the guest operational tenant authority", asy
   const source = await readFile(new URL("../../app/h/[hotelSlug]/page.tsx", import.meta.url), "utf8");
   assert.match(source, /await resolveHotelByAnySlugAdmin\(hotelSlug\)/);
   assert.match(source, /const guestRuntimeHotelSlug = hotelSlug\.trim\(\)\.toLowerCase\(\)/);
-  assert.match(source, /const guestConfig = \{\s*\.\.\.cfg,\s*hotelSlug: guestRuntimeHotelSlug,\s*\}/s);
+  assert.match(
+    source,
+    /const guestConfig = \\{\\s*\\.\\.\\.cfg,\\s*hotelSlug: guestRuntimeHotelSlug,\\s*operationalAiEntitled: productEntitlement\\.moduleAccess\\.operational_ai,\\s*\\}/s,
+  );
   assert.match(source, /<GuestHub config=\{guestConfig\} \/>/);
   assert.doesNotMatch(source, /<GuestHub config=\{cfg\} \/>/);
 });
