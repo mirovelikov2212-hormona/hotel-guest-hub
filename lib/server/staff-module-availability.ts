@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   getHotelProductModuleEntitlement,
+  hasHotelPaidProductModuleAccess,
 } from "@/lib/server/product-module-entitlements";
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import {
@@ -59,7 +60,10 @@ export async function getStaffModuleAvailability(input: {
       staffDevelopment: entitlement.moduleAccess.staff_development,
       managerIntelligence:
         role === "manager"
-        && entitlement.moduleAccess.manager_intelligence,
+        && hasHotelPaidProductModuleAccess(
+          entitlement,
+          "manager_intelligence",
+        ),
       revenueIntelligence:
         role === "manager"
         && entitlement.moduleAccess.revenue_intelligence,
