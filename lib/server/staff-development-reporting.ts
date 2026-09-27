@@ -4,7 +4,7 @@ import { buildStaffDevelopmentManagerBrief } from "@/lib/staff-development/staff
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import { getManagerStaffDevelopmentState } from "@/lib/server/staff-development-read";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
-import { requireHotelProductModuleAccess } from "@/lib/server/product-module-entitlements";
+import { requireHotelPaidProductModuleAccess } from "@/lib/server/product-module-entitlements";
 
 function clean(value: unknown) {
   return String(value ?? "").trim();
@@ -27,7 +27,7 @@ export async function getStaffDevelopmentManagerBrief(
     throw new Error("STAFF_REPORTING_HOTEL_SCOPE_MISMATCH");
   }
 
-  await requireHotelProductModuleAccess(
+  await requireHotelPaidProductModuleAccess(
     state.identity.hotelId,
     "manager_intelligence",
   );
