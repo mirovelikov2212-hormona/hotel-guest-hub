@@ -89,8 +89,8 @@ export default function GostayaValueAccessCard({
   if (!available) return null;
 
   return (
-    <section className="rounded-2xl border border-cyan-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-col gap-3">
+    <section className="h-full rounded-2xl border border-cyan-200 bg-white p-4 shadow-sm">
+      <div className="flex h-full flex-col">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-800">
             {copy.title}
@@ -99,9 +99,10 @@ export default function GostayaValueAccessCard({
             {copy.body}
           </p>
         </div>
+        <div className="h-4" aria-hidden="true" />
         <Link
           href={`/staff/${hotelSlug}/manager/value`}
-          className="inline-flex w-fit items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-bold text-cyan-800 transition hover:bg-cyan-100"
+          className="mt-auto inline-flex w-fit items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-bold text-cyan-800 transition hover:bg-cyan-100"
         >
           {copy.open} →
         </Link>
