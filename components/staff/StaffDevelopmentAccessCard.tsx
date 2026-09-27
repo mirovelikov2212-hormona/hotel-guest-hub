@@ -42,7 +42,7 @@ const COPY = {
     managerTitle: "Развитие на персонала",
     body: "Стандарти, обучения, тестове и проверими резултати.",
     managerBody:
-      "Хотелски и departmental стандарти, обучения, тестове, проверими резултати и управленски анализ.",
+      "Хотелски стандарти и стандарти на отделите, обучения, тестове, проверими резултати и управленски анализ.",
     open: "Отвори модула",
     intelligenceOn: "Manager Intelligence активен",
     intelligenceOff: "Manager Intelligence не е активен",
@@ -190,13 +190,13 @@ export default function StaffDevelopmentAccessCard({
     : availability.runtimeRole.departmentCode || role;
 
   return (
-    <section className="h-full rounded-2xl border border-violet-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <section className="rounded-2xl border border-violet-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-700">
             {isManager ? copy.managerTitle : copy.title}
           </p>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+          <p className="mt-1 text-sm leading-6 text-slate-600">
             {isManager ? copy.managerBody : copy.body}
           </p>
 
@@ -209,7 +209,7 @@ export default function StaffDevelopmentAccessCard({
           ) : null}
 
           {isManager && attention.status === "identity_required" ? (
-            <p className="mt-2 max-w-2xl text-xs leading-5 text-violet-700">
+            <p className="mt-2 text-xs leading-5 text-violet-700">
               {copy.identify}
             </p>
           ) : null}
@@ -234,7 +234,7 @@ export default function StaffDevelopmentAccessCard({
 
         <Link
           href={`/staff/${availability.hotelSlug}/${developmentRole}/development`}
-          className="inline-flex shrink-0 items-center justify-center rounded-xl border border-violet-700 bg-violet-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-800"
+          className="inline-flex w-fit items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-100"
         >
           {copy.open} →
         </Link>
