@@ -1,6 +1,6 @@
 import ManagerModuleBackLink from "@/components/staff/ManagerModuleBackLink";
 import ManagerIntelligenceDashboard from "@/components/staff/manager-intelligence/ManagerIntelligenceDashboard";
-import { requireHotelProductModuleAccess } from "@/lib/server/product-module-entitlements";
+import { requireHotelPaidProductModuleAccess } from "@/lib/server/product-module-entitlements";
 import { requireStaffAccess } from "@/lib/staff-auth/guards";
 
 export default async function ManagerIntelligencePage({
@@ -10,7 +10,7 @@ export default async function ManagerIntelligencePage({
 }) {
   const { hotelSlug } = await params;
   const access = await requireStaffAccess(hotelSlug, "manager");
-  await requireHotelProductModuleAccess(String(access.hotelId), "manager_intelligence");
+  await requireHotelPaidProductModuleAccess(String(access.hotelId), "manager_intelligence");
 
   return (
     <>
