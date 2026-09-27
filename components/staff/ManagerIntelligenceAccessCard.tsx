@@ -63,9 +63,15 @@ export default function ManagerIntelligenceAccessCard({ hotelSlug }: { hotelSlug
           <h3 className="mt-1.5 text-xl font-bold text-[#102a43]">{copy.title}</h3>
           <p className="mt-1.5 max-w-4xl text-sm leading-6 text-slate-600">{copy.body}</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            <span className="rounded-full border border-sky-200 bg-white px-3 py-1.5 text-sky-800">Live Attention</span>
-            <span className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-violet-800">Morning Brief</span>
-            <span className="rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-emerald-800">Cross-module analysis</span>
+            <span className="rounded-full border border-sky-200 bg-white px-3 py-1.5 text-sky-800">
+              {safeLang === "bg" ? "Сигнали в реално време" : safeLang === "de" ? "Live-Signale" : "Live Attention"}
+            </span>
+            <span className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-violet-800">
+              {safeLang === "bg" ? "Сутрешен отчет" : safeLang === "de" ? "Morgenbericht" : "Morning Brief"}
+            </span>
+            <span className="rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-emerald-800">
+              {safeLang === "bg" ? "Анализ на всички модули" : safeLang === "de" ? "Modulübergreifende Analyse" : "Cross-module analysis"}
+            </span>
           </div>
         </div>
 
