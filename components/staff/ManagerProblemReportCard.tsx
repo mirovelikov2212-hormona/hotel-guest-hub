@@ -7,153 +7,89 @@ type Lang = "bg" | "en" | "de";
 
 const COPY = {
   bg: {
-    eyebrow: "ПРОБЛЕМ / INCIDENT CENTER",
+    eyebrow: "ПРОБЛЕМИ",
     title: "Съобщи проблем",
-    intro: "Опиши какво не работи както трябва. GOSTAYA ще запази хотела, модула и контекста към сигнала.",
-    where: "1. Къде се случва?",
-    what: "2. Какъв е проблемът?",
-    urgency: "3. Колко е спешно?",
-    summary: "Опиши проблема накратко",
-    summaryPlaceholder: "Напр. Housekeeping не вижда нова заявка от стая 901",
-    details: "Допълнителни подробности (по желание)",
-    detailsPlaceholder: "Какво очакваше да се случи и какво се случи вместо това?",
+    intro: "Избери къде е проблемът и го опиши с няколко думи. GOSTAYA ще запази хотела и контекста към сигнала.",
+    where: "1. Къде е проблемът?",
+    problem: "2. Опиши проблема",
+    problemPlaceholder: "Напр. Хаускипинг не вижда нова заявка от стая 901.",
     send: "Изпрати проблема",
     sending: "Изпращане…",
-    sent: "Проблемът е регистриран в Incident Center.",
+    sent: "Проблемът е регистриран.",
     failed: "Проблемът не можа да бъде регистриран.",
     open: "Съобщи проблем",
     close: "Затвори",
   },
   en: {
-    eyebrow: "PROBLEM / INCIDENT CENTER",
+    eyebrow: "PROBLEMS",
     title: "Report a problem",
-    intro: "Describe what is not working as expected. GOSTAYA keeps the hotel, module and operational context with the report.",
-    where: "1. Where did it happen?",
-    what: "2. What kind of problem is it?",
-    urgency: "3. How urgent is it?",
-    summary: "Describe the problem briefly",
-    summaryPlaceholder: "Example: Housekeeping cannot see a new request from room 901",
-    details: "Additional details (optional)",
-    detailsPlaceholder: "What did you expect and what happened instead?",
+    intro: "Choose where the problem is and describe it briefly. GOSTAYA keeps the hotel and context with the report.",
+    where: "1. Where is the problem?",
+    problem: "2. Describe the problem",
+    problemPlaceholder: "Example: Housekeeping cannot see a new request from room 901.",
     send: "Send problem",
     sending: "Sending…",
-    sent: "The problem was registered in Incident Center.",
+    sent: "The problem was registered.",
     failed: "The problem could not be registered.",
     open: "Report problem",
     close: "Close",
   },
   de: {
-    eyebrow: "PROBLEM / INCIDENT CENTER",
+    eyebrow: "PROBLEME",
     title: "Problem melden",
-    intro: "Beschreibe, was nicht wie erwartet funktioniert. GOSTAYA speichert Hotel, Modul und operativen Kontext zum Hinweis.",
-    where: "1. Wo ist das Problem aufgetreten?",
-    what: "2. Um welche Art Problem geht es?",
-    urgency: "3. Wie dringend ist es?",
-    summary: "Problem kurz beschreiben",
-    summaryPlaceholder: "Beispiel: Housekeeping sieht eine neue Anfrage aus Zimmer 901 nicht",
-    details: "Weitere Details (optional)",
-    detailsPlaceholder: "Was wurde erwartet und was ist stattdessen passiert?",
+    intro: "Wähle den Bereich und beschreibe das Problem kurz. GOSTAYA speichert Hotel und Kontext zum Hinweis.",
+    where: "1. Wo ist das Problem?",
+    problem: "2. Problem beschreiben",
+    problemPlaceholder: "Beispiel: Housekeeping sieht eine neue Anfrage aus Zimmer 901 nicht.",
     send: "Problem senden",
     sending: "Wird gesendet…",
-    sent: "Das Problem wurde im Incident Center registriert.",
+    sent: "Das Problem wurde registriert.",
     failed: "Das Problem konnte nicht registriert werden.",
     open: "Problem melden",
     close: "Schließen",
   },
 } as const;
 
-const OPTIONS = {
-  bg: {
-    modules: [
-      ["guest_hub", "Guest Hub"],
-      ["reception", "Рецепция"],
-      ["housekeeping", "Камериерки"],
-      ["maintenance", "Технически отдел"],
-      ["manager", "Manager панел"],
-      ["offers", "Оферти / Upsell"],
-      ["staff_development", "Обучение и персонал"],
-      ["notifications", "Съобщения / известия"],
-      ["integration", "Интеграция"],
-      ["other", "Друго"],
-    ],
-    kinds: [
-      ["human_error", "Човешка грешка"],
-      ["workflow", "Процесът не работи правилно"],
-      ["technical", "Технически проблем"],
-      ["configuration", "Грешна настройка"],
-      ["integration", "Външна интеграция"],
-      ["data_quality", "Неточни / липсващи данни"],
-    ],
-    severity: [
-      ["info", "Ниско · не пречи на работата"],
-      ["warning", "Средно · затруднява работата"],
-      ["error", "Високо · важна функция не работи"],
-      ["critical", "Критично · работата е блокирана"],
-    ],
-  },
-  en: {
-    modules: [
-      ["guest_hub", "Guest Hub"],
-      ["reception", "Reception"],
-      ["housekeeping", "Housekeeping"],
-      ["maintenance", "Maintenance"],
-      ["manager", "Manager dashboard"],
-      ["offers", "Offers / Upsell"],
-      ["staff_development", "Training & staff"],
-      ["notifications", "Messages / notifications"],
-      ["integration", "Integration"],
-      ["other", "Other"],
-    ],
-    kinds: [
-      ["human_error", "Human error"],
-      ["workflow", "Workflow does not work as expected"],
-      ["technical", "Technical problem"],
-      ["configuration", "Wrong configuration"],
-      ["integration", "External integration"],
-      ["data_quality", "Wrong / missing data"],
-    ],
-    severity: [
-      ["info", "Low · work can continue"],
-      ["warning", "Medium · work is affected"],
-      ["error", "High · important function is unavailable"],
-      ["critical", "Critical · work is blocked"],
-    ],
-  },
-  de: {
-    modules: [
-      ["guest_hub", "Guest Hub"],
-      ["reception", "Rezeption"],
-      ["housekeeping", "Housekeeping"],
-      ["maintenance", "Technik"],
-      ["manager", "Manager-Dashboard"],
-      ["offers", "Angebote / Upsell"],
-      ["staff_development", "Training & Personal"],
-      ["notifications", "Nachrichten / Benachrichtigungen"],
-      ["integration", "Integration"],
-      ["other", "Sonstiges"],
-    ],
-    kinds: [
-      ["human_error", "Bedienfehler"],
-      ["workflow", "Prozess funktioniert nicht wie erwartet"],
-      ["technical", "Technisches Problem"],
-      ["configuration", "Falsche Konfiguration"],
-      ["integration", "Externe Integration"],
-      ["data_quality", "Falsche / fehlende Daten"],
-    ],
-    severity: [
-      ["info", "Niedrig · Arbeit kann fortgesetzt werden"],
-      ["warning", "Mittel · Arbeit ist beeinträchtigt"],
-      ["error", "Hoch · wichtige Funktion fällt aus"],
-      ["critical", "Kritisch · Arbeit ist blockiert"],
-    ],
-  },
-} satisfies Record<Lang, {
-  modules: string[][];
-  kinds: string[][];
-  severity: string[][];
-}>;
+const MODULES = {
+  bg: [
+    ["guest_hub", "Портал за госта"],
+    ["reception", "Рецепция"],
+    ["housekeeping", "Хаускипинг"],
+    ["maintenance", "Технически отдел"],
+    ["manager", "Мениджърски панел"],
+    ["offers", "Оферти / допълнителни услуги"],
+    ["staff_development", "Обучение и персонал"],
+    ["notifications", "Съобщения / известия"],
+    ["integration", "Интеграции"],
+    ["other", "Друго"],
+  ],
+  en: [
+    ["guest_hub", "Guest Hub"],
+    ["reception", "Reception"],
+    ["housekeeping", "Housekeeping"],
+    ["maintenance", "Maintenance"],
+    ["manager", "Manager dashboard"],
+    ["offers", "Offers / additional services"],
+    ["staff_development", "Training & staff"],
+    ["notifications", "Messages / notifications"],
+    ["integration", "Integrations"],
+    ["other", "Other"],
+  ],
+  de: [
+    ["guest_hub", "Guest Hub"],
+    ["reception", "Rezeption"],
+    ["housekeeping", "Housekeeping"],
+    ["maintenance", "Technik"],
+    ["manager", "Manager-Dashboard"],
+    ["offers", "Angebote / Zusatzleistungen"],
+    ["staff_development", "Training & Personal"],
+    ["notifications", "Nachrichten / Benachrichtigungen"],
+    ["integration", "Integrationen"],
+    ["other", "Sonstiges"],
+  ],
+} satisfies Record<Lang, string[][]>;
 
-function ChoiceGrid({
+function ModuleGrid({
   title,
   options,
   value,
@@ -177,10 +113,10 @@ function ChoiceGrid({
               onClick={() => onChange(id)}
               aria-pressed={selected}
               className={
-                "min-h-11 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold transition " +
+                "min-h-10 rounded-xl border px-3 py-2 text-left text-sm font-semibold transition " +
                 (selected
-                  ? "border-[#1479d3] bg-[#1479d3] text-white shadow-sm"
-                   : "border-slate-200 bg-white text-slate-700 hover:border-sky-300 hover:bg-sky-50")
+                  ? "border-sky-300 bg-sky-50 text-sky-800 ring-2 ring-sky-100"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-sky-300 hover:bg-sky-50")
               }
             >
               {label}
@@ -200,13 +136,10 @@ export default function ManagerProblemReportCard({
   const { lang } = useStaffUi();
   const safeLang = (lang === "bg" || lang === "de" ? lang : "en") as Lang;
   const copy = COPY[safeLang];
-  const options = OPTIONS[safeLang];
+  const modules = MODULES[safeLang];
   const [open, setOpen] = useState(false);
-  const [kind, setKind] = useState("workflow");
   const [module, setModule] = useState("guest_hub");
-  const [severity, setSeverity] = useState("warning");
   const [summary, setSummary] = useState("");
-  const [details, setDetails] = useState("");
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -222,11 +155,11 @@ export default function ManagerProblemReportCard({
         credentials: "same-origin",
         body: JSON.stringify({
           hotelSlug,
-          kind,
+          kind: "workflow",
           module,
-          severity,
+          severity: "warning",
           summary: summary.trim(),
-          details: details.trim(),
+          details: "",
         }),
       });
       const body = (await response.json().catch(() => null)) as { ok?: boolean } | null;
@@ -234,8 +167,8 @@ export default function ManagerProblemReportCard({
         setFeedback(copy.failed);
         return;
       }
+
       setSummary("");
-      setDetails("");
       setFeedback(copy.sent);
       setOpen(false);
     } catch {
@@ -246,68 +179,54 @@ export default function ManagerProblemReportCard({
   }
 
   return (
-    <section className="h-full rounded-2xl border border-sky-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,58,91,.08)]">
-      <div className="flex h-full flex-col">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#1479d3]">{copy.eyebrow}</p>
-          <h3 className="mt-2 text-lg font-bold text-slate-900">{copy.title}</h3>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{copy.intro}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setOpen((value) => !value);
-            setFeedback(null);
-          }}
-          className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-[#1479d3] bg-[#1479d3] px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-sky-100 transition hover:bg-[#0f68b7]"
-        >
-          {open ? copy.close : copy.open}
-        </button>
-
-        {open ? (
-          <div className="mt-5 space-y-5 border-t border-slate-200 pt-5">
-            <ChoiceGrid title={copy.where} options={options.modules} value={module} onChange={setModule} />
-            <ChoiceGrid title={copy.what} options={options.kinds} value={kind} onChange={setKind} />
-            <ChoiceGrid title={copy.urgency} options={options.severity} value={severity} onChange={setSeverity} />
-
-            <label className="block text-sm font-bold text-slate-800">
-              {copy.summary}
-              <input
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-600"
-                value={summary}
-                maxLength={500}
-                placeholder={copy.summaryPlaceholder}
-                onChange={(e) => setSummary(e.target.value)}
-              />
-            </label>
-
-            <label className="block text-sm font-bold text-slate-800">
-              {copy.details}
-              <textarea
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-600"
-                rows={4}
-                value={details}
-                maxLength={3000}
-                placeholder={copy.detailsPlaceholder}
-                onChange={(e) => setDetails(e.target.value)}
-              />
-            </label>
-
-            <button
-              type="button"
-              onClick={() => void submit()}
-              disabled={sending || summary.trim().length < 5}
-              className="w-full rounded-xl bg-[#1479d3] px-4 py-3 text-sm font-bold text-white shadow-md shadow-sky-100 transition hover:bg-[#0f68b7] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-            >
-              {sending ? copy.sending : copy.send}
-            </button>
-          </div>
-        ) : null}
-
-        {feedback ? (
-          <p className="mt-3 text-xs font-medium text-slate-600">{feedback}</p>
-        ) : null}
+    <section className="rounded-2xl border border-sky-200 bg-white p-4 shadow-[0_12px_30px_rgba(15,58,91,.06)]">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#1479d3]">{copy.eyebrow}</p>
+        <h3 className="mt-1.5 text-lg font-bold text-slate-900">{copy.title}</h3>
+        <p className="mt-1.5 text-sm leading-6 text-slate-600">{copy.intro}</p>
       </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((value) => !value);
+          setFeedback(null);
+        }}
+        className="mt-3 inline-flex min-h-10 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-bold text-sky-800 transition hover:bg-sky-100"
+      >
+        {open ? copy.close : copy.open}
+      </button>
+
+      {open ? (
+        <div className="mt-4 space-y-4 border-t border-slate-200 pt-4">
+          <ModuleGrid title={copy.where} options={modules} value={module} onChange={setModule} />
+
+          <label className="block text-sm font-bold text-slate-800">
+            {copy.problem}
+            <textarea
+              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+              rows={4}
+              value={summary}
+              maxLength={1800}
+              placeholder={copy.problemPlaceholder}
+              onChange={(event) => setSummary(event.target.value)}
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={sending || summary.trim().length < 5}
+            className="w-full rounded-xl bg-[#1479d3] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#0f68b7] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+          >
+            {sending ? copy.sending : copy.send}
+          </button>
+        </div>
+      ) : null}
+
+      {feedback ? (
+        <p className="mt-3 text-xs font-medium text-slate-600">{feedback}</p>
+      ) : null}
     </section>
   );
 }
