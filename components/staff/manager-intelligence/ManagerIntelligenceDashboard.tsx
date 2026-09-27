@@ -43,10 +43,40 @@ type DashboardResponse = {
   error?: string;
 };
 
+const MODULE_LABELS = {
+  bg: {
+    guest_hub: "Портал за госта",
+    staff_operations: "Хотелски екип",
+    operational_ai: "Оперативен ИИ",
+    staff_development: "Развитие на персонала",
+    manager_intelligence: "Manager Intelligence",
+    revenue_intelligence: "Допълнителни приходи",
+    integration_layer: "Интеграции",
+  },
+  en: {
+    guest_hub: "Guest Hub",
+    staff_operations: "Staff Operations",
+    operational_ai: "Operational AI",
+    staff_development: "Staff Development",
+    manager_intelligence: "Manager Intelligence",
+    revenue_intelligence: "Revenue Intelligence",
+    integration_layer: "Integrations",
+  },
+  de: {
+    guest_hub: "Guest Hub",
+    staff_operations: "Hotelteam",
+    operational_ai: "Operative KI",
+    staff_development: "Personalentwicklung",
+    manager_intelligence: "Manager Intelligence",
+    revenue_intelligence: "Zusatzumsatz",
+    integration_layer: "Integrationen",
+  },
+} as const;
+
 const COPY = {
   bg: {
     eyebrow: "MANAGER INTELLIGENCE",
-    title: "AI оперативен център за мениджъра",
+    title: "ИИ оперативен център за мениджъра",
     intro: "GOSTAYA следи проверимите сигнали от активните модули на хотела. Важните отклонения се показват през деня, а всяка сутрин се подготвя отчет за предходния хотелски ден.",
     live: "Нужно внимание сега",
     noSignals: "В момента няма критични или предупредителни сигнали.",
@@ -61,7 +91,7 @@ const COPY = {
     lowRatings: "Ниски оценки",
     revenue: "Начислени доп. услуги",
     incidents: "Проблеми / инциденти",
-    staff: "Staff Development",
+    staff: "Развитие на персонала",
     modules: "Следени модули",
     history: "Предишни сутрешни отчети",
     unavailable: "Manager Intelligence не е наличен в момента.",
@@ -203,7 +233,7 @@ export default function ManagerIntelligenceDashboard({ hotelSlug }: { hotelSlug:
         <div className="mt-4 flex flex-wrap gap-2">
           {data.snapshot.entitlement.enabledModules.map((module) => (
             <span key={module} className="rounded-full border border-sky-100 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
-              {module.replaceAll("_", " ")}
+              {MODULE_LABELS[safeLang][module as keyof typeof MODULE_LABELS.bg] || module.replaceAll("_", " ")}
             </span>
           ))}
         </div>
@@ -216,15 +246,21 @@ export default function ManagerIntelligenceDashboard({ hotelSlug }: { hotelSlug:
             <p className="mt-1 text-xs text-slate-500">Auto-refresh · 60 sec</p>
           </div>
           <div className="flex gap-2 text-xs font-bold">
-            <span className="rounded-full bg-rose-50 px-3 py-1.5 text-rose-700">{data.snapshot.live.criticalSignals} critical</span>
-            <span className="rounded-full bg-amber-50 px-3 py-1.5 text-amber-700">{data.snapshot.live.warningSignals} warning</span>
+            <span className="rounded-full bg-rose-50 px-3 py-1.5 text-rose-700">
+              {data.snapshot.live.criticalSignals} {safeLang === "bg" ? "критични" : safeLang === "de" ? "kritisch" : "critical"}
+            </span>
+            <span className="rounded-full bg-amber-50 px-3 py-1.5 text-amber-700">
+              {data.snapshot.live.warningSignals} {safeLang === "bg" ? "предупреждения" : safeLang === "de" ? "Warnungen" : "warning"}
+            </span>
           </div>
         </div>
         {visibleSignals.length ? (
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {visibleSignals.map((signal) => (
               <article key={signal.key} className={"rounded-2xl border p-4 " + (signal.severity === "critical" ? "border-rose-200 bg-rose-50" : "border-amber-200 bg-amber-50")}>
-                <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">{signal.module.replaceAll("_", " ")}</div>
+                <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                  {MODULE_LABELS[safeLang][signal.module as keyof typeof MODULE_LABELS.bg] || signal.module.replaceAll("_", " ")}
+                </div>
                 <div className="mt-1 font-bold text-[#102a43]">{signal.title}</div>
                 <div className="mt-1 text-sm text-slate-600">{signal.detail}</div>
               </article>
