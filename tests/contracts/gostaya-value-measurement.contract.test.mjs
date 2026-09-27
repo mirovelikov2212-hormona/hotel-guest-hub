@@ -488,3 +488,19 @@ test("Staff-originated operational requests cannot inflate Reception Bypass or D
     1,
   );
 });
+
+test("Operational Value inherits the strict paid Manager Intelligence entitlement", () => {
+  const server = readFileSync(
+    new URL("../../lib/server/gostaya-value-measurement.ts", import.meta.url),
+    "utf8",
+  );
+  const page = readFileSync(
+    new URL("../../app/staff/[hotelSlug]/manager/value/page.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(server, /requireHotelPaidProductModuleAccess/);
+  assert.match(server, /"manager_intelligence"/);
+  assert.match(page, /requireHotelPaidProductModuleAccess/);
+  assert.match(page, /"manager_intelligence"/);
+});
