@@ -114,7 +114,7 @@ const HOTEL_IMAGES: Record<BrandVariant["key"], string> = {
   resort: "/marketing/hotel-hubs/resort.webp",
   luxury: "/marketing/hotel-hubs/luxury.webp",
   business: "/marketing/hotel-hubs/business.webp",
-  boutique: "/marketing/hotel-hubs/boutique.webp",
+  boutique: "/marketing/hotel-hubs/boutique-v2.webp",
 };
 
 function hotelImageAlt(variant: BrandVariant, lang: Lang) {
