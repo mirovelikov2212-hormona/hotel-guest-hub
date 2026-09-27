@@ -10,6 +10,7 @@ import GostayaValueAccessCard from "@/components/staff/GostayaValueAccessCard";
 import IntegrationStatusCard from "@/components/staff/IntegrationStatusCard";
 import ManagerProblemReportCard from "@/components/staff/ManagerProblemReportCard";
 import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
+import ManagerIntelligenceAccessCard from "@/components/staff/ManagerIntelligenceAccessCard";
 import GuestCommunicationsWorkspace from "@/components/staff/GuestCommunicationsWorkspace";
 import StaffRoomActivityMap from "@/components/staff/StaffRoomActivityMap";
 import ManagerContentOffersEditor from "@/components/staff/ManagerContentOffersEditor";
@@ -820,6 +821,7 @@ export default function ManagerPage() {
       </section>
 
       {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="manager" /> : null}
+      {hotelSlug ? <ManagerIntelligenceAccessCard hotelSlug={hotelSlug} /> : null}
 
       {hotelSlug ? <GuestCommunicationsWorkspace hotelSlug={hotelSlug} role="manager" /> : null}
       {hotelSlug ? <StaffRoomActivityMap hotelSlug={hotelSlug} role="manager" /> : null}
