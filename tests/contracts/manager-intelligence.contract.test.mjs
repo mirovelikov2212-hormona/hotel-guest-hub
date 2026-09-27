@@ -15,8 +15,8 @@ test("Manager Intelligence is a separately entitled Manager module and is visibl
 
   assert.match(catalog, /"manager_intelligence"/);
   assert.match(catalog, /manager_intelligence: \["staff_operations"\]/);
-  assert.match(server, /requireHotelProductModuleAccess\(String\(hotel\.id\), "manager_intelligence"\)/);
-  assert.match(page, /requireHotelProductModuleAccess\(String\(access\.hotelId\), "manager_intelligence"\)/);
+  assert.match(server, /requireHotelPaidProductModuleAccess\(String\(hotel\.id\), "manager_intelligence"\)/);
+  assert.match(page, /requireHotelPaidProductModuleAccess\(String\(access\.hotelId\), "manager_intelligence"\)/);
   assert.match(card, /ДОПЪЛНИТЕЛЕН ПЛАТЕН МОДУЛ/);
   assert.match(card, /\/api\/staff\/manager-intelligence/);
   assert.match(manager, /<ManagerIntelligenceAccessCard hotelSlug=\{hotelSlug\} \/>/);
@@ -80,4 +80,15 @@ test("Manager Intelligence UI exposes live signals, morning report, history and 
   assert.match(api, /getManagerIntelligenceDashboard/);
   assert.match(api, /generateManagerMorningBrief/);
   assert.match(api, /enforceStaffSameOrigin\(req\)/);
+});
+
+test("new paid Manager Intelligence never leaks through legacy unmanaged Production compatibility", () => {
+  const entitlements = source("lib/server/product-module-entitlements.ts");
+  const manager = source("lib/server/manager-intelligence.ts");
+
+  assert.match(entitlements, /entitlement\.commercial\.environment !== "production"/);
+  assert.match(entitlements, /entitlement\.source === "full_trial"/);
+  assert.match(entitlements, /return entitlement\.source === "explicit_config"/);
+  assert.match(entitlements, /requireHotelPaidProductModuleAccess/);
+  assert.match(manager, /hasHotelPaidProductModuleAccess\(entitlement, "manager_intelligence"\)/);
 });
