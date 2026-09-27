@@ -2519,6 +2519,7 @@ function writeGuestLang(nextLang: LangKey) {
 export default function GuestHub({ config }: { config: HotelConfig }) {
   const factoryOnboardingEnvelope = (config as any).factoryOnboardingEnvelope;
   const explicitWeatherEnabled = (config as any).weatherEnabled;
+  const operationalAiEntitled = (config as any).operationalAiEntitled;
   const guestRuntimeCapabilities = useMemo(
     () => deriveGuestRuntimeCapabilities({
       hotelSlug: config.hotelSlug,
@@ -2527,6 +2528,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       requestDefs: config.requestDefs,
       factoryOnboardingEnvelope,
       weatherEnabled: explicitWeatherEnabled,
+      operationalAiEntitled,
     }),
     [
       config.coverImage,
@@ -2534,6 +2536,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       config.publicSlug,
       config.requestDefs,
       explicitWeatherEnabled,
+      operationalAiEntitled,
       factoryOnboardingEnvelope,
     ]
   );

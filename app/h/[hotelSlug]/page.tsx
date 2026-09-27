@@ -14,6 +14,7 @@ import {
   isDemoAccessConfigured,
 } from "@/lib/demo-access";
 import { isCommercialRuntimeAccessDeniedError } from "@/lib/server/commercial-runtime-entitlement";
+import { getHotelProductModuleEntitlement } from "@/lib/server/product-module-entitlements";
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import type { LangKey } from "@/lib/types";
 
@@ -138,14 +139,17 @@ export default async function HotelHubPage({ params, searchParams }: PageProps) 
     }
   }
 
+  let hotel;
   try {
-    await resolveHotelByAnySlugAdmin(hotelSlug);
+    hotel = await resolveHotelByAnySlugAdmin(hotelSlug);
   } catch (error) {
     if (isCommercialRuntimeAccessDeniedError(error)) {
       return <CommercialAccessUnavailable />;
     }
     return notFound();
   }
+
+  const productEntitlement = await getHotelProductModuleEntitlement(String(hotel.id));
 
   const cfg = await getHotelConfig(hotelSlug);
   if (!cfg) return notFound();
@@ -157,6 +161,7 @@ export default async function HotelHubPage({ params, searchParams }: PageProps) 
   const guestConfig = {
     ...cfg,
     hotelSlug: guestRuntimeHotelSlug,
+    operationalAiEntitled: productEntitlement.moduleAccess.operational_ai,
   };
 
   return (

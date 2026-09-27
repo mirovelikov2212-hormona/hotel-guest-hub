@@ -183,3 +183,25 @@ test("P3.3 is wired into the full contract suite", () => {
     "node --test tests/contracts/p3-3-runtime-entitlement-enforcement.contract.test.mjs",
   );
 });
+
+
+test("P3.3 Guest Hub AI entry follows the same Operational AI product entitlement as the API", async () => {
+  const guestHub = await readFile(
+    new URL("../../components/GuestHub.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(hotelPage, /getHotelProductModuleEntitlement\(String\(hotel\.id\)\)/);
+  assert.match(
+    hotelPage,
+    /operationalAiEntitled: productEntitlement\.moduleAccess\.operational_ai/,
+  );
+  assert.match(guestHub, /operationalAiEntitled/);
+  assert.match(guestHub, /guestRuntimeCapabilities\.aiEnabled/);
+  assert.match(
+    guestCapabilities,
+    /const operationalAiEntitled = config\.operationalAiEntitled !== false/,
+  );
+  assert.match(guestCapabilities, /operationalAiEntitled\s*&&/);
+  assert.match(aiRoute, /requireHotelProductModuleAccess\(hotel\.id, "operational_ai"\)/);
+});
