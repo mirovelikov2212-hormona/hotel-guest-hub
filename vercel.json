@@ -28,6 +28,14 @@
     {
       "path": "/api/cron/department-coverage-transitions",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/manager-intelligence-watch",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/manager-intelligence-morning-brief",
+      "schedule": "5 * * * *"
     }
   ]
 }
