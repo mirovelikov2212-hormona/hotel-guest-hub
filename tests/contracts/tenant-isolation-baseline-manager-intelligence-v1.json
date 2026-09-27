@@ -42,7 +42,7 @@
   "additions": [
     {
       "filePath": "lib/server/manager-intelligence.ts",
-      "line": 455,
+      "line": 454,
       "table": "staff_training_assignments",
       "tableExpression": "\"staff_training_assignments\"",
       "operation": "select",
@@ -53,7 +53,7 @@
     },
     {
       "filePath": "lib/server/manager-intelligence.ts",
-      "line": 460,
+      "line": 459,
       "table": "staff_training_completions",
       "tableExpression": "\"staff_training_completions\"",
       "operation": "select",
@@ -64,7 +64,7 @@
     },
     {
       "filePath": "lib/server/manager-intelligence.ts",
-      "line": 465,
+      "line": 464,
       "table": "staff_assessment_attempts",
       "tableExpression": "\"staff_assessment_attempts\"",
       "operation": "select",
@@ -75,7 +75,7 @@
     },
     {
       "filePath": "lib/server/manager-intelligence.ts",
-      "line": 471,
+      "line": 470,
       "table": "staff_hr_evaluations",
       "tableExpression": "\"staff_hr_evaluations\"",
       "operation": "select",
