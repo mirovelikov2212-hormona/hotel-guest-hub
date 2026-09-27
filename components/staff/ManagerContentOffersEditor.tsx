@@ -69,7 +69,15 @@ const COPY = {
     file: "Файл",
     language: "Езикова версия",
     target: "Към оферта",
-    newOffer: "Нова оферта",
+    newOffer: "Създай нова оферта",
+    selectOffer: "Избери оферта",
+    mediaTitle: "Медия на офертата",
+    mediaHint: "Добавете основна снимка към тази оферта. Тя ще се показва директно в Guest Hub.",
+    coverImage: "Основна снимка",
+    uploadCover: "Качи снимката",
+    coverAdded: "Снимката е добавена към офертата.",
+    removeCover: "Премахни снимката",
+    selectImage: "Изберете JPG, PNG или WebP изображение.",
     upload: "Качи и провери",
     uploading: "Качване…",
     approve: "Одобри за Hub",
@@ -140,7 +148,15 @@ const COPY = {
     file: "File",
     language: "Language version",
     target: "Attach to",
-    newOffer: "New offer",
+    newOffer: "Create new offer",
+    selectOffer: "Select offer",
+    mediaTitle: "Offer media",
+    mediaHint: "Add a main image to this offer. It will be shown directly in the Guest Hub.",
+    coverImage: "Main image",
+    uploadCover: "Upload image",
+    coverAdded: "The image was added to the offer.",
+    removeCover: "Remove image",
+    selectImage: "Choose a JPG, PNG or WebP image.",
     upload: "Upload and check",
     uploading: "Uploading…",
     approve: "Approve for Hub",
@@ -211,7 +227,15 @@ const COPY = {
     file: "Datei",
     language: "Sprachversion",
     target: "Zu Angebot",
-    newOffer: "Neues Angebot",
+    newOffer: "Neues Angebot erstellen",
+    selectOffer: "Angebot auswählen",
+    mediaTitle: "Medien des Angebots",
+    mediaHint: "Fügen Sie diesem Angebot ein Hauptbild hinzu. Es wird direkt im Guest Hub angezeigt.",
+    coverImage: "Hauptbild",
+    uploadCover: "Bild hochladen",
+    coverAdded: "Das Bild wurde dem Angebot hinzugefügt.",
+    removeCover: "Bild entfernen",
+    selectImage: "Wählen Sie ein JPG-, PNG- oder WebP-Bild.",
     upload: "Hochladen und prüfen",
     uploading: "Hochladen…",
     approve: "Für Hub freigeben",
@@ -357,6 +381,7 @@ export default function ManagerContentOffersEditor({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [offers, setOffers] = useState<HubOfferV2[]>([]);
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const [changeRequestId, setChangeRequestId] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [guestLanguage, setGuestLanguage] = useState<GuestLanguage>("bg");
@@ -370,7 +395,11 @@ export default function ManagerContentOffersEditor({
   const [uploadTargetOfferId, setUploadTargetOfferId] = useState("new");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverBusy, setCoverBusy] = useState(false);
   const [pendingAssetId, setPendingAssetId] = useState<string | null>(null);
+  const [pendingAssetMode, setPendingAssetMode] = useState<"ready" | "cover">("ready");
+  const [pendingAssetOfferId, setPendingAssetOfferId] = useState<string | null>(null);
 
   const assetById = useMemo(
     () => new Map(assets.map((asset) => [asset.id, asset])),
@@ -410,7 +439,9 @@ export default function ManagerContentOffersEditor({
       const usableDraft = draft && !draft.stale ? draft : null;
       setStale(Boolean(draft?.stale));
       setChangeRequestId(usableDraft?.id || null);
-      setOffers(cloneOffers(usableDraft?.offers || body.editor.currentOffers || []));
+      const nextOffers = cloneOffers(usableDraft?.offers || body.editor.currentOffers || []);
+      setOffers(nextOffers);
+      setSelectedOfferId((current) => nextOffers.some((offer) => offer.id === current) ? current : (nextOffers[0]?.id || null));
       setLastDiffChanged(
         usableDraft?.diff && typeof usableDraft.diff.changed === "boolean"
           ? Boolean(usableDraft.diff.changed)
@@ -478,7 +509,34 @@ export default function ManagerContentOffersEditor({
   }
 
   function addStructuredOffer() {
-    setOffers((current) => [...current, blankOffer("structured", current.length + 1)]);
+    const next = blankOffer("structured", offers.length + 1);
+    setOffers((current) => [...current, next]);
+    setSelectedOfferId(next.id);
+    setNotice("");
+  }
+
+  function attachCoverImage(asset: ContentAsset, offerId: string) {
+    if (asset.kind !== "image") {
+      setError(copy.selectImage);
+      return;
+    }
+    setOffers((current) => current.map((offer) => (
+      offer.id === offerId
+        ? {
+            ...offer,
+            presentationMode: "structured",
+            assets: {
+              ...offer.assets,
+              coverAssetId: asset.id,
+            },
+          }
+        : offer
+    )));
+    setSelectedOfferId(offerId);
+    setPendingAssetId(null);
+    setPendingAssetOfferId(null);
+    setCoverFile(null);
+    setNotice(copy.coverAdded);
   }
 
   function attachReadyCreative(asset: ContentAsset) {
@@ -590,12 +648,100 @@ export default function ManagerContentOffersEditor({
 
       const asset = finalized.asset;
       setAssets((current) => [asset, ...current.filter((item) => item.id !== asset.id)]);
+      setPendingAssetMode("ready");
+      setPendingAssetOfferId(null);
       if (asset.hubReviewStatus === "approved") attachReadyCreative(asset);
       else setPendingAssetId(asset.id);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setUploadBusy(false);
+    }
+  }
+
+  async function uploadCoverImage(offerId: string) {
+    if (!coverFile || !["image/jpeg", "image/png", "image/webp"].includes(coverFile.type)) {
+      setError(copy.selectImage);
+      return;
+    }
+
+    setCoverBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const draftId = await ensureDraft();
+
+      const prepareResponse = await fetch("/api/staff/content-changes/assets", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "prepare",
+          hotelSlug,
+          changeRequestId: draftId,
+          originalName: coverFile.name,
+          mimeType: coverFile.type,
+          fileSize: coverFile.size,
+          creativeSurface: "hub_ready",
+        }),
+      });
+      const prepared = await prepareResponse.json().catch(() => null) as {
+        ok?: boolean;
+        upload?: { assetId: string; storagePath: string; token: string };
+        error?: string;
+        errorType?: string;
+      } | null;
+      if (!prepareResponse.ok || !prepared?.ok || !prepared.upload) {
+        throw new Error(managerFailureMessage(prepared, "CM5_CONTENT_ASSET_PREPARE_FAILED"));
+      }
+
+      const storage = getStorageClient();
+      const { error: uploadError } = await storage.storage
+        .from("hub-design-assets")
+        .uploadToSignedUrl(
+          prepared.upload.storagePath,
+          prepared.upload.token,
+          coverFile,
+          { contentType: coverFile.type, cacheControl: "3600" },
+        );
+      if (uploadError) throw new Error("CM5_CONTENT_ASSET_UPLOAD_FAILED:" + uploadError.message);
+
+      const finalizeResponse = await fetch("/api/staff/content-changes/assets", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "finalize",
+          hotelSlug,
+          changeRequestId: draftId,
+          assetId: prepared.upload.assetId,
+          storagePath: prepared.upload.storagePath,
+          originalName: coverFile.name,
+          mimeType: coverFile.type,
+          fileSize: coverFile.size,
+          creativeSurface: "hub_ready",
+        }),
+      });
+      const finalized = await finalizeResponse.json().catch(() => null) as {
+        ok?: boolean;
+        asset?: ContentAsset;
+        error?: string;
+        errorType?: string;
+      } | null;
+      if (!finalizeResponse.ok || !finalized?.ok || !finalized.asset) {
+        throw new Error(managerFailureMessage(finalized, "CM5_CONTENT_ASSET_FINALIZE_FAILED"));
+      }
+
+      const asset = finalized.asset;
+      setAssets((current) => [asset, ...current.filter((item) => item.id !== asset.id)]);
+      setPendingAssetMode("cover");
+      setPendingAssetOfferId(offerId);
+      if (asset.hubReviewStatus === "approved") attachCoverImage(asset, offerId);
+      else setPendingAssetId(asset.id);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setCoverBusy(false);
     }
   }
 
@@ -636,10 +782,14 @@ export default function ManagerContentOffersEditor({
       };
       setAssets((current) => current.map((item) => item.id === asset.id ? updated : item));
 
-      if (decision === "approve") attachReadyCreative(updated);
-      else {
+      if (decision === "approve") {
+        if (pendingAssetMode === "cover" && pendingAssetOfferId) attachCoverImage(updated, pendingAssetOfferId);
+        else attachReadyCreative(updated);
+      } else {
         setPendingAssetId(null);
-        setUploadFile(null);
+        if (pendingAssetMode === "cover") setCoverFile(null);
+        else setUploadFile(null);
+        setPendingAssetOfferId(null);
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -693,6 +843,9 @@ export default function ManagerContentOffersEditor({
   }
 
   const pendingAsset = pendingAssetId ? assetById.get(pendingAssetId) || null : null;
+  const selectedOfferIndex = offers.findIndex((offer) => offer.id === selectedOfferId);
+  const activeOfferIndex = selectedOfferIndex >= 0 ? selectedOfferIndex : (offers.length ? 0 : -1);
+  const activeOffer = activeOfferIndex >= 0 ? offers[activeOfferIndex] : null;
   const qualityText = pendingAsset?.qualityStatus === "pass"
     ? copy.technicalPass
     : pendingAsset?.qualityStatus === "warning"
@@ -723,12 +876,7 @@ export default function ManagerContentOffersEditor({
             </div>
           ) : null}
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <button type="button" onClick={addStructuredOffer} className="rounded-2xl border border-white/10 bg-black/20 p-4 text-left hover:border-cyan-300/30">
-              <p className="font-semibold text-white">{copy.createStructured}</p>
-              <p className="mt-2 text-sm leading-5 text-white/55">{copy.structuredHint}</p>
-            </button>
-
+          <div className="space-y-3">
             <div className="rounded-2xl border border-violet-300/15 bg-violet-300/5 p-4">
               <p className="font-semibold text-white">{copy.uploadReady}</p>
               <p className="mt-2 text-sm leading-5 text-white/55">{copy.readyHint}</p>
@@ -813,6 +961,30 @@ export default function ManagerContentOffersEditor({
             </div>
           ) : null}
 
+          <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/15 p-4 sm:flex-row sm:items-end sm:justify-between">
+            <label className="min-w-0 flex-1 text-xs text-white/65">
+              <span className="mb-1 block">{copy.selectOffer}</span>
+              <select
+                value={activeOffer?.id || ""}
+                onChange={(event) => setSelectedOfferId(event.target.value || null)}
+                className="min-h-10 w-full rounded-lg border border-white/10 bg-black/30 px-3 text-sm text-white"
+              >
+                {offers.length ? offers.map((offer) => (
+                  <option key={offer.id} value={offer.id}>
+                    {offer.titleByLang[guestLanguage] || Object.values(offer.titleByLang).find(Boolean) || offer.key}
+                  </option>
+                )) : <option value="">—</option>}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={addStructuredOffer}
+              className="min-h-10 rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-4 py-2 text-sm font-semibold text-cyan-50"
+            >
+              + {copy.newOffer}
+            </button>
+          </div>
+
           <div className="flex flex-wrap gap-2">
             {GUEST_LANGUAGES.map((language) => (
               <button key={language.id} type="button" onClick={() => setGuestLanguage(language.id)} className={"rounded-full border px-3 py-1.5 text-xs font-semibold " + (guestLanguage === language.id ? "border-cyan-300/35 bg-cyan-300/15 text-cyan-50" : "border-white/10 bg-black/20 text-white/60")}>{language.label}</button>
@@ -820,8 +992,19 @@ export default function ManagerContentOffersEditor({
           </div>
 
           <div className="space-y-4">
-            {offers.length ? offers.map((offer, index) => {
+            {activeOffer ? (() => {
+              const offer = activeOffer;
+              const index = activeOfferIndex;
               const readyEntries = Object.entries(offer.assets.readyCreativeByLang || {});
+              const coverAsset = offer.assets.coverAssetId ? assetById.get(offer.assets.coverAssetId) || null : null;
+              const coverPreviewUrl = offer.assets.coverAssetId
+                ? (coverAsset?.previewUrl || (
+                    "/api/guest/design-asset?hotelSlug="
+                    + encodeURIComponent(hotelSlug)
+                    + "&assetId="
+                    + encodeURIComponent(offer.assets.coverAssetId)
+                  ))
+                : "";
               return (
                 <article key={offer.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -831,6 +1014,48 @@ export default function ManagerContentOffersEditor({
                     </div>
                     <button type="button" onClick={() => updateOffer(index, (current) => ({ ...current, status: "archived" }))} className="rounded-lg border border-rose-300/15 px-3 py-2 text-xs font-semibold text-rose-100/80">{copy.archive}</button>
                   </div>
+
+                  {offer.presentationMode !== "ready_asset" ? (
+                    <div className="mt-4 rounded-xl border border-cyan-300/15 bg-cyan-300/5 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-white">{copy.mediaTitle}</p>
+                          <p className="mt-1 max-w-2xl text-xs leading-5 text-white/55">{copy.mediaHint}</p>
+                        </div>
+                        {coverPreviewUrl ? (
+                          <img src={coverPreviewUrl} alt="" className="h-20 w-28 rounded-lg bg-white object-cover" />
+                        ) : null}
+                      </div>
+                      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+                        <label className="min-w-0 flex-1 text-xs text-white/65">
+                          <span className="mb-1 block">{copy.coverImage}</span>
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={(event) => setCoverFile(event.target.files?.[0] || null)}
+                            className="block w-full text-xs text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-white"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => void uploadCoverImage(offer.id)}
+                          disabled={coverBusy || !coverFile}
+                          className="min-h-10 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-4 py-2 text-sm font-semibold text-cyan-50 disabled:opacity-40"
+                        >
+                          {coverBusy ? copy.uploading : copy.uploadCover}
+                        </button>
+                        {offer.assets.coverAssetId ? (
+                          <button
+                            type="button"
+                            onClick={() => updateOffer(index, (current) => ({ ...current, assets: { ...current.assets, coverAssetId: null } }))}
+                            className="min-h-10 rounded-lg border border-rose-300/20 px-4 py-2 text-sm font-semibold text-rose-100/80"
+                          >
+                            {copy.removeCover}
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
 
                   {offer.presentationMode === "ready_asset" && readyEntries.length ? (
                     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -942,7 +1167,7 @@ export default function ManagerContentOffersEditor({
                   </div>
                 </article>
               );
-            }) : (
+            })() : (
               <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/55">{copy.noOffers}</div>
             )}
           </div>
@@ -950,6 +1175,9 @@ export default function ManagerContentOffersEditor({
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" onClick={() => void saveDraft()} disabled={saving || stale} className="rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-5 py-3 text-sm font-semibold text-cyan-50 disabled:opacity-40">
               {saving ? copy.saving : copy.saveDraft}
+            </button>
+            <button type="button" onClick={() => setOpen(false)} className="rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white/75">
+              {copy.close}
             </button>
             {lastDiffChanged !== null ? <span className="text-sm text-white/55">{lastDiffChanged ? copy.changed : copy.noChanged}</span> : null}
           </div>
