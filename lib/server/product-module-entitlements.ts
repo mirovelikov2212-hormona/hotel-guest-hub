@@ -118,6 +118,41 @@ export async function requireHotelProductModuleAccess(
   return entitlement;
 }
 
+
+export function hasHotelPaidProductModuleAccess(
+  entitlement: HotelProductModuleEntitlement,
+  moduleInput: ProductModuleKey | string,
+) {
+  const moduleKey = requireProductModuleKey(moduleInput) as ProductModuleKey;
+  if (!entitlement.moduleAccess[moduleKey]) return false;
+
+  // Non-production and full trials intentionally expose the complete product
+  // for demos, QA and evaluation. Legacy unmanaged Production remains
+  // backward-compatible for existing runtime modules, but must not silently
+  // unlock newly sold paid add-ons.
+  if (entitlement.commercial.environment !== "production") return true;
+  if (entitlement.source === "full_trial") return true;
+  return entitlement.source === "explicit_config";
+}
+
+export async function requireHotelPaidProductModuleAccess(
+  hotelId: string,
+  moduleInput: ProductModuleKey | string,
+) {
+  const moduleKey = requireProductModuleKey(moduleInput) as ProductModuleKey;
+  const entitlement = await getHotelProductModuleEntitlement(hotelId);
+
+  if (!hasHotelPaidProductModuleAccess(entitlement, moduleKey)) {
+    throw new ProductModuleAccessDeniedError({
+      hotelId,
+      moduleKey,
+      source: entitlement.source,
+    });
+  }
+
+  return entitlement;
+}
+
 export function isProductModuleAccessDeniedError(
   error: unknown,
 ): error is ProductModuleAccessDeniedError {
