@@ -29,7 +29,6 @@
       "filePath": "app/api/staff/guest-direct-communications/route.ts",
       "fromLine": 189,
       "toLine": 193,
-      "table": "\"append_guest_direct_communication_v1\"",
       "operation": "rpc"
     },
     {
