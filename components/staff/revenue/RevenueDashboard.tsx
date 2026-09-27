@@ -144,7 +144,7 @@ const COPY = {
     eyebrow: "PAID SERVICES",
     title: "Additional Service Revenue",
     intro:
-      "This view contains only paid-service revenue GOSTAYA can evidence through request → billing ledger, such as massages, late checkout and other hotel extras. It is not an RMS and does not include room rates, ADR, RevPAR, occupancy or total hotel revenue.",
+      "This view contains only paid-service revenue GOSTAYA can evidence through request → billing ledger, such as massages, late checkout and other hotel extras. This is not an RMS and does not include room rates, ADR, RevPAR, occupancy or total hotel revenue.",
     tracked: "Tracked net revenue",
     gross: "Gross recognized",
     reversals: "Reversals",
