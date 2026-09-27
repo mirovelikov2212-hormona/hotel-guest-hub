@@ -39,17 +39,17 @@ test("all internal StayHub tool trees share one persisted light-dark preference 
   assert.match(css, /\.text-neutral-100/);
 });
 
-test("Hotel Scanner light mode has an explicit route-scoped surface hierarchy", async () => {
-  const layout = await readProjectFile("app/hotel-scanner/layout.tsx");
-  const page = await readProjectFile("app/hotel-scanner/page.tsx");
-  const scannerTheme = await readProjectFile("app/hotel-scanner/scanner-theme.css");
+test("Hotel Scanner intake redirects to the V2 workflow and keeps a route-scoped themed surface", async () => {
+  const legacyPage = await readProjectFile("app/hotel-scanner/page.tsx");
+  const workflowLayout = await readProjectFile("app/hotel-scanner-v2-workflow/layout.tsx");
+  const workflowPage = await readProjectFile("app/hotel-scanner-v2-workflow/page.tsx");
+  const scannerTheme = await readProjectFile("app/hotel-scanner-v2/scanner-v2.css");
 
-  assert.match(layout, /import "\.\/scanner-theme\.css"/);
-  assert.match(page, /hotel-scanner-page/);
-  assert.match(page, /hotel-scanner-workspace/);
-  assert.match(scannerTheme, /data-stayhub-tools-theme="light"/);
-  assert.match(scannerTheme, /\.hotel-scanner-workspace > section/);
-  assert.match(scannerTheme, /background: rgba\(255, 255, 255, 0\.97\)/);
-  assert.match(scannerTheme, /\.hotel-scanner-workspace section section/);
-  assert.doesNotMatch(scannerTheme, /data-stayhub-tools-theme="dark"/);
+  assert.match(legacyPage, /redirect\(\`\/hotel-scanner-v2-workflow\?lang=\$\{lang\}\`\)/);
+  assert.match(workflowLayout, /@\/components\/internal-tools\/ToolsThemeShell/);
+  assert.match(workflowLayout, /\.\.\/hotel-scanner-v2\/scanner-v2\.css/);
+  assert.match(workflowPage, /scanner-v2-screen/);
+  assert.match(workflowPage, /v2-panel/);
+  assert.match(scannerTheme, /scanner-v2-screen/);
+  assert.match(scannerTheme, /v2-panel/);
 });
