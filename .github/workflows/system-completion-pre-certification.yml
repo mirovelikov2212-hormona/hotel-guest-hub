@@ -43,6 +43,7 @@ jobs:
 
       - name: Manager Intelligence and platform modules
         run: |
+          node --test tests/contracts/manager-intelligence.contract.test.mjs
           node --test tests/contracts/revenue-intelligence.contract.test.mjs
           node --test tests/contracts/gostaya-value-measurement.contract.test.mjs
           node --test tests/contracts/integration-layer.contract.test.mjs
