@@ -9,7 +9,8 @@ import {
 } from "@/lib/server/day3-surveys";
 import {
   getHotelProductModuleEntitlement,
-  requireHotelProductModuleAccess,
+  hasHotelPaidProductModuleAccess,
+  requireHotelPaidProductModuleAccess,
   type HotelProductModuleEntitlement,
 } from "@/lib/server/product-module-entitlements";
 import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
@@ -176,7 +177,7 @@ async function resolveManagerScope(hotelSlugInput: unknown) {
     throw new Error("MANAGER_INTELLIGENCE_HOTEL_SCOPE_MISMATCH");
   }
 
-  await requireHotelProductModuleAccess(String(hotel.id), "manager_intelligence");
+  await requireHotelPaidProductModuleAccess(String(hotel.id), "manager_intelligence");
 
   return {
     id: String(hotel.id),
@@ -873,7 +874,7 @@ export async function runManagerIntelligenceMorningBriefCron(now = new Date()) {
     try {
       const hotel = await readHotel(String(row.id));
       const entitlement = await getHotelProductModuleEntitlement(hotel.id);
-      if (!entitlement.moduleAccess.manager_intelligence) continue;
+      if (!hasHotelPaidProductModuleAccess(entitlement, "manager_intelligence")) continue;
       if (entitlement.commercial.environment !== "production") continue;
       if (localHour(now, hotel.timezone) !== MORNING_HOUR_LOCAL) continue;
 
@@ -947,7 +948,7 @@ export async function runManagerIntelligenceWatchCron(now = new Date()) {
     try {
       const hotel = await readHotel(String(row.id));
       const entitlement = await getHotelProductModuleEntitlement(hotel.id);
-      if (!entitlement.moduleAccess.manager_intelligence) continue;
+      if (!hasHotelPaidProductModuleAccess(entitlement, "manager_intelligence")) continue;
       if (entitlement.commercial.environment !== "production") continue;
 
       const snapshot = await buildSnapshot({
