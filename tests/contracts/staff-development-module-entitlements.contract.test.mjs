@@ -231,3 +231,29 @@ test("Staff Operations and Operational AI have server-side runtime enforcement",
   assert.match(aiRoute, /requireHotelProductModuleAccess\(hotel\.id, "operational_ai"\)/);
   assert.match(aiRoute, /ai_module_not_entitled/);
 });
+
+test("Staff Development routes fail closed and Manager Intelligence dependent HR surfaces use strict paid access", () => {
+  const routePage = readFileSync(
+    new URL("../../components/staff/pages/StaffDevelopmentRoutePage.tsx", import.meta.url),
+    "utf8",
+  );
+  const analysis = readFileSync(
+    new URL("../../lib/server/staff-hr-ai-analysis.ts", import.meta.url),
+    "utf8",
+  );
+  const reporting = readFileSync(
+    new URL("../../lib/server/staff-development-reporting.ts", import.meta.url),
+    "utf8",
+  );
+  const availability = readFileSync(
+    new URL("../../lib/server/staff-module-availability.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(routePage, /requireHotelProductModuleAccess/);
+  assert.match(routePage, /"staff_development"/);
+  assert.match(analysis, /requireHotelPaidProductModuleAccess/);
+  assert.match(reporting, /requireHotelPaidProductModuleAccess/);
+  assert.match(availability, /hasHotelPaidProductModuleAccess/);
+  assert.match(availability, /"manager_intelligence"/);
+});
