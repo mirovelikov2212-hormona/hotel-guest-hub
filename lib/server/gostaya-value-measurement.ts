@@ -8,6 +8,7 @@ import {
   getHotelGostayaValueBaseline,
 } from "@/lib/server/gostaya-value-baseline";
 import {
+  requireHotelPaidProductModuleAccess,
   requireHotelProductModuleAccess,
 } from "@/lib/server/product-module-entitlements";
 import {
@@ -61,7 +62,7 @@ async function resolveManagerValueScope(hotelSlugInput: unknown) {
     throw new Error("VALUE_HOTEL_SCOPE_MISMATCH");
   }
 
-  await requireHotelProductModuleAccess(
+  await requireHotelPaidProductModuleAccess(
     String(hotel.id),
     "manager_intelligence",
   );
