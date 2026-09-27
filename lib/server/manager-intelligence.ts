@@ -37,6 +37,15 @@ type Signal = {
   occurredAt: string | null;
   sourceId: string | null;
 };
+
+type ManagerBrief = {
+  summary: string;
+  yesterdayHighlights: string[];
+  attentionToday: string[];
+  recommendedChecks: string[];
+  source: "openai_grounded" | "deterministic_fallback";
+};
+
 type JsonObject = Record<string, any>;
 
 const MAX_REQUEST_ROWS = 4000;
@@ -609,7 +618,10 @@ async function buildSnapshot(input: {
   };
 }
 
-function fallbackBrief(snapshot: Awaited<ReturnType<typeof buildSnapshot>>, language: Lang) {
+function fallbackBrief(
+  snapshot: Awaited<ReturnType<typeof buildSnapshot>>,
+  language: Lang,
+): ManagerBrief {
   const ops = snapshot.yesterday.operations;
   const quality = snapshot.yesterday.quality;
   const live = snapshot.live;
@@ -645,7 +657,10 @@ function fallbackBrief(snapshot: Awaited<ReturnType<typeof buildSnapshot>>, lang
   };
 }
 
-async function aiBrief(snapshot: Awaited<ReturnType<typeof buildSnapshot>>, language: Lang) {
+async function aiBrief(
+  snapshot: Awaited<ReturnType<typeof buildSnapshot>>,
+  language: Lang,
+): Promise<ManagerBrief> {
   const client = getOpenAiClient();
   if (!client) return fallbackBrief(snapshot, language);
 
@@ -702,7 +717,27 @@ async function aiBrief(snapshot: Awaited<ReturnType<typeof buildSnapshot>>, lang
     if (!output) return fallbackBrief(snapshot, language);
     const parsed = JSON.parse(output);
     if (!isRecord(parsed)) return fallbackBrief(snapshot, language);
-    return { ...parsed, source: "openai_grounded" };
+
+    const summary = clean(parsed.summary);
+    const yesterdayHighlights = Array.isArray(parsed.yesterdayHighlights)
+      ? parsed.yesterdayHighlights.map(clean).filter(Boolean).slice(0, 10)
+      : [];
+    const attentionToday = Array.isArray(parsed.attentionToday)
+      ? parsed.attentionToday.map(clean).filter(Boolean).slice(0, 10)
+      : [];
+    const recommendedChecks = Array.isArray(parsed.recommendedChecks)
+      ? parsed.recommendedChecks.map(clean).filter(Boolean).slice(0, 8)
+      : [];
+
+    if (!summary) return fallbackBrief(snapshot, language);
+
+    return {
+      summary,
+      yesterdayHighlights,
+      attentionToday,
+      recommendedChecks,
+      source: "openai_grounded",
+    };
   } catch (error) {
     console.error("Manager Intelligence AI brief failed; deterministic fallback used", error);
     return fallbackBrief(snapshot, language);
