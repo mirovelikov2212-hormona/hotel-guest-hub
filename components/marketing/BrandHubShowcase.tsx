@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState } from "react";
 
 type Lang = "bg" | "en" | "de";
@@ -104,59 +105,17 @@ const COPY: Record<Lang, { choose: string; preview: string; variants: BrandVaria
   },
 };
 
-function HotelScene({ variant }: { variant: BrandVariant }) {
-  if (variant.key === "resort") {
-    return (
-      <div className="relative h-56 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-sky-300 via-sky-100 to-cyan-100" />
-        <div className="absolute right-8 top-7 h-16 w-16 rounded-full bg-amber-200 shadow-[0_0_28px_rgba(251,191,36,.5)]" />
-        <div className="absolute bottom-0 left-0 h-20 w-full bg-gradient-to-b from-cyan-300 to-sky-500" />
-        <div className="absolute bottom-12 left-10 h-24 w-44 rounded-t-[32px] bg-white/95 shadow-xl" />
-        <div className="absolute bottom-14 left-20 h-16 w-24 rounded-t-2xl bg-cyan-50" />
-        <div className="absolute bottom-10 right-10 h-16 w-28 rounded-[999px] bg-cyan-200/90 ring-4 ring-white/80" />
-        <div className="absolute bottom-16 left-4 h-24 w-3 rotate-6 rounded-full bg-amber-800/80" />
-        <div className="absolute bottom-32 left-0 h-12 w-24 rounded-full bg-emerald-400/80" />
-      </div>
-    );
-  }
+const HOTEL_IMAGES: Record<BrandVariant["key"], string> = {
+  resort: "/marketing/hotel-hubs/resort.webp",
+  luxury: "/marketing/hotel-hubs/luxury.webp",
+  business: "/marketing/hotel-hubs/business.webp",
+  boutique: "/marketing/hotel-hubs/boutique.webp",
+};
 
-  if (variant.key === "luxury") {
-    return (
-      <div className="relative h-56 overflow-hidden bg-[#0b0b0b]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(199,163,91,.35),transparent_30%),linear-gradient(160deg,#171717,#080808)]" />
-        <div className="absolute bottom-0 left-0 h-36 w-full bg-gradient-to-t from-black/80 to-transparent" />
-        <div className="absolute bottom-8 left-8 h-28 w-40 rounded-[24px] border border-white/10 bg-gradient-to-br from-[#2d2b29] to-[#161514] shadow-2xl" />
-        <div className="absolute bottom-12 left-14 h-16 w-28 rounded-[16px] bg-[#d8c8ad]" />
-        <div className="absolute bottom-10 right-8 h-32 w-36 rounded-t-[28px] border border-[#c7a35b]/30 bg-gradient-to-b from-[#2b2926] to-[#141414]" />
-        <div className="absolute right-16 top-8 h-20 w-20 rounded-full border border-[#c7a35b]/30 bg-[#c7a35b]/10 shadow-[0_0_40px_rgba(199,163,91,.25)]" />
-      </div>
-    );
-  }
-
-  if (variant.key === "business") {
-    return (
-      <div className="relative h-56 overflow-hidden bg-gradient-to-b from-slate-200 via-slate-100 to-white">
-        <div className="absolute bottom-0 left-5 h-44 w-28 rounded-t-xl bg-gradient-to-br from-slate-700 to-slate-900 shadow-xl" />
-        <div className="absolute bottom-0 left-40 h-36 w-20 rounded-t-lg bg-gradient-to-br from-blue-500 to-blue-800" />
-        <div className="absolute bottom-0 right-10 h-40 w-32 rounded-t-xl bg-gradient-to-br from-slate-500 to-slate-800" />
-        <div className="absolute left-10 top-9 grid grid-cols-3 gap-2">
-          {Array.from({ length: 12 }).map((_, i) => <span key={i} className="h-2.5 w-4 rounded-sm bg-sky-200/80" />)}
-        </div>
-        <div className="absolute right-16 top-11 rounded-xl bg-white/90 px-4 py-3 text-xs font-bold text-slate-700 shadow-lg">09:00 · Meeting</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative h-56 overflow-hidden bg-gradient-to-br from-rose-100 via-orange-50 to-amber-50">
-      <div className="absolute left-10 top-8 h-40 w-52 rounded-t-[80px] border-[10px] border-[#d89a73] bg-[#f6e5d6] shadow-xl" />
-      <div className="absolute bottom-0 left-0 h-20 w-full bg-[#d9c2a8]" />
-      <div className="absolute bottom-8 left-24 h-24 w-24 rounded-t-[48px] bg-[#5d2e46]" />
-      <div className="absolute right-8 top-14 h-28 w-20 rounded-full bg-emerald-500/70 blur-[1px]" />
-      <div className="absolute right-16 top-6 h-24 w-4 rotate-12 rounded-full bg-emerald-800/60" />
-      <div className="absolute left-6 top-10 rounded-full bg-white/80 px-4 py-2 text-xs font-semibold text-[#7c2d4a] shadow">Since 1927</div>
-    </div>
-  );
+function hotelImageAlt(variant: BrandVariant, lang: Lang) {
+  if (lang === "bg") return `Илюстративна визия за ${variant.label.toLowerCase()} хотел`;
+  if (lang === "de") return `Illustrative Ansicht für ein ${variant.label}-Hotel`;
+  return `Illustrative ${variant.label.toLowerCase()} hotel visual`;
 }
 
 function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
@@ -173,8 +132,16 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
         className={"min-h-[780px] overflow-hidden rounded-[33px] " + variant.fontClass}
         style={{ background: variant.surface, color: variant.text }}
       >
-        <div className="relative">
-          <HotelScene variant={variant} />
+        <div className="relative h-64 overflow-hidden">
+          <Image
+            src={HOTEL_IMAGES[variant.key]}
+            alt={hotelImageAlt(variant, lang)}
+            fill
+            sizes="390px"
+            priority={variant.key === "resort"}
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/10 to-black/45" />
           <div className="absolute inset-x-0 top-0 flex items-center justify-between px-5 py-4 text-white drop-shadow">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-[.22em] text-white/75">Guest Hub</div>
