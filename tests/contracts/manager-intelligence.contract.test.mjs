@@ -92,3 +92,10 @@ test("new paid Manager Intelligence never leaks through legacy unmanaged Product
   assert.match(entitlements, /requireHotelPaidProductModuleAccess/);
   assert.match(manager, /hasHotelPaidProductModuleAccess\(entitlement, "manager_intelligence"\)/);
 });
+
+test("shared staff module availability does not advertise paid Manager Intelligence through legacy Production compatibility", () => {
+  const availability = source("lib/server/staff-module-availability.ts");
+
+  assert.match(availability, /hasHotelPaidProductModuleAccess/);
+  assert.match(availability, /"manager_intelligence"/);
+});
