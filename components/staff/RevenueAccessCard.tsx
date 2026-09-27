@@ -90,19 +90,19 @@ export default function RevenueAccessCard({
   if (!available) return null;
 
   return (
-    <section className="h-full rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <section className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
             {copy.title}
           </p>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+          <p className="mt-1 text-sm leading-6 text-slate-600">
             {copy.body}
           </p>
         </div>
         <Link
           href={`/staff/${hotelSlug}/manager/revenue`}
-          className="inline-flex shrink-0 items-center justify-center rounded-xl border border-emerald-700 bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-800"
+          className="inline-flex w-fit items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100"
         >
           {copy.open} →
         </Link>
