@@ -37,6 +37,95 @@
       "toLine": 212,
       "table": "guest_communications",
       "operation": "select"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 120,
+      "toLine": 123,
+      "operation": "select",
+      "table": "staff_users"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 218,
+      "toLine": 221,
+      "operation": "select",
+      "table": "staff_development_credentials"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 232,
+      "toLine": 235,
+      "operation": "insert",
+      "table": "staff_development_credentials"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 296,
+      "toLine": 299,
+      "operation": "upsert",
+      "table": "staff_development_credentials"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 355,
+      "toLine": 358,
+      "operation": "select",
+      "table": "staff_users"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 393,
+      "toLine": 396,
+      "operation": "select",
+      "table": "staff_development_credentials"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 458,
+      "toLine": 461,
+      "operation": "select",
+      "table": "staff_development_credentials"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 485,
+      "toLine": 488,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 506,
+      "toLine": 509,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 522,
+      "toLine": 525,
+      "operation": "update",
+      "table": "staff_development_sessions"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 536,
+      "toLine": 539,
+      "operation": "insert",
+      "table": "staff_development_sessions"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 588,
+      "toLine": 601,
+      "operation": "select",
+      "table": "staff_development_sessions"
+    },
+    {
+      "filePath": "lib/server/staff-development-identity.ts",
+      "fromLine": 683,
+      "toLine": 696,
+      "operation": "update",
+      "table": "staff_development_sessions"
     }
   ],
   "additions": [
