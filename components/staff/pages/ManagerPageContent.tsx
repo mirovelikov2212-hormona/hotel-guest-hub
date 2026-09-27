@@ -10,6 +10,8 @@ import GostayaValueAccessCard from "@/components/staff/GostayaValueAccessCard";
 import IntegrationStatusCard from "@/components/staff/IntegrationStatusCard";
 import ManagerProblemReportCard from "@/components/staff/ManagerProblemReportCard";
 import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
+import GuestCommunicationsWorkspace from "@/components/staff/GuestCommunicationsWorkspace";
+import StaffRoomActivityMap from "@/components/staff/StaffRoomActivityMap";
 import ManagerContentOffersEditor from "@/components/staff/ManagerContentOffersEditor";
 import ManagerHubContentEditor from "@/components/staff/ManagerHubContentEditor";
 import { buildSurveyDaySummaries, ManagerSurveyReportCard, ManagerTodaySurveysCard, useStaffSurveys } from "@/components/staff/StaffSurveyCards";
@@ -157,8 +159,8 @@ function getUpsellText(lang: "bg" | "en" | "de") {
   }
 
   return {
-    tab: "Upsell",
-    title: "Upsell оборот",
+    tab: "Допълнителни услуги",
+    title: "Приходи от допълнителни услуги",
     intro: "Допълнителни платени услуги, проследени от рецепция. Натиснете карта, за да видите конкретните заявки зад числото.",
     chargedRevenue: "Начислен оборот",
     potentialRevenue: "Потенциален оборот",
@@ -182,7 +184,7 @@ function getUpsellText(lang: "bg" | "en" | "de") {
     pendingAmount: "Чакаща сума",
     waivedAmount: "Стойност без начисляване",
     cancelledAmount: "Отказана сума",
-    upsellDetails: "Детайл по upsell",
+    upsellDetails: "Детайл по допълнителните услуги",
     allPaidServices: "Всички платени услуги",
   };
 }
@@ -819,14 +821,21 @@ export default function ManagerPage() {
 
       {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="manager" /> : null}
 
+      {hotelSlug ? <GuestCommunicationsWorkspace hotelSlug={hotelSlug} role="manager" /> : null}
+      {hotelSlug ? <StaffRoomActivityMap hotelSlug={hotelSlug} role="manager" /> : null}
+
       {hotelSlug ? (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Manager modules">
-          <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="manager" />
-          <RevenueAccessCard hotelSlug={hotelSlug} />
-          <GostayaValueAccessCard hotelSlug={hotelSlug} />
-          <IntegrationStatusCard hotelSlug={hotelSlug} />
-          <ManagerProblemReportCard hotelSlug={hotelSlug} />
-        </section>
+        <>
+          <section className="grid items-start gap-4 md:grid-cols-3" aria-label="Manager primary modules">
+            <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="manager" />
+            <RevenueAccessCard hotelSlug={hotelSlug} />
+            <GostayaValueAccessCard hotelSlug={hotelSlug} />
+          </section>
+          <section className="grid items-start gap-4 md:grid-cols-2" aria-label="Manager support modules">
+            <IntegrationStatusCard hotelSlug={hotelSlug} />
+            <ManagerProblemReportCard hotelSlug={hotelSlug} />
+          </section>
+        </>
       ) : null}
 
       <ManagerTodaySurveysCard
