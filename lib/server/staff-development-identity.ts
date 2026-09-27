@@ -6,7 +6,10 @@ import {
   assertStaffDevelopmentWriteEnabled,
 } from "@/lib/server/staff-development-persistence";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
-import { requireHotelPaidProductModuleAccess } from "@/lib/server/product-module-entitlements";
+import {
+  isProductModuleAccessDeniedError,
+  requireHotelPaidProductModuleAccess,
+} from "@/lib/server/product-module-entitlements";
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import {
   createRawSessionToken,
@@ -583,6 +586,16 @@ export async function getCurrentStaffDevelopmentIdentity(
 
   const hotel = await resolveHotelByAnySlugAdmin(hotelSlug).catch(() => null);
   if (!hotel?.id || hotel.active !== true) return null;
+
+  try {
+    await requireHotelPaidProductModuleAccess(
+      String(hotel.id),
+      "staff_development",
+    );
+  } catch (error) {
+    if (isProductModuleAccessDeniedError(error)) return null;
+    throw error;
+  }
 
   const tokenHash = developmentTokenHash(rawToken);
   const { data: session, error } = await supabaseAdmin

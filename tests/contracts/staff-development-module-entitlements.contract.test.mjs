@@ -280,3 +280,18 @@ test("paid Staff Development runtime does not inherit legacy unmanaged Productio
   assert.match(availability, /hasHotelPaidProductModuleAccess/);
   assert.match(availability, /"staff_development"/);
 });
+
+
+test("current Staff Development identity stops resolving immediately when the paid add-on is revoked", () => {
+  const identity = readFileSync(
+    new URL("../../lib/server/staff-development-identity.ts", import.meta.url),
+    "utf8",
+  );
+  const start = identity.indexOf("export async function getCurrentStaffDevelopmentIdentity");
+  const tokenRead = identity.indexOf("const tokenHash = developmentTokenHash(rawToken)", start);
+  assert.ok(start >= 0 && tokenRead > start);
+  const currentIdentityBlock = identity.slice(start, tokenRead);
+  assert.match(currentIdentityBlock, /requireHotelPaidProductModuleAccess/);
+  assert.match(currentIdentityBlock, /"staff_development"/);
+  assert.match(currentIdentityBlock, /isProductModuleAccessDeniedError/);
+});
