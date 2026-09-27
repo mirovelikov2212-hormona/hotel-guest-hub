@@ -6,7 +6,7 @@ import {
   assertStaffDevelopmentWriteEnabled,
 } from "@/lib/server/staff-development-persistence";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
-import { requireHotelProductModuleAccess } from "@/lib/server/product-module-entitlements";
+import { requireHotelPaidProductModuleAccess } from "@/lib/server/product-module-entitlements";
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import {
   createRawSessionToken,
@@ -207,7 +207,7 @@ export async function bootstrapHotelManagerDevelopmentCredential(input: {
     input.staffUserId,
     "STAFF_DEVELOPMENT_STAFF_USER_ID_INVALID",
   );
-  await requireHotelProductModuleAccess(hotelId, "staff_development");
+  await requireHotelPaidProductModuleAccess(hotelId, "staff_development");
   const pin = normalizePersonalPin(input.personalPin);
   const target = await activeStaffUser(hotelId, staffUserId);
 
@@ -269,7 +269,7 @@ export async function provisionStaffDevelopmentCredential(input: {
     input.staffUserId,
     "STAFF_DEVELOPMENT_STAFF_USER_ID_INVALID",
   );
-  await requireHotelProductModuleAccess(hotelId, "staff_development");
+  await requireHotelPaidProductModuleAccess(hotelId, "staff_development");
   const createdByStaffUserId = uuid(
     input.createdByStaffUserId,
     "STAFF_DEVELOPMENT_CREATOR_ID_INVALID",
@@ -343,7 +343,7 @@ export async function listStaffDevelopmentIdentityCandidates(input: {
     operationalSession.hotel_id,
     "STAFF_DEVELOPMENT_HOTEL_ID_INVALID",
   );
-  await requireHotelProductModuleAccess(hotelId, "staff_development");
+  await requireHotelPaidProductModuleAccess(hotelId, "staff_development");
   const runtimeRole = await resolveStaffRuntimeRoleForHotelId(
     hotelId,
     operationalRole,
@@ -445,7 +445,7 @@ export async function authenticateStaffDevelopmentIdentity(input: {
     input.staffUserId,
     "STAFF_DEVELOPMENT_STAFF_USER_ID_INVALID",
   );
-  await requireHotelProductModuleAccess(hotelId, "staff_development");
+  await requireHotelPaidProductModuleAccess(hotelId, "staff_development");
   const pin = normalizePersonalPin(input.personalPin);
 
   const staffUser = await activeStaffUser(hotelId, staffUserId);
@@ -656,7 +656,7 @@ export async function requireStaffDevelopmentIdentity(
   if (!identity) {
     throw new Error("STAFF_DEVELOPMENT_IDENTITY_REQUIRED");
   }
-  await requireHotelProductModuleAccess(identity.hotelId, "staff_development");
+  await requireHotelPaidProductModuleAccess(identity.hotelId, "staff_development");
   return identity;
 }
 

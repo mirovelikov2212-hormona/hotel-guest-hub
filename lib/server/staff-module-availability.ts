@@ -57,7 +57,10 @@ export async function getStaffModuleAvailability(input: {
     },
     modules: {
       staffOperations: entitlement.moduleAccess.staff_operations,
-      staffDevelopment: entitlement.moduleAccess.staff_development,
+      staffDevelopment: hasHotelPaidProductModuleAccess(
+        entitlement,
+        "staff_development",
+      ),
       managerIntelligence:
         role === "manager"
         && hasHotelPaidProductModuleAccess(
@@ -66,7 +69,10 @@ export async function getStaffModuleAvailability(input: {
         ),
       revenueIntelligence:
         role === "manager"
-        && entitlement.moduleAccess.revenue_intelligence,
+        && hasHotelPaidProductModuleAccess(
+          entitlement,
+          "revenue_intelligence",
+        ),
       integrationLayer:
         role === "manager"
         && entitlement.moduleAccess.integration_layer,

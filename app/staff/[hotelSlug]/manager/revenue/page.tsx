@@ -1,7 +1,7 @@
 import RevenueDashboard from "@/components/staff/revenue/RevenueDashboard";
 import ManagerModuleBackLink from "@/components/staff/ManagerModuleBackLink";
 import {
-  requireHotelProductModuleAccess,
+  requireHotelPaidProductModuleAccess,
 } from "@/lib/server/product-module-entitlements";
 import { requireStaffAccess } from "@/lib/staff-auth/guards";
 
@@ -13,7 +13,7 @@ export default async function ManagerRevenuePage({
   const { hotelSlug } = await params;
   const access = await requireStaffAccess(hotelSlug, "manager");
 
-  await requireHotelProductModuleAccess(
+  await requireHotelPaidProductModuleAccess(
     String(access.hotelId),
     "revenue_intelligence",
   );

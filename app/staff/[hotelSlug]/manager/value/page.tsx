@@ -2,7 +2,6 @@ import GostayaValueDashboard from "@/components/staff/value/GostayaValueDashboar
 import ManagerModuleBackLink from "@/components/staff/ManagerModuleBackLink";
 import {
   requireHotelPaidProductModuleAccess,
-  requireHotelProductModuleAccess,
 } from "@/lib/server/product-module-entitlements";
 import { requireStaffAccess } from "@/lib/staff-auth/guards";
 
@@ -18,7 +17,7 @@ export default async function ManagerValuePage({
     String(access.hotelId),
     "manager_intelligence",
   );
-  await requireHotelProductModuleAccess(
+  await requireHotelPaidProductModuleAccess(
     String(access.hotelId),
     "revenue_intelligence",
   );

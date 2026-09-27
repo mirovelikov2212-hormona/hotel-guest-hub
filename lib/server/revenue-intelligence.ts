@@ -5,7 +5,7 @@ import {
   buildAncillaryRevenueSnapshot,
 } from "@/lib/revenue/ancillary-revenue-model.mjs";
 import {
-  requireHotelProductModuleAccess,
+  requireHotelPaidProductModuleAccess,
 } from "@/lib/server/product-module-entitlements";
 import {
   hotelMatchesRequestedSlug,
@@ -95,7 +95,7 @@ async function resolveRevenueManagerAccess(hotelSlugInput: unknown) {
     throw new Error("REVENUE_HOTEL_SCOPE_MISMATCH");
   }
 
-  await requireHotelProductModuleAccess(
+  await requireHotelPaidProductModuleAccess(
     String(hotel.id),
     "revenue_intelligence",
   );
