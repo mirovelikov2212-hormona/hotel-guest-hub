@@ -106,7 +106,7 @@ test("validated hotel route remains the guest operational tenant authority", asy
   assert.match(source, /const guestRuntimeHotelSlug = hotelSlug\.trim\(\)\.toLowerCase\(\)/);
   assert.match(
     source,
-    /const guestConfig = \\{\\s*\\.\\.\\.cfg,\\s*hotelSlug: guestRuntimeHotelSlug,\\s*operationalAiEntitled: productEntitlement\\.moduleAccess\\.operational_ai,\\s*\\}/s,
+    /const guestConfig = \{\s*\.\.\.cfg,\s*hotelSlug: guestRuntimeHotelSlug,\s*operationalAiEntitled: productEntitlement\.moduleAccess\.operational_ai,\s*\}/s,
   );
   assert.match(source, /<GuestHub config=\{guestConfig\} \/>/);
   assert.doesNotMatch(source, /<GuestHub config=\{cfg\} \/>/);

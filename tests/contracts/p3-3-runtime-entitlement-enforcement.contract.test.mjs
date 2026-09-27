@@ -146,11 +146,11 @@ test("P3.3 AI paid capability is enforced server-side with the same Factory READ
   assert.match(guestCapabilities, /return actions\?\.READ === true/);
   assert.match(
     guestCapabilities,
-    /const operationalAiEntitled = config\\.operationalAiEntitled !== false/,
+    /const operationalAiEntitled = config\.operationalAiEntitled !== false/,
   );
   assert.match(
     guestCapabilities,
-    /operationalAiEntitled\\s*&&\\s*\\(factoryManaged \\? isFactoryAiReadEnabled\\(config\\) : true\\)/s,
+    /operationalAiEntitled\s*&&\s*\(factoryManaged \? isFactoryAiReadEnabled\(config\) : true\)/s,
   );
   assert.match(aiRoute, /const capabilities = deriveGuestRuntimeCapabilities\(config\)/);
   assert.match(aiRoute, /if \(!capabilities\.aiEnabled\)/);
