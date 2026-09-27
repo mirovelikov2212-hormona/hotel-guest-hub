@@ -178,7 +178,9 @@ export default function ManagerIntelligenceDashboard({ hotelSlug }: { hotelSlug:
     }
   }
 
-  const currentBrief = data?.history?.[0]?.brief || null;
+  const currentBrief =
+    data?.history?.find((item) => item.reportingDay === data.snapshot.reportingDay)?.brief
+    || null;
   const visibleSignals = useMemo(
     () => (data?.snapshot.live.signals || []).filter((signal) => signal.severity !== "info").slice(0, 12),
     [data],
@@ -288,7 +290,9 @@ export default function ManagerIntelligenceDashboard({ hotelSlug }: { hotelSlug:
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <h2 className="text-xl font-bold text-[#102a43]">{copy.history}</h2>
           <div className="mt-3 grid gap-2">
-            {data.history.slice(1).map((item) => (
+            {data.history
+              .filter((item) => item.reportingDay !== data.snapshot.reportingDay)
+              .map((item) => (
               <div key={item.id} className="rounded-xl border border-slate-200 px-4 py-3">
                 <div className="text-xs font-bold text-slate-400">{item.reportingDay}</div>
                 <div className="mt-1 text-sm text-slate-600">{item.brief?.summary || "—"}</div>
