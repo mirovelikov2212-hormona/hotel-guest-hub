@@ -283,3 +283,67 @@
   background: #0f6fc5 !important;
   color: #ffffff !important;
 }
+
+
+/* GOSTAYA typography parity — same family and hierarchy as the public site */
+.stayhub-staff-shell,
+.stayhub-staff-shell *,
+.stayhub-staff-shell input,
+.stayhub-staff-shell textarea,
+.stayhub-staff-shell select,
+.stayhub-staff-shell button {
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+.stayhub-staff-shell h1,
+.stayhub-staff-shell h2,
+.stayhub-staff-shell h3,
+.stayhub-staff-shell h4,
+.stayhub-staff-shell h5,
+.stayhub-staff-shell h6 {
+  font-family: Arial, Helvetica, sans-serif !important;
+  color: var(--staff-text);
+  letter-spacing: -0.025em;
+}
+
+.stayhub-staff-shell h1,
+.stayhub-staff-shell h2 {
+  font-weight: 600 !important;
+}
+
+.stayhub-staff-shell h3,
+.stayhub-staff-shell h4,
+.stayhub-staff-shell h5,
+.stayhub-staff-shell h6 {
+  font-weight: 600 !important;
+}
+
+.stayhub-staff-shell p,
+.stayhub-staff-shell li,
+.stayhub-staff-shell label,
+.stayhub-staff-shell input,
+.stayhub-staff-shell textarea,
+.stayhub-staff-shell select {
+  font-weight: 400;
+}
+
+.stayhub-staff-shell button,
+.stayhub-staff-shell a {
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+.stayhub-staff-shell .font-black {
+  font-weight: 700 !important;
+}
+
+.stayhub-staff-shell .font-bold {
+  font-weight: 700 !important;
+}
+
+.stayhub-staff-shell .font-semibold {
+  font-weight: 600 !important;
+}
+
+.stayhub-staff-shell .font-medium {
+  font-weight: 500 !important;
+}
