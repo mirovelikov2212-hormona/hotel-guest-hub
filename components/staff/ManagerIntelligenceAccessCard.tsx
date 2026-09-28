@@ -7,9 +7,9 @@ import { useStaffUi } from "@/components/staff/StaffUiProvider";
 const COPY = {
   bg: {
     eyebrow: "ДОПЪЛНИТЕЛЕН ПЛАТЕН МОДУЛ",
-    title: "Manager Intelligence",
+    title: "Мениджърски анализ",
     body: "Следи активните модули на хотела, извежда важните сигнали през деня и подготвя пълен сутрешен отчет за предходния хотелски ден.",
-    open: "Отвори Manager Intelligence",
+    open: "Отвори мениджърския анализ",
     locked: "Модулът не е активиран за този хотел.",
     checking: "Проверка на модула…",
   },
