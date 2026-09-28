@@ -674,7 +674,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
               href="/h/demo"
               target="_blank"
               rel="noreferrer"
-              className="rounded-2xl bg-[#1479d3] px-4 py-3 text-sm font-bold text-white shadow-lg shadow-sky-200 transition hover:-translate-y-0.5"
+              className="gostaya-primary-action rounded-2xl bg-[#1479d3] px-4 py-3 text-sm font-bold text-white shadow-lg shadow-sky-200 transition hover:-translate-y-0.5"
             >
               {copy.live}
             </a>
