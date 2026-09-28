@@ -810,44 +810,32 @@ export default function ManagerPage() {
   return (
     <main className="space-y-6 pb-safe">
       <section className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-6">
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3">
-                <span className="stayhub-staff-brand-dot" aria-hidden="true" />
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#1479d3]">GOSTAYA</p>
-                <span className="stayhub-staff-brand-dot" aria-hidden="true" />
-              </div>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[#102a43]">{displayHotelName}</h1>
-              <p className="mt-1 text-sm text-[#5d86ad]">{t.simpleOperationalView}</p>
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-3">
+              <span className="stayhub-staff-brand-dot" aria-hidden="true" />
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#1479d3]">GOSTAYA</p>
+              <span className="stayhub-staff-brand-dot" aria-hidden="true" />
             </div>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[#102a43]">
+              {displayHotelName} – {t.managerDashboard}
+            </h1>
+            <p className="mt-2 max-w-4xl text-sm leading-6 text-white/70">{t.managerIntro}</p>
+          </div>
 
+          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+            <StaffAlertSoundButton soundEnabled={soundEnabled} onToggle={toggleSound} />
+            {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="manager" embedded /> : null}
             <select
               value={lang}
               onChange={(event) => setLang(event.target.value as typeof lang)}
-              className="stayhub-staff-select w-fit rounded-2xl border px-4 py-2.5 text-sm outline-none"
+              className="stayhub-staff-select min-h-11 w-fit rounded-2xl border px-4 py-2.5 text-sm outline-none"
               aria-label="Език на служебния интерфейс"
             >
               <option value="bg">BG</option>
               <option value="en">EN</option>
               <option value="de">DE</option>
             </select>
-          </div>
-
-          <div className="border-t border-sky-100 pt-5">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-              <div className="min-w-0">
-                <h2 className="text-2xl font-semibold tracking-tight">{t.managerDashboard}</h2>
-                <p className="mt-2 max-w-4xl text-sm leading-6 text-white/70">{t.managerIntro}</p>
-              </div>
-              <StaffAlertSoundButton soundEnabled={soundEnabled} onToggle={toggleSound} />
-            </div>
-
-            {hotelSlug ? (
-              <div className="mt-5 border-t border-sky-100 pt-5">
-                <ManagerPwaControls hotelSlug={hotelSlug} role="manager" embedded />
-              </div>
-            ) : null}
           </div>
         </div>
       </section>
