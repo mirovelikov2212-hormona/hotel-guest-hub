@@ -15,6 +15,7 @@ export type HubOfferV2 = {
   schemaVersion: typeof HUB_OFFER_SCHEMA_VERSION;
   id: string;
   key: string;
+  managerName?: string;
   titleByLang: HubLocalizedText;
   shortDescriptionByLang: HubLocalizedText;
   descriptionByLang: HubLocalizedText;
@@ -138,6 +139,9 @@ export function validateHubOfferV2(value: unknown): HubOfferValidation {
   if (value.schemaVersion !== HUB_OFFER_SCHEMA_VERSION) errors.push("OFFER_SCHEMA_VERSION_INVALID");
   if (!UUID_PATTERN.test(String(value.id || ""))) errors.push("OFFER_ID_INVALID");
   if (!KEY_PATTERN.test(String(value.key || ""))) errors.push("OFFER_KEY_INVALID");
+  if (value.managerName !== undefined && (typeof value.managerName !== "string" || String(value.managerName).trim().length > 120)) {
+    errors.push("OFFER_MANAGER_NAME_INVALID");
+  }
 
   errors.push(...localizedTextErrors(value.titleByLang, "OFFER_TITLE", true));
   errors.push(...localizedTextErrors(value.shortDescriptionByLang, "OFFER_SHORT_DESCRIPTION", false));
