@@ -431,3 +431,22 @@
   font-size: 0.875rem;
   font-weight: 700 !important;
 }
+
+
+/* Manager module grid: equal compact cards with one bottom-left action baseline */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-module-card {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 300px !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-module-card > .manager-module-action,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-module-card > a.manager-module-action,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-module-card > button.manager-module-action {
+  margin-top: auto !important;
+  align-self: flex-start !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-module-card > div + .manager-module-action {
+  margin-top: auto !important;
+}
