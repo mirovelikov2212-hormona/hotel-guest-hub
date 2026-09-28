@@ -35,6 +35,7 @@ type JsonObject = Record<string, unknown>;
 type RuntimeOffer = {
   id: string;
   key: string;
+  managerName?: string;
   titleByLang: HubLocalizedText;
   shortDescriptionByLang: HubLocalizedText;
   descriptionByLang: HubLocalizedText;
@@ -147,6 +148,7 @@ function runtimeOfferToEditorOffer(value: unknown, index: number): HubOfferV2 {
     schemaVersion: HUB_OFFER_SCHEMA_VERSION,
     id: normalizeUuid(value.id, "CM5_CURRENT_OFFER_ID_INVALID"),
     key: String(value.key || "").trim().toLowerCase(),
+    managerName: normalizeText(value.managerName, 120) || undefined,
     titleByLang: normalizeLocalized(value.titleByLang),
     shortDescriptionByLang: normalizeLocalized(value.shortDescriptionByLang),
     descriptionByLang: normalizeLocalized(value.descriptionByLang),
@@ -406,6 +408,7 @@ function normalizeManagerOffer(
     schemaVersion: HUB_OFFER_SCHEMA_VERSION,
     id,
     key: keyCandidate,
+    managerName: normalizeText(value.managerName, 120) || undefined,
     titleByLang: normalizeLocalized(value.titleByLang),
     shortDescriptionByLang: normalizeLocalized(value.shortDescriptionByLang),
     descriptionByLang: normalizeLocalized(value.descriptionByLang),
@@ -452,6 +455,7 @@ function toRuntimeOffer(offer: HubOfferV2): RuntimeOffer | null {
   return {
     id: offer.id,
     key: offer.key,
+    managerName: offer.managerName,
     titleByLang: offer.titleByLang,
     shortDescriptionByLang: offer.shortDescriptionByLang,
     descriptionByLang: offer.descriptionByLang,
