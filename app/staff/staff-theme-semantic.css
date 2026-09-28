@@ -450,3 +450,9 @@
 .stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-module-card > div + .manager-module-action {
   margin-top: auto !important;
 }
+
+
+/* Manager module titles keep the same GOSTAYA blue as Staff Development */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-module-title {
+  color: #0e5f91 !important;
+}
