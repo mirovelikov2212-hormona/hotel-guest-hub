@@ -538,7 +538,7 @@ export default function ManagerPage() {
   const requests = getAllRequests();
   const isDemoHotel = String(hotelSlug || "").trim().toLowerCase() === "demo";
   const displayHotelName = isDemoHotel
-    ? (lang === "bg" ? "Демо хотел" : lang === "de" ? "Demo-Hotel" : "Hotel Demo")
+    ? (lang === "bg" ? "Демо Хотел" : lang === "de" ? "Demo-Hotel" : "Hotel Demo")
     : (hotelName || hotelSlug || "Hotel");
   const reportRequests = useMemo(
     () => isDemoHotel ? requests : requests.filter((request) => !request.isTest),
@@ -818,7 +818,7 @@ export default function ManagerPage() {
               <span className="stayhub-staff-brand-dot" aria-hidden="true" />
             </div>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[#102a43]">
-              {displayHotelName} – {t.managerDashboard}
+              {displayHotelName} - {t.managerDashboard}
             </h1>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-white/70">{t.managerIntro}</p>
           </div>
