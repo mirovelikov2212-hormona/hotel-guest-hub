@@ -30,16 +30,16 @@ type StatusResult = {
 
 const COPY = {
   bg: {
-    title: "Integrations",
+    title: "Интеграции",
     loading: "Проверка на интеграциите…",
     active: "активни",
     configured: "конфигурирани",
     noConnections: "Няма конфигурирани външни системи.",
-    configurationOnly: "Configuration only",
-    configuredUnverified: "Configured · runtime not verified",
-    inactive: "Inactive",
+    configurationOnly: "Само конфигурация",
+    configuredUnverified: "Конфигурирано · работата не е потвърдена",
+    inactive: "Неактивно",
     authority:
-      "Конфигурацията е Platform Admin-only. Manager вижда статус, но не може да променя provider credentials или capabilities.",
+      "Конфигурацията е достъпна само за платформения администратор. Мениджърът вижда статуса, но не може да променя данните за достъп или разрешените възможности.",
   },
   en: {
     title: "Integrations",
