@@ -402,3 +402,32 @@
   background: #ffffff !important;
   color: var(--gostaya-ui-blue-deep) !important;
 }
+
+
+/* Compact Manager header controls and unified six-module actions */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-header-control,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-module-action {
+  border: 1px solid var(--gostaya-ui-blue-line) !important;
+  background: #ffffff !important;
+  color: var(--gostaya-ui-blue-deep) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-header-control:not(:disabled):hover,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-module-action:not(:disabled):hover {
+  border-color: #8fcaf2 !important;
+  background: var(--gostaya-ui-blue-soft) !important;
+  color: #0a5f9f !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-module-card {
+  min-height: 0 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-module-action {
+  min-height: 40px;
+  padding: 0.5rem 1rem !important;
+  font-size: 0.875rem;
+  font-weight: 700 !important;
+}
