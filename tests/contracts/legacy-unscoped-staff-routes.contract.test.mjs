@@ -44,6 +44,6 @@ test("hotel-scoped Staff layout remains the only store tenant authority boundary
 
   assertNotContains(rootLayout, "StaffStoreProvider");
   assertContains(layout, "getHotelByAnySlug(hotelSlug)");
-  assertContains(layout, "<StaffStoreProvider hotelSlug={hotelSlug} hotelId={hotel.id}>");
+  assertContains(layout, "<StaffStoreProvider hotelSlug={hotelSlug} hotelId={hotel.id} hotelName={brand.hotelName}>");
   assertContains(genericDepartment, "requireStaffAccess(hotelSlug, role)");
 });
