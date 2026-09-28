@@ -31,7 +31,7 @@ export default async function StaffHotelScopedLayout({
 
   return (
     <StaffHotelTimeZoneProvider timeZone={hotel.timezone}>
-      <StaffStoreProvider hotelSlug={hotelSlug} hotelId={hotel.id}>
+      <StaffStoreProvider hotelSlug={hotelSlug} hotelId={hotel.id} hotelName={brand.hotelName}>
         <StaffHotelShell hotelSlug={hotelSlug} brand={brand}>
           {children}
         </StaffHotelShell>
