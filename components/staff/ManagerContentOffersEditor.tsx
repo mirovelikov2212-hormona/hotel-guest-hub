@@ -74,6 +74,10 @@ const COPY = {
     managerName: "Вътрешно име на офертата",
     managerNameHint: "Това име е само за мениджъра и не се показва на гостите.",
     guestLanguageHint: "Заглавието и текстът за госта се попълват по език. Порталът показва версията на текущия език на госта.",
+    translateAll: "Преведи на всички езици",
+    translating: "Превеждане…",
+    translationDone: "Езиковите версии са попълнени за BG, EN, DE, RO, CZ и RU.",
+    translationFailed: "Преводът не успя. Опитайте отново.",
     unnamedOffer: "Нова оферта",
     chooseFile: "Избери файл",
     noFile: "Няма избран файл",
@@ -159,6 +163,10 @@ const COPY = {
     managerName: "Internal offer name",
     managerNameHint: "This name is only for the manager and is not shown to guests.",
     guestLanguageHint: "Guest-facing title and copy are edited per language. The Hub shows the current guest language.",
+    translateAll: "Translate to all languages",
+    translating: "Translating…",
+    translationDone: "Language versions were filled for BG, EN, DE, RO, CZ and RU.",
+    translationFailed: "Translation failed. Please try again.",
     unnamedOffer: "New offer",
     chooseFile: "Choose file",
     noFile: "No file selected",
@@ -244,6 +252,10 @@ const COPY = {
     managerName: "Interner Angebotsname",
     managerNameHint: "Dieser Name ist nur für den Manager und wird Gästen nicht angezeigt.",
     guestLanguageHint: "Gasttitel und Texte werden je Sprache bearbeitet. Der Hub zeigt die aktuelle Gastsprache.",
+    translateAll: "In alle Sprachen übersetzen",
+    translating: "Übersetzung…",
+    translationDone: "Sprachversionen für BG, EN, DE, RO, CZ und RU wurden ausgefüllt.",
+    translationFailed: "Übersetzung fehlgeschlagen. Bitte erneut versuchen.",
     unnamedOffer: "Neues Angebot",
     chooseFile: "Datei auswählen",
     noFile: "Keine Datei ausgewählt",
@@ -357,6 +369,10 @@ function minorToInput(value: number | null) {
   return value === null ? "" : (value / 100).toFixed(2);
 }
 
+function isGeneratedOfferLabel(value: unknown) {
+  return /^offer-[a-f0-9]{8,}$/i.test(String(value || "").trim());
+}
+
 let storageClient: ReturnType<typeof createClient> | null = null;
 
 function getStorageClient() {
@@ -416,6 +432,7 @@ export default function ManagerContentOffersEditor({
   const [uploadBusy, setUploadBusy] = useState(false);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
+  const [translatingOfferId, setTranslatingOfferId] = useState<string | null>(null);
   const [pendingAssetId, setPendingAssetId] = useState<string | null>(null);
   const [pendingAssetMode, setPendingAssetMode] = useState<"ready" | "cover">("ready");
   const [pendingAssetOfferId, setPendingAssetOfferId] = useState<string | null>(null);
@@ -525,6 +542,63 @@ export default function ManagerContentOffersEditor({
         [language]: value,
       },
     }));
+  }
+
+  async function translateOfferLanguages(index: number) {
+    const offer = offers[index];
+    if (!offer) return;
+
+    const title = String(offer.titleByLang[guestLanguage] || "").trim();
+    if (!title) {
+      setError(copy.requiredTitle);
+      return;
+    }
+
+    setTranslatingOfferId(offer.id);
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch("/api/staff/content-changes/offers/translate", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hotelSlug,
+          sourceLanguage: guestLanguage,
+          title,
+          shortDescription: String(offer.shortDescriptionByLang[guestLanguage] || "").trim(),
+          badge: String(offer.badgeByLang[guestLanguage] || "").trim(),
+          ctaLabel: String(offer.cta.labelByLang[guestLanguage] || "").trim(),
+        }),
+      });
+      const body = await response.json().catch(() => null) as {
+        ok?: boolean;
+        titleByLang?: Record<string, string>;
+        shortDescriptionByLang?: Record<string, string>;
+        badgeByLang?: Record<string, string>;
+        ctaLabelByLang?: Record<string, string>;
+      } | null;
+
+      if (!response.ok || !body?.ok || !body.titleByLang) {
+        throw new Error(copy.translationFailed);
+      }
+
+      updateOffer(index, (current) => ({
+        ...current,
+        titleByLang: { ...current.titleByLang, ...body.titleByLang },
+        shortDescriptionByLang: { ...current.shortDescriptionByLang, ...(body.shortDescriptionByLang || {}) },
+        badgeByLang: { ...current.badgeByLang, ...(body.badgeByLang || {}) },
+        cta: {
+          ...current.cta,
+          labelByLang: { ...current.cta.labelByLang, ...(body.ctaLabelByLang || {}) },
+        },
+      }));
+      setNotice(copy.translationDone);
+    } catch {
+      setError(copy.translationFailed);
+    } finally {
+      setTranslatingOfferId(null);
+    }
   }
 
   function addStructuredOffer() {
@@ -919,7 +993,7 @@ export default function ManagerContentOffersEditor({
                 <label className="text-xs text-white/65">
                   <span className="mb-1 block">{copy.language}</span>
                   <select value={uploadLanguage} onChange={(event) => setUploadLanguage(event.target.value as CreativeLanguage)} className="min-h-10 w-full rounded-lg border border-white/10 bg-black/30 px-3 text-sm text-white">
-                    {CREATIVE_LANGUAGES.map((language) => <option key={language.id} value={language.id}>{language.label}</option>)}
+                    {CREATIVE_LANGUAGES.map((language) => <option key={language.id} value={language.id}>{language.id === "default" ? (lang === "bg" ? "Всички" : lang === "de" ? "Alle" : "All") : language.label}</option>)}
                   </select>
                 </label>
 
@@ -928,7 +1002,7 @@ export default function ManagerContentOffersEditor({
                   <select value={uploadTargetOfferId} onChange={(event) => setUploadTargetOfferId(event.target.value)} className="min-h-10 w-full rounded-lg border border-white/10 bg-black/30 px-3 text-sm text-white">
                     <option value="new">{copy.newOffer}</option>
                     {offers.filter((offer) => offer.presentationMode === "ready_asset").map((offer) => (
-                      <option key={offer.id} value={offer.id}>{offer.managerName || Object.values(offer.titleByLang || {}).find(Boolean) || copy.unnamedOffer}</option>
+                      <option key={offer.id} value={offer.id}>{offer.managerName || Object.values(offer.titleByLang || {}).find((value) => value && !isGeneratedOfferLabel(value)) || copy.unnamedOffer}</option>
                     ))}
                   </select>
                 </label>
@@ -995,7 +1069,11 @@ export default function ManagerContentOffersEditor({
               >
                 {offers.length ? offers.map((offer) => (
                   <option key={offer.id} value={offer.id}>
-                    {offer.managerName || offer.titleByLang[guestLanguage] || Object.values(offer.titleByLang).find(Boolean) || copy.unnamedOffer}
+                    {offer.managerName || (
+                      !isGeneratedOfferLabel(offer.titleByLang[guestLanguage])
+                        ? offer.titleByLang[guestLanguage]
+                        : ""
+                    ) || Object.values(offer.titleByLang).find((value) => value && !isGeneratedOfferLabel(value)) || copy.unnamedOffer}
                   </option>
                 )) : <option value="">—</option>}
               </select>
@@ -1034,7 +1112,11 @@ export default function ManagerContentOffersEditor({
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <span className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/55">{offer.presentationMode === "ready_asset" ? copy.ready : copy.structured}</span>
-                      <p className="mt-2 font-semibold text-white">{offer.managerName || offer.titleByLang[guestLanguage] || Object.values(offer.titleByLang).find(Boolean) || copy.unnamedOffer}</p>
+                      <p className="mt-2 font-semibold text-white">{offer.managerName || (
+                      !isGeneratedOfferLabel(offer.titleByLang[guestLanguage])
+                        ? offer.titleByLang[guestLanguage]
+                        : ""
+                    ) || Object.values(offer.titleByLang).find((value) => value && !isGeneratedOfferLabel(value)) || copy.unnamedOffer}</p>
                     </div>
                     <button type="button" onClick={() => updateOffer(index, (current) => ({ ...current, status: "archived" }))} className="rounded-lg border border-rose-300/15 px-3 py-2 text-xs font-semibold text-rose-100/80">{copy.archive}</button>
                   </div>
@@ -1122,7 +1204,17 @@ export default function ManagerContentOffersEditor({
                     </label>
                   </div>
 
-                  <p className="mt-4 text-xs leading-5 text-white/55">{copy.guestLanguageHint}</p>
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs leading-5 text-white/55">{copy.guestLanguageHint}</p>
+                    <button
+                      type="button"
+                      onClick={() => void translateOfferLanguages(index)}
+                      disabled={translatingOfferId === offer.id || !String(offer.titleByLang[guestLanguage] || "").trim()}
+                      className="gostaya-staff-primary-action inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-bold text-sky-800 disabled:opacity-40"
+                    >
+                      {translatingOfferId === offer.id ? copy.translating : copy.translateAll}
+                    </button>
+                  </div>
 
                   <div className="mt-3 grid gap-3 lg:grid-cols-2">
                     <label className="text-xs text-white/60">
