@@ -38,6 +38,7 @@ type StaffStoreContextValue = {
   requests: StaffRequest[];
   hotelId?: string;
   hotelSlug?: string;
+  hotelName?: string;
   updateRequestStatus: (id: string, status: StaffRequestStatus) => Promise<void>;
   setRequestBillingStatus: (id: string, billingStatus: StaffBillingStatus) => Promise<void>;
   chargeRequest: (id: string) => Promise<void>;
@@ -256,10 +257,12 @@ export function StaffStoreProvider({
   children,
   hotelSlug,
   hotelId,
+  hotelName,
 }: {
   children: ReactNode;
   hotelSlug?: string;
   hotelId?: string;
+  hotelName?: string;
 }) {
   const pathname = usePathname();
   const currentRole = useMemo(() => getRoleFromPath(pathname), [pathname]);
@@ -272,6 +275,11 @@ export function StaffStoreProvider({
   const normalizedHotelId = useMemo(
     () => String(hotelId ?? "").trim() || undefined,
     [hotelId]
+  );
+
+  const normalizedHotelName = useMemo(
+    () => String(hotelName ?? "").trim() || undefined,
+    [hotelName]
   );
 
   const shouldLoadStaffData = Boolean(normalizedHotelSlug && currentRole);
@@ -512,6 +520,7 @@ export function StaffStoreProvider({
       requests,
       hotelId: normalizedHotelId,
       hotelSlug: normalizedHotelSlug,
+      hotelName: normalizedHotelName,
       updateRequestStatus,
       setRequestBillingStatus,
       chargeRequest,
@@ -526,6 +535,7 @@ export function StaffStoreProvider({
       requests,
       normalizedHotelId,
       normalizedHotelSlug,
+      normalizedHotelName,
       updateRequestStatus,
       setRequestBillingStatus,
       chargeRequest,
