@@ -179,10 +179,41 @@ export default function ManagerProblemReportCard({
   }
 
   return (
-    <section className="rounded-2xl border border-sky-200 bg-white p-4 shadow-[0_12px_30px_rgba(15,58,91,.06)]">
-      <div>
+    <section className="manager-module-card flex h-full min-h-[360px] flex-col rounded-2xl border border-sky-200 bg-white p-4 shadow-[0_12px_30px_rgba(15,58,91,.06)]">
+      <div className="flex-1">
         <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#1479d3]">{copy.title}</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-600">{copy.intro}</p>
+        <p className="mt-2 text-justify text-sm leading-6 text-slate-600">{copy.intro}</p>
+
+        {open ? (
+          <div className="mt-4 space-y-4 border-t border-slate-200 pt-4">
+            <ModuleGrid title={copy.where} options={modules} value={module} onChange={setModule} />
+
+            <label className="block text-sm font-bold text-slate-800">
+              {copy.problem}
+              <textarea
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                rows={4}
+                value={summary}
+                maxLength={1800}
+                placeholder={copy.problemPlaceholder}
+                onChange={(event) => setSummary(event.target.value)}
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={() => void submit()}
+              disabled={sending || summary.trim().length < 5}
+              className="w-full rounded-xl bg-[#1479d3] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#0f68b7] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+            >
+              {sending ? copy.sending : copy.send}
+            </button>
+          </div>
+        ) : null}
+
+        {feedback ? (
+          <p className="mt-3 text-xs font-medium text-slate-600">{feedback}</p>
+        ) : null}
       </div>
 
       <button
@@ -191,41 +222,10 @@ export default function ManagerProblemReportCard({
           setOpen((value) => !value);
           setFeedback(null);
         }}
-        className="mt-3 inline-flex min-h-10 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-bold text-sky-800 transition hover:bg-sky-100"
+        className="gostaya-staff-primary-action mt-4 inline-flex min-h-10 w-fit items-center justify-center rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-bold text-sky-800 transition hover:bg-sky-100"
       >
         {open ? copy.close : copy.open}
       </button>
-
-      {open ? (
-        <div className="mt-4 space-y-4 border-t border-slate-200 pt-4">
-          <ModuleGrid title={copy.where} options={modules} value={module} onChange={setModule} />
-
-          <label className="block text-sm font-bold text-slate-800">
-            {copy.problem}
-            <textarea
-              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-              rows={4}
-              value={summary}
-              maxLength={1800}
-              placeholder={copy.problemPlaceholder}
-              onChange={(event) => setSummary(event.target.value)}
-            />
-          </label>
-
-          <button
-            type="button"
-            onClick={() => void submit()}
-            disabled={sending || summary.trim().length < 5}
-            className="w-full rounded-xl bg-[#1479d3] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#0f68b7] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
-          >
-            {sending ? copy.sending : copy.send}
-          </button>
-        </div>
-      ) : null}
-
-      {feedback ? (
-        <p className="mt-3 text-xs font-medium text-slate-600">{feedback}</p>
-      ) : null}
     </section>
   );
 }
