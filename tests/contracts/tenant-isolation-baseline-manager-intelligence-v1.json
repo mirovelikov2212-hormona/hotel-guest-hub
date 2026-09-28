@@ -126,6 +126,12 @@
       "toLine": 696,
       "operation": "update",
       "table": "staff_development_sessions"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 638,
+      "toLine": 642,
+      "operation": "rpc"
     }
   ],
   "additions": [
