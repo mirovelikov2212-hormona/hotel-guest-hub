@@ -90,13 +90,13 @@ export default function RevenueAccessCard({
   if (!available) return null;
 
   return (
-    <section className="h-full rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
+    <section className="manager-module-card h-full min-h-[360px] rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
       <div className="flex h-full flex-col">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
             {copy.title}
           </p>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
+          <p className="mt-1 text-justify text-sm leading-6 text-slate-600">
             {copy.body}
           </p>
         </div>
