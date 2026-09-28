@@ -170,3 +170,98 @@
 .stayhub-staff-shell[data-staff-theme="dark"] .text-neutral-600 {
   color: var(--staff-muted) !important;
 }
+
+
+/* GOSTAYA unified Staff controls/cards — temporary baseline until hotel brand theming */
+.stayhub-staff-shell[data-staff-theme="light"] {
+  --gostaya-ui-blue: #1479d3;
+  --gostaya-ui-blue-deep: #075985;
+  --gostaya-ui-blue-line: #b9ddf8;
+  --gostaya-ui-blue-soft: #f4f9ff;
+  --gostaya-ui-card: linear-gradient(135deg, #ffffff 0%, #f8fbff 54%, #eef6ff 100%);
+}
+
+/* Secondary/internal controls: white, blue outline, pill shape. */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace a[class*="rounded"][class*="border"] {
+  border-radius: 999px !important;
+  border-color: var(--gostaya-ui-blue-line) !important;
+  background: #ffffff !important;
+  color: var(--gostaya-ui-blue-deep) !important;
+  box-shadow: none !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button:not(:disabled):hover,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace a[class*="rounded"][class*="border"]:hover {
+  border-color: #8fcaf2 !important;
+  background: var(--gostaya-ui-blue-soft) !important;
+  color: #0a5f9f !important;
+}
+
+/* Main actions: same solid GOSTAYA blue everywhere. */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .gostaya-staff-primary-action,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button.bg-sky-500,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button[class*="bg-[#1479d3]"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .stayhub-communication-send {
+  border-radius: 999px !important;
+  border: 1px solid var(--gostaya-ui-blue) !important;
+  background: var(--gostaya-ui-blue) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(20, 121, 211, 0.18) !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .gostaya-staff-primary-action:hover,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button.bg-sky-500:hover,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button[class*="bg-[#1479d3]"]:hover,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .stayhub-communication-send:hover {
+  background: #0f6fc5 !important;
+  border-color: #0f6fc5 !important;
+  color: #ffffff !important;
+}
+
+/* Cards: one light-blue/white surface language across every Staff/Manager module. */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace :is(section, article)[class*="border"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace div[class*="rounded-2xl"][class*="border"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace div[class*="rounded-3xl"][class*="border"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .stayhub-staff-collapsible {
+  border-color: var(--gostaya-ui-blue-line) !important;
+  background: var(--gostaya-ui-card) !important;
+  box-shadow: 0 15px 38px rgba(15, 58, 91, 0.07) !important;
+}
+
+/* Remove purple/orange/green/pink chrome. Status wording stays, but chrome uses blue. */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="border-violet-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="border-amber-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="border-emerald-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="border-rose-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="border-fuchsia-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="border-cyan-"] {
+  border-color: var(--gostaya-ui-blue-line) !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="bg-violet-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="bg-amber-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="bg-emerald-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="bg-rose-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="bg-fuchsia-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="bg-cyan-"] {
+  background: var(--gostaya-ui-blue-soft) !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="text-violet-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="text-amber-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="text-emerald-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="text-rose-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="text-fuchsia-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="text-cyan-"] {
+  color: var(--gostaya-ui-blue-deep) !important;
+}
+
+/* Header language selector follows the same secondary-control treatment. */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-topbar .stayhub-staff-select {
+  border-radius: 18px !important;
+  border-color: var(--gostaya-ui-blue-line) !important;
+  background: #ffffff !important;
+  color: var(--gostaya-ui-blue-deep) !important;
+  box-shadow: 0 8px 20px rgba(20, 121, 211, 0.08) !important;
+}
