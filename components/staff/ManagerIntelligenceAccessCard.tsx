@@ -57,7 +57,7 @@ export default function ManagerIntelligenceAccessCard({ hotelSlug }: { hotelSlug
 
   return (
     <section className="manager-module-card h-full rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
-      <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#1479d3]">{copy.title}</h3>
+      <h3 className="manager-module-title text-xs font-semibold uppercase tracking-[0.16em]">{copy.title}</h3>
       <p className="mt-1 text-xs font-medium text-slate-500">{copy.eyebrow}</p>
       <p className="mt-2 text-sm leading-6 text-slate-600">{copy.body}</p>
 
