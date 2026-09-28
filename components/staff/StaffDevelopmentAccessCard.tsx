@@ -192,50 +192,51 @@ export default function StaffDevelopmentAccessCard({
   return (
     <section className={(isManager ? "manager-module-card " : "") + "h-full rounded-2xl border border-violet-200 bg-white p-4 shadow-sm"}>
       <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-700">
-            {isManager ? copy.managerTitle : copy.title}
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-700">
+          {isManager ? copy.managerTitle : copy.title}
+        </p>
+        <p className="mt-1 text-justify text-sm leading-6 text-slate-600">
+          {isManager ? copy.managerBody : copy.body}
+        </p>
+
+        {isManager ? (
+          <p className="mt-2 text-xs text-slate-500">
+            {availability.modules.managerIntelligence
+              ? copy.intelligenceOn
+              : copy.intelligenceOff}
           </p>
-          <p className="mt-1 text-justify text-sm leading-6 text-slate-600">
-            {isManager ? copy.managerBody : copy.body}
+        ) : null}
+
+        {isManager && attention.status === "identity_required" ? (
+          <p className="mt-2 text-justify text-xs leading-5 text-violet-700">
+            {copy.identify}
           </p>
+        ) : null}
 
-          {isManager ? (
-            <p className="mt-2 text-xs text-slate-500">
-              {availability.modules.managerIntelligence
-                ? copy.intelligenceOn
-                : copy.intelligenceOff}
-            </p>
-          ) : null}
+        {isManager && attention.status === "ready" ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              [copy.reviews, attention.summary.pendingHumanReviews],
+              [copy.overdue, attention.summary.overdueTrainingAssignments],
+              [copy.hrSignals, attention.summary.hrRuleFindings],
+            ].map(([label, value]) => (
+              <span
+                key={String(label)}
+                className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600"
+              >
+                {label}: <strong className="text-slate-900">{value}</strong>
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
 
-          {isManager && attention.status === "identity_required" ? (
-            <p className="mt-2 text-justify text-xs leading-5 text-violet-700">
-              {copy.identify}
-            </p>
-          ) : null}
-
-          {isManager && attention.status === "ready" ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {[
-                [copy.reviews, attention.summary.pendingHumanReviews],
-                [copy.overdue, attention.summary.overdueTrainingAssignments],
-                [copy.hrSignals, attention.summary.hrRuleFindings],
-              ].map(([label, value]) => (
-                <span
-                  key={String(label)}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600"
-                >
-                  {label}: <strong className="text-slate-900">{value}</strong>
-                </span>
-              ))}
-            </div>
-          ) : null}
-
-        <Link
-          href={`/staff/${availability.hotelSlug}/${developmentRole}/development`}
-          className="manager-module-action mt-4 inline-flex w-fit items-center justify-center rounded-xl border px-4 py-2 text-sm font-bold transition"
-        >
-          {copy.open} →
-        </Link>
+      <Link
+        href={`/staff/${availability.hotelSlug}/${developmentRole}/development`}
+        className="manager-module-action mt-4 inline-flex w-fit items-center justify-center rounded-xl border px-4 py-2 text-sm font-bold transition"
+      >
+        {copy.open} →
+      </Link>
     </section>
   );
 }
