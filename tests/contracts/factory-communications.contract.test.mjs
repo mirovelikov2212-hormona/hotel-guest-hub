@@ -197,10 +197,10 @@ test("Operational communications enforce expiry, three-day personal history, tru
   assertContains(directRoute, 'pushDeliveryState');
 
   assertContains(broadcastUi, 'Активни / чернови / планирани');
-  assertContains(broadcastUi, 'translation: при изпращане/планиране');
+  assertContains(broadcastUi, 'превод при изпращане или планиране');
   assertNotContains(broadcastUi, 'но остава в Staff историята');
   assertContains(directUi, 'История · последни 3 дни');
-  assertContains(directUi, 'Push: няма доказана доставка');
+  assertContains(directUi, 'Известие: няма доказана доставка');
 
   assertContains(guestRoute, 'language: requestedLanguage');
   assertContains(guestRoute, 'display_until.gt.${now}');
