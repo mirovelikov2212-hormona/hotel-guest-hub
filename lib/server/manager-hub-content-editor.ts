@@ -1,5 +1,7 @@
 import "server-only";
 
+import demoHotelConfig from "@/data/hotels/demo.json";
+import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import {
   loadManagerCurrentLiveConfig,
   resolveManagerContentChangeScope,
@@ -164,6 +166,34 @@ function scheduleState(config: JsonObject) {
 }
 
 export async function getManagerHubContentEditorState(hotelSlugInput: unknown) {
+  const normalizedSlug = clean(hotelSlugInput).toLowerCase();
+
+  if (normalizedSlug === "demo") {
+    const session = await getCurrentStaffSession("demo", "manager");
+    if (!session || session.role !== "manager") {
+      throw new Error("CM5_MANAGER_SESSION_REQUIRED");
+    }
+
+    const config = demoHotelConfig as unknown as JsonObject;
+    return {
+      hotel: {
+        id: String(session.hotel_id || ""),
+        slug: "demo",
+        name: clean(demoHotelConfig.hotelName) || "Hotel Demo",
+      },
+      liveRevision: {
+        id: "demo-read-only",
+        revisionNo: 0,
+        checksum: "demo-read-only",
+      },
+      languages: configuredLanguages(config),
+      services: serviceRows(config),
+      venues: venueRows(config),
+      schedules: scheduleState(config),
+      readOnly: true,
+    };
+  }
+
   const scope = await resolveManagerContentChangeScope(hotelSlugInput);
   const live = await loadManagerCurrentLiveConfig(scope.hotelId);
   const config = live.config as JsonObject;
@@ -183,6 +213,7 @@ export async function getManagerHubContentEditorState(hotelSlugInput: unknown) {
     services: serviceRows(config),
     venues: venueRows(config),
     schedules: scheduleState(config),
+    readOnly: false,
   };
 }
 
