@@ -525,10 +525,11 @@ function downloadFile(filename: string, content: string, mimeType: string) {
 }
 
 export default function ManagerPage() {
-  const { lang } = useStaffUi();
+  const { lang, setLang } = useStaffUi();
   const t = staffText(lang);
   const {
     hotelSlug,
+    hotelName,
     getAllRequests,
     getOperationalAllRequests,
     updateRequestStatus,
@@ -536,6 +537,9 @@ export default function ManagerPage() {
   } = useStaffStore();
   const requests = getAllRequests();
   const isDemoHotel = String(hotelSlug || "").trim().toLowerCase() === "demo";
+  const displayHotelName = isDemoHotel
+    ? (lang === "bg" ? "Демо хотел" : lang === "de" ? "Demo-Hotel" : "Hotel Demo")
+    : (hotelName || hotelSlug || "Hotel");
   const reportRequests = useMemo(
     () => isDemoHotel ? requests : requests.filter((request) => !request.isTest),
     [isDemoHotel, requests],
@@ -805,29 +809,55 @@ export default function ManagerPage() {
 
   return (
     <main className="space-y-6 pb-safe">
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight">{t.managerDashboard}</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">{t.managerIntro}</p>
-          </div>
-          <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-            <div className="rounded-2xl border border-violet-400/20 bg-violet-400/10 px-4 py-3 text-sm text-violet-100">
-              {t.allDepartmentsOverview}
+      <section className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-6">
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <span className="stayhub-staff-brand-dot" aria-hidden="true" />
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#1479d3]">GOSTAYA</p>
+                <span className="stayhub-staff-brand-dot" aria-hidden="true" />
+              </div>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[#102a43]">{displayHotelName}</h1>
+              <p className="mt-1 text-sm text-[#5d86ad]">{t.simpleOperationalView}</p>
             </div>
-            <StaffAlertSoundButton soundEnabled={soundEnabled} onToggle={toggleSound} />
+
+            <select
+              value={lang}
+              onChange={(event) => setLang(event.target.value as typeof lang)}
+              className="stayhub-staff-select w-fit rounded-2xl border px-4 py-2.5 text-sm outline-none"
+              aria-label="Език на служебния интерфейс"
+            >
+              <option value="bg">BG</option>
+              <option value="en">EN</option>
+              <option value="de">DE</option>
+            </select>
+          </div>
+
+          <div className="border-t border-sky-100 pt-5">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div className="min-w-0">
+                <h2 className="text-2xl font-semibold tracking-tight">{t.managerDashboard}</h2>
+                <p className="mt-2 max-w-4xl text-sm leading-6 text-white/70">{t.managerIntro}</p>
+              </div>
+              <StaffAlertSoundButton soundEnabled={soundEnabled} onToggle={toggleSound} />
+            </div>
+
+            {hotelSlug ? (
+              <div className="mt-5 border-t border-sky-100 pt-5">
+                <ManagerPwaControls hotelSlug={hotelSlug} role="manager" embedded />
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
-
-      {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="manager" /> : null}
 
       {hotelSlug ? <GuestCommunicationsWorkspace hotelSlug={hotelSlug} role="manager" /> : null}
       {hotelSlug ? <StaffRoomActivityMap hotelSlug={hotelSlug} role="manager" /> : null}
 
       {hotelSlug ? (
         <section
-          className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3"
+          className="manager-module-grid grid auto-rows-fr items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3"
           aria-label="Manager modules"
         >
           <ManagerIntelligenceAccessCard hotelSlug={hotelSlug} />
@@ -850,14 +880,6 @@ export default function ManagerPage() {
 
       {hotelSlug ? <ManagerHubContentEditor hotelSlug={hotelSlug} lang={lang} /> : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <StaffSummaryCard label={t.total} value={summary.total} onClick={() => setSelectedDrilldown({ kind: "request_status", status: "all" })} />
-        <StaffSummaryCard label={t.new} value={summary.newCount} onClick={() => setSelectedDrilldown({ kind: "request_status", status: "new" })} />
-        <StaffSummaryCard label={t.inProgress} value={summary.inProgressCount} onClick={() => setSelectedDrilldown({ kind: "request_status", status: "in_progress" })} />
-        <StaffSummaryCard label={t.completed} value={summary.completedCount} onClick={() => setSelectedDrilldown({ kind: "request_status", status: "completed" })} />
-        <StaffSummaryCard label={t.returned} value={summary.returnedCount} danger onClick={() => setSelectedDrilldown({ kind: "request_status", status: "returned" })} />
-      </section>
-
       <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-white/40">{t.active}</p>
@@ -865,6 +887,14 @@ export default function ManagerPage() {
           <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
             {t.managerOperationsIntro}
           </p>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <StaffSummaryCard label={t.total} value={summary.total} onClick={() => setSelectedDrilldown({ kind: "request_status", status: "all" })} />
+          <StaffSummaryCard label={t.new} value={summary.newCount} onClick={() => setSelectedDrilldown({ kind: "request_status", status: "new" })} />
+          <StaffSummaryCard label={t.inProgress} value={summary.inProgressCount} onClick={() => setSelectedDrilldown({ kind: "request_status", status: "in_progress" })} />
+          <StaffSummaryCard label={t.completed} value={summary.completedCount} onClick={() => setSelectedDrilldown({ kind: "request_status", status: "completed" })} />
+          <StaffSummaryCard label={t.returned} value={summary.returnedCount} danger onClick={() => setSelectedDrilldown({ kind: "request_status", status: "returned" })} />
         </div>
 
         <div className="mt-5 space-y-4">
