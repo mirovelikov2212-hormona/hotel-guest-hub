@@ -3258,3 +3258,80 @@ input.stayhub-card::placeholder {
 .stayhub-tools-shell[data-stayhub-tools-theme="light"] textarea::placeholder {
   color: #7b8b91 !important;
 }
+
+
+/* GOSTAYA unified light design system — temporary pre-hotel-brand baseline */
+.gostaya-marketing {
+  --gostaya-blue: #1479d3;
+  --gostaya-blue-deep: #075985;
+  --gostaya-blue-line: #b9ddf8;
+  --gostaya-blue-soft: #f4f9ff;
+  --gostaya-blue-soft-2: #eef6ff;
+  --gostaya-ink: #102a43;
+}
+
+.gostaya-marketing .gostaya-primary-action,
+.gostaya-marketing button[aria-selected="true"] {
+  border-radius: 999px !important;
+  border: 1px solid var(--gostaya-blue) !important;
+  background: var(--gostaya-blue) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(20, 121, 211, 0.18) !important;
+}
+
+.gostaya-marketing .gostaya-primary-action:hover,
+.gostaya-marketing button[aria-selected="true"]:hover {
+  background: #0f6fc5 !important;
+  border-color: #0f6fc5 !important;
+}
+
+.gostaya-marketing .gostaya-secondary-action,
+.gostaya-marketing button:not([aria-selected="true"]),
+.gostaya-marketing a[class*="rounded"][class*="border"]:not(.gostaya-primary-action) {
+  border-radius: 999px !important;
+  border-color: var(--gostaya-blue-line) !important;
+  background: #ffffff !important;
+  color: var(--gostaya-blue-deep) !important;
+  box-shadow: none !important;
+}
+
+.gostaya-marketing .gostaya-secondary-action:hover,
+.gostaya-marketing button:not([aria-selected="true"]):hover,
+.gostaya-marketing a[class*="rounded"][class*="border"]:not(.gostaya-primary-action):hover {
+  border-color: #8fcaf2 !important;
+  background: var(--gostaya-blue-soft) !important;
+  color: #0a5f9f !important;
+}
+
+.gostaya-marketing :is(section, article, details)[class*="border"],
+.gostaya-marketing div[class*="rounded-2xl"][class*="border"],
+.gostaya-marketing div[class*="rounded-3xl"][class*="border"],
+.gostaya-marketing div[class*="rounded-["][class*="border"] {
+  border-color: var(--gostaya-blue-line) !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 54%, var(--gostaya-blue-soft-2) 100%) !important;
+  box-shadow: 0 16px 42px rgba(15, 58, 91, 0.07) !important;
+}
+
+.gostaya-marketing [class*="border-violet-"],
+.gostaya-marketing [class*="border-amber-"],
+.gostaya-marketing [class*="border-emerald-"],
+.gostaya-marketing [class*="border-rose-"],
+.gostaya-marketing [class*="border-fuchsia-"] {
+  border-color: var(--gostaya-blue-line) !important;
+}
+
+.gostaya-marketing [class*="bg-violet-"],
+.gostaya-marketing [class*="bg-amber-"],
+.gostaya-marketing [class*="bg-emerald-"],
+.gostaya-marketing [class*="bg-rose-"],
+.gostaya-marketing [class*="bg-fuchsia-"] {
+  background: var(--gostaya-blue-soft) !important;
+}
+
+.gostaya-marketing [class*="text-violet-"],
+.gostaya-marketing [class*="text-amber-"],
+.gostaya-marketing [class*="text-emerald-"],
+.gostaya-marketing [class*="text-rose-"],
+.gostaya-marketing [class*="text-fuchsia-"] {
+  color: var(--gostaya-blue-deep) !important;
+}
