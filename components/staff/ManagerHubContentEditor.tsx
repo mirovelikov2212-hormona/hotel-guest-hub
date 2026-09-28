@@ -80,6 +80,7 @@ type ScheduleEditorRow = {
 };
 
 type EditorPayload = {
+  readOnly?: boolean;
   hotel: { id: string; slug: string; name: string };
   liveRevision: { id: string; revisionNo: number; checksum: string };
   languages: string[];
@@ -118,6 +119,7 @@ const COPY = {
     schedules: "Работно време",
     loading: "Зареждане…",
     reload: "Презареди",
+    demoReadOnly: "Демо преглед · съдържанието може да се разглежда, без да се записват промени.",
     liveRevision: "Текуща версия",
     language: "Език",
     choose: "Изберете",
@@ -189,6 +191,7 @@ const COPY = {
     schedules: "Operating hours",
     loading: "Loading…",
     reload: "Reload",
+    demoReadOnly: "Demo preview · content can be inspected without saving changes.",
     liveRevision: "LIVE revision",
     language: "Language",
     choose: "Choose",
@@ -260,6 +263,7 @@ const COPY = {
     schedules: "Betriebszeiten",
     loading: "Laden…",
     reload: "Neu laden",
+    demoReadOnly: "Demo-Vorschau · Inhalte können ohne Speichern angesehen werden.",
     liveRevision: "LIVE-Revision",
     language: "Sprache",
     choose: "Auswählen",
@@ -700,8 +704,16 @@ export default function ManagerHubContentEditor({
       </div>
 
       {editor ? (
-        <div className="mt-3 text-xs text-white/45">
-          {copy.liveRevision}: #{editor.liveRevision.revisionNo}
+        <div className="mt-3 space-y-2">
+          {editor.readOnly ? (
+            <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-900">
+              {copy.demoReadOnly}
+            </div>
+          ) : (
+            <div className="text-xs text-white/45">
+              {copy.liveRevision}: #{editor.liveRevision.revisionNo}
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -881,7 +893,7 @@ export default function ManagerHubContentEditor({
               <button
                 type="button"
                 onClick={() => void checkService()}
-                disabled={checking}
+                disabled={checking || editor?.readOnly === true}
                 className="mt-4 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-semibold text-cyan-50 disabled:opacity-40"
               >
                 {checking ? copy.checking : copy.preview}
@@ -1003,7 +1015,7 @@ export default function ManagerHubContentEditor({
               <button
                 type="button"
                 onClick={() => void checkVenue()}
-                disabled={checking}
+                disabled={checking || editor?.readOnly === true}
                 className="mt-4 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-semibold text-cyan-50 disabled:opacity-40"
               >
                 {checking ? copy.checking : copy.preview}
