@@ -44,13 +44,13 @@ const COPY = {
     managerBody:
       "Хотелски стандарти и стандарти на отделите, обучения, тестове, проверими резултати и управленски анализ.",
     open: "Отвори модула",
-    intelligenceOn: "Manager Intelligence активен",
-    intelligenceOff: "Manager Intelligence не е активен",
+    intelligenceOn: "Мениджърският анализ е активен",
+    intelligenceOff: "Мениджърският анализ не е активен",
     identify:
-      "Влезте с личния Manager PIN в модула, за да виждате Staff Development сигналите тук.",
+      "Влезте с личния мениджърски PIN в модула, за да виждате сигналите за развитие на персонала тук.",
     reviews: "За проверка",
     overdue: "Просрочени обучения",
-    hrSignals: "HR сигнали",
+    hrSignals: "Сигнали за човешки ресурси",
   },
   en: {
     title: "Staff Development",
