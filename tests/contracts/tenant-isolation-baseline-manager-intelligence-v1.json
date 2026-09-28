@@ -132,6 +132,41 @@
       "fromLine": 638,
       "toLine": 642,
       "operation": "rpc"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 218,
+      "toLine": 220,
+      "table": "hub_design_assets",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 232,
+      "toLine": 234,
+      "table": "hotel_content_assets",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 248,
+      "toLine": 250,
+      "table": "hotel_content_assets",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 507,
+      "toLine": 511,
+      "table": "hotel_content_change_requests",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-offer-changes.ts",
+      "fromLine": 572,
+      "toLine": 576,
+      "table": "hotel_content_change_requests",
+      "operation": "select"
     }
   ],
   "additions": [
