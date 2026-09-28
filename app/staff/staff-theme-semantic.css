@@ -347,3 +347,58 @@
 .stayhub-staff-shell .font-medium {
   font-weight: 500 !important;
 }
+
+
+/* Cross-department visual parity: Manager, Reception, Housekeeping, Maintenance and custom departments */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace main > header[class*="border"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace main > section[class*="border"] {
+  border-radius: 28px !important;
+  border-color: var(--gostaya-ui-blue-line) !important;
+  background: var(--gostaya-ui-card) !important;
+  box-shadow: 0 16px 42px rgba(15, 58, 91, 0.07) !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button[class*="p-4"][class*="border"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button[class*="p-5"][class*="border"] {
+  border-radius: 22px !important;
+  border-color: var(--gostaya-ui-blue-line) !important;
+  background: var(--gostaya-ui-card) !important;
+  color: var(--staff-text) !important;
+  box-shadow: 0 12px 30px rgba(15, 58, 91, 0.06) !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button[class*="p-4"][class*="border"]:hover,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace button[class*="p-5"][class*="border"]:hover {
+  border-color: #8fcaf2 !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f5faff 50%, #eaf5ff 100%) !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="ring-violet-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="ring-rose-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="ring-emerald-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace [class*="ring-amber-"] {
+  --tw-ring-color: rgba(20, 121, 211, 0.24) !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace :is(p,span,div)[class*="uppercase"][class*="tracking"] {
+  font-weight: 700 !important;
+  color: #0e5f91 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace :is(h2,h3,h4) {
+  font-weight: 600 !important;
+  color: #102a43 !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .stayhub-staff-collapsible-trigger {
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--staff-text) !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .stayhub-staff-collapsible-icon {
+  border-radius: 999px !important;
+  border-color: var(--gostaya-ui-blue-line) !important;
+  background: #ffffff !important;
+  color: var(--gostaya-ui-blue-deep) !important;
+}
