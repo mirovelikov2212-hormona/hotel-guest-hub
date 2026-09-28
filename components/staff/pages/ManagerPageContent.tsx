@@ -820,7 +820,6 @@ export default function ManagerPage() {
             <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[#102a43]">
               {displayHotelName} - {t.managerDashboard}
             </h1>
-            <p className="mt-2 max-w-4xl text-sm leading-6 text-white/70">{t.managerIntro}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 xl:justify-end">
@@ -838,6 +837,15 @@ export default function ManagerPage() {
             </select>
           </div>
         </div>
+
+        {lang === "bg" ? (
+          <p className="mt-3 text-sm leading-6 text-white/70">
+            <span className="block">Пълен оперативен преглед за всички отдели.</span>
+            <span className="block lg:whitespace-nowrap">Фокус върху активното натоварване, върнатите заявки и най-старите нерешени задачи.</span>
+          </p>
+        ) : (
+          <p className="mt-3 text-sm leading-6 text-white/70">{t.managerIntro}</p>
+        )}
       </section>
 
       {hotelSlug ? <GuestCommunicationsWorkspace hotelSlug={hotelSlug} role="manager" /> : null}
@@ -872,7 +880,7 @@ export default function ManagerPage() {
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-white/40">{t.active}</p>
           <h3 className="mt-1 text-xl font-semibold text-white">{t.managerOperationsTitle}</h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+          <p className="mt-2 w-full text-sm leading-6 text-white/65">
             {t.managerOperationsIntro}
           </p>
         </div>
