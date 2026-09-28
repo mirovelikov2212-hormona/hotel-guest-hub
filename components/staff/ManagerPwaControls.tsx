@@ -311,6 +311,52 @@ export default function ManagerPwaControls({
                 ? copy.error
                 : copy.ready;
 
+  if (embedded) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {status === "ready" ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void enable()}
+            className="manager-header-control min-h-11 rounded-2xl border px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
+          >
+            {copy.enable}
+          </button>
+        ) : null}
+
+        {status === "enabled" ? (
+          <>
+            {debugPush ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void sendTest()}
+                className="manager-header-control min-h-11 rounded-2xl border px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
+              >
+                {copy.test}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void disable()}
+              className="manager-header-control min-h-11 rounded-2xl border px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
+            >
+              {copy.disable}
+            </button>
+          </>
+        ) : null}
+
+        {status !== "ready" && status !== "enabled" ? (
+          <span className="manager-header-control inline-flex min-h-11 max-w-[260px] items-center rounded-2xl border px-4 py-2.5 text-sm font-semibold" title={statusText}>
+            {statusText}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <section className={embedded ? "min-w-0" : "rounded-2xl border border-violet-300/20 bg-violet-300/10 p-4"}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
