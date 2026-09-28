@@ -3286,7 +3286,7 @@ input.stayhub-card::placeholder {
 }
 
 .gostaya-marketing .gostaya-secondary-action,
-.gostaya-marketing button:not([aria-selected="true"]),
+.gostaya-marketing button:not([aria-selected="true"]):not([style]),
 .gostaya-marketing a[class*="rounded"][class*="border"]:not(.gostaya-primary-action) {
   border-radius: 999px !important;
   border-color: var(--gostaya-blue-line) !important;
@@ -3296,7 +3296,7 @@ input.stayhub-card::placeholder {
 }
 
 .gostaya-marketing .gostaya-secondary-action:hover,
-.gostaya-marketing button:not([aria-selected="true"]):hover,
+.gostaya-marketing button:not([aria-selected="true"]):not([style]):hover,
 .gostaya-marketing a[class*="rounded"][class*="border"]:not(.gostaya-primary-action):hover {
   border-color: #8fcaf2 !important;
   background: var(--gostaya-blue-soft) !important;
@@ -3304,9 +3304,8 @@ input.stayhub-card::placeholder {
 }
 
 .gostaya-marketing :is(section, article, details)[class*="border"],
-.gostaya-marketing div[class*="rounded-2xl"][class*="border"],
-.gostaya-marketing div[class*="rounded-3xl"][class*="border"],
-.gostaya-marketing div[class*="rounded-["][class*="border"] {
+.gostaya-marketing div[class*="rounded-2xl"][class*="border"]:not([style]),
+.gostaya-marketing div[class*="rounded-3xl"][class*="border"]:not([style]) {
   border-color: var(--gostaya-blue-line) !important;
   background: linear-gradient(135deg, #ffffff 0%, #f8fbff 54%, var(--gostaya-blue-soft-2) 100%) !important;
   box-shadow: 0 16px 42px rgba(15, 58, 91, 0.07) !important;
