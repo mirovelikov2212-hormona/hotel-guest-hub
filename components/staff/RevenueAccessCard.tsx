@@ -103,7 +103,7 @@ export default function RevenueAccessCard({
         <div className="h-4" aria-hidden="true" />
         <Link
           href={`/staff/${hotelSlug}/manager/revenue`}
-          className="mt-auto inline-flex w-fit items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100"
+          className="gostaya-staff-primary-action mt-auto inline-flex w-fit items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100"
         >
           {copy.open} →
         </Link>
