@@ -147,9 +147,11 @@ async function saveSubscription(
 export default function ManagerPwaControls({
   hotelSlug,
   role = "manager",
+  embedded = false,
 }: {
   hotelSlug: string;
   role?: StaffPushRole;
+  embedded?: boolean;
 }) {
   const { lang } = useStaffUi();
   const copy = useMemo(() => getCopy(lang, role), [lang, role]);
@@ -310,7 +312,7 @@ export default function ManagerPwaControls({
                 : copy.ready;
 
   return (
-    <section className="rounded-2xl border border-violet-300/20 bg-violet-300/10 p-4">
+    <section className={embedded ? "min-w-0" : "rounded-2xl border border-violet-300/20 bg-violet-300/10 p-4"}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-100/60">
