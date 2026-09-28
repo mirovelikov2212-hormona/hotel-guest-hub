@@ -54,7 +54,7 @@ const MODULES = {
   bg: [
     ["guest_hub", "Портал за госта"],
     ["reception", "Рецепция"],
-    ["housekeeping", "Хаускипинг"],
+    ["housekeeping", "Камериерки"],
     ["maintenance", "Технически отдел"],
     ["manager", "Мениджърски панел"],
     ["offers", "Оферти / допълнителни услуги"],
