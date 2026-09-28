@@ -38,7 +38,7 @@ test("demo Manager includes TEST requests in demo counters but real hotels keep 
     manager,
     /isDemoHotel \? requests : requests\.filter\(\(request\) => !request\.isTest\)/,
   );
-  assert.match(manager, /grid gap-4 md:grid-cols-2 xl:grid-cols-3/);
+  assert.match(manager, /manager-module-grid grid auto-rows-fr items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3/);
 });
 
 test("every routed Manager submodule provides a path back to the Manager dashboard", async () => {
@@ -48,21 +48,20 @@ test("every routed Manager submodule provides a path back to the Manager dashboa
   const value = await source("app/staff/[hotelSlug]/manager/value/page.tsx");
   const pinRepair = await source("app/staff/[hotelSlug]/manager/reception-pin-repair/page.tsx");
 
-  assert.match(backLink, /Назад към Manager панела/);
+  assert.match(backLink, /Назад към мениджърския панел/);
   assert.match(backLink, /\/staff\/\$\{hotelSlug\}\/manager/);
   for (const text of [development, revenue, value, pinRepair]) {
     assert.match(text, /ManagerModuleBackLink/);
   }
 });
 
-test("problem reporting uses human-readable choice grids instead of raw technical module and severity controls", async () => {
+test("problem reporting stays simple and uses human-readable module choices", async () => {
   const incident = await source("components/staff/ManagerProblemReportCard.tsx");
-  assert.match(incident, /Къде се случва\?/);
-  assert.match(incident, /Какъв е проблемът\?/);
-  assert.match(incident, /Колко е спешно\?/);
-  assert.match(incident, /Guest Hub/);
+  assert.match(incident, /1\. Къде е проблемът\?/);
+  assert.match(incident, /2\. Опиши проблема/);
+  assert.match(incident, /Портал за госта/);
   assert.match(incident, /Камериерки/);
-  assert.match(incident, /Критично · работата е блокирана/);
+  assert.doesNotMatch(incident, /Колко е спешно/);
   assert.doesNotMatch(incident, /<select/);
   assert.doesNotMatch(incident, /staff_operations/);
 });
@@ -74,12 +73,66 @@ test("Revenue and Value copy explicitly defines scope and excludes room-revenue 
   const value = await source("components/staff/value/GostayaValueDashboard.tsx");
 
   assert.match(revenueCard, /Приходи от допълнителни услуги/);
-  assert.match(revenue, /цени на стаи, ADR, RevPAR, Occupancy или общия приход на хотела/);
+  assert.match(revenue, /цени на стаи, средна дневна цена, приход на налична стая, заетост или общия приход на хотела/);
   assert.match(valueCard, /Оперативна стойност и спестено време/);
-  assert.match(value, /Direct Routing/);
-  assert.match(value, /Reception Bypass/);
-  assert.match(value, /AI Containment/);
-  assert.match(value, /не е хотелски P&L и не включва приходите от стаи/);
+  assert.match(value, /директно насочване/);
+  assert.match(value, /заобикаляне на рецепцията/);
+  assert.match(value, /самостоятелно обслужване чрез ИИ/);
+  assert.match(value, /не е отчет за печалби и загуби и не включва приходите от стаи/);
+});
+
+test("Manager layout combines hotel identity, controls and notifications in one card", async () => {
+  const manager = await source("components/staff/pages/ManagerPageContent.tsx");
+  const shell = await source("components/staff/StaffHotelShell.tsx");
+
+  assert.match(shell, /role!=="manager"\?<header/);
+  assert.match(manager, /GOSTAYA/);
+  assert.match(manager, /Мениджърски контролен панел|managerDashboard/);
+  assert.match(manager, /ManagerPwaControls hotelSlug=\{hotelSlug\} role="manager" embedded/);
+  assert.doesNotMatch(manager, /allDepartmentsOverview/);
+});
+
+test("Manager request counters live inside the active-request card and six modules share one grid", async () => {
+  const manager = await source("components/staff/pages/ManagerPageContent.tsx");
+  const operationsIndex = manager.indexOf("managerOperationsTitle");
+  const summaryIndex = manager.indexOf("<StaffSummaryCard", operationsIndex);
+  const requestListIndex = manager.indexOf("operationalRequests.length", operationsIndex);
+  assert.ok(operationsIndex >= 0 && summaryIndex > operationsIndex && requestListIndex > summaryIndex);
+
+  for (const component of [
+    "ManagerIntelligenceAccessCard",
+    "StaffDevelopmentAccessCard",
+    "RevenueAccessCard",
+    "GostayaValueAccessCard",
+    "IntegrationStatusCard",
+    "ManagerProblemReportCard",
+  ]) {
+    assert.match(manager, new RegExp("<" + component));
+  }
+});
+
+test("Offer editor uses manager-facing names, localized guest copy and controlled file labels", async () => {
+  const editor = await source("components/staff/ManagerContentOffersEditor.tsx");
+  const translationRoute = await source("app/api/staff/content-changes/offers/translate/route.ts");
+  const guestOffers = await source("components/guest/GuestOffersPanel.tsx");
+
+  assert.match(editor, /Вътрешно име на офертата/);
+  assert.match(editor, /Преведи на всички езици/);
+  assert.match(editor, /Избери файл/);
+  assert.match(editor, /className="sr-only"/);
+  assert.match(translationRoute, /translateGuestCommunication/);
+  assert.match(guestOffers, /localized\(offer\.titleByLang, language\)/);
+  assert.match(guestOffers, /localized\(offer\.shortDescriptionByLang, language\)/);
+});
+
+test("Demo Hub content editor is inspectable but remains write-protected", async () => {
+  const server = await source("lib/server/manager-hub-content-editor.ts");
+  const editor = await source("components/staff/ManagerHubContentEditor.tsx");
+
+  assert.match(server, /normalizedSlug === "demo"/);
+  assert.match(server, /readOnly: true/);
+  assert.match(editor, /editor\.readOnly === true/);
+  assert.match(editor, /Демо преглед/);
 });
 
 test("Reception exposes real direct and broadcast guest communication workspaces", async () => {
