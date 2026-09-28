@@ -179,8 +179,8 @@ export default function ManagerProblemReportCard({
   }
 
   return (
-    <section className="manager-module-card flex h-full min-h-[360px] flex-col rounded-2xl border border-sky-200 bg-white p-4 shadow-[0_12px_30px_rgba(15,58,91,.06)]">
-      <div className="flex-1">
+    <section className="manager-module-card h-full rounded-2xl border border-sky-200 bg-white p-4 shadow-[0_12px_30px_rgba(15,58,91,.06)]">
+      <div>
         <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#1479d3]">{copy.title}</h3>
         <p className="mt-2 text-justify text-sm leading-6 text-slate-600">{copy.intro}</p>
 
@@ -222,7 +222,7 @@ export default function ManagerProblemReportCard({
           setOpen((value) => !value);
           setFeedback(null);
         }}
-        className="gostaya-staff-primary-action mt-4 inline-flex min-h-10 w-fit items-center justify-center rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-bold text-sky-800 transition hover:bg-sky-100"
+        className="manager-module-action mt-4 inline-flex min-h-10 w-fit items-center justify-center rounded-xl border px-4 py-2 text-sm font-bold transition"
       >
         {open ? copy.close : copy.open}
       </button>
