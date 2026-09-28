@@ -58,10 +58,10 @@ function getRoleTitle(role: StaffPushRole, lang: "bg" | "en" | "de") {
     return "Manager-App";
   }
 
-  if (role === "reception") return "Рецепция приложение";
-  if (role === "housekeeping") return "Камериерки приложение";
-  if (role === "maintenance") return "Технически отдел приложение";
-  return "Manager приложение";
+  if (role === "reception") return "Приложение за рецепция";
+  if (role === "housekeeping") return "Приложение за камериерки";
+  if (role === "maintenance") return "Приложение за техническия отдел";
+  return "Приложение за мениджъра";
 }
 
 function getCopy(lang: "bg" | "en" | "de", role: StaffPushRole) {
@@ -106,15 +106,15 @@ function getCopy(lang: "bg" | "en" | "de", role: StaffPushRole) {
   return {
     title: getRoleTitle(role, lang),
     install: "На iPhone: отворете тази страница в Safari → Споделяне → Добавяне към началния екран.",
-    installRequired: "На iPhone първо инсталирайте това Staff приложение на началния екран.",
-    enable: "Разреши push известията",
+    installRequired: "На iPhone първо инсталирайте това служебно приложение на началния екран.",
+    enable: "Разреши известията",
     disable: "Изключи известията",
     test: "Изпрати тестово известие",
-    enabled: "Push известията са активни на това устройство.",
+    enabled: "Известията са активни на това устройство.",
     ready: "Разрешете известията, за да получавате новите заявки за този отдел на телефона.",
     denied: "Известията са блокирани. Разрешете ги от настройките на телефона за това приложение.",
-    unsupported: "Това устройство или браузър не поддържа push известия.",
-    notConfigured: "Push известията още не са настроени на сървъра.",
+    unsupported: "Това устройство или браузър не поддържа известия.",
+    notConfigured: "Известията още не са настроени на сървъра.",
     checking: "Проверка на известията…",
     error: "Настройването не успя. Опитайте отново.",
     testSent: "Тестовото известие е изпратено.",
