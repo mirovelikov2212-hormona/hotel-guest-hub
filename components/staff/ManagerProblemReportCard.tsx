@@ -181,9 +181,8 @@ export default function ManagerProblemReportCard({
   return (
     <section className="rounded-2xl border border-sky-200 bg-white p-4 shadow-[0_12px_30px_rgba(15,58,91,.06)]">
       <div>
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#1479d3]">{copy.eyebrow}</p>
-        <h3 className="mt-1.5 text-lg font-bold text-slate-900">{copy.title}</h3>
-        <p className="mt-1.5 text-sm leading-6 text-slate-600">{copy.intro}</p>
+        <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#1479d3]">{copy.title}</h3>
+        <p className="mt-2 text-sm leading-6 text-slate-600">{copy.intro}</p>
       </div>
 
       <button
