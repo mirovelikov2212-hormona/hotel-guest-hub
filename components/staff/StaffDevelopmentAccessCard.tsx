@@ -190,7 +190,7 @@ export default function StaffDevelopmentAccessCard({
     : availability.runtimeRole.departmentCode || role;
 
   return (
-    <section className="manager-module-card h-full min-h-[360px] rounded-2xl border border-violet-200 bg-white p-4 shadow-sm">
+    <section className={(isManager ? "manager-module-card min-h-[360px] " : "") + "h-full rounded-2xl border border-violet-200 bg-white p-4 shadow-sm"}>
       <div className="flex h-full flex-col">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-700">
