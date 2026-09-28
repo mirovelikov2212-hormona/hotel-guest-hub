@@ -560,7 +560,7 @@ const COPY: Record<Lang, ProductCopy> = {
 function ModulePreview({ view }: { view: ProductView }) {
   return (
     <div className="relative h-full overflow-hidden rounded-[28px] border border-slate-200 bg-white p-5 text-[#102a43] shadow-[0_18px_50px_rgba(15,58,91,.10)] sm:p-6">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_55%_0%,rgba(44,157,255,.12),transparent_43%),radial-gradient(circle_at_92%_82%,rgba(143,109,255,.10),transparent_34%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_55%_0%,rgba(44,157,255,.12),transparent_43%),radial-gradient(circle_at_92%_82%,rgba(44,157,255,.08),transparent_34%)]" />
       <div className="relative">
         <div className="border-b border-slate-200 pb-4">
           <div className="text-[10px] font-black uppercase tracking-[.24em] text-[#1479d3]">
