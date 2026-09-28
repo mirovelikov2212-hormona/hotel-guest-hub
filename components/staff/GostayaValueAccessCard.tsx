@@ -89,24 +89,19 @@ export default function GostayaValueAccessCard({
   if (!available) return null;
 
   return (
-    <section className="manager-module-card h-full min-h-[360px] rounded-2xl border border-cyan-200 bg-white p-4 shadow-sm">
-      <div className="flex h-full flex-col">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-800">
-            {copy.title}
-          </p>
-          <p className="mt-1 text-justify text-sm leading-6 text-slate-600">
-            {copy.body}
-          </p>
-        </div>
-        <div className="h-4" aria-hidden="true" />
-        <Link
-          href={`/staff/${hotelSlug}/manager/value`}
-          className="gostaya-staff-primary-action mt-auto inline-flex w-fit items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-bold text-cyan-800 transition hover:bg-cyan-100"
-        >
-          {copy.open} →
-        </Link>
-      </div>
+    <section className="manager-module-card h-full rounded-2xl border border-cyan-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-800">
+        {copy.title}
+      </p>
+      <p className="mt-1 text-justify text-sm leading-6 text-slate-600">
+        {copy.body}
+      </p>
+      <Link
+        href={`/staff/${hotelSlug}/manager/value`}
+        className="manager-module-action mt-4 inline-flex w-fit items-center justify-center rounded-xl border px-4 py-2 text-sm font-bold transition"
+      >
+        {copy.open} →
+      </Link>
     </section>
   );
 }
