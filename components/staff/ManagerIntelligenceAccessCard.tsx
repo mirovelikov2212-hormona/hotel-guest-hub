@@ -56,39 +56,23 @@ export default function ManagerIntelligenceAccessCard({ hotelSlug }: { hotelSlug
   }, [hotelSlug, safeLang]);
 
   return (
-    <section className="manager-module-card h-full min-h-[360px] rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
-      <div className="flex h-full flex-col">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#1479d3]">{copy.eyebrow}</p>
-          <h3 className="mt-1.5 text-lg font-bold text-[#102a43]">{copy.title}</h3>
-          <p className="mt-1.5 text-justify text-sm leading-6 text-slate-600">{copy.body}</p>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            <span className="rounded-full border border-sky-200 bg-white px-3 py-1.5 text-sky-800">
-              {safeLang === "bg" ? "Сигнали в реално време" : safeLang === "de" ? "Live-Signale" : "Live Attention"}
-            </span>
-            <span className="rounded-full border border-sky-200 bg-white px-3 py-1.5 text-sky-800">
-              {safeLang === "bg" ? "Сутрешен отчет" : safeLang === "de" ? "Morgenbericht" : "Morning Brief"}
-            </span>
-            <span className="rounded-full border border-sky-200 bg-white px-3 py-1.5 text-sky-800">
-              {safeLang === "bg" ? "Анализ на всички модули" : safeLang === "de" ? "Modulübergreifende Analyse" : "Cross-module analysis"}
-            </span>
-          </div>
-        </div>
+    <section className="manager-module-card h-full rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#1479d3]">{copy.eyebrow}</p>
+      <h3 className="mt-1.5 text-lg font-bold text-[#102a43]">{copy.title}</h3>
+      <p className="mt-1.5 text-justify text-sm leading-6 text-slate-600">{copy.body}</p>
 
-        <div className="h-4" aria-hidden="true" />
-        {state === "active" ? (
-          <Link
-            href={`/staff/${hotelSlug}/manager/intelligence`}
-            className="gostaya-staff-primary-action mt-auto inline-flex w-fit min-h-10 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-bold text-sky-800 transition hover:bg-sky-100"
-          >
-            {copy.open} →
-          </Link>
-        ) : (
-          <div className="mt-auto w-fit rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-500">
-            {state === "locked" ? copy.locked : copy.checking}
-          </div>
-        )}
-      </div>
+      {state === "active" ? (
+        <Link
+          href={`/staff/${hotelSlug}/manager/intelligence`}
+          className="manager-module-action mt-4 inline-flex w-fit min-h-10 items-center justify-center rounded-xl border px-4 py-2 text-sm font-bold transition"
+        >
+          {copy.open} →
+        </Link>
+      ) : (
+        <div className="mt-4 w-fit rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-500">
+          {state === "locked" ? copy.locked : copy.checking}
+        </div>
+      )}
     </section>
   );
 }
