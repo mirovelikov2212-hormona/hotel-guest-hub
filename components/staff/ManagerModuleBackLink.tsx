@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 
 const COPY = {
-  bg: "← Назад към Manager панела",
+  bg: "← Назад към мениджърския панел",
   en: "← Back to Manager dashboard",
   de: "← Zurück zum Manager-Dashboard",
 } as const;
