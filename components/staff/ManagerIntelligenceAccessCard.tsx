@@ -78,7 +78,7 @@ export default function ManagerIntelligenceAccessCard({ hotelSlug }: { hotelSlug
         {state === "active" ? (
           <Link
             href={`/staff/${hotelSlug}/manager/intelligence`}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-sky-300 bg-sky-200 px-5 py-2.5 text-sm font-bold text-[#0b4f75] shadow-sm transition hover:bg-sky-100 hover:text-[#083d5c]"
+            className="gostaya-staff-primary-action inline-flex min-h-11 items-center justify-center rounded-xl border border-sky-300 bg-sky-200 px-5 py-2.5 text-sm font-bold text-[#0b4f75] shadow-sm transition hover:bg-sky-100 hover:text-[#083d5c]"
           >
             {copy.open} →
           </Link>
