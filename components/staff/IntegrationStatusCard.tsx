@@ -151,8 +151,8 @@ export default function IntegrationStatusCard({
   if (!visible && !loading) return null;
 
   return (
-    <section className="manager-module-card flex h-full min-h-[360px] flex-col rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
-      <div className="flex-1">
+    <section className="manager-module-card h-full rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+      <div>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-800">
           {copy.title}
         </p>
@@ -209,7 +209,7 @@ export default function IntegrationStatusCard({
         <button
           type="button"
           onClick={() => setDetailsOpen((value) => !value)}
-          className="gostaya-staff-primary-action mt-4 inline-flex w-fit min-h-10 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-bold text-sky-800"
+          className="manager-module-action mt-4 inline-flex w-fit min-h-10 items-center justify-center rounded-xl border px-4 py-2 text-sm font-bold transition"
         >
           {detailsOpen ? copy.close : copy.open} →
         </button>
