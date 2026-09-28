@@ -190,13 +190,13 @@ export default function StaffDevelopmentAccessCard({
     : availability.runtimeRole.departmentCode || role;
 
   return (
-    <section className="h-full rounded-2xl border border-violet-200 bg-white p-4 shadow-sm">
+    <section className="manager-module-card h-full min-h-[360px] rounded-2xl border border-violet-200 bg-white p-4 shadow-sm">
       <div className="flex h-full flex-col">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-700">
             {isManager ? copy.managerTitle : copy.title}
           </p>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
+          <p className="mt-1 text-justify text-sm leading-6 text-slate-600">
             {isManager ? copy.managerBody : copy.body}
           </p>
 
@@ -209,7 +209,7 @@ export default function StaffDevelopmentAccessCard({
           ) : null}
 
           {isManager && attention.status === "identity_required" ? (
-            <p className="mt-2 text-xs leading-5 text-violet-700">
+            <p className="mt-2 text-justify text-xs leading-5 text-violet-700">
               {copy.identify}
             </p>
           ) : null}
