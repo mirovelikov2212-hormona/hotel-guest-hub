@@ -691,7 +691,7 @@ export default function ManagerHubContentEditor({
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-cyan-100/60">{copy.eyebrow}</p>
           <h3 className="mt-1 text-xl font-semibold text-white">{copy.title}</h3>
-          <p className="mt-2 max-w-4xl text-sm leading-6 text-white/65">{copy.intro}</p>
+          <p className="mt-2 w-full text-sm leading-6 text-white/65">{copy.intro}</p>
         </div>
         <button
           type="button"
