@@ -56,34 +56,35 @@ export default function ManagerIntelligenceAccessCard({ hotelSlug }: { hotelSlug
   }, [hotelSlug, safeLang]);
 
   return (
-    <section className="rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 via-white to-violet-50 p-4 shadow-[0_12px_32px_rgba(15,58,91,.07)]">
-      <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
+    <section className="h-full rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+      <div className="flex h-full flex-col">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#1479d3]">{copy.eyebrow}</p>
-          <h3 className="mt-1.5 text-xl font-bold text-[#102a43]">{copy.title}</h3>
-          <p className="mt-1.5 max-w-4xl text-sm leading-6 text-slate-600">{copy.body}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#1479d3]">{copy.eyebrow}</p>
+          <h3 className="mt-1.5 text-lg font-bold text-[#102a43]">{copy.title}</h3>
+          <p className="mt-1.5 text-sm leading-6 text-slate-600">{copy.body}</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full border border-sky-200 bg-white px-3 py-1.5 text-sky-800">
               {safeLang === "bg" ? "Сигнали в реално време" : safeLang === "de" ? "Live-Signale" : "Live Attention"}
             </span>
-            <span className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-violet-800">
+            <span className="rounded-full border border-sky-200 bg-white px-3 py-1.5 text-sky-800">
               {safeLang === "bg" ? "Сутрешен отчет" : safeLang === "de" ? "Morgenbericht" : "Morning Brief"}
             </span>
-            <span className="rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-emerald-800">
+            <span className="rounded-full border border-sky-200 bg-white px-3 py-1.5 text-sky-800">
               {safeLang === "bg" ? "Анализ на всички модули" : safeLang === "de" ? "Modulübergreifende Analyse" : "Cross-module analysis"}
             </span>
           </div>
         </div>
 
+        <div className="h-4" aria-hidden="true" />
         {state === "active" ? (
           <Link
             href={`/staff/${hotelSlug}/manager/intelligence`}
-            className="gostaya-staff-primary-action inline-flex min-h-11 items-center justify-center rounded-xl border border-sky-300 bg-sky-200 px-5 py-2.5 text-sm font-bold text-[#0b4f75] shadow-sm transition hover:bg-sky-100 hover:text-[#083d5c]"
+            className="gostaya-staff-primary-action mt-auto inline-flex w-fit min-h-10 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-bold text-sky-800 transition hover:bg-sky-100"
           >
             {copy.open} →
           </Link>
         ) : (
-          <div className="max-w-xs rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-500">
+          <div className="mt-auto w-fit rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-500">
             {state === "locked" ? copy.locked : copy.checking}
           </div>
         )}
