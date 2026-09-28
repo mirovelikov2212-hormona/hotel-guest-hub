@@ -821,23 +821,22 @@ export default function ManagerPage() {
       </section>
 
       {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="manager" /> : null}
-      {hotelSlug ? <ManagerIntelligenceAccessCard hotelSlug={hotelSlug} /> : null}
 
       {hotelSlug ? <GuestCommunicationsWorkspace hotelSlug={hotelSlug} role="manager" /> : null}
       {hotelSlug ? <StaffRoomActivityMap hotelSlug={hotelSlug} role="manager" /> : null}
 
       {hotelSlug ? (
-        <>
-          <section className="grid items-stretch gap-4 md:grid-cols-3" aria-label="Manager primary modules">
-            <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="manager" />
-            <RevenueAccessCard hotelSlug={hotelSlug} />
-            <GostayaValueAccessCard hotelSlug={hotelSlug} />
-          </section>
-          <section className="grid items-start gap-4 md:grid-cols-2" aria-label="Manager support modules">
-            <IntegrationStatusCard hotelSlug={hotelSlug} />
-            <ManagerProblemReportCard hotelSlug={hotelSlug} />
-          </section>
-        </>
+        <section
+          className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3"
+          aria-label="Manager modules"
+        >
+          <ManagerIntelligenceAccessCard hotelSlug={hotelSlug} />
+          <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="manager" />
+          <RevenueAccessCard hotelSlug={hotelSlug} />
+          <GostayaValueAccessCard hotelSlug={hotelSlug} />
+          <IntegrationStatusCard hotelSlug={hotelSlug} />
+          <ManagerProblemReportCard hotelSlug={hotelSlug} />
+        </section>
       ) : null}
 
       <ManagerTodaySurveysCard
