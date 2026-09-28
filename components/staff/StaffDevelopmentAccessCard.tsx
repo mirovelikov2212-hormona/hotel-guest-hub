@@ -190,9 +190,8 @@ export default function StaffDevelopmentAccessCard({
     : availability.runtimeRole.departmentCode || role;
 
   return (
-    <section className={(isManager ? "manager-module-card min-h-[360px] " : "") + "h-full rounded-2xl border border-violet-200 bg-white p-4 shadow-sm"}>
-      <div className="flex h-full flex-col">
-        <div className="min-w-0">
+    <section className={(isManager ? "manager-module-card " : "") + "h-full rounded-2xl border border-violet-200 bg-white p-4 shadow-sm"}>
+      <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-700">
             {isManager ? copy.managerTitle : copy.title}
           </p>
@@ -230,16 +229,13 @@ export default function StaffDevelopmentAccessCard({
               ))}
             </div>
           ) : null}
-        </div>
 
-        <div className="h-4" aria-hidden="true" />
         <Link
           href={`/staff/${availability.hotelSlug}/${developmentRole}/development`}
-          className="gostaya-staff-primary-action mt-auto inline-flex w-fit items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-100"
+          className="manager-module-action mt-4 inline-flex w-fit items-center justify-center rounded-xl border px-4 py-2 text-sm font-bold transition"
         >
           {copy.open} →
         </Link>
-      </div>
     </section>
   );
 }
