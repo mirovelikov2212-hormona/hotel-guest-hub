@@ -29,7 +29,7 @@ type Payload = { ok?: boolean; deliveryEnabled?: boolean; historyRetentionDays?:
 const COPY = {
   bg: {
     title: "Лични съобщения",
-    summary: "Рецепция ↔ конкретен активен гост. Оперативната история показва само последните 3 дни; по-старите записи могат да останат в audit слоя.",
+    summary: "Рецепция ↔ конкретен активен гост. Оперативната история показва само последните 3 дни; по-старите записи могат да останат в одитната история.",
     room: "Стая",
     choose: "Изберете активна стая",
     message: "Съобщение",
@@ -46,11 +46,11 @@ const COPY = {
     newReplies: "Нови",
     read: "Прочетено",
     tabAlert: "🔴 НОВО СЪОБЩЕНИЕ",
-    hubPublished: "Guest Hub: публикувано",
-    pushDelivered: "Push: доставено",
-    pushPartial: "Push: частично",
-    pushFailed: "Push: неуспешно",
-    pushNotDelivered: "Push: няма доказана доставка",
+    hubPublished: "Портал за госта: публикувано",
+    pushDelivered: "Известие: доставено",
+    pushPartial: "Известие: частично",
+    pushFailed: "Известие: неуспешно",
+    pushNotDelivered: "Известие: няма доказана доставка",
   },
   en: {
     title: "Personal messages",
