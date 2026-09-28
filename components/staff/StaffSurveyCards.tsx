@@ -17,6 +17,7 @@ const STAFF_SURVEY_VISIBLE_POLL_MS = 30_000;
 const STAFF_SURVEY_HIDDEN_POLL_MS = 300_000;
 
 type SurveyCopy = {
+  eyebrow: string;
   todayTitle: string;
   todayIntro: string;
   reportTitle: string;
@@ -56,8 +57,9 @@ type SurveyCopy = {
 
 const COPY: Record<StaffSurveyLang, SurveyCopy> = {
   bg: {
+    eyebrow: "АНКЕТА ОТ ТРЕТИЯ ДЕН",
     todayTitle: "Анкети днес",
-    todayIntro: "Попълнени Day 3 анкети в активния прозорец за реакция. Остават тук тази вечер и целия следващ ден.",
+    todayIntro: "Попълнени анкети от третия ден в активния прозорец за реакция. Остават тук тази вечер и целия следващ ден.",
     reportTitle: "Обобщен отчет от анкетите",
     reportIntro: "История и обобщение на анкетите след активния прозорец. Няма втори копия — това са същите записи, преминали в отчет.",
     emptyToday: "Няма активни анкети в момента.",
@@ -93,6 +95,7 @@ const COPY: Record<StaffSurveyLang, SurveyCopy> = {
     noProblems: "Няма описани проблеми в тези анкети.",
   },
   en: {
+    eyebrow: "DAY 3 SURVEY",
     todayTitle: "Today's surveys",
     todayIntro: "Completed Day 3 surveys inside the active reaction window. They stay here tonight and throughout the next full day.",
     reportTitle: "Survey summary report",
@@ -130,6 +133,7 @@ const COPY: Record<StaffSurveyLang, SurveyCopy> = {
     noProblems: "There are no described problems in these surveys.",
   },
   de: {
+    eyebrow: "UMFRAGE AM DRITTEN TAG",
     todayTitle: "Umfragen heute",
     todayIntro: "Abgeschlossene Day-3-Umfragen im aktiven Reaktionsfenster. Sie bleiben heute Abend und den gesamten nächsten Tag sichtbar.",
     reportTitle: "Zusammenfassung der Umfragen",
@@ -598,7 +602,7 @@ export function ManagerTodaySurveysCard({
     <section className="rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-cyan-100/70">Day 3 survey</p>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-100/70">{copy.eyebrow}</p>
           <h3 className="mt-1 text-xl font-semibold text-white">
             {copy.todayTitle} · {surveys.length}
           </h3>
@@ -654,7 +658,7 @@ export function ReceptionTodaySurveysCard({
     <section className="rounded-2xl border border-rose-300/20 bg-rose-300/5 p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-rose-100/70">Day 3 survey</p>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-100/70">{copy.eyebrow}</p>
           <h3 className="mt-1 text-xl font-semibold text-white">
             {copy.todayTitle} · {surveys.length}
           </h3>
