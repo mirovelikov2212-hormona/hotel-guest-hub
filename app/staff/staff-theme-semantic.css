@@ -265,3 +265,21 @@
   color: var(--gostaya-ui-blue-deep) !important;
   box-shadow: 0 8px 20px rgba(20, 121, 211, 0.08) !important;
 }
+
+
+/* Final primary-action precedence: keep module-entry CTAs solid blue after legacy color normalization. */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .gostaya-staff-primary-action,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .gostaya-staff-primary-action[class*="bg-"],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .gostaya-staff-primary-action[class*="text-"] {
+  border: 1px solid var(--gostaya-ui-blue) !important;
+  background: var(--gostaya-ui-blue) !important;
+  color: #ffffff !important;
+  border-radius: 999px !important;
+  box-shadow: 0 10px 24px rgba(20, 121, 211, 0.18) !important;
+}
+
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .gostaya-staff-primary-action:hover {
+  border-color: #0f6fc5 !important;
+  background: #0f6fc5 !important;
+  color: #ffffff !important;
+}
