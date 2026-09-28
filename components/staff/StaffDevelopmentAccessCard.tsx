@@ -235,7 +235,7 @@ export default function StaffDevelopmentAccessCard({
         <div className="h-4" aria-hidden="true" />
         <Link
           href={`/staff/${availability.hotelSlug}/${developmentRole}/development`}
-          className="mt-auto inline-flex w-fit items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-100"
+          className="gostaya-staff-primary-action mt-auto inline-flex w-fit items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-100"
         >
           {copy.open} →
         </Link>
