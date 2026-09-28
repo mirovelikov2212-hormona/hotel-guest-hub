@@ -20,13 +20,15 @@ test("Staff Development routes keep operational access as the first guard", asyn
   assertContains(genericRoute, "LEGACY_STATIC_ROLES");
 });
 
-test("Staff shell exposes one role-scoped Training entry point", async () => {
+test("Staff shell keeps Training out of the global top bar; entitled workspaces expose the module instead", async () => {
   const shell = await readProjectFile("components/staff/StaffHotelShell.tsx");
+  const manager = await readProjectFile("components/staff/pages/ManagerPageContent.tsx");
+  const department = await readProjectFile("components/staff/pages/GenericDepartmentPageContent.tsx");
 
-  assertContains(shell, 'import Link from "next/link"');
-  assertContains(shell, '/staff/${hotelSlug}/${role}/development');
-  assertContains(shell, 'lang === "bg" ? "Обучение"');
-  assertContains(shell, 'lang === "de" ? "Schulung"');
+  assertNotContains(shell, '/staff/${hotelSlug}/${role}/development');
+  assertNotContains(shell, 'lang === "bg" ? "Обучение"');
+  assertContains(manager, "StaffDevelopmentAccessCard");
+  assertContains(department, "StaffDevelopmentAccessCard");
 });
 
 test("Learner UI uses individual identity and never accepts browser hotel or actor authority", async () => {
