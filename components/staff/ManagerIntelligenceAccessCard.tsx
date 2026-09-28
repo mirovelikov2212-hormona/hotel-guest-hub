@@ -56,12 +56,12 @@ export default function ManagerIntelligenceAccessCard({ hotelSlug }: { hotelSlug
   }, [hotelSlug, safeLang]);
 
   return (
-    <section className="h-full rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+    <section className="manager-module-card h-full min-h-[360px] rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
       <div className="flex h-full flex-col">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#1479d3]">{copy.eyebrow}</p>
           <h3 className="mt-1.5 text-lg font-bold text-[#102a43]">{copy.title}</h3>
-          <p className="mt-1.5 text-sm leading-6 text-slate-600">{copy.body}</p>
+          <p className="mt-1.5 text-justify text-sm leading-6 text-slate-600">{copy.body}</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full border border-sky-200 bg-white px-3 py-1.5 text-sky-800">
               {safeLang === "bg" ? "Сигнали в реално време" : safeLang === "de" ? "Live-Signale" : "Live Attention"}
