@@ -9,9 +9,9 @@ import {
 test("CM5 Manager UI exposes structured and ready-made agency offer paths without LIVE activation", async () => {
   const source=await readProjectFile("components/staff/ManagerContentOffersEditor.tsx");
   for(const fragment of [
-    '"Създай в Hub"',
+    '"Създай в портала"',
     '"Качи готова оферта"',
-    '"Версия за Hub"',
+    '"Версия за портала"',
     '"Версия за сайта"',
     '"website_source"',
     '"hub_ready"',
