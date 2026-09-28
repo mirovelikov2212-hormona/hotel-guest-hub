@@ -71,6 +71,12 @@ const COPY = {
     target: "Към оферта",
     newOffer: "Създай нова оферта",
     selectOffer: "Избери оферта",
+    managerName: "Вътрешно име на офертата",
+    managerNameHint: "Това име е само за мениджъра и не се показва на гостите.",
+    guestLanguageHint: "Заглавието и текстът за госта се попълват по език. Порталът показва версията на текущия език на госта.",
+    unnamedOffer: "Нова оферта",
+    chooseFile: "Избери файл",
+    noFile: "Няма избран файл",
     mediaTitle: "Медия на офертата",
     mediaHint: "Добавете основна снимка към тази оферта. Тя ще се показва директно в портала за госта.",
     coverImage: "Основна снимка",
@@ -95,7 +101,7 @@ const COPY = {
     noChanged: "Няма промяна спрямо текущия портал.",
     stale: "Порталът е променен след отварянето на тази чернова. Заредете отново преди редакция.",
     reload: "Презареди",
-    titleLabel: "Име",
+    titleLabel: "Заглавие за госта",
     shortDescription: "Кратко описание",
     badge: "Етикет / акцент",
     ctaLabel: "Текст на бутона",
@@ -150,6 +156,12 @@ const COPY = {
     target: "Attach to",
     newOffer: "Create new offer",
     selectOffer: "Select offer",
+    managerName: "Internal offer name",
+    managerNameHint: "This name is only for the manager and is not shown to guests.",
+    guestLanguageHint: "Guest-facing title and copy are edited per language. The Hub shows the current guest language.",
+    unnamedOffer: "New offer",
+    chooseFile: "Choose file",
+    noFile: "No file selected",
     mediaTitle: "Offer media",
     mediaHint: "Add a main image to this offer. It will be shown directly in the Guest Hub.",
     coverImage: "Main image",
@@ -229,6 +241,12 @@ const COPY = {
     target: "Zu Angebot",
     newOffer: "Neues Angebot erstellen",
     selectOffer: "Angebot auswählen",
+    managerName: "Interner Angebotsname",
+    managerNameHint: "Dieser Name ist nur für den Manager und wird Gästen nicht angezeigt.",
+    guestLanguageHint: "Gasttitel und Texte werden je Sprache bearbeitet. Der Hub zeigt die aktuelle Gastsprache.",
+    unnamedOffer: "Neues Angebot",
+    chooseFile: "Datei auswählen",
+    noFile: "Keine Datei ausgewählt",
     mediaTitle: "Medien des Angebots",
     mediaHint: "Fügen Sie diesem Angebot ein Hauptbild hinzu. Es wird direkt im Guest Hub angezeigt.",
     coverImage: "Hauptbild",
@@ -301,6 +319,7 @@ function blankOffer(mode: "structured" | "ready_asset", sortOrder: number): HubO
     schemaVersion: "hub-offer-v2",
     id,
     key: "offer-" + id.replace(/-/g, "").slice(0, 12),
+    managerName: "",
     titleByLang: {},
     shortDescriptionByLang: {},
     descriptionByLang: {},
@@ -557,6 +576,7 @@ export default function ManagerContentOffersEditor({
       };
 
       if (targetIndex < 0) {
+        target.managerName = fileBaseName(asset.originalName);
         const managerGuestLanguage: GuestLanguage = lang === "de" ? "de" : lang === "en" ? "en" : "bg";
         target.titleByLang = {
           ...target.titleByLang,
@@ -884,11 +904,15 @@ export default function ManagerContentOffersEditor({
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <label className="text-xs text-white/65">
                   <span className="mb-1 block">{copy.file}</span>
+                  <span className="flex min-h-10 items-center gap-3 rounded-lg border border-sky-200 bg-white px-3 text-sm text-slate-700">
+                    <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 font-semibold text-sky-800">{copy.chooseFile}</span>
+                    <span className="min-w-0 truncate">{uploadFile?.name || copy.noFile}</span>
+                  </span>
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp,application/pdf"
                     onChange={(event) => setUploadFile(event.target.files?.[0] || null)}
-                    className="block w-full text-xs text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-white"
+                    className="sr-only"
                   />
                 </label>
 
@@ -904,7 +928,7 @@ export default function ManagerContentOffersEditor({
                   <select value={uploadTargetOfferId} onChange={(event) => setUploadTargetOfferId(event.target.value)} className="min-h-10 w-full rounded-lg border border-white/10 bg-black/30 px-3 text-sm text-white">
                     <option value="new">{copy.newOffer}</option>
                     {offers.filter((offer) => offer.presentationMode === "ready_asset").map((offer) => (
-                      <option key={offer.id} value={offer.id}>{Object.values(offer.titleByLang || {}).find(Boolean) || offer.key}</option>
+                      <option key={offer.id} value={offer.id}>{offer.managerName || Object.values(offer.titleByLang || {}).find(Boolean) || copy.unnamedOffer}</option>
                     ))}
                   </select>
                 </label>
@@ -971,7 +995,7 @@ export default function ManagerContentOffersEditor({
               >
                 {offers.length ? offers.map((offer) => (
                   <option key={offer.id} value={offer.id}>
-                    {offer.titleByLang[guestLanguage] || Object.values(offer.titleByLang).find(Boolean) || offer.key}
+                    {offer.managerName || offer.titleByLang[guestLanguage] || Object.values(offer.titleByLang).find(Boolean) || copy.unnamedOffer}
                   </option>
                 )) : <option value="">—</option>}
               </select>
@@ -1010,7 +1034,7 @@ export default function ManagerContentOffersEditor({
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <span className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/55">{offer.presentationMode === "ready_asset" ? copy.ready : copy.structured}</span>
-                      <p className="mt-2 font-semibold text-white">{offer.titleByLang[guestLanguage] || Object.values(offer.titleByLang).find(Boolean) || offer.key}</p>
+                      <p className="mt-2 font-semibold text-white">{offer.managerName || offer.titleByLang[guestLanguage] || Object.values(offer.titleByLang).find(Boolean) || copy.unnamedOffer}</p>
                     </div>
                     <button type="button" onClick={() => updateOffer(index, (current) => ({ ...current, status: "archived" }))} className="rounded-lg border border-rose-300/15 px-3 py-2 text-xs font-semibold text-rose-100/80">{copy.archive}</button>
                   </div>
@@ -1029,11 +1053,15 @@ export default function ManagerContentOffersEditor({
                       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
                         <label className="min-w-0 flex-1 text-xs text-white/65">
                           <span className="mb-1 block">{copy.coverImage}</span>
+                          <span className="flex min-h-10 items-center gap-3 rounded-lg border border-sky-200 bg-white px-3 text-sm text-slate-700">
+                            <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 font-semibold text-sky-800">{copy.chooseFile}</span>
+                            <span className="min-w-0 truncate">{coverFile?.name || copy.noFile}</span>
+                          </span>
                           <input
                             type="file"
                             accept="image/jpeg,image/png,image/webp"
                             onChange={(event) => setCoverFile(event.target.files?.[0] || null)}
-                            className="block w-full text-xs text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-white"
+                            className="sr-only"
                           />
                         </label>
                         <button
@@ -1081,7 +1109,22 @@ export default function ManagerContentOffersEditor({
                     </div>
                   ) : null}
 
-                  <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                  <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50/70 p-3">
+                    <label className="text-xs text-slate-600">
+                      <span className="mb-1 block font-semibold text-slate-800">{copy.managerName}</span>
+                      <input
+                        value={offer.managerName || ""}
+                        maxLength={120}
+                        onChange={(event) => updateOffer(index, (current) => ({ ...current, managerName: event.target.value }))}
+                        className="min-h-10 w-full rounded-lg border border-sky-200 bg-white px-3 text-sm text-slate-900"
+                      />
+                      <span className="mt-1 block text-[11px] text-slate-500">{copy.managerNameHint}</span>
+                    </label>
+                  </div>
+
+                  <p className="mt-4 text-xs leading-5 text-white/55">{copy.guestLanguageHint}</p>
+
+                  <div className="mt-3 grid gap-3 lg:grid-cols-2">
                     <label className="text-xs text-white/60">
                       <span className="mb-1 block">{copy.titleLabel} · {guestLanguage.toUpperCase()}</span>
                       <input value={offer.titleByLang[guestLanguage] || ""} onChange={(event) => updateLocalized(index, "titleByLang", guestLanguage, event.target.value)} className="min-h-10 w-full rounded-lg border border-white/10 bg-black/30 px-3 text-sm text-white" />
