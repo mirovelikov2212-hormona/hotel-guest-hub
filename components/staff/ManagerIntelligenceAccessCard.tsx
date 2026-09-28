@@ -6,7 +6,7 @@ import { useStaffUi } from "@/components/staff/StaffUiProvider";
 
 const COPY = {
   bg: {
-    eyebrow: "ДОПЪЛНИТЕЛЕН ПЛАТЕН МОДУЛ",
+    eyebrow: "Допълнителен платен модул",
     title: "Мениджърски анализ",
     body: "Следи активните модули на хотела, извежда важните сигнали през деня и подготвя пълен сутрешен отчет за предходния хотелски ден.",
     open: "Отвори мениджърския анализ",
@@ -14,7 +14,7 @@ const COPY = {
     checking: "Проверка на модула…",
   },
   en: {
-    eyebrow: "PAID ADD-ON",
+    eyebrow: "Paid add-on",
     title: "Manager Intelligence",
     body: "Monitors enabled hotel modules, surfaces important signals during the day and prepares a full morning brief for the previous hotel day.",
     open: "Open Manager Intelligence",
@@ -22,7 +22,7 @@ const COPY = {
     checking: "Checking module access…",
   },
   de: {
-    eyebrow: "KOSTENPFLICHTIGES ZUSATZMODUL",
+    eyebrow: "Kostenpflichtiges Zusatzmodul",
     title: "Manager Intelligence",
     body: "Überwacht aktivierte Hotelmodule, zeigt wichtige Signale im Tagesverlauf und erstellt morgens einen Gesamtbericht zum Vortag.",
     open: "Manager Intelligence öffnen",
@@ -57,9 +57,9 @@ export default function ManagerIntelligenceAccessCard({ hotelSlug }: { hotelSlug
 
   return (
     <section className="manager-module-card h-full rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#1479d3]">{copy.eyebrow}</p>
-      <h3 className="mt-1.5 text-lg font-bold text-[#102a43]">{copy.title}</h3>
-      <p className="mt-1.5 text-justify text-sm leading-6 text-slate-600">{copy.body}</p>
+      <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#1479d3]">{copy.title}</h3>
+      <p className="mt-1 text-xs font-medium text-slate-500">{copy.eyebrow}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{copy.body}</p>
 
       {state === "active" ? (
         <Link
