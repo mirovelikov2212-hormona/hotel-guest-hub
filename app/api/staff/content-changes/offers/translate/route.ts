@@ -24,6 +24,8 @@ export async function POST(req: NextRequest) {
   const sourceLanguage = String(body.sourceLanguage || "").trim().toLowerCase() as GuestCommunicationLanguage;
   const title = String(body.title || "").trim();
   const shortDescription = String(body.shortDescription || "").trim();
+  const badge = String(body.badge || "").trim();
+  const ctaLabel = String(body.ctaLabel || "").trim();
 
   if (!hotelSlug || !GUEST_COMMUNICATION_LANGUAGES.includes(sourceLanguage) || !title) {
     return NextResponse.json({ ok: false, error: "OFFER_TRANSLATION_INPUT_INVALID" }, { status: 400 });
@@ -41,10 +43,20 @@ export async function POST(req: NextRequest) {
       body: shortDescription || title,
     });
 
+    const extras = badge || ctaLabel
+      ? await translateGuestCommunication({
+          sourceLanguage,
+          title: badge || title,
+          body: ctaLabel || shortDescription || title,
+        })
+      : null;
+
     return NextResponse.json({
       ok: true,
       titleByLang: translated.titleI18n,
       shortDescriptionByLang: shortDescription ? translated.bodyI18n : {},
+      badgeByLang: badge && extras ? extras.titleI18n : {},
+      ctaLabelByLang: ctaLabel && extras ? extras.bodyI18n : {},
     });
   } catch (error) {
     console.error("offer translation failed", error);
