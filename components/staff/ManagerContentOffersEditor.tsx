@@ -1307,11 +1307,11 @@ export default function ManagerContentOffersEditor({
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button type="button" onClick={() => void saveDraft()} disabled={saving || stale} className="rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-5 py-3 text-sm font-semibold text-cyan-50 disabled:opacity-40">
+          <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:flex-wrap sm:items-center">
+            <button type="button" onClick={() => void saveDraft()} disabled={saving || stale} className="w-full rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-5 py-3 text-sm font-semibold text-cyan-50 disabled:opacity-40 sm:w-auto">
               {saving ? copy.saving : copy.saveDraft}
             </button>
-            <button type="button" onClick={() => setOpen(false)} className="rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white/75">
+            <button type="button" onClick={() => setOpen(false)} className="w-full rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white/75 sm:w-auto">
               {copy.close}
             </button>
             {lastDiffChanged !== null ? <span className="text-sm text-white/55">{lastDiffChanged ? copy.changed : copy.noChanged}</span> : null}
