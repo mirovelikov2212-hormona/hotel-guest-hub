@@ -935,7 +935,7 @@ export default function ManagerHubContentEditor({
                 <label className="flex items-start gap-2 text-sm text-white/75">
                   <input
                     type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-400 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] checked:bg-[length:12px_12px] checked:bg-center checked:bg-no-repeat checked:bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.2' d='M3 8.5 6.5 12 13 4.5'/%3E%3C/svg%3E")] focus-visible:ring-2 focus-visible:ring-[#1479d3]/30"
+                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-500 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] focus-visible:ring-2 focus-visible:ring-sky-300"
                     checked={serviceDraft.guestVisible}
                     onChange={(event) => {
                       setServiceDraft((current) => current ? ({ ...current, guestVisible: event.target.checked }) : current);
@@ -947,7 +947,7 @@ export default function ManagerHubContentEditor({
                 <label className="flex items-start gap-2 text-sm text-white/75">
                   <input
                     type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-400 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] checked:bg-[length:12px_12px] checked:bg-center checked:bg-no-repeat checked:bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.2' d='M3 8.5 6.5 12 13 4.5'/%3E%3C/svg%3E")] focus-visible:ring-2 focus-visible:ring-[#1479d3]/30"
+                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-500 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] focus-visible:ring-2 focus-visible:ring-sky-300"
                     checked={serviceDraft.enabled}
                     onChange={(event) => {
                       setServiceDraft((current) => current ? ({ ...current, enabled: event.target.checked }) : current);
@@ -1080,7 +1080,7 @@ export default function ManagerHubContentEditor({
               <label className="mt-4 flex items-center gap-2 text-sm text-white/75">
                 <input
                   type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-400 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] checked:bg-[length:12px_12px] checked:bg-center checked:bg-no-repeat checked:bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.2' d='M3 8.5 6.5 12 13 4.5'/%3E%3C/svg%3E")] focus-visible:ring-2 focus-visible:ring-[#1479d3]/30"
+                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-500 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] focus-visible:ring-2 focus-visible:ring-sky-300"
                   checked={venueDraft.active}
                   onChange={(event) => {
                     setVenueDraft((current) => current ? ({ ...current, active: event.target.checked }) : current);
@@ -1131,7 +1131,7 @@ export default function ManagerHubContentEditor({
             <label className="flex items-start gap-2 self-center text-sm text-white/75">
               <input
                 type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-400 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] checked:bg-[length:12px_12px] checked:bg-center checked:bg-no-repeat checked:bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.2' d='M3 8.5 6.5 12 13 4.5'/%3E%3C/svg%3E")] focus-visible:ring-2 focus-visible:ring-[#1479d3]/30"
+                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-500 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] focus-visible:ring-2 focus-visible:ring-sky-300"
                 checked={scheduleDraft.is24h}
                 onChange={(event) => {
                   setScheduleDraft((current) => ({
@@ -1270,7 +1270,7 @@ export default function ManagerHubContentEditor({
                     <label className="flex items-start gap-2 text-sm text-white/70">
                       <input
                         type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-400 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] checked:bg-[length:12px_12px] checked:bg-center checked:bg-no-repeat checked:bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.2' d='M3 8.5 6.5 12 13 4.5'/%3E%3C/svg%3E")] focus-visible:ring-2 focus-visible:ring-[#1479d3]/30"
+                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-500 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] focus-visible:ring-2 focus-visible:ring-sky-300"
                         checked={season.is24h}
                         onChange={(event) => {
                           setScheduleDraft((current) => {
