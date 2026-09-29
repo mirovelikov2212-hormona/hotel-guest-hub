@@ -37,20 +37,20 @@ export async function generateMetadata({ params }: Pick<PageProps, "params">): P
     };
   }
 
-  let hotelName = "GOSTAYA";
-  try {
-    const config = await getHotelConfig(hotelSlug);
-    if (config?.hotelName) hotelName = String(config.hotelName).trim() || hotelName;
-  } catch {}
+  const displayName = hotelSlug
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ") || "GOSTAYA";
 
   return {
-    title: `${hotelName} · GOSTAYA`,
-    applicationName: hotelName,
+    title: `${displayName} · GOSTAYA`,
+    applicationName: displayName,
     manifest: `/h/${encodeURIComponent(hotelSlug)}/manifest.webmanifest`,
     appleWebApp: {
       capable: true,
       statusBarStyle: "default",
-      title: hotelName,
+      title: displayName,
     },
   };
 }
