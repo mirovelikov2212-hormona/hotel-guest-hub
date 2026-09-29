@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import StaffDevelopmentAccessCard from "@/components/staff/StaffDevelopmentAccessCard";
+import StaffDepartmentUnifiedHeader from "@/components/staff/StaffDepartmentUnifiedHeader";
+import StaffRoomActivityMap from "@/components/staff/StaffRoomActivityMap";
 import StaffFilterButton from "@/components/staff/StaffFilterButton";
-import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
-import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
 import GuestCommunicationsWorkspace from "@/components/staff/GuestCommunicationsWorkspace";
 import GuestDirectCommunicationsWorkspace from "@/components/staff/GuestDirectCommunicationsWorkspace";
 import { ReceptionTodaySurveysCard, useStaffSurveys } from "@/components/staff/StaffSurveyCards";
@@ -469,33 +469,28 @@ export default function ReceptionPage({
 
   return (
     <main className="space-y-6 pb-safe">
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-white/50">
-              {t.department}
-            </p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight">
-              {t.reception}
-            </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">
-              {t.receptionIntro}
-            </p>
-          </div>
+      <StaffDepartmentUnifiedHeader
+        hotelSlug={hotelSlug}
+        role="reception"
+        departmentTitle={t.reception}
+        intro={t.receptionIntro}
+        operationalLabel={t.controlCenterMonitoring}
+        soundEnabled={soundEnabled}
+        onToggleSound={() => void toggleSound()}
+      />
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <StaffAlertSoundButton
-              soundEnabled={soundEnabled}
-              onToggle={() => void toggleSound()}
-            />
-            <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
-              {t.controlCenterMonitoring}
-            </div>
+      {hotelSlug ? (
+        <section id="reception-guest-messages" className="space-y-4">
+          <div id="reception-direct-message">
+            <GuestDirectCommunicationsWorkspace hotelSlug={hotelSlug} role="reception" />
           </div>
-        </div>
-      </section>
+          <div id="reception-broadcast-message">
+            <GuestCommunicationsWorkspace hotelSlug={hotelSlug} role="reception" />
+          </div>
+        </section>
+      ) : null}
 
-      {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="reception" /> : null}
+      {hotelSlug ? <StaffRoomActivityMap hotelSlug={hotelSlug} role="reception" /> : null}
 
       {hotelSlug ? (
         <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="reception" />
@@ -601,27 +596,7 @@ export default function ReceptionPage({
       />
 
 
-      {hotelSlug ? (
-        <section id="reception-guest-messages" className="space-y-4">
-          <div id="reception-direct-message">
-            <GuestDirectCommunicationsWorkspace hotelSlug={hotelSlug} role="reception" />
-          </div>
-          <div id="reception-broadcast-message">
-            <GuestCommunicationsWorkspace hotelSlug={hotelSlug} role="reception" />
-          </div>
-        </section>
-      ) : null}
-
       <section className="space-y-4">
-        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-4">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-100">
-            {t.receptionActions}
-          </h3>
-          <p className="mt-1 text-sm text-amber-50/80">
-            {t.receptionActionsText}
-          </p>
-        </div>
-
         {filteredRequests.length ? (
           filteredRequests.map((request) => {
             const requestAgeMinutes = getRequestAgeMinutes(request, nowMs);
