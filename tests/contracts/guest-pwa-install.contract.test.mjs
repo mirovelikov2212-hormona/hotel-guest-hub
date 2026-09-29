@@ -112,3 +112,12 @@ test("successful installation and standalone launches update the install card st
   assert.match(button, /installedTitle/);
   assert.match(button, /installedHint/);
 });
+
+test("installed state persists per hotel when the guest returns in the browser", async () => {
+  const bridge = await source("lib/pwa/install-prompt.ts");
+
+  assert.match(bridge, /GUEST_APP_INSTALLED_STORAGE_PREFIX/);
+  assert.match(bridge, /window\.location\.pathname\.match\(\/\^\\\/h\\\/\(\[\^\/?#\]\+\)/);
+  assert.match(bridge, /window\.localStorage\.setItem\(key, "1"\)/);
+  assert.match(bridge, /window\.localStorage\.getItem\(key\) === "1"/);
+});
