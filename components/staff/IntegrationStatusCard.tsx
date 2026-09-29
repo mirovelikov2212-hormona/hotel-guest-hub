@@ -153,7 +153,7 @@ export default function IntegrationStatusCard({
   return (
     <section className="manager-module-card h-full rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-800">
+        <p className="manager-module-title text-xs font-semibold uppercase tracking-[0.16em] text-sky-800">
           {copy.title}
         </p>
 
