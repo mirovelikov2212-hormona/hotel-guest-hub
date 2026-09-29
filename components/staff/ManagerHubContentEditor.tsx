@@ -932,9 +932,10 @@ export default function ManagerHubContentEditor({
               </div>
 
               <div className="mt-4 flex flex-wrap gap-3">
-                <label className="flex items-center gap-2 text-sm text-white/75">
+                <label className="flex items-start gap-2 text-sm text-white/75">
                   <input
                     type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#1479d3]"
                     checked={serviceDraft.guestVisible}
                     onChange={(event) => {
                       setServiceDraft((current) => current ? ({ ...current, guestVisible: event.target.checked }) : current);
@@ -943,9 +944,10 @@ export default function ManagerHubContentEditor({
                   />
                   {copy.visible}
                 </label>
-                <label className="flex items-center gap-2 text-sm text-white/75">
+                <label className="flex items-start gap-2 text-sm text-white/75">
                   <input
                     type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#1479d3]"
                     checked={serviceDraft.enabled}
                     onChange={(event) => {
                       setServiceDraft((current) => current ? ({ ...current, enabled: event.target.checked }) : current);
@@ -1078,6 +1080,7 @@ export default function ManagerHubContentEditor({
               <label className="mt-4 flex items-center gap-2 text-sm text-white/75">
                 <input
                   type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#1479d3]"
                   checked={venueDraft.active}
                   onChange={(event) => {
                     setVenueDraft((current) => current ? ({ ...current, active: event.target.checked }) : current);
@@ -1125,9 +1128,10 @@ export default function ManagerHubContentEditor({
               <div className="mt-1">{copy.source}: {selectedSchedule?.scheduleSource || "—"}</div>
               {selectedSchedule?.fallbackConflict ? <div className="mt-2 text-rose-100">{copy.conflict}</div> : null}
             </div>
-            <label className="flex items-center gap-2 self-center text-sm text-white/75">
+            <label className="flex items-start gap-2 self-center text-sm text-white/75">
               <input
                 type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#1479d3]"
                 checked={scheduleDraft.is24h}
                 onChange={(event) => {
                   setScheduleDraft((current) => ({
@@ -1263,9 +1267,10 @@ export default function ManagerHubContentEditor({
                   </div>
 
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <label className="flex items-center gap-2 text-sm text-white/70">
+                    <label className="flex items-start gap-2 text-sm text-white/70">
                       <input
                         type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#1479d3]"
                         checked={season.is24h}
                         onChange={(event) => {
                           setScheduleDraft((current) => {
