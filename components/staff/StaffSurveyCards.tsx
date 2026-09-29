@@ -603,7 +603,7 @@ export function ManagerTodaySurveysCard({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-100/70">{copy.eyebrow}</p>
-          <h3 className="mt-1 text-xl font-semibold text-white">
+          <h3 className="staff-section-title mt-1 text-xl font-semibold text-white">
             {copy.todayTitle} · {surveys.length}
           </h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">{copy.todayIntro}</p>
@@ -659,7 +659,7 @@ export function ReceptionTodaySurveysCard({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-100/70">{copy.eyebrow}</p>
-          <h3 className="mt-1 text-xl font-semibold text-white">
+          <h3 className="staff-section-title mt-1 text-xl font-semibold text-white">
             {copy.todayTitle} · {surveys.length}
           </h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
