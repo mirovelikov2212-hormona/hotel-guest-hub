@@ -113,7 +113,7 @@ const COPY = {
   bg: {
     eyebrow: "УПРАВЛЕНИЕ НА ПОРТАЛА",
     title: "Съдържание и работно време",
-    intro: "Редактирайте само позволените полета. Преди бъдещо публикуване системата проверява оперативните последствия и блокира опасни промени.",
+    intro: "Тук се зареждат текущите услуги, обекти и работно време от Hub-а. Изберете конкретен елемент от падащото меню само когато трябва да го промените.",
     services: "Услуги",
     venues: "Обекти",
     schedules: "Работно време",
@@ -123,6 +123,12 @@ const COPY = {
     liveRevision: "Текуща версия",
     language: "Език",
     choose: "Изберете",
+    selectService: "Изберете услуга за промяна",
+    selectVenue: "Изберете обект за промяна",
+    currentHours: "Текущо работно време",
+    noServices: "В текущия Hub няма конфигурирани услуги за редакция.",
+    noVenues: "В текущия Hub няма конфигурирани обекти за редакция.",
+    selectHint: "Изберете елемент от падащото меню, за да видите позволените полета за промяна.",
     titleLabel: "Име",
     description: "Описание",
     price: "Цена",
@@ -185,7 +191,7 @@ const COPY = {
   en: {
     eyebrow: "Hub management",
     title: "Content and operating hours",
-    intro: "Edit only permitted fields. Before future publishing, the system checks operational impact and blocks unsafe changes.",
+    intro: "This section loads the current services, venues and operating hours from the Hub. Select a specific item from the dropdown only when it needs to be changed.",
     services: "Services",
     venues: "Venues",
     schedules: "Operating hours",
@@ -195,6 +201,12 @@ const COPY = {
     liveRevision: "LIVE revision",
     language: "Language",
     choose: "Choose",
+    selectService: "Select a service to change",
+    selectVenue: "Select a venue to change",
+    currentHours: "Current operating hours",
+    noServices: "There are no editable services configured in the current Hub.",
+    noVenues: "There are no editable venues configured in the current Hub.",
+    selectHint: "Select an item from the dropdown to see the fields that may be changed.",
     titleLabel: "Title",
     description: "Description",
     price: "Price",
@@ -257,7 +269,7 @@ const COPY = {
   de: {
     eyebrow: "Hub-Verwaltung",
     title: "Inhalte und Betriebszeiten",
-    intro: "Bearbeiten Sie nur zulässige Felder. Vor einer späteren Veröffentlichung prüft das System die operativen Auswirkungen und blockiert unsichere Änderungen.",
+    intro: "Hier werden die aktuellen Services, Bereiche und Betriebszeiten aus dem Hub geladen. Wählen Sie nur dann einen Eintrag aus dem Dropdown, wenn er geändert werden soll.",
     services: "Services",
     venues: "Bereiche",
     schedules: "Betriebszeiten",
@@ -267,6 +279,12 @@ const COPY = {
     liveRevision: "LIVE-Revision",
     language: "Sprache",
     choose: "Auswählen",
+    selectService: "Service zur Änderung auswählen",
+    selectVenue: "Bereich zur Änderung auswählen",
+    currentHours: "Aktuelle Betriebszeiten",
+    noServices: "Im aktuellen Hub sind keine bearbeitbaren Services konfiguriert.",
+    noVenues: "Im aktuellen Hub sind keine bearbeitbaren Bereiche konfiguriert.",
+    selectHint: "Wählen Sie einen Eintrag aus dem Dropdown, um die änderbaren Felder anzuzeigen.",
     titleLabel: "Name",
     description: "Beschreibung",
     price: "Preis",
@@ -346,6 +364,15 @@ function normalizeSchedule(value: ScheduleValue | null): ScheduleValue {
   };
 }
 
+function formatScheduleSummary(value: ScheduleValue | null | undefined) {
+  if (!value) return "—";
+  if (value.is24h) return "24/7";
+  const ranges = (value.windows || [])
+    .map((window) => window.open && window.close ? `${window.open}–${window.close}` : "")
+    .filter(Boolean);
+  return Array.from(new Set(ranges)).join(", ") || "—";
+}
+
 function failureMessage(
   body: { errorType?: string; error?: string } | null,
   copy: typeof COPY.bg,
@@ -415,13 +442,11 @@ export default function ManagerHubContentEditor({
       const preferred = body.editor.languages.includes(lang) ? lang : body.editor.languages[0] || "en";
       setGuestLanguage(preferred);
 
-      const firstService = body.editor.services[0] || null;
-      setServiceId(firstService?.id || "");
-      setServiceDraft(firstService ? deepClone(firstService) : null);
+      setServiceId("");
+      setServiceDraft(null);
 
-      const firstVenue = body.editor.venues[0] || null;
-      setVenueId(firstVenue?.id || "");
-      setVenueDraft(firstVenue ? deepClone(firstVenue) : null);
+      setVenueId("");
+      setVenueDraft(null);
 
       const firstSchedule = body.editor.schedules[0] || null;
       setDepartment(firstSchedule?.department || "");
@@ -449,6 +474,14 @@ export default function ManagerHubContentEditor({
     () => editor?.schedules.find((item) => item.department === department) || null,
     [editor, department],
   );
+
+  const selectedServiceSchedule = serviceDraft?.targetDepartment
+    ? editor?.schedules.find((item) => item.department === serviceDraft.targetDepartment) || null
+    : null;
+  const selectedServiceHours = formatScheduleSummary(selectedServiceSchedule?.schedule);
+  const selectedVenueHours = venueDraft
+    ? (textForLanguage(venueDraft.hoursByLang, guestLanguage) || venueDraft.hours || "—")
+    : "—";
 
   function selectService(nextId: string) {
     const next = editor?.services.find((item) => item.id === nextId) || null;
@@ -802,28 +835,40 @@ export default function ManagerHubContentEditor({
       ) : null}
 
       {editor && activeTab === "services" ? (
-        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(220px,0.38fr)_minmax(0,1fr)]">
-          <div className="space-y-2">
-            {editor.services.map((service) => (
-              <button
-                key={service.id}
-                type="button"
-                onClick={() => selectService(service.id)}
-                className={
-                  "w-full rounded-xl border p-3 text-left "
-                  + (serviceId === service.id
-                    ? "border-cyan-300/30 bg-cyan-300/10"
-                    : "border-white/10 bg-black/20")
-                }
-              >
-                <p className="font-semibold text-white">{textForLanguage(service.title, guestLanguage) || service.id}</p>
-                <p className="mt-1 text-xs text-white/45">{service.targetDepartment || "—"} · {service.requestType || "—"}</p>
-              </button>
-            ))}
-          </div>
+        <div className="mt-5">
+          <label className="block text-xs text-white/60">
+            <span className="mb-1.5 block">{copy.selectService}</span>
+            <select
+              value={serviceId}
+              onChange={(event) => selectService(event.target.value)}
+              className="min-h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white"
+            >
+              <option value="">{copy.choose}</option>
+              {editor.services.map((service) => {
+                const serviceSchedule = service.targetDepartment
+                  ? editor.schedules.find((item) => item.department === service.targetDepartment) || null
+                  : null;
+                const hours = formatScheduleSummary(serviceSchedule?.schedule);
+                const title = textForLanguage(service.title, guestLanguage) || service.id;
+                return (
+                  <option key={service.id} value={service.id}>
+                    {title} · {hours}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+          {!editor.services.length ? (
+            <p className="mt-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/55">{copy.noServices}</p>
+          ) : !serviceDraft ? (
+            <p className="mt-3 text-xs text-white/45">{copy.selectHint}</p>
+          ) : null}
 
           {serviceDraft ? (
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="mb-4 rounded-xl border border-sky-300/15 bg-sky-300/5 px-3 py-2 text-xs text-white/65">
+                {copy.currentHours}: <strong className="text-white">{selectedServiceHours}</strong>
+              </div>
               <div className="grid gap-3 lg:grid-cols-2">
                 <label className="text-xs text-white/60">
                   <span className="mb-1 block">{copy.titleLabel} · {guestLanguage.toUpperCase()}</span>
@@ -930,28 +975,37 @@ export default function ManagerHubContentEditor({
       ) : null}
 
       {editor && activeTab === "venues" ? (
-        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(220px,0.38fr)_minmax(0,1fr)]">
-          <div className="space-y-2">
-            {editor.venues.map((venue) => (
-              <button
-                key={venue.id}
-                type="button"
-                onClick={() => selectVenue(venue.id)}
-                className={
-                  "w-full rounded-xl border p-3 text-left "
-                  + (venueId === venue.id
-                    ? "border-cyan-300/30 bg-cyan-300/10"
-                    : "border-white/10 bg-black/20")
-                }
-              >
-                <p className="font-semibold text-white">{textForLanguage(venue.nameByLang, guestLanguage) || venue.name || venue.id}</p>
-                <p className="mt-1 text-xs text-white/45">{venue.type || "venue"}</p>
-              </button>
-            ))}
-          </div>
+        <div className="mt-5">
+          <label className="block text-xs text-white/60">
+            <span className="mb-1.5 block">{copy.selectVenue}</span>
+            <select
+              value={venueId}
+              onChange={(event) => selectVenue(event.target.value)}
+              className="min-h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white"
+            >
+              <option value="">{copy.choose}</option>
+              {editor.venues.map((venue) => {
+                const title = textForLanguage(venue.nameByLang, guestLanguage) || venue.name || venue.id;
+                const hours = textForLanguage(venue.hoursByLang, guestLanguage) || venue.hours || "—";
+                return (
+                  <option key={venue.id} value={venue.id}>
+                    {title} · {hours}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+          {!editor.venues.length ? (
+            <p className="mt-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/55">{copy.noVenues}</p>
+          ) : !venueDraft ? (
+            <p className="mt-3 text-xs text-white/45">{copy.selectHint}</p>
+          ) : null}
 
           {venueDraft ? (
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="mb-4 rounded-xl border border-sky-300/15 bg-sky-300/5 px-3 py-2 text-xs text-white/65">
+                {copy.currentHours}: <strong className="text-white">{selectedVenueHours}</strong>
+              </div>
               <div className="grid gap-3 lg:grid-cols-2">
                 <label className="text-xs text-white/60">
                   <span className="mb-1 block">{copy.titleLabel} · {guestLanguage.toUpperCase()}</span>
