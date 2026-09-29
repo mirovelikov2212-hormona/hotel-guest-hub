@@ -91,7 +91,7 @@ export default function RevenueAccessCard({
 
   return (
     <section className="manager-module-card h-full rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
+      <p className="manager-module-title text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
         {copy.title}
       </p>
       <p className="mt-1 text-justify text-sm leading-6 text-slate-600">
