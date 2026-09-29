@@ -102,123 +102,53 @@ function venueRows(config: JsonObject) {
 
 const ALL_DAYS = ["mon","tue","wed","thu","fri","sat","sun"];
 
-function demoServiceRows() {
-  return [
-    {
-      id: "extra_towels",
-      title: { bg: "Допълнителни хавлии", en: "Extra towels", de: "Zusätzliche Handtücher" },
-      description: { bg: "Допълнителни хавлии до стаята.", en: "Extra towels delivered to the room.", de: "Zusätzliche Handtücher aufs Zimmer." },
-      price: null,
-      currency: null,
-      guestVisible: true,
-      enabled: true,
-      sortOrder: 1,
-      targetDepartment: "housekeeping",
-      requestType: "towels",
-      operationallyConfigured: true,
-    },
-    {
-      id: "toiletries",
-      title: { bg: "Тоалетни принадлежности", en: "Toiletries", de: "Pflegeprodukte" },
-      description: { bg: "Допълване на основни принадлежности.", en: "Replenish essential toiletries.", de: "Zusätzliche Pflegeprodukte." },
-      price: null,
-      currency: null,
-      guestVisible: true,
-      enabled: true,
-      sortOrder: 2,
-      targetDepartment: "housekeeping",
-      requestType: "toiletries",
-      operationallyConfigured: true,
-    },
-    {
-      id: "ac_issue",
-      title: { bg: "Проблем с климатик", en: "Air-conditioning issue", de: "Problem mit der Klimaanlage" },
-      description: { bg: "Техническа заявка за климатизацията в стаята.", en: "Technical request for room air conditioning.", de: "Technische Anfrage zur Klimaanlage im Zimmer." },
-      price: null,
-      currency: null,
-      guestVisible: true,
-      enabled: true,
-      sortOrder: 3,
-      targetDepartment: "maintenance",
-      requestType: "ac_issue",
-      operationallyConfigured: true,
-    },
-    {
-      id: "reception_general",
-      title: { bg: "Въпрос към рецепция", en: "Reception request", de: "Anfrage an die Rezeption" },
-      description: { bg: "Обща заявка към рецепция.", en: "General request to Reception.", de: "Allgemeine Anfrage an die Rezeption." },
-      price: null,
-      currency: null,
-      guestVisible: true,
-      enabled: true,
-      sortOrder: 4,
-      targetDepartment: "reception",
-      requestType: "reception_general",
-      operationallyConfigured: true,
-    },
-  ];
-}
+function legacyDemoServiceRows(config: JsonObject) {
+  const i18n = isRecord(config.i18n) ? config.i18n : {};
+  const languages = configuredLanguages(config);
+  const catalog = [
+    ["reception_general", "reception"],
+    ["late_checkout", "reception"],
+    ["taxi", "reception"],
+    ["wake_up", "reception"],
+    ["towels", "housekeeping"],
+    ["toilet_paper", "housekeeping"],
+    ["room_cleaning", "housekeeping"],
+    ["extra_pillows", "housekeeping"],
+    ["laundry", "housekeeping"],
+    ["iron", "housekeeping"],
+    ["minibar", "housekeeping"],
+    ["blanket", "housekeeping"],
+    ["room_service", "restaurant"],
+    ["ac_issue", "maintenance"],
+    ["water_issue", "maintenance"],
+    ["coffee_machine", "maintenance"],
+    ["something_broken", "maintenance"],
+  ] as const;
 
-function demoVenueRows() {
-  return [
-    {
-      id: "main_restaurant",
-      type: "restaurant",
-      name: "Main Restaurant",
-      nameByLang: { bg: "Основен ресторант", en: "Main Restaurant", de: "Hauptrestaurant" },
-      shortDescription: "Main hotel restaurant",
-      shortDescriptionByLang: { bg: "Основният ресторант на хотела.", en: "The hotel's main restaurant.", de: "Das Hauptrestaurant des Hotels." },
-      description: "Breakfast, lunch and dinner",
-      descriptionByLang: { bg: "Закуска, обяд и вечеря.", en: "Breakfast, lunch and dinner.", de: "Frühstück, Mittag- und Abendessen." },
-      cuisine: "International",
-      cuisineByLang: { bg: "Международна кухня", en: "International cuisine", de: "Internationale Küche" },
-      hours: "07:30 - 10:00 | 12:30 - 14:30 | 18:30 - 21:00",
-      hoursByLang: { bg: "07:30 - 10:00 | 12:30 - 14:30 | 18:30 - 21:00", en: "07:30 - 10:00 | 12:30 - 14:30 | 18:30 - 21:00", de: "07:30 - 10:00 | 12:30 - 14:30 | 18:30 - 21:00" },
-      location: "Lobby level",
-      locationByLang: { bg: "Ниво лоби", en: "Lobby level", de: "Lobby-Ebene" },
-      active: true,
-      sortOrder: 1,
-      reservationManaged: false,
-    },
-    {
-      id: "lobby_bar",
-      type: "bar",
-      name: "Lobby Bar",
-      nameByLang: { bg: "Лоби бар", en: "Lobby Bar", de: "Lobbybar" },
-      shortDescription: "Hotel lobby bar",
-      shortDescriptionByLang: { bg: "Напитки и кафе в лобито.", en: "Drinks and coffee in the lobby.", de: "Getränke und Kaffee in der Lobby." },
-      description: "",
-      descriptionByLang: {},
-      cuisine: "Drinks",
-      cuisineByLang: { bg: "Напитки", en: "Drinks", de: "Getränke" },
-      hours: "10:00 - 23:00",
-      hoursByLang: { bg: "10:00 - 23:00", en: "10:00 - 23:00", de: "10:00 - 23:00" },
-      location: "Lobby",
-      locationByLang: { bg: "Лоби", en: "Lobby", de: "Lobby" },
-      active: true,
-      sortOrder: 2,
-      reservationManaged: false,
-    },
-    {
-      id: "spa",
-      type: "spa",
-      name: "SPA",
-      nameByLang: { bg: "СПА център", en: "SPA Centre", de: "SPA-Bereich" },
-      shortDescription: "Wellness and massage",
-      shortDescriptionByLang: { bg: "Уелнес и масажи.", en: "Wellness and massage.", de: "Wellness und Massagen." },
-      description: "",
-      descriptionByLang: {},
-      cuisine: "",
-      cuisineByLang: {},
-      hours: "09:00 - 19:00",
-      hoursByLang: { bg: "09:00 - 19:00", en: "09:00 - 19:00", de: "09:00 - 19:00" },
-      location: "SPA level",
-      locationByLang: { bg: "СПА зона", en: "SPA level", de: "SPA-Bereich" },
-      active: true,
-      sortOrder: 3,
-      reservationManaged: true,
-    },
-  ];
+  return catalog
+    .map(([id, targetDepartment], index) => {
+      const title: Record<string, string> = {};
+      for (const language of languages) {
+        const langCopy = isRecord(i18n[language]) ? i18n[language] : {};
+        const value = clean(langCopy[id]).replace(/^[^\p{L}\p{N}]+/u, "").trim();
+        if (value) title[language] = value;
+      }
+      if (!Object.keys(title).length) return null;
+      return {
+        id,
+        title,
+        description: {},
+        price: null,
+        currency: null,
+        guestVisible: true,
+        enabled: true,
+        sortOrder: index + 1,
+        targetDepartment,
+        requestType: id,
+        operationallyConfigured: true,
+      };
+    })
+    .filter(Boolean);
 }
 
 function deriveLegacySchedule(config: JsonObject, department: string) {
@@ -294,8 +224,7 @@ export async function getManagerHubContentEditorState(hotelSlugInput: unknown) {
     }
 
     const config = demoHotelConfig as unknown as JsonObject;
-    const services = serviceRows(config);
-    const venues = venueRows(config);
+    const configuredServices = serviceRows(config);
     return {
       hotel: {
         id: String(session.hotel_id || ""),
@@ -308,10 +237,10 @@ export async function getManagerHubContentEditorState(hotelSlugInput: unknown) {
         checksum: "demo-read-only",
       },
       languages: configuredLanguages(config),
-      // The public demo config intentionally stays minimal. Supply representative
-      // read-only rows so all three Manager content tabs can be tested visually.
-      services: services.length ? services : demoServiceRows(),
-      venues: venues.length ? venues : demoVenueRows(),
+      // Demo stays read-only, but the selector mirrors content already exposed
+      // by the current Guest Hub instead of inventing sample services/venues.
+      services: configuredServices.length ? configuredServices : legacyDemoServiceRows(config),
+      venues: venueRows(config),
       schedules: scheduleState(config),
       readOnly: true,
     };
