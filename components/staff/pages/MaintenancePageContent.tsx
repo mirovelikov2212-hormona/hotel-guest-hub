@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
-import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import StaffDevelopmentAccessCard from "@/components/staff/StaffDevelopmentAccessCard";
+import StaffDepartmentUnifiedHeader from "@/components/staff/StaffDepartmentUnifiedHeader";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
 import { useStaffTabTitleAlert } from "@/components/staff/useStaffTabTitleAlert";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
@@ -78,30 +77,15 @@ export default function MaintenancePage() {
 
   return (
     <main className="space-y-6 pb-safe">
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-white/50">
-              {t.department}
-            </p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight">
-              {t.maintenance}
-            </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">
-              {t.maintenanceIntro}
-            </p>
-          </div>
-
-          <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-            <div className="rounded-2xl border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-sm text-sky-100">
-              {t.technicalQueue}
-            </div>
-            <StaffAlertSoundButton soundEnabled={soundEnabled} onToggle={toggleSound} />
-          </div>
-        </div>
-      </section>
-
-      {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="maintenance" /> : null}
+      <StaffDepartmentUnifiedHeader
+        hotelSlug={hotelSlug}
+        role="maintenance"
+        departmentTitle={t.maintenance}
+        intro={t.maintenanceIntro}
+        operationalLabel={t.technicalQueue}
+        soundEnabled={soundEnabled}
+        onToggleSound={() => void toggleSound()}
+      />
 
       {hotelSlug ? (
         <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="maintenance" />
