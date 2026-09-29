@@ -261,7 +261,9 @@ export default function InstallAppButton({
 
   useEffect(() => {
     const syncPrompt = () => {
-      setDeferredPrompt(getGuestInstallPrompt());
+      const prompt = getGuestInstallPrompt();
+      setDeferredPrompt(prompt);
+      if (prompt) setInstalled(false);
     };
     const syncInstalled = () => {
       setInstalled(true);
