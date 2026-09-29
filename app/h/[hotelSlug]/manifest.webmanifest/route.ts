@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getHotelConfig } from "@/lib/config";
+import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,12 @@ export async function GET(
 
   if (!hotelSlug) {
     return NextResponse.json({ ok: false, error: "Invalid hotel slug" }, { status: 400 });
+  }
+
+  try {
+    await resolveHotelByAnySlugAdmin(hotelSlug);
+  } catch {
+    return NextResponse.json({ ok: false, error: "Hotel unavailable" }, { status: 404 });
   }
 
   const config = await getHotelConfig(hotelSlug);
