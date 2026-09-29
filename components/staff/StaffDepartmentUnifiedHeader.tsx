@@ -16,7 +16,7 @@ export default function StaffDepartmentUnifiedHeader({
   soundEnabled,
   onToggleSound,
 }: {
-  hotelSlug: string;
+  hotelSlug?: string;
   role: DepartmentRole;
   departmentTitle: string;
   intro: string;
@@ -26,14 +26,15 @@ export default function StaffDepartmentUnifiedHeader({
 }) {
   const { hotelName } = useStaffStore();
   const { lang, setLang } = useStaffUi();
+  const safeHotelSlug = String(hotelSlug || "demo").trim() || "demo";
   const displayHotelName =
-    String(hotelSlug).toLowerCase() === "demo"
+    safeHotelSlug.toLowerCase() === "demo"
       ? lang === "bg"
         ? "Демо хотел"
         : lang === "de"
           ? "Demo-Hotel"
           : "Hotel Demo"
-      : String(hotelName || hotelSlug);
+      : String(hotelName || safeHotelSlug);
 
   return (
     <section className="staff-unified-department-header rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-6">
@@ -60,7 +61,7 @@ export default function StaffDepartmentUnifiedHeader({
             </span>
           ) : null}
 
-          <ManagerPwaControls hotelSlug={hotelSlug} role={role} embedded />
+          <ManagerPwaControls hotelSlug={safeHotelSlug} role={role} embedded />
 
           <select
             value={lang}
