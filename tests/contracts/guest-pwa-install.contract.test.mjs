@@ -6,6 +6,20 @@ async function source(path) {
   return readFile(new URL(`../../${path}`, import.meta.url), "utf8");
 }
 
+test("guest install is visible immediately after QR open and push remains stay-gated", async () => {
+  const guestHub = await source("components/GuestHub.tsx");
+
+  assert.match(guestHub, /Install is available immediately after opening the Guest Hub from QR/);
+
+  const installIndex = guestHub.indexOf("<InstallAppButton");
+  const pushIndex = guestHub.indexOf("<GuestSurveyPushControls");
+  const roomGateBeforePush = guestHub.lastIndexOf("{roomConfirmed ? (", pushIndex);
+
+  assert.ok(installIndex >= 0);
+  assert.ok(pushIndex > installIndex);
+  assert.ok(roomGateBeforePush > installIndex);
+});
+
 test("guest install prompt is captured globally before room confirmation", async () => {
   const register = await source("components/PWARegister.tsx");
   const button = await source("components/InstallAppButton.tsx");
