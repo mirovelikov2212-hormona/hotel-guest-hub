@@ -192,7 +192,7 @@ export default function StaffDevelopmentAccessCard({
   return (
     <section className={(isManager ? "manager-module-card " : "") + "h-full rounded-2xl border border-violet-200 bg-white p-4 shadow-sm"}>
       <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-700">
+        <p className={(isManager ? "manager-module-title " : "staff-section-title ") + "text-xs font-semibold uppercase tracking-[0.16em] text-violet-700"}>
           {isManager ? copy.managerTitle : copy.title}
         </p>
         <p className="mt-1 text-justify text-sm leading-6 text-slate-600">
