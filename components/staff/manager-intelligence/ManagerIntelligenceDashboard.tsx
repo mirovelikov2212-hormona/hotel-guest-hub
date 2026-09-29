@@ -230,12 +230,20 @@ export default function ManagerIntelligenceDashboard({ hotelSlug }: { hotelSlug:
         <p className="text-xs font-black uppercase tracking-[0.18em] text-[#1479d3]">{copy.eyebrow}</p>
         <h1 className="mt-2 text-3xl font-black text-[#102a43]">{copy.title}</h1>
         <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">{copy.intro}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {data.snapshot.entitlement.enabledModules.map((module) => (
-            <span key={module} className="rounded-full border border-sky-100 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
-              {MODULE_LABELS[safeLang][module as keyof typeof MODULE_LABELS.bg] || module.replaceAll("_", " ")}
-            </span>
-          ))}
+        <div className="mt-4">
+          <p className="text-xs font-bold uppercase tracking-[0.10em] text-slate-400">{copy.modules}</p>
+          <div className="mt-2 flex flex-wrap gap-2" aria-label={copy.modules}>
+            {data.snapshot.entitlement.enabledModules.map((module) => (
+              <span
+                key={module}
+                className="inline-flex cursor-default items-center gap-1.5 rounded-full border border-sky-100 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600"
+                title={copy.modules}
+              >
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                {MODULE_LABELS[safeLang][module as keyof typeof MODULE_LABELS.bg] || module.replaceAll("_", " ")}
+              </span>
+            ))}
+          </div>
         </div>
       </section>
 
