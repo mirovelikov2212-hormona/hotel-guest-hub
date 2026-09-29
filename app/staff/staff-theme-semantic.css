@@ -452,20 +452,23 @@
 }
 
 
-/* Manager module titles keep the same GOSTAYA blue as Staff Development */
-.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-module-title {
-  color: #0e5f91 !important;
-}
+/* Manager and department module titles use one neutral hierarchy. */
 
 
 /* Unified GOSTAYA Staff section/module typography.
- * Keep page headers prominent; normalize module and section labels only. */
-.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-module-title,
-.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .staff-section-title {
+ * "Анкети днес" (Tailwind text-xl) is the visual reference for all section/module titles.
+ * The extra class/attribute specificity below intentionally wins over legacy semantic
+ * color utilities such as text-violet/text-sky + uppercase/tracking rules. */
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .manager-module-card .manager-module-title,
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace p.manager-module-title[class],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace h3.manager-module-title[class],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace .stayhub-staff-collapsible-trigger span.staff-section-title[class],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace p.staff-section-title[class],
+.stayhub-staff-shell[data-staff-theme="light"] .stayhub-staff-workspace h3.staff-section-title[class] {
   color: #111111 !important;
   font-family: Arial, Helvetica, sans-serif !important;
-  font-size: 0.95rem !important;
-  line-height: 1.3 !important;
+  font-size: 1.25rem !important;
+  line-height: 1.75rem !important;
   font-weight: 600 !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
