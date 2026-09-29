@@ -252,20 +252,22 @@ export default function DemoJourneyGuide({
 
   if (hidden) {
     return (
-      <button
-        type="button"
-        onClick={() => setGuideHidden(false)}
-        className="fixed bottom-4 left-4 z-[95] rounded-full border border-cyan-200/40 bg-[#071821]/96 px-3 py-2 text-[11px] font-bold text-cyan-100 shadow-xl backdrop-blur"
-      >
-        ? {c.show}
-      </button>
+      <div className="px-4 pb-3">
+        <button
+          type="button"
+          onClick={() => setGuideHidden(false)}
+          className="rounded-full border border-cyan-200/40 bg-[#071821]/96 px-3 py-1.5 text-[10px] font-bold text-cyan-100 shadow-sm"
+        >
+          ? {c.show}
+        </button>
+      </div>
     );
   }
 
   if (finished) {
     return (
-      <aside className="fixed bottom-4 left-4 z-[95] w-[min(calc(100vw-2rem),320px)]">
-        <div className="rounded-2xl border border-emerald-300/30 bg-[#071821]/96 p-3.5 shadow-2xl backdrop-blur-xl">
+      <aside className="px-4 pb-3">
+        <div className="rounded-2xl border border-emerald-300/30 bg-[#071821]/96 p-3 shadow-lg">
           <div className="text-[9px] font-black tracking-[0.16em] text-emerald-200">{c.label} · ✓</div>
           <h3 className="mt-2 text-sm font-semibold text-white">{c.finishedTitle}</h3>
           <p className="mt-1 text-xs leading-5 text-slate-300">{c.finishedText}</p>
@@ -306,10 +308,10 @@ export default function DemoJourneyGuide({
     c.checkoutText;
 
   return (
-    <aside className="fixed bottom-4 left-4 z-[95] w-[min(calc(100vw-2rem),320px)]">
-      <div className="overflow-hidden rounded-2xl border border-cyan-200/25 bg-[#071821]/96 shadow-[0_14px_45px_rgba(0,0,0,.42)] backdrop-blur-xl">
+    <aside className="px-4 pb-3">
+      <div className="overflow-hidden rounded-2xl border border-cyan-200/25 bg-[#071821]/96 shadow-lg">
         <div className="h-0.5 bg-gradient-to-r from-cyan-200 via-violet-300 to-emerald-300" />
-        <div className="p-3.5">
+        <div className="p-3">
           <div className="flex items-center justify-between gap-2">
             <div className="text-[9px] font-black tracking-[0.16em] text-cyan-200">{c.label} · {step}/8</div>
             <button
@@ -321,8 +323,8 @@ export default function DemoJourneyGuide({
             </button>
           </div>
 
-          <h3 className="mt-2 text-sm font-semibold leading-5 text-white">{title}</h3>
-          <p className="mt-1 text-xs leading-5 text-slate-300">{body}</p>
+          <h3 className="mt-1.5 text-[13px] font-semibold leading-5 text-white">{title}</h3>
+          <p className="mt-0.5 text-[11px] leading-4 text-slate-300">{body}</p>
 
           {step === 3 ? (
             <p className="mt-2 rounded-lg border border-emerald-300/15 bg-emerald-300/[0.07] px-2.5 py-1.5 text-[10px] leading-4 text-emerald-100/85">
@@ -348,7 +350,7 @@ export default function DemoJourneyGuide({
             </div>
           ) : null}
 
-          <div className="mt-3">
+          <div className="mt-2.5">
             {step === 1 ? (
               <button type="button" onClick={onFocusRoom} className="w-full rounded-lg bg-cyan-200 px-3 py-2 text-xs font-black text-slate-950">
                 {c.roomCta}
@@ -390,7 +392,7 @@ export default function DemoJourneyGuide({
             ) : null}
           </div>
 
-          <div className="mt-3 flex gap-1">
+          <div className="mt-2.5 flex gap-1">
             {Array.from({ length: 8 }, (_, index) => index + 1).map((n) => (
               <span
                 key={n}
