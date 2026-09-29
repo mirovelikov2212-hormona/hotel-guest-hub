@@ -68,7 +68,9 @@ function serviceRows(config: JsonObject) {
         && clean(service.targetDepartment).toLowerCase() !== "none"
       ),
     }))
-    .filter((service) => service.id);
+    // "Services" in Change Management means paid hotel services only.
+    // Free operational guest requests belong to Staff Operations, not this editor.
+    .filter((service) => service.id && Boolean(clean(service.price)));
 }
 
 function venueRows(config: JsonObject) {
@@ -101,55 +103,6 @@ function venueRows(config: JsonObject) {
 }
 
 const ALL_DAYS = ["mon","tue","wed","thu","fri","sat","sun"];
-
-function legacyDemoServiceRows(config: JsonObject) {
-  const i18n = isRecord(config.i18n) ? config.i18n : {};
-  const languages = configuredLanguages(config);
-  const catalog = [
-    ["reception_general", "reception"],
-    ["late_checkout", "reception"],
-    ["taxi", "reception"],
-    ["wake_up", "reception"],
-    ["towels", "housekeeping"],
-    ["toilet_paper", "housekeeping"],
-    ["room_cleaning", "housekeeping"],
-    ["extra_pillows", "housekeeping"],
-    ["laundry", "housekeeping"],
-    ["iron", "housekeeping"],
-    ["minibar", "housekeeping"],
-    ["blanket", "housekeeping"],
-    ["room_service", "restaurant"],
-    ["ac_issue", "maintenance"],
-    ["water_issue", "maintenance"],
-    ["coffee_machine", "maintenance"],
-    ["something_broken", "maintenance"],
-  ] as const;
-
-  return catalog
-    .map(([id, targetDepartment], index) => {
-      const title: Record<string, string> = {};
-      for (const language of languages) {
-        const langCopy = isRecord(i18n[language]) ? i18n[language] : {};
-        const value = clean(langCopy[id]).replace(/^[^\p{L}\p{N}]+/u, "").trim();
-        if (value) title[language] = value;
-      }
-      if (!Object.keys(title).length) return null;
-      return {
-        id,
-        title,
-        description: {},
-        price: null,
-        currency: null,
-        guestVisible: true,
-        enabled: true,
-        sortOrder: index + 1,
-        targetDepartment,
-        requestType: id,
-        operationallyConfigured: true,
-      };
-    })
-    .filter(Boolean);
-}
 
 function deriveLegacySchedule(config: JsonObject, department: string) {
   const legacy = isRecord(config.departmentHours)
@@ -224,7 +177,6 @@ export async function getManagerHubContentEditorState(hotelSlugInput: unknown) {
     }
 
     const config = demoHotelConfig as unknown as JsonObject;
-    const configuredServices = serviceRows(config);
     return {
       hotel: {
         id: String(session.hotel_id || ""),
@@ -239,7 +191,7 @@ export async function getManagerHubContentEditorState(hotelSlugInput: unknown) {
       languages: configuredLanguages(config),
       // Demo stays read-only, but the selector mirrors content already exposed
       // by the current Guest Hub instead of inventing sample services/venues.
-      services: configuredServices.length ? configuredServices : legacyDemoServiceRows(config),
+      services: serviceRows(config),
       venues: venueRows(config),
       schedules: scheduleState(config),
       readOnly: true,
