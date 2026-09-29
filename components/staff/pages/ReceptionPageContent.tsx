@@ -597,6 +597,13 @@ export default function ReceptionPage({
 
 
       <section className="space-y-4">
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
+          <h3 className="staff-section-title">{t.receptionActions}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            {t.receptionActionsText}
+          </p>
+        </div>
+
         {filteredRequests.length ? (
           filteredRequests.map((request) => {
             const requestAgeMinutes = getRequestAgeMinutes(request, nowMs);
