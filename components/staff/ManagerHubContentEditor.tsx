@@ -119,7 +119,7 @@ const COPY = {
     schedules: "Работно време",
     loading: "Зареждане…",
     reload: "Презареди",
-    demoReadOnly: "Демо преглед · съдържанието може да се разглежда, без да се записват промени.",
+    demoReadOnly: "Демо преглед · можете да разглеждате и да тествате промени локално. Нищо не се записва.",
     liveRevision: "Текуща версия",
     language: "Език",
     choose: "Изберете",
@@ -191,7 +191,7 @@ const COPY = {
     schedules: "Operating hours",
     loading: "Loading…",
     reload: "Reload",
-    demoReadOnly: "Demo preview · content can be inspected without saving changes.",
+    demoReadOnly: "Demo preview · inspect and test changes locally. Nothing is saved.",
     liveRevision: "LIVE revision",
     language: "Language",
     choose: "Choose",
@@ -263,7 +263,7 @@ const COPY = {
     schedules: "Betriebszeiten",
     loading: "Laden…",
     reload: "Neu laden",
-    demoReadOnly: "Demo-Vorschau · Inhalte können ohne Speichern angesehen werden.",
+    demoReadOnly: "Demo-Vorschau · Änderungen können lokal getestet werden. Es wird nichts gespeichert.",
     liveRevision: "LIVE-Revision",
     language: "Sprache",
     choose: "Auswählen",
@@ -478,6 +478,32 @@ export default function ManagerHubContentEditor({
     setChecking(true);
     setError("");
     setPreview(null);
+
+    if (editor?.readOnly) {
+      const scope = String(payload.scope || "") as EditorTab;
+      let changed = false;
+
+      if (scope === "services") {
+        changed = JSON.stringify(selectedService) !== JSON.stringify(serviceDraft);
+      } else if (scope === "venues") {
+        changed = JSON.stringify(selectedVenue) !== JSON.stringify(venueDraft);
+      } else if (scope === "schedules") {
+        changed = JSON.stringify(normalizeSchedule(selectedSchedule?.schedule || null)) !== JSON.stringify(scheduleDraft);
+      }
+
+      setPreview({
+        scope,
+        preview: { demoReadOnly: true },
+        diff: {
+          changed,
+          changedCategories: changed ? [scope] : [],
+          totalChanges: changed ? 1 : 0,
+        },
+      });
+      setChecking(false);
+      return;
+    }
+
     try {
       const response = await fetch("/api/staff/content-changes/editor-state", {
         method: "POST",
@@ -893,7 +919,7 @@ export default function ManagerHubContentEditor({
               <button
                 type="button"
                 onClick={() => void checkService()}
-                disabled={checking || editor?.readOnly === true}
+                disabled={checking}
                 className="mt-4 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-semibold text-cyan-50 disabled:opacity-40"
               >
                 {checking ? copy.checking : copy.preview}
@@ -1015,7 +1041,7 @@ export default function ManagerHubContentEditor({
               <button
                 type="button"
                 onClick={() => void checkVenue()}
-                disabled={checking || editor?.readOnly === true}
+                disabled={checking}
                 className="mt-4 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-semibold text-cyan-50 disabled:opacity-40"
               >
                 {checking ? copy.checking : copy.preview}
