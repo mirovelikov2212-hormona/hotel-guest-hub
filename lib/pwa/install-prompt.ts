@@ -13,6 +13,14 @@ type InstallWindow = Window & {
 
 export const GUEST_INSTALL_PROMPT_EVENT = "gostaya:guest-install-prompt";
 export const GUEST_APP_INSTALLED_EVENT = "gostaya:guest-app-installed";
+const GUEST_APP_INSTALLED_STORAGE_PREFIX = "gostaya_guest_app_installed";
+
+function installedStorageKey() {
+  if (typeof window === "undefined") return null;
+  const match = window.location.pathname.match(/^\/h\/([^/?#]+)/i);
+  const hotelSlug = String(match?.[1] || "").trim().toLowerCase();
+  return hotelSlug ? `${GUEST_APP_INSTALLED_STORAGE_PREFIX}:${hotelSlug}` : null;
+}
 
 function installWindow() {
   if (typeof window === "undefined") return null;
@@ -39,13 +47,31 @@ export function clearGuestInstallPrompt() {
 export function markGuestAppInstalled() {
   const target = installWindow();
   if (!target) return;
+
   target.__gostayaGuestAppInstalled = true;
   target.__gostayaGuestInstallPrompt = null;
+
+  const key = installedStorageKey();
+  if (key) {
+    try {
+      window.localStorage.setItem(key, "1");
+    } catch {}
+  }
+
   target.dispatchEvent(new CustomEvent(GUEST_APP_INSTALLED_EVENT));
 }
 
 export function wasGuestAppInstalled() {
-  return Boolean(installWindow()?.__gostayaGuestAppInstalled);
+  if (installWindow()?.__gostayaGuestAppInstalled) return true;
+
+  const key = installedStorageKey();
+  if (!key) return false;
+
+  try {
+    return window.localStorage.getItem(key) === "1";
+  } catch {
+    return false;
+  }
 }
 
 export function isStandaloneDisplayMode() {
