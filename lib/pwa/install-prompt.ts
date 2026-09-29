@@ -34,7 +34,17 @@ export function getGuestInstallPrompt() {
 export function storeGuestInstallPrompt(event: BeforeInstallPromptEvent) {
   const target = installWindow();
   if (!target) return;
+
   target.__gostayaGuestInstallPrompt = event;
+  target.__gostayaGuestAppInstalled = false;
+
+  const key = installedStorageKey();
+  if (key) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {}
+  }
+
   target.dispatchEvent(new CustomEvent(GUEST_INSTALL_PROMPT_EVENT));
 }
 
