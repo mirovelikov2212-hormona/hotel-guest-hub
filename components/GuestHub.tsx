@@ -8799,15 +8799,16 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
         </div>
       ) : null}
 
-      {roomConfirmed ? (
-        <div className="stayhub-post-confirm-actions px-4">
-          <div className="stayhub-post-confirm-actions-grid">
-            <div className="stayhub-post-confirm-action-card">
-              <InstallAppButton
-                lang={lang}
-                label={String(tUI("install_app") || "Инсталирай приложението")}
-              />
-            </div>
+      {/* Install is available immediately after opening the Guest Hub from QR. */}
+      <div className="stayhub-post-confirm-actions px-4">
+        <div className="stayhub-post-confirm-actions-grid">
+          <div className="stayhub-post-confirm-action-card">
+            <InstallAppButton
+              lang={lang}
+              label={String(tUI("install_app") || "Инсталирай приложението")}
+            />
+          </div>
+          {roomConfirmed ? (
             <GuestSurveyPushControls
               hotelSlug={String(config.hotelSlug || hotelContentSlug || "")}
               room={room}
@@ -8820,9 +8821,9 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               checkInDate={checkInDate}
               checkOutDate={checkOutDate}
             />
-          </div>
+          ) : null}
         </div>
-      ) : null}
+      </div>
 
       {roomConfirmed && showRoomSwitchCard ? (
         <div className="mt-3 px-4">
