@@ -81,7 +81,7 @@ export default function HousekeepingPage() {
         hotelSlug={hotelSlug}
         role="housekeeping"
         departmentTitle={t.housekeeping}
-        intro={t.housekeepingIntro}
+        intro={t.housekeepingIntro.replace(/\.\s+/, ".\n")}
         operationalLabel={t.sharedHousekeepingBoard}
         soundEnabled={soundEnabled}
         onToggleSound={() => void toggleSound()}
