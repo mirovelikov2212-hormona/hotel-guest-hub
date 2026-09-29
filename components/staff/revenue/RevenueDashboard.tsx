@@ -108,6 +108,7 @@ const COPY = {
     clickToCharge: "Натискане → начисляване",
     byService: "Приход по услуга",
     source: "Източник на прихода",
+    recognitionEventsLabel: "начислявания",
     direct: "Директно от портала за госта",
     ai: "С помощ от ИИ",
     unattributed: "Без доказан източник",
@@ -164,6 +165,7 @@ const COPY = {
     clickToCharge: "Click → charge",
     byService: "Revenue by service",
     source: "Revenue attribution",
+    recognitionEventsLabel: "recognition events",
     direct: "Guest Hub direct",
     ai: "AI assisted",
     unattributed: "No verified attribution",
@@ -220,6 +222,7 @@ const COPY = {
     clickToCharge: "Click → charge",
     byService: "Umsatz nach Leistung",
     source: "Revenue attribution",
+    recognitionEventsLabel: "Buchungsereignisse",
     direct: "Guest Hub direct",
     ai: "AI assisted",
     unattributed: "Keine verifizierte Attribution",
@@ -495,7 +498,7 @@ export default function RevenueDashboard({
               <div key={label} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-3">
                 <div>
                   <p className="text-sm font-medium text-white">{label}</p>
-                  <p className="mt-1 text-xs text-white/45">{count} recognition events</p>
+                  <p className="mt-1 text-xs text-white/45">{count} {copy.recognitionEventsLabel}</p>
                 </div>
                 <p className="text-sm font-semibold text-emerald-100">
                   {formatMoneyMap(value, lang)}
