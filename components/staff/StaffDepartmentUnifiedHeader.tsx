@@ -46,7 +46,7 @@ export default function StaffDepartmentUnifiedHeader({
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[#111111]">
             {displayHotelName} - {departmentTitle}
           </h1>
-          <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-600">{intro}</p>
+          <p className="mt-3 max-w-4xl whitespace-pre-line text-sm leading-6 text-slate-600">{intro}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 xl:max-w-[54%] xl:justify-end">
