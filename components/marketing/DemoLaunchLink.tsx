@@ -1,42 +1,28 @@
 "use client";
 
-import type { MouseEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 
 type DemoLaunchLinkProps = {
   children: ReactNode;
   className?: string;
-  hubUrl?: string;
-  managerUrl?: string;
 };
+
+function resolveLang(pathname: string | null) {
+  const segment = String(pathname || "").split("/").filter(Boolean)[0];
+  return segment === "de" || segment === "en" ? segment : "bg";
+}
 
 export default function DemoLaunchLink({
   children,
   className,
-  hubUrl = "/h/demo",
-  managerUrl = "/staff/demo/manager",
 }: DemoLaunchLinkProps) {
-  const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (
-      event.button !== 0 ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey
-    ) {
-      return;
-    }
-
-    event.preventDefault();
-
-    // One explicit user click opens the operational view in a second tab,
-    // while the current tab enters the Guest Hub. If the browser blocks the
-    // second tab, the fallback href still points to the Guest Hub.
-    window.open(managerUrl, "_blank", "noopener,noreferrer");
-    window.location.assign(hubUrl);
-  };
+  const pathname = usePathname();
+  const lang = resolveLang(pathname);
+  const href = `/demo?lang=${lang}`;
 
   return (
-    <a href={hubUrl} onClick={handleClick} className={className}>
+    <a href={href} className={className}>
       {children}
     </a>
   );
