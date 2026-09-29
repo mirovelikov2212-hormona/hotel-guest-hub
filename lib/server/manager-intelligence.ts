@@ -37,6 +37,10 @@ type Signal = {
   detail: string;
   occurredAt: string | null;
   sourceId: string | null;
+  requestType?: string | null;
+  requestLabel?: string | null;
+  room?: string | null;
+  requestStatus?: string | null;
 };
 
 type ManagerBrief = {
@@ -107,6 +111,30 @@ function numericPrice(value: unknown) {
 function requestDepartment(row: Record<string, any>) {
   const metadata = isRecord(row.metadata_json) ? row.metadata_json : {};
   return clean(metadata.department) || "reception";
+}
+
+function requestDisplayLabel(row: Record<string, any>, language: Lang) {
+  const metadata = isRecord(row.metadata_json) ? row.metadata_json : {};
+  const localized =
+    language === "bg"
+      ? clean(row.title_bg || metadata.staffTitleBg)
+      : language === "de"
+        ? clean(row.title_de || metadata.staffTitleDe || row.title_en || metadata.staffTitleEn)
+        : clean(row.title_en || metadata.staffTitleEn);
+
+  const fallback =
+    clean(metadata.typeLabel)
+    || clean(row.title)
+    || clean(metadata.historicalServiceIdentity?.title)
+    || clean(row.request_type)
+      .replaceAll("_", " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+
+  return localized || fallback || translated({
+    bg: "Заявка",
+    en: "Request",
+    de: "Anfrage",
+  }, language);
 }
 
 function requestBilling(row: Record<string, any>) {
@@ -228,7 +256,7 @@ async function buildSnapshot(input: {
 
   let yesterdayRequestsQuery = supabaseAdmin
     .from("guest_requests")
-    .select("id,request_type,room_number_snapshot,status,created_at,started_at,resolved_at,is_test,metadata_json")
+    .select("id,request_type,title,title_bg,title_en,title_de,room_number_snapshot,status,created_at,started_at,resolved_at,is_test,metadata_json")
     .eq("hotel_id", hotel.id)
     .gte("created_at", from)
     .lt("created_at", to)
@@ -236,7 +264,7 @@ async function buildSnapshot(input: {
     .limit(MAX_REQUEST_ROWS);
   let openRequestsQuery = supabaseAdmin
     .from("guest_requests")
-    .select("id,request_type,room_number_snapshot,status,created_at,started_at,resolved_at,is_test,metadata_json")
+    .select("id,request_type,title,title_bg,title_en,title_de,room_number_snapshot,status,created_at,started_at,resolved_at,is_test,metadata_json")
     .eq("hotel_id", hotel.id)
     .in("status", ["new", "in_progress", "returned"])
     .order("created_at", { ascending: true })
@@ -349,22 +377,29 @@ async function buildSnapshot(input: {
       ageMinutes >= 30 || status === "returned" ? "critical" : ageMinutes >= 10 ? "warning" : "info";
     if (severity === "info") continue;
     const department = requestDepartment(row);
+    const requestLabel = requestDisplayLabel(row, language);
+    const requestType = clean(row.request_type) || null;
+    const roomNumber = clean(row.room_number_snapshot) || "—";
     signals.push({
       key: `request:${row.id}:${status}`,
       severity,
       module: "staff_operations",
       title: translated({
-        bg: status === "returned" ? "Върната заявка" : "Забавена заявка",
-        en: status === "returned" ? "Returned request" : "Delayed request",
-        de: status === "returned" ? "Zurückgegebene Anfrage" : "Verzögerte Anfrage",
+        bg: `${status === "returned" ? "Върната заявка" : "Забавена заявка"} · ${requestLabel}`,
+        en: `${status === "returned" ? "Returned request" : "Delayed request"} · ${requestLabel}`,
+        de: `${status === "returned" ? "Zurückgegebene Anfrage" : "Verzögerte Anfrage"} · ${requestLabel}`,
       }, language),
       detail: translated({
-        bg: `${department} · стая ${clean(row.room_number_snapshot) || "—"} · ${ageMinutes} мин.`,
-        en: `${department} · room ${clean(row.room_number_snapshot) || "—"} · ${ageMinutes} min`,
-        de: `${department} · Zimmer ${clean(row.room_number_snapshot) || "—"} · ${ageMinutes} Min.`,
+        bg: `${department} · стая ${roomNumber} · ${ageMinutes} мин.`,
+        en: `${department} · room ${roomNumber} · ${ageMinutes} min`,
+        de: `${department} · Zimmer ${roomNumber} · ${ageMinutes} Min.`,
       }, language),
       occurredAt: clean(row.created_at) || null,
       sourceId: clean(row.id) || null,
+      requestType,
+      requestLabel,
+      room: roomNumber,
+      requestStatus: status || null,
     });
   }
 
@@ -679,6 +714,7 @@ async function aiBrief(
         "Prioritize operational exceptions, guest quality, revenue from additional services, staff-development workflow signals, incidents, AI automation health and integrations when those sources are enabled.",
         "Do not make employment decisions or rank employees.",
         "Recommendations must be neutral checks or follow-up actions grounded in supplied signals.",
+        "For every request-related exception, preserve the exact requestLabel/requestType supplied in the snapshot. Never reduce a delayed or returned request to a generic label when the concrete service/request is available.",
         `Write all human-readable text in ${language}.`,
       ].join("\n"),
       input: JSON.stringify({ VERIFIED_HOTEL_SNAPSHOT: snapshot }),
