@@ -323,7 +323,7 @@ export default function DemoJourneyGuide({
             </button>
           </div>
 
-          <h3 className="mt-1.5 text-[13px] font-semibold leading-5 text-white">{title}</h3>
+          <h3 className="mt-1.5 text-[13px] font-semibold leading-5 !text-white" style={{ color: "#ffffff" }}>{title}</h3>
           <p className="mt-0.5 text-[11px] leading-4 text-slate-300">{body}</p>
 
           {step === 3 ? (
