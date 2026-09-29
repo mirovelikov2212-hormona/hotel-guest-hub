@@ -74,6 +74,11 @@ test("hotel guest route advertises a hotel-scoped manifest", async () => {
   assert.match(manifestRoute, /display: "standalone"/);
   assert.match(manifestRoute, /config\.hotelName/);
   assert.match(manifestRoute, /config\.theme\?\.primary/);
+
+  const entitlementGate = manifestRoute.indexOf("await resolveHotelByAnySlugAdmin(hotelSlug)");
+  const configLoad = manifestRoute.indexOf("await getHotelConfig(hotelSlug)");
+  assert.ok(entitlementGate >= 0);
+  assert.ok(configLoad > entitlementGate);
 });
 
 test("service worker is registered even when hydration finishes after window load", async () => {
@@ -117,7 +122,8 @@ test("installed state persists per hotel when the guest returns in the browser",
   const bridge = await source("lib/pwa/install-prompt.ts");
 
   assert.match(bridge, /GUEST_APP_INSTALLED_STORAGE_PREFIX/);
-  assert.match(bridge, /window\.location\.pathname\.match\(\/\^\\\/h\\\/\(\[\^\/?#\]\+\)/);
+  assert.match(bridge, /function installedStorageKey\(\)/);
+  assert.match(bridge, /window\.location\.pathname/);
   assert.match(bridge, /window\.localStorage\.setItem\(key, "1"\)/);
   assert.match(bridge, /window\.localStorage\.getItem\(key\) === "1"/);
 });
