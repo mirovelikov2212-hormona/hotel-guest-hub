@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import GuestCommunicationsInbox from "@/components/GuestCommunicationsInbox";
@@ -24,6 +25,35 @@ type PageProps = {
   params: Promise<{ hotelSlug: string }>;
   searchParams: SearchParams;
 };
+
+export async function generateMetadata({ params }: Pick<PageProps, "params">): Promise<Metadata> {
+  const { hotelSlug: rawHotelSlug } = await params;
+  const hotelSlug = String(rawHotelSlug || "").trim().toLowerCase();
+
+  if (!hotelSlug) {
+    return {
+      title: "GOSTAYA",
+      applicationName: "GOSTAYA",
+    };
+  }
+
+  let hotelName = "GOSTAYA";
+  try {
+    const config = await getHotelConfig(hotelSlug);
+    if (config?.hotelName) hotelName = String(config.hotelName).trim() || hotelName;
+  } catch {}
+
+  return {
+    title: `${hotelName} · GOSTAYA`,
+    applicationName: hotelName,
+    manifest: `/h/${encodeURIComponent(hotelSlug)}/manifest.webmanifest`,
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "default",
+      title: hotelName,
+    },
+  };
+}
 
 function getSingleSearchParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
