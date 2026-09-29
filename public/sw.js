@@ -1,5 +1,5 @@
-const CACHE_VERSION = "stayhub-staff-fresh-v20260618-01";
-const APP_SHELL = ["/", "/manifest.webmanifest"];
+const CACHE_VERSION = "gostaya-pwa-v20260929-01";
+const APP_SHELL = ["/"];
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -37,6 +37,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (url.pathname.endsWith("/manifest.webmanifest") || url.pathname === "/manifest.webmanifest") {
+    event.respondWith(fetch(request, { cache: "no-store" }));
+    return;
+  }
+
+
   // Staff/Next.js assets must be fresh after each deploy.
   // Old cached JS chunks were the likely reason some Staff Hub UI changes appeared late.
   if (url.pathname.startsWith("/_next/") || url.pathname.startsWith("/staff/")) {
@@ -45,8 +51,34 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate") {
+    if (url.pathname.startsWith("/h/")) {
+      const guestCacheKey = url.pathname;
+      event.respondWith(
+        fetch(request, { cache: "no-store" })
+          .then((response) => {
+            if (response && response.ok) {
+              const copy = response.clone();
+              caches.open(CACHE_VERSION).then((cache) => cache.put(guestCacheKey, copy)).catch(() => undefined);
+            }
+            return response;
+          })
+          .catch(() =>
+            caches.match(guestCacheKey).then((cached) =>
+              cached ||
+              new Response("GOSTAYA is temporarily offline. Please reconnect and try again.", {
+                status: 503,
+                headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+              })
+            )
+          )
+      );
+      return;
+    }
+
     event.respondWith(
-      fetch(request).catch(() => caches.match("/").then((cached) => cached || Response.error()))
+      fetch(request, { cache: "no-store" }).catch(() =>
+        caches.match(request).then((cached) => cached || Response.error())
+      )
     );
     return;
   }
@@ -73,7 +105,7 @@ self.addEventListener("push", (event) => {
     payload = { body: event.data ? event.data.text() : "" };
   }
 
-  const title = payload.title || "StayHub — Нова заявка";
+  const title = payload.title || "GOSTAYA — Нова заявка";
   const options = {
     body: payload.body || "Има нова заявка за обработка.",
     icon: payload.icon || "/icons/manager-192.png",
