@@ -126,4 +126,6 @@ test("installed state persists per hotel when the guest returns in the browser",
   assert.match(bridge, /window\.location\.pathname/);
   assert.match(bridge, /window\.localStorage\.setItem\(key, "1"\)/);
   assert.match(bridge, /window\.localStorage\.getItem\(key\) === "1"/);
+  assert.match(bridge, /window\.localStorage\.removeItem\(key\)/);
+  assert.match(bridge, /__gostayaGuestAppInstalled = false/);
 });
