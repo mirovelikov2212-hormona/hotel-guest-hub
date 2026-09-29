@@ -879,7 +879,7 @@ export default function ManagerPage() {
       <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-white/40">{t.active}</p>
-          <h3 className="mt-1 text-xl font-semibold text-white">{t.managerOperationsTitle}</h3>
+          <h3 className="staff-section-title mt-1 text-xl font-semibold text-white">{t.managerOperationsTitle}</h3>
           <p className="mt-2 w-full text-sm leading-6 text-white/65">
             {t.managerOperationsIntro}
           </p>
@@ -936,7 +936,7 @@ export default function ManagerPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-white/40">{t.reportsCompactLabel}</p>
-            <h3 className="mt-1 text-xl font-semibold text-white">{t.reports}</h3>
+            <h3 className="staff-section-title mt-1 text-xl font-semibold text-white">{t.reports}</h3>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">{t.reportsCompactIntro}</p>
           </div>
           <div className="flex flex-wrap gap-2">
