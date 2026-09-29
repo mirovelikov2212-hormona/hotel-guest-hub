@@ -97,7 +97,7 @@ export function guestInstallBrowserFamily() {
 
   const ua = String(navigator.userAgent || "").toLowerCase();
   if (/samsungbrowser/.test(ua)) return "samsung" as const;
-  if (/edg\\//.test(ua) || /edga\\//.test(ua)) return "edge" as const;
+  if (/edg\//.test(ua) || /edga\//.test(ua)) return "edge" as const;
   if (/crios|chrome|chromium/.test(ua)) return "chrome" as const;
   if (/safari/.test(ua)) return "safari" as const;
   if (/firefox|fxios/.test(ua)) return "firefox" as const;
