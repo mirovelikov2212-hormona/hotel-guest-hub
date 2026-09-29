@@ -396,6 +396,36 @@ function diffCount(diff: PreviewPayload["diff"] | null) {
   return diff.changed ? 1 : 0;
 }
 
+function EditorCheckbox({
+  checked,
+  onChange,
+  label,
+  className = "",
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`inline-flex items-center gap-2 text-left text-sm ${className}`}
+    >
+      <span
+        aria-hidden="true"
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 text-[13px] font-black leading-none transition ${checked ? "border-[#1479d3] bg-[#1479d3] text-white" : "border-slate-500 bg-white text-transparent"}`}
+      >
+        ✓
+      </span>
+      <span>{label}</span>
+    </button>
+  );
+}
+
 export default function ManagerHubContentEditor({
   hotelSlug,
   lang,
@@ -932,30 +962,24 @@ export default function ManagerHubContentEditor({
               </div>
 
               <div className="mt-4 flex flex-wrap gap-3">
-                <label className="flex items-start gap-2 text-sm text-white/75">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-500 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] focus-visible:ring-2 focus-visible:ring-sky-300"
-                    checked={serviceDraft.guestVisible}
-                    onChange={(event) => {
-                      setServiceDraft((current) => current ? ({ ...current, guestVisible: event.target.checked }) : current);
-                      setPreview(null);
-                    }}
-                  />
-                  {copy.visible}
-                </label>
-                <label className="flex items-start gap-2 text-sm text-white/75">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-500 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] focus-visible:ring-2 focus-visible:ring-sky-300"
-                    checked={serviceDraft.enabled}
-                    onChange={(event) => {
-                      setServiceDraft((current) => current ? ({ ...current, enabled: event.target.checked }) : current);
-                      setPreview(null);
-                    }}
-                  />
-                  {copy.enabled}
-                </label>
+                <EditorCheckbox
+                  checked={serviceDraft.guestVisible}
+                  label={copy.visible}
+                  className="text-white/75"
+                  onChange={(next) => {
+                    setServiceDraft((current) => current ? ({ ...current, guestVisible: next }) : current);
+                    setPreview(null);
+                  }}
+                />
+                <EditorCheckbox
+                  checked={serviceDraft.enabled}
+                  label={copy.enabled}
+                  className="text-white/75"
+                  onChange={(next) => {
+                    setServiceDraft((current) => current ? ({ ...current, enabled: next }) : current);
+                    setPreview(null);
+                  }}
+                />
               </div>
 
               <div className="mt-4 rounded-xl border border-emerald-300/15 bg-emerald-300/5 p-3 text-xs text-emerald-50/75">
@@ -1077,18 +1101,17 @@ export default function ManagerHubContentEditor({
                 </label>
               </div>
 
-              <label className="mt-4 flex items-center gap-2 text-sm text-white/75">
-                <input
-                  type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-500 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] focus-visible:ring-2 focus-visible:ring-sky-300"
+              <div className="mt-4">
+                <EditorCheckbox
                   checked={venueDraft.active}
-                  onChange={(event) => {
-                    setVenueDraft((current) => current ? ({ ...current, active: event.target.checked }) : current);
+                  label={copy.active}
+                  className="text-white/75"
+                  onChange={(next) => {
+                    setVenueDraft((current) => current ? ({ ...current, active: next }) : current);
                     setPreview(null);
                   }}
                 />
-                {copy.active}
-              </label>
+              </div>
 
               <div className="mt-4 rounded-xl border border-emerald-300/15 bg-emerald-300/5 p-3 text-xs text-emerald-50/75">
                 <strong>{copy.reservationProtected}</strong>
@@ -1128,22 +1151,19 @@ export default function ManagerHubContentEditor({
               <div className="mt-1">{copy.source}: {selectedSchedule?.scheduleSource || "—"}</div>
               {selectedSchedule?.fallbackConflict ? <div className="mt-2 text-rose-100">{copy.conflict}</div> : null}
             </div>
-            <label className="flex items-start gap-2 self-center text-sm text-white/75">
-              <input
-                type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-500 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] focus-visible:ring-2 focus-visible:ring-sky-300"
-                checked={scheduleDraft.is24h}
-                onChange={(event) => {
-                  setScheduleDraft((current) => ({
-                    ...current,
-                    is24h: event.target.checked,
-                    windows: event.target.checked ? [] : current.windows,
-                  }));
-                  setPreview(null);
-                }}
-              />
-              {copy.twentyFour}
-            </label>
+            <EditorCheckbox
+              checked={scheduleDraft.is24h}
+              label={copy.twentyFour}
+              className="self-center text-white/75"
+              onChange={(next) => {
+                setScheduleDraft((current) => ({
+                  ...current,
+                  is24h: next,
+                  windows: next ? [] : current.windows,
+                }));
+                setPreview(null);
+              }}
+            />
           </div>
 
           {!scheduleDraft.is24h ? (
@@ -1267,26 +1287,23 @@ export default function ManagerHubContentEditor({
                   </div>
 
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <label className="flex items-start gap-2 text-sm text-white/70">
-                      <input
-                        type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-[4px] border-2 border-slate-500 bg-white align-middle shadow-none outline-none checked:border-[#1479d3] checked:bg-[#1479d3] focus-visible:ring-2 focus-visible:ring-sky-300"
-                        checked={season.is24h}
-                        onChange={(event) => {
-                          setScheduleDraft((current) => {
-                            const next = deepClone(current);
-                            const target = next.seasons?.[seasonIndex];
-                            if (target) {
-                              target.is24h = event.target.checked;
-                              if (event.target.checked) target.windows = [];
-                            }
-                            return next;
-                          });
-                          setPreview(null);
-                        }}
-                      />
-                      {copy.twentyFour}
-                    </label>
+                    <EditorCheckbox
+                      checked={season.is24h}
+                      label={copy.twentyFour}
+                      className="text-white/70"
+                      onChange={(checked) => {
+                        setScheduleDraft((current) => {
+                          const next = deepClone(current);
+                          const target = next.seasons?.[seasonIndex];
+                          if (target) {
+                            target.is24h = checked;
+                            if (checked) target.windows = [];
+                          }
+                          return next;
+                        });
+                        setPreview(null);
+                      }}
+                    />
                     <div className="flex gap-2">
                       {!season.is24h ? (
                         <button
