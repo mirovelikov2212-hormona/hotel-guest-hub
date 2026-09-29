@@ -9484,6 +9484,37 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
         </div>
       ) : null}
 
+      {isPublicDemoHotel ? (
+        <DemoJourneyGuide
+          lang={String(lang)}
+          roomConfirmed={roomConfirmed}
+          room={room}
+          departmentOpen={["reception", "housekeeping", "maintenance"].includes(
+            String(openQuickServiceId || ""),
+          )}
+          hasRequest={showRequestSuccess || guestRequests.length > 0}
+          requestCompleted={guestRequests.some((item) => item.status === "completed")}
+          onFocusRoom={() => {
+            setManualRoomInput("901");
+            window.setTimeout(() => {
+              document
+                .getElementById("stayhub-room-confirmation")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 0);
+          }}
+          onOpenDepartment={() => {
+            setOpenQuickServiceId("housekeeping");
+            window.setTimeout(() => {
+              document
+                .querySelector<HTMLElement>('[data-stayhub-premium-tile="housekeeping"]')
+                ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 0);
+          }}
+          onForceSurvey={forcePublicDemoSurvey}
+          onEndStay={endPublicDemoStay}
+        />
+      ) : null}
+
       {guestRuntimeCapabilities.aiEnabled ? (
         <div className="px-4 pb-7">
         <button
@@ -9541,37 +9572,6 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
         ) : null}
         </button>
         </div>
-      ) : null}
-
-      {isPublicDemoHotel ? (
-        <DemoJourneyGuide
-          lang={String(lang)}
-          roomConfirmed={roomConfirmed}
-          room={room}
-          departmentOpen={["reception", "housekeeping", "maintenance"].includes(
-            String(openQuickServiceId || ""),
-          )}
-          hasRequest={showRequestSuccess || guestRequests.length > 0}
-          requestCompleted={guestRequests.some((item) => item.status === "completed")}
-          onFocusRoom={() => {
-            setManualRoomInput("901");
-            window.setTimeout(() => {
-              document
-                .getElementById("stayhub-room-confirmation")
-                ?.scrollIntoView({ behavior: "smooth", block: "start" });
-            }, 0);
-          }}
-          onOpenDepartment={() => {
-            setOpenQuickServiceId("housekeeping");
-            window.setTimeout(() => {
-              document
-                .querySelector<HTMLElement>('[data-stayhub-premium-tile="housekeeping"]')
-                ?.scrollIntoView({ behavior: "smooth", block: "center" });
-            }, 0);
-          }}
-          onForceSurvey={forcePublicDemoSurvey}
-          onEndStay={endPublicDemoStay}
-        />
       ) : null}
 
       {guestRuntimeCapabilities.aiEnabled && aiPanelOpen ? (
