@@ -32,7 +32,7 @@ export default function StaffCollapsiblePanel({
       >
         <span className="min-w-0">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold">{title}</span>
+            <span className="staff-section-title font-semibold">{title}</span>
             {badge}
           </span>
           {summary ? (
