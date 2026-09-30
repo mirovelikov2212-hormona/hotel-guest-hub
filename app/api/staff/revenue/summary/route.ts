@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentStaffSession } from "@/lib/staff-auth/session";
+import { logSystemError } from "@/lib/server/system-events";
 
 import {
   getAncillaryRevenueManagerSnapshot,
@@ -55,6 +57,18 @@ export async function GET(req: NextRequest) {
     }
 
     console.error("Revenue Intelligence summary failed", error);
+    const session = await getCurrentStaffSession(hotelSlug, "manager").catch(() => null);
+    if (session?.hotel_id) {
+      await logSystemError({
+        hotelId: String(session.hotel_id),
+        severity: "error",
+        source: "staff_hub",
+        eventType: "revenue_intelligence_read_failed",
+        message: "Revenue Intelligence could not build the hotel revenue snapshot.",
+        error,
+        metadata: { module: "revenue_intelligence", hotelSlug, days: days || null },
+      });
+    }
     return json({ ok: false, error: "revenue_unavailable" }, 503);
   }
 }
