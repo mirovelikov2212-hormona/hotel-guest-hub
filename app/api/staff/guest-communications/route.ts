@@ -14,6 +14,7 @@ import {
 import { guestCommunicationsDeliveryEnabled } from "@/lib/server/guest-communications-delivery";
 import { guestCommunicationsDeliveryEnabledForHotel } from "@/lib/server/guest-communications-delivery-policy";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { logSystemError } from "@/lib/server/system-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,11 +65,13 @@ async function bulkDeliveryEnabledForHotel(hotelId: string) {
 }
 
 export async function GET(req: NextRequest) {
+  const hotelSlug = String(req.nextUrl.searchParams.get("hotelSlug") || "").trim().toLowerCase();
+  const role = String(req.nextUrl.searchParams.get("role") || "").trim().toLowerCase();
+  let monitoringHotelId: string | null = null;
   try {
-    const hotelSlug = String(req.nextUrl.searchParams.get("hotelSlug") || "").trim().toLowerCase();
-    const role = String(req.nextUrl.searchParams.get("role") || "").trim().toLowerCase();
     const access = await loadAccess(hotelSlug, role);
     if (!access) return json({ ok: false, error: "unauthorized" }, 401);
+    monitoringHotelId = String(access.hotel.id);
 
     const canViewAll = hasGuestCommunicationCapability(access, "guest_communications.view_all");
     const canViewOwn = hasGuestCommunicationCapability(access, "guest_communications.view_own");
@@ -171,11 +174,25 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Guest Communications GET failed", error);
+    if (monitoringHotelId) {
+      await logSystemError({
+        hotelId: monitoringHotelId,
+        severity: "error",
+        source: "staff_hub",
+        eventType: "guest_communications_read_failed",
+        message: "Guest Communications could not load the hotel communication workspace.",
+        error,
+        metadata: { module: "guest_communications", hotelSlug, role },
+      });
+    }
     return json({ ok: false, error: "unavailable" }, 503);
   }
 }
 
 export async function POST(req: NextRequest) {
+  let monitoringHotelId: string | null = null;
+  let monitoringHotelSlug = "";
+  let monitoringRole = "";
   try {
     const originError = enforceStaffSameOrigin(req);
     if (originError) return originError;
@@ -183,9 +200,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();
     const role = String(body?.role || "").trim().toLowerCase();
+    monitoringHotelSlug = hotelSlug;
+    monitoringRole = role;
     const action = String(body?.action || "draft").trim().toLowerCase();
     const access = await loadAccess(hotelSlug, role);
     if (!access) return json({ ok: false, error: "unauthorized" }, 401);
+    monitoringHotelId = String(access.hotel.id);
     if (!ACTIONS.has(action)) return json({ ok: false, error: "invalid_action" }, 400);
 
     if (action === "cancel") {
@@ -271,6 +291,21 @@ export async function POST(req: NextRequest) {
           sourceLanguage,
           error: translationError,
         });
+        await logSystemError({
+          hotelId: String(access.hotel.id),
+          severity: "error",
+          source: "translation",
+          eventType: "guest_communications_translation_failed",
+          message: "A hotel guest broadcast could not be translated.",
+          error: translationError,
+          metadata: {
+            module: "guest_communications",
+            hotelSlug,
+            role: access.role,
+            category,
+            sourceLanguage,
+          },
+        });
         return json({ ok: false, error: "translation_unavailable" }, 503);
       }
     }
@@ -331,6 +366,21 @@ export async function POST(req: NextRequest) {
     }, 201);
   } catch (error) {
     console.error("Guest Communications POST failed", error);
+    if (monitoringHotelId) {
+      await logSystemError({
+        hotelId: monitoringHotelId,
+        severity: "error",
+        source: "staff_hub",
+        eventType: "guest_communications_write_failed",
+        message: "A hotel guest communication could not be saved or queued.",
+        error,
+        metadata: {
+          module: "guest_communications",
+          hotelSlug: monitoringHotelSlug,
+          role: monitoringRole,
+        },
+      });
+    }
     return json({ ok: false, error: "unavailable" }, 503);
   }
 }
