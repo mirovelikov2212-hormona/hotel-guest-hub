@@ -113,7 +113,9 @@ const COPY = {
   },
 } as const;
 
-type MassageCopy = (typeof COPY)[keyof typeof COPY];\n\nfunction billingLabel(status: string, copy: MassageCopy) {
+type MassageCopy = (typeof COPY)[keyof typeof COPY];
+
+function billingLabel(status: string, copy: MassageCopy) {
   if (status === "charged") return copy.charged;
   if (status === "waived") return copy.waived;
   if (status === "cancelled") return copy.cancelled;
