@@ -14,6 +14,13 @@ export type IncidentKind =
   | "data_quality"
   | "workflow";
 
+export type IncidentActionState =
+  | "needs_intervention"
+  | "in_progress"
+  | "awaiting_verification"
+  | "auto_resolved"
+  | "resolved";
+
 export type IncidentEnvelope = {
   schemaVersion: "gostaya-incident-v1";
   incidentId: string;
@@ -32,6 +39,11 @@ export type IncidentEnvelope = {
 export const INCIDENT_SCHEMA_VERSION: "gostaya-incident-v1";
 export const INCIDENT_STATUSES: readonly IncidentStatus[];
 export const INCIDENT_KINDS: readonly IncidentKind[];
+export const INCIDENT_ACTION_STATES: readonly IncidentActionState[];
+
+export function deriveIncidentActionState(
+  incident?: Record<string, unknown>,
+): IncidentActionState;
 
 export function buildAutomaticIncidentEnvelope(
   input?: Record<string, unknown>,
@@ -62,6 +74,9 @@ export type IncidentProjection = {
   releaseSha: string | null;
   deploymentId: string | null;
   status: IncidentStatus;
+  reporterKind: string;
+  reporterRole: string | null;
+  actionState: IncidentActionState;
   summary: string;
   firstSeenAt: string;
   lastSeenAt: string;
