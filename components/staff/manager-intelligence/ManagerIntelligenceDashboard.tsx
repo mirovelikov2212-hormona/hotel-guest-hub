@@ -30,7 +30,40 @@ type DashboardResponse = {
       yesterday: {
         operations: { requests: number; completed: number; returned: number; unresolved: number; averageResolutionMinutes: number | null };
         quality: { surveys: number; averageRating: number | null; lowRatings: number; unresolvedProblems: number };
-        automation: { aiQuestions: number; aiAnswers: number; aiErrors: number };
+        automation: {
+          aiQuestions: number;
+          aiAnswers: number;
+          aiErrors: number;
+          capturedAiQuestions: number;
+          aiAssistedRequests: number;
+          aiAttributedChargedRequests: number;
+          aiAttributedChargedAmount: number;
+          aiAttributedCurrency: string;
+          topAiIntents: Array<{ intent: string; count: number }>;
+          recentAiQuestions: Array<{
+            interactionId: string | null;
+            occurredAt: string | null;
+            room: string | null;
+            language: string | null;
+            question: string | null;
+            answer: string | null;
+            intent: string | null;
+            matchedIds: string[];
+            engine: string | null;
+            operationalActionStatus: string | null;
+            shownActions: Array<{ kind: string; targetId: string; label: string }>;
+            clickedAction: { kind: string; targetId: string; label: string } | null;
+            request: {
+              id: string;
+              type: string;
+              label: string;
+              status: string;
+              billingStatus: string | null;
+              amount: number;
+              currency: string | null;
+            } | null;
+          }>;
+        };
         revenue: { enabled: boolean; chargedCount?: number; chargedAmount?: number; pendingCount?: number; pendingAmount?: number; currency?: string };
         staffDevelopment: { enabled: boolean; pendingHumanReviews: number; overdueTrainingAssignments: number; hrEvaluationsYesterday: number };
         incidents: { total: number; warnings: number; errors: number; critical: number };
@@ -99,6 +132,14 @@ const COPY = {
     attention: "Какво изисква внимание днес",
     checks: "Какво да се провери",
     highlights: "Какво се случи вчера",
+    aiQuestions: "AI въпроси",
+    aiRevenue: "AI оборот",
+    aiGuestIntel: "Какво питат гостите",
+    aiGuestIntelHint: "Проверими въпроси към AI Concierge и връзката им със заявки и допълнителен оборот.",
+    captured: "Записан текст",
+    linkedRequest: "Свързана заявка",
+    noLinkedRequest: "Без свързана заявка",
+    intent: "Намерение",
   },
   en: {
     eyebrow: "MANAGER INTELLIGENCE",
@@ -125,6 +166,14 @@ const COPY = {
     attention: "What needs attention today",
     checks: "What to review",
     highlights: "What happened yesterday",
+    aiQuestions: "AI questions",
+    aiRevenue: "AI revenue",
+    aiGuestIntel: "What guests ask",
+    aiGuestIntelHint: "Verifiable AI Concierge questions and their link to requests and ancillary revenue.",
+    captured: "Text captured",
+    linkedRequest: "Linked request",
+    noLinkedRequest: "No linked request",
+    intent: "Intent",
   },
   de: {
     eyebrow: "MANAGER INTELLIGENCE",
@@ -151,6 +200,14 @@ const COPY = {
     attention: "Was heute Aufmerksamkeit braucht",
     checks: "Was geprüft werden sollte",
     highlights: "Was gestern passiert ist",
+    aiQuestions: "KI-Fragen",
+    aiRevenue: "KI-Umsatz",
+    aiGuestIntel: "Was Gäste fragen",
+    aiGuestIntelHint: "Nachprüfbare Fragen an den AI Concierge und ihre Verknüpfung mit Anfragen und Zusatzumsatz.",
+    captured: "Text erfasst",
+    linkedRequest: "Verknüpfte Anfrage",
+    noLinkedRequest: "Keine verknüpfte Anfrage",
+    intent: "Absicht",
   },
 } as const;
 
@@ -327,7 +384,58 @@ export default function ManagerIntelligenceDashboard({ hotelSlug }: { hotelSlug:
           <Metric label={copy.incidents} value={y.incidents.errors + y.incidents.critical} />
           <Metric label={copy.staff} value={y.staffDevelopment.enabled ? y.staffDevelopment.pendingHumanReviews + y.staffDevelopment.overdueTrainingAssignments : "—"} />
           <Metric label={copy.revenue} value={y.revenue.enabled ? `${Number(y.revenue.chargedAmount || 0).toFixed(2)} ${y.revenue.currency || ""}` : "—"} />
+          <Metric label={copy.aiQuestions} value={y.automation.aiQuestions} />
+          <Metric label={copy.aiRevenue} value={`${Number(y.automation.aiAttributedChargedAmount || 0).toFixed(2)} ${y.automation.aiAttributedCurrency || ""}`} />
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-sky-200 bg-white p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-[#102a43]">{copy.aiGuestIntel}</h2>
+            <p className="mt-1 text-sm text-slate-500">{copy.aiGuestIntelHint}</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs font-bold">
+            <span className="rounded-full bg-sky-50 px-3 py-1.5 text-sky-700">
+              {copy.captured}: {y.automation.capturedAiQuestions}/{y.automation.aiQuestions}
+            </span>
+            <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700">
+              {copy.linkedRequest}: {y.automation.aiAssistedRequests}
+            </span>
+          </div>
+        </div>
+
+        {y.automation.topAiIntents.length ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {y.automation.topAiIntents.map((item) => (
+              <span key={item.intent} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                {item.intent} · {item.count}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        {y.automation.recentAiQuestions.length ? (
+          <div className="mt-4 grid gap-3">
+            {y.automation.recentAiQuestions.slice(0, 6).map((item, index) => (
+              <article key={item.interactionId || `ai-question-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                  <span>{item.room ? `${safeLang === "bg" ? "Стая" : safeLang === "de" ? "Zimmer" : "Room"} ${item.room}` : "—"}</span>
+                  <span>{item.intent ? `${copy.intent}: ${item.intent}` : "—"}</span>
+                </div>
+                <p className="mt-2 text-sm font-semibold text-[#102a43]">{item.question}</p>
+                {item.answer ? <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{item.answer}</p> : null}
+                <div className="mt-3 text-xs text-slate-500">
+                  {item.request
+                    ? `${copy.linkedRequest}: ${item.request.label} · ${item.request.status}${item.request.billingStatus ? ` · ${item.request.billingStatus}` : ""}${item.request.amount ? ` · ${item.request.amount.toFixed(2)} ${item.request.currency || ""}` : ""}`
+                    : copy.noLinkedRequest}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-slate-500">—</p>
+        )}
       </section>
 
       {data.history.length > 1 ? (
