@@ -10,6 +10,10 @@ type ResolveOpenCriticalSystemEventsInput = {
   resolvedThrough: string;
 };
 
+type ResolveOpenSystemEventsInput = ResolveOpenCriticalSystemEventsInput & {
+  severities?: Array<"error" | "critical">;
+};
+
 type ResolveOpenCriticalSystemEventsResult = {
   ok: boolean;
   resolvedCount: number;
@@ -17,8 +21,8 @@ type ResolveOpenCriticalSystemEventsResult = {
   error: string | null;
 };
 
-export async function resolveOpenCriticalSystemEvents(
-  input: ResolveOpenCriticalSystemEventsInput,
+export async function resolveOpenSystemEvents(
+  input: ResolveOpenSystemEventsInput,
 ): Promise<ResolveOpenCriticalSystemEventsResult> {
   const hotelId = String(input.hotelId || "").trim();
   const eventType = String(input.eventType || "").trim();
@@ -40,7 +44,7 @@ export async function resolveOpenCriticalSystemEvents(
       .from("system_events")
       .update({ resolved_at: resolvedAt })
       .eq("hotel_id", hotelId)
-      .eq("severity", "critical")
+      .in("severity", input.severities?.length ? input.severities : ["error", "critical"])
       .eq("source", input.source)
       .eq("event_type", eventType)
       .is("resolved_at", null)
@@ -83,4 +87,14 @@ export async function resolveOpenCriticalSystemEvents(
       error: message,
     };
   }
+}
+
+
+export async function resolveOpenCriticalSystemEvents(
+  input: ResolveOpenCriticalSystemEventsInput,
+): Promise<ResolveOpenCriticalSystemEventsResult> {
+  return resolveOpenSystemEvents({
+    ...input,
+    severities: ["critical"],
+  });
 }
