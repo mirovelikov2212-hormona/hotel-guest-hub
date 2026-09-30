@@ -25,6 +25,8 @@ import {
 import { hotelMatchesRequestedSlug, resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import { resolveOperationalWorkflow } from "@/lib/server/operational-workflow-resolution.mjs";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { logSystemError } from "@/lib/server/system-events";
+import { resolveOpenSystemEvents } from "@/lib/server/system-event-resolution";
 import { loadUnifiedGuestTimelineForStay } from "@/lib/server/unified-guest-timeline-read";
 import type { HotelConfig } from "@/lib/types";
 
@@ -358,6 +360,13 @@ export async function POST(request: Request) {
       inputTokens = openAiResult.inputTokens;
       outputTokens = openAiResult.outputTokens;
       routerLatency = openAiResult.latencyMs;
+      await resolveOpenSystemEvents({
+        hotelId: String(context.hotel.id),
+        source: "api",
+        eventType: "ai_router_provider_failed",
+        resolvedThrough: new Date().toISOString(),
+        severities: ["error"],
+      });
     } catch (error) {
       const rawError = error instanceof Error ? error.message : String(error);
       routerError = rawError.startsWith("openai_") ? rawError : "openai_request_failed";
@@ -365,6 +374,20 @@ export async function POST(request: Request) {
         hotelId: context.hotel.id,
         hotelSlug: context.hotel.slug,
         error: rawError,
+      });
+      await logSystemError({
+        hotelId: String(context.hotel.id),
+        severity: "error",
+        source: "api",
+        eventType: "ai_router_provider_failed",
+        message: "AI Concierge provider routing failed; deterministic fallback was used.",
+        error,
+        metadata: {
+          module: "ai_concierge",
+          hotelSlug: context.hotel.slug,
+          fallbackUsed: true,
+          errorCode: routerError,
+        },
       });
       engine = "fallback";
       fallbackUsed = true;
