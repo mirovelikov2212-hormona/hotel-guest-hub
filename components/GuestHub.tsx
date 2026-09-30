@@ -6639,6 +6639,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       extra: {
         aiInteractionId: action.interactionId || null,
         actionKind: action.kind,
+        actionTargetId: action.targetId,
+        matchedId: action.matchedId,
+        actionLabel: action.label,
       },
     });
 
@@ -6696,7 +6699,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       }
 
       const venue = rawVenueRows.find((item, index) => getAiVenueStableId(item, index) === action.targetId);
-      if (venue) openVenueReservation(venue);
+      if (venue) openVenueReservation(venue, action.interactionId);
     }, 0);
   }
 
@@ -6720,7 +6723,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
       value: String(questionText.length),
       extra: {
         questionLength: questionText.length,
+        questionText: questionText.slice(0, 500),
         aiInteractionId,
+        aiEvidenceVersion: "ai-evidence-v1",
       },
     });
 
@@ -6752,6 +6757,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         value: String(localAcknowledgement.length),
         extra: {
           answerLength: localAcknowledgement.length,
+          questionText: questionText.slice(0, 500),
+          answerText: localAcknowledgement.slice(0, 4000),
+          aiEvidenceVersion: "ai-evidence-v1",
           aiEngine: "local_acknowledgement",
           aiFallbackUsed: false,
           aiMatchedIds: [],
@@ -6775,6 +6783,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question: questionText,
+          aiInteractionId,
           lang: String(lang),
           hotelSlug: config.hotelSlug,
           history: historyForRequest,
@@ -6795,7 +6804,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           sectionKey: "ai",
           label: "api_not_ok",
           value: "false",
-          extra: { aiInteractionId },
+          extra: {
+            aiInteractionId,
+            questionText: questionText.slice(0, 500),
+            aiEvidenceVersion: "ai-evidence-v1",
+            errorCode: String(data?.error || "api_not_ok"),
+          },
         });
         const errorText = String(tUI("ai_error") || "Възникна грешка при обработката.");
         setAiAnswer(errorText);
@@ -6839,6 +6853,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
               kind: action.kind,
               targetId: action.targetId,
               matchedId: action.matchedId,
+              label: action.label,
             })),
           },
         });
@@ -6853,6 +6868,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         value: String(answerText.length),
         extra: {
           answerLength: answerText.length,
+          questionText: questionText.slice(0, 500),
+          answerText: answerText.slice(0, 4000),
+          aiEvidenceVersion: "ai-evidence-v1",
           aiEngine: String(data?.diagnostics?.engine || "unknown"),
           aiFallbackUsed: Boolean(data?.diagnostics?.fallbackUsed),
           aiMatchedIds: Array.isArray(data?.diagnostics?.matchedIds)
@@ -6878,7 +6896,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         sectionKey: "ai",
         label: "request_failed",
         value: "false",
-        extra: { aiInteractionId },
+        extra: {
+          aiInteractionId,
+          questionText: questionText.slice(0, 500),
+          aiEvidenceVersion: "ai-evidence-v1",
+          errorCode: "request_failed",
+        },
       });
       const errorText = String(tUI("ai_error") || "Възникна грешка при обработката.");
       setAiAnswer(errorText);
@@ -6926,7 +6949,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
     return `Резервация: ${venueName}`;
   };
 
-  const sendVenueReservation = (venue: VenueRow) => {
+  const sendVenueReservation = (venue: VenueRow, aiInteractionId?: string) => {
     if (!ensureConfirmedRoom()) return;
 
     const venueName = venue?.name || "";
@@ -7086,6 +7109,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 EN: ${helpMsg}` : opsMsg,
         serviceTime: "today",
         departmentOverride,
+        aiInteractionId,
       });
       return;
     }
@@ -7177,7 +7201,7 @@ EN: ${helpMsg}` : opsMsg,
     openWhatsApp(to, msg, routed.warned);
   };
 
-  const openVenueReservation = (venue: VenueRow) => {
+  const openVenueReservation = (venue: VenueRow, aiInteractionId?: string) => {
     if (!ensureConfirmedRoom()) return;
 
     const type = String(venue.reservationType || "").trim().toLowerCase();
@@ -7192,6 +7216,7 @@ EN: ${helpMsg}` : opsMsg,
       buttonKey: "reserve",
       label: venueName,
       value: type || "reservation",
+      extra: { aiInteractionId: aiInteractionId || null },
     });
 
     if (type === "none") return;
@@ -7205,7 +7230,7 @@ EN: ${helpMsg}` : opsMsg,
       shouldCreateStaffVenueRequest(venue);
 
     if (usesReservationForm) {
-      sendVenueReservation(venue);
+      sendVenueReservation(venue, aiInteractionId);
       return;
     }
 
@@ -7225,7 +7250,7 @@ EN: ${helpMsg}` : opsMsg,
       return;
     }
 
-    sendVenueReservation(venue);
+    sendVenueReservation(venue, aiInteractionId);
   };
 
   const hotelInfoItems = useMemo(
