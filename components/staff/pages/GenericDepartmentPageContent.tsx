@@ -225,17 +225,24 @@ export default function GenericDepartmentPageContent({
     };
   }, [copy.feedError, poll]);
 
+  const operationalRequests = useMemo(
+    () => departmentCode === "spa"
+      ? requests.filter((request) => request.requestType !== "massage_booking")
+      : requests,
+    [departmentCode, requests],
+  );
+
   const counts = useMemo(() => ({
-    active: requests.filter((request) => ACTIVE_STATUSES.has(request.status)).length,
-    completed: requests.filter((request) => request.status === "completed").length,
-    all: requests.length,
-  }), [requests]);
+    active: operationalRequests.filter((request) => ACTIVE_STATUSES.has(request.status)).length,
+    completed: operationalRequests.filter((request) => request.status === "completed").length,
+    all: operationalRequests.length,
+  }), [operationalRequests]);
 
   const visibleRequests = useMemo(() => {
-    if (filter === "completed") return requests.filter((request) => request.status === "completed");
-    if (filter === "active") return requests.filter((request) => ACTIVE_STATUSES.has(request.status));
-    return requests;
-  }, [filter, requests]);
+    if (filter === "completed") return operationalRequests.filter((request) => request.status === "completed");
+    if (filter === "active") return operationalRequests.filter((request) => ACTIVE_STATUSES.has(request.status));
+    return operationalRequests;
+  }, [filter, operationalRequests]);
 
   function isRequestOpen(request: GenericDepartmentRequest) {
     const explicit = requestOpenState[request.id];
