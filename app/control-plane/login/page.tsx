@@ -14,7 +14,7 @@ const COPY = {
   bg: {
     title: "Администратор на платформата",
     description:
-      "Отделен административен достъп за управление на StayHub платформата. Hotel Manager PIN не дава достъп тук.",
+      "Отделен административен достъп за управление на GOSTAYA платформата. Hotel Manager PIN не дава достъп тук.",
     invalid: "Невалиден имейл, парола или липсващо Platform Admin право.",
     unavailable: "Control Panel входът временно не е достъпен.",
     email: "Имейл",
@@ -26,7 +26,7 @@ const COPY = {
   en: {
     title: "Platform Administrator",
     description:
-      "Separate administrative access for managing the StayHub platform. A Hotel Manager PIN does not grant access here.",
+      "Separate administrative access for managing the GOSTAYA platform. A Hotel Manager PIN does not grant access here.",
     invalid: "Invalid email, password, or missing Platform Admin authority.",
     unavailable: "Control Panel sign-in is temporarily unavailable.",
     email: "Email",
@@ -66,7 +66,7 @@ export default async function ControlPlaneLoginPage({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300/70">
-              StayHub Control Panel
+              GOSTAYA Control Panel
             </p>
             <h1 className="mt-3 text-2xl font-semibold">{copy.title}</h1>
           </div>
