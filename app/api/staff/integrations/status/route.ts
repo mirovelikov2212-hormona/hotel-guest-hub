@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentStaffSession } from "@/lib/staff-auth/session";
+import { logSystemError } from "@/lib/server/system-events";
 
 import {
   getManagerIntegrationStatus,
@@ -40,6 +42,18 @@ export async function GET(req: NextRequest) {
     }
 
     console.error("Integration status failed", error);
+    const session = await getCurrentStaffSession(hotelSlug, "manager").catch(() => null);
+    if (session?.hotel_id) {
+      await logSystemError({
+        hotelId: String(session.hotel_id),
+        severity: "error",
+        source: "integration",
+        eventType: "integration_status_read_failed",
+        message: "The Manager integration status could not be loaded.",
+        error,
+        metadata: { module: "integrations", hotelSlug },
+      });
+    }
     return json({ ok: false, error: "integration_status_unavailable" }, 503);
   }
 }
