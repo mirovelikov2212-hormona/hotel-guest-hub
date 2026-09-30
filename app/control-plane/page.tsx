@@ -6,6 +6,7 @@ import CommercialModuleEntitlementsPanel from "@/app/control-plane/CommercialMod
 import GostayaValueBaselinePanel from "@/app/control-plane/GostayaValueBaselinePanel";
 import IntegrationConnectionsPanel from "@/app/control-plane/IntegrationConnectionsPanel";
 import IncidentCenterPanel from "@/app/control-plane/IncidentCenterPanel";
+import MonitoringCoveragePanel from "@/app/control-plane/MonitoringCoveragePanel";
 import {
   controlPlaneHref,
   normalizeControlPlaneLang,
@@ -315,6 +316,7 @@ export default async function ControlPlanePage({
         </header>
 
         <IncidentCenterPanel lang={lang} />
+        <MonitoringCoveragePanel lang={lang} />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
           {[
