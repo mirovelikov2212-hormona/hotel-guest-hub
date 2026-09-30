@@ -6,6 +6,7 @@ import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
 import StaffDevelopmentAccessCard from "@/components/staff/StaffDevelopmentAccessCard";
 import StaffDepartmentUnifiedHeader from "@/components/staff/StaffDepartmentUnifiedHeader";
 import StaffRoomActivityMap from "@/components/staff/StaffRoomActivityMap";
+import StaffMassageReservationsPanel from "@/components/staff/StaffMassageReservationsPanel";
 import StaffFilterButton from "@/components/staff/StaffFilterButton";
 import GuestCommunicationsWorkspace from "@/components/staff/GuestCommunicationsWorkspace";
 import GuestDirectCommunicationsWorkspace from "@/components/staff/GuestDirectCommunicationsWorkspace";
@@ -491,6 +492,8 @@ export default function ReceptionPage({
       ) : null}
 
       {hotelSlug ? <StaffRoomActivityMap hotelSlug={hotelSlug} role="reception" /> : null}
+
+      {hotelSlug ? <StaffMassageReservationsPanel hotelSlug={hotelSlug} role="reception" /> : null}
 
       {hotelSlug ? (
         <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="reception" />
