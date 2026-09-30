@@ -22,6 +22,15 @@ type Incident = {
     | "fixed"
     | "verified"
     | "closed";
+  actionState:
+    | "needs_intervention"
+    | "in_progress"
+    | "awaiting_verification"
+    | "auto_resolved"
+    | "resolved";
+  reporterKind: string;
+  reporterRole: string | null;
+  resolvedAt: string | null;
   summary: string;
   firstSeenAt: string;
   lastSeenAt: string;
@@ -36,6 +45,10 @@ type IncidentResult = {
     total: number;
     open: number;
     criticalOpen: number;
+    needsIntervention: number;
+    inProgress: number;
+    awaitingVerification: number;
+    autoResolved: number;
     recurringAcrossHotels: number;
   };
 };
@@ -56,10 +69,16 @@ const COPY = {
       "Автоматично засечени и човешки докладвани проблеми по хотел, модул, release и fingerprint.",
     total: "Общо",
     open: "Отворени",
-    critical: "Critical open",
+    critical: "Critical",
     recurring: "В повече от един хотел",
+    needsIntervention: "Изискват намеса",
+    inProgress: "В процес",
+    awaitingVerification: "За проверка",
+    autoResolved: "Решени автоматично",
+    resolved: "Решен",
+    automatic: "Автоматично засечен",
+    human: "Ръчно докладван",
     all: "Всички",
-    openOnly: "Само отворени",
     refresh: "Обнови",
     occurrences: "появи",
     hotels: "хотела със същия fingerprint",
@@ -77,10 +96,16 @@ const COPY = {
       "Automatically detected and human-reported issues grouped by hotel, module, release and fingerprint.",
     total: "Total",
     open: "Open",
-    critical: "Critical open",
+    critical: "Critical",
     recurring: "Across multiple hotels",
+    needsIntervention: "Needs intervention",
+    inProgress: "In progress",
+    awaitingVerification: "Needs verification",
+    autoResolved: "Auto-resolved",
+    resolved: "Resolved",
+    automatic: "Automatically detected",
+    human: "Human reported",
     all: "All",
-    openOnly: "Open only",
     refresh: "Refresh",
     occurrences: "occurrences",
     hotels: "hotels with same fingerprint",
@@ -102,7 +127,9 @@ export default function IncidentCenterPanel({
   const copy = COPY[lang] || COPY.en;
   const [result, setResult] = useState<IncidentResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const [openOnly, setOpenOnly] = useState(true);
+  const [view, setView] = useState<
+    "needs_intervention" | "in_progress" | "awaiting_verification" | "auto_resolved" | "all"
+  >("needs_intervention");
   const [draftStatus, setDraftStatus] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
@@ -136,10 +163,25 @@ export default function IncidentCenterPanel({
 
   const incidents = useMemo(() => {
     const rows = result?.incidents || [];
-    return openOnly
-      ? rows.filter((incident) => incident.status !== "closed")
-      : rows;
-  }, [openOnly, result]);
+    if (view === "all") return rows;
+    return rows.filter((incident) => incident.actionState === view);
+  }, [result, view]);
+
+  function actionStateLabel(incident: Incident) {
+    if (incident.actionState === "needs_intervention") return copy.needsIntervention;
+    if (incident.actionState === "in_progress") return copy.inProgress;
+    if (incident.actionState === "awaiting_verification") return copy.awaitingVerification;
+    if (incident.actionState === "auto_resolved") return copy.autoResolved;
+    return copy.resolved;
+  }
+
+  function actionStateClass(incident: Incident) {
+    if (incident.actionState === "needs_intervention") return "border-rose-400/30 bg-rose-400/10 text-rose-200";
+    if (incident.actionState === "in_progress") return "border-amber-400/30 bg-amber-400/10 text-amber-200";
+    if (incident.actionState === "awaiting_verification") return "border-sky-400/30 bg-sky-400/10 text-sky-200";
+    if (incident.actionState === "auto_resolved") return "border-emerald-400/30 bg-emerald-400/10 text-emerald-200";
+    return "border-neutral-700 bg-neutral-900 text-neutral-400";
+  }
 
   async function transition(incident: Incident) {
     const nextStatus =
@@ -204,19 +246,19 @@ export default function IncidentCenterPanel({
       </div>
 
       {result ? (
-        <div className="mt-4 grid gap-2 sm:grid-cols-4">
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            [copy.total, result.summary.total],
-            [copy.open, result.summary.open],
-            [copy.critical, result.summary.criticalOpen],
-            [copy.recurring, result.summary.recurringAcrossHotels],
-          ].map(([label, value]) => (
+            [copy.needsIntervention, result.summary.needsIntervention, "text-rose-200"],
+            [copy.critical, result.summary.criticalOpen, "text-rose-300"],
+            [copy.autoResolved, result.summary.autoResolved, "text-emerald-200"],
+            [copy.awaitingVerification, result.summary.awaitingVerification, "text-sky-200"],
+          ].map(([label, value, tone]) => (
             <div
               key={String(label)}
               className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-3"
             >
               <p className="text-[11px] text-neutral-500">{label}</p>
-              <p className="mt-1 text-xl font-semibold text-neutral-100">
+              <p className={`mt-1 text-xl font-semibold ${tone}`}>
                 {value}
               </p>
             </div>
@@ -224,29 +266,27 @@ export default function IncidentCenterPanel({
         </div>
       ) : null}
 
-      <div className="mt-4 flex gap-2">
-        <button
-          type="button"
-          onClick={() => setOpenOnly(true)}
-          className={`rounded-lg border px-3 py-1.5 text-xs ${
-            openOnly
-              ? "border-rose-400/30 bg-rose-400/10 text-rose-200"
-              : "border-neutral-800 text-neutral-500"
-          }`}
-        >
-          {copy.openOnly}
-        </button>
-        <button
-          type="button"
-          onClick={() => setOpenOnly(false)}
-          className={`rounded-lg border px-3 py-1.5 text-xs ${
-            !openOnly
-              ? "border-rose-400/30 bg-rose-400/10 text-rose-200"
-              : "border-neutral-800 text-neutral-500"
-          }`}
-        >
-          {copy.all}
-        </button>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {([
+          ["needs_intervention", copy.needsIntervention],
+          ["in_progress", copy.inProgress],
+          ["awaiting_verification", copy.awaitingVerification],
+          ["auto_resolved", copy.autoResolved],
+          ["all", copy.all],
+        ] as const).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setView(value)}
+            className={`rounded-lg border px-3 py-1.5 text-xs ${
+              view === value
+                ? "border-rose-400/30 bg-rose-400/10 text-rose-200"
+                : "border-neutral-800 text-neutral-500"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       <div className="mt-4 space-y-3">
@@ -268,7 +308,13 @@ export default function IncidentCenterPanel({
                     {incident.module} · {incident.kind} · {incident.environment}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap justify-end gap-2">
+                  <span className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase ${actionStateClass(incident)}`}>
+                    {actionStateLabel(incident)}
+                  </span>
+                  <span className="rounded-full border border-neutral-700 px-2 py-1 text-[10px] uppercase text-neutral-400">
+                    {incident.reporterKind === "automatic" ? copy.automatic : copy.human}
+                  </span>
                   <span className="rounded-full border border-neutral-700 px-2 py-1 text-[10px] uppercase text-neutral-400">
                     {incident.severity}
                   </span>
