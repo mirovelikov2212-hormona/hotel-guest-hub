@@ -12,6 +12,7 @@ import { isDepartmentWorkingHoursForConfig } from "@/lib/staff/operations-hours"
 import { getHotelConfig } from "@/lib/config";
 import type { HotelConfig } from "@/lib/types";
 import { applyLateCheckoutDecision } from "@/lib/server/guest-stays";
+import { logSystemError } from "@/lib/server/system-events";
 
 type GuestRequestRow = {
   id: string;
@@ -177,11 +178,25 @@ export async function POST(req: NextRequest) {
 
     const operationalConfig =
       role === "housekeeping" || role === "maintenance"
-        ? await getHotelConfig(scope.hotelSlug).catch((error) => {
+        ? await getHotelConfig(scope.hotelSlug).catch(async (error) => {
             console.error(
               "Staff request-status operational-hours config load failed; denying mutation",
               error,
             );
+            await logSystemError({
+              hotelId: String(scope.hotelId),
+              severity: "error",
+              source: "staff_hub",
+              eventType: "staff_operational_config_load_failed",
+              message: "Staff request mutation was blocked because operational-hours config could not be loaded.",
+              error,
+              metadata: {
+                module: "staff_operations",
+                hotelSlug: scope.hotelSlug,
+                role,
+                requestId,
+              },
+            });
             return null;
           })
         : null;
@@ -264,6 +279,21 @@ export async function POST(req: NextRequest) {
       .eq("hotel_id", scope.hotelId);
 
     if (updateError) {
+      await logSystemError({
+        hotelId: String(scope.hotelId),
+        severity: "error",
+        source: "staff_hub",
+        eventType: "staff_request_status_update_failed",
+        message: "A hotel staff request status update failed.",
+        requestId,
+        error: updateError,
+        metadata: {
+          module: "staff_operations",
+          hotelSlug: scope.hotelSlug,
+          role,
+          nextStatus: status,
+        },
+      });
       return NextResponse.json(
         { ok: false, error: `Failed to update request: ${updateError.message}` },
         { status: 500 }
@@ -386,6 +416,21 @@ export async function POST(req: NextRequest) {
 
       if (eventsError) {
         console.error("staff lifecycle hub_events insert error", eventsError);
+        await logSystemError({
+          hotelId: String(scope.hotelId),
+          severity: "error",
+          source: "staff_hub",
+          eventType: "staff_request_lifecycle_event_write_failed",
+          message: "The request state changed but its lifecycle analytics event could not be written.",
+          requestId,
+          error: eventsError,
+          metadata: {
+            module: "staff_operations",
+            hotelSlug: scope.hotelSlug,
+            role,
+            nextStatus: status,
+          },
+        });
       }
     }
 
