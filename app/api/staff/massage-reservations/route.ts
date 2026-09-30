@@ -6,6 +6,7 @@ import { getPublicHotelAlias } from "@/lib/server/hotel-public-alias";
 import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { normalizeStaffRoleCode } from "@/lib/staff/role-code";
+import { logSystemError } from "@/lib/server/system-events";
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
@@ -148,6 +149,19 @@ export async function GET(req: NextRequest) {
         hotelId: scope.hotelId,
         role: scope.role,
         error,
+      });
+      await logSystemError({
+        hotelId: scope.hotelId,
+        severity: "error",
+        source: "staff_hub",
+        eventType: "massage_staff_reservations_read_failed",
+        message: "Staff could not load massage reservations for the hotel.",
+        error,
+        metadata: {
+          module: "massage",
+          hotelSlug: scope.hotelSlug,
+          role: scope.role,
+        },
       });
       return NextResponse.json(
         { ok: false, error: "Massage reservations unavailable" },
