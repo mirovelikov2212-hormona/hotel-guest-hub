@@ -39,7 +39,7 @@ async function activeAdminByEmail(email: string) {
     .from("platform_admins")
     .select("id,auth_user_id,email_snapshot,role,active")
     .eq("active", true)
-    .ilike("email_snapshot", email)
+    .eq("email_snapshot", email)
     .maybeSingle();
 
   if (error) throw new Error(`CONTROL_PLANE_RESET_ADMIN_LOOKUP_FAILED:${error.message}`);
