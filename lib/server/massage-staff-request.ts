@@ -122,7 +122,18 @@ export async function ensureMassageStaffRequest(input: {
   if (existing) return existing;
 
   const normalizedType = normalizeStaffRequestType("massage_booking", "reception");
-  const department = getDepartmentForRequestType(normalizedType);
+  const canonicalDepartment = getDepartmentForRequestType(normalizedType);
+  const { data: spaDepartment } = await supabaseAdmin
+    .from("departments")
+    .select("id, code")
+    .eq("hotel_id", hotel.id)
+    .eq("code", "spa")
+    .eq("active", true)
+    .maybeSingle();
+  const spaRole = spaDepartment?.id ? "spa" : null;
+  const department = spaRole || canonicalDepartment;
+  const departmentId = spaDepartment?.id ? String(spaDepartment.id) : null;
+  const notifyDepartments = ["reception", "manager", ...(spaRole ? [spaRole] : [])];
   const serviceName = String(
     input.serviceNameBg || input.sheetValue || input.serviceId || "Масаж"
   ).trim();
@@ -158,7 +169,7 @@ export async function ensureMassageStaffRequest(input: {
   const stayhubHotelCode = getMassageHotelCode(input.hotelSlug);
   const operationalMetadata = {
     department,
-    notifyDepartments: ["reception", "manager"],
+    notifyDepartments,
     requiresBilling: true,
     price: price || null,
     currency,
@@ -205,6 +216,7 @@ export async function ensureMassageStaffRequest(input: {
     .from("guest_requests")
     .insert({
       hotel_id: hotel.id,
+      department_id: departmentId,
       stay_id: stayId,
       stay_device_id: stayDeviceId,
       room_number_snapshot: input.roomNumber,
@@ -292,7 +304,7 @@ export async function ensureMassageStaffRequest(input: {
       requestId: String(data.id),
       room: String(data.room_number_snapshot ?? input.roomNumber),
       requestTitle: staffTitleBg || "Запазен масаж",
-      targetRoles: ["reception"],
+      targetRoles: ["reception", ...(spaRole ? [spaRole] : [])],
     }).catch(async (pushError) => {
       await logSystemError({
         hotelId: hotel.id,
