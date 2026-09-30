@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentStaffSession } from "@/lib/staff-auth/session";
+import { logSystemError } from "@/lib/server/system-events";
 
 import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";
 import {
@@ -36,6 +38,20 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "MANAGER_INTELLIGENCE_UNAVAILABLE";
     console.error("Manager Intelligence dashboard failed", error);
+    if (safeStatus(message) === 503) {
+      const session = await getCurrentStaffSession(hotelSlug, "manager").catch(() => null);
+      if (session?.hotel_id) {
+        await logSystemError({
+          hotelId: String(session.hotel_id),
+          severity: "error",
+          source: "staff_hub",
+          eventType: "manager_intelligence_dashboard_failed",
+          message: "Manager Intelligence dashboard generation failed.",
+          error,
+          metadata: { module: "manager_intelligence", hotelSlug },
+        });
+      }
+    }
     return NextResponse.json(
       { ok: false, error: message.startsWith("PRODUCT_MODULE_ACCESS_BLOCKED:") ? "manager_intelligence_not_entitled" : "manager_intelligence_unavailable" },
       { status: safeStatus(message), headers: NO_STORE },
@@ -61,6 +77,20 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "MANAGER_INTELLIGENCE_GENERATION_FAILED";
     console.error("Manager Intelligence brief generation failed", error);
+    if (safeStatus(message) === 503) {
+      const session = await getCurrentStaffSession(hotelSlug, "manager").catch(() => null);
+      if (session?.hotel_id) {
+        await logSystemError({
+          hotelId: String(session.hotel_id),
+          severity: "error",
+          source: "staff_hub",
+          eventType: "manager_intelligence_brief_generation_failed",
+          message: "Manager Intelligence on-demand brief generation failed.",
+          error,
+          metadata: { module: "manager_intelligence", hotelSlug },
+        });
+      }
+    }
     return NextResponse.json(
       { ok: false, error: message.startsWith("PRODUCT_MODULE_ACCESS_BLOCKED:") ? "manager_intelligence_not_entitled" : "manager_intelligence_generation_failed" },
       { status: safeStatus(message), headers: NO_STORE },
