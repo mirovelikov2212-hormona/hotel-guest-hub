@@ -122,6 +122,18 @@ export async function listPlatformIncidents(input: {
         (incident) =>
           incident.status !== "closed" && incident.severity === "critical",
       ).length,
+      needsIntervention: incidents.filter(
+        (incident) => incident.actionState === "needs_intervention",
+      ).length,
+      inProgress: incidents.filter(
+        (incident) => incident.actionState === "in_progress",
+      ).length,
+      awaitingVerification: incidents.filter(
+        (incident) => incident.actionState === "awaiting_verification",
+      ).length,
+      autoResolved: incidents.filter(
+        (incident) => incident.actionState === "auto_resolved",
+      ).length,
       recurringAcrossHotels: incidents.filter(
         (incident) => incident.hotelsWithSameFingerprint > 1,
       ).length,
