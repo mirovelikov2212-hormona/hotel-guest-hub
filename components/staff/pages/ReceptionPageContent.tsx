@@ -406,8 +406,11 @@ export default function ReceptionPage({
     setRequestBillingStatus,
     hotelSlug,
   } = useStaffStore();
-  const requests = getOperationalAllRequests().filter(
+  const operationalRequests = getOperationalAllRequests().filter(
     (request) => request.status !== "returned",
+  );
+  const requests = operationalRequests.filter(
+    (request) => !isMassageBookingLikeRequest(request),
   );
   const allRequests = getAllRequests();
   const {
@@ -449,7 +452,7 @@ export default function ReceptionPage({
 
   const receptionAlertRequests = useMemo(
     () => [
-      ...requests.filter(
+      ...operationalRequests.filter(
         (request) =>
           request.department === "reception" ||
           request.department === "housekeeping" ||
@@ -457,7 +460,7 @@ export default function ReceptionPage({
       ),
       ...receptionSurveyAlertRequests,
     ],
-    [requests, receptionSurveyAlertRequests],
+    [operationalRequests, receptionSurveyAlertRequests],
   );
 
   const { soundEnabled, toggleSound } = useStaffAlertSound({
