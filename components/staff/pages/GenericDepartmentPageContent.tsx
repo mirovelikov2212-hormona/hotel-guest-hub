@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import StaffCollapsiblePanel from "@/components/staff/StaffCollapsiblePanel";
 import StaffDevelopmentAccessCard from "@/components/staff/StaffDevelopmentAccessCard";
+import StaffMassageReservationsPanel from "@/components/staff/StaffMassageReservationsPanel";
 import GenericDepartmentPushControls from "@/components/staff/GenericDepartmentPushControls";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
@@ -312,6 +313,10 @@ export default function GenericDepartmentPageContent({
         hotelSlug={hotelSlug}
         role={departmentCode}
       />
+
+      {departmentCode === "spa" ? (
+        <StaffMassageReservationsPanel hotelSlug={hotelSlug} role={departmentCode} />
+      ) : null}
 
       <section className="grid gap-3 sm:grid-cols-3">
         {([
