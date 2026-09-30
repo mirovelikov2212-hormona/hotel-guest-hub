@@ -14,6 +14,7 @@ import {
   type GuestCommunicationLanguage,
 } from "@/lib/server/guest-communications-translation";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { logSystemError } from "@/lib/server/system-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -95,12 +96,15 @@ async function loadReceptionAccess(hotelSlug: string, role: string) {
 }
 
 export async function GET(req: NextRequest) {
+  const hotelSlug = String(req.nextUrl.searchParams.get("hotelSlug") || "").trim().toLowerCase();
+  const role = String(req.nextUrl.searchParams.get("role") || "").trim().toLowerCase();
+  let monitoringHotelId: string | null = null;
   try {
-    const hotelSlug = String(req.nextUrl.searchParams.get("hotelSlug") || "").trim().toLowerCase();
-    const role = String(req.nextUrl.searchParams.get("role") || "").trim().toLowerCase();
     const language = asLanguage(req.nextUrl.searchParams.get("language")) || "bg";
     const access = await loadReceptionAccess(hotelSlug, role);
     if (!access) return json({ ok: false, error: "unauthorized" }, 401);
+    monitoringHotelId = String(access.hotel.id);
+    monitoringHotelId = String(access.hotel.id);
     if (!hasGuestCommunicationCapability(access, "guest_communications.view_own")) return json({ ok: false, error: "forbidden" }, 403);
 
     const now = new Date().toISOString();
@@ -166,11 +170,25 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Guest direct communications GET failed", error);
+    if (monitoringHotelId) {
+      await logSystemError({
+        hotelId: monitoringHotelId,
+        severity: "error",
+        source: "staff_hub",
+        eventType: "guest_direct_communications_read_failed",
+        message: "Reception could not load direct guest communications.",
+        error,
+        metadata: { module: "guest_communications", hotelSlug, role },
+      });
+    }
     return json({ ok: false, error: "unavailable" }, 503);
   }
 }
 
 export async function POST(req: NextRequest) {
+  let monitoringHotelId: string | null = null;
+  let monitoringHotelSlug = "";
+  let monitoringRole = "";
   try {
     const originError = enforceStaffSameOrigin(req);
     if (originError) return originError;
@@ -178,6 +196,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     const hotelSlug = String(body?.hotelSlug || "").trim().toLowerCase();
     const role = String(body?.role || "").trim().toLowerCase();
+    monitoringHotelSlug = hotelSlug;
+    monitoringRole = role;
     const stayId = String(body?.stayId || "").trim();
     const messageBody = String(body?.body || "").trim().replace(/\r\n/g, "\n");
     const access = await loadReceptionAccess(hotelSlug, role);
@@ -231,6 +251,21 @@ export async function POST(req: NextRequest) {
     return json({ ok: true, communicationId, hubPublished: true, delivery }, 201);
   } catch (error) {
     console.error("Guest direct communications POST failed", error);
+    if (monitoringHotelId) {
+      await logSystemError({
+        hotelId: monitoringHotelId,
+        severity: "error",
+        source: "staff_hub",
+        eventType: "guest_direct_communications_write_failed",
+        message: "Reception could not send a direct message to a guest.",
+        error,
+        metadata: {
+          module: "guest_communications",
+          hotelSlug: monitoringHotelSlug,
+          role: monitoringRole,
+        },
+      });
+    }
     return json({ ok: false, error: "unavailable" }, 503);
   }
 }
