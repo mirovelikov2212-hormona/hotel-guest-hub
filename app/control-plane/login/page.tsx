@@ -19,6 +19,8 @@ const COPY = {
     unavailable: "Control Panel входът временно не е достъпен.",
     email: "Имейл",
     password: "Парола",
+    forgot: "Забравена парола?",
+    resetSuccess: "Паролата е сменена успешно. Влез с новата парола.",
     signIn: "Вход в Control Panel",
   },
   en: {
@@ -29,6 +31,8 @@ const COPY = {
     unavailable: "Control Panel sign-in is temporarily unavailable.",
     email: "Email",
     password: "Password",
+    forgot: "Forgot password?",
+    resetSuccess: "Password changed successfully. Sign in with the new password.",
     signIn: "Sign in to Control Panel",
   },
 } as const;
@@ -36,9 +40,9 @@ const COPY = {
 export default async function ControlPlaneLoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; lang?: string; next?: string }>;
+  searchParams: Promise<{ error?: string; lang?: string; next?: string; reset?: string }>;
 }) {
-  const { error, lang: rawLang, next: rawNext } = await searchParams;
+  const { error, lang: rawLang, next: rawNext, reset } = await searchParams;
   const lang = normalizeControlPlaneLang(rawLang);
   const copy = COPY[lang];
   const nextTarget = normalizeAdminNextTarget(rawNext, lang);
@@ -90,6 +94,12 @@ export default async function ControlPlaneLoginPage({
           </div>
         ) : null}
 
+        {reset === "success" ? (
+          <div className="mt-5 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+            {copy.resetSuccess}
+          </div>
+        ) : null}
+
         {/* P1.2 base endpoint invariant: action="/api/control-plane/login"; query params only preserve validated presentation/destination. */}
         <form
           action={`/api/control-plane/login?lang=${lang}&next=${encodeURIComponent(nextTarget)}`}
@@ -119,6 +129,15 @@ export default async function ControlPlaneLoginPage({
               className="mt-2 w-full rounded-2xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-base text-neutral-50 outline-none transition focus:border-cyan-400/60"
             />
           </label>
+
+          <div className="flex justify-end">
+            <Link
+              href={`/control-plane/forgot-password?lang=${lang}`}
+              className="text-sm font-semibold text-cyan-200 hover:text-cyan-100"
+            >
+              {copy.forgot}
+            </Link>
+          </div>
 
           <button
             type="submit"
