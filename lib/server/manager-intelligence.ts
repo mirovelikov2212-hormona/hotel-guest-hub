@@ -15,7 +15,7 @@ import {
 } from "@/lib/server/product-module-entitlements";
 import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
 import { getHotelIntegrationConnections } from "@/lib/server/integration-connections";
-import { logSystemEvent } from "@/lib/server/system-events";
+import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
@@ -1077,6 +1077,18 @@ export async function runManagerIntelligenceMorningBriefCron(now = new Date()) {
       });
     } catch (error) {
       console.error("Manager Intelligence morning brief cron hotel failed", row.id, error);
+      await logSystemError({
+        hotelId: String(row.id),
+        severity: "error",
+        source: "cron",
+        eventType: "manager_intelligence_morning_brief_failed",
+        message: "Manager Intelligence morning brief generation failed for a hotel.",
+        error,
+        metadata: {
+          module: "manager_intelligence",
+          cron: "morning_brief",
+        },
+      });
       results.push({ hotelId: String(row.id), error: "generation_failed" });
     }
   }
@@ -1153,6 +1165,18 @@ export async function runManagerIntelligenceWatchCron(now = new Date()) {
       alerts += 1;
     } catch (error) {
       console.error("Manager Intelligence live watch hotel failed", row.id, error);
+      await logSystemError({
+        hotelId: String(row.id),
+        severity: "error",
+        source: "cron",
+        eventType: "manager_intelligence_live_watch_failed",
+        message: "Manager Intelligence live watch failed for a hotel.",
+        error,
+        metadata: {
+          module: "manager_intelligence",
+          cron: "live_watch",
+        },
+      });
     }
   }
 
