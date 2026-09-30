@@ -7,6 +7,7 @@ import { hotelMatchesRequestedSlug } from "@/lib/server/hotel-scope";
 import { getPublicHotelAlias } from "@/lib/server/hotel-public-alias";
 import type { StaffBillingStatus } from "@/lib/staff/types";
 import { applyLateCheckoutDecision } from "@/lib/server/guest-stays";
+import { logSystemError } from "@/lib/server/system-events";
 
 function isValidRole(value: string): value is StaffRole {
   return (
@@ -337,6 +338,21 @@ export async function POST(req: NextRequest) {
       .eq("hotel_id", scope.hotelId);
 
     if (updateError) {
+      await logSystemError({
+        hotelId: String(scope.hotelId),
+        severity: "error",
+        source: "staff_hub",
+        eventType: "staff_billing_update_failed",
+        message: "A paid-service billing status update failed.",
+        requestId,
+        error: updateError,
+        metadata: {
+          module: "revenue_billing",
+          hotelSlug: scope.hotelSlug,
+          role,
+          billingStatus,
+        },
+      });
       return NextResponse.json(
         { ok: false, error: `Failed to update billing: ${updateError.message}` },
         { status: 500 },
@@ -397,6 +413,23 @@ export async function POST(req: NextRequest) {
 
     if (eventError) {
       console.error("staff billing hub_events insert error", eventError);
+      await logSystemError({
+        hotelId: String(scope.hotelId),
+        severity: "error",
+        source: "staff_hub",
+        eventType: "staff_billing_ledger_event_write_failed",
+        message: "Billing state changed but its revenue ledger event could not be written.",
+        requestId,
+        error: eventError,
+        metadata: {
+          module: "revenue_billing",
+          hotelSlug: scope.hotelSlug,
+          role,
+          billingStatus,
+          revenueDeltaMinor: revenueLedger.revenueDeltaMinor,
+          billingCurrencyCode: revenueLedger.currencyCode,
+        },
+      });
     }
 
     return NextResponse.json({
