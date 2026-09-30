@@ -13,6 +13,7 @@ import ManagerPwaControls from "@/components/staff/ManagerPwaControls";
 import ManagerIntelligenceAccessCard from "@/components/staff/ManagerIntelligenceAccessCard";
 import GuestCommunicationsWorkspace from "@/components/staff/GuestCommunicationsWorkspace";
 import StaffRoomActivityMap from "@/components/staff/StaffRoomActivityMap";
+import StaffMassageReservationsPanel from "@/components/staff/StaffMassageReservationsPanel";
 import ManagerContentOffersEditor from "@/components/staff/ManagerContentOffersEditor";
 import ManagerHubContentEditor from "@/components/staff/ManagerHubContentEditor";
 import { buildSurveyDaySummaries, ManagerSurveyReportCard, ManagerTodaySurveysCard, useStaffSurveys } from "@/components/staff/StaffSurveyCards";
@@ -850,6 +851,7 @@ export default function ManagerPage() {
 
       {hotelSlug ? <GuestCommunicationsWorkspace hotelSlug={hotelSlug} role="manager" /> : null}
       {hotelSlug ? <StaffRoomActivityMap hotelSlug={hotelSlug} role="manager" /> : null}
+      {hotelSlug ? <StaffMassageReservationsPanel hotelSlug={hotelSlug} role="manager" /> : null}
 
       {hotelSlug ? (
         <section
