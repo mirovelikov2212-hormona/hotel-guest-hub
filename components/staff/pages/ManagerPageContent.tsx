@@ -545,12 +545,16 @@ export default function ManagerPage() {
     () => isDemoHotel ? requests : requests.filter((request) => !request.isTest),
     [isDemoHotel, requests],
   );
-  const operationalRequests = useMemo(
+  const allOperationalRequests = useMemo(
     () =>
       sortByTime(
         getOperationalAllRequests().filter((request) => isOpenStatus(request.status)),
       ),
     [getOperationalAllRequests],
+  );
+  const operationalRequests = useMemo(
+    () => allOperationalRequests.filter((request) => !isMassageBookingLikeRequest(request)),
+    [allOperationalRequests],
   );
   const {
     activeSurveys: managerActiveSurveys,
@@ -563,8 +567,8 @@ export default function ManagerPage() {
     [managerActiveSurveys],
   );
   const managerAlertRequests = useMemo(
-    () => [...operationalRequests, ...managerSurveyAlertRequests],
-    [managerSurveyAlertRequests, operationalRequests],
+    () => [...allOperationalRequests, ...managerSurveyAlertRequests],
+    [allOperationalRequests, managerSurveyAlertRequests],
   );
   const { soundEnabled, toggleSound } = useStaffAlertSound({
     hotelSlug,
