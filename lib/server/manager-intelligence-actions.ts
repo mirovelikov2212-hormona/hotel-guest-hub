@@ -335,6 +335,8 @@ async function measureDueRecommendations(input: {
     throw new Error(`MANAGER_INTELLIGENCE_MEASUREMENT_DUE_READ_FAILED:${error.message}`);
   }
 
+  let measuredCount = 0;
+
   for (const row of data || []) {
     const from = clean(row.measurement_window_start || row.executed_at);
     const to = clean(row.measurement_window_end);
@@ -392,7 +394,10 @@ async function measureDueRecommendations(input: {
         impact,
       },
     });
+    measuredCount += 1;
   }
+
+  return measuredCount;
 }
 
 async function readRecommendations(hotelId: string) {
@@ -439,6 +444,47 @@ function currentRecommendations(rows: ReturnType<typeof recommendationRow>[]) {
   return rows.filter((row) =>
     ["generated", "viewed", "approved", "execution_pending"].includes(row.status),
   );
+}
+
+export async function refreshManagerIntelligenceActionLoopForHotel(input: {
+  hotelId: unknown;
+  timeZone?: unknown;
+  includeTest?: boolean;
+  actorSessionId?: string | null;
+  now?: Date;
+}) {
+  const hotelId = clean(input.hotelId);
+  if (!hotelId) throw new Error("MANAGER_INTELLIGENCE_ACTION_HOTEL_REQUIRED");
+
+  const now = input.now || new Date();
+  const timeZone = clean(input.timeZone) || "UTC";
+  const includeTest = input.includeTest === true;
+
+  await expireStaleRecommendations({
+    hotelId,
+    sessionId: clean(input.actorSessionId) || null,
+    now,
+  });
+
+  const generatedIds = await ensureGeneratedRecommendations({
+    hotelId,
+    sessionId: clean(input.actorSessionId),
+    timeZone,
+    includeTest,
+    now,
+  });
+
+  const measured = await measureDueRecommendations({
+    hotelId,
+    timeZone,
+    includeTest,
+    now,
+  });
+
+  return {
+    generated: generatedIds.length,
+    measured,
+  };
 }
 
 export async function getManagerIntelligenceActionLoop(input: {
