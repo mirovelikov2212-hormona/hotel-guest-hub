@@ -55,28 +55,28 @@
     {
       "filePath": "lib/server/manager-intelligence.ts",
       "fromLine": 454,
-      "toLine": 570,
+      "toLine": 574,
       "table": "staff_training_assignments",
       "operation": "select"
     },
     {
       "filePath": "lib/server/manager-intelligence.ts",
       "fromLine": 459,
-      "toLine": 575,
+      "toLine": 579,
       "table": "staff_training_completions",
       "operation": "select"
     },
     {
       "filePath": "lib/server/manager-intelligence.ts",
       "fromLine": 464,
-      "toLine": 580,
+      "toLine": 584,
       "table": "staff_assessment_attempts",
       "operation": "select"
     },
     {
       "filePath": "lib/server/manager-intelligence.ts",
       "fromLine": 470,
-      "toLine": 586,
+      "toLine": 590,
       "table": "staff_hr_evaluations",
       "operation": "select"
     }
