@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "checkpoint": "manager-intelligence-action-impact-v1",
+  "baseCheckpoint": "manager-intelligence-v1",
+  "expectedNeedsReview": 348,
+  "relocations": [
+    {
+      "filePath": "app/api/staff/guest-communications/route.ts",
+      "fromLine": 78,
+      "toLine": 81,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "app/api/staff/guest-communications/route.ts",
+      "fromLine": 196,
+      "toLine": 216,
+      "table": "guest_communications",
+      "operation": "update"
+    },
+    {
+      "filePath": "app/api/staff/guest-communications/route.ts",
+      "fromLine": 294,
+      "toLine": 329,
+      "table": "guest_communications",
+      "operation": "insert"
+    },
+    {
+      "filePath": "app/api/staff/guest-direct-communications/route.ts",
+      "fromLine": 123,
+      "toLine": 126,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "app/api/staff/guest-direct-communications/route.ts",
+      "fromLine": 193,
+      "toLine": 213,
+      "operation": "rpc"
+    },
+    {
+      "filePath": "app/api/staff/guest-direct-communications/route.ts",
+      "fromLine": 212,
+      "toLine": 232,
+      "table": "guest_communications",
+      "operation": "select"
+    },
+    {
+      "filePath": "app/api/staff/request-status/route.ts",
+      "fromLine": 383,
+      "toLine": 413,
+      "table": "hub_events",
+      "operation": "insert"
+    },
+    {
+      "filePath": "lib/server/manager-intelligence.ts",
+      "fromLine": 454,
+      "toLine": 570,
+      "table": "staff_training_assignments",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-intelligence.ts",
+      "fromLine": 459,
+      "toLine": 575,
+      "table": "staff_training_completions",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-intelligence.ts",
+      "fromLine": 464,
+      "toLine": 580,
+      "table": "staff_assessment_attempts",
+      "operation": "select"
+    },
+    {
+      "filePath": "lib/server/manager-intelligence.ts",
+      "fromLine": 470,
+      "toLine": 586,
+      "table": "staff_hr_evaluations",
+      "operation": "select"
+    }
+  ],
+  "additions": [
+    {
+      "filePath": "lib/server/control-plane-password-reset.ts",
+      "line": 38,
+      "table": "platform_admins",
+      "tableExpression": "\"platform_admins\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "platform_admin_email_scoped_recovery_authority_lookup"
+    },
+    {
+      "filePath": "lib/server/control-plane-password-reset.ts",
+      "line": 159,
+      "table": "platform_admins",
+      "tableExpression": "\"platform_admins\"",
+      "operation": "select",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "verified_recovery_auth_user_active_platform_admin_lookup"
+    },
+    {
+      "filePath": "lib/server/control-plane-password-reset.ts",
+      "line": 179,
+      "table": "platform_admin_sessions",
+      "tableExpression": "\"platform_admin_sessions\"",
+      "operation": "update",
+      "reasons": [
+        "unclassified_table"
+      ],
+      "provenance": "verified_platform_admin_session_revocation_after_password_reset"
+    }
+  ],
+  "removals": []
+}
