@@ -17,10 +17,6 @@ import {
 } from "@/lib/server/manager-change-lifecycle";
 import { resolveManagerIntelligenceScope } from "@/lib/server/manager-intelligence-scope";
 import { logSystemError } from "@/lib/server/system-events";
-import {
-  getHotelProductModuleEntitlement,
-  hasHotelPaidProductModuleAccess,
-} from "@/lib/server/product-module-entitlements";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
 type JsonObject = Record<string, any>;
@@ -59,6 +55,15 @@ function actionLoopCronSlotForTime(now: Date) {
     now.getUTCHours() * (60 / ACTION_LOOP_CRON_INTERVAL_MINUTES)
     + Math.floor(now.getUTCMinutes() / ACTION_LOOP_CRON_INTERVAL_MINUTES)
   );
+}
+
+export function shouldRefreshManagerIntelligenceActionLoopForHotel(
+  hotelId: unknown,
+  now = new Date(),
+) {
+  const scopedHotelId = clean(hotelId);
+  if (!scopedHotelId) return false;
+  return actionLoopCronSlotForHotel(scopedHotelId) === actionLoopCronSlotForTime(now);
 }
 
 function recommendationRow(row: JsonObject) {
@@ -506,78 +511,6 @@ export async function refreshManagerIntelligenceActionLoopForHotel(input: {
   return {
     generated: generatedIds.length,
     measured,
-  };
-}
-
-export async function runManagerIntelligenceActionLoopCron(now = new Date()) {
-  const slot = actionLoopCronSlotForTime(now);
-  const { data: hotels, error } = await supabaseAdmin
-    .from("hotels")
-    .select("id,slug,timezone,active")
-    .eq("active", true)
-    .limit(2000);
-
-  if (error) {
-    throw new Error(`MANAGER_INTELLIGENCE_ACTION_CRON_HOTELS_FAILED:${error.message}`);
-  }
-
-  const scheduled = (hotels || []).filter(
-    (hotel) => actionLoopCronSlotForHotel(clean(hotel.id)) === slot,
-  );
-
-  let eligible = 0;
-  let refreshed = 0;
-  let generated = 0;
-  let measured = 0;
-  const failures: Array<{ hotelId: string; error: string }> = [];
-
-  for (const hotel of scheduled) {
-    const hotelId = clean(hotel.id);
-    if (!hotelId) continue;
-
-    try {
-      const entitlement = await getHotelProductModuleEntitlement(hotelId);
-      if (!hasHotelPaidProductModuleAccess(entitlement, "manager_intelligence")) continue;
-      if (entitlement.commercial.environment !== "production") continue;
-      eligible += 1;
-
-      const result = await refreshManagerIntelligenceActionLoopForHotel({
-        hotelId,
-        timeZone: clean(hotel.timezone) || "UTC",
-        includeTest: clean(hotel.slug).toLowerCase() === "demo",
-        now,
-      });
-      refreshed += 1;
-      generated += result.generated;
-      measured += result.measured;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      failures.push({ hotelId, error: message.slice(0, 240) });
-      await logSystemError({
-        hotelId,
-        severity: "error",
-        source: "cron",
-        eventType: "manager_intelligence_action_loop_scheduled_refresh_failed",
-        message: "Manager Intelligence scheduled action/impact refresh failed.",
-        error,
-        metadata: {
-          module: "manager_intelligence",
-          cron: "action_impact_loop",
-          slot,
-        },
-      }).catch(() => undefined);
-    }
-  }
-
-  return {
-    checked: (hotels || []).length,
-    slot,
-    scheduled: scheduled.length,
-    eligible,
-    refreshed,
-    generated,
-    measured,
-    failures,
   };
 }
 
