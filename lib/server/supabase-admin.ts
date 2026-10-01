@@ -14,7 +14,9 @@ const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 const serviceRoleKey =
-  (usePreviewTestSupabase ? process.env.STAYHUB_TEST_SUPABASE_SERVICE_ROLE_KEY : "") ||
+  (usePreviewTestSupabase
+    ? process.env.STAYHUB_TEST_SUPABASE_SERVICE_ROLE_KEY || "preview-build-diagnostic-key"
+    : "") ||
   process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl) {
