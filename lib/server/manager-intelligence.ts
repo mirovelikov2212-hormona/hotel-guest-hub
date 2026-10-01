@@ -17,7 +17,6 @@ import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
 import { resolveManagerIntelligenceScope } from "@/lib/server/manager-intelligence-scope";
-import { refreshManagerIntelligenceActionLoopForHotel } from "@/lib/server/manager-intelligence-actions";
 
 type Lang = "bg" | "en" | "de";
 type HotelScope = {
@@ -1013,42 +1012,10 @@ export async function runManagerIntelligenceMorningBriefCron(now = new Date()) {
       if (entitlement.commercial.environment !== "production") continue;
       if (localHour(now, hotel.timezone) !== MORNING_HOUR_LOCAL) continue;
 
-      let actionLoopRefresh: Record<string, unknown> = {
-        generated: 0,
-        measured: 0,
-      };
-      try {
-        actionLoopRefresh = await refreshManagerIntelligenceActionLoopForHotel({
-          hotelId: hotel.id,
-          timeZone: hotel.timezone,
-          includeTest: hotel.isSandbox || hotel.slug === "demo",
-          now,
-        });
-      } catch (actionLoopError) {
-        actionLoopRefresh = { error: "refresh_failed" };
-        await logSystemError({
-          hotelId: hotel.id,
-          severity: "error",
-          source: "cron",
-          eventType: "manager_intelligence_action_loop_scheduled_refresh_failed",
-          message: "Manager Intelligence scheduled action/impact refresh failed.",
-          error: actionLoopError,
-          metadata: {
-            module: "manager_intelligence",
-            cron: "morning_brief",
-          },
-        });
-      }
-
       const today = getDateKeyInTimezone(now, hotel.timezone);
       const reportingDay = addDaysToDateKey(today, -1);
       if (await briefAlreadyExists(hotel.id, reportingDay)) {
-        results.push({
-          hotelId: hotel.id,
-          skipped: "already_generated",
-          reportingDay,
-          actionLoopRefresh,
-        });
+        results.push({ hotelId: hotel.id, skipped: "already_generated", reportingDay });
         continue;
       }
 
@@ -1076,7 +1043,6 @@ export async function runManagerIntelligenceMorningBriefCron(now = new Date()) {
         reportingDay: generated.snapshot.reportingDay,
         generated: true,
         pushSent: push.sent,
-        actionLoopRefresh,
       });
     } catch (error) {
       console.error("Manager Intelligence morning brief cron hotel failed", row.id, error);
