@@ -495,3 +495,25 @@ test("16. scheduled continuity: recommendation generation and measurement do not
 });
 
 
+
+
+test("17. Manager Intelligence self-measurement UI is localized and manager-readable", async () => {
+  const panel = await readProjectFile(
+    "components/staff/manager-intelligence/ManagerIntelligenceActionsPanel.tsx",
+  );
+
+  assertContains(panel, 'recommended: "Препоръчани действия"');
+  assertContains(panel, 'history: "Действия и резултат"');
+  assertContains(panel, 'avgDecision: "Средно до решение"');
+  assertContains(panel, 'avgExecution: "Средно до изпълнение"');
+  assertContains(panel, 'ignoredExpired: "Игнорирани / изтекли"');
+  assertContains(panel, "averageMinutesRecommendationToDecision");
+  assertContains(panel, "averageMinutesApprovalToExecution");
+  assertContains(panel, 'if (value === null || value === undefined || value === "") return "—";');
+  assertContains(panel, "recommendationPresentation(row, safeLang)");
+  assertContains(panel, "evidenceSummary(row, safeLang)");
+  assertContains(panel, "impact.businessValue?.currency");
+  assertNotContains(panel, "JSON.stringify(row.evidence");
+  assertNotContains(panel, "bg-violet-50");
+  assertNotContains(panel, "bg-amber-50");
+});
