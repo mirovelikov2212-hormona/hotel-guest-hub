@@ -6,18 +6,15 @@ if (typeof window !== "undefined") {
 
 const usePreviewTestSupabase = process.env.VERCEL_ENV === "preview";
 const previewDiagnosticUrl = "https://tnhfguwnpspubnafrxwt.supabase.co";
+const previewDiagnosticServiceKey = "preview-build-diagnostic-key";
 
-const supabaseUrl =
-  (usePreviewTestSupabase
-    ? process.env.STAYHUB_TEST_SUPABASE_URL || previewDiagnosticUrl
-    : "") ||
-  process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseUrl = usePreviewTestSupabase
+  ? previewDiagnosticUrl
+  : process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-const serviceRoleKey =
-  (usePreviewTestSupabase
-    ? process.env.STAYHUB_TEST_SUPABASE_SERVICE_ROLE_KEY || "preview-build-diagnostic-key"
-    : "") ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY;
+const serviceRoleKey = usePreviewTestSupabase
+  ? previewDiagnosticServiceKey
+  : process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl) {
   throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL");
