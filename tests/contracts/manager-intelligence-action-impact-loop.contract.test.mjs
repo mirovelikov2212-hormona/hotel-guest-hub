@@ -472,3 +472,20 @@ test("15. AI intent → action → outcome attribution: low conversion is detect
   assert.equal(kpis.measuredImpactRate, 1);
   assert.equal(kpis.positiveImpactRate, 1);
 });
+
+
+test("16. scheduled continuity: recommendation generation and measurement do not depend on opening the Manager UI", async () => {
+  const actions = await readProjectFile("lib/server/manager-intelligence-actions.ts");
+  const manager = await readProjectFile("lib/server/manager-intelligence.ts");
+
+  assertContains(actions, "export async function refreshManagerIntelligenceActionLoopForHotel");
+  assertContains(actions, "generated: generatedIds.length");
+  assertContains(actions, "measuredCount += 1");
+  assertContains(manager, "refreshManagerIntelligenceActionLoopForHotel({");
+  assertContains(manager, "manager_intelligence_action_loop_scheduled_refresh_failed");
+  assertBefore(
+    manager,
+    "refreshManagerIntelligenceActionLoopForHotel({",
+    "if (await briefAlreadyExists(hotel.id, reportingDay))",
+  );
+});
