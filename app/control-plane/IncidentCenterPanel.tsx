@@ -37,6 +37,18 @@ type Incident = {
   occurrenceCount: number;
   hotelsWithSameFingerprint: number;
   hotel: { name: string; slug: string } | null;
+  managerIntelligenceRecommendation: {
+    id: string;
+    hotelId: string;
+    status: string;
+    title: string;
+    managerDecision: string | null;
+    executionStatus: string;
+    impactBasis: string | null;
+    impactOutcome: string | null;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
 };
 
 type IncidentResult = {
@@ -89,6 +101,8 @@ const COPY = {
     loading: "Зареждане…",
     empty: "Няма incidents в избрания изглед.",
     unavailable: "Incident Center не е достъпен.",
+    recommendation: "Manager Intelligence",
+    impact: "Impact",
   },
   en: {
     title: "GOSTAYA Incident Center",
@@ -116,6 +130,8 @@ const COPY = {
     loading: "Loading…",
     empty: "No incidents in this view.",
     unavailable: "Incident Center is unavailable.",
+    recommendation: "Manager Intelligence",
+    impact: "Impact",
   },
 } as const;
 
@@ -323,6 +339,23 @@ export default function IncidentCenterPanel({
                   </span>
                 </div>
               </div>
+
+              {incident.managerIntelligenceRecommendation ? (
+                <div className="mt-3 rounded-xl border border-cyan-900/50 bg-cyan-950/20 px-3 py-2 text-xs text-cyan-100">
+                  <div className="font-semibold">
+                    {copy.recommendation}: {incident.managerIntelligenceRecommendation.title}
+                  </div>
+                  <div className="mt-1 text-cyan-200/65">
+                    {incident.managerIntelligenceRecommendation.status}
+                    {incident.managerIntelligenceRecommendation.managerDecision
+                      ? ` · ${incident.managerIntelligenceRecommendation.managerDecision}`
+                      : ""}
+                    {incident.managerIntelligenceRecommendation.impactOutcome
+                      ? ` · ${copy.impact}: ${incident.managerIntelligenceRecommendation.impactOutcome}`
+                      : ""}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-neutral-600">
                 <span>{incident.occurrenceCount} {copy.occurrences}</span>
