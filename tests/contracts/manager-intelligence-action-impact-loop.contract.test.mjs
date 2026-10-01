@@ -208,7 +208,7 @@ test("4. action executed: no configuration recommendation can bypass existing Ma
   assertContains(actions, "existing_manager_change_workflow_required");
   assertContains(actions, 'safeHandoff: record(row.action_payload_json).safeConfigurationHandoff');
   assertContains(lifecycle, "activateManagerChangeCandidate");
-  assertNotContains(actions, ".from("hotel_config_revisions").insert");
+  assertNotContains(actions, '.from("hotel_config_revisions").insert');
 });
 
 test("5. before/after measurement: same metric is re-measured after execution", () => {
