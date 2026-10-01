@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit
 
-      - name: Build with Vercel Preview semantics
+      - name: Build with Vercel Preview semantics and explicit test credentials
         run: npm run build
         env:
           VERCEL: "1"
@@ -39,3 +39,14 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
           STAYHUB_TEST_SUPABASE_URL: https://example.supabase.co
           STAYHUB_TEST_SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+
+      - name: Diagnose Preview build with no application secrets
+        shell: bash
+        run: |
+          rm -rf .next
+          set +e
+          VERCEL=1 VERCEL_ENV=preview npm run build > /tmp/preview-no-secrets.log 2>&1
+          code=$?
+          echo "NO_SECRETS_BUILD_EXIT=$code"
+          tail -n 220 /tmp/preview-no-secrets.log
+          exit 0
