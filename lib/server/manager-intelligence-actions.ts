@@ -8,6 +8,7 @@ import {
 } from "@/lib/manager-intelligence/action-loop.mjs";
 import {
   activateManagerLifecycleCandidate,
+  cancelManagerLifecycleDraft,
   certifyManagerLifecycleCandidate,
   confirmManagerLifecycleDraft,
   createManagerLifecycleCandidate,
@@ -634,11 +635,8 @@ export async function decideManagerIntelligenceRecommendation(input: {
   return recommendationRow(data as JsonObject);
 }
 
-async function executeApprovedConfigurationRecommendation(input: {
-  hotelSlug: string;
-  row: JsonObject;
-}) {
-  const payload = record(input.row.action_payload_json);
+function managerConfigurationActionPayload(row: JsonObject) {
+  const payload = record(row.action_payload_json);
   const handoff = clean(payload.safeConfigurationHandoff);
   if (handoff !== "manager_change_workflow") {
     throw new Error("MANAGER_INTELLIGENCE_CONFIGURATION_HANDOFF_REQUIRED");
@@ -657,43 +655,42 @@ async function executeApprovedConfigurationRecommendation(input: {
     throw new Error("MANAGER_INTELLIGENCE_CONFIGURATION_OPERATIONS_REQUIRED");
   }
 
-  const draft = await createManagerLifecycleDraft({
-    hotelSlug: input.hotelSlug,
-    scope,
-  });
+  return { payload, scope };
+}
 
-  const changeRequestId = clean(draft.id);
-  if (!changeRequestId) {
-    throw new Error("MANAGER_INTELLIGENCE_CONFIGURATION_DRAFT_INVALID");
-  }
-
+async function executeApprovedConfigurationRecommendation(input: {
+  hotelSlug: string;
+  changeRequestId: string;
+  scope: string;
+  payload: JsonObject;
+}) {
   await saveManagerLifecycleTypedDraft({
     hotelSlug: input.hotelSlug,
-    changeRequestId,
-    scope,
-    operations: payload.operations,
-    department: payload.department,
-    schedule: payload.schedule,
+    changeRequestId: input.changeRequestId,
+    scope: input.scope,
+    operations: input.payload.operations,
+    department: input.payload.department,
+    schedule: input.payload.schedule,
   });
 
   await confirmManagerLifecycleDraft({
     hotelSlug: input.hotelSlug,
-    changeRequestId,
+    changeRequestId: input.changeRequestId,
   });
 
   const candidate = await createManagerLifecycleCandidate({
     hotelSlug: input.hotelSlug,
-    changeRequestId,
+    changeRequestId: input.changeRequestId,
   });
 
   await certifyManagerLifecycleCandidate({
     hotelSlug: input.hotelSlug,
-    changeRequestId,
+    changeRequestId: input.changeRequestId,
   });
 
   const activation = await activateManagerLifecycleCandidate({
     hotelSlug: input.hotelSlug,
-    changeRequestId,
+    changeRequestId: input.changeRequestId,
   });
 
   if (
@@ -704,8 +701,8 @@ async function executeApprovedConfigurationRecommendation(input: {
   }
 
   return {
-    changeRequestId,
-    scope,
+    changeRequestId: input.changeRequestId,
+    scope: input.scope,
     candidateRevisionId: clean(candidate.candidateRevisionId) || null,
     baseRevisionId: clean(activation.baseRevisionId) || null,
     activatedRevisionId: clean(activation.activatedRevisionId) || null,
@@ -741,9 +738,15 @@ export async function executeManagerIntelligenceRecommendation(input: {
     throw new Error("MANAGER_INTELLIGENCE_ACTION_MODE_INVALID");
   }
 
-  const now = new Date();
-  const nowIso = now.toISOString();
-  const measurementEnd = addDays(now, MANAGER_INTELLIGENCE_MEASUREMENT_DAYS).toISOString();
+  if (
+    actionMode === "manager_approved_configuration"
+    && clean(row.execution_reference_id)
+  ) {
+    throw new Error("MANAGER_INTELLIGENCE_CONFIGURATION_EXECUTION_ALREADY_STARTED");
+  }
+
+  const startedAt = new Date();
+  const startedAtIso = startedAt.toISOString();
   const executionNote = clean(input.executionNote).slice(0, 1000);
 
   await writeEvent({
@@ -762,12 +765,70 @@ export async function executeManagerIntelligenceRecommendation(input: {
   let configurationExecution: Awaited<ReturnType<typeof executeApprovedConfigurationRecommendation>> | null = null;
 
   if (actionMode === "manager_approved_configuration") {
+    const configuration = managerConfigurationActionPayload(row);
+    const draft = await createManagerLifecycleDraft({
+      hotelSlug: scope.slug,
+      scope: configuration.scope,
+    });
+    const changeRequestId = clean(draft.id);
+    if (!changeRequestId) {
+      throw new Error("MANAGER_INTELLIGENCE_CONFIGURATION_DRAFT_INVALID");
+    }
+
+    const { error: pendingError } = await supabaseAdmin
+      .from("manager_intelligence_recommendations")
+      .update({
+        status: "execution_pending",
+        execution_status: "pending",
+        execution_reference_type: "manager_change_request",
+        execution_reference_id: changeRequestId,
+        updated_at: startedAtIso,
+      })
+      .eq("hotel_id", scope.id)
+      .eq("id", recommendationId)
+      .eq("manager_decision", "approved")
+      .is("executed_at", null);
+
+    if (pendingError) {
+      await cancelManagerLifecycleDraft({
+        hotelSlug: scope.slug,
+        changeRequestId,
+      }).catch(() => undefined);
+      await writeEvent({
+        hotelId: scope.id,
+        recommendationId,
+        eventType: "execution_failed",
+        actorSessionId: scope.sessionId,
+        payload: {
+          error: pendingError.message,
+          phase: "persist_execution_reference",
+          changeRequestId,
+        },
+      }).catch(() => undefined);
+      throw new Error(
+        `MANAGER_INTELLIGENCE_CONFIGURATION_REFERENCE_WRITE_FAILED:${pendingError.message}`,
+      );
+    }
+
     try {
       configurationExecution = await executeApprovedConfigurationRecommendation({
         hotelSlug: scope.slug,
-        row,
+        changeRequestId,
+        scope: configuration.scope,
+        payload: configuration.payload,
       });
     } catch (error) {
+      await supabaseAdmin
+        .from("manager_intelligence_recommendations")
+        .update({
+          status: "execution_pending",
+          execution_status: "failed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("hotel_id", scope.id)
+        .eq("id", recommendationId)
+        .eq("execution_reference_id", changeRequestId);
+
       await writeEvent({
         hotelId: scope.id,
         recommendationId,
@@ -775,12 +836,20 @@ export async function executeManagerIntelligenceRecommendation(input: {
         actorSessionId: scope.sessionId,
         payload: {
           error: error instanceof Error ? error.message : String(error),
-          safeHandoff: record(row.action_payload_json).safeConfigurationHandoff || null,
+          safeHandoff: configuration.payload.safeConfigurationHandoff || null,
+          changeRequestId,
         },
       }).catch(() => undefined);
       throw error;
     }
   }
+
+  const completedAt = new Date();
+  const completedAtIso = completedAt.toISOString();
+  const measurementEnd = addDays(
+    completedAt,
+    MANAGER_INTELLIGENCE_MEASUREMENT_DAYS,
+  ).toISOString();
 
   const storedPreviousValue = Object.keys(previousValue).length
     ? previousValue
@@ -817,8 +886,8 @@ export async function executeManagerIntelligenceRecommendation(input: {
         : "manual_action",
       execution_reference_id: configurationExecution?.changeRequestId || null,
       executed_by_session_id: scope.sessionId,
-      executed_at: nowIso,
-      measurement_window_start: nowIso,
+      executed_at: completedAtIso,
+      measurement_window_start: completedAtIso,
       measurement_window_end: measurementEnd,
       previous_value_json: storedPreviousValue,
       new_value_json: storedNewValue,
@@ -847,7 +916,7 @@ export async function executeManagerIntelligenceRecommendation(input: {
     actorSessionId: scope.sessionId,
     payload: {
       executionNote: executionNote || null,
-      measurementWindowStart: nowIso,
+      measurementWindowStart: completedAtIso,
       measurementWindowEnd: measurementEnd,
       previousValue: storedPreviousValue,
       newValue: storedNewValue,
@@ -861,7 +930,7 @@ export async function executeManagerIntelligenceRecommendation(input: {
   return {
     recommendation: recommendationRow(data as JsonObject),
     measurementWindow: {
-      from: nowIso,
+      from: completedAtIso,
       to: measurementEnd,
     },
     configurationExecution,
