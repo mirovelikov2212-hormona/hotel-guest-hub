@@ -476,16 +476,21 @@ test("15. AI intent → action → outcome attribution: low conversion is detect
 
 test("16. scheduled continuity: recommendation generation and measurement do not depend on opening the Manager UI", async () => {
   const actions = await readProjectFile("lib/server/manager-intelligence-actions.ts");
-  const manager = await readProjectFile("lib/server/manager-intelligence.ts");
+  const route = await readProjectFile("app/api/cron/manager-intelligence-action-loop/route.ts");
+  const vercel = await readProjectFile("vercel.json");
 
   assertContains(actions, "export async function refreshManagerIntelligenceActionLoopForHotel");
+  assertContains(actions, "export async function runManagerIntelligenceActionLoopCron");
+  assertContains(actions, "ACTION_LOOP_CRON_SLOTS_PER_DAY");
+  assertContains(actions, "actionLoopCronSlotForHotel");
+  assertContains(actions, "hasHotelPaidProductModuleAccess(entitlement, \"manager_intelligence\")");
+  assertContains(actions, 'entitlement.commercial.environment !== "production"');
   assertContains(actions, "generated: generatedIds.length");
   assertContains(actions, "measuredCount += 1");
-  assertContains(manager, "refreshManagerIntelligenceActionLoopForHotel({");
-  assertContains(manager, "manager_intelligence_action_loop_scheduled_refresh_failed");
-  assertBefore(
-    manager,
-    "refreshManagerIntelligenceActionLoopForHotel({",
-    "if (await briefAlreadyExists(hotel.id, reportingDay))",
-  );
+  assertContains(actions, "manager_intelligence_action_loop_scheduled_refresh_failed");
+  assertContains(route, "runManagerIntelligenceActionLoopCron");
+  assertContains(route, "CRON_SECRET");
+  assertContains(vercel, "/api/cron/manager-intelligence-action-loop");
+  assertContains(vercel, '"schedule": "*/5 * * * *"');
 });
+
