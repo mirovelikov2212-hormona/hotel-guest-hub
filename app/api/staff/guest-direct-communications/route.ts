@@ -104,7 +104,6 @@ export async function GET(req: NextRequest) {
     const access = await loadReceptionAccess(hotelSlug, role);
     if (!access) return json({ ok: false, error: "unauthorized" }, 401);
     monitoringHotelId = String(access.hotel.id);
-    monitoringHotelId = String(access.hotel.id);
     if (!hasGuestCommunicationCapability(access, "guest_communications.view_own")) return json({ ok: false, error: "forbidden" }, 403);
 
     const now = new Date().toISOString();
@@ -202,6 +201,7 @@ export async function POST(req: NextRequest) {
     const messageBody = String(body?.body || "").trim().replace(/\r\n/g, "\n");
     const access = await loadReceptionAccess(hotelSlug, role);
     if (!access) return json({ ok: false, error: "unauthorized" }, 401);
+    monitoringHotelId = String(access.hotel.id);
     if (!hasGuestCommunicationCapability(access, "guest_communications.send")) return json({ ok: false, error: "forbidden" }, 403);
     if (!UUID_PATTERN.test(stayId) || !messageBody || messageBody.length > 1000) return json({ ok: false, error: "invalid_content" }, 400);
     if (!(await guestCommunicationsDeliveryEnabledForHotel(access.hotel.id))) return json({ ok: false, error: "delivery_disabled" }, 409);
