@@ -108,12 +108,48 @@ export async function listPlatformIncidents(input: {
     }
   }
 
+  const incidentIds = incidents
+    .map((incident) => String(incident.incidentId || ""))
+    .filter(Boolean);
+  const recommendationMap = new Map<string, Record<string, unknown>>();
+
+  if (incidentIds.length) {
+    const { data: recommendations, error: recommendationError } = await supabaseAdmin
+      .from("manager_intelligence_recommendations")
+      .select("id,hotel_id,incident_id,status,title,manager_decision,execution_status,impact_basis,impact_outcome,created_at,updated_at")
+      .in("incident_id", incidentIds)
+      .order("created_at", { ascending: false });
+
+    if (recommendationError && recommendationError.code !== "42P01") {
+      throw new Error(`INCIDENT_RECOMMENDATION_READ_FAILED:${recommendationError.message}`);
+    }
+
+    for (const row of recommendations || []) {
+      const incidentId = String(row.incident_id || "");
+      if (!incidentId || recommendationMap.has(incidentId)) continue;
+      recommendationMap.set(incidentId, {
+        id: String(row.id),
+        hotelId: String(row.hotel_id),
+        status: String(row.status || ""),
+        title: String(row.title || ""),
+        managerDecision: row.manager_decision ? String(row.manager_decision) : null,
+        executionStatus: String(row.execution_status || ""),
+        impactBasis: row.impact_basis ? String(row.impact_basis) : null,
+        impactOutcome: row.impact_outcome ? String(row.impact_outcome) : null,
+        createdAt: String(row.created_at || ""),
+        updatedAt: String(row.updated_at || ""),
+      });
+    }
+  }
+
   return {
     incidents: incidents.map((incident) => ({
       ...incident,
       hotel: incident.hotelId
         ? hotelMap.get(incident.hotelId) || null
         : null,
+      managerIntelligenceRecommendation:
+        recommendationMap.get(String(incident.incidentId || "")) || null,
     })),
     summary: {
       total: incidents.length,
