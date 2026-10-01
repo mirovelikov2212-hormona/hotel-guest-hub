@@ -34,6 +34,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/cron/manager-intelligence-action-loop",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/cron/manager-intelligence-morning-brief",
       "schedule": "5 * * * *"
     }
