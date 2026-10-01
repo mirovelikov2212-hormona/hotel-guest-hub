@@ -891,7 +891,7 @@ export async function executeManagerIntelligenceRecommendation(input: {
       measurement_window_end: measurementEnd,
       previous_value_json: storedPreviousValue,
       new_value_json: storedNewValue,
-      updated_at: nowIso,
+      updated_at: completedAtIso,
     })
     .eq("hotel_id", scope.id)
     .eq("id", recommendationId)
