@@ -213,10 +213,17 @@ test("4. action executed: approved configuration actions use the existing Manage
   assertContains(actions, "certifyManagerLifecycleCandidate");
   assertContains(actions, "activateManagerLifecycleCandidate");
   assertContains(actions, '"manager_change_request"');
+  assertContains(actions, 'status: "execution_pending"');
+  assertContains(actions, 'execution_status: "pending"');
+  assertContains(actions, "MANAGER_INTELLIGENCE_CONFIGURATION_EXECUTION_ALREADY_STARTED");
+  assertContains(actions, "cancelManagerLifecycleDraft");
+  assertContains(actions, 'execution_status: "failed"');
   assertContains(actions, "MANAGER_INTELLIGENCE_CONFIGURATION_ACTIVATION_NOT_LIVE");
   assertContains(lifecycle, "activateManagerChangeCandidate");
   assertContains(panel, '"manager_approved_configuration"');
   assertContains(panel, "executeConfig");
+  assertContains(panel, "!row.executionReferenceId");
+  assertContains(panel, "executionFailed");
   assertNotContains(actions, '.from("hotel_config_revisions").insert');
 });
 
