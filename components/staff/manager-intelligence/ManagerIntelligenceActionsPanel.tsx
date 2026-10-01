@@ -194,6 +194,8 @@ const COPY = {
   },
 } as const;
 
+type ActionCopy = (typeof COPY)[keyof typeof COPY];
+
 function pct(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) ? `${(number * 100).toFixed(0)}%` : "—";
@@ -206,7 +208,7 @@ function metricValue(value: unknown, metric: string) {
   return Number.isInteger(number) ? String(number) : number.toFixed(2);
 }
 
-function statusLabel(row: Recommendation, copy: (typeof COPY)["bg"]) {
+function statusLabel(row: Recommendation, copy: ActionCopy) {
   if (row.status === "approved") return copy.approved;
   if (row.status === "rejected") return copy.rejected;
   if (row.status === "expired") return copy.expired;
@@ -216,20 +218,20 @@ function statusLabel(row: Recommendation, copy: (typeof COPY)["bg"]) {
   return copy.generated;
 }
 
-function actionModeLabel(row: Recommendation, copy: (typeof COPY)["bg"]) {
+function actionModeLabel(row: Recommendation, copy: ActionCopy) {
   if (row.actionMode === "manager_approved_configuration") return copy.config;
   if (row.actionMode === "manual_action") return copy.manual;
   return copy.recommendationOnly;
 }
 
-function impactLabel(row: Recommendation, copy: (typeof COPY)["bg"]) {
+function impactLabel(row: Recommendation, copy: ActionCopy) {
   if (row.impactBasis === "insufficient_data") return copy.insufficient;
   if (row.impactBasis === "estimated") return copy.estimatedImpact;
   if (row.impactBasis === "measured") return copy.measuredImpact;
   return copy.noMeasuredYet;
 }
 
-function outcomeLabel(row: Recommendation, copy: (typeof COPY)["bg"]) {
+function outcomeLabel(row: Recommendation, copy: ActionCopy) {
   if (row.impactOutcome === "positive") return copy.positive;
   if (row.impactOutcome === "negative") return copy.negative;
   if (row.impactOutcome === "no_material_change") return copy.noChange;
