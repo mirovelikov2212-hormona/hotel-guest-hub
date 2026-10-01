@@ -194,7 +194,7 @@ test("3. manager approves: approval is permission-scoped, persisted and audit-ev
   const source = await readProjectFile("lib/server/manager-intelligence-actions.ts");
 
   assertContains(source, "resolveManagerIntelligenceScope(input.hotelSlug)");
-  assertContains(source, 'decision: action === "approve" ? "approved" : "rejected"');
+  assertContains(source, 'const approved = decision === "approved"');
   assertContains(source, 'manager_decision: decision');
   assertContains(source, 'eventType: approved ? "approved" : "rejected"');
   assertContains(source, "decided_by_session_id: scope.sessionId");
