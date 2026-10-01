@@ -26,6 +26,8 @@ type Recommendation = {
   decisionAt: string | null;
   viewedAt: string | null;
   executionStatus: string;
+  executionReferenceType: string | null;
+  executionReferenceId: string | null;
   executedAt: string | null;
   impactBasis: string | null;
   impactOutcome: string | null;
@@ -77,6 +79,8 @@ const COPY = {
     approved: "Одобрена",
     rejected: "Отхвърлена",
     expired: "Изтекла",
+    executionPending: "Изпълнение",
+    executionFailed: "Неуспешно изпълнение",
     measurementPending: "Измерване",
     measured: "Измерена",
     positive: "Подобрение",
@@ -125,6 +129,8 @@ const COPY = {
     approved: "Approved",
     rejected: "Rejected",
     expired: "Expired",
+    executionPending: "Executing",
+    executionFailed: "Execution failed",
     measurementPending: "Measuring",
     measured: "Measured",
     positive: "Improvement",
@@ -173,6 +179,8 @@ const COPY = {
     approved: "Genehmigt",
     rejected: "Abgelehnt",
     expired: "Abgelaufen",
+    executionPending: "Ausführung",
+    executionFailed: "Ausführung fehlgeschlagen",
     measurementPending: "Messung läuft",
     measured: "Gemessen",
     positive: "Verbesserung",
@@ -212,6 +220,8 @@ function metricValue(value: unknown, metric: string) {
 }
 
 function statusLabel(row: Recommendation, copy: ActionCopy) {
+  if (row.executionStatus === "failed") return copy.executionFailed;
+  if (row.status === "execution_pending") return copy.executionPending;
   if (row.status === "approved") return copy.approved;
   if (row.status === "rejected") return copy.rejected;
   if (row.status === "expired") return copy.expired;
@@ -366,7 +376,11 @@ export default function ManagerIntelligenceActionsPanel({
               const canExecute =
                 row.managerDecision === "approved"
                 && ["manual_action", "manager_approved_configuration"].includes(row.actionMode)
-                && !row.executedAt;
+                && !row.executedAt
+                && (
+                  row.actionMode !== "manager_approved_configuration"
+                  || !row.executionReferenceId
+                );
 
               return (
                 <article key={row.id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
