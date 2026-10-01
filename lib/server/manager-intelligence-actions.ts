@@ -6,6 +6,14 @@ import {
   MANAGER_INTELLIGENCE_MEASUREMENT_DAYS,
   measureRecommendationImpact,
 } from "@/lib/manager-intelligence/action-loop.mjs";
+import {
+  activateManagerLifecycleCandidate,
+  certifyManagerLifecycleCandidate,
+  confirmManagerLifecycleDraft,
+  createManagerLifecycleCandidate,
+  createManagerLifecycleDraft,
+  saveManagerLifecycleTypedDraft,
+} from "@/lib/server/manager-change-lifecycle";
 import { resolveManagerIntelligenceScope } from "@/lib/server/manager-intelligence-scope";
 import { logSystemError } from "@/lib/server/system-events";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
@@ -626,6 +634,86 @@ export async function decideManagerIntelligenceRecommendation(input: {
   return recommendationRow(data as JsonObject);
 }
 
+async function executeApprovedConfigurationRecommendation(input: {
+  hotelSlug: string;
+  row: JsonObject;
+}) {
+  const payload = record(input.row.action_payload_json);
+  const handoff = clean(payload.safeConfigurationHandoff);
+  if (handoff !== "manager_change_workflow") {
+    throw new Error("MANAGER_INTELLIGENCE_CONFIGURATION_HANDOFF_REQUIRED");
+  }
+
+  const scope = clean(payload.scope).toLowerCase();
+  if (!["services", "venues", "schedules"].includes(scope)) {
+    throw new Error("MANAGER_INTELLIGENCE_CONFIGURATION_SCOPE_INVALID");
+  }
+
+  if (scope === "schedules") {
+    if (!clean(payload.department) || !Object.keys(record(payload.schedule)).length) {
+      throw new Error("MANAGER_INTELLIGENCE_CONFIGURATION_SCHEDULE_REQUIRED");
+    }
+  } else if (!Array.isArray(payload.operations) || !payload.operations.length) {
+    throw new Error("MANAGER_INTELLIGENCE_CONFIGURATION_OPERATIONS_REQUIRED");
+  }
+
+  const draft = await createManagerLifecycleDraft({
+    hotelSlug: input.hotelSlug,
+    scope,
+  });
+
+  const changeRequestId = clean(draft.id);
+  if (!changeRequestId) {
+    throw new Error("MANAGER_INTELLIGENCE_CONFIGURATION_DRAFT_INVALID");
+  }
+
+  await saveManagerLifecycleTypedDraft({
+    hotelSlug: input.hotelSlug,
+    changeRequestId,
+    scope,
+    operations: payload.operations,
+    department: payload.department,
+    schedule: payload.schedule,
+  });
+
+  await confirmManagerLifecycleDraft({
+    hotelSlug: input.hotelSlug,
+    changeRequestId,
+  });
+
+  const candidate = await createManagerLifecycleCandidate({
+    hotelSlug: input.hotelSlug,
+    changeRequestId,
+  });
+
+  await certifyManagerLifecycleCandidate({
+    hotelSlug: input.hotelSlug,
+    changeRequestId,
+  });
+
+  const activation = await activateManagerLifecycleCandidate({
+    hotelSlug: input.hotelSlug,
+    changeRequestId,
+  });
+
+  if (
+    clean(activation.status) !== "live"
+    || activation.postActivationVerification?.ok !== true
+  ) {
+    throw new Error("MANAGER_INTELLIGENCE_CONFIGURATION_ACTIVATION_NOT_LIVE");
+  }
+
+  return {
+    changeRequestId,
+    scope,
+    candidateRevisionId: clean(candidate.candidateRevisionId) || null,
+    baseRevisionId: clean(activation.baseRevisionId) || null,
+    activatedRevisionId: clean(activation.activatedRevisionId) || null,
+    activatedChecksum: clean(activation.activatedChecksum) || null,
+    activatedAt: clean(activation.activatedAt) || null,
+  };
+}
+
 export async function executeManagerIntelligenceRecommendation(input: {
   hotelSlug: unknown;
   recommendationId: unknown;
@@ -649,16 +737,7 @@ export async function executeManagerIntelligenceRecommendation(input: {
     throw new Error("MANAGER_INTELLIGENCE_ACTION_NOT_EXECUTABLE");
   }
 
-  if (actionMode === "manager_approved_configuration") {
-    return {
-      recommendation: recommendationRow(row),
-      executionBlocked: true,
-      reason: "existing_manager_change_workflow_required",
-      safeHandoff: record(row.action_payload_json).safeConfigurationHandoff || "manager_change_workflow",
-    };
-  }
-
-  if (actionMode !== "manual_action") {
+  if (!["manual_action", "manager_approved_configuration"].includes(actionMode)) {
     throw new Error("MANAGER_INTELLIGENCE_ACTION_MODE_INVALID");
   }
 
@@ -680,26 +759,69 @@ export async function executeManagerIntelligenceRecommendation(input: {
 
   const previousValue = record(input.previousValue);
   const newValue = record(input.newValue);
+  let configurationExecution: Awaited<ReturnType<typeof executeApprovedConfigurationRecommendation>> | null = null;
+
+  if (actionMode === "manager_approved_configuration") {
+    try {
+      configurationExecution = await executeApprovedConfigurationRecommendation({
+        hotelSlug: scope.slug,
+        row,
+      });
+    } catch (error) {
+      await writeEvent({
+        hotelId: scope.id,
+        recommendationId,
+        eventType: "execution_failed",
+        actorSessionId: scope.sessionId,
+        payload: {
+          error: error instanceof Error ? error.message : String(error),
+          safeHandoff: record(row.action_payload_json).safeConfigurationHandoff || null,
+        },
+      }).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  const storedPreviousValue = Object.keys(previousValue).length
+    ? previousValue
+    : configurationExecution
+      ? {
+          baseline: record(row.baseline_json),
+          baseRevisionId: configurationExecution.baseRevisionId,
+        }
+      : record(row.baseline_json);
+
+  const storedNewValue = Object.keys(newValue).length
+    ? newValue
+    : configurationExecution
+      ? {
+          changeRequestId: configurationExecution.changeRequestId,
+          scope: configurationExecution.scope,
+          candidateRevisionId: configurationExecution.candidateRevisionId,
+          activatedRevisionId: configurationExecution.activatedRevisionId,
+          activatedChecksum: configurationExecution.activatedChecksum,
+          activatedAt: configurationExecution.activatedAt,
+        }
+      : {
+          executionNote: executionNote || null,
+          actionType: clean(row.action_type),
+        };
+
   const { data, error } = await supabaseAdmin
     .from("manager_intelligence_recommendations")
     .update({
       status: "measurement_pending",
       execution_status: "completed",
-      execution_reference_type: "manual_action",
-      execution_reference_id: null,
+      execution_reference_type: configurationExecution
+        ? "manager_change_request"
+        : "manual_action",
+      execution_reference_id: configurationExecution?.changeRequestId || null,
       executed_by_session_id: scope.sessionId,
       executed_at: nowIso,
       measurement_window_start: nowIso,
       measurement_window_end: measurementEnd,
-      previous_value_json: Object.keys(previousValue).length
-        ? previousValue
-        : record(row.baseline_json),
-      new_value_json: Object.keys(newValue).length
-        ? newValue
-        : {
-            executionNote: executionNote || null,
-            actionType: clean(row.action_type),
-          },
+      previous_value_json: storedPreviousValue,
+      new_value_json: storedNewValue,
       updated_at: nowIso,
     })
     .eq("hotel_id", scope.id)
@@ -727,8 +849,12 @@ export async function executeManagerIntelligenceRecommendation(input: {
       executionNote: executionNote || null,
       measurementWindowStart: nowIso,
       measurementWindowEnd: measurementEnd,
-      previousValue: Object.keys(previousValue).length ? previousValue : record(row.baseline_json),
-      newValue: Object.keys(newValue).length ? newValue : null,
+      previousValue: storedPreviousValue,
+      newValue: storedNewValue,
+      executionReferenceType: configurationExecution
+        ? "manager_change_request"
+        : "manual_action",
+      executionReferenceId: configurationExecution?.changeRequestId || null,
     },
   });
 
@@ -738,5 +864,6 @@ export async function executeManagerIntelligenceRecommendation(input: {
       from: nowIso,
       to: measurementEnd,
     },
+    configurationExecution,
   };
 }
