@@ -23,12 +23,15 @@ test("Control Plane password reset uses one-time Supabase recovery authority and
 
 test("Password change verifies recovery token and active platform authority before updating Auth", async () => {
   const service = await readProjectFile("lib/server/control-plane-password-reset.ts");
+  const confirmStart = service.indexOf("export async function confirmPlatformAdminPasswordReset");
+  assert.notEqual(confirmStart, -1);
+  const confirmSource = service.slice(confirmStart);
 
-  assertBefore(service, "auth.verifyOtp", '.from("platform_admins")');
-  assertBefore(service, '.from("platform_admins")', "auth.admin.updateUserById");
-  assertBefore(service, "auth.admin.updateUserById", '.from("platform_admin_sessions")');
-  assertContains(service, 'action: "control_plane_password_reset"');
-  assertContains(service, "allControlPlaneSessionsRevoked: true");
+  assertBefore(confirmSource, "auth.verifyOtp", '.from("platform_admins")');
+  assertBefore(confirmSource, '.from("platform_admins")', "auth.admin.updateUserById");
+  assertBefore(confirmSource, "auth.admin.updateUserById", '.from("platform_admin_sessions")');
+  assertContains(confirmSource, 'action: "control_plane_password_reset"');
+  assertContains(confirmSource, "allControlPlaneSessionsRevoked: true");
 });
 
 test("Password reset request does not reveal whether an email is a Platform Admin", async () => {
