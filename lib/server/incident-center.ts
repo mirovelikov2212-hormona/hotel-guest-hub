@@ -113,10 +113,11 @@ export async function listPlatformIncidents(input: {
     .filter(Boolean);
   const recommendationMap = new Map<string, Record<string, unknown>>();
 
-  if (incidentIds.length) {
+  if (incidentIds.length && hotelIds.length) {
     const { data: recommendations, error: recommendationError } = await supabaseAdmin
       .from("manager_intelligence_recommendations")
       .select("id,hotel_id,incident_id,status,title,manager_decision,execution_status,impact_basis,impact_outcome,created_at,updated_at")
+      .in("hotel_id", hotelIds)
       .in("incident_id", incidentIds)
       .order("created_at", { ascending: false });
 
