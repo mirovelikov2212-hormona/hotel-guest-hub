@@ -131,7 +131,8 @@ test("massage snapshot recovery closes only matching unresolved critical inciden
   assert.match(systemEventResolution, /\.from\("system_events"\)/);
   assert.match(systemEventResolution, /\.update\(\{ resolved_at: resolvedAt \}\)/);
   assert.match(systemEventResolution, /\.eq\("hotel_id", hotelId\)/);
-  assert.match(systemEventResolution, /\.eq\("severity", "critical"\)/);
+  assert.match(systemEventResolution, /\.in\("severity", input\.severities/);
+  assert.match(systemEventResolution, /severities: \["critical"\]/);
   assert.match(systemEventResolution, /\.eq\("source", input\.source\)/);
   assert.match(systemEventResolution, /\.eq\("event_type", eventType\)/);
   assert.match(systemEventResolution, /\.is\("resolved_at", null\)/);
