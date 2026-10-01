@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStaffUi } from "@/components/staff/StaffUiProvider";
+import ManagerIntelligenceActionsPanel from "@/components/staff/manager-intelligence/ManagerIntelligenceActionsPanel";
 
 type Signal = {
   key: string;
@@ -333,6 +334,8 @@ export default function ManagerIntelligenceDashboard({ hotelSlug }: { hotelSlug:
           </div>
         ) : <p className="mt-4 text-sm text-slate-500">{copy.noSignals}</p>}
       </section>
+
+      <ManagerIntelligenceActionsPanel hotelSlug={hotelSlug} />
 
       <section className="rounded-2xl border border-violet-200 bg-white p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
