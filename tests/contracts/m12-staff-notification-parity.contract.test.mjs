@@ -14,13 +14,26 @@ const STAFF_PAGE_FILES = [
 ];
 
 test("M12 gives all four staff roles the same sound, tab and push surfaces", async () => {
+  const unifiedHeader = await readProjectFile(
+    "components/staff/StaffDepartmentUnifiedHeader.tsx",
+  );
+  assertContains(unifiedHeader, "StaffAlertSoundButton");
+  assertContains(unifiedHeader, "ManagerPwaControls");
+  assertContains(unifiedHeader, "role={role}");
+
   for (const [role, file] of STAFF_PAGE_FILES) {
     const source = await readProjectFile(file);
-    assertContains(source, "StaffAlertSoundButton");
     assertContains(source, "useStaffAlertSound");
     assertContains(source, "useStaffTabTitleAlert");
-    assertContains(source, "ManagerPwaControls");
-    assertContains(source, `role=\"${role}\"`);
+
+    if (role === "manager") {
+      assertContains(source, "StaffAlertSoundButton");
+      assertContains(source, "ManagerPwaControls");
+      assertContains(source, 'role="manager"');
+    } else {
+      assertContains(source, "StaffDepartmentUnifiedHeader");
+      assertContains(source, `role="${role}"`);
+    }
   }
 
   const reception = await readProjectFile(
