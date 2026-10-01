@@ -101,6 +101,12 @@ const COPY = {
     positiveRate: "Процент положителен ефект",
     viewedKpi: "Прегледани",
     executedKpi: "Изпълнени",
+    avgDecision: "Средно до решение",
+    avgExecution: "Средно до изпълнение",
+    ignoredExpired: "Игнорирани / изтекли",
+    minutesShort: "мин",
+    observedRevenue: "Наблюдаван приход",
+    revenueNote: "Сравнение преди/след; не се отчита автоматично като причинен допълнителен приход.",
     noMeasuredYet: "Все още няма завършен период за измерване.",
   },
   en: {
@@ -151,6 +157,12 @@ const COPY = {
     positiveRate: "Positive impact rate",
     viewedKpi: "Viewed",
     executedKpi: "Executed",
+    avgDecision: "Avg. time to decision",
+    avgExecution: "Avg. time to execution",
+    ignoredExpired: "Ignored / expired",
+    minutesShort: "min",
+    observedRevenue: "Observed revenue",
+    revenueNote: "Before/after comparison; not automatically treated as causal incremental revenue.",
     noMeasuredYet: "No completed measurement window yet.",
   },
   de: {
@@ -201,6 +213,12 @@ const COPY = {
     positiveRate: "Quote positiver Wirkung",
     viewedKpi: "Gesehen",
     executedKpi: "Ausgeführt",
+    avgDecision: "Ø bis Entscheidung",
+    avgExecution: "Ø bis Ausführung",
+    ignoredExpired: "Ignoriert / abgelaufen",
+    minutesShort: "Min.",
+    observedRevenue: "Beobachteter Umsatz",
+    revenueNote: "Vorher-/Nachher-Vergleich; wird nicht automatisch als kausal zusätzlicher Umsatz gewertet.",
     noMeasuredYet: "Noch kein abgeschlossenes Messfenster.",
   },
 } as const;
@@ -208,11 +226,13 @@ const COPY = {
 type ActionCopy = (typeof COPY)[keyof typeof COPY];
 
 function pct(value: unknown) {
+  if (value === null || value === undefined || value === "") return "—";
   const number = Number(value);
   return Number.isFinite(number) ? `${(number * 100).toFixed(0)}%` : "—";
 }
 
 function metricValue(value: unknown, metric: string) {
+  if (value === null || value === undefined || value === "") return "—";
   const number = Number(value);
   if (!Number.isFinite(number)) return "—";
   if (metric.endsWith("_rate")) return `${(number * 100).toFixed(1)}%`;
@@ -243,6 +263,27 @@ function departmentLabel(value: unknown, language: ActionLang) {
   const raw = String(value || "").trim();
   const key = raw.toLowerCase();
   return DEPARTMENT_LABELS[language][key] || raw || "—";
+}
+
+function evidenceQualityLabel(value: unknown, language: ActionLang) {
+  const key = String(value || "").trim().toLowerCase();
+  const labels: Record<ActionLang, Record<string, string>> = {
+    bg: { high: "високо", medium: "средно", low: "ниско" },
+    en: { high: "high", medium: "medium", low: "low" },
+    de: { high: "hoch", medium: "mittel", low: "niedrig" },
+  };
+  return labels[language][key] || String(value || "—");
+}
+
+function evidencePeriod(row: Recommendation, language: ActionLang) {
+  const from = String(row.evidence?.periodStart || "");
+  const to = String(row.evidence?.periodEnd || "");
+  if (!from || !to) return null;
+  const locale = language === "bg" ? "bg-BG" : language === "de" ? "de-DE" : "en-GB";
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+  if (!Number.isFinite(fromDate.getTime()) || !Number.isFinite(toDate.getTime())) return null;
+  return `${fromDate.toLocaleDateString(locale)} – ${toDate.toLocaleDateString(locale)}`;
 }
 
 function recommendationPresentation(row: Recommendation, language: ActionLang) {
@@ -457,10 +498,23 @@ export default function ManagerIntelligenceActionsPanel({
     [copy.generatedKpi, k.recommendationsGenerated ?? 0],
     [copy.viewedKpi, k.recommendationsViewed ?? 0],
     [copy.executedKpi, k.actionsExecuted ?? 0],
+    [copy.ignoredExpired, k.recommendationsIgnoredOrExpired ?? 0],
     [copy.acceptance, pct(k.recommendationAcceptanceRate)],
     [copy.executionRate, pct(k.executionRate)],
     [copy.measuredRate, pct(k.measuredImpactRate)],
     [copy.positiveRate, pct(k.positiveImpactRate)],
+    [
+      copy.avgDecision,
+      k.averageMinutesRecommendationToDecision == null
+        ? "—"
+        : `${Number(k.averageMinutesRecommendationToDecision).toFixed(1)} ${copy.minutesShort}`,
+    ],
+    [
+      copy.avgExecution,
+      k.averageMinutesApprovalToExecution == null
+        ? "—"
+        : `${Number(k.averageMinutesApprovalToExecution).toFixed(1)} ${copy.minutesShort}`,
+    ],
   ];
 
   return (
@@ -498,7 +552,7 @@ export default function ManagerIntelligenceActionsPanel({
                           {actionModeLabel(row, copy)}
                         </span>
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">
-                          {copy.confidence}: {row.evidenceQuality}
+                          {copy.confidence}: {evidenceQualityLabel(row.evidenceQuality, safeLang)}
                         </span>
                       </div>
                       <h3 className="mt-3 text-base font-bold text-slate-950">{presentation.title}</h3>
@@ -564,9 +618,14 @@ export default function ManagerIntelligenceActionsPanel({
                       </div>
                       <div className="rounded-xl bg-white p-3">
                         <div className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">{copy.evidence}</div>
-                        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-xs leading-5 text-slate-600">
-                          {JSON.stringify(row.evidence, null, 2)}
-                        </pre>
+                        <div className="mt-1 text-sm text-slate-600">
+                          {evidenceSummary(row, safeLang)}
+                        </div>
+                        {evidencePeriod(row, safeLang) ? (
+                          <div className="mt-1 text-xs text-slate-400">
+                            {evidencePeriod(row, safeLang)}
+                          </div>
+                        ) : null}
                       </div>
                       {row.incidentId ? (
                         <div className="rounded-xl bg-white p-3 text-sm text-slate-600 md:col-span-2">
@@ -590,7 +649,7 @@ export default function ManagerIntelligenceActionsPanel({
           <p className="mt-1 text-sm text-slate-500">{copy.historyHint}</p>
         </div>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {kpiCards.map(([label, value]) => (
             <div key={String(label)} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
               <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</div>
@@ -635,15 +694,27 @@ export default function ManagerIntelligenceActionsPanel({
 
                 {row.impact ? (
                   <div className="mt-2 text-sm text-slate-600">
-                    <strong>{impactLabel(row, copy)}:</strong>{" "}
-                    {copy.before} {metricValue(impact.before?.value, metric)}
-                    {" → "}
-                    {copy.after} {metricValue(impact.after?.value, metric)}
-                    {Number.isFinite(Number(impact.deltaPercentagePoints))
-                      ? ` · ${copy.change} ${Number(impact.deltaPercentagePoints).toFixed(1)} pp`
-                      : Number.isFinite(Number(impact.delta))
-                        ? ` · ${copy.change} ${Number(impact.delta).toFixed(2)}`
-                        : ""}
+                    <div>
+                      <strong>{impactLabel(row, copy)}:</strong>{" "}
+                      {copy.before} {metricValue(impact.before?.value, metric)}
+                      {" → "}
+                      {copy.after} {metricValue(impact.after?.value, metric)}
+                      {Number.isFinite(Number(impact.deltaPercentagePoints))
+                        ? ` · ${copy.change} ${Number(impact.deltaPercentagePoints).toFixed(1)} pp`
+                        : Number.isFinite(Number(impact.delta))
+                          ? ` · ${copy.change} ${Number(impact.delta).toFixed(2)}`
+                          : ""}
+                    </div>
+                    {impact.businessValue?.currency ? (
+                      <div className="mt-1 text-xs text-slate-500">
+                        <strong>{copy.observedRevenue}:</strong>{" "}
+                        {Number(impact.businessValue.beforeAmount || 0).toFixed(2)} {impact.businessValue.currency}
+                        {" → "}
+                        {Number(impact.businessValue.afterAmount || 0).toFixed(2)} {impact.businessValue.currency}
+                        {" · "}
+                        {copy.revenueNote}
+                      </div>
+                    ) : null}
                   </div>
                 ) : row.executedAt ? (
                   <div className="mt-2 text-sm text-slate-500">{impactLabel(row, copy)}</div>
