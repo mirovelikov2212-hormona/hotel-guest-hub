@@ -54,12 +54,12 @@ type ActionLoopResponse = {
 
 const COPY = {
   bg: {
-    recommended: "Recommended Actions",
+    recommended: "Препоръчани действия",
     recommendedHint: "Препоръки само когато има достатъчно проверими данни. Няма автономна промяна на хотелска конфигурация.",
-    history: "Actions & Impact",
-    historyHint: "Recommendation → Decision → Action → Result",
+    history: "Действия и резултат",
+    historyHint: "Препоръка → Решение → Действие → Резултат",
     problem: "Проблем / възможност",
-    evidence: "Evidence",
+    evidence: "Доказателства",
     action: "Препоръчано действие",
     expected: "Очакван резултат",
     approve: "Одобри",
@@ -68,12 +68,12 @@ const COPY = {
     executeConfig: "Изпълни одобрената промяна",
     details: "Детайли",
     hide: "Скрий",
-    measuredImpact: "Measured Impact",
-    estimatedImpact: "Estimated Impact",
+    measuredImpact: "Измерен ефект",
+    estimatedImpact: "Оценен ефект",
     insufficient: "Недостатъчно данни",
-    noActions: "В момента няма recommendation с достатъчно надеждни данни.",
+    noActions: "В момента няма препоръка с достатъчно надеждни данни.",
     loading: "Проверка за препоръчани действия…",
-    unavailable: "Action/Impact loop временно не е наличен.",
+    unavailable: "Цикълът за действия и измерване временно не е наличен.",
     generated: "Генерирана",
     viewed: "Прегледана",
     approved: "Одобрена",
@@ -89,25 +89,25 @@ const COPY = {
     manual: "Ръчно действие",
     config: "Конфигурационно действие",
     recommendationOnly: "Само препоръка",
-    confidence: "Evidence quality",
+    confidence: "Качество на доказателствата",
     before: "Преди",
     after: "След",
     change: "Промяна",
-    linkedIncident: "Свързан incident",
+    linkedIncident: "Свързан инцидент",
     generatedKpi: "Препоръки",
-    acceptance: "Acceptance rate",
-    executionRate: "Execution rate",
-    measuredRate: "Measured impact rate",
-    positiveRate: "Positive impact rate",
+    acceptance: "Процент одобрени препоръки",
+    executionRate: "Процент изпълнени действия",
+    measuredRate: "Процент измерени резултати",
+    positiveRate: "Процент положителен ефект",
     viewedKpi: "Прегледани",
     executedKpi: "Изпълнени",
-    noMeasuredYet: "Няма завършен measurement window.",
+    noMeasuredYet: "Все още няма завършен период за измерване.",
   },
   en: {
     recommended: "Recommended Actions",
     recommendedHint: "Recommendations appear only when verified evidence is sufficient. Hotel configuration is never changed autonomously.",
-    history: "Actions & Impact",
-    historyHint: "Recommendation → Decision → Action → Result",
+    history: "Maßnahmen & Wirkung",
+    historyHint: "Empfehlung → Entscheidung → Maßnahme → Ergebnis",
     problem: "Problem / opportunity",
     evidence: "Evidence",
     action: "Recommended action",
@@ -118,8 +118,8 @@ const COPY = {
     executeConfig: "Execute approved change",
     details: "Details",
     hide: "Hide",
-    measuredImpact: "Measured Impact",
-    estimatedImpact: "Estimated Impact",
+    measuredImpact: "Gemessene Wirkung",
+    estimatedImpact: "Geschätzte Wirkung",
     insufficient: "Insufficient data",
     noActions: "There are no recommendations with sufficient evidence right now.",
     loading: "Checking recommended actions…",
@@ -154,7 +154,7 @@ const COPY = {
     noMeasuredYet: "No completed measurement window yet.",
   },
   de: {
-    recommended: "Recommended Actions",
+    recommended: "Empfohlene Maßnahmen",
     recommendedHint: "Empfehlungen erscheinen nur bei ausreichender überprüfbarer Evidenz. Die Hotelkonfiguration wird nie autonom geändert.",
     history: "Actions & Impact",
     historyHint: "Recommendation → Decision → Action → Result",
@@ -195,10 +195,10 @@ const COPY = {
     change: "Änderung",
     linkedIncident: "Verknüpfter Incident",
     generatedKpi: "Empfehlungen",
-    acceptance: "Acceptance Rate",
-    executionRate: "Execution Rate",
-    measuredRate: "Measured Impact Rate",
-    positiveRate: "Positive Impact Rate",
+    acceptance: "Freigabequote",
+    executionRate: "Ausführungsquote",
+    measuredRate: "Quote gemessener Wirkung",
+    positiveRate: "Quote positiver Wirkung",
     viewedKpi: "Gesehen",
     executedKpi: "Ausgeführt",
     noMeasuredYet: "Noch kein abgeschlossenes Messfenster.",
@@ -217,6 +217,105 @@ function metricValue(value: unknown, metric: string) {
   if (!Number.isFinite(number)) return "—";
   if (metric.endsWith("_rate")) return `${(number * 100).toFixed(1)}%`;
   return Number.isInteger(number) ? String(number) : number.toFixed(2);
+}
+
+type ActionLang = keyof typeof COPY;
+
+const DEPARTMENT_LABELS: Record<ActionLang, Record<string, string>> = {
+  bg: {
+    housekeeping: "Камериерки",
+    maintenance: "Технически отдел",
+    reception: "Рецепция",
+  },
+  en: {
+    housekeeping: "Housekeeping",
+    maintenance: "Maintenance",
+    reception: "Reception",
+  },
+  de: {
+    housekeeping: "Housekeeping",
+    maintenance: "Technischer Dienst",
+    reception: "Rezeption",
+  },
+};
+
+function departmentLabel(value: unknown, language: ActionLang) {
+  const raw = String(value || "").trim();
+  const key = raw.toLowerCase();
+  return DEPARTMENT_LABELS[language][key] || raw || "—";
+}
+
+function recommendationPresentation(row: Recommendation, language: ActionLang) {
+  const raw = {
+    title: row.title,
+    problem: row.problem,
+    recommendation: row.recommendation,
+    expectedOutcome: row.expectedOutcome,
+  };
+  if (language === "en") return raw;
+
+  const evidence = row.evidence || {};
+  const pattern = String(evidence.pattern || "");
+  if (pattern === "delayed_request_window") {
+    const department = departmentLabel(evidence.department || row.department, language);
+    const windowLabel = String(evidence.windowLabel || "");
+    const concentration = Math.round(Number(evidence.delayedConcentration || 0) * 100);
+    if (language === "bg") {
+      return {
+        title: `Забавени заявки · ${department} · ${windowLabel}`,
+        problem: `${concentration}% от забавените заявки за ${department} през наблюдавания период са възникнали между ${windowLabel}.`,
+        recommendation: `Прегледайте покритието на персонала, работното време и настроеното пренасочване за ${department} между ${windowLabel}. Всяка конфигурационна промяна минава през съществуващия Manager Change процес.`,
+        expectedOutcome: "Намаляване на забавените заявки в същия часови диапазон.",
+      };
+    }
+    return {
+      title: `Verzögerte Anfragen · ${department} · ${windowLabel}`,
+      problem: `${concentration}% der verzögerten Anfragen für ${department} im Beobachtungszeitraum traten zwischen ${windowLabel} auf.`,
+      recommendation: `Prüfen Sie Personalabdeckung, Arbeitszeiten und konfigurierte Weiterleitung für ${department} zwischen ${windowLabel}. Jede Konfigurationsänderung läuft über den bestehenden Manager-Change-Prozess.`,
+      expectedOutcome: "Weniger verzögerte Anfragen im gleichen Zeitfenster.",
+    };
+  }
+
+  if (pattern === "ai_high_intent_low_conversion") {
+    const intent = String(evidence.intent || row.sourceRef || "—");
+    const questions = Number(evidence.questions || 0);
+    const converted = Number(evidence.convertedRequests || 0);
+    if (language === "bg") {
+      return {
+        title: `Висок интерес към ИИ + ниска конверсия · ${intent}`,
+        problem: `${questions} ИИ взаимодействия са класифицирани като ${intent}, но само ${converted} са довели до заявка или резервация.`,
+        recommendation: "Прегледайте наличността, представянето на цената, текста на услугата и призива към действие. Хотелски процедури не се променят автоматично.",
+        expectedOutcome: "По-висока конверсия към действие или заявка за същото намерение.",
+      };
+    }
+    return {
+      title: `Hohes KI-Interesse + niedrige Konversion · ${intent}`,
+      problem: `${questions} KI-Interaktionen wurden als ${intent} klassifiziert, aber nur ${converted} führten zu einer Anfrage oder Buchung.`,
+      recommendation: "Prüfen Sie Verfügbarkeit, Preisdarstellung, Service-Text und Handlungsaufforderung. Hotelabläufe werden nicht automatisch geändert.",
+      expectedOutcome: "Höhere Konversion zu einer Aktion oder Anfrage für dieselbe Absicht.",
+    };
+  }
+
+  if (pattern === "recurring_incident") {
+    const occurrences = Number(evidence.occurrences || 0);
+    const incidentType = String(evidence.eventType || row.module || "incident");
+    if (language === "bg") {
+      return {
+        title: `Повтарящ се инцидент · ${incidentType}`,
+        problem: `Открити са ${occurrences} повторения на един и същ инцидент в наблюдавания период.`,
+        recommendation: "Прегледайте основната причина и коригиращото действие, след което наблюдавайте дали инцидентът се повтаря.",
+        expectedOutcome: "Намаляване на повторните прояви на същия инцидент.",
+      };
+    }
+    return {
+      title: `Wiederkehrender Vorfall · ${incidentType}`,
+      problem: `${occurrences} Wiederholungen desselben Vorfalls wurden im Beobachtungszeitraum erkannt.`,
+      recommendation: "Prüfen Sie Grundursache und Korrekturmaßnahme und beobachten Sie anschließend, ob der Vorfall erneut auftritt.",
+      expectedOutcome: "Weniger Wiederholungen desselben Vorfalls.",
+    };
+  }
+
+  return raw;
 }
 
 function statusLabel(row: Recommendation, copy: ActionCopy) {
@@ -252,16 +351,20 @@ function outcomeLabel(row: Recommendation, copy: ActionCopy) {
   return null;
 }
 
-function evidenceSummary(row: Recommendation) {
+function evidenceSummary(row: Recommendation, language: ActionLang) {
   const evidence = row.evidence || {};
   if (evidence.pattern === "delayed_request_window") {
-    return `${evidence.windowDelayedRequests || 0}/${evidence.departmentDelayedRequests || 0} delayed · ${evidence.windowLabel || ""} · ${Math.round(Number(evidence.delayedConcentration || 0) * 100)}%`;
+    const delayedWord = language === "bg" ? "забавени" : language === "de" ? "verzögert" : "delayed";
+    return `${evidence.windowDelayedRequests || 0}/${evidence.departmentDelayedRequests || 0} ${delayedWord} · ${evidence.windowLabel || ""} · ${Math.round(Number(evidence.delayedConcentration || 0) * 100)}%`;
   }
   if (evidence.pattern === "ai_high_intent_low_conversion") {
-    return `${evidence.questions || 0} AI interactions · ${evidence.convertedRequests || 0} converted · ${pct(evidence.conversionRate)}`;
+    const interactions = language === "bg" ? "ИИ взаимодействия" : language === "de" ? "KI-Interaktionen" : "AI interactions";
+    const converted = language === "bg" ? "заявки" : language === "de" ? "konvertiert" : "converted";
+    return `${evidence.questions || 0} ${interactions} · ${evidence.convertedRequests || 0} ${converted} · ${pct(evidence.conversionRate)}`;
   }
   if (evidence.pattern === "recurring_incident") {
-    return `${evidence.occurrences || 0} occurrences · ${evidence.eventType || "incident"}`;
+    const occurrences = language === "bg" ? "повторения" : language === "de" ? "Wiederholungen" : "occurrences";
+    return `${evidence.occurrences || 0} ${occurrences} · ${evidence.eventType || (language === "bg" ? "инцидент" : language === "de" ? "Vorfall" : "incident")}`;
   }
   return row.evidenceQuality;
 }
@@ -364,13 +467,14 @@ export default function ManagerIntelligenceActionsPanel({
     <>
       <section className="rounded-2xl border border-sky-200 bg-white p-5">
         <div>
-          <h2 className="text-xl font-bold text-[#102a43]">{copy.recommended}</h2>
+          <h2 className="text-xl font-bold text-slate-950">{copy.recommended}</h2>
           <p className="mt-1 text-sm leading-6 text-slate-500">{copy.recommendedHint}</p>
         </div>
 
         {data.recommendedActions.length ? (
           <div className="mt-4 grid gap-3">
             {data.recommendedActions.map((row) => {
+              const presentation = recommendationPresentation(row, safeLang);
               const expanded = expandedId === row.id;
               const canDecide = !row.managerDecision && ["generated", "viewed"].includes(row.status);
               const canExecute =
@@ -390,22 +494,22 @@ export default function ManagerIntelligenceActionsPanel({
                         <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">
                           {statusLabel(row, copy)}
                         </span>
-                        <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">
+                        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">
                           {actionModeLabel(row, copy)}
                         </span>
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">
                           {copy.confidence}: {row.evidenceQuality}
                         </span>
                       </div>
-                      <h3 className="mt-3 text-base font-bold text-[#102a43]">{row.title}</h3>
+                      <h3 className="mt-3 text-base font-bold text-slate-950">{presentation.title}</h3>
                       <p className="mt-2 text-sm text-slate-600">
-                        <strong>{copy.problem}:</strong> {row.problem}
+                        <strong>{copy.problem}:</strong> {presentation.problem}
                       </p>
                       <p className="mt-1 text-sm text-slate-600">
-                        <strong>{copy.evidence}:</strong> {evidenceSummary(row)}
+                        <strong>{copy.evidence}:</strong> {evidenceSummary(row, safeLang)}
                       </p>
                       <p className="mt-1 text-sm text-slate-600">
-                        <strong>{copy.action}:</strong> {row.recommendation}
+                        <strong>{copy.action}:</strong> {presentation.recommendation}
                       </p>
                     </div>
 
@@ -456,7 +560,7 @@ export default function ManagerIntelligenceActionsPanel({
                     <div className="mt-4 grid gap-3 border-t border-slate-200 pt-4 md:grid-cols-2">
                       <div className="rounded-xl bg-white p-3">
                         <div className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">{copy.expected}</div>
-                        <div className="mt-1 text-sm text-slate-600">{row.expectedOutcome}</div>
+                        <div className="mt-1 text-sm text-slate-600">{presentation.expectedOutcome}</div>
                       </div>
                       <div className="rounded-xl bg-white p-3">
                         <div className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">{copy.evidence}</div>
@@ -482,7 +586,7 @@ export default function ManagerIntelligenceActionsPanel({
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <div>
-          <h2 className="text-xl font-bold text-[#102a43]">{copy.history}</h2>
+          <h2 className="text-xl font-bold text-slate-950">{copy.history}</h2>
           <p className="mt-1 text-sm text-slate-500">{copy.historyHint}</p>
         </div>
 
@@ -490,13 +594,14 @@ export default function ManagerIntelligenceActionsPanel({
           {kpiCards.map(([label, value]) => (
             <div key={String(label)} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
               <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</div>
-              <div className="mt-1 text-lg font-black text-[#102a43]">{value}</div>
+              <div className="mt-1 text-lg font-black text-slate-950">{value}</div>
             </div>
           ))}
         </div>
 
         <div className="mt-4 grid gap-2">
           {recentHistory.map((row) => {
+            const presentation = recommendationPresentation(row, safeLang);
             const impact = row.impact || {};
             const metric = String(impact.metric || row.baseline?.metric || "");
             const outcome = outcomeLabel(row, copy);
@@ -507,7 +612,7 @@ export default function ManagerIntelligenceActionsPanel({
                     <div className="text-xs font-bold text-slate-400">
                       {new Date(row.createdAt).toLocaleDateString()}
                     </div>
-                    <div className="mt-1 text-sm font-bold text-[#102a43]">{row.title}</div>
+                    <div className="mt-1 text-sm font-bold text-slate-950">{presentation.title}</div>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs font-bold">
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">
@@ -520,7 +625,7 @@ export default function ManagerIntelligenceActionsPanel({
                           ? "bg-emerald-50 text-emerald-700"
                           : row.impactOutcome === "negative"
                             ? "bg-rose-50 text-rose-700"
-                            : "bg-amber-50 text-amber-700")
+                            : "bg-slate-100 text-slate-700")
                       }>
                         {outcome}
                       </span>
