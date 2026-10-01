@@ -63,6 +63,7 @@ const COPY = {
     approve: "Одобри",
     reject: "Отхвърли",
     execute: "Маркирай изпълнено",
+    executeConfig: "Изпълни одобрената промяна",
     details: "Детайли",
     hide: "Скрий",
     measuredImpact: "Measured Impact",
@@ -110,6 +111,7 @@ const COPY = {
     approve: "Approve",
     reject: "Reject",
     execute: "Mark executed",
+    executeConfig: "Execute approved change",
     details: "Details",
     hide: "Hide",
     measuredImpact: "Measured Impact",
@@ -157,6 +159,7 @@ const COPY = {
     approve: "Genehmigen",
     reject: "Ablehnen",
     execute: "Als ausgeführt markieren",
+    executeConfig: "Genehmigte Änderung ausführen",
     details: "Details",
     hide: "Ausblenden",
     measuredImpact: "Measured Impact",
@@ -362,7 +365,7 @@ export default function ManagerIntelligenceActionsPanel({
               const canDecide = !row.managerDecision && ["generated", "viewed"].includes(row.status);
               const canExecute =
                 row.managerDecision === "approved"
-                && row.actionMode === "manual_action"
+                && ["manual_action", "manager_approved_configuration"].includes(row.actionMode)
                 && !row.executedAt;
 
               return (
@@ -420,7 +423,9 @@ export default function ManagerIntelligenceActionsPanel({
                           onClick={() => void mutate("execute", row.id)}
                           className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 disabled:opacity-50"
                         >
-                          {copy.execute}
+                          {row.actionMode === "manager_approved_configuration"
+                            ? copy.executeConfig
+                            : copy.execute}
                         </button>
                       ) : null}
                       <button
