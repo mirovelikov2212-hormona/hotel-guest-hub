@@ -200,14 +200,23 @@ test("3. manager approves: approval is permission-scoped, persisted and audit-ev
   assertContains(source, "decided_by_session_id: scope.sessionId");
 });
 
-test("4. action executed: no configuration recommendation can bypass existing Manager Change workflow", async () => {
+test("4. action executed: approved configuration actions use the existing Manager Change workflow end-to-end", async () => {
   const actions = await readProjectFile("lib/server/manager-intelligence-actions.ts");
   const lifecycle = await readProjectFile("lib/server/manager-change-lifecycle.ts");
+  const panel = await readProjectFile("components/staff/manager-intelligence/ManagerIntelligenceActionsPanel.tsx");
 
-  assertContains(actions, 'actionMode === "manager_approved_configuration"');
-  assertContains(actions, "existing_manager_change_workflow_required");
-  assertContains(actions, 'safeHandoff: record(row.action_payload_json).safeConfigurationHandoff');
+  assertContains(actions, 'handoff !== "manager_change_workflow"');
+  assertContains(actions, "createManagerLifecycleDraft");
+  assertContains(actions, "saveManagerLifecycleTypedDraft");
+  assertContains(actions, "confirmManagerLifecycleDraft");
+  assertContains(actions, "createManagerLifecycleCandidate");
+  assertContains(actions, "certifyManagerLifecycleCandidate");
+  assertContains(actions, "activateManagerLifecycleCandidate");
+  assertContains(actions, '"manager_change_request"');
+  assertContains(actions, "MANAGER_INTELLIGENCE_CONFIGURATION_ACTIVATION_NOT_LIVE");
   assertContains(lifecycle, "activateManagerChangeCandidate");
+  assertContains(panel, '"manager_approved_configuration"');
+  assertContains(panel, "executeConfig");
   assertNotContains(actions, '.from("hotel_config_revisions").insert');
 });
 
