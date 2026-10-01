@@ -17,6 +17,10 @@ import { logSystemError, logSystemEvent } from "@/lib/server/system-events";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
 import { resolveManagerIntelligenceScope } from "@/lib/server/manager-intelligence-scope";
+import {
+  refreshManagerIntelligenceActionLoopForHotel,
+  shouldRefreshManagerIntelligenceActionLoopForHotel,
+} from "@/lib/server/manager-intelligence-actions";
 
 type Lang = "bg" | "en" | "de";
 type HotelScope = {
@@ -1089,6 +1093,9 @@ export async function runManagerIntelligenceWatchCron(now = new Date()) {
 
   const since = new Date(now.getTime() - 6 * 60 * 60 * 1000).toISOString();
   let alerts = 0;
+  let actionLoopRefreshes = 0;
+  let actionRecommendationsGenerated = 0;
+  let actionMeasurementsCompleted = 0;
 
   for (const row of hotels || []) {
     try {
@@ -1096,6 +1103,33 @@ export async function runManagerIntelligenceWatchCron(now = new Date()) {
       const entitlement = await getHotelProductModuleEntitlement(hotel.id);
       if (!hasHotelPaidProductModuleAccess(entitlement, "manager_intelligence")) continue;
       if (entitlement.commercial.environment !== "production") continue;
+
+      if (shouldRefreshManagerIntelligenceActionLoopForHotel(hotel.id, now)) {
+        try {
+          const actionLoopResult = await refreshManagerIntelligenceActionLoopForHotel({
+            hotelId: hotel.id,
+            timeZone: hotel.timezone,
+            includeTest: hotel.isSandbox || hotel.slug === "demo",
+            now,
+          });
+          actionLoopRefreshes += 1;
+          actionRecommendationsGenerated += actionLoopResult.generated;
+          actionMeasurementsCompleted += actionLoopResult.measured;
+        } catch (actionLoopError) {
+          await logSystemError({
+            hotelId: hotel.id,
+            severity: "error",
+            source: "cron",
+            eventType: "manager_intelligence_action_loop_scheduled_refresh_failed",
+            message: "Manager Intelligence scheduled action/impact refresh failed.",
+            error: actionLoopError,
+            metadata: {
+              module: "manager_intelligence",
+              cron: "live_watch",
+            },
+          });
+        }
+      }
 
       const snapshot = await buildSnapshot({
         hotel,
@@ -1149,5 +1183,11 @@ export async function runManagerIntelligenceWatchCron(now = new Date()) {
     }
   }
 
-  return { checked: (hotels || []).length, alerts };
+  return {
+    checked: (hotels || []).length,
+    alerts,
+    actionLoopRefreshes,
+    actionRecommendationsGenerated,
+    actionMeasurementsCompleted,
+  };
 }
