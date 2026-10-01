@@ -9,13 +9,17 @@ function source(path) {
 test("Manager Intelligence is a separately entitled Manager module and is visible in Demo", () => {
   const catalog = source("lib/commercial/product-module-entitlements.mjs");
   const server = source("lib/server/manager-intelligence.ts");
+  const scope = source("lib/server/manager-intelligence-scope.ts");
   const page = source("app/staff/[hotelSlug]/manager/intelligence/page.tsx");
   const card = source("components/staff/ManagerIntelligenceAccessCard.tsx");
   const manager = source("components/staff/pages/ManagerPageContent.tsx");
 
   assert.match(catalog, /"manager_intelligence"/);
   assert.match(catalog, /manager_intelligence: \["staff_operations"\]/);
-  assert.match(server, /requireHotelPaidProductModuleAccess\(String\(hotel\.id\), "manager_intelligence"\)/);
+  assert.match(server, /resolveManagerIntelligenceScope/);
+  assert.match(scope, /requireHotelPaidProductModuleAccess\(String\(hotel\.id\), "manager_intelligence"\)/);
+  assert.match(scope, /getCurrentStaffSession\(requested, "manager"\)/);
+  assert.match(scope, /hotelMatchesRequestedSlug\(hotel, requested\)/);
   assert.match(page, /requireHotelPaidProductModuleAccess\(String\(access\.hotelId\), "manager_intelligence"\)/);
   assert.match(card, /Допълнителен платен модул/);
   assert.match(card, /\/api\/staff\/manager-intelligence/);
