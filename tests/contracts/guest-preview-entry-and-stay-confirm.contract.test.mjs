@@ -74,10 +74,10 @@ test("public demo room 901 is configured as an isolated test room with guided to
   assert.match(guestHubSource, /isPublicDemoHotel/);
   assert.match(guestHubSource, /setManualRoomInput\(storedRoom \|\| \(isPublicDemoHotel \? "901" : ""\)\)/);
   assert.match(guestHubSource, /<DemoJourneyGuide/);
-  assert.match(guideSource, /Step 1/);
-  assert.match(guideSource, /901/);
-  assert.match(guideSource, /\/staff\/demo\/housekeeping/);
-  assert.match(guideSource, /\/staff\/demo\/manager/);
+  assert.match(guideSource, /roomTitle: "1\. Confirm room 901"/);
+  assert.match(guideSource, /staffTitle: "4\. Check Manager"/);
+  assert.match(guideSource, /staffText: "Look at Manager on the right\. The request should appear there\."/);
+  assert.match(guideSource, /href="\/staff\/demo\/reception"/);
 });
 
 test("invalid preview slug cannot escape the hotel route", () => {
