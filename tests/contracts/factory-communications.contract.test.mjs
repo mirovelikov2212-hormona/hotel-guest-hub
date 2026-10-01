@@ -146,7 +146,7 @@ test("STEP 2D does not introduce a parallel venue or messaging authority", async
 test("Production direct guest communications reuse Guest Communications with exact hotel/stay/device guards", async () => {
   const staffRoute = await readProjectFile("app/api/staff/guest-direct-communications/route.ts");
   const guestRoute = await readProjectFile("app/api/guest/communications/route.ts");
-  const staffShell = await readProjectFile("components/staff/StaffHotelShell.tsx");
+  const receptionPage = await readProjectFile("components/staff/pages/ReceptionPageContent.tsx");
   const guestInbox = await readProjectFile("components/GuestCommunicationsInbox.tsx");
   const policy = await readProjectFile("lib/server/guest-communications-delivery-policy.ts");
   const delivery = await readProjectFile("lib/server/guest-direct-communications-delivery.ts");
@@ -160,7 +160,8 @@ test("Production direct guest communications reuse Guest Communications with exa
   assertContains(guestRoute, '.eq("stay_id", stayResult.stay.id)');
   assertContains(guestRoute, 'p_stay_device_id: stayResult.stay.stayDeviceId');
   assertContains(guestRoute, 'direct_thread_not_open');
-  assertContains(staffShell, 'role === "reception"');
+  assertContains(staffRoute, 'access.role !== "reception"');
+  assertContains(receptionPage, "GuestDirectCommunicationsWorkspace");
   assertContains(guestInbox, 'action: "reply"');
   assertContains(policy, 'guest_communications_delivery_enabled');
   assertContains(delivery, '.eq("stay_id", input.communication.stay_id)');
