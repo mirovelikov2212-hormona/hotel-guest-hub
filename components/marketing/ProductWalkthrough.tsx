@@ -559,7 +559,7 @@ const COPY: Record<Lang, ProductCopy> = {
 
 function ModulePreview({ view }: { view: ProductView }) {
   return (
-    <div className="relative h-full overflow-hidden rounded-[28px] border border-slate-200 bg-white p-5 text-[#102a43] shadow-[0_18px_50px_rgba(15,58,91,.10)] sm:p-6">
+    <div className="relative h-full min-w-0 max-w-full overflow-hidden rounded-[28px] border border-slate-200 bg-white p-5 text-[#102a43] shadow-[0_18px_50px_rgba(15,58,91,.10)] sm:p-6">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_55%_0%,rgba(44,157,255,.12),transparent_43%),radial-gradient(circle_at_92%_82%,rgba(44,157,255,.08),transparent_34%)]" />
       <div className="relative">
         <div className="border-b border-slate-200 pb-4">
@@ -611,7 +611,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
   );
 
   return (
-    <section className="mx-auto mt-5 max-w-7xl rounded-[34px] border border-slate-200 bg-white px-5 py-10 text-[#102a43] shadow-[0_20px_60px_rgba(15,58,91,.07)] sm:px-7 lg:py-12">
+    <section className="mx-auto mt-5 min-w-0 max-w-7xl overflow-hidden rounded-[34px] border border-slate-200 bg-white px-5 py-10 text-[#102a43] shadow-[0_20px_60px_rgba(15,58,91,.07)] sm:px-7 lg:py-12">
       <div className="max-w-3xl">
         <p className="text-xs font-bold uppercase tracking-[.24em] text-[#1479d3]">
           {copy.explorerLabel}
@@ -625,7 +625,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
       </div>
 
       <div
-        className="mt-6 flex gap-2 overflow-x-auto pb-2"
+        className="gostaya-module-tabs mt-6 flex w-full min-w-0 max-w-full gap-2 overflow-x-auto pb-2"
         role="tablist"
         aria-label={copy.flowTitle}
       >
@@ -648,8 +648,8 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
         ))}
       </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2 lg:items-stretch">
-        <div className="rounded-[28px] border border-slate-200 bg-[#f8fbfe] p-5 text-[#102a43] sm:p-7">
+      <div className="mt-5 grid min-w-0 max-w-full gap-5 lg:grid-cols-2 lg:items-stretch">
+        <div className="min-w-0 max-w-full rounded-[28px] border border-slate-200 bg-[#f8fbfe] p-5 text-[#102a43] sm:p-7">
           <p className="text-xs font-bold uppercase tracking-[.22em] text-[#1479d3]">
             {active.eyebrow}
           </p>
@@ -682,9 +682,9 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
           </div>
         </div>
 
-        <div className="lg:hidden">
+        <div className="min-w-0 max-w-full overflow-hidden lg:hidden">
           <div
-            className="flex gap-2 overflow-x-auto pb-2"
+            className="gostaya-module-tabs flex w-full min-w-0 max-w-full gap-2 overflow-x-auto pb-2"
             role="tablist"
             aria-label={copy.flowTitle}
           >

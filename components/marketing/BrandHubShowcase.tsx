@@ -309,7 +309,7 @@ export default function BrandHubShowcase({ lang }: { lang: Lang }) {
                 aria-selected={selected}
                 onClick={() => setActiveKey(variant.key)}
                 className={
-                  "group w-full rounded-[24px] border p-5 text-left transition " +
+                  "gostaya-hotel-type-option group w-full rounded-full border p-5 text-left transition " +
                   (selected
                     ? "border-[#8fcaf2] bg-[#eef6ff] shadow-[0_16px_40px_rgba(15,58,91,.10)]"
                     : "border-slate-200 bg-white hover:border-sky-300 hover:shadow-md")

@@ -3344,3 +3344,61 @@ input.stayhub-card::placeholder {
     text-align: left;
   }
 }
+
+
+/* GOSTAYA launch mobile containment + hotel selector polish */
+.gostaya-marketing {
+  overflow-x: clip;
+}
+
+.gostaya-marketing .gostaya-hotel-type-option {
+  border-radius: 999px !important;
+  outline: none !important;
+}
+
+.gostaya-marketing .gostaya-hotel-type-option[aria-selected="true"] {
+  border-color: #8fcaf2 !important;
+  background: #eef6ff !important;
+  color: var(--gostaya-ink) !important;
+  box-shadow: 0 16px 40px rgba(15, 58, 91, 0.10) !important;
+}
+
+.gostaya-marketing .gostaya-hotel-type-option:focus {
+  outline: none !important;
+}
+
+.gostaya-marketing .gostaya-hotel-type-option:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(20, 121, 211, 0.18), 0 16px 40px rgba(15, 58, 91, 0.10) !important;
+}
+
+.gostaya-marketing .gostaya-module-tabs {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gostaya-marketing .gostaya-module-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .gostaya-marketing section,
+  .gostaya-marketing section > div,
+  .gostaya-marketing section article,
+  .gostaya-marketing section details {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .gostaya-marketing section :is(h1, h2, h3, h4, p) {
+    width: 100%;
+    max-width: 100% !important;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    text-align: left;
+  }
+}
