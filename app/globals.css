@@ -3470,3 +3470,13 @@ input.stayhub-card::placeholder {
     word-break: normal;
   }
 }
+
+
+/* GOSTAYA hero wordmark proportions */
+.gostaya-marketing .gostaya-hero-brand {
+  display: inline-block;
+  font-weight: 900;
+  letter-spacing: .16em;
+  transform: scaleY(.84);
+  transform-origin: left center;
+}
