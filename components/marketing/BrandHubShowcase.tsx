@@ -288,13 +288,35 @@ export default function BrandHubShowcase({ lang }: { lang: Lang }) {
   return (
     <div className="grid gap-7 lg:grid-cols-[430px_1fr] lg:items-start">
       <div>
+        <div className="mx-auto mb-4 grid w-full max-w-[390px] grid-cols-2 gap-2 lg:hidden" role="tablist" aria-label={c.choose}>
+          {c.variants.map((variant, index) => {
+            const selected = active.key === variant.key;
+            return (
+              <button
+                key={variant.key}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => setActiveKey(variant.key)}
+                className={
+                  "gostaya-hotel-type-chip grid min-h-[54px] place-items-center rounded-full border px-3 py-2 text-center text-sm font-bold transition " +
+                  (selected
+                    ? "border-[#8fcaf2] bg-[#eef6ff] text-[#102a43] shadow-sm"
+                    : "border-slate-200 bg-white text-slate-600")
+                }
+              >
+                <span>{String(index + 1).padStart(2, "0")} · {variant.label}</span>
+              </button>
+            );
+          })}
+        </div>
         <div className="mb-3 text-center text-xs font-bold uppercase tracking-[.18em] text-slate-400">
           {c.preview}
         </div>
         <HubPreview variant={active} lang={lang} />
       </div>
 
-      <div>
+      <div className="hidden lg:block">
         <div className="text-xs font-bold uppercase tracking-[.18em] text-slate-400">
           {c.choose}
         </div>

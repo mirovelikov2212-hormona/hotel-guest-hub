@@ -3402,3 +3402,57 @@ input.stayhub-card::placeholder {
     text-align: left;
   }
 }
+
+
+/* GOSTAYA mobile launch typography + equalized controls */
+@media (max-width: 767px) {
+  .gostaya-marketing .gostaya-mobile-brand {
+    color: #1479d3 !important;
+  }
+
+  .gostaya-marketing .gostaya-ai-copy {
+    text-align: justify !important;
+    text-justify: inter-word;
+    hyphens: auto;
+  }
+
+  .gostaya-marketing .gostaya-module-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    overflow: visible !important;
+    padding-bottom: 0 !important;
+  }
+
+  .gostaya-marketing .gostaya-module-tab {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding: 0.5rem 0.35rem;
+    text-align: center;
+    white-space: normal;
+    line-height: 1.15;
+  }
+
+  .gostaya-marketing .gostaya-hotel-type-chip {
+    width: 100%;
+    min-width: 0;
+    min-height: 54px;
+    text-align: center;
+  }
+
+  .gostaya-marketing .gostaya-demo-departments {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .gostaya-marketing .gostaya-demo-department {
+    display: grid;
+    min-height: 42px;
+    width: 100%;
+    place-items: center;
+    text-align: center;
+  }
+}
