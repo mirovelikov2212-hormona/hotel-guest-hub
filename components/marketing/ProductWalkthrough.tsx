@@ -619,7 +619,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
         <h2 className="mt-3 max-w-3xl text-balance text-3xl font-semibold leading-tight tracking-tight text-[#102a43] sm:text-4xl">
           {copy.flowTitle}
         </h2>
-        <p className="mt-3 max-w-3xl whitespace-pre-line text-pretty text-base leading-7 text-slate-600">
+        <p className="gostaya-mobile-justify mt-3 max-w-3xl whitespace-pre-line text-pretty text-base leading-7 text-slate-600">
           {lang==="bg"?<><span className="md:hidden">Изберете модул, за да видите неговата роля<br/>и основните функции, които хотелът<br/>използва в ежедневната работа.</span><span className="hidden md:inline">{copy.flowText}</span></>:copy.flowText}
         </p>
       </div>
@@ -656,7 +656,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
           <h3 className="mt-3 max-w-xl text-balance text-2xl font-semibold leading-tight tracking-tight text-[#102a43] sm:text-3xl">
             {active.title}
           </h3>
-          <p className="mt-3 max-w-xl text-pretty text-base leading-7 text-slate-600">
+          <p className="gostaya-mobile-justify mt-3 max-w-xl text-pretty text-base leading-7 text-slate-600">
             {active.text}
           </p>
           <div className="mt-5 grid gap-2 sm:grid-cols-2">
