@@ -3477,6 +3477,6 @@ input.stayhub-card::placeholder {
   display: inline-block;
   font-weight: 900;
   letter-spacing: .16em;
-  transform: scaleY(.84);
+  transform: scaleY(.88);
   transform-origin: left center;
 }
