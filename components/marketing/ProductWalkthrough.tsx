@@ -620,7 +620,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
           {copy.flowTitle}
         </h2>
         <p className="mt-3 max-w-3xl whitespace-pre-line text-pretty text-base leading-7 text-slate-600">
-          {lang==="bg"?<><span className="md:hidden">Изберете модул, за да видите неговата роля<br/>и основните функции, които хотелът използва<br/>в ежедневната работа.</span><span className="hidden md:inline">{copy.flowText}</span></>:copy.flowText}
+          {lang==="bg"?<><span className="md:hidden">Изберете модул, за да видите неговата роля<br/>и основните функции, които хотелът<br/>използва в ежедневната работа.</span><span className="hidden md:inline">{copy.flowText}</span></>:copy.flowText}
         </p>
       </div>
 
