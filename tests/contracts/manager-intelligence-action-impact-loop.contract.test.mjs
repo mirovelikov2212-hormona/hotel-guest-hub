@@ -477,7 +477,7 @@ test("15. AI intent → action → outcome attribution: low conversion is detect
 test("16. scheduled continuity: recommendation generation and measurement do not depend on opening the Manager UI", async () => {
   const actions = await readProjectFile("lib/server/manager-intelligence-actions.ts");
   const manager = await readProjectFile("lib/server/manager-intelligence.ts");
-  const vercel = await readProjectFile("vercel.json");
+  const vercel = JSON.parse(await readProjectFile("vercel.json"));
 
   assertContains(actions, "export async function refreshManagerIntelligenceActionLoopForHotel");
   assertContains(actions, "export function shouldRefreshManagerIntelligenceActionLoopForHotel");
@@ -489,9 +489,23 @@ test("16. scheduled continuity: recommendation generation and measurement do not
   assertContains(manager, "refreshManagerIntelligenceActionLoopForHotel({");
   assertContains(manager, "manager_intelligence_action_loop_scheduled_refresh_failed");
   assertContains(manager, "actionMeasurementsCompleted");
-  assertContains(vercel, "/api/cron/manager-intelligence-watch");
-  assertContains(vercel, '"schedule": "*/5 * * * *"');
-  assertNotContains(vercel, "/api/cron/manager-intelligence-action-loop");
+
+  const crons = Array.isArray(vercel.crons) ? vercel.crons : [];
+  const watchCron = crons.find(
+    (cron) => cron?.path === "/api/cron/manager-intelligence-watch",
+  );
+
+  assert.ok(watchCron, "Manager Intelligence watch cron must remain registered in vercel.json");
+  assert.equal(
+    watchCron.schedule,
+    "*/5 * * * *",
+    "Manager Intelligence watch cron must run every five minutes",
+  );
+  assert.equal(
+    crons.some((cron) => cron?.path === "/api/cron/manager-intelligence-action-loop"),
+    false,
+    "Action/Measure continuity must reuse manager-intelligence-watch instead of adding a second cron",
+  );
 });
 
 
