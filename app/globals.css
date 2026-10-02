@@ -3271,7 +3271,7 @@ input.stayhub-card::placeholder {
 }
 
 .gostaya-marketing .gostaya-primary-action,
-.gostaya-marketing button[aria-selected="true"] {
+.gostaya-marketing .gostaya-module-tab[aria-selected="true"] {
   border-radius: 999px !important;
   border: 1px solid var(--gostaya-blue) !important;
   background: var(--gostaya-blue) !important;
@@ -3280,7 +3280,7 @@ input.stayhub-card::placeholder {
 }
 
 .gostaya-marketing .gostaya-primary-action:hover,
-.gostaya-marketing button[aria-selected="true"]:hover {
+.gostaya-marketing .gostaya-module-tab[aria-selected="true"]:hover {
   background: #0f6fc5 !important;
   border-color: #0f6fc5 !important;
 }
@@ -3333,4 +3333,14 @@ input.stayhub-card::placeholder {
 .gostaya-marketing [class*="text-rose-"],
 .gostaya-marketing [class*="text-fuchsia-"] {
   color: var(--gostaya-blue-deep) !important;
+}
+
+
+/* GOSTAYA mobile copy alignment */
+@media (max-width: 767px) {
+  .gostaya-marketing section :is(h1, h2, h3, h4, p, article, details),
+  .gostaya-marketing section div[class*="rounded-2xl"],
+  .gostaya-marketing section div[class*="rounded-3xl"] {
+    text-align: left;
+  }
 }

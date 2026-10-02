@@ -38,7 +38,7 @@ const COPY: Record<Lang, ProductCopy> = {
     flowTitle: "Разгледайте платформата отвътре",
     flowText:
       "Изберете модул, за да видите неговата роля и основните функции,\nкоито хотелът използва в ежедневната работа.",
-    live: "Отвори демото · PIN 2026",
+    live: "Отвори хъба · PIN 2026",
     safe: "Изолирана тестова среда · без реални хотелски заявки",
     views: [
       {
@@ -47,7 +47,7 @@ const COPY: Record<Lang, ProductCopy> = {
         eyebrow: "ГОСТЪТ",
         title: "Един QR код. Целият престой.",
         text:
-          "Брандиран хотелски портал в браузъра за информация, услуги, AI асистент и директни заявки.",
+          "Брандиран хотелски портал в браузъра и като приложение на телефона на госта за информация, услуги, AI асистент и директни заявки.",
         points: [
           "Потвърждение на стая",
           "Информация за хотела и обектите",
@@ -637,7 +637,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
             aria-selected={active.key === view.key}
             onClick={() => setActiveKey(view.key)}
             className={
-              "shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition " +
+              "gostaya-module-tab shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition " +
               (active.key === view.key
                 ? "border-[#1479d3] bg-[#1479d3] text-white shadow-md"
                 : "border-slate-200 bg-white text-slate-600 hover:border-sky-300 hover:text-[#1479d3]")
@@ -679,6 +679,32 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
               {copy.live}
             </a>
             <span className="text-xs text-slate-500">{copy.safe}</span>
+          </div>
+        </div>
+
+        <div className="lg:hidden">
+          <div
+            className="flex gap-2 overflow-x-auto pb-2"
+            role="tablist"
+            aria-label={copy.flowTitle}
+          >
+            {copy.views.map((view) => (
+              <button
+                key={view.key}
+                type="button"
+                role="tab"
+                aria-selected={active.key === view.key}
+                onClick={() => setActiveKey(view.key)}
+                className={
+                  "gostaya-module-tab shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition " +
+                  (active.key === view.key
+                    ? "border-[#1479d3] bg-[#1479d3] text-white shadow-md"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-sky-300 hover:text-[#1479d3]")
+                }
+              >
+                {view.nav}
+              </button>
+            ))}
           </div>
         </div>
 

@@ -142,7 +142,8 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
             src={HOTEL_IMAGES[variant.key]}
             alt={hotelImageAlt(variant, lang)}
             fill
-            sizes="390px"
+            sizes="(max-width: 640px) calc(100vw - 64px), 390px"
+            quality={95}
             priority={variant.key === "resort"}
             className="object-cover"
           />
@@ -310,7 +311,7 @@ export default function BrandHubShowcase({ lang }: { lang: Lang }) {
                 className={
                   "group w-full rounded-[24px] border p-5 text-left transition " +
                   (selected
-                    ? "border-[#1479d3] bg-gradient-to-r from-sky-50 to-violet-50 shadow-[0_16px_40px_rgba(15,58,91,.10)]"
+                    ? "border-[#8fcaf2] bg-[#eef6ff] shadow-[0_16px_40px_rgba(15,58,91,.10)]"
                     : "border-slate-200 bg-white hover:border-sky-300 hover:shadow-md")
                 }
               >
