@@ -179,9 +179,9 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
                 key={item}
                 className="rounded-full border px-3 py-1.5 text-[11px] font-semibold"
                 style={{
-                  borderColor: variant.accent + "55",
-                  color: variant.key === "luxury" ? "#dfc89f" : variant.key === "boutique" ? variant.secondary : variant.accent,
-                  background: variant.key === "luxury" ? "rgba(198,173,127,.08)" : variant.accent + "12",
+                  borderColor: "rgba(20,121,211,.34)",
+                  color: "#1479d3",
+                  background: "rgba(20,121,211,.08)",
                 }}
               >
                 {item}
@@ -195,12 +195,7 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
                 key={label}
                 className="min-h-28 rounded-2xl border p-4 shadow-sm"
                 style={{
-                  borderColor:
-                    variant.key === "luxury"
-                      ? "rgba(198,173,127,.22)"
-                      : variant.key === "boutique"
-                        ? "rgba(82,107,90,.20)"
-                        : variant.accent + "33",
+                  borderColor: "rgba(20,121,211,.22)",
                   background: variant.card,
                   boxShadow:
                     variant.key === "luxury"
@@ -210,11 +205,11 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
                         : "0 6px 14px rgba(15,23,42,.06)",
                 }}
               >
-                <div className="grid h-8 w-8 place-items-center rounded-xl text-xs font-black text-white" style={{ background: variant.accent }}>
+                <div className="grid h-8 w-8 place-items-center rounded-xl text-xs font-black text-white" style={{ background: "#1479d3" }}>
                   {String(index + 1).padStart(2, "0")}
                 </div>
                 <div className="mt-4 text-sm font-semibold">{label}</div>
-                <div className="mt-1 h-1.5 w-12 rounded-full" style={{ background: variant.accent + "38" }} />
+                <div className="mt-1 h-1.5 w-12 rounded-full" style={{ background: "rgba(20,121,211,.22)" }} />
               </div>
             ))}
           </div>
@@ -222,12 +217,7 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
           <div
             className="mt-5 rounded-2xl border p-4"
             style={{
-              borderColor:
-                variant.key === "luxury"
-                  ? "rgba(198,173,127,.24)"
-                  : variant.key === "boutique"
-                    ? "rgba(82,107,90,.22)"
-                    : variant.accent + "33",
+              borderColor: "rgba(20,121,211,.24)",
               background: variant.card,
             }}
           >
@@ -244,14 +234,7 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
               <button
                 type="button"
                 className="rounded-xl px-3 py-2 text-xs font-bold text-white"
-                style={{
-                  background:
-                    variant.key === "luxury"
-                      ? "linear-gradient(135deg,#c6ad7f,#8c744d)"
-                      : variant.key === "boutique"
-                        ? "linear-gradient(135deg,#526b5a,#8c5a44)"
-                        : variant.accent,
-                }}
+                style={{ background: "#1479d3" }}
               >
                 {lang === "bg" ? "Виж" : lang === "de" ? "Öffnen" : "View"}
               </button>
@@ -260,14 +243,7 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
 
           <div
             className="mt-5 rounded-2xl p-4 text-sm font-semibold text-white shadow-lg"
-            style={{
-              background:
-                variant.key === "luxury"
-                  ? "linear-gradient(135deg,#c6ad7f,#8c744d)"
-                  : variant.key === "boutique"
-                    ? "linear-gradient(135deg,#526b5a,#8c5a44)"
-                    : variant.accent,
-            }}
+            style={{ background: "#1479d3" }}
           >
             {lang === "bg" ? "Заявете услуга" : lang === "de" ? "Service anfragen" : "Request a service"}
           </div>
@@ -352,7 +328,7 @@ export default function BrandHubShowcase({ lang }: { lang: Lang }) {
                   </div>
                   <div
                     className="ml-auto mt-1 h-3 w-3 shrink-0 rounded-full"
-                    style={{ background: selected ? variant.accent : "#dbe4ee" }}
+                    style={{ background: selected ? "#1479d3" : "#dbe4ee" }}
                   />
                 </div>
               </button>

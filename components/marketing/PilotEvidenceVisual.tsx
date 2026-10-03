@@ -65,8 +65,8 @@ export default function PilotEvidenceVisual({ lang }: { lang: Lang }) {
         </div>
         <div className="flex flex-wrap items-center gap-3 text-[10px] text-slate-500">
           <span className="font-semibold text-slate-600"><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#1479d3" }} />{c.opens}</span>
-          <span className="font-semibold text-slate-600"><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#43baad" }} />{c.requests}</span>
-          <span className="font-semibold text-slate-600"><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#102a43" }} />{c.massages}</span>
+          <span className="font-semibold text-slate-600"><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#1479d3" }} />{c.requests}</span>
+          <span className="font-semibold text-slate-600"><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#1479d3" }} />{c.massages}</span>
         </div>
       </div>
 
@@ -86,8 +86,8 @@ export default function PilotEvidenceVisual({ lang }: { lang: Lang }) {
               </div>
               <div className="mt-2 text-xs font-bold text-[#102a43]">{c.months[row.key]}</div>
               <div className="mt-2 flex flex-wrap justify-center gap-1 text-[9px]">
-                <span className="rounded-full border px-2 py-1 font-semibold" style={{ backgroundColor: "rgba(67,186,173,.16)", borderColor: "rgba(67,186,173,.34)", color: "#075255" }}>{row.requests} {c.requestShort}</span>
-                <span className="rounded-full border px-2 py-1 font-semibold" style={{ backgroundColor: "rgba(16,42,67,.08)", borderColor: "rgba(16,42,67,.20)", color: "#102a43" }}>{row.massages} {c.massageShort}</span>
+                <span className="rounded-full border px-2 py-1 font-semibold" style={{ backgroundColor: "rgba(20,121,211,.10)", borderColor: "rgba(20,121,211,.28)", color: "#1479d3" }}>{row.requests} {c.requestShort}</span>
+                <span className="rounded-full border px-2 py-1 font-semibold" style={{ backgroundColor: "rgba(20,121,211,.10)", borderColor: "rgba(20,121,211,.28)", color: "#1479d3" }}>{row.massages} {c.massageShort}</span>
               </div>
             </div>
           );

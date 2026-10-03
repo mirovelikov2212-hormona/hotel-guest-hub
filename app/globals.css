@@ -3273,6 +3273,7 @@ input.stayhub-card::placeholder {
 /* GOSTAYA brand word is always blue */
 .gostaya-marketing .gostaya-mobile-brand {
   color: #1479d3 !important;
+  font-weight: 900 !important;
 }
 
 .gostaya-marketing .gostaya-primary-action,
@@ -3290,22 +3291,34 @@ input.stayhub-card::placeholder {
   border-color: #0f6fc5 !important;
 }
 
-.gostaya-marketing .gostaya-secondary-action,
+.gostaya-marketing .gostaya-secondary-action {
+  border-radius: 999px !important;
+  border-color: var(--gostaya-blue) !important;
+  background: var(--gostaya-blue) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(20, 121, 211, 0.18) !important;
+}
+
 .gostaya-marketing button:not([aria-selected="true"]):not([style]),
-.gostaya-marketing a[class*="rounded"][class*="border"]:not(.gostaya-primary-action) {
+.gostaya-marketing a[class*="rounded"][class*="border"]:not(.gostaya-primary-action):not(.gostaya-secondary-action) {
   border-radius: 999px !important;
   border-color: var(--gostaya-blue-line) !important;
   background: #ffffff !important;
-  color: var(--gostaya-blue-deep) !important;
+  color: var(--gostaya-blue) !important;
   box-shadow: none !important;
 }
 
-.gostaya-marketing .gostaya-secondary-action:hover,
+.gostaya-marketing .gostaya-secondary-action:hover {
+  border-color: #0f6fc5 !important;
+  background: #0f6fc5 !important;
+  color: #ffffff !important;
+}
+
 .gostaya-marketing button:not([aria-selected="true"]):not([style]):hover,
-.gostaya-marketing a[class*="rounded"][class*="border"]:not(.gostaya-primary-action):hover {
+.gostaya-marketing a[class*="rounded"][class*="border"]:not(.gostaya-primary-action):not(.gostaya-secondary-action):hover {
   border-color: #8fcaf2 !important;
   background: var(--gostaya-blue-soft) !important;
-  color: #0a5f9f !important;
+  color: var(--gostaya-blue) !important;
 }
 
 .gostaya-marketing :is(section, article, details)[class*="border"],
@@ -3332,12 +3345,17 @@ input.stayhub-card::placeholder {
   background: var(--gostaya-blue-soft) !important;
 }
 
+.gostaya-marketing [class*="text-sky-"],
+.gostaya-marketing [class*="text-blue-"],
+.gostaya-marketing [class*="text-cyan-"],
+.gostaya-marketing [class*="text-teal-"],
 .gostaya-marketing [class*="text-violet-"],
 .gostaya-marketing [class*="text-amber-"],
 .gostaya-marketing [class*="text-emerald-"],
 .gostaya-marketing [class*="text-rose-"],
-.gostaya-marketing [class*="text-fuchsia-"] {
-  color: var(--gostaya-blue-deep) !important;
+.gostaya-marketing [class*="text-fuchsia-"],
+.gostaya-marketing [class*="text-orange-"] {
+  color: var(--gostaya-blue) !important;
 }
 
 
@@ -3459,6 +3477,9 @@ input.stayhub-card::placeholder {
     width: 100%;
     place-items: center;
     text-align: center;
+    border-color: #1479d3 !important;
+    background: #1479d3 !important;
+    color: #ffffff !important;
   }
 }
 
