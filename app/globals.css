@@ -3270,6 +3270,11 @@ input.stayhub-card::placeholder {
   --gostaya-ink: #102a43;
 }
 
+/* GOSTAYA brand word is always blue */
+.gostaya-marketing .gostaya-mobile-brand {
+  color: #1479d3 !important;
+}
+
 .gostaya-marketing .gostaya-primary-action,
 .gostaya-marketing .gostaya-module-tab[aria-selected="true"] {
   border-radius: 999px !important;

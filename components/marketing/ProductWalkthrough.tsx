@@ -557,6 +557,10 @@ const COPY: Record<Lang, ProductCopy> = {
   },
 };
 
+function BrandText({ text }: { text: string }) {
+  return <>{text.split(/(GOSTAYA)/g).map((part, index) => part === "GOSTAYA" ? <span key={index} className="gostaya-mobile-brand">{part}</span> : part)}</>;
+}
+
 function ModulePreview({ view }: { view: ProductView }) {
   return (
     <div className="relative h-full min-w-0 max-w-full overflow-hidden rounded-[28px] border border-slate-200 bg-white p-5 text-[#102a43] shadow-[0_18px_50px_rgba(15,58,91,.10)] sm:p-6">
@@ -567,10 +571,10 @@ function ModulePreview({ view }: { view: ProductView }) {
             {view.previewEyebrow}
           </div>
           <h4 className="mt-2 max-w-xl text-xl font-semibold leading-tight text-[#102a43] sm:text-2xl">
-            {view.previewTitle}
+            <BrandText text={view.previewTitle} />
           </h4>
           <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-            {view.previewText}
+            <BrandText text={view.previewText} />
           </p>
         </div>
 
@@ -654,10 +658,10 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
             {active.eyebrow}
           </p>
           <h3 className="mt-3 max-w-xl text-balance text-2xl font-semibold leading-tight tracking-tight text-[#102a43] sm:text-3xl">
-            {active.title}
+            <BrandText text={active.title} />
           </h3>
           <p className="gostaya-mobile-justify mt-3 max-w-xl text-pretty text-base leading-7 text-slate-600">
-            {active.text}
+            <BrandText text={active.text} />
           </p>
           <div className="mt-5 hidden gap-2 md:grid md:grid-cols-2">
             {active.points.map((point) => (
@@ -669,16 +673,40 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
               </div>
             ))}
           </div>
-          <div className="mt-6 hidden flex-wrap items-center gap-3 md:flex">
+          <div className="mt-5">
             <a
               href="/h/demo"
               target="_blank"
               rel="noreferrer"
-              className="gostaya-primary-action rounded-2xl bg-[#1479d3] px-4 py-3 text-sm font-bold text-white shadow-lg shadow-sky-200 transition hover:-translate-y-0.5"
+              className="gostaya-primary-action flex w-full items-center justify-center rounded-2xl bg-[#1479d3] px-5 py-3.5 text-center text-sm font-black text-white shadow-lg shadow-sky-200 transition hover:-translate-y-0.5"
             >
-              {copy.live}
+              {lang === "bg" ? "Разгледай Демо Хъб" : lang === "de" ? "Demo Guest Hub öffnen" : "Explore Demo Guest Hub"}
             </a>
-            <span className="text-xs text-slate-500">{copy.safe}</span>
+
+            <div className="mt-4 rounded-2xl border border-sky-200 bg-[#f8fbfe] p-4">
+              <p className="text-sm font-semibold text-[#102a43]">
+                {lang === "bg" ? "Оперативни панели" : lang === "de" ? "Operative Panels" : "Operational panels"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                {lang === "bg" ? "Разгледайте ги с Демо стая 901 · Демо PIN 2026" : lang === "de" ? "Demo-Zimmer 901 · Demo-PIN 2026" : "Demo room 901 · Demo PIN 2026"}
+              </p>
+              <div className="gostaya-demo-departments mt-3 grid grid-cols-2 gap-2">
+                {[
+                  [lang === "bg" ? "Хаускипинг" : "Housekeeping", "/staff/demo/housekeeping"],
+                  [lang === "bg" ? "Поддръжка" : lang === "de" ? "Technik" : "Maintenance", "/staff/demo/maintenance"],
+                  [lang === "bg" ? "Рецепция" : lang === "de" ? "Rezeption" : "Reception", "/staff/demo/reception"],
+                  [lang === "bg" ? "Мениджър" : "Manager", "/staff/demo/manager"],
+                ].map(([label, href]) => (
+                  <a
+                    key={href}
+                    href={href}
+                    className="gostaya-demo-department grid min-h-[44px] place-items-center rounded-xl border border-sky-200 bg-white px-3 py-2 text-center text-xs font-semibold text-[#075985] shadow-sm hover:border-[#8fcaf2] hover:bg-[#f4f9ff]"
+                  >
+                    {label}
+                  </a>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
