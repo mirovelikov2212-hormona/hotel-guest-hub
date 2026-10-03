@@ -654,7 +654,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
 
       <div className="mt-5 grid min-w-0 max-w-full gap-5 lg:grid-cols-2 lg:items-stretch">
         <div className="min-w-0 max-w-full rounded-[28px] border border-slate-200 bg-[#f8fbfe] p-5 text-[#102a43] sm:p-7">
-          <p className="text-xs font-bold uppercase tracking-[.22em] text-[#1479d3]">
+          <p className="text-xs font-black uppercase tracking-[.22em] text-[#1479d3]">
             {active.eyebrow}
           </p>
           <h3 className="mt-3 max-w-xl text-balance text-2xl font-semibold leading-tight tracking-tight text-[#102a43] sm:text-3xl">
