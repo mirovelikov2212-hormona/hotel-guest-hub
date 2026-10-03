@@ -659,7 +659,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
           <p className="gostaya-mobile-justify mt-3 max-w-xl text-pretty text-base leading-7 text-slate-600">
             {active.text}
           </p>
-          <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          <div className="mt-5 hidden gap-2 md:grid md:grid-cols-2">
             {active.points.map((point) => (
               <div
                 key={point}
@@ -669,7 +669,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
               </div>
             ))}
           </div>
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="mt-6 hidden flex-wrap items-center gap-3 md:flex">
             <a
               href="/h/demo"
               target="_blank"
@@ -682,7 +682,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
           </div>
         </div>
 
-        <div className="min-w-0 max-w-full overflow-hidden lg:hidden">
+        <div className="hidden min-w-0 max-w-full overflow-hidden md:block lg:hidden">
           <div
             className="gostaya-module-tabs flex w-full min-w-0 max-w-full gap-2 overflow-x-auto pb-2"
             role="tablist"
@@ -708,7 +708,9 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
           </div>
         </div>
 
-        <ModulePreview view={active} />
+        <div className="hidden md:block">
+          <ModulePreview view={active} />
+        </div>
       </div>
     </section>
   );
