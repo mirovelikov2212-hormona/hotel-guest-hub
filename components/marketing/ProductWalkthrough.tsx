@@ -617,7 +617,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
   return (
     <section className="mx-auto mt-5 min-w-0 max-w-7xl overflow-hidden rounded-[34px] border border-slate-200 bg-white px-5 py-10 text-[#102a43] shadow-[0_20px_60px_rgba(15,58,91,.07)] sm:px-7 lg:py-12">
       <div className="max-w-3xl">
-        <p className="text-xs font-bold uppercase tracking-[.24em] text-[#1479d3]">
+        <p className="text-xs font-black uppercase tracking-[.24em] text-[#1479d3]">
           {copy.explorerLabel}
         </p>
         <h2 className="mt-3 max-w-3xl text-balance text-3xl font-semibold leading-tight tracking-tight text-[#102a43] sm:text-4xl">

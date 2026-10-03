@@ -3358,6 +3358,16 @@ input.stayhub-card::placeholder {
   color: var(--gostaya-blue) !important;
 }
 
+/* Keep text white on filled GOSTAYA actions */
+.gostaya-marketing .gostaya-primary-action,
+.gostaya-marketing .gostaya-secondary-action,
+.gostaya-marketing .gostaya-demo-department,
+.gostaya-marketing .gostaya-module-tab[aria-selected="true"],
+.gostaya-marketing .gostaya-hotel-type-chip[aria-selected="true"],
+.gostaya-marketing .gostaya-hotel-type-option[aria-selected="true"] {
+  color: #ffffff !important;
+}
+
 /* GOSTAYA action links use the DEMO blue */
 .gostaya-marketing .gostaya-demo-department {
   border-color: #1479d3 !important;
