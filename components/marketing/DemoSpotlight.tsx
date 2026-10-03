@@ -46,7 +46,7 @@ export default function DemoSpotlight({ lang }: { lang: Lang }) {
             </DemoLaunchLink>
             <a
               href="/staff/demo/manager"
-              className="gostaya-secondary-action flex w-full justify-center rounded-2xl border border-sky-200 bg-white px-5 py-3 text-center text-sm font-bold text-sky-800 sm:w-auto"
+              className="gostaya-secondary-action flex w-full justify-center rounded-2xl border border-sky-200 bg-white px-5 py-3 text-center text-sm font-bold text-white sm:w-auto"
             >
               <span className="sm:hidden">Стартирай мениджърския панел</span>
               <span className="hidden sm:inline">{c.managerCta}</span>
