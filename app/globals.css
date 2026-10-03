@@ -3358,6 +3358,20 @@ input.stayhub-card::placeholder {
   color: var(--gostaya-blue) !important;
 }
 
+/* GOSTAYA action links use the DEMO blue */
+.gostaya-marketing .gostaya-demo-department {
+  border-color: #1479d3 !important;
+  background: #1479d3 !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 22px rgba(20, 121, 211, 0.14) !important;
+}
+
+.gostaya-marketing .gostaya-demo-department:hover {
+  border-color: #0f6fc5 !important;
+  background: #0f6fc5 !important;
+  color: #ffffff !important;
+}
+
 
 /* GOSTAYA mobile copy alignment */
 @media (max-width: 767px) {
@@ -3379,11 +3393,12 @@ input.stayhub-card::placeholder {
   outline: none !important;
 }
 
-.gostaya-marketing .gostaya-hotel-type-option[aria-selected="true"] {
-  border-color: #8fcaf2 !important;
-  background: #eef6ff !important;
-  color: var(--gostaya-ink) !important;
-  box-shadow: 0 16px 40px rgba(15, 58, 91, 0.10) !important;
+.gostaya-marketing .gostaya-hotel-type-option[aria-selected="true"],
+.gostaya-marketing .gostaya-hotel-type-chip[aria-selected="true"] {
+  border-color: #1479d3 !important;
+  background: #1479d3 !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(20, 121, 211, 0.18) !important;
 }
 
 .gostaya-marketing .gostaya-hotel-type-option:focus {
