@@ -1,3 +1,4 @@
+import Image from "next/image";
 import ProductWalkthrough from "./ProductWalkthrough";
 import BeforeAfterFlow from "./BeforeAfterFlow";
 import BrandHubShowcase from "./BrandHubShowcase";
@@ -40,9 +41,17 @@ export default function MarketingPage({lang}:{lang:Lang}) {
         </div>
 
         <div className="relative hidden min-h-[390px] overflow-hidden lg:block">
-          <img src="/marketing/reference/gostaya-hero-resort.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/10 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white/30 to-transparent" />
+          <Image
+            src="/marketing/reference/gostaya-hero-resort.webp"
+            alt=""
+            fill
+            priority
+            unoptimized
+            sizes="(min-width: 1024px) 42vw, 100vw"
+            className="object-cover object-center"
+          />
+          <div className="absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-white via-white/55 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-white/10 to-transparent" />
         </div>
       </div>
     </section>
