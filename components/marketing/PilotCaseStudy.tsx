@@ -81,22 +81,22 @@ export default function PilotCaseStudy({ lang }: { lang: Lang }) {
 
         <div className="mt-6 grid gap-4 xl:grid-cols-[1.45fr_.55fr]">
           <div className="rounded-[26px] border border-[#cfe8fb] bg-white p-4 shadow-[0_14px_38px_rgba(15,58,91,.06)]">
-            <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
-              <div className="mx-auto w-full max-w-[220px] overflow-hidden rounded-[30px] border-[7px] border-[#102a43] bg-white shadow-[0_24px_55px_rgba(15,58,91,.16)]">
-                <div className="relative h-36 overflow-hidden">
-                  <Image src="/marketing/hotel-hubs/resort-hq.webp" alt="GOSTAYA Guest Hub resort preview" fill className="object-cover" sizes="220px" />
-                  <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/45 to-transparent px-4 py-3 text-white">
-                    <span className="text-[10px] font-black tracking-[.12em]">GOSTAYA</span>
-                    <span className="rounded-full bg-white/20 px-2 py-1 text-[9px] font-bold backdrop-blur">{c.hub}</span>
+            <div className="grid gap-4 lg:grid-cols-[170px_1fr] lg:items-start">
+              <div className="mx-auto w-full max-w-[170px] overflow-hidden rounded-[24px] border-[5px] border-[#102a43] bg-white shadow-[0_18px_40px_rgba(15,58,91,.14)]">
+                <div className="relative h-28 overflow-hidden">
+                  <Image src="/marketing/hotel-hubs/resort-hq.webp" alt="GOSTAYA Guest Hub resort preview" fill quality={95} className="object-cover" sizes="170px" />
+                  <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/45 to-transparent px-3 py-2 text-white">
+                    <span className="text-[9px] font-black tracking-[.10em]">GOSTAYA</span>
+                    <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[8px] font-bold backdrop-blur">{c.hub}</span>
                   </div>
                 </div>
-                <div className="p-4">
-                  <div className="text-xl font-black text-[#102a43]">{lang === "bg" ? "Добре дошли!" : lang === "de" ? "Willkommen!" : "Welcome!"}</div>
-                  <div className="mt-1 text-xs text-slate-500">Aquamarine Kranevo</div>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    {["Информация","Ресторанти","Услуги","AI асистент"].map((item,index)=><div key={item} className="rounded-xl border border-[#cfe8fb] bg-[#f8fbfe] p-2 text-[10px] font-bold text-[#075985]"><span className="mr-1 text-[#1479d3]">{String(index+1).padStart(2,"0")}</span>{item}</div>)}
+                <div className="p-3">
+                  <div className="text-base font-black text-[#102a43]">{lang === "bg" ? "Добре дошли!" : lang === "de" ? "Willkommen!" : "Welcome!"}</div>
+                  <div className="mt-1 text-[10px] text-slate-500">Aquamarine Kranevo</div>
+                  <div className="mt-3 grid grid-cols-2 gap-1.5">
+                    {["Информация","Ресторанти","Услуги","AI асистент"].map((item,index)=><div key={item} className="rounded-lg border border-[#cfe8fb] bg-[#f8fbfe] p-1.5 text-[9px] font-bold text-[#075985]"><span className="mr-1 text-[#1479d3]">{String(index+1).padStart(2,"0")}</span>{item}</div>)}
                   </div>
-                  <div className="mt-3 rounded-xl bg-[#1479d3] px-3 py-2 text-center text-xs font-black text-white">{lang === "bg" ? "Заявете услуга" : lang === "de" ? "Service anfragen" : "Request service"}</div>
+                  <div className="mt-2.5 rounded-lg bg-[#1479d3] px-2 py-2 text-center text-[10px] font-black text-white">{lang === "bg" ? "Заявете услуга" : lang === "de" ? "Service anfragen" : "Request service"}</div>
                 </div>
               </div>
 
