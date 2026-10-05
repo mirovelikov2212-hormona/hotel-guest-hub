@@ -17,7 +17,7 @@ const NO_STORE_HEADERS = {
 const REPORT_TYPE = "weekly";
 const UNIQUE_VIOLATION_CODE = "23505";
 const AQUAMARINE_REPORTING_RESUME_AT = new Date("2027-05-01T00:00:00Z");
-const AQUAMARINE_SLUG = "aquamarine";
+const AQUAMARINE_SLUG = "aquamarin";
 
 function isSeasonallyPausedHotel(hotelSlug: string) {
   return hotelSlug.trim().toLowerCase() === AQUAMARINE_SLUG && new Date() < AQUAMARINE_REPORTING_RESUME_AT;
