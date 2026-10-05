@@ -135,17 +135,17 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
         : ["Information", "Dining", "Services", "AI assistant"];
 
   return (
-    <div className="mx-auto w-full max-w-[300px] rounded-[34px] border border-slate-300 bg-[#0a0f18] p-2.5 shadow-[0_34px_90px_rgba(15,58,91,.22)]">
+    <div className="mx-auto w-full max-w-[240px] rounded-[30px] border border-slate-300 bg-[#0a0f18] p-2 shadow-[0_26px_64px_rgba(15,58,91,.18)]">
       <div
-        className={"min-h-[590px] overflow-hidden rounded-[27px] " + variant.fontClass}
+        className={"min-h-[470px] overflow-hidden rounded-[23px] " + variant.fontClass}
         style={{ background: variant.surface, color: variant.text }}
       >
-        <div className="relative h-44 overflow-hidden">
+        <div className="relative h-32 overflow-hidden">
           <Image
             src={HOTEL_IMAGES[variant.key]}
             alt={hotelImageAlt(variant, lang)}
             fill
-            sizes="(max-width: 640px) calc(100vw - 64px), 390px"
+            sizes="(max-width: 640px) 240px, 240px"
             quality={95}
             priority={variant.key === "resort"}
             className="object-cover"
@@ -161,26 +161,26 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
                     : "linear-gradient(to bottom, rgba(0,0,0,.28), rgba(0,0,0,.06), rgba(0,0,0,.38))",
             }}
           />
-          <div className="absolute inset-x-0 top-0 flex items-center justify-between px-5 py-4 text-white drop-shadow">
+          <div className="absolute inset-x-0 top-0 flex items-center justify-between px-4 py-3 text-white drop-shadow">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-[.22em] text-white/75">Guest Hub</div>
-              <div className="mt-1 text-base font-bold">{variant.hotelName}</div>
+              <div className="mt-1 text-sm font-bold">{variant.hotelName}</div>
             </div>
-            <div className="grid h-10 w-10 place-items-center rounded-full border border-white/30 bg-black/20 text-xs font-black backdrop-blur">GH</div>
+            <div className="grid h-8 w-8 place-items-center rounded-full border border-white/30 bg-black/20 text-[10px] font-black backdrop-blur">GH</div>
           </div>
         </div>
 
-        <div className="px-5 pb-6 pt-5">
-          <div className="text-2xl font-semibold leading-tight">{variant.hero}</div>
-          <div className="mt-2 text-sm leading-6" style={{ color: variant.muted }}>
+        <div className="px-4 pb-4 pt-4">
+          <div className="text-xl font-semibold leading-tight">{variant.hero}</div>
+          <div className="mt-1.5 text-xs leading-5" style={{ color: variant.muted }}>
             {variant.description}
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-1.5">
             {variant.quick.map((item) => (
               <span
                 key={item}
-                className="rounded-full border px-3 py-1.5 text-[11px] font-semibold"
+                className="rounded-full border px-2.5 py-1 text-[10px] font-semibold"
                 style={{
                   borderColor: "rgba(20,121,211,.34)",
                   color: "#1479d3",
@@ -192,11 +192,11 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
             ))}
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="mt-3 grid grid-cols-2 gap-2">
             {labels.map((label, index) => (
               <div
                 key={label}
-                className="min-h-20 rounded-2xl border p-3 shadow-sm"
+                className="min-h-16 rounded-xl border p-2.5 shadow-sm"
                 style={{
                   borderColor: "rgba(20,121,211,.22)",
                   background: variant.card,
@@ -208,17 +208,17 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
                         : "0 6px 14px rgba(15,23,42,.06)",
                 }}
               >
-                <div className="grid h-8 w-8 place-items-center rounded-xl text-xs font-black text-white" style={{ background: "#1479d3" }}>
+                <div className="grid h-7 w-7 place-items-center rounded-lg text-[10px] font-black text-white" style={{ background: "#1479d3" }}>
                   {String(index + 1).padStart(2, "0")}
                 </div>
-                <div className="mt-3 text-xs font-semibold">{label}</div>
+                <div className="mt-2 text-[11px] font-semibold">{label}</div>
                 <div className="mt-1 h-1.5 w-12 rounded-full" style={{ background: "rgba(20,121,211,.22)" }} />
               </div>
             ))}
           </div>
 
           <div
-            className="mt-5 rounded-2xl border p-4"
+            className="mt-3 rounded-xl border p-3"
             style={{
               borderColor: "rgba(20,121,211,.24)",
               background: variant.card,
@@ -227,16 +227,16 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
             <div className="text-[10px] font-bold uppercase tracking-[.18em]" style={{ color: variant.muted }}>
               {lang === "bg" ? "Препоръчано за вас" : lang === "de" ? "Für Sie empfohlen" : "Recommended for you"}
             </div>
-            <div className="mt-2 flex items-center justify-between gap-4">
+            <div className="mt-2 flex items-center justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold">{variant.quick[0]}</div>
-                <div className="mt-1 text-xs" style={{ color: variant.muted }}>
+                <div className="text-xs font-semibold">{variant.quick[0]}</div>
+                <div className="mt-1 text-[10px] leading-4" style={{ color: variant.muted }}>
                   {lang === "bg" ? "Персонализирано според типа хотел" : lang === "de" ? "Auf den Hoteltyp abgestimmt" : "Tailored to the hotel type"}
                 </div>
               </div>
               <button
                 type="button"
-                className="rounded-xl px-3 py-2 text-xs font-bold text-white"
+                className="rounded-lg px-2.5 py-1.5 text-[10px] font-bold text-white"
                 style={{ background: "#1479d3" }}
               >
                 {lang === "bg" ? "Виж" : lang === "de" ? "Öffnen" : "View"}
@@ -245,7 +245,7 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
           </div>
 
           <div
-            className="mt-5 rounded-2xl p-4 text-sm font-semibold text-white shadow-lg"
+            className="mt-3 rounded-xl p-3 text-xs font-semibold text-white shadow-lg"
             style={{ background: "#1479d3" }}
           >
             {lang === "bg" ? "Заявете услуга" : lang === "de" ? "Service anfragen" : "Request a service"}
@@ -279,7 +279,7 @@ export default function BrandHubShowcase({
   );
 
   return (
-    <div className="grid gap-7 lg:grid-cols-[1fr_330px] lg:items-center">
+    <div className="grid gap-6 lg:grid-cols-[1fr_270px] lg:items-center">
       <div className="min-w-0">
         <p className="text-xs font-black uppercase tracking-[.22em] text-[#1479d3]">{eyebrow}</p>
         <h2 className="mt-3 max-w-3xl text-balance text-3xl font-semibold leading-tight text-[#102a43] sm:text-4xl">
