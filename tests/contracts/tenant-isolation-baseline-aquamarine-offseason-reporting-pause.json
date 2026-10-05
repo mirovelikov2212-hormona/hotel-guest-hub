@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "checkpoint": "aquamarine-offseason-reporting-pause",
+  "baseCheckpoint": "manager-intelligence-action-impact-v1",
+  "expectedNeedsReview": 348,
+  "relocations": [
+    {
+      "filePath": "app/api/cron/report-email/route.ts",
+      "fromLine": 126,
+      "toLine": 132,
+      "table": "reporting_email_delivery_log",
+      "operation": "select"
+    },
+    {
+      "filePath": "app/api/cron/report-email/route.ts",
+      "fromLine": 150,
+      "toLine": 156,
+      "table": "reporting_email_delivery_log",
+      "operation": "insert"
+    },
+    {
+      "filePath": "app/api/cron/report-email/route.ts",
+      "fromLine": 194,
+      "toLine": 200,
+      "table": "reporting_email_delivery_log",
+      "operation": "update"
+    },
+    {
+      "filePath": "app/api/cron/report-email/route.ts",
+      "fromLine": 207,
+      "toLine": 213,
+      "table": "reporting_email_delivery_log",
+      "operation": "update"
+    },
+    {
+      "filePath": "app/api/cron/report-email/route.ts",
+      "fromLine": 276,
+      "toLine": 283,
+      "operation": "select"
+    },
+    {
+      "filePath": "app/api/cron/weekly-report/route.ts",
+      "fromLine": 57,
+      "toLine": 63,
+      "table": "reporting_email_delivery_log",
+      "operation": "select"
+    },
+    {
+      "filePath": "app/api/cron/weekly-report/route.ts",
+      "fromLine": 78,
+      "toLine": 84,
+      "table": "reporting_email_delivery_log",
+      "operation": "insert"
+    },
+    {
+      "filePath": "app/api/cron/weekly-report/route.ts",
+      "fromLine": 121,
+      "toLine": 127,
+      "table": "reporting_email_delivery_log",
+      "operation": "update"
+    },
+    {
+      "filePath": "app/api/cron/weekly-report/route.ts",
+      "fromLine": 133,
+      "toLine": 139,
+      "table": "reporting_email_delivery_log",
+      "operation": "update"
+    },
+    {
+      "filePath": "app/api/cron/weekly-report/route.ts",
+      "fromLine": 202,
+      "toLine": 209,
+      "table": "reporting_latest_completed_week_email_report_v1",
+      "operation": "select"
+    }
+  ],
+  "additions": [],
+  "removals": []
+}
