@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import DemoLaunchLink from "./DemoLaunchLink";
 
 type Lang = "bg" | "en" | "de";
 
@@ -614,18 +615,37 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
     [activeKey, copy.views],
   );
 
+  const realHubLabel = lang === "bg" ? "Отвори реалния хъб" : lang === "de" ? "Echten Guest Hub öffnen" : "Open real Guest Hub";
+  const fullDemoLabel = lang === "bg" ? "Стартирай общото демо" : lang === "de" ? "Gesamtdemo starten" : "Start full demo";
+
   return (
-    <section className="mx-auto mt-5 min-w-0 max-w-7xl overflow-hidden rounded-[34px] border border-slate-200 bg-white px-5 py-10 text-[#102a43] shadow-[0_20px_60px_rgba(15,58,91,.07)] sm:px-7 lg:py-12">
-      <div className="max-w-3xl">
-        <p className="text-xs font-black uppercase tracking-[.24em] text-[#1479d3]">
-          {copy.explorerLabel}
-        </p>
-        <h2 className="mt-3 max-w-3xl text-balance text-3xl font-semibold leading-tight tracking-tight text-[#102a43] sm:text-4xl">
-          {copy.flowTitle}
-        </h2>
-        <p className="gostaya-mobile-justify mt-3 max-w-3xl whitespace-pre-line text-pretty text-base leading-7 text-slate-600">
-          {lang==="bg"?<><span className="md:hidden">Изберете модул, за да видите неговата роля<br/>и основните функции, които хотелът<br/>използва в ежедневната работа.</span><span className="hidden md:inline">{copy.flowText}</span></>:copy.flowText}
-        </p>
+    <section className="mx-auto mt-5 min-w-0 max-w-7xl overflow-hidden rounded-[34px] border border-[#cfe8fb] bg-white px-5 py-9 text-[#102a43] shadow-[0_20px_60px_rgba(15,58,91,.07)] sm:px-7 lg:py-11">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-3xl">
+          <p className="text-xs font-black uppercase tracking-[.24em] text-[#1479d3]">
+            {copy.explorerLabel}
+          </p>
+          <h2 className="mt-3 max-w-3xl text-balance text-3xl font-semibold leading-tight tracking-tight text-[#102a43] sm:text-4xl">
+            {copy.flowTitle}
+          </h2>
+          <p className="gostaya-mobile-justify mt-3 max-w-3xl whitespace-pre-line text-pretty text-base leading-7 text-slate-600">
+            {lang==="bg"?<><span className="md:hidden">Изберете модул, за да видите неговата роля<br/>и основните функции, които хотелът<br/>използва в ежедневната работа.</span><span className="hidden md:inline">{copy.flowText}</span></>:copy.flowText}
+          </p>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[410px]">
+          <a
+            href="https://aquamarine.stayhub.app/"
+            target="_blank"
+            rel="noreferrer"
+            className="gostaya-primary-action flex min-h-[48px] items-center justify-center rounded-2xl bg-[#1479d3] px-5 py-3 text-center text-sm font-black text-white shadow-lg shadow-sky-100 transition hover:-translate-y-0.5"
+          >
+            {realHubLabel} →
+          </a>
+          <DemoLaunchLink className="gostaya-secondary-action flex min-h-[48px] items-center justify-center rounded-2xl border border-[#8fcaf2] bg-white px-5 py-3 text-center text-sm font-black text-[#1479d3] shadow-sm">
+            {fullDemoLabel} →
+          </DemoLaunchLink>
+        </div>
       </div>
 
       <div
@@ -644,7 +664,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
               "gostaya-module-tab shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition " +
               (active.key === view.key
                 ? "border-[#1479d3] bg-[#1479d3] text-white shadow-md"
-                : "border-slate-200 bg-white text-slate-600 hover:border-sky-300 hover:text-[#1479d3]")
+                : "border-[#cfe8fb] bg-white text-[#075985] hover:border-[#8fcaf2] hover:bg-[#f6fbff]")
             }
           >
             {view.nav}
@@ -652,8 +672,8 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
         ))}
       </div>
 
-      <div className="mt-5 grid min-w-0 max-w-full gap-5 lg:grid-cols-2 lg:items-stretch">
-        <div className="min-w-0 max-w-full rounded-[28px] border border-slate-200 bg-[#f8fbfe] p-5 text-[#102a43] sm:p-7">
+      <div className="mt-5 grid min-w-0 max-w-full gap-5 lg:grid-cols-[1.05fr_.95fr] lg:items-stretch">
+        <div className="min-w-0 max-w-full rounded-[28px] border border-[#cfe8fb] bg-[#f8fbfe] p-5 text-[#102a43] sm:p-7">
           <p className="text-xs font-black uppercase tracking-[.22em] text-[#1479d3]">
             {active.eyebrow}
           </p>
@@ -663,80 +683,53 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
           <p className="gostaya-mobile-justify mt-3 max-w-xl text-pretty text-base leading-7 text-slate-600">
             <BrandText text={active.text} />
           </p>
+
           <div className="mt-5 hidden gap-2 md:grid md:grid-cols-2">
             {active.points.map((point) => (
               <div
                 key={point}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700"
+                className="rounded-2xl border border-[#cfe8fb] bg-white px-4 py-3 text-sm font-medium text-slate-700"
               >
                 {point}
               </div>
             ))}
           </div>
-          <div className="mt-5">
-            <a
-              href="/h/demo"
-              target="_blank"
-              rel="noreferrer"
-              className="gostaya-primary-action flex w-full items-center justify-center rounded-2xl bg-[#1479d3] px-5 py-3.5 text-center text-sm font-black text-white shadow-lg shadow-sky-200 transition hover:-translate-y-0.5"
-            >
-              {lang === "bg" ? "Разгледай Демо Хъб" : lang === "de" ? "Demo Guest Hub öffnen" : "Explore Demo Guest Hub"}
-            </a>
 
-            <div className="mt-4 rounded-2xl border border-sky-200 bg-[#f8fbfe] p-4">
-              <p className="text-sm font-semibold text-[#102a43]">
-                {lang === "bg" ? "Оперативни панели" : lang === "de" ? "Operative Panels" : "Operational panels"}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                {lang === "bg" ? "Разгледайте ги с Демо стая 901 · Демо PIN 2026" : lang === "de" ? "Demo-Zimmer 901 · Demo-PIN 2026" : "Demo room 901 · Demo PIN 2026"}
-              </p>
-              <div className="gostaya-demo-departments mt-3 grid grid-cols-2 gap-2">
-                {[
-                  [lang === "bg" ? "Хаускипинг" : "Housekeeping", "/staff/demo/housekeeping"],
-                  [lang === "bg" ? "Поддръжка" : lang === "de" ? "Technik" : "Maintenance", "/staff/demo/maintenance"],
-                  [lang === "bg" ? "Рецепция" : lang === "de" ? "Rezeption" : "Reception", "/staff/demo/reception"],
-                  [lang === "bg" ? "Мениджър" : "Manager", "/staff/demo/manager"],
-                ].map(([label, href]) => (
-                  <a
-                    key={href}
-                    href={href}
-                    className="gostaya-demo-department grid min-h-[44px] place-items-center rounded-xl border border-sky-200 bg-white px-3 py-2 text-center text-xs font-semibold text-[#075985] shadow-sm hover:border-[#8fcaf2] hover:bg-[#f4f9ff]"
-                  >
-                    {label}
-                  </a>
-                ))}
+          <div className="mt-5 rounded-[22px] border border-[#b9ddf8] bg-white p-4 shadow-sm">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-black text-[#102a43]">
+                  {lang === "bg" ? "Оперативни панели" : lang === "de" ? "Operative Panels" : "Operational panels"}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  {lang === "bg" ? "Демо стая 901 · PIN 2026" : lang === "de" ? "Demo-Zimmer 901 · PIN 2026" : "Demo room 901 · PIN 2026"}
+                </p>
               </div>
+              <span className="rounded-full bg-[#e8f4ff] px-3 py-1 text-[10px] font-black uppercase tracking-[.12em] text-[#1479d3]">
+                {lang === "bg" ? "Разгледайте ги" : lang === "de" ? "Öffnen" : "Explore"}
+              </span>
+            </div>
+
+            <div className="gostaya-demo-departments mt-3 grid grid-cols-2 gap-2">
+              {[
+                [lang === "bg" ? "Хаускипинг" : "Housekeeping", "/staff/demo/housekeeping"],
+                [lang === "bg" ? "Поддръжка" : lang === "de" ? "Technik" : "Maintenance", "/staff/demo/maintenance"],
+                [lang === "bg" ? "Рецепция" : lang === "de" ? "Rezeption" : "Reception", "/staff/demo/reception"],
+                [lang === "bg" ? "Мениджър" : "Manager", "/staff/demo/manager"],
+              ].map(([label, href]) => (
+                <a
+                  key={href}
+                  href={href}
+                  className="gostaya-demo-department grid min-h-[44px] place-items-center rounded-xl border border-[#b9ddf8] bg-[#fbfdff] px-3 py-2 text-center text-xs font-bold text-[#075985] shadow-sm hover:border-[#1479d3] hover:bg-[#eef7ff]"
+                >
+                  {label}
+                </a>
+              ))}
             </div>
           </div>
         </div>
 
-        <div className="hidden min-w-0 max-w-full overflow-hidden md:block lg:hidden">
-          <div
-            className="gostaya-module-tabs flex w-full min-w-0 max-w-full gap-2 overflow-x-auto pb-2"
-            role="tablist"
-            aria-label={copy.flowTitle}
-          >
-            {copy.views.map((view) => (
-              <button
-                key={view.key}
-                type="button"
-                role="tab"
-                aria-selected={active.key === view.key}
-                onClick={() => setActiveKey(view.key)}
-                className={
-                  "gostaya-module-tab shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition " +
-                  (active.key === view.key
-                    ? "border-[#1479d3] bg-[#1479d3] text-white shadow-md"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-sky-300 hover:text-[#1479d3]")
-                }
-              >
-                {view.nav}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="hidden md:block">
+        <div className="hidden min-w-0 max-w-full md:block">
           <ModulePreview view={active} />
         </div>
       </div>

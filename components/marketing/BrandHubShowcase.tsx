@@ -21,9 +21,10 @@ type BrandVariant = {
   quick: string[];
 };
 
-const COPY: Record<Lang, { choose: string; preview: string; variants: BrandVariant[] }> = {
+const COPY: Record<Lang, { choose: string; helper: string; preview: string; variants: BrandVariant[] }> = {
   bg: {
     choose: "Изберете тип хотел",
+    helper: "Изберете тип хотел и вижте как би изглеждал вашият хъб.",
     preview: "Примерен изглед на портала за госта",
     variants: [
       {
@@ -90,6 +91,7 @@ const COPY: Record<Lang, { choose: string; preview: string; variants: BrandVaria
   },
   en: {
     choose: "Choose hotel type",
+    helper: "Choose a hotel type and see how your Guest Hub could look.",
     preview: "Sample guest hub appearance",
     variants: [
       { key: "resort", label: "Resort", description: "A lively interface focused on activities, beach and entertainment.", hotelName: "Azure Bay Resort", hero: "Today at the hotel", accent: "#0ea5e9", secondary: "#14b8a6", surface: "#eefbff", text: "#0c4a6e", muted: "#4b6b7c", card: "#ffffff", fontClass: "font-sans", quick: ["Beach", "Activities", "Bars"] },
@@ -100,6 +102,7 @@ const COPY: Record<Lang, { choose: string; preview: string; variants: BrandVaria
   },
   de: {
     choose: "Hoteltyp wählen",
+    helper: "Wählen Sie einen Hoteltyp und sehen Sie, wie Ihr Guest Hub aussehen könnte.",
     preview: "Beispielansicht des Guest Hubs",
     variants: [
       { key: "resort", label: "Resort", description: "Lebendige Oberfläche mit Fokus auf Aktivitäten, Strand und Unterhaltung.", hotelName: "Azure Bay Resort", hero: "Heute im Hotel", accent: "#0ea5e9", secondary: "#14b8a6", surface: "#eefbff", text: "#0c4a6e", muted: "#4b6b7c", card: "#ffffff", fontClass: "font-sans", quick: ["Strand", "Aktivitäten", "Bars"] },
@@ -132,12 +135,12 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
         : ["Information", "Dining", "Services", "AI assistant"];
 
   return (
-    <div className="mx-auto w-full max-w-[390px] rounded-[42px] border border-slate-300 bg-[#0a0f18] p-2.5 shadow-[0_34px_90px_rgba(15,58,91,.22)]">
+    <div className="mx-auto w-full max-w-[300px] rounded-[34px] border border-slate-300 bg-[#0a0f18] p-2.5 shadow-[0_34px_90px_rgba(15,58,91,.22)]">
       <div
-        className={"min-h-[780px] overflow-hidden rounded-[33px] " + variant.fontClass}
+        className={"min-h-[590px] overflow-hidden rounded-[27px] " + variant.fontClass}
         style={{ background: variant.surface, color: variant.text }}
       >
-        <div className="relative h-64 overflow-hidden">
+        <div className="relative h-44 overflow-hidden">
           <Image
             src={HOTEL_IMAGES[variant.key]}
             alt={hotelImageAlt(variant, lang)}
@@ -168,7 +171,7 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
         </div>
 
         <div className="px-5 pb-6 pt-5">
-          <div className="text-3xl font-semibold leading-tight">{variant.hero}</div>
+          <div className="text-2xl font-semibold leading-tight">{variant.hero}</div>
           <div className="mt-2 text-sm leading-6" style={{ color: variant.muted }}>
             {variant.description}
           </div>
@@ -193,7 +196,7 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
             {labels.map((label, index) => (
               <div
                 key={label}
-                className="min-h-28 rounded-2xl border p-4 shadow-sm"
+                className="min-h-20 rounded-2xl border p-3 shadow-sm"
                 style={{
                   borderColor: "rgba(20,121,211,.22)",
                   background: variant.card,
@@ -208,7 +211,7 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
                 <div className="grid h-8 w-8 place-items-center rounded-xl text-xs font-black text-white" style={{ background: "#1479d3" }}>
                   {String(index + 1).padStart(2, "0")}
                 </div>
-                <div className="mt-4 text-sm font-semibold">{label}</div>
+                <div className="mt-3 text-xs font-semibold">{label}</div>
                 <div className="mt-1 h-1.5 w-12 rounded-full" style={{ background: "rgba(20,121,211,.22)" }} />
               </div>
             ))}
@@ -253,19 +256,42 @@ function HubPreview({ variant, lang }: { variant: BrandVariant; lang: Lang }) {
   );
 }
 
-export default function BrandHubShowcase({ lang }: { lang: Lang }) {
+function BrandWords({ text }: { text: string }) {
+  return <>{text.split(/(GOSTAYA)/g).map((part, index) => part === "GOSTAYA" ? <span key={index} className="font-black text-[#1479d3]">{part}</span> : part)}</>;
+}
+
+export default function BrandHubShowcase({
+  lang,
+  eyebrow,
+  title,
+  text,
+}: {
+  lang: Lang;
+  eyebrow: string;
+  title: string;
+  text: string;
+}) {
   const c = COPY[lang];
-  const [activeKey, setActiveKey] = useState<BrandVariant["key"]>("resort");
+  const [activeKey, setActiveKey] = useState<BrandVariant["key"]>("boutique");
   const active = useMemo(
     () => c.variants.find((variant) => variant.key === activeKey) || c.variants[0],
     [activeKey, c.variants],
   );
 
   return (
-    <div className="grid gap-7 lg:grid-cols-[430px_1fr] lg:items-start">
-      <div>
-        <div className="mx-auto mb-4 grid w-full max-w-[390px] grid-cols-2 gap-2 lg:hidden" role="tablist" aria-label={c.choose}>
-          {c.variants.map((variant, index) => {
+    <div className="grid gap-7 lg:grid-cols-[1fr_330px] lg:items-center">
+      <div className="min-w-0">
+        <p className="text-xs font-black uppercase tracking-[.22em] text-[#1479d3]">{eyebrow}</p>
+        <h2 className="mt-3 max-w-3xl text-balance text-3xl font-semibold leading-tight text-[#102a43] sm:text-4xl">
+          <BrandWords text={title} />
+        </h2>
+        <p className="gostaya-mobile-justify mt-3 max-w-3xl whitespace-pre-line text-base leading-7 text-slate-600">
+          <BrandWords text={text} />
+        </p>
+
+        <p className="mt-6 text-sm font-bold text-[#102a43]">{c.helper}</p>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4" role="tablist" aria-label={c.choose}>
+          {c.variants.map((variant) => {
             const selected = active.key === variant.key;
             return (
               <button
@@ -275,66 +301,29 @@ export default function BrandHubShowcase({ lang }: { lang: Lang }) {
                 aria-selected={selected}
                 onClick={() => setActiveKey(variant.key)}
                 className={
-                  "gostaya-hotel-type-chip grid min-h-[54px] place-items-center rounded-full border px-3 py-2 text-center text-sm font-bold transition " +
+                  "gostaya-hotel-type-chip min-h-[50px] rounded-2xl border px-3 py-2 text-center text-sm font-bold transition " +
                   (selected
-                    ? "border-[#8fcaf2] bg-[#eef6ff] text-[#102a43] shadow-sm"
-                    : "border-slate-200 bg-white text-slate-600")
+                    ? "border-[#1479d3] bg-[#eef7ff] text-[#1479d3] shadow-sm"
+                    : "border-[#cfe8fb] bg-white text-[#075985] hover:border-[#8fcaf2]")
                 }
               >
-                <span>{String(index + 1).padStart(2, "0")} · {variant.label}</span>
+                {variant.label}
               </button>
             );
           })}
         </div>
-        <div className="mb-3 text-center text-xs font-bold uppercase tracking-[.18em] text-slate-400">
+
+        <div className="mt-5 rounded-[22px] border border-[#cfe8fb] bg-[#f8fbfe] p-5">
+          <div className="text-sm font-black text-[#102a43]">{active.label}</div>
+          <div className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{active.description}</div>
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-3 text-center text-[10px] font-black uppercase tracking-[.18em] text-slate-400">
           {c.preview}
         </div>
         <HubPreview variant={active} lang={lang} />
-      </div>
-
-      <div className="hidden lg:block">
-        <div className="text-xs font-bold uppercase tracking-[.18em] text-slate-400">
-          {c.choose}
-        </div>
-        <div className="mt-3 grid gap-3" role="tablist" aria-label={c.choose}>
-          {c.variants.map((variant, index) => {
-            const selected = active.key === variant.key;
-            return (
-              <button
-                key={variant.key}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                onClick={() => setActiveKey(variant.key)}
-                className={
-                  "gostaya-hotel-type-option group w-full rounded-full border p-5 text-left transition " +
-                  (selected
-                    ? "border-[#8fcaf2] bg-[#eef6ff] shadow-[0_16px_40px_rgba(15,58,91,.10)]"
-                    : "border-slate-200 bg-white hover:border-sky-300 hover:shadow-md")
-                }
-              >
-                <div className="flex items-start gap-4">
-                  <div
-                    className={
-                      "grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-xs font-black " +
-                      (selected ? "bg-[#1479d3] text-white" : "bg-slate-100 text-slate-500 group-hover:bg-sky-50 group-hover:text-[#1479d3]")
-                    }
-                  >
-                    {String(index + 1).padStart(2, "0")}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-lg font-bold text-[#102a43]">{variant.label}</div>
-                    <div className="mt-1.5 text-sm leading-6 text-slate-600">{variant.description}</div>
-                  </div>
-                  <div
-                    className="ml-auto mt-1 h-3 w-3 shrink-0 rounded-full"
-                    style={{ background: selected ? "#1479d3" : "#dbe4ee" }}
-                  />
-                </div>
-              </button>
-            );
-          })}
-        </div>
       </div>
     </div>
   );
