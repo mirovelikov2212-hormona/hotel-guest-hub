@@ -21,6 +21,12 @@ const NO_STORE_HEADERS = {
 };
 
 const UNIQUE_VIOLATION_CODE = "23505";
+const AQUAMARINE_REPORTING_RESUME_AT = new Date("2027-05-01T00:00:00Z");
+const AQUAMARINE_SLUG = "aquamarine";
+
+function isSeasonallyPausedHotel(hotelSlug: string) {
+  return hotelSlug.trim().toLowerCase() === AQUAMARINE_SLUG && new Date() < AQUAMARINE_REPORTING_RESUME_AT;
+}
 
 type ReportKey = "weekly" | "monthly-current" | "monthly-latest-completed";
 
@@ -268,6 +274,7 @@ export async function GET(req: NextRequest) {
     skippedPending: 0,
     skippedFailedRetryDisabled: 0,
     skippedNoRecipient: 0,
+    skippedSeasonalPause: 0,
     failed: 0,
     dryRun: dryRun ? 1 : 0,
   };
@@ -301,6 +308,18 @@ export async function GET(req: NextRequest) {
     const reportResults: Array<Record<string, unknown>> = [];
 
     for (const report of reports) {
+      if (isSeasonallyPausedHotel(report.hotel_slug)) {
+        results.skippedSeasonalPause += 1;
+        reportResults.push({
+          report: definition.key,
+          hotelSlug: report.hotel_slug,
+          status: "skipped",
+          reason: "seasonal_reporting_pause",
+          resumeAt: AQUAMARINE_REPORTING_RESUME_AT.toISOString(),
+        });
+        continue;
+      }
+
       const recipientEmail = await getHotelReportRecipient(report.hotel_id);
       if (!recipientEmail) {
         results.skippedNoRecipient += 1;
