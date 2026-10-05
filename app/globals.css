@@ -3531,3 +3531,410 @@ input.stayhub-card::placeholder {
   transform: scaleY(.88);
   transform-origin: left center;
 }
+
+
+/* GOSTAYA one-way process carousel */
+.gostaya-flow-section {
+  position: relative;
+  isolation: isolate;
+}
+.gostaya-flow-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(20,121,211,.12), transparent 26%),
+    radial-gradient(circle at 88% 20%, rgba(20,121,211,.07), transparent 25%),
+    linear-gradient(180deg, #f7fbff 0%, #ffffff 72%);
+}
+.gostaya-flow-steps {
+  display: grid;
+  grid-template-columns: repeat(5,minmax(0,1fr));
+  gap: .55rem;
+}
+.gostaya-flow-steps > div {
+  position: relative;
+  min-width: 0;
+  border: 1px solid #cfe8fb;
+  border-radius: 18px;
+  background: rgba(255,255,255,.9);
+  padding: .7rem .75rem;
+  color: #728197;
+  transition: border-color .35s ease, background .35s ease, color .35s ease, transform .35s ease;
+}
+.gostaya-flow-steps > div::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -.58rem;
+  width: .58rem;
+  height: 2px;
+  background: #cfe8fb;
+}
+.gostaya-flow-steps > div:last-child::after { display:none; }
+.gostaya-flow-steps span {
+  display: grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  place-items: center;
+  border-radius: 999px;
+  background: #e8f4ff;
+  color: #1479d3;
+  font-size: .72rem;
+  font-weight: 900;
+}
+.gostaya-flow-steps strong {
+  display: block;
+  margin-top: .35rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .76rem;
+  font-weight: 800;
+}
+.gostaya-flow-steps > .is-active {
+  border-color: #1479d3;
+  background: #eef7ff;
+  color: #102a43;
+  transform: translateY(-2px);
+}
+.gostaya-flow-steps > .is-complete {
+  color: #1479d3;
+  background: #f7fbff;
+}
+.gostaya-flow-stage {
+  overflow: hidden;
+  border-radius: 28px;
+}
+.gostaya-flow-card {
+  display: grid;
+  grid-template-columns: minmax(0,.9fr) minmax(300px,1.1fr);
+  min-height: 390px;
+  overflow: hidden;
+  border: 1px solid #b9ddf8;
+  border-radius: 28px;
+  background: linear-gradient(135deg,#ffffff 0%,#f8fbff 55%,#eef6ff 100%);
+  box-shadow: 0 20px 55px rgba(15,58,91,.09);
+  animation: gostayaFlowIn .58s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes gostayaFlowIn {
+  from { opacity: 0; transform: translateX(42px) scale(.985); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+.gostaya-flow-card-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 2rem 2.1rem;
+}
+.gostaya-flow-number {
+  width: fit-content;
+  border-radius: 999px;
+  background: #e8f4ff;
+  padding: .45rem .65rem;
+  color: #1479d3;
+  font-size: .78rem;
+  font-weight: 900;
+}
+.gostaya-flow-short {
+  margin-top: 1.35rem;
+  color: #1479d3;
+  font-size: .78rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.gostaya-flow-card h3 {
+  margin-top: .45rem;
+  color: #102a43;
+  font-size: clamp(2rem,4vw,3.7rem);
+  font-weight: 750;
+  line-height: .98;
+  letter-spacing: -.035em;
+}
+.gostaya-flow-description {
+  margin-top: 1rem;
+  max-width: 34rem;
+  color: #5d6d82;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+.gostaya-flow-visual {
+  position: relative;
+  display: grid;
+  min-height: 390px;
+  place-items: center;
+  overflow: hidden;
+  padding: 2rem;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(20,121,211,.14), transparent 35%),
+    linear-gradient(135deg, rgba(232,244,255,.7), rgba(255,255,255,.1));
+}
+.gostaya-flow-person {
+  position: absolute;
+  left: 16%;
+  bottom: 12%;
+  width: 34%;
+  height: 56%;
+  border-radius: 46% 46% 18% 18%;
+  background: linear-gradient(145deg,#c9d9e6,#ffffff);
+  box-shadow: 0 22px 40px rgba(16,42,67,.1);
+}
+.gostaya-flow-person::before {
+  content: "";
+  position: absolute;
+  left: 31%;
+  top: -24%;
+  width: 38%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: linear-gradient(145deg,#ecd3c0,#f6e5d8);
+}
+.gostaya-flow-person span {
+  position: absolute;
+  left: 43%;
+  top: -31%;
+  width: 22%;
+  height: 35%;
+  border-radius: 50% 50% 35% 35%;
+  background: #6e4f43;
+}
+.gostaya-flow-phone {
+  position: absolute;
+  left: 43%;
+  bottom: 20%;
+  width: 18%;
+  aspect-ratio: .58;
+  border: 5px solid #102a43;
+  border-radius: 18px;
+  background: white;
+  transform: rotate(-8deg);
+  box-shadow: 0 14px 30px rgba(16,42,67,.18);
+}
+.gostaya-flow-qr-card {
+  position: absolute;
+  right: 14%;
+  top: 20%;
+  display: grid;
+  width: 27%;
+  min-height: 45%;
+  place-items: center;
+  border: 1px solid #b9ddf8;
+  border-radius: 22px;
+  background: white;
+  color: #1479d3;
+  box-shadow: 0 18px 35px rgba(16,42,67,.1);
+}
+.gostaya-flow-qr-card strong { font-size: .78rem; letter-spacing: .08em; }
+.gostaya-flow-qr {
+  position: absolute;
+  inset: 20%;
+  background:
+    linear-gradient(90deg,#102a43 12%,transparent 12% 24%,#102a43 24% 37%,transparent 37% 51%,#102a43 51% 65%,transparent 65% 78%,#102a43 78%),
+    linear-gradient(#102a43 12%,transparent 12% 24%,#102a43 24% 37%,transparent 37% 51%,#102a43 51% 65%,transparent 65% 78%,#102a43 78%);
+  background-size: 12px 12px;
+}
+.gostaya-flow-qr-large { position: relative; inset: auto; width: 46%; aspect-ratio:1; }
+.gostaya-flow-hub-phone {
+  width: min(72%,330px);
+  border: 8px solid #102a43;
+  border-radius: 34px;
+  background: white;
+  padding: 1.15rem;
+  transform: rotate(-2deg);
+  box-shadow: 0 26px 50px rgba(16,42,67,.16);
+}
+.gostaya-flow-hub-brand {
+  text-align: center;
+  color: #1479d3;
+  font-size: .9rem;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+.gostaya-flow-hub-grid,
+.gostaya-flow-team-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.65rem;
+  margin-top:1rem;
+}
+.gostaya-flow-hub-grid span,
+.gostaya-flow-team-grid span {
+  display:grid;
+  min-height:72px;
+  place-items:center;
+  border:1px solid #cfe8fb;
+  border-radius:16px;
+  background:#f8fbff;
+  color:#102a43;
+  font-size:.78rem;
+  font-weight:800;
+}
+.gostaya-flow-logic {
+  display:flex;
+  align-items:center;
+  gap:1.2rem;
+}
+.gostaya-flow-gear {
+  display:grid;
+  width:128px;
+  height:128px;
+  place-items:center;
+  border-radius:32px;
+  background:linear-gradient(145deg,#1479d3,#3aa6ff);
+  color:white;
+  font-size:4.6rem;
+  box-shadow:0 20px 40px rgba(20,121,211,.24);
+}
+.gostaya-flow-routes {
+  display:grid;
+  gap:.8rem;
+}
+.gostaya-flow-routes span {
+  position:relative;
+  width:150px;
+  height:42px;
+  border:1px solid #b9ddf8;
+  border-radius:14px;
+  background:white;
+  box-shadow:0 12px 28px rgba(15,58,91,.08);
+}
+.gostaya-flow-routes span::before {
+  content:"";
+  position:absolute;
+  left:-1.25rem;
+  top:50%;
+  width:1.25rem;
+  height:2px;
+  background:#20c4d9;
+}
+.gostaya-flow-team-grid { width:min(86%,430px); }
+.gostaya-flow-team-grid span { min-height:105px; font-size:.88rem; }
+.gostaya-flow-dashboard {
+  position:relative;
+  width:min(82%,430px);
+  height:260px;
+  border:1px solid #b9ddf8;
+  border-radius:24px;
+  background:white;
+  box-shadow:0 24px 48px rgba(15,58,91,.12);
+}
+.gostaya-flow-bars {
+  position:absolute;
+  right:10%;
+  top:14%;
+  display:flex;
+  align-items:flex-end;
+  gap:8px;
+  height:42%;
+}
+.gostaya-flow-bars i {
+  width:20px;
+  border-radius:7px 7px 2px 2px;
+  background:linear-gradient(#38a6ff,#1479d3);
+}
+.gostaya-flow-bars i:nth-child(1){height:35%}.gostaya-flow-bars i:nth-child(2){height:55%}.gostaya-flow-bars i:nth-child(3){height:76%}.gostaya-flow-bars i:nth-child(4){height:100%}
+.gostaya-flow-line {
+  position:absolute;
+  right:9%;
+  bottom:17%;
+  display:flex;
+  align-items:flex-end;
+  gap:32px;
+  width:46%;
+  height:34%;
+  border-bottom:2px solid #d7e8f5;
+}
+.gostaya-flow-line i { width:12px; height:12px; border-radius:999px; background:#20c4d9; box-shadow:0 0 0 6px rgba(32,196,217,.1); }
+.gostaya-flow-line i:nth-child(2){transform:translateY(-28px)}.gostaya-flow-line i:nth-child(3){transform:translateY(-54px)}
+.gostaya-flow-donut {
+  position:absolute;
+  left:11%;
+  bottom:18%;
+  width:86px;
+  aspect-ratio:1;
+  border-radius:999px;
+  background:conic-gradient(#1479d3 0 42%,#20c4d9 42% 68%,#e6f2fb 68%);
+}
+.gostaya-flow-donut::after {
+  content:"";
+  position:absolute;
+  inset:18px;
+  border-radius:999px;
+  background:white;
+}
+.gostaya-flow-controls {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  align-items:center;
+  gap:1rem;
+  margin-top:1.25rem;
+}
+.gostaya-flow-progress {
+  height:6px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#e4eff8;
+}
+.gostaya-flow-progress span {
+  display:block;
+  height:100%;
+  border-radius:999px;
+  background:#1479d3;
+  transition:width .45s ease;
+}
+.gostaya-flow-count {
+  color:#7a8899;
+  font-size:.78rem;
+  font-weight:700;
+}
+.gostaya-flow-next {
+  display:inline-flex;
+  align-items:center;
+  gap:.55rem;
+  border:1px solid #1479d3 !important;
+  border-radius:999px !important;
+  background:#1479d3 !important;
+  padding:.7rem 1rem;
+  color:white !important;
+  font-size:.78rem;
+  font-weight:900;
+}
+@media (max-width: 767px) {
+  .gostaya-flow-steps {
+    grid-template-columns:repeat(5, 1fr);
+    gap:.28rem;
+  }
+  .gostaya-flow-steps > div {
+    min-height:48px;
+    padding:.4rem;
+    text-align:center;
+  }
+  .gostaya-flow-steps > div::after { right:-.3rem; width:.3rem; }
+  .gostaya-flow-steps span { margin:auto; width:1.45rem; height:1.45rem; font-size:.65rem; }
+  .gostaya-flow-steps strong { display:none; }
+  .gostaya-flow-card {
+    grid-template-columns:1fr;
+    min-height:0;
+  }
+  .gostaya-flow-card-copy { padding:1.4rem 1.25rem 1rem; }
+  .gostaya-flow-card h3 { font-size:2.15rem; }
+  .gostaya-flow-description { font-size:.92rem; line-height:1.6; }
+  .gostaya-flow-visual { min-height:260px; padding:1rem; }
+  .gostaya-flow-controls { grid-template-columns:1fr auto; }
+  .gostaya-flow-progress { grid-column:1 / -1; }
+  .gostaya-flow-count { font-size:.72rem; }
+  .gostaya-flow-next { padding:.65rem .9rem; }
+  .gostaya-flow-person { left:10%; width:38%; }
+  .gostaya-flow-phone { left:40%; width:21%; }
+  .gostaya-flow-qr-card { right:8%; width:31%; }
+  .gostaya-flow-hub-phone { width:min(68%,270px); }
+  .gostaya-flow-team-grid { width:min(94%,360px); }
+  .gostaya-flow-team-grid span { min-height:78px; }
+  .gostaya-flow-dashboard { width:min(92%,350px); height:220px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gostaya-flow-card { animation:none; }
+  .gostaya-flow-progress span { transition:none; }
+}
+
