@@ -64,7 +64,7 @@ export default function PilotCaseStudy({ lang }: { lang: Lang }) {
   const c = COPY[lang];
   return (
     <section id="evidence" className="scroll-mt-28 mx-auto mt-5 max-w-7xl overflow-hidden rounded-[34px] border border-[#cfe8fb] bg-gradient-to-br from-white via-[#fbfdff] to-[#eef7ff] shadow-[0_20px_60px_rgba(15,58,91,.07)]">
-      <div className="px-5 py-10 sm:px-7 lg:py-11">
+      <div className="px-5 py-8 sm:px-7 lg:py-9">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[.22em] text-[#1479d3]">{c.eyebrow}</p>
@@ -79,12 +79,12 @@ export default function PilotCaseStudy({ lang }: { lang: Lang }) {
           <div className="w-fit rounded-full border border-[#b9ddf8] bg-white px-4 py-2 text-xs font-black text-[#1479d3] shadow-sm">{c.season}</div>
         </div>
 
-        <div className="mt-7 grid gap-5 xl:grid-cols-[1.45fr_.55fr]">
-          <div className="rounded-[28px] border border-[#cfe8fb] bg-white p-4 shadow-[0_14px_38px_rgba(15,58,91,.06)] sm:p-5">
+        <div className="mt-6 grid gap-4 xl:grid-cols-[1.45fr_.55fr]">
+          <div className="rounded-[26px] border border-[#cfe8fb] bg-white p-4 shadow-[0_14px_38px_rgba(15,58,91,.06)]">
             <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
               <div className="mx-auto w-full max-w-[220px] overflow-hidden rounded-[30px] border-[7px] border-[#102a43] bg-white shadow-[0_24px_55px_rgba(15,58,91,.16)]">
                 <div className="relative h-36 overflow-hidden">
-                  <Image src="/images/aquamarine-test-hero-v6.jpg" alt="Aquamarine Kranevo" fill className="object-cover" sizes="220px" />
+                  <Image src="/marketing/hotel-hubs/resort-hq.webp" alt="GOSTAYA Guest Hub resort preview" fill className="object-cover" sizes="220px" />
                   <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/45 to-transparent px-4 py-3 text-white">
                     <span className="text-[10px] font-black tracking-[.12em]">GOSTAYA</span>
                     <span className="rounded-full bg-white/20 px-2 py-1 text-[9px] font-bold backdrop-blur">{c.hub}</span>

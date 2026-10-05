@@ -21,19 +21,28 @@ export default function MarketingPage({lang}:{lang:Lang}) {
       </div>
     </header>
 
-    <section className="relative mx-auto mt-4 max-w-7xl overflow-hidden rounded-[38px] border border-slate-200 bg-gradient-to-b from-[#f4faff] to-white shadow-[0_24px_70px_rgba(15,58,91,.08)]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(44,157,255,.16),transparent_30%),radial-gradient(circle_at_82%_18%,rgba(44,157,255,.09),transparent_27%)]"/>
-      <div className="relative mx-auto max-w-7xl px-5 py-12 sm:px-7 lg:py-16">
-        <p className="text-xs font-black tracking-[.24em] text-[#1479d3]">{c.eyebrow}</p>
-        <h1 className="mt-4 max-w-4xl text-balance text-4xl font-semibold leading-[1.05] tracking-tight text-[#102a43] sm:text-5xl lg:text-6xl"><BrandText text={c.title} hero/></h1>
-        <p className="mt-5 max-w-3xl text-pretty text-base leading-7 text-slate-600 sm:text-lg"><BrandText text={c.text}/></p>
-        {lang==="bg"&&"purposeText" in c?<div className="mt-3 max-w-5xl text-base leading-7 text-slate-600 sm:text-lg">
-          <p className="gostaya-mobile-justify"><BrandText text="GOSTAYA оптимизира връзката между гостите, хотелските екипи и мениджмънта чрез автоматизация, директно насочване и проследими процеси."/></p>
-          <p className="gostaya-mobile-justify mt-1"><BrandText text="GOSTAYA не заменя хотелския екип — увеличава неговия оперативен капацитет, ефективност и способност да поддържа последователно обслужване."/></p>
-        </div>:null}
-        <div className="mt-8 flex flex-wrap gap-3">
-          <a href="/h/demo" target="_blank" rel="noreferrer" className="gostaya-primary-action rounded-2xl bg-[#1479d3] px-5 py-3 text-sm font-black text-white shadow-lg shadow-sky-200">{c.primary}</a>
-          <DemoLaunchLink className="gostaya-secondary-action rounded-2xl border border-sky-200 bg-white px-5 py-3 text-sm font-bold text-white">{c.secondary}</DemoLaunchLink>
+    <section className="relative mx-auto mt-4 max-w-7xl overflow-hidden rounded-[34px] border border-[#cfe8fb] bg-white shadow-[0_20px_60px_rgba(15,58,91,.07)]">
+      <div className="grid lg:grid-cols-[1.18fr_.82fr]">
+        <div className="relative z-10 px-5 py-10 sm:px-7 lg:px-9 lg:py-11">
+          <p className="text-[11px] font-black tracking-[.22em] text-[#1479d3]">{c.eyebrow}</p>
+          <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold leading-[1.02] tracking-tight text-[#102a43] sm:text-5xl">
+            <BrandText text={c.title} hero/>
+          </h1>
+          <p className="mt-4 max-w-3xl text-pretty text-base leading-7 text-slate-600 sm:text-lg"><BrandText text={c.text}/></p>
+          {lang==="bg"&&"purposeText" in c?<div className="mt-4 max-w-4xl text-base leading-7 text-slate-600 sm:text-lg">
+            <p className="gostaya-mobile-justify"><BrandText text="GOSTAYA оптимизира връзката между гостите, хотелските екипи и мениджмънта чрез автоматизация, директно насочване и проследими процеси."/></p>
+            <p className="gostaya-mobile-justify mt-1"><BrandText text="GOSTAYA не заменя хотелския екип — увеличава неговия оперативен капацитет, ефективност и способност да поддържа последователно обслужване."/></p>
+          </div>:null}
+          <div className="mt-7 flex flex-wrap gap-3">
+            <a href="/h/demo" target="_blank" rel="noreferrer" className="gostaya-primary-action rounded-2xl bg-[#1479d3] px-5 py-3 text-sm font-black text-white shadow-lg shadow-sky-200">{c.primary} →</a>
+            <DemoLaunchLink className="gostaya-secondary-action rounded-2xl border border-[#8fcaf2] bg-white px-5 py-3 text-sm font-bold text-[#1479d3]">▷ {c.secondary}</DemoLaunchLink>
+          </div>
+        </div>
+
+        <div className="relative hidden min-h-[390px] overflow-hidden lg:block">
+          <img src="/marketing/reference/gostaya-hero-resort.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/10 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white/30 to-transparent" />
         </div>
       </div>
     </section>

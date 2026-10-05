@@ -42,25 +42,25 @@ export default function WhyGostaya({ lang }: { lang: Lang }) {
   const c = COPY[lang];
   return (
     <section id="why" className="mx-auto mt-5 max-w-7xl overflow-hidden rounded-[34px] border border-[#cfe8fb] bg-white shadow-[0_20px_60px_rgba(15,58,91,.07)]">
-      <div className="grid lg:grid-cols-[1fr_300px]">
-        <div className="px-5 py-10 sm:px-7 lg:py-11">
+      <div className="grid lg:grid-cols-[1fr_300px] lg:items-stretch">
+        <div className="px-5 py-8 sm:px-7 lg:py-9">
           <h2 className="text-3xl font-semibold leading-tight text-[#102a43] sm:text-4xl">{c.title}</h2>
           <p className="mt-2 text-lg font-semibold text-[#1479d3]">{c.subtitle}</p>
           <p className="gostaya-mobile-justify mt-3 max-w-4xl text-base leading-7 text-slate-600">{c.text}</p>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {c.cards.map(([title, text, icon]) => (
-              <article key={title} className="rounded-[24px] border border-[#d6e9f8] bg-[#fbfdff] p-5 shadow-[0_12px_30px_rgba(15,58,91,.05)]">
+              <article key={title} className="rounded-[22px] border border-[#d6e9f8] bg-white p-4 shadow-[0_10px_26px_rgba(15,58,91,.05)]">
                 <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#e8f4ff] text-xl font-black text-[#1479d3]">{icon}</div>
-                <h3 className="mt-4 text-lg font-black leading-tight text-[#102a43]">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
+                <h3 className="mt-3 text-base font-black leading-tight text-[#102a43]">{title}</h3>
+                <p className="mt-2 text-[13px] leading-5 text-slate-600">{text}</p>
               </article>
             ))}
           </div>
         </div>
 
-        <div className="relative hidden min-h-[360px] overflow-hidden lg:block">
-          <Image src="/images/aquamarine-test-hero-v6.jpg" alt="" fill className="object-cover" sizes="300px" />
+        <div className="relative hidden min-h-[330px] overflow-hidden lg:block">
+          <Image src="/marketing/reference/gostaya-manager.webp" alt="" fill className="object-cover object-center" sizes="300px" />
           <div className="absolute inset-0 bg-gradient-to-r from-white via-white/20 to-transparent" />
           <div className="absolute bottom-6 left-6 right-6 rounded-[22px] border border-white/60 bg-white/90 p-4 shadow-xl backdrop-blur">
             <div className="text-xs font-black uppercase tracking-[.16em] text-[#1479d3]">GOSTAYA</div>
