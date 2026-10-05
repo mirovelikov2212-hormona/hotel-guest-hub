@@ -60,8 +60,8 @@ export default function WhyGostaya({ lang }: { lang: Lang }) {
         </div>
 
         <div className="relative hidden min-h-[330px] overflow-hidden lg:block">
-          <Image src="/marketing/reference/gostaya-manager.webp" alt="" fill className="object-cover object-center" sizes="300px" />
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/20 to-transparent" />
+          <Image src="/marketing/reference/gostaya-manager.webp" alt="" fill unoptimized className="object-cover object-center" sizes="300px" />
+          <div className="absolute inset-y-0 left-0 w-14 bg-gradient-to-r from-white via-white/55 to-transparent" />
           <div className="absolute bottom-6 left-6 right-6 rounded-[22px] border border-white/60 bg-white/90 p-4 shadow-xl backdrop-blur">
             <div className="text-xs font-black uppercase tracking-[.16em] text-[#1479d3]">GOSTAYA</div>
             <div className="mt-1 text-sm font-bold text-[#102a43]">{lang === "bg" ? "Повече време за обслужване. По-малко време за координация." : lang === "de" ? "Mehr Zeit für Service. Weniger Zeit für Koordination." : "More time for service. Less time for coordination."}</div>
