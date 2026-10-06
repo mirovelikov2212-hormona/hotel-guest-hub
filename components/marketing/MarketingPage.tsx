@@ -1,4 +1,5 @@
 import Image from "next/image";
+import "./marketing-design.css";
 import ProductWalkthrough from "./ProductWalkthrough";
 import BeforeAfterFlow from "./BeforeAfterFlow";
 import BrandHubShowcase from "./BrandHubShowcase";
@@ -11,20 +12,20 @@ const COPY={bg:{nav:["Продукт","Как работи","Резултати"
 function BrandText({text,hero=false}:{text:string;hero?:boolean}){return <>{text.split(/(GOSTAYA)/g).map((part,index)=>part==="GOSTAYA"?<span key={index} className={hero?"gostaya-mobile-brand gostaya-hero-brand":"gostaya-mobile-brand"}>{part}</span>:part)}</>}
 export default function MarketingPage({lang}:{lang:Lang}) {
   const c=COPY[lang];
-  return <main className="gostaya-marketing min-h-screen bg-[#f3f8fc] pb-8 text-[#102a43]">
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-        <a href={`/${lang}`} className="gostaya-mobile-brand text-xl font-black tracking-[.16em] text-[#102a43]">GOSTAYA</a>
-        <nav className="hidden gap-5 text-xs font-semibold text-slate-500 lg:flex">
-          {c.nav.map((n,i)=><a key={n} href={["#why","#how","#evidence","#platform","#faq"][i]} className="hover:text-[#1479d3]">{n}</a>)}
+  return <main lang={lang} className="gostaya-marketing">
+    <header className="gostaya-header">
+      <div className="gostaya-header-inner">
+        <a href={`/${lang}`} className="gostaya-wordmark">GOSTAYA</a>
+        <nav className="gostaya-nav">
+          {[c.nav[0],c.nav[1],c.nav[3],c.nav[2],c.nav[4]].map((n,i)=><a key={n} href={["#why","#how","#platform","#evidence","#faq"][i]} className="hover:text-[#1479d3]">{n}</a>)}
         </nav>
-        <DemoLaunchLink className="gostaya-primary-action rounded-xl bg-[#1479d3] px-4 py-2 text-xs font-black text-white shadow-md shadow-sky-100">{lang==="bg"?"ДЕМО":"DEMO"}</DemoLaunchLink>
+        <div className="gostaya-header-actions"><div className="gostaya-languages" aria-label="Language">{(["bg","en","de"] as const).map((locale)=><a key={locale} href={`/${locale}`} hrefLang={locale} aria-current={lang===locale?"page":undefined}>{locale.toUpperCase()}</a>)}</div><DemoLaunchLink className="gostaya-primary-action rounded-xl bg-[#1479d3] px-4 py-2 text-xs font-black text-white shadow-md shadow-sky-100">{lang==="bg"?"ДЕМО":"DEMO"}</DemoLaunchLink></div>
       </div>
     </header>
 
-    <section className="relative mx-auto mt-4 max-w-7xl overflow-hidden rounded-[34px] border border-[#cfe8fb] bg-white shadow-[0_20px_60px_rgba(15,58,91,.07)]">
-      <div className="grid lg:grid-cols-[1.18fr_.82fr]">
-        <div className="relative z-10 px-5 py-10 sm:px-7 lg:px-9 lg:py-11">
+    <section className="gostaya-hero gostaya-shell">
+      <div className="gostaya-hero-grid">
+        <div className="gostaya-hero-copy">
           <p className="text-[11px] font-black tracking-[.22em] text-[#1479d3]">{c.eyebrow}</p>
           <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold leading-[1.02] tracking-tight text-[#102a43] sm:text-5xl">
             <BrandText text={c.title} hero/>
@@ -35,22 +36,21 @@ export default function MarketingPage({lang}:{lang:Lang}) {
             <p className="gostaya-mobile-justify mt-1"><BrandText text="GOSTAYA не заменя хотелския екип — увеличава неговия оперативен капацитет, ефективност и способност да поддържа последователно обслужване."/></p>
           </div>:null}
           <div className="mt-7 flex flex-wrap gap-3">
-            <a href="/h/demo" target="_blank" rel="noreferrer" className="gostaya-primary-action rounded-2xl bg-[#1479d3] px-5 py-3 text-sm font-black text-white shadow-lg shadow-sky-200">{c.primary} →</a>
+            <a href="/h/demo" target="_blank" rel="noreferrer" className="gostaya-primary-action rounded-2xl bg-[#1479d3] px-5 py-3 text-sm font-black text-white shadow-lg shadow-sky-200">{c.primary}</a>
             <DemoLaunchLink className="gostaya-secondary-action rounded-2xl border border-[#8fcaf2] bg-white px-5 py-3 text-sm font-bold text-[#1479d3]">▷ {c.secondary}</DemoLaunchLink>
           </div>
         </div>
 
-        <div className="relative hidden min-h-[390px] overflow-hidden lg:block">
+        <div className="gostaya-hero-image">
           <Image
-            src="/marketing/reference/gostaya-hero-resort.webp"
+            src="/marketing/reference/gostaya-hero-resort-hq.webp"
             alt=""
             fill
             priority
-            unoptimized
             sizes="(min-width: 1024px) 42vw, 100vw"
             className="object-cover object-center"
           />
-          <div className="absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-white via-white/55 to-transparent" />
+          <div className="gostaya-hero-fade" />
           <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-white/10 to-transparent" />
         </div>
       </div>
@@ -60,18 +60,18 @@ export default function MarketingPage({lang}:{lang:Lang}) {
     <div id="how" className="scroll-mt-28"><BeforeAfterFlow lang={lang}/></div>
     <div id="platform" className="scroll-mt-28"><ProductWalkthrough lang={lang}/></div>
 
-    <section className="mx-auto mt-5 max-w-7xl rounded-[34px] border border-[#cfe8fb] bg-white px-5 py-10 shadow-[0_20px_60px_rgba(15,58,91,.07)] sm:px-7 lg:py-11">
+    <section id="brand" className="gostaya-shell gostaya-section gostaya-brand-section">
       <BrandHubShowcase lang={lang} eyebrow={c.brandEyebrow} title={c.brandTitle} text={c.brandText}/>
     </section>
 
     <PilotCaseStudy lang={lang}/>
     <AiAssistantBanner lang={lang}/>
 
-    <section id="faq" className="scroll-mt-28 mx-auto mt-5 max-w-5xl rounded-[34px] border border-slate-200 bg-white px-5 py-10 shadow-[0_20px_60px_rgba(15,58,91,.07)] sm:px-7 lg:py-12">
+    <section id="faq" className="gostaya-shell gostaya-section gostaya-faq">
       <h2 className="text-3xl font-semibold sm:text-5xl">{c.faqTitle}</h2>
       <div className="mt-6 space-y-3">
         {c.faqs.map(([q,a],faqIndex)=><details key={q} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <summary className="cursor-pointer font-semibold"><BrandText text={q}/></summary>
+          <summary className="cursor-pointer font-semibold"><span><BrandText text={q}/></span></summary>
           <p className="mt-3 text-sm leading-6 text-slate-600"><BrandText text={a}/></p>
           {faqIndex===1&&<a href="/h/demo" target="_blank" rel="noreferrer" className="gostaya-primary-action mt-4 inline-flex rounded-2xl bg-[#1479d3] px-4 py-2.5 text-xs font-black text-white shadow-md shadow-sky-100">{lang==="bg"?"Отвори хъба · PIN 2026":lang==="de"?"Guest Hub öffnen · PIN 2026":"Open Guest Hub · PIN 2026"}</a>}
           {faqIndex===4&&<DemoLaunchLink className="gostaya-primary-action mt-4 inline-flex rounded-2xl bg-[#1479d3] px-4 py-2.5 text-xs font-black text-white shadow-md shadow-sky-100">{lang==="bg"?"Отвори общото демо · PIN 2026":lang==="de"?"Gesamtdemo öffnen · PIN 2026":"Open full demo · PIN 2026"}</DemoLaunchLink>}
@@ -79,7 +79,7 @@ export default function MarketingPage({lang}:{lang:Lang}) {
       </div>
     </section>
 
-    <footer className="mx-auto mt-5 max-w-7xl rounded-[26px] border border-slate-200 bg-white px-4 py-6 text-center text-xs text-slate-500 shadow-sm">
+    <footer className="gostaya-shell gostaya-footer">
       <BrandText text={lang==="bg"?"© 2026 GOSTAYA · дигитално обслужване на гости · хотелски операции · мениджърски анализ":"© 2026 GOSTAYA · AI guest experience · hotel operations · manager intelligence"}/>
     </footer>
   </main>

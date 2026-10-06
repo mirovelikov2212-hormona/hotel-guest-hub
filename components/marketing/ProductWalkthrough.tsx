@@ -1,6 +1,9 @@
 "use client";
+import MarketingIcon from "./MarketingIcon";
 
-import { useMemo, useState } from "react";
+
+import { useState } from "react";
+import Link from "next/link";
 import DemoLaunchLink from "./DemoLaunchLink";
 
 type Lang = "bg" | "en" | "de";
@@ -562,177 +565,44 @@ function BrandText({ text }: { text: string }) {
   return <>{text.split(/(GOSTAYA)/g).map((part, index) => part === "GOSTAYA" ? <span key={index} className="gostaya-mobile-brand">{part}</span> : part)}</>;
 }
 
-function ModulePreview({ view }: { view: ProductView }) {
-  return (
-    <div className="relative h-full min-w-0 max-w-full overflow-hidden rounded-[28px] border border-slate-200 bg-white p-5 text-[#102a43] shadow-[0_18px_50px_rgba(15,58,91,.10)] sm:p-6">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_55%_0%,rgba(44,157,255,.12),transparent_43%),radial-gradient(circle_at_92%_82%,rgba(44,157,255,.08),transparent_34%)]" />
-      <div className="relative">
-        <div className="border-b border-slate-200 pb-4">
-          <div className="text-[10px] font-black uppercase tracking-[.24em] text-[#1479d3]">
-            {view.previewEyebrow}
-          </div>
-          <h4 className="mt-2 max-w-xl text-xl font-semibold leading-tight text-[#102a43] sm:text-2xl">
-            <BrandText text={view.previewTitle} />
-          </h4>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-            <BrandText text={view.previewText} />
-          </p>
-        </div>
-
-        <div className="mt-4 grid gap-3">
-          {view.previewItems.map((item, index) => (
-            <article
-              key={item.label}
-              className="grid grid-cols-[38px_1fr_auto] items-start gap-3 rounded-2xl border border-slate-200 bg-[#fbfdff] p-4 shadow-sm"
-            >
-              <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#e7f4ff] text-xs font-black text-[#1479d3]">
-                {String(index + 1).padStart(2, "0")}
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-bold text-[#102a43]">
-                  {item.label}
-                </div>
-                <div className="mt-1 text-xs leading-5 text-slate-500">
-                  {item.detail}
-                </div>
-              </div>
-              <div className="hidden rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-700 sm:block">
-                {item.badge}
-              </div>
-            </article>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+const MODULE_ICONS: Record<string,string> = {guest:"phone",team:"reception",staff:"reception",manager:"chart",training:"training",revenue:"euro",integrations:"link"};
 
 export default function ProductWalkthrough({ lang }: { lang: Lang }) {
-  const copy = COPY[lang];
-  const [activeKey, setActiveKey] = useState(copy.views[0].key);
-  const active = useMemo(
-    () => copy.views.find((view) => view.key === activeKey) || copy.views[0],
-    [activeKey, copy.views],
-  );
-
-  const realHubLabel = lang === "bg" ? "Отвори реалния хъб" : lang === "de" ? "Echten Guest Hub öffnen" : "Open real Guest Hub";
-  const fullDemoLabel = lang === "bg" ? "Стартирай общото демо" : lang === "de" ? "Gesamtdemo starten" : "Start full demo";
-
-  return (
-    <section className="mx-auto mt-5 min-w-0 max-w-7xl overflow-hidden rounded-[34px] border border-[#cfe8fb] bg-white px-5 py-9 text-[#102a43] shadow-[0_20px_60px_rgba(15,58,91,.07)] sm:px-7 lg:py-11">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-3xl">
-          <p className="text-xs font-black uppercase tracking-[.24em] text-[#1479d3]">
-            {copy.explorerLabel}
-          </p>
-          <h2 className="mt-3 max-w-3xl text-balance text-3xl font-semibold leading-tight tracking-tight text-[#102a43] sm:text-4xl">
-            {copy.flowTitle}
-          </h2>
-          <p className="gostaya-mobile-justify mt-3 max-w-3xl whitespace-pre-line text-pretty text-base leading-7 text-slate-600">
-            {lang==="bg"?<><span className="md:hidden">Изберете модул, за да видите неговата роля<br/>и основните функции, които хотелът<br/>използва в ежедневната работа.</span><span className="hidden md:inline">{copy.flowText}</span></>:copy.flowText}
-          </p>
-        </div>
-
-        <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[410px]">
-          <a
-            href="https://aquamarine.stayhub.app/"
-            target="_blank"
-            rel="noreferrer"
-            className="gostaya-primary-action flex min-h-[48px] items-center justify-center rounded-2xl bg-[#1479d3] px-5 py-3 text-center text-sm font-black text-white shadow-lg shadow-sky-100 transition hover:-translate-y-0.5"
-          >
-            {realHubLabel} →
-          </a>
-          <DemoLaunchLink className="gostaya-secondary-action flex min-h-[48px] items-center justify-center rounded-2xl border border-[#8fcaf2] bg-white px-5 py-3 text-center text-sm font-black text-[#1479d3] shadow-sm">
-            {fullDemoLabel} →
-          </DemoLaunchLink>
-        </div>
+  const copy=COPY[lang];
+  const [activeKey,setActiveKey]=useState(copy.views[0].key);
+  const active=copy.views.find(view=>view.key===activeKey)||copy.views[0];
+  return <section className="gostaya-shell gostaya-section gostaya-platform">
+    <p className="gostaya-eyebrow">{copy.explorerLabel}</p><h2>{copy.flowTitle}</h2><p className="gostaya-body">{copy.flowText}</p>
+    <div className="gostaya-module-tabs" role="tablist" aria-label={copy.flowTitle}>
+      {copy.views.map((view,index)=><button key={view.key} type="button" role="tab" id={`module-${view.key}`} aria-controls="module-panel" aria-selected={active.key===view.key} tabIndex={active.key===view.key?0:-1} onClick={()=>setActiveKey(view.key)} onKeyDown={event=>{
+        let next=index;
+        if(event.key==="ArrowRight") next=(index+1)%copy.views.length;
+        else if(event.key==="ArrowLeft") next=(index-1+copy.views.length)%copy.views.length;
+        else if(event.key==="Home") next=0;
+        else if(event.key==="End") next=copy.views.length-1;
+        else return;
+        event.preventDefault();setActiveKey(copy.views[next].key);document.getElementById(`module-${copy.views[next].key}`)?.focus();
+      }} className="gostaya-module-tab"><span aria-hidden="true"><MarketingIcon name={MODULE_ICONS[view.key]||"reception"}/></span>{view.nav}</button>)}
+    </div>
+    <div className="gostaya-platform-grid">
+      <div id="module-panel" role="tabpanel" aria-labelledby={`module-${active.key}`} tabIndex={0} className="gostaya-module-panel">
+        <span className="gostaya-module-symbol" aria-hidden="true"><MarketingIcon name={MODULE_ICONS[active.key]||"reception"}/></span>
+        <div><p className="gostaya-eyebrow">{active.eyebrow}</p><h3><BrandText text={active.title}/></h3><p className="gostaya-body"><BrandText text={active.text}/></p></div>
+        <div className="gostaya-feature-grid">{active.previewItems.map(item=><div key={item.label}><span aria-hidden="true">✓</span><div><h4>{item.label}</h4><p>{item.detail}</p></div></div>)}</div>
       </div>
-
-      <div
-        className="gostaya-module-tabs mt-6 flex w-full min-w-0 max-w-full gap-2 overflow-x-auto pb-2"
-        role="tablist"
-        aria-label={copy.flowTitle}
-      >
-        {copy.views.map((view) => (
-          <button
-            key={view.key}
-            type="button"
-            role="tab"
-            aria-selected={active.key === view.key}
-            onClick={() => setActiveKey(view.key)}
-            className={
-              "gostaya-module-tab shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition " +
-              (active.key === view.key
-                ? "border-[#1479d3] bg-[#1479d3] text-white shadow-md"
-                : "border-[#cfe8fb] bg-white text-[#075985] hover:border-[#8fcaf2] hover:bg-[#f6fbff]")
-            }
-          >
-            {view.nav}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-5 grid min-w-0 max-w-full gap-5 lg:grid-cols-[1.05fr_.95fr] lg:items-stretch">
-        <div className="min-w-0 max-w-full rounded-[28px] border border-[#cfe8fb] bg-[#f8fbfe] p-5 text-[#102a43] sm:p-7">
-          <p className="text-xs font-black uppercase tracking-[.22em] text-[#1479d3]">
-            {active.eyebrow}
-          </p>
-          <h3 className="mt-3 max-w-xl text-balance text-2xl font-semibold leading-tight tracking-tight text-[#102a43] sm:text-3xl">
-            <BrandText text={active.title} />
-          </h3>
-          <p className="gostaya-mobile-justify mt-3 max-w-xl text-pretty text-base leading-7 text-slate-600">
-            <BrandText text={active.text} />
-          </p>
-
-          <div className="mt-5 hidden gap-2 md:grid md:grid-cols-2">
-            {active.points.map((point) => (
-              <div
-                key={point}
-                className="rounded-2xl border border-[#cfe8fb] bg-white px-4 py-3 text-sm font-medium text-slate-700"
-              >
-                {point}
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-5 rounded-[22px] border border-[#b9ddf8] bg-white p-4 shadow-sm">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-black text-[#102a43]">
-                  {lang === "bg" ? "Оперативни панели" : lang === "de" ? "Operative Panels" : "Operational panels"}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  {lang === "bg" ? "Демо стая 901 · PIN 2026" : lang === "de" ? "Demo-Zimmer 901 · PIN 2026" : "Demo room 901 · PIN 2026"}
-                </p>
-              </div>
-              <span className="rounded-full bg-[#e8f4ff] px-3 py-1 text-[10px] font-black uppercase tracking-[.12em] text-[#1479d3]">
-                {lang === "bg" ? "Разгледайте ги" : lang === "de" ? "Öffnen" : "Explore"}
-              </span>
-            </div>
-
-            <div className="gostaya-demo-departments mt-3 grid grid-cols-2 gap-2">
-              {[
-                [lang === "bg" ? "Хаускипинг" : "Housekeeping", "/staff/demo/housekeeping"],
-                [lang === "bg" ? "Поддръжка" : lang === "de" ? "Technik" : "Maintenance", "/staff/demo/maintenance"],
-                [lang === "bg" ? "Рецепция" : lang === "de" ? "Rezeption" : "Reception", "/staff/demo/reception"],
-                [lang === "bg" ? "Мениджър" : "Manager", "/staff/demo/manager"],
-              ].map(([label, href]) => (
-                <a
-                  key={href}
-                  href={href}
-                  className="gostaya-demo-department grid min-h-[44px] place-items-center rounded-xl border border-[#b9ddf8] bg-[#fbfdff] px-3 py-2 text-center text-xs font-bold text-[#075985] shadow-sm hover:border-[#1479d3] hover:bg-[#eef7ff]"
-                >
-                  {label}
-                </a>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="hidden min-w-0 max-w-full md:block">
-          <ModulePreview view={active} />
-        </div>
-      </div>
-    </section>
-  );
+      <aside className="gostaya-demo-card"><p className="gostaya-eyebrow">{lang==="bg"?"ОПИТАЙТЕ НА ЖИВО":lang==="de"?"LIVE AUSPROBIEREN":"TRY IT LIVE"}</p>
+        <h3>{lang==="bg"?"От госта до екипа.":lang==="de"?"Vom Gast zum Team.":"From guest to team."}</h3>
+        <p>{lang==="bg"?"Отворете хъба, изпратете тестова заявка и я проследете в панела на отдела.":lang==="de"?"Guest Hub öffnen, Testanfrage senden und im Abteilungspanel verfolgen.":"Open the hub, send a test request and follow it in the department panel."}</p>
+        <div className="gostaya-demo-access"><span>{lang==="bg"?"Демо стая":lang==="de"?"Demo-Zimmer":"Demo room"} <b>901</b></span><span>PIN <b>2026</b></span></div>
+        <Link href="/h/demo" className="gostaya-primary-action">{lang==="bg"?"Разгледай Демо Хъб":lang==="de"?"Demo-Hub öffnen":"Explore Demo Hub"}</Link>
+        <div className="gostaya-demo-departments">{[
+          ["reception",lang==="bg"?"Рецепция":lang==="de"?"Rezeption":"Reception","reception"],
+          ["housekeeping",lang==="bg"?"Хаускипинг":"Housekeeping","housekeeping"],
+          ["maintenance",lang==="bg"?"Поддръжка":lang==="de"?"Technik":"Maintenance","maintenance"],
+          ["chart",lang==="bg"?"Мениджър":"Manager","manager"]
+        ].map(([icon,label,route])=><a key={route} href={`/staff/demo/${route}`} className="gostaya-demo-department"><span aria-hidden="true"><MarketingIcon name={icon}/></span>{label}</a>)}</div>
+        <DemoLaunchLink className="gostaya-demo-workspace-link">{lang==="bg"?"Отвори общото демо":lang==="de"?"Gesamtdemo öffnen":"Open full demo"}</DemoLaunchLink>
+      </aside>
+    </div>
+  </section>;
 }

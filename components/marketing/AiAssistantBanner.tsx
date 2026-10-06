@@ -1,4 +1,6 @@
+import MarketingIcon, { MarketingFlag } from "./MarketingIcon";
 import Image from "next/image";
+import DemoLaunchLink from "./DemoLaunchLink";
 
 type Lang = "bg" | "en" | "de";
 
@@ -23,24 +25,12 @@ const COPY = {
   },
 } as const;
 
-export default function AiAssistantBanner({ lang }: { lang: Lang }) {
-  const c = COPY[lang];
-  return (
-    <section className="mx-auto mt-5 max-w-7xl overflow-hidden rounded-[34px] border border-[#164e82] bg-gradient-to-r from-[#071c34] via-[#0a3158] to-[#0c5da0] text-white shadow-[0_22px_60px_rgba(4,31,56,.22)]">
-      <div className="grid gap-6 px-5 py-9 sm:px-7 lg:grid-cols-[1.25fr_.75fr] lg:items-center lg:py-10">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[.22em] text-sky-300">{c.eyebrow}</p>
-          <h2 className="mt-3 max-w-4xl text-3xl font-semibold leading-tight sm:text-4xl">{c.title}</h2>
-          <p className="mt-3 max-w-3xl text-base leading-7 text-sky-50/85">{c.text}</p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            {c.points.map((point)=><span key={point} className="rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-black text-white backdrop-blur">{point}</span>)}
-          </div>
-        </div>
-        <div className="relative mx-auto grid h-44 w-full max-w-[320px] place-items-center overflow-hidden rounded-[28px] border border-white/15 bg-white/10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(88,190,255,.30),transparent_45%)]" />
-          <Image src="/icons/guesthub-premium/ai-concierge.png" alt="" width={132} height={132} className="relative drop-shadow-[0_16px_28px_rgba(0,0,0,.25)]" />
-        </div>
-      </div>
-    </section>
-  );
+export default function AiAssistantBanner({lang}:{lang:Lang}) {
+  const c=COPY[lang];return <section className="gostaya-shell gostaya-section gostaya-ai-banner">
+    <div className="gostaya-ai-copy"><p className="gostaya-eyebrow">{c.eyebrow}</p><h2>{c.title}</h2><p>{c.text}</p><DemoLaunchLink className="gostaya-ai-action">{lang==="bg"?"Запознайте се с AI асистента":lang==="de"?"AI-Assistent kennenlernen":"Meet your AI assistant"}</DemoLaunchLink></div>
+    <div className="gostaya-ai-capabilities">{c.points.map((point,i)=><div key={point}><span aria-hidden="true"><MarketingIcon name={["chat","globe","clock"][i]}/></span><strong>{point}</strong></div>)}
+      <div className="gostaya-ai-languages">{[["bg","Български"],["en","English"],["de","Deutsch"],["ro","Română"],["cz","Čeština"],["ru","Русский"]].map(([flag,name])=><span key={name} title={name} aria-label={name}><MarketingFlag country={flag}/></span>)}</div>
+    </div>
+    <div className="gostaya-ai-visual"><span className="gostaya-ai-bubble">{lang==="bg"?"Как мога да помогна?":lang==="de"?"Wie kann ich helfen?":"How can I help?"}</span><Image src="/marketing/reference/gostaya-ai-concierge.webp" alt="" width={216} height={216}/></div>
+  </section>;
 }

@@ -1,3 +1,4 @@
+import MarketingIcon from "./MarketingIcon";
 import Image from "next/image";
 
 type Lang = "bg" | "en" | "de";
@@ -40,34 +41,19 @@ const COPY = {
 
 export default function WhyGostaya({ lang }: { lang: Lang }) {
   const c = COPY[lang];
-  return (
-    <section id="why" className="mx-auto mt-5 max-w-7xl overflow-hidden rounded-[34px] border border-[#cfe8fb] bg-white shadow-[0_20px_60px_rgba(15,58,91,.07)]">
-      <div className="grid lg:grid-cols-[1fr_300px] lg:items-stretch">
-        <div className="px-5 py-8 sm:px-7 lg:py-9">
-          <h2 className="text-3xl font-semibold leading-tight text-[#102a43] sm:text-4xl">{c.title}</h2>
-          <p className="mt-2 text-lg font-semibold text-[#1479d3]">{c.subtitle}</p>
-          <p className="gostaya-mobile-justify mt-3 max-w-4xl text-base leading-7 text-slate-600">{c.text}</p>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {c.cards.map(([title, text, icon]) => (
-              <article key={title} className="rounded-[22px] border border-[#d6e9f8] bg-white p-4 shadow-[0_10px_26px_rgba(15,58,91,.05)]">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#e8f4ff] text-xl font-black text-[#1479d3]">{icon}</div>
-                <h3 className="mt-3 text-base font-black leading-tight text-[#102a43]">{title}</h3>
-                <p className="mt-2 text-[13px] leading-5 text-slate-600">{text}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-
-        <div className="relative hidden min-h-[330px] overflow-hidden lg:block">
-          <Image src="/marketing/reference/gostaya-manager.webp" alt="" fill unoptimized className="object-cover object-center" sizes="300px" />
-          <div className="absolute inset-y-0 left-0 w-14 bg-gradient-to-r from-white via-white/55 to-transparent" />
-          <div className="absolute bottom-6 left-6 right-6 rounded-[22px] border border-white/60 bg-white/90 p-4 shadow-xl backdrop-blur">
-            <div className="text-xs font-black uppercase tracking-[.16em] text-[#1479d3]">GOSTAYA</div>
-            <div className="mt-1 text-sm font-bold text-[#102a43]">{lang === "bg" ? "Повече време за обслужване. По-малко време за координация." : lang === "de" ? "Mehr Zeit für Service. Weniger Zeit für Koordination." : "More time for service. Less time for coordination."}</div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  return <section id="why" className="gostaya-shell gostaya-section gostaya-why">
+    <div className="gostaya-why-copy">
+      <p className="gostaya-eyebrow">{lang === "bg" ? "ПОВЕЧЕ ВРЕМЕ ЗА ГОСТИТЕ" : lang === "de" ? "MEHR ZEIT FÜR GÄSTE" : "MORE TIME FOR GUESTS"}</p>
+      <h2>{c.title.split("GOSTAYA")[0]}<span className="gostaya-mobile-brand">GOSTAYA</span></h2>
+      <p className="gostaya-lead">{c.subtitle}</p>
+      <p className="gostaya-body">{c.text}</p>
+      <div className="gostaya-benefits">{c.cards.map(([title,text],i)=><article key={title}>
+        <span className="gostaya-emoji" aria-hidden="true"><MarketingIcon name={["settings","chart","sparkle","team"][i]}/></span>
+        <h3>{title}</h3><p>{text}</p>
+      </article>)}</div>
+    </div>
+    <div className="gostaya-manager-photo"><Image src="/marketing/reference/gostaya-manager-hq.webp" alt="" fill sizes="(min-width: 1024px) 360px, (min-width: 768px) 30vw, 100vw" className="object-cover"/>
+      <div className="gostaya-photo-caption">{lang === "bg" ? "Технологията координира. Екипът се грижи." : lang === "de" ? "Technologie koordiniert. Ihr Team kümmert sich." : "Technology coordinates. Your team cares."}</div>
+    </div>
+  </section>;
 }

@@ -1,4 +1,4 @@
-import Image from "next/image";
+import MarketingIcon from "./MarketingIcon";
 import PilotEvidenceVisual from "./PilotEvidenceVisual";
 
 type Lang = "bg" | "en" | "de";
@@ -60,70 +60,13 @@ const COPY = {
   },
 } as const;
 
-export default function PilotCaseStudy({ lang }: { lang: Lang }) {
-  const c = COPY[lang];
-  return (
-    <section id="evidence" className="scroll-mt-28 mx-auto mt-5 max-w-7xl overflow-hidden rounded-[34px] border border-[#cfe8fb] bg-gradient-to-br from-white via-[#fbfdff] to-[#eef7ff] shadow-[0_20px_60px_rgba(15,58,91,.07)]">
-      <div className="px-5 py-8 sm:px-7 lg:py-9">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[.22em] text-[#1479d3]">{c.eyebrow}</p>
-            <h2 className="mt-3 text-3xl font-semibold leading-tight text-[#102a43] sm:text-4xl">
-              {c.title}{" "}
-              <a href="https://aquamarine-kranevo.com/bg" target="_blank" rel="noreferrer" className="font-black text-[#1479d3] underline decoration-[#8fcaf2] underline-offset-4 hover:text-[#0f68b6]">
-                {c.hotel}
-              </a>
-            </h2>
-            <p className="mt-3 max-w-4xl text-base leading-7 text-slate-600">{c.text}</p>
-          </div>
-          <div className="w-fit rounded-full border border-[#b9ddf8] bg-white px-4 py-2 text-xs font-black text-[#1479d3] shadow-sm">{c.season}</div>
-        </div>
-
-        <div className="mt-6 grid gap-4 xl:grid-cols-[1.45fr_.55fr]">
-          <div className="rounded-[26px] border border-[#cfe8fb] bg-white p-4 shadow-[0_14px_38px_rgba(15,58,91,.06)]">
-            <div className="grid gap-4 lg:grid-cols-[170px_1fr] lg:items-start">
-              <div className="mx-auto w-full max-w-[170px] overflow-hidden rounded-[24px] border-[5px] border-[#102a43] bg-white shadow-[0_18px_40px_rgba(15,58,91,.14)]">
-                <div className="relative h-28 overflow-hidden">
-                  <Image src="/marketing/hotel-hubs/resort-hq.webp" alt="GOSTAYA Guest Hub resort preview" fill quality={95} className="object-cover" sizes="170px" />
-                  <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/45 to-transparent px-3 py-2 text-white">
-                    <span className="text-[9px] font-black tracking-[.10em]">GOSTAYA</span>
-                    <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[8px] font-bold backdrop-blur">{c.hub}</span>
-                  </div>
-                </div>
-                <div className="p-3">
-                  <div className="text-base font-black text-[#102a43]">{lang === "bg" ? "Добре дошли!" : lang === "de" ? "Willkommen!" : "Welcome!"}</div>
-                  <div className="mt-1 text-[10px] text-slate-500">Aquamarine Kranevo</div>
-                  <div className="mt-3 grid grid-cols-2 gap-1.5">
-                    {["Информация","Ресторанти","Услуги","AI асистент"].map((item,index)=><div key={item} className="rounded-lg border border-[#cfe8fb] bg-[#f8fbfe] p-1.5 text-[9px] font-bold text-[#075985]"><span className="mr-1 text-[#1479d3]">{String(index+1).padStart(2,"0")}</span>{item}</div>)}
-                  </div>
-                  <div className="mt-2.5 rounded-lg bg-[#1479d3] px-2 py-2 text-center text-[10px] font-black text-white">{lang === "bg" ? "Заявете услуга" : lang === "de" ? "Service anfragen" : "Request service"}</div>
-                </div>
-              </div>
-
-              <div className="overflow-hidden rounded-[24px] border border-[#d6e9f8] bg-[#f8fbfe]">
-                <div className="flex items-center justify-between border-b border-[#d6e9f8] bg-white px-5 py-4">
-                  <div>
-                    <div className="text-xs font-black uppercase tracking-[.14em] text-[#1479d3]">GOSTAYA</div>
-                    <div className="mt-1 text-sm font-black text-[#102a43]">{c.dashboard}</div>
-                  </div>
-                  <div className="rounded-full bg-[#eef7ff] px-3 py-1 text-[10px] font-bold text-[#1479d3]">Aquamarine</div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 p-4 sm:grid-cols-4">
-                  {[["5 347","Отваряния"],["145","Заявки"],["56","Масажи"],["€2 570","Масажи €"]].map(([v,l])=><div key={l} className="rounded-2xl border border-[#d6e9f8] bg-white p-3"><div className="text-xl font-black text-[#102a43]">{v}</div><div className="mt-1 text-[10px] font-semibold text-slate-500">{l}</div></div>)}
-                </div>
-                <div className="px-4 pb-4">
-                  <PilotEvidenceVisual lang={lang} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid content-start gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            {c.metrics.map(([v,l])=><div key={l} className="rounded-[22px] border border-[#cfe8fb] bg-white p-4 shadow-sm"><div className="text-2xl font-black text-[#102a43]">{v}</div><div className="mt-1 text-xs leading-5 text-slate-500">{l}</div></div>)}
-            <div className="rounded-[22px] border border-[#8fcaf2] bg-[#eef7ff] p-4 text-sm font-black leading-6 text-[#075985]">{c.estimate}</div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+export default function PilotCaseStudy({lang}:{lang:Lang}) {
+  const c=COPY[lang];
+  return <section id="evidence" className="gostaya-shell gostaya-section gostaya-pilot">
+    <div className="gostaya-pilot-heading"><div><p className="gostaya-eyebrow">{c.eyebrow}</p><h2>{c.title} <a href="https://aquamarine-kranevo.com/bg" target="_blank" rel="noreferrer">{c.hotel}</a></h2><p className="gostaya-body">{c.text}</p></div><span className="gostaya-season">{c.season}</span></div>
+    <div className="gostaya-pilot-grid"><div className="gostaya-pilot-dashboard"><div className="gostaya-dashboard-heading"><span className="gostaya-mobile-brand">GOSTAYA</span><span>{c.dashboard}</span></div><PilotEvidenceVisual lang={lang}/></div>
+      <div className="gostaya-pilot-metrics">{c.metrics.map(([value,label],i)=><div key={label}><span className="gostaya-metric-icon" aria-hidden="true"><MarketingIcon name={["bed","phone","info","reception","massage","euro"][i]}/></span><div><strong>{value}</strong><p>{label}</p></div></div>)}</div>
+    </div>
+    <div className="gostaya-pilot-note"><strong>{c.estimate}</strong><p>{lang==="bg"?"Оперативна оценка, а не измерено време. 65 активни стаи от общо 66; една стая е блокирана за тестове. Отварянията не означават уникални гости. Пилотът работи без PMS интеграция.":lang==="de"?"Operative Schätzung, keine Zeitmessung. 65 von 66 Zimmern aktiv; ein Zimmer für Tests reserviert. Aufrufe sind keine einzelnen Gäste. Pilot ohne PMS-Integration.":"Operational estimate, not measured time. 65 of 66 rooms active; one room reserved for testing. Opens are not unique guests. Pilot without PMS integration."}</p></div>
+  </section>;
 }
