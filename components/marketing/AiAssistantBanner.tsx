@@ -1,5 +1,5 @@
-import MarketingIcon, { MarketingFlag } from "./MarketingIcon";
-import Image from "next/image";
+import MarketingIcon from "./MarketingIcon";
+import AiConciergeExample from "./AiConciergeExample";
 import DemoLaunchLink from "./DemoLaunchLink";
 
 type Lang = "bg" | "en" | "de";
@@ -26,11 +26,11 @@ const COPY = {
 } as const;
 
 export default function AiAssistantBanner({lang}:{lang:Lang}) {
-  const c=COPY[lang];return <section className="gostaya-shell gostaya-section gostaya-ai-banner">
-    <div className="gostaya-ai-copy"><p className="gostaya-eyebrow">{c.eyebrow}</p><h2>{c.title}</h2><p>{c.text}</p><DemoLaunchLink className="gostaya-ai-action">{lang==="bg"?"Запознайте се с AI асистента":lang==="de"?"AI-Assistent kennenlernen":"Meet your AI assistant"}</DemoLaunchLink></div>
-    <div className="gostaya-ai-capabilities">{c.points.map((point,i)=><div key={point}><span aria-hidden="true"><MarketingIcon name={["chat","globe","clock"][i]}/></span><strong>{point}</strong></div>)}
-      <div className="gostaya-ai-languages">{[["bg","Български"],["en","English"],["de","Deutsch"],["ro","Română"],["cz","Čeština"],["ru","Русский"]].map(([flag,name])=><span key={name} title={name} aria-label={name}><MarketingFlag country={flag}/></span>)}</div>
-    </div>
-    <div className="gostaya-ai-visual"><span className="gostaya-ai-bubble">{lang==="bg"?"Как мога да помогна?":lang==="de"?"Wie kann ich helfen?":"How can I help?"}</span><Image src="/marketing/reference/gostaya-ai-concierge.webp" alt="" width={216} height={216}/></div>
+  const c=COPY[lang];
+  return <section className="gostaya-shell gostaya-section gostaya-ai-banner">
+    <div className="gostaya-ai-copy"><p className="gostaya-eyebrow">{c.eyebrow}</p><h2>{c.title}</h2><p>{c.text}</p>
+      <div className="gostaya-ai-capabilities">{c.points.map((point,i)=><div key={point}><span aria-hidden="true"><MarketingIcon name={["chat","globe","clock"][i]}/></span><strong>{point}</strong></div>)}</div>
+      <DemoLaunchLink className="gostaya-ai-action">{lang==="bg"?"Запознайте се с AI асистента":lang==="de"?"AI-Assistent kennenlernen":"Meet your AI assistant"}</DemoLaunchLink>
+    </div><AiConciergeExample lang={lang}/>
   </section>;
 }

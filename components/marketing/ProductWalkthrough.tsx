@@ -1,5 +1,6 @@
 "use client";
 import MarketingIcon from "./MarketingIcon";
+import ProductExperience from "./ProductExperience";
 
 
 import { useState } from "react";
@@ -586,9 +587,10 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
     </div>
     <div className="gostaya-platform-grid">
       <div id="module-panel" role="tabpanel" aria-labelledby={`module-${active.key}`} tabIndex={0} className="gostaya-module-panel">
-        <span className="gostaya-module-symbol" aria-hidden="true"><MarketingIcon name={MODULE_ICONS[active.key]||"reception"}/></span>
-        <div><p className="gostaya-eyebrow">{active.eyebrow}</p><h3><BrandText text={active.title}/></h3><p className="gostaya-body"><BrandText text={active.text}/></p></div>
-        <div className="gostaya-feature-grid">{active.previewItems.map(item=><div key={item.label}><span aria-hidden="true">✓</span><div><h4>{item.label}</h4><p>{item.detail}</p></div></div>)}</div>
+        <div className="gostaya-module-explanation"><p className="gostaya-eyebrow">{active.eyebrow}</p><h3><BrandText text={active.title}/></h3><p className="gostaya-body"><BrandText text={active.text}/></p>
+          <div className="gostaya-feature-grid">{active.previewItems.slice(0,3).map(item=><div key={item.label}><span aria-hidden="true">✓</span><div><h4>{item.label}</h4><p>{item.detail}</p></div></div>)}</div>
+        </div>
+        <div className="gostaya-product-experience" key={active.key}><ProductExperience moduleKey={active.key} lang={lang}/></div>
       </div>
       <aside className="gostaya-demo-card"><p className="gostaya-eyebrow">{lang==="bg"?"ОПИТАЙТЕ НА ЖИВО":lang==="de"?"LIVE AUSPROBIEREN":"TRY IT LIVE"}</p>
         <h3>{lang==="bg"?"От госта до екипа.":lang==="de"?"Vom Gast zum Team.":"From guest to team."}</h3>
