@@ -594,7 +594,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
       </div>
       <aside className="gostaya-demo-card"><p className="gostaya-eyebrow">{lang==="bg"?"ОПИТАЙТЕ НА ЖИВО":lang==="de"?"LIVE AUSPROBIEREN":"TRY IT LIVE"}</p>
         <h3>{lang==="bg"?"От госта до екипа.":lang==="de"?"Vom Gast zum Team.":"From guest to team."}</h3>
-        <p>{lang==="bg"?"Отворете хъба, изпратете тестова заявка и я проследете в панела на отдела.":lang==="de"?"Guest Hub öffnen, Testanfrage senden und im Abteilungspanel verfolgen.":"Open the hub, send a test request and follow it in the department panel."}</p>
+        <p>{lang==="bg"?"Следвайте насоките: потвърдете стая 901, изпратете заявка за хавлии и вижте как се обработва от екипа и отразява при мениджъра.":lang==="de"?"Guest Hub öffnen, Testanfrage senden und im Abteilungspanel verfolgen.":"Open the hub, send a test request and follow it in the department panel."}</p>
         <div className="gostaya-demo-access"><span>{lang==="bg"?"Демо стая":lang==="de"?"Demo-Zimmer":"Demo room"} <b>901</b></span><span>PIN <b>2026</b></span></div>
         <Link href="/h/demo" className="gostaya-primary-action">{lang==="bg"?"Разгледай Демо Хъб":lang==="de"?"Demo-Hub öffnen":"Explore Demo Hub"}</Link>
         <div className="gostaya-demo-departments">{[
@@ -603,7 +603,7 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
           ["maintenance",lang==="bg"?"Поддръжка":lang==="de"?"Technik":"Maintenance","maintenance"],
           ["chart",lang==="bg"?"Мениджър":"Manager","manager"]
         ].map(([icon,label,route])=><a key={route} href={`/staff/demo/${route}`} className="gostaya-demo-department"><span aria-hidden="true"><MarketingIcon name={icon}/></span>{label}</a>)}</div>
-        <DemoLaunchLink className="gostaya-demo-workspace-link">{lang==="bg"?"Отвори общото демо":lang==="de"?"Gesamtdemo öffnen":"Open full demo"}</DemoLaunchLink>
+        <DemoLaunchLink className="gostaya-demo-workspace-link">{lang==="bg"?"Стартирай демото стъпка по стъпка":lang==="de"?"Geführte Demo starten":"Start the guided demo"}</DemoLaunchLink>
       </aside>
     </div>
   </section>;

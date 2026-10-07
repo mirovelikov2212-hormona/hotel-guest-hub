@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import DemoGuideCard from "@/components/guest/DemoGuideCard";
+import { DEMO_GUIDE_CHANNEL, type DemoGuideAction, type DemoGuideModel } from "@/lib/demo-guide";
 
 type DemoView = "guest" | "manager";
 type Lang = "bg" | "en" | "de";
@@ -12,7 +14,7 @@ const COPY = {
     title: "Гостът и хотелът в един екран",
     subtitle: "Направете заявка в Guest Hub и проследете същото действие веднага в Manager панела.",
     guest: "Гост",
-    manager: "Мениджър",
+    manager: "Хотел",
     guestTitle: "Guest Hub · стая 901",
     managerTitle: "Manager · оперативен изглед",
     loading: "Подготвяме демо средата…",
@@ -26,7 +28,7 @@ const COPY = {
     title: "Guest and hotel in one workspace",
     subtitle: "Create a request in the Guest Hub and watch the same action appear in Manager.",
     guest: "Guest",
-    manager: "Manager",
+    manager: "Hotel",
     guestTitle: "Guest Hub · room 901",
     managerTitle: "Manager · operational view",
     loading: "Preparing the demo workspace…",
@@ -40,7 +42,7 @@ const COPY = {
     title: "Gast und Hotel in einem Workspace",
     subtitle: "Senden Sie eine Anfrage im Guest Hub und sehen Sie dieselbe Aktion direkt im Manager-Bereich.",
     guest: "Gast",
-    manager: "Manager",
+    manager: "Hotel",
     guestTitle: "Guest Hub · Zimmer 901",
     managerTitle: "Manager · operativer Überblick",
     loading: "Demo-Workspace wird vorbereitet…",
@@ -62,6 +64,33 @@ export default function DemoWorkspace() {
   const [activeView, setActiveView] = useState<DemoView>("guest");
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
+  const guestFrame = useRef<HTMLIFrameElement>(null);
+  const [guide, setGuide] = useState<DemoGuideModel | null>(null);
+  const [staffRole, setStaffRole] = useState<"manager" | "housekeeping" | "reception">("manager");
+  const section = searchParams.get("section");
+  const demoSection = section && ["info", "housekeeping", "massage_booking"].includes(section) ? section : null;
+  const guestLang = ["bg", "en", "de", "ro", "cs", "ru"].includes(searchParams.get("guestLang") || "") ? searchParams.get("guestLang") : lang;
+  const guestSrc = `/h/demo?lang=${guestLang}${demoSection ? `&demoSection=${demoSection}` : ""}`;
+  const roleLabels = {manager: lang === "bg" ? "Мениджър" : "Manager", housekeeping: lang === "bg" ? "Хаускипинг" : "Housekeeping", reception: lang === "bg" ? "Рецепция" : lang === "de" ? "Rezeption" : "Reception"};
+
+  useEffect(() => {
+    function receive(event: MessageEvent) {
+      if (event.origin !== window.location.origin || event.source !== guestFrame.current?.contentWindow || event.data?.channel !== DEMO_GUIDE_CHANNEL || event.data?.type !== "state") return;
+      if (Number.isInteger(event.data.model?.step) && Array.isArray(event.data.model?.instructions)) setGuide(event.data.model);
+    }
+    window.addEventListener("message", receive);
+    return () => window.removeEventListener("message", receive);
+  }, []);
+
+  function guideAction(action: DemoGuideAction) {
+    if (action === "manager" || action === "housekeeping" || action === "reception") {
+      setStaffRole(action);
+      setActiveView("manager");
+      return;
+    }
+    if (["room", "department", "survey", "restart"].includes(action)) setActiveView("guest");
+    guestFrame.current?.contentWindow?.postMessage({channel: DEMO_GUIDE_CHANNEL, type: "action", action}, window.location.origin);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -85,20 +114,16 @@ export default function DemoWorkspace() {
           throw new Error(`guest demo access ${guestResponse.status}`);
         }
 
-        const managerResponse = await fetch("/api/staff/auth/login", {
+        // Each demo role keeps its own existing authenticated session cookie.
+        const staffResponses = await Promise.all((["manager", "housekeeping", "reception"] as const).map(role => fetch("/api/staff/auth/login", {
           method: "POST",
           credentials: "same-origin",
           cache: "no-store",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            hotelSlug: "demo",
-            role: "manager",
-            pin: "2026",
-          }),
-        });
-
-        if (!managerResponse.ok) {
-          throw new Error(`manager demo access ${managerResponse.status}`);
+          body: JSON.stringify({hotelSlug: "demo", role, pin: "2026"}),
+        })));
+        if (staffResponses.some(response => !response.ok)) {
+          throw new Error("staff demo access could not be prepared");
         }
 
         if (!cancelled) setStatus("ready");
@@ -181,6 +206,8 @@ export default function DemoWorkspace() {
         <>
           <div className="mx-auto max-w-[1800px] px-3 pb-3 pt-3 sm:px-4">
             <p className="mb-3 text-center text-xs font-medium text-slate-500">{copy.hint}</p>
+            {demoSection ? <p className="mb-3 rounded-xl border border-sky-200 bg-white p-3 text-sm text-sky-900">{lang === "bg" ? "Избраната секция от ИИ примера ще се отвори след потвърждаване на стая 901. Бутонът само отваря услугата — заявката или резервацията изисква ваше потвърждение." : lang === "de" ? "Der im KI-Beispiel gewählte Bereich öffnet sich nach Bestätigung von Zimmer 901. Eine Anfrage oder Buchung erfordert Ihre Bestätigung." : "The section selected in the AI example opens after confirming room 901. A request or booking still requires your confirmation."}</p> : null}
+            {guide ? <div className="mb-4"><DemoGuideCard model={guide} lang={lang} onAction={guideAction}/></div> : null}
 
             <div className="grid min-h-[calc(100vh-150px)] gap-3 lg:grid-cols-[440px_minmax(0,1fr)]">
               <section
@@ -193,7 +220,9 @@ export default function DemoWorkspace() {
                   </span>
                 </div>
                 <iframe
-                  src="/h/demo"
+                  ref={guestFrame}
+                  src={guestSrc}
+                  onLoad={() => guestFrame.current?.contentWindow?.postMessage({channel: DEMO_GUIDE_CHANNEL, type: "sync"}, window.location.origin)}
                   title={copy.guestTitle}
                   className="h-[calc(100vh-205px)] min-h-[720px] w-full border-0 bg-white"
                   allow="clipboard-read; clipboard-write"
@@ -204,14 +233,17 @@ export default function DemoWorkspace() {
                 className={`overflow-hidden rounded-[28px] border border-sky-200 bg-white shadow-[0_18px_50px_rgba(15,58,91,.10)] ${activeView === "manager" ? "block" : "hidden"} lg:block`}
               >
                 <div className="flex h-11 items-center justify-between border-b border-sky-100 bg-[#f8fbfe] px-4">
-                  <span className="text-sm font-bold">{copy.managerTitle}</span>
+                  <span className="text-sm font-bold">{roleLabels[staffRole]}</span>
                   <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-sky-700">
                     LIVE
                   </span>
                 </div>
+                <div className="flex flex-wrap gap-2 border-b border-sky-100 p-3" role="group" aria-label={copy.managerTitle}>
+                  {(["manager", "housekeeping", "reception"] as const).map(role => <button key={role} type="button" aria-pressed={staffRole === role} onClick={() => setStaffRole(role)} className={`min-h-10 rounded-xl px-3 py-2 text-xs font-bold ${staffRole === role ? "bg-[#1479d3] text-white" : "bg-sky-50 text-sky-900"}`}>{roleLabels[role]}</button>)}
+                </div>
                 <iframe
-                  src="/staff/demo/manager"
-                  title={copy.managerTitle}
+                  src={`/staff/demo/${staffRole}`}
+                  title={roleLabels[staffRole]}
                   className="h-[calc(100vh-205px)] min-h-[720px] w-full border-0 bg-white"
                   allow="clipboard-read; clipboard-write"
                 />

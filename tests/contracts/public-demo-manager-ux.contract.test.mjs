@@ -143,18 +143,22 @@ test("Reception exposes real direct and broadcast guest communication workspaces
   assert.match(reception, /id="reception-broadcast-message"/);
 });
 
-test("public demo guide covers the full eight-step guest lifecycle", async () => {
+test("public demo guide covers the guided ten-step guest lifecycle", async () => {
   const guide = await source("components/guest/DemoJourneyGuide.tsx");
   const guestHub = await source("components/GuestHub.tsx");
   const endStay = await source("app/api/guest/demo/end-stay/route.ts");
 
-  assert.match(guide, /Стъпка 1 · Потвърди demo стаята/);
-  assert.match(guide, /Стъпка 4 · Обработи заявката и провери Manager/);
-  assert.match(guide, /Стъпка 5 · Изпрати лично съобщение/);
-  assert.match(guide, /Стъпка 6 · Изпрати съобщение до всички/);
-  assert.match(guide, /Стъпка 7 · Покажи анкетата/);
-  assert.match(guide, /Стъпка 8 · Приключи престоя/);
-  assert.match(guide, /\{step\}\/8/);
+  const steps = await source("lib/demo-guide.ts");
+  const card = await source("components/guest/DemoGuideCard.tsx");
+  const workspace = await source("components/marketing/DemoWorkspace.tsx");
+  for (const title of ["Потвърдете демо стаята", "Изпратете заявка за хавлии", "Намерете същата заявка при мениджъра", "Обработете заявката в отговорния отдел", "Сравнете резултата за госта и мениджъра", "Приключете тестовия престой"]) {
+    assert.ok(steps.includes(title));
+  }
+  assert.match(card, /Какво трябва да видите/);
+  assert.match(guide, /event.origin !== window.location.origin/);
+  assert.match(guide, /event.source !== window.parent/);
+  assert.match(workspace, /event.source !== guestFrame.current\?\.contentWindow/);
+  assert.match(guide, /step === 3 \? observed.request/);
   assert.match(guestHub, /url\.searchParams\.set\("survey", "force"\)/);
   assert.match(guestHub, /fetch\("\/api\/guest\/demo\/end-stay"/);
 

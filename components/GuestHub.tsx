@@ -2641,6 +2641,15 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   const [manualRoomInput, setManualRoomInput] = useState(qrRoom);
   const [room, setRoom] = useState("");
   const [roomConfirmed, setRoomConfirmed] = useState(false);
+  const demoSectionOpened = useRef(false);
+  useEffect(() => {
+    if (!isPublicDemoHotel || !roomConfirmed || demoSectionOpened.current) return;
+    const section = new URLSearchParams(window.location.search).get("demoSection");
+    if (section && ["info", "housekeeping", "massage_booking"].includes(section)) {
+      demoSectionOpened.current = true;
+      setOpenQuickServiceId(section);
+    }
+  }, [isPublicDemoHotel, roomConfirmed]);
   const [checkInDate, setCheckInDate] = useState("");
   const [checkOutDate, setCheckOutDate] = useState("");
   const [activeStayId, setActiveStayId] = useState("");
@@ -9517,8 +9526,7 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
           departmentOpen={["reception", "housekeeping", "maintenance"].includes(
             String(openQuickServiceId || ""),
           )}
-          hasRequest={showRequestSuccess || guestRequests.length > 0}
-          requestCompleted={guestRequests.some((item) => item.status === "completed")}
+          hasRequest={showRequestSuccess}
           onFocusRoom={() => {
             setManualRoomInput("901");
             window.setTimeout(() => {

@@ -13,6 +13,16 @@ const CONVERSATIONS = {
   ru: { name: "Русский", hello: "Чем я могу помочь?", questions: ["Часы работы", "Запросить утюг", "Записаться на массаж"], answers: ["Часы работы объектов отеля находятся в разделе «Информация». Выберите интересующий вас объект.", "Откройте хозяйственную службу в портале и отправьте запрос на утюг. Статус можно отслеживать в портале.", "Откройте «Забронировать массаж», выберите вид, дату и свободное время. Запись сохраняется после окончательного подтверждения."] },
 } as const;
 
+const ACTION_LABELS = {
+  bg: ["Отвори информацията", "Отвори Хаускипинг", "Резервирай масаж"],
+  en: ["Open information", "Open Housekeeping", "Book a massage"],
+  de: ["Informationen öffnen", "Housekeeping öffnen", "Massage buchen"],
+  ro: ["Deschide informațiile", "Deschide Menaj", "Rezervă un masaj"],
+  cz: ["Otevřít informace", "Otevřít úklid", "Rezervovat masáž"],
+  ru: ["Открыть информацию", "Открыть хозяйственную службу", "Забронировать массаж"],
+} as const;
+const ACTION_SECTIONS = ["info", "housekeeping", "massage_booking"] as const;
+
 export default function AiConciergeExample({ lang }: { lang: "bg" | "en" | "de" }) {
   const [language, setLanguage] = useState<keyof typeof CONVERSATIONS>(lang);
   const [question, setQuestion] = useState(0);
@@ -21,7 +31,7 @@ export default function AiConciergeExample({ lang }: { lang: "bg" | "en" | "de" 
     <div className="gostaya-ai-example-header"><Image src="/marketing/reference/gostaya-ai-concierge.webp" alt="" width={80} height={80}/><div><strong>GOSTAYA AI</strong><p lang={language === "cz" ? "cs" : language}>{c.hello}</p></div></div>
     <div className="gostaya-ai-language-picker" role="group" aria-label={lang === "bg" ? "Език на примера" : lang === "de" ? "Sprache des Beispiels" : "Example language"}>{(Object.keys(CONVERSATIONS) as (keyof typeof CONVERSATIONS)[]).map(locale => <button key={locale} type="button" aria-pressed={language === locale} aria-label={CONVERSATIONS[locale].name} title={CONVERSATIONS[locale].name} onClick={() => setLanguage(locale)}><MarketingFlag country={locale}/><span>{locale === "cz" ? "CS" : locale.toUpperCase()}</span></button>)}</div>
     <div lang={language === "cz" ? "cs" : language}><div className="gostaya-ai-question-picker" role="group" aria-label={c.hello}>{c.questions.map((label,i)=><button key={i} type="button" aria-pressed={question === i} onClick={() => setQuestion(i)}>{label}</button>)}</div>
-      <div className="gostaya-ai-transcript" aria-live="polite" aria-atomic="true"><p className="gostaya-ai-question">{c.questions[question]}</p><p className="gostaya-ai-answer" key={`${language}-${question}`}>{c.answers[question]}</p></div></div>
-    <p className="gostaya-ai-example-note">{lang === "bg" ? "Примерни отговори. Вашият асистент използва информацията и услугите на вашия хотел." : lang === "de" ? "Beispielantworten. Ihr Assistent nutzt die Informationen und Services Ihres Hotels." : "Example answers. Your assistant uses your hotel's information and services."}</p>
+      <div className="gostaya-ai-transcript" aria-live="polite" aria-atomic="true"><p className="gostaya-ai-question">{c.questions[question]}</p><p className="gostaya-ai-answer" key={`${language}-${question}`}>{c.answers[question]}</p><a className="gostaya-ai-response-action" href={`/demo?lang=${lang}&guestLang=${language === "cz" ? "cs" : language}&section=${ACTION_SECTIONS[question]}`}>{ACTION_LABELS[language][question]} <span aria-hidden="true">→</span></a></div></div>
+    <p className="gostaya-ai-example-note">{lang === "bg" ? "Примерни отговори и езици. Бутонът отваря съответната секция в демото след потвърждаване на стая 901. Езиците се настройват според гостите на хотела." : lang === "de" ? "Beispielantworten und Sprachen. Die Schaltfläche öffnet den passenden Demo-Bereich nach Bestätigung von Zimmer 901. Die Sprachen richten sich nach Ihren Gästen." : "Example answers and languages. The button opens the matching demo section after confirming room 901. Languages are configured for your guests."}</p>
   </div>;
 }

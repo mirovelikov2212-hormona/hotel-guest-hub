@@ -8,20 +8,20 @@ const COPY = {
   bg: {
     eyebrow: "AI АСИСТЕНТ",
     title: "AI агент — обучен по вашите стандарти",
-    text: "Отговаря на въпроси за хотела и услугите, използва само валидната за конкретния хотел информация и подпомага госта без да поема контрол върху оперативните правила.",
-    points: ["Хотелски знания", "Поддръжка на 6 езика", "Достъп 24/7"],
+    text: "Отговаря на въпроси за хотела и услугите, използва само валидната за конкретния хотел информация и предлага бутон към точната секция, заявка или резервация. Показването, кликът и последващото действие се проследяват, за да измервате приноса на ИИ агента.",
+    points: ["Хотелски знания", "Езици според вашите гости", "Достъп 24/7"],
   },
   en: {
     eyebrow: "AI ASSISTANT",
     title: "AI agent — trained to your standards",
-    text: "Answers questions about the hotel and its services using only property-valid information, while operational rules remain controlled by the hotel.",
-    points: ["Hotel knowledge", "6 languages", "24/7 access"],
+    text: "Answers questions about the hotel and its services using only property-valid information, and offers a direct button to the relevant section, request or booking. Impressions, clicks and subsequent actions are linked to measure the AI agent’s contribution.",
+    points: ["Hotel knowledge", "Languages for your guests", "24/7 access"],
   },
   de: {
     eyebrow: "AI-ASSISTENT",
     title: "AI-Agent — nach Ihren Standards trainiert",
-    text: "Beantwortet Fragen zum Hotel und zu Services ausschließlich auf Basis gültiger Hotelinformationen; die operative Steuerung bleibt beim Hotel.",
-    points: ["Hotelwissen", "6 Sprachen", "24/7 verfügbar"],
+    text: "Beantwortet Fragen zum Hotel und zu Services ausschließlich auf Basis gültiger Hotelinformationen; bietet direkte Schaltflächen zum passenden Bereich, zur Anfrage oder Buchung. Anzeigen, Klicks und folgende Aktionen werden verknüpft, um den Beitrag des KI-Agenten zu messen.",
+    points: ["Hotelwissen", "Sprachen für Ihre Gäste", "24/7 verfügbar"],
   },
 } as const;
 
