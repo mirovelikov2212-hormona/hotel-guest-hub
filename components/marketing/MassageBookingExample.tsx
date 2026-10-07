@@ -19,9 +19,18 @@ export default function MassageBookingExample({lang,onClose}:{lang:"bg"|"en"|"de
   return <section className="gostaya-booking-example" aria-labelledby={`${id}-title`} lang={lang}>
     <div className="gostaya-booking-example-heading"><h3 id={`${id}-title`}>{review ? c.review : c.title}</h3><button type="button" aria-label={c.close} onClick={onClose}>×</button></div>
     <p>{c.note}</p>
-    {!review ? <form onSubmit={event=>{event.preventDefault();setReview(true);}}>
-      <label htmlFor={`${id}-type`}>{c.type}</label><select id={`${id}-type`} value={type} onChange={event=>setType(Number(event.target.value))}>{c.types.map((label,i)=><option key={label} value={i}>{label}</option>)}</select>
-      <div className="gostaya-booking-example-fields"><div><label htmlFor={`${id}-date`}>{c.date}</label><input id={`${id}-date`} type="date" required value={date} onChange={event=>setDate(event.target.value)}/></div><div><label htmlFor={`${id}-time`}>{c.time}</label><select id={`${id}-time`} value={time} onChange={event=>setTime(event.target.value)}><option>14:00</option><option>15:00</option><option>16:00</option></select></div></div>
+    {!review ? <form onSubmit={event=>{
+      event.preventDefault();
+      const selection = new FormData(event.currentTarget);
+      const selectedDate = String(selection.get("date") ?? "");
+      if (!selectedDate || !event.currentTarget.reportValidity()) return;
+      setType(Number(selection.get("type")));
+      setDate(selectedDate);
+      setTime(String(selection.get("time")));
+      setReview(true);
+    }}>
+      <label htmlFor={`${id}-type`}>{c.type}</label><select id={`${id}-type`} name="type" value={type} onChange={event=>setType(Number(event.target.value))}>{c.types.map((label,i)=><option key={label} value={i}>{label}</option>)}</select>
+      <div className="gostaya-booking-example-fields"><div><label htmlFor={`${id}-date`}>{c.date}</label><input id={`${id}-date`} name="date" type="date" required value={date} onChange={event=>setDate(event.target.value)}/></div><div><label htmlFor={`${id}-time`}>{c.time}</label><select id={`${id}-time`} name="time" value={time} onChange={event=>setTime(event.target.value)}><option>14:00</option><option>15:00</option><option>16:00</option></select></div></div>
       <button className="gostaya-ai-response-action" type="submit">{c.next} →</button>
     </form> : <div aria-live="polite"><p className="gostaya-booking-example-summary"><strong>{c.types[type]}</strong><br/>{date} · {time}</p><p>{c.final}</p><div className="gostaya-booking-example-actions"><button type="button" onClick={()=>setReview(false)}>{c.back}</button><DemoLaunchLink className="gostaya-ai-response-action">{c.demo} →</DemoLaunchLink></div></div>}
   </section>;
