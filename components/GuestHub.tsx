@@ -2645,7 +2645,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   useEffect(() => {
     if (!isPublicDemoHotel || !roomConfirmed || demoSectionOpened.current) return;
     const section = new URLSearchParams(window.location.search).get("demoSection");
-    if (section && ["info", "housekeeping", "massage_booking"].includes(section)) {
+    if (section && ["info", "housekeeping"].includes(section)) {
       demoSectionOpened.current = true;
       setOpenQuickServiceId(section);
     }

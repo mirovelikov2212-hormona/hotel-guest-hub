@@ -68,7 +68,7 @@ export default function DemoWorkspace() {
   const [guide, setGuide] = useState<DemoGuideModel | null>(null);
   const [staffRole, setStaffRole] = useState<"manager" | "housekeeping" | "reception">("manager");
   const section = searchParams.get("section");
-  const demoSection = section && ["info", "housekeeping", "massage_booking"].includes(section) ? section : null;
+  const demoSection = section && ["info", "housekeeping"].includes(section) ? section : null;
   const guestLang = ["bg", "en", "de", "ro", "cs", "ru"].includes(searchParams.get("guestLang") || "") ? searchParams.get("guestLang") : lang;
   const guestSrc = `/h/demo?lang=${guestLang}${demoSection ? `&demoSection=${demoSection}` : ""}`;
   const roleLabels = {manager: lang === "bg" ? "Мениджър" : "Manager", housekeeping: lang === "bg" ? "Хаускипинг" : "Housekeeping", reception: lang === "bg" ? "Рецепция" : lang === "de" ? "Rezeption" : "Reception"};
