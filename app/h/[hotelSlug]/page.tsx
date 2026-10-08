@@ -4,7 +4,7 @@ export const revalidate = 0;
 
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import GuestCommunicationsInbox from "@/components/GuestCommunicationsInbox";
 import GuestHub from "@/components/GuestHub";
 import { getHotelConfig } from "@/lib/config";
@@ -18,6 +18,7 @@ import { isCommercialRuntimeAccessDeniedError } from "@/lib/server/commercial-ru
 import { getHotelProductModuleEntitlement } from "@/lib/server/product-module-entitlements";
 import { resolveHotelByAnySlugAdmin } from "@/lib/server/hotel-scope";
 import type { LangKey } from "@/lib/types";
+import { normalizeDemoSession } from "@/lib/demo-session";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -152,7 +153,18 @@ export default async function HotelHubPage({ params, searchParams }: PageProps) 
 
   if (!hotelSlug) return notFound();
 
-  if (hotelSlug.trim().toLowerCase() === "demo") {
+  const compactDemo = hotelSlug.trim().toLowerCase() === "demo";
+  const demoParams = compactDemo ? await searchParams : {};
+
+  // Public product entry uses the same responsive workspace and fresh session
+  // as the guided demo. Its session-scoped guest iframe stays on this route.
+  if (compactDemo && !normalizeDemoSession(getSingleSearchParam(demoParams.demoSession))) {
+    const requestedLang = getSingleSearchParam(demoParams.lang);
+    const demoLang = requestedLang === "en" || requestedLang === "de" ? requestedLang : "bg";
+    redirect(`/demo?lang=${demoLang}`);
+  }
+
+  if (compactDemo) {
     const cookieStore = await cookies();
     const hasDemoAccess = hasValidDemoAccessCookie(
       cookieStore.get(DEMO_ACCESS_COOKIE_NAME)?.value
@@ -188,7 +200,6 @@ export default async function HotelHubPage({ params, searchParams }: PageProps) 
   // configuration supplies content and capabilities, but must never override
   // tenant identity for guest operational API calls.
   const guestRuntimeHotelSlug = hotelSlug.trim().toLowerCase();
-  const compactDemo = guestRuntimeHotelSlug === "demo";
   const guestConfig = {
     ...cfg,
     hotelSlug: guestRuntimeHotelSlug,
@@ -196,7 +207,6 @@ export default async function HotelHubPage({ params, searchParams }: PageProps) 
     ...(compactDemo ? {theme:{...cfg.theme,background:"#f1e5fc",primary:"#7c3aed",secondary:"#b989e5",accent:"#aa75d4",surface:"#fbf7ff",soft:"#ead9f9",text:"#291640",muted:"#756080"}} : {}),
   };
 
-  const demoParams = compactDemo ? await searchParams : {};
   return (
     <main data-demo-mobile={compactDemo && getSingleSearchParam(demoParams.demoMobile) === "1" ? "true" : undefined} className={compactDemo ? "gostaya-demo-guest min-h-screen" : "min-h-screen bg-neutral-950 text-neutral-50"}>
       <GuestHub config={guestConfig} />

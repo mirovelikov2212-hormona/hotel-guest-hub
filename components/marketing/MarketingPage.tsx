@@ -37,7 +37,7 @@ export default function MarketingPage({lang}:{lang:Lang}) {
             <p className="gostaya-mobile-justify mt-1"><BrandText text="GOSTAYA не заменя хотелския екип — увеличава неговия оперативен капацитет, ефективност и способност да поддържа последователно обслужване."/></p>
           </div>:null}
           <div className="mt-7 flex flex-wrap gap-3">
-            <a href="/h/demo" target="_blank" rel="noreferrer" className="gostaya-primary-action rounded-2xl bg-[#791fc8] px-5 py-3 text-sm font-black text-white shadow-lg shadow-violet-200">{c.primary}</a>
+            <a href={`/h/demo?lang=${lang}`} target="_blank" rel="noreferrer" className="gostaya-primary-action rounded-2xl bg-[#791fc8] px-5 py-3 text-sm font-black text-white shadow-lg shadow-violet-200">{c.primary}</a>
             <DemoLaunchLink className="gostaya-secondary-action rounded-2xl border border-[#c395ec] bg-white px-5 py-3 text-sm font-bold text-[#791fc8]">▷ {c.secondary}</DemoLaunchLink>
           </div>
         </div>
