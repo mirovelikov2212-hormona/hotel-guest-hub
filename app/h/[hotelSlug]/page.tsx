@@ -199,11 +199,11 @@ export default async function HotelHubPage({ params, searchParams }: PageProps) 
   return (
     <main className={compactDemo ? "gostaya-demo-guest min-h-screen" : "min-h-screen bg-neutral-950 text-neutral-50"}>
       <GuestHub config={guestConfig} />
-      <GuestCommunicationsInbox
+      {!compactDemo ? <GuestCommunicationsInbox
         hotelSlug={guestRuntimeHotelSlug}
         defaultLanguage={(cfg.languageDefault || "en") as LangKey}
         brandColor={compactDemo ? "#d8b4fe" : String(cfg.theme?.primary || cfg.theme?.accent || "#43B5A1")}
-      />
+      /> : null}
     </main>
   );
 }

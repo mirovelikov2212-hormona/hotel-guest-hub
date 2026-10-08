@@ -227,6 +227,7 @@ export default function GuestSurveyPushControls({
   deviceToken,
   checkInDate,
   checkOutDate,
+  compact = false,
 }: {
   hotelSlug: string;
   room: string;
@@ -238,6 +239,7 @@ export default function GuestSurveyPushControls({
   deviceToken: string;
   checkInDate: string;
   checkOutDate: string;
+  compact?: boolean;
 }) {
   const copy = COPY[normalizeLang(lang)] || COPY.en;
   const [status, setStatus] = useState<Status>("ready");
@@ -398,6 +400,16 @@ export default function GuestSurveyPushControls({
   }, [busy, copy.error, hotelSlug, room]);
 
   if (!roomConfirmed || !normalizeRoomNumber(room) || !stayId || !stayDeviceId || !deviceToken) return null;
+
+  if (compact) {
+    const canEnable = ["ready", "checking", "error"].includes(status);
+    const hint = status === "enabled" ? copy.enabled : status === "denied" ? copy.denied : status === "unsupported" ? copy.unsupported : status === "not_configured" ? copy.notConfigured : copy.text;
+    return <div className="stayhub-premium-push-wrap"><button type="button" className="stayhub-premium-push-card stayhub-demo-utility-tile" aria-label={copy.title} title={hint} disabled={busy || (!canEnable && status !== "enabled")} onClick={() => void (status === "enabled" ? disable() : enable())}>
+      <span className="stayhub-premium-push-icon" aria-hidden="true"><img src="/icons/guesthub-premium/notifications.png?v=20260719-final-icons" alt="" draggable={false} className="stayhub-action-icon-image stayhub-action-icon-brand" /></span>
+      <span className="stayhub-premium-push-title">{copy.title}</span>
+      {status === "enabled" ? <span className="stayhub-demo-utility-state" aria-label={copy.enabled}>✓</span> : null}
+    </button></div>;
+  }
 
   return (
     <div className="stayhub-premium-push-wrap">

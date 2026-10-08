@@ -85,7 +85,7 @@ function formatTimestamp(value: string | null | undefined, language: LangKey) {
   return new Intl.DateTimeFormat(locales[language], { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
-export default function GuestCommunicationsInbox({ hotelSlug, defaultLanguage, brandColor }: { hotelSlug: string; defaultLanguage: LangKey; brandColor: string }) {
+export default function GuestCommunicationsInbox({ hotelSlug, defaultLanguage, brandColor, variant = "floating" }: { hotelSlug: string; defaultLanguage: LangKey; brandColor: string; variant?: "floating" | "tile" }) {
   const [stay, setStay] = useState<StoredGuestRoomState | null>(null);
   const [language, setLanguage] = useState<LangKey>(defaultLanguage);
   const [messages, setMessages] = useState<GuestCommunication[]>([]);
@@ -170,9 +170,10 @@ export default function GuestCommunicationsInbox({ hotelSlug, defaultLanguage, b
   if (!stay) return null;
 
   return (
-    <div className="fixed bottom-5 right-4 z-[80] sm:bottom-6 sm:right-6" style={{ "--guest-message-brand": brandColor } as CSSProperties}>
+    <div className={variant === "tile" ? "stayhub-demo-message-tile" : "fixed bottom-5 right-4 z-[80] sm:bottom-6 sm:right-6"} style={{ "--guest-message-brand": brandColor } as CSSProperties}>
+      {open && variant === "tile" ? <div className="fixed inset-0 z-[85] bg-[#1e113a]/40" onClick={() => setOpen(false)} /> : null}
       {open ? (
-        <section className="mb-3 flex max-h-[min(76vh,40rem)] w-[min(calc(100vw-2rem),24rem)] flex-col overflow-hidden rounded-3xl border border-black/10 bg-white text-[#163033] shadow-2xl">
+        <section role="dialog" aria-modal="true" aria-label={copy.title} className={`${variant === "tile" ? "stayhub-demo-inbox-dialog fixed left-1/2 top-1/2 z-[90] -translate-x-1/2 -translate-y-1/2" : "mb-3"} flex max-h-[min(76vh,40rem)] w-[min(calc(100vw-2rem),24rem)] flex-col overflow-hidden rounded-3xl border border-black/10 bg-white text-[#163033] shadow-2xl`}>
           <header className="flex items-center justify-between gap-3 border-b border-black/10 px-4 py-4">
             <div><p className="text-xs font-medium uppercase tracking-[0.15em] opacity-55">StayHub</p><h2 className="mt-1 text-lg font-medium">{copy.title}</h2></div>
             <button type="button" onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-xl border border-black/10 bg-black/5 text-xl" aria-label={copy.close}>×</button>
@@ -207,11 +208,11 @@ export default function GuestCommunicationsInbox({ hotelSlug, defaultLanguage, b
       <button
         type="button"
         onClick={open ? () => setOpen(false) : openInbox}
-        className={`relative ml-auto flex min-h-12 items-center gap-2 rounded-2xl border border-white/70 px-4 py-3 text-sm font-medium shadow-xl ${unreadCount > 0 ? "animate-pulse ring-4 ring-red-500/20" : ""}`}
+        className={`${variant === "tile" ? "stayhub-demo-message-button stayhub-demo-utility-tile" : ""} relative ml-auto flex min-h-12 items-center gap-2 rounded-2xl border border-white/70 px-4 py-3 text-sm font-medium shadow-xl ${unreadCount > 0 ? "animate-pulse ring-4 ring-red-500/20" : ""}`}
         style={{ background: "var(--guest-message-brand)", color: "#102027" }}
         aria-expanded={open}
       >
-        <span aria-hidden="true">✉</span><span>{copy.label}</span>
+        {variant === "tile" ? <svg className="stayhub-demo-message-icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="8" y="14" width="48" height="36" rx="6"/><path d="m9 18 23 18 23-18"/><path d="m9 46 15-13m31 13L40 33"/></svg> : <span aria-hidden="true">✉</span>}<span className="stayhub-demo-message-label">{copy.label}</span>
         {unreadCount > 0 ? <span className="grid min-w-6 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-semibold text-white">{unreadCount > 9 ? "9+" : unreadCount}</span> : null}
       </button>
     </div>

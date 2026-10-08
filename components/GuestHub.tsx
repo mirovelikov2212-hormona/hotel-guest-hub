@@ -223,6 +223,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
 
 
 import { notifyDemoUpdate, subscribeDemoUpdates } from "@/lib/demo-live";
+import { DEMO_GUIDE_CHANNEL } from "@/lib/demo-guide";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { StaffDepartment, StaffRequestType, StaffServiceTime, StaffRequestStatus } from "@/lib/staff/types";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -242,6 +243,7 @@ import MassageBookingSection, {
 } from "@/components/MassageBookingSection";
 import Day3GuestSurvey from "@/components/Day3GuestSurvey";
 import GuestSurveyPushControls from "@/components/GuestSurveyPushControls";
+import GuestCommunicationsInbox from "@/components/GuestCommunicationsInbox";
 import LocalizedStayDatePicker from "@/components/LocalizedStayDatePicker";
 import {
   GUEST_STAY_DEVICE_STORAGE_KEY,
@@ -8873,6 +8875,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
           </div>
           {roomConfirmed ? (
             <GuestSurveyPushControls
+              compact={isPublicDemoHotel}
               hotelSlug={String(config.hotelSlug || hotelContentSlug || "")}
               room={room}
               roomConfirmed={roomConfirmed}
@@ -8885,6 +8888,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
               checkOutDate={checkOutDate}
             />
           ) : null}
+          {isPublicDemoHotel && roomConfirmed ? <GuestCommunicationsInbox hotelSlug="demo" defaultLanguage={lang} brandColor="#7c3aed" variant="tile" /> : null}
         </div>
       </div>
 
@@ -9212,6 +9216,10 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
           checkInDate={checkInDate}
           checkOutDate={checkOutDate}
           onTrack={trackGuestEvent}
+          onSubmitted={isPublicDemoHotel ? (surveyId) => {
+            window.parent.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"survey-submitted",surveyId},window.location.origin);
+            notifyDemoUpdate("demo");
+          } : undefined}
         />
       ) : null}
 

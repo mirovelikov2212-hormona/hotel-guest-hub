@@ -1,6 +1,8 @@
 "use client";
 import {browserDemoTimeZone} from "@/lib/demo-routing.mjs";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import DemoSurveyPanel from "./DemoSurveyPanel";
 import { useStaffStore } from "./store/StaffStoreProvider";
 import { useStaffUi } from "./StaffUiProvider";
 import GuestDirectCommunicationsWorkspace from "./GuestDirectCommunicationsWorkspace";
@@ -14,7 +16,8 @@ export default function DemoCompactPanel({role}:{role:Role}) {
   const {requests} = useStaffStore();
   const {lang} = useStaffUi();
   const bg=lang==="bg", de=lang==="de";
-  const [tab,setTab]=useState("requests");
+  const searchParams = useSearchParams();
+  const [tab,setTab]=useState(role === "manager" && searchParams.get("panel") === "surveys" ? "surveys" : "requests");
   const [filter,setFilter]=useState("active");
   const [page,setPage]=useState(0);
   const [busy,setBusy]=useState<string|null>(null);
@@ -35,7 +38,7 @@ export default function DemoCompactPanel({role}:{role:Role}) {
   }
   return <main className="demo-compact-panel">
     <header><div><strong>GOSTAYA</strong><h1>{role==="manager"?(bg?"Мениджърски панел":de?"Manager-Bereich":"Manager panel"):translateDepartment(role,lang)}</h1><p>{bg?"Демо стая 901 · реални тестови заявки":de?"Demo-Zimmer 901 · echte Testanfragen":"Demo room 901 · real test requests"}</p></div><span className="demo-live-badge">LIVE</span></header>
-    <nav aria-label={bg?"Функции на панела":"Panel functions"}>{["requests",...(role==="reception"?["personal"]:[]),...(role==="reception"||role==="manager"?["broadcast"]:[])].map(key=><button key={key} type="button" aria-pressed={tab===key} onClick={()=>setTab(key)}>{key==="requests"?(bg?"Заявки":de?"Anfragen":"Requests"):key==="personal"?(bg?"Лични съобщения":de?"Persönliche Nachrichten":"Personal messages"):(bg?"Общи съобщения":de?"Mitteilungen":"Broadcasts")}</button>)}</nav>
+    <nav aria-label={bg?"Функции на панела":"Panel functions"}>{["requests",...(role==="manager"?["surveys"]:[]),...(role==="reception"?["personal"]:[]),...(role==="reception"||role==="manager"?["broadcast"]:[])].map(key=><button key={key} type="button" aria-pressed={tab===key} onClick={()=>setTab(key)}>{key==="requests"?(bg?"Заявки":de?"Anfragen":"Requests"):key==="surveys"?(bg?"Анкети":de?"Umfragen":"Surveys"):key==="personal"?(bg?"Лични съобщения":de?"Persönliche Nachrichten":"Personal messages"):(bg?"Общи съобщения":de?"Mitteilungen":"Broadcasts")}</button>)}</nav>
     {tab==="requests"?<>
       <div className="demo-request-filters">{Object.entries(labels).map(([key,label])=><button type="button" key={key} aria-pressed={filter===key} onClick={()=>{setFilter(key);setPage(0);}}>{label}<b>{data.filter(r=>key==="active"?r.status!=="completed":r.status===key).length}</b></button>)}</div>
       {error?<p className="demo-panel-error" role="alert">{error}</p>:null}
@@ -46,6 +49,6 @@ export default function DemoCompactPanel({role}:{role:Role}) {
       </article>)}</div>
       {!filtered.length?<div className="demo-panel-empty"><span aria-hidden="true">✓</span><h2>{bg?"Няма заявки в този изглед":de?"Keine Anfragen in dieser Ansicht":"No requests in this view"}</h2><p>{bg?"Изпратете заявка от хъба на госта. Тук ще видите стаята, услугата и нейния статус.":de?"Senden Sie eine Anfrage im Guest Hub. Zimmer, Service und Status erscheinen hier.":"Send a request from the Guest Hub to see its room, service and status here."}</p></div>:null}
       <footer><p>{bg?"Статусите се зареждат от сървъра. Виждате действително записаните промени.":de?"Status wird vom Server geladen.":"Statuses are loaded from the server."}</p>{pages>1?<div><button disabled={safePage===0} onClick={()=>setPage(safePage-1)} aria-label="Previous page">←</button><span>{safePage+1}/{pages}</span><button disabled={safePage===pages-1} onClick={()=>setPage(safePage+1)} aria-label="Next page">→</button></div>:null}</footer>
-    </>:tab==="personal"?<GuestDirectCommunicationsWorkspace hotelSlug="demo" role="reception"/>:<GuestCommunicationsWorkspace hotelSlug="demo" role={role}/>}
+    </>:tab==="surveys" && role === "manager" ? <DemoSurveyPanel surveyId={searchParams.get("surveyId")} lang={lang === "de" ? "de" : lang === "en" ? "en" : "bg"} /> :tab==="personal"?<GuestDirectCommunicationsWorkspace hotelSlug="demo" role="reception"/>:<GuestCommunicationsWorkspace hotelSlug="demo" role={role}/>}
   </main>;
 }

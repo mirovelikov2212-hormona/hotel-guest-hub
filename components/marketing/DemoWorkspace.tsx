@@ -69,6 +69,7 @@ export default function DemoWorkspace() {
   const [attempt, setAttempt] = useState(0);
   const guestFrame = useRef<HTMLIFrameElement>(null);
   const [guide, setGuide] = useState<DemoGuideModel | null>(null);
+  const [submittedSurveyId,setSubmittedSurveyId] = useState<string | null>(null);
   const [staffRole, setStaffRole] = useState<"manager" | "housekeeping" | "reception" | "maintenance">("manager");
   const section = searchParams.get("section");
   const demoSection = section && ["info", "housekeeping"].includes(section) ? section : null;
@@ -95,7 +96,11 @@ export default function DemoWorkspace() {
   },[status]);
   useEffect(() => {
     function receive(event: MessageEvent) {
-      if (event.origin !== window.location.origin || event.source !== guestFrame.current?.contentWindow || event.data?.channel !== DEMO_GUIDE_CHANNEL || event.data?.type !== "state") return;
+      if (event.origin !== window.location.origin || event.source !== guestFrame.current?.contentWindow || event.data?.channel !== DEMO_GUIDE_CHANNEL) return;
+      if(event.data.type === "survey-submitted" && typeof event.data.surveyId === "string" && /^[a-zA-Z0-9-]{1,80}$/.test(event.data.surveyId)) {
+        setSubmittedSurveyId(event.data.surveyId);setStaffRole("manager");setActiveView("manager");return;
+      }
+      if(event.data.type !== "state") return;
       if (Number.isInteger(event.data.model?.step) && Array.isArray(event.data.model?.instructions)) {
         const next=event.data.model as DemoGuideModel;
         setGuide({...next,...DEMO_GUIDE_STEPS[lang][next.step-1]});
@@ -118,6 +123,7 @@ export default function DemoWorkspace() {
 
   function guideAction(action: DemoGuideAction) {
     if (action === "manager" || action === "housekeeping" || action === "reception") {
+      if(action !== "manager") setSubmittedSurveyId(null);
       setStaffRole(action === "housekeeping" && !working ? "reception" : action);
       setActiveView("manager");
       return;
@@ -204,7 +210,7 @@ export default function DemoWorkspace() {
             <div className={`gostaya-demo-device ${activeView==="guest"?"gostaya-demo-device-phone":"gostaya-demo-device-panel"}`} style={{width:frameWidth+24,height:frameHeight+54,transform:`scale(${scale})`}}>
               <div className="gostaya-demo-device-top"><span>9:41</span><span>{activeView==="guest"?"GOSTAYA":"GOSTAYA · LIVE"}</span><span>•••</span></div>
               <iframe hidden={activeView!=="guest"} ref={guestFrame} src={guestSrc} onLoad={()=>guestFrame.current?.contentWindow?.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"sync"},window.location.origin)} title={copy.guestTitle} style={{width:isMobile?frameWidth:390,height:isMobile?frameHeight:780}} allow="clipboard-read; clipboard-write"/>
-              {activeView==="manager"?<iframe src={`/staff/demo/${staffRole}?demoCompact=1`} title={roleLabels[staffRole]} style={{width:frameWidth,height:frameHeight}} allow="clipboard-read; clipboard-write"/>:null}
+              {activeView==="manager"?<iframe src={`/staff/demo/${staffRole}?demoCompact=1${staffRole === "manager" && submittedSurveyId ? `&panel=surveys&surveyId=${encodeURIComponent(submittedSurveyId)}` : ""}`} title={roleLabels[staffRole]} style={{width:frameWidth,height:frameHeight}} allow="clipboard-read; clipboard-write"/>:null}
               <div className="gostaya-demo-device-home"/>
             </div>
           </div>

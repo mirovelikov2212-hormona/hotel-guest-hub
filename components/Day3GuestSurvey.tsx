@@ -655,6 +655,7 @@ export default function Day3GuestSurvey({
   checkInDate,
   checkOutDate,
   onTrack,
+  onSubmitted,
 }: {
   hotelSlug: string;
   room: string;
@@ -666,6 +667,7 @@ export default function Day3GuestSurvey({
   checkInDate: string;
   checkOutDate: string;
   onTrack: (payload: TrackHubPayload) => void;
+  onSubmitted?: (id: string) => void;
 }) {
   const copy = SURVEY_COPY[normalizeLang(lang)] || SURVEY_COPY.en;
   const storageKey = useMemo(
@@ -1041,6 +1043,7 @@ export default function Day3GuestSurvey({
       writeStoredSurveyState(storageKey, next);
       setStoredState(next);
       resetSurveyUi();
+      if (result.survey?.id) onSubmitted?.(result.survey.id);
     } catch (error) {
       console.error("day3 survey submit failed", error);
       setSubmitError(getSubmitErrorText(lang));
@@ -1052,6 +1055,7 @@ export default function Day3GuestSurvey({
     improvementText,
     lang,
     onTrack,
+    onSubmitted,
     problemText,
     rating,
     requireSurveyDetails,
@@ -1078,7 +1082,7 @@ export default function Day3GuestSurvey({
   const progressLabel = step === "rating" || step === "areas" ? copy.progress1 : step === "improvement" ? copy.progress2 : copy.progress3;
 
   return (
-    <div className="mt-3 px-4">
+    <div className="stayhub-day3-survey mt-3 px-4">
       <div className="rounded-2xl border p-4 shadow-sm" style={{ backgroundColor: "#F5F5F5", borderColor: "#43baad", color: "#202627" }}>
         {step === "thanks" ? (
           <div className="text-center">

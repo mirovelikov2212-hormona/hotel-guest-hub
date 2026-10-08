@@ -24,14 +24,15 @@ export function GostayaVortex({ className = "" }: { className?: string; lang?: "
     if (!ctx) return;
     let width = 1, height = 1, visible = false, frame = 0, last = 0, phase = 0;
     // Deterministic seeds; no React updates per frame.
-    const particles = Array.from({ length: 680 }, (_, i) => ({
-      t: i / 680, size: .8 + ((i * 17) % 11) / 12, arm: i % 3,
+    const particles = Array.from({ length: 1100 }, (_, i) => ({
+      t: i / 1100, size: .8 + ((i * 17) % 11) / 12, arm: i % 3,
     }));
     function draw() {
       if (!canvas || !ctx) return;
       ctx.clearRect(0, 0, width, height);
-      const radius = Math.min(width * .43, height * 1.08);
-      const count = width < 350 ? 340 : particles.length;
+      const mobile = window.matchMedia("(max-width: 760px)").matches;
+      const radius = Math.min(width * (mobile ? .46 : .43), height * .8);
+      const count = mobile ? particles.length : 680;
       for (let i = 0; i < count; i++) {
         const p = particles[Math.floor(i * particles.length / count)];
         const distance = .13 + p.t * .87;
@@ -46,7 +47,7 @@ export function GostayaVortex({ className = "" }: { className?: string; lang?: "
         const depth = -px * Math.sin(yaw) + tz * Math.cos(yaw);
         const perspective = 520 / (520 + depth);
         const x = width / 2 + tx * perspective;
-        const y = height * .58 + ty * perspective;
+        const y = height * (mobile ? .5 : .58) + ty * perspective;
         ctx.globalAlpha = Math.max(.2, Math.min(1, .6 - depth / (radius * 2)));
         ctx.fillStyle = i % 4 === 0 ? "#ffffff" : i % 2 ? "#d8b4fe" : "#a855f7";
         ctx.beginPath();
@@ -103,6 +104,10 @@ export function GostayaRotatingTabs({ tabs, label = "Модули на GOSTAYA",
 }) {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const carousel = useRef<HTMLDivElement>(null);
+  const modalStart = useRef(0);
+  const [modalOpen,setModalOpen] = useState(false);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -111,7 +116,7 @@ export function GostayaRotatingTabs({ tabs, label = "Модули на GOSTAYA",
   const [pageVisible, setPageVisible] = useState(true);
   const reduced = useReducedMotion();
   const active = tabs.length ? Math.min(index, tabs.length - 1) : 0;
-  const rotating = playing && !hovered && visible && pageVisible && !reduced && tabs.length > 1;
+  const rotating = !modalOpen && playing && !hovered && visible && pageVisible && !reduced && tabs.length > 1;
 
   useEffect(() => {
     if (!root.current) return;
@@ -129,8 +134,19 @@ export function GostayaRotatingTabs({ tabs, label = "Модули на GOSTAYA",
     return () => window.clearTimeout(timer);
   }, [rotating, active, intervalMs, tabs.length]);
 
+  useEffect(()=>{
+    const element=dialog.current;
+    if(!modalOpen || !element)return;
+    element.showModal();
+    const previousOverflow=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+    if(carousel.current)carousel.current.scrollTo({left:carousel.current.clientWidth*modalStart.current,behavior:"instant"});
+    return()=>{document.body.style.overflow=previousOverflow;if(element.open)element.close();};
+  },[modalOpen]);
+
   function select(next: number, focus = false) {
     setPlaying(false); setIndex(next);
+    if(window.matchMedia("(max-width: 760px)").matches){modalStart.current=next;setModalOpen(true);return;}
     if (focus) buttons.current[next]?.focus();
   }
   if (!tabs.length) return null;
@@ -159,6 +175,14 @@ export function GostayaRotatingTabs({ tabs, label = "Модули на GOSTAYA",
     </div>
     {tabs.map((tab, i) => <div key={tab.id} id={`${id}-panel-${tab.id}`} role="tabpanel"
       aria-labelledby={`${id}-tab-${tab.id}`} tabIndex={0} hidden={active !== i} className="gostaya-tab-panel">{tab.content}</div>)}
+    <dialog ref={dialog} className="gostaya-module-dialog" aria-label={label} onClose={()=>setModalOpen(false)} onClick={event=>{if(event.target===event.currentTarget)dialog.current?.close();}}>
+      {modalOpen ? <><header><span>{active+1}/{tabs.length} · {tabs[active].label}</span><button type="button" onClick={()=>dialog.current?.close()}>{lang==="bg"?"← Към сайта":lang==="de"?"← Zur Website":"← Back to site"}</button></header>
+        <div ref={carousel} className="gostaya-module-carousel" onScroll={event=>{const element=event.currentTarget;setIndex(Math.max(0,Math.min(tabs.length-1,Math.round(element.scrollLeft/element.clientWidth))));}}>
+          {tabs.map(tab=><article key={tab.id} className="gostaya-module-slide" aria-label={tab.label}><h3>{tab.label}</h3>{tab.content}</article>)}
+        </div>
+        <footer><button type="button" disabled={active===0} aria-label={lang==="bg"?"Предишен модул":"Previous module"} onClick={()=>carousel.current?.scrollTo({left:carousel.current.clientWidth*(active-1),behavior:reduced?"instant":"smooth"})}>←</button><p>{lang==="bg"?"Плъзнете наляво или надясно":lang==="de"?"Nach links oder rechts wischen":"Swipe left or right"}</p><button type="button" disabled={active===tabs.length-1} aria-label={lang==="bg"?"Следващ модул":"Next module"} onClick={()=>carousel.current?.scrollTo({left:carousel.current.clientWidth*(active+1),behavior:reduced?"instant":"smooth"})}>→</button></footer>
+      </> : null}
+    </dialog>
   </div>;
 }
 
