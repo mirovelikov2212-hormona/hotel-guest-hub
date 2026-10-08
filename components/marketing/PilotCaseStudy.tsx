@@ -8,7 +8,7 @@ const COPY = {
     eyebrow: "РЕАЛНИ РЕЗУЛТАТИ ОТ ПИЛОТЕН ХОТЕЛ",
     title: "Пилотен хотел:",
     hotel: "Aquamarine Kranevo",
-    text: "Реални данни от пилотния сезон 2026, които показват използването на GOSTAYA в ежедневна хотелска среда. Измерените събития са отделени от изчислените оперативни оценки.",
+    text: "Реални данни само за пилотния сезон 2026 — от юни до средата на септември — които показват използването на GOSTAYA в ежедневна хотелска среда. Измерените събития са отделени от изчислените оперативни оценки.",
     season: "Пилотен сезон 2026",
     metrics: [
       ["65/66", "активни стаи"],
@@ -26,7 +26,7 @@ const COPY = {
     eyebrow: "REAL RESULTS FROM A PILOT HOTEL",
     title: "Pilot hotel:",
     hotel: "Aquamarine Kranevo",
-    text: "Real 2026 pilot-season data showing how GOSTAYA was used in a live hotel environment. Observed events remain separate from modeled operational estimates.",
+    text: "Data exclusively from the 2026 pilot season, June to mid-September, showing how GOSTAYA was used in a live hotel environment. Observed events remain separate from modeled operational estimates.",
     season: "Pilot season 2026",
     metrics: [
       ["65/66", "active rooms"],
@@ -44,7 +44,7 @@ const COPY = {
     eyebrow: "REALE ERGEBNISSE AUS EINEM PILOTHOTEL",
     title: "Pilothotel:",
     hotel: "Aquamarine Kranevo",
-    text: "Reale Daten aus der Pilotsaison 2026 zeigen die Nutzung von GOSTAYA im Hotelbetrieb. Beobachtete Events bleiben von modellierten operativen Schätzungen getrennt.",
+    text: "Daten ausschließlich aus der Pilotsaison 2026, von Juni bis Mitte September, zeigen die Nutzung von GOSTAYA im Hotelbetrieb. Beobachtete Events bleiben von modellierten operativen Schätzungen getrennt.",
     season: "Pilotsaison 2026",
     metrics: [
       ["65/66", "aktive Zimmer"],

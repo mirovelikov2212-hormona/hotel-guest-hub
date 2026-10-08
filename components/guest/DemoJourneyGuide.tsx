@@ -73,6 +73,7 @@ export default function DemoJourneyGuide({lang,roomConfirmed,room,departmentOpen
     function receive(event:MessageEvent) {
       if (event.origin !== window.location.origin || event.source !== window.parent || event.data?.channel !== DEMO_GUIDE_CHANNEL) return;
       if (event.data.type === "sync") window.parent.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"state",model},window.location.origin);
+      if (event.data.type === "navigate" && Number.isInteger(event.data.step) && event.data.step >= 1 && event.data.step <= step) move(event.data.step);
       if (event.data.type === "action" && DEMO_GUIDE_ACTIONS.includes(event.data.action)) void act(event.data.action);
     }
     window.addEventListener("message",receive);

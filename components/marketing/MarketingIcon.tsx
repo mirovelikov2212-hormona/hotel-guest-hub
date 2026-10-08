@@ -11,7 +11,7 @@ const ICONS: Record<string, ReactNode> = {
   housekeeping: <><path d="m17 3-7 10M6 11l10 7-3 4-11-8 4-3ZM7 16l-2 3m6 0-2 3"/></>,
   maintenance: <><path d="M15 3a6 6 0 0 0-7 7L3 16a3 3 0 0 0 4 4l6-6a6 6 0 0 0 8-7l-4 4-4-4 2-4Z"/></>,
   training: <><path d="m2 9 10-6 10 6-10 6L2 9Zm4 3v6c4 3 8 3 12 0v-6M22 9v8"/></>,
-  euro: <><path d="M19 4a8 8 0 1 0 0 16M3 10h12M3 14h11"/></>,
+  euro: <text x="12" y="20" textAnchor="middle" fill="currentColor" stroke="none" fontFamily="Arial, sans-serif" fontSize="25" fontWeight="500">€</text>,
   link: <><path d="m10 13 4-4M8 16l-1 1a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0m0 12a4 4 0 0 0 6 0l5-5a4 4 0 0 0-6-6l-1 1" transform="translate(1 0) scale(.9)"/></>,
   info: <><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.2"/></>,
   dining: <><path d="M4 3v6a3 3 0 0 0 6 0V3M7 3v18M18 3v18m0-18c-4 2-4 10 0 10"/></>,

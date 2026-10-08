@@ -1,5 +1,7 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
+import DemoCompactPanel from "../DemoCompactPanel";
 import { useEffect, useMemo, useState } from "react";
 import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
@@ -525,7 +527,7 @@ function downloadFile(filename: string, content: string, mimeType: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function ManagerPage() {
+function FullManagerPage() {
   const { lang, setLang } = useStaffUi();
   const t = staffText(lang);
   const {
@@ -1204,4 +1206,11 @@ export default function ManagerPage() {
       </section>
     </main>
   );
+}
+
+export default function ManagerPage() {
+  const query=useSearchParams();
+  const {hotelSlug}=useStaffStore();
+  if(hotelSlug==="demo" && query.get("demoCompact")==="1") return <DemoCompactPanel role="manager"/>;
+  return <FullManagerPage/>;
 }

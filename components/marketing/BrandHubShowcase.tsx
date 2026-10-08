@@ -35,11 +35,11 @@ const COPY: Record<Lang, { choose: string; helper: string; preview: string; vari
         description: "Динамичен интерфейс с акцент върху активностите, плажа и забавленията.",
         hotelName: "Azure Bay Resort",
         hero: "Днес в хотела",
-        accent: "#0ea5e9",
-        secondary: "#14b8a6",
-        surface: "#eefbff",
-        text: "#0c4a6e",
-        muted: "#4b6b7c",
+        accent: "#821bdc",
+        secondary: "#6b1eae",
+        surface: "#f7effe",
+        text: "#401268",
+        muted: "#654e79",
         card: "#ffffff",
         fontClass: "font-sans",
         quick: ["Плаж", "Активности", "Барове"],
@@ -52,10 +52,10 @@ const COPY: Record<Lang, { choose: string; helper: string; preview: string; vari
         hero: "Вашият престой",
         accent: "#c6ad7f",
         secondary: "#6d5a3f",
-        surface: "#0b0c0e",
+        surface: "#0d0b0e",
         text: "#f5f0e8",
         muted: "#bfb5a6",
-        card: "#16181b",
+        card: "#19161b",
         fontClass: "font-serif",
         quick: ["Concierge", "Fine Dining", "Spa"],
       },
@@ -65,11 +65,11 @@ const COPY: Record<Lang, { choose: string; helper: string; preview: string; vari
         description: "Корпоративен, строг и функционален стил, ориентиран към бързина, графици и бизнес услуги.",
         hotelName: "Central Executive",
         hero: "Бърз достъп",
-        accent: "#2563eb",
-        secondary: "#334155",
-        surface: "#f7f9fc",
-        text: "#172554",
-        muted: "#64748b",
+        accent: "#8e31df",
+        secondary: "#453553",
+        surface: "#faf7fc",
+        text: "#371b50",
+        muted: "#796689",
         card: "#ffffff",
         fontClass: "font-sans",
         quick: ["Meeting", "Transfer", "Late check-out"],
@@ -96,9 +96,9 @@ const COPY: Record<Lang, { choose: string; helper: string; preview: string; vari
     helper: "Choose a hotel type and see how your Guest Hub could look.",
     preview: "Sample guest hub appearance",
     variants: [
-      { key: "resort", label: "Resort", description: "A lively interface focused on activities, beach and entertainment.", hotelName: "Azure Bay Resort", hero: "Today at the hotel", accent: "#0ea5e9", secondary: "#14b8a6", surface: "#eefbff", text: "#0c4a6e", muted: "#4b6b7c", card: "#ffffff", fontClass: "font-sans", quick: ["Beach", "Activities", "Bars"] },
-      { key: "luxury", label: "Luxury", description: "A refined dark premium look designed around prestige and personal attention.", hotelName: "Maison Aurelia", hero: "Your stay", accent: "#c6ad7f", secondary: "#6d5a3f", surface: "#0b0c0e", text: "#f5f0e8", muted: "#bfb5a6", card: "#16181b", fontClass: "font-serif", quick: ["Concierge", "Fine Dining", "Spa"] },
-      { key: "business", label: "Business", description: "A strict, functional style built around speed, schedules and business services.", hotelName: "Central Executive", hero: "Quick access", accent: "#2563eb", secondary: "#334155", surface: "#f7f9fc", text: "#172554", muted: "#64748b", card: "#ffffff", fontClass: "font-sans", quick: ["Meeting", "Transfer", "Late check-out"] },
+      { key: "resort", label: "Resort", description: "A lively interface focused on activities, beach and entertainment.", hotelName: "Azure Bay Resort", hero: "Today at the hotel", accent: "#821bdc", secondary: "#6b1eae", surface: "#f7effe", text: "#401268", muted: "#654e79", card: "#ffffff", fontClass: "font-sans", quick: ["Beach", "Activities", "Bars"] },
+      { key: "luxury", label: "Luxury", description: "A refined dark premium look designed around prestige and personal attention.", hotelName: "Maison Aurelia", hero: "Your stay", accent: "#c6ad7f", secondary: "#6d5a3f", surface: "#0d0b0e", text: "#f5f0e8", muted: "#bfb5a6", card: "#19161b", fontClass: "font-serif", quick: ["Concierge", "Fine Dining", "Spa"] },
+      { key: "business", label: "Business", description: "A strict, functional style built around speed, schedules and business services.", hotelName: "Central Executive", hero: "Quick access", accent: "#8e31df", secondary: "#453553", surface: "#faf7fc", text: "#371b50", muted: "#796689", card: "#ffffff", fontClass: "font-sans", quick: ["Meeting", "Transfer", "Late check-out"] },
       { key: "boutique", label: "Boutique", description: "An art-led identity with distinctive typography and a strong sense of place.", hotelName: "Atelier 17", hero: "The story of the place", accent: "#8c5a44", secondary: "#526b5a", surface: "#f7f2ea", text: "#332824", muted: "#7b6a62", card: "#fffdf9", fontClass: "font-serif", quick: ["Story", "Local Guide", "Breakfast"] },
     ],
   },
@@ -107,9 +107,9 @@ const COPY: Record<Lang, { choose: string; helper: string; preview: string; vari
     helper: "Wählen Sie einen Hoteltyp und sehen Sie, wie Ihr Guest Hub aussehen könnte.",
     preview: "Beispielansicht des Guest Hubs",
     variants: [
-      { key: "resort", label: "Resort", description: "Lebendige Oberfläche mit Fokus auf Aktivitäten, Strand und Unterhaltung.", hotelName: "Azure Bay Resort", hero: "Heute im Hotel", accent: "#0ea5e9", secondary: "#14b8a6", surface: "#eefbff", text: "#0c4a6e", muted: "#4b6b7c", card: "#ffffff", fontClass: "font-sans", quick: ["Strand", "Aktivitäten", "Bars"] },
-      { key: "luxury", label: "Luxus", description: "Minimalistisches Premium-Design mit persönlicher, hochwertiger Wirkung.", hotelName: "Maison Aurelia", hero: "Ihr Aufenthalt", accent: "#c6ad7f", secondary: "#6d5a3f", surface: "#0b0c0e", text: "#f5f0e8", muted: "#bfb5a6", card: "#16181b", fontClass: "font-serif", quick: ["Concierge", "Fine Dining", "Spa"] },
-      { key: "business", label: "Business", description: "Strenger, funktionaler Stil mit Fokus auf Tempo, Termine und Business-Services.", hotelName: "Central Executive", hero: "Schnellzugriff", accent: "#2563eb", secondary: "#334155", surface: "#f7f9fc", text: "#172554", muted: "#64748b", card: "#ffffff", fontClass: "font-sans", quick: ["Meeting", "Transfer", "Late Check-out"] },
+      { key: "resort", label: "Resort", description: "Lebendige Oberfläche mit Fokus auf Aktivitäten, Strand und Unterhaltung.", hotelName: "Azure Bay Resort", hero: "Heute im Hotel", accent: "#821bdc", secondary: "#6b1eae", surface: "#f7effe", text: "#401268", muted: "#654e79", card: "#ffffff", fontClass: "font-sans", quick: ["Strand", "Aktivitäten", "Bars"] },
+      { key: "luxury", label: "Luxus", description: "Minimalistisches Premium-Design mit persönlicher, hochwertiger Wirkung.", hotelName: "Maison Aurelia", hero: "Ihr Aufenthalt", accent: "#c6ad7f", secondary: "#6d5a3f", surface: "#0d0b0e", text: "#f5f0e8", muted: "#bfb5a6", card: "#19161b", fontClass: "font-serif", quick: ["Concierge", "Fine Dining", "Spa"] },
+      { key: "business", label: "Business", description: "Strenger, funktionaler Stil mit Fokus auf Tempo, Termine und Business-Services.", hotelName: "Central Executive", hero: "Schnellzugriff", accent: "#8e31df", secondary: "#453553", surface: "#faf7fc", text: "#371b50", muted: "#796689", card: "#ffffff", fontClass: "font-sans", quick: ["Meeting", "Transfer", "Late Check-out"] },
       { key: "boutique", label: "Boutique", description: "Künstlerischer Look mit charakteristischer Typografie und individueller Hotelgeschichte.", hotelName: "Atelier 17", hero: "Die Geschichte des Ortes", accent: "#8c5a44", secondary: "#526b5a", surface: "#f7f2ea", text: "#332824", muted: "#7b6a62", card: "#fffdf9", fontClass: "font-serif", quick: ["Story", "Local Guide", "Frühstück"] },
     ],
   },
@@ -142,7 +142,7 @@ function HubPreview({variant,lang}:{variant:BrandVariant;lang:Lang}) {
 }
 
 function BrandWords({ text }: { text: string }) {
-  return <>{text.split(/(GOSTAYA)/g).map((part, index) => part === "GOSTAYA" ? <span key={index} className="font-black text-[#1479d3]">{part}</span> : part)}</>;
+  return <>{text.split(/(GOSTAYA)/g).map((part, index) => part === "GOSTAYA" ? <span key={index} className="font-black text-[#791fc8]">{part}</span> : part)}</>;
 }
 
 export default function BrandHubShowcase({lang,eyebrow,title,text}:{lang:Lang;eyebrow:string;title:string;text:string}) {

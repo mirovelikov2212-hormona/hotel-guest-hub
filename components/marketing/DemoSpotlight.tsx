@@ -29,24 +29,24 @@ export default function DemoSpotlight({ lang }: { lang: Lang }) {
   return (
     <section
       id="demo"
-      className="relative mx-auto mt-5 max-w-7xl overflow-hidden rounded-[38px] border border-slate-200 bg-[#f5faff] shadow-[0_24px_70px_rgba(15,58,91,.08)]"
+      className="relative mx-auto mt-5 max-w-7xl overflow-hidden rounded-[38px] border border-slate-200 bg-[#faf6fe] shadow-[0_24px_70px_rgba(15,58,91,.08)]"
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_35%,rgba(44,157,255,.14),transparent_34%),radial-gradient(circle_at_82%_30%,rgba(44,157,255,.08),transparent_30%)]" />
       <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
-        <div className="rounded-[34px] border border-slate-200 bg-white/95 p-6 text-[#102a43] shadow-[0_20px_60px_rgba(15,58,91,.09)] sm:p-8">
-          <h2 className="max-w-2xl whitespace-pre-line text-balance text-3xl font-semibold leading-tight tracking-tight text-[#102a43] sm:text-4xl">
+        <div className="rounded-[34px] border border-slate-200 bg-white/95 p-6 text-[#2b1340] shadow-[0_20px_60px_rgba(15,58,91,.09)] sm:p-8">
+          <h2 className="max-w-2xl whitespace-pre-line text-balance text-3xl font-semibold leading-tight tracking-tight text-[#2b1340] sm:text-4xl">
             {c.title}
           </h2>
           <p className="gostaya-mobile-justify mt-3 max-w-xl text-pretty text-base leading-7 text-slate-600">
             {c.text}
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <DemoLaunchLink className="gostaya-primary-action flex w-full justify-center rounded-2xl bg-[#1479d3] px-5 py-3 text-center text-sm font-black text-white shadow-lg shadow-sky-200 transition hover:-translate-y-0.5 sm:w-auto">
+            <DemoLaunchLink className="gostaya-primary-action flex w-full justify-center rounded-2xl bg-[#791fc8] px-5 py-3 text-center text-sm font-black text-white shadow-lg shadow-violet-200 transition hover:-translate-y-0.5 sm:w-auto">
               {c.cta}
             </DemoLaunchLink>
             <a
               href="/staff/demo/manager"
-              className="gostaya-secondary-action flex w-full justify-center rounded-2xl border border-sky-200 bg-white px-5 py-3 text-center text-sm font-bold text-white sm:w-auto"
+              className="gostaya-secondary-action flex w-full justify-center rounded-2xl border border-violet-200 bg-white px-5 py-3 text-center text-sm font-bold text-white sm:w-auto"
             >
               <span className="sm:hidden">Стартирай мениджърския панел</span>
               <span className="hidden sm:inline">{c.managerCta}</span>

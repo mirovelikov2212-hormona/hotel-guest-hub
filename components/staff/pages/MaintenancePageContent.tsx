@@ -1,5 +1,7 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
+import DemoCompactPanel from "../DemoCompactPanel";
 import { useEffect, useMemo, useState } from "react";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
@@ -27,7 +29,7 @@ function getRequestSlaEvidence(request: StaffRequest, nowMs: number) {
   });
 }
 
-export default function MaintenancePage() {
+function FullMaintenancePage() {
   const { lang } = useStaffUi();
   const t = staffText(lang);
   const {
@@ -151,4 +153,11 @@ export default function MaintenancePage() {
       </section>
     </main>
   );
+}
+
+export default function MaintenancePage() {
+  const query=useSearchParams();
+  const {hotelSlug}=useStaffStore();
+  if(hotelSlug==="demo" && query.get("demoCompact")==="1") return <DemoCompactPanel role="maintenance"/>;
+  return <FullMaintenancePage/>;
 }

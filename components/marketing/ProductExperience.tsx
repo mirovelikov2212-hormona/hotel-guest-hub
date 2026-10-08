@@ -9,7 +9,7 @@ const COPY = {
     roles: ["Гостът изпраща", "Екипът изпълнява", "Мениджърът проследява"],
     details: ["От своя телефон", "В правилния отдел", "С ясна история"],
     example: "ИНТЕРАКТИВЕН ПРИМЕР", room: "Стая 901", request: "Нуждая се от ютия", title: "Проследете една заявка.",
-    actions: ["Виж следващата стъпка", "Поеми в Хаускипинг", "Отбележи като изпълнена", "Опитай отново"],
+    actions: ["Виж следващата стъпка", "СТАРТ", "ГОТОВО", "Опитай отново"],
     stages: ["Готова за изпращане", "Нова заявка", "В процес", "Изпълнена"],
     notes: ["Гостът избира услуга от хъба на хотела.", "Заявката е насочена към Хаускипинг според примерния работен график.", "Екипът е поел задачата. Гостът и мениджърът виждат нейния статус.", "Изпълнението е отразено. Историята остава в мениджърския панел."],
     waiting: "Очаква заявка", history: "История на заявката", pending: "Няма изпратена заявка", sent: "Получена в Хаускипинг", accepted: "Поета от екипа", completed: "Изпълнението е отчетено",
@@ -27,7 +27,7 @@ const COPY = {
   en: {
     roles: ["The guest sends", "The team delivers", "The manager tracks"], details: ["From their phone", "In the right department", "With a clear history"],
     example: "INTERACTIVE EXAMPLE", room: "Room 901", request: "I need an iron", title: "Follow one request.",
-    actions: ["Send the request", "Accept in Housekeeping", "Mark as completed", "Try again"], stages: ["Ready to send", "New request", "In progress", "Completed"],
+    actions: ["Send the request", "START", "DONE", "Try again"], stages: ["Ready to send", "New request", "In progress", "Completed"],
     notes: ["The guest chooses a service in the hotel hub.", "The request is routed to Housekeeping using the example working schedule.", "The team has accepted the task. The guest and manager can see its status.", "Completion is recorded. The history remains in the manager panel."],
     waiting: "Waiting for a request", history: "Request history", pending: "No request sent", sent: "Received by Housekeeping", accepted: "Accepted by the team", completed: "Completion recorded",
     departments: ["Reception", "Housekeeping", "Maintenance", "Manager"], departmentTitle: "Every team. One platform.", demoNote: "Illustrative scenario — no request is sent to a hotel.",
@@ -40,7 +40,7 @@ const COPY = {
   de: {
     roles: ["Der Gast sendet", "Das Team erledigt", "Das Management verfolgt"], details: ["Vom eigenen Handy", "In der richtigen Abteilung", "Mit klarer Historie"],
     example: "INTERAKTIVES BEISPIEL", room: "Zimmer 901", request: "Ich brauche ein Bügeleisen", title: "Eine Anfrage verfolgen.",
-    actions: ["Anfrage senden", "Im Housekeeping übernehmen", "Als erledigt markieren", "Erneut ausprobieren"], stages: ["Bereit zum Senden", "Neue Anfrage", "In Bearbeitung", "Erledigt"],
+    actions: ["Anfrage senden", "START", "ERLEDIGT", "Erneut ausprobieren"], stages: ["Bereit zum Senden", "Neue Anfrage", "In Bearbeitung", "Erledigt"],
     notes: ["Der Gast wählt einen Service im Hotel-Hub.", "Die Anfrage geht gemäß dem beispielhaften Dienstplan an Housekeeping.", "Das Team hat die Aufgabe übernommen. Gast und Management sehen den Status.", "Die Erledigung wird dokumentiert. Die Historie bleibt im Manager-Panel."],
     waiting: "Wartet auf eine Anfrage", history: "Anfrageverlauf", pending: "Keine Anfrage gesendet", sent: "Im Housekeeping eingegangen", accepted: "Vom Team übernommen", completed: "Erledigung dokumentiert",
     departments: ["Rezeption", "Housekeeping", "Technik", "Management"], departmentTitle: "Jede Abteilung. Eine Plattform.", demoNote: "Beispielszenario — keine Anfrage wird an ein Hotel gesendet.",

@@ -13,9 +13,8 @@ function useReducedMotion() {
 }
 
 /** Decorative Canvas 2D: no network requests, WebGL or animation dependencies. */
-export function GostayaVortex({ className = "", lang = "bg" }: { className?: string; lang?: "bg" | "en" | "de" }) {
+export function GostayaVortex({ className = "" }: { className?: string; lang?: "bg" | "en" | "de" }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [paused, setPaused] = useState(false);
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -25,24 +24,33 @@ export function GostayaVortex({ className = "", lang = "bg" }: { className?: str
     if (!ctx) return;
     let width = 1, height = 1, visible = false, frame = 0, last = 0, phase = 0;
     // Deterministic seeds; no React updates per frame.
-    const particles = Array.from({ length: 144 }, (_, i) => ({
-      t: i / 144, size: .8 + ((i * 17) % 11) / 12, arm: i % 3,
+    const particles = Array.from({ length: 280 }, (_, i) => ({
+      t: i / 280, size: .8 + ((i * 17) % 11) / 12, arm: i % 3,
     }));
     function draw() {
       if (!canvas || !ctx) return;
       ctx.clearRect(0, 0, width, height);
       const radius = Math.min(width * .43, height * 1.08);
-      const count = width < 350 ? 90 : particles.length;
+      const count = width < 350 ? 160 : particles.length;
       for (let i = 0; i < count; i++) {
         const p = particles[Math.floor(i * particles.length / count)];
         const distance = .13 + p.t * .87;
         const angle = p.t * Math.PI * 5 + p.arm * (Math.PI * 2 / 3) + phase;
-        const x = width / 2 + Math.cos(angle) * radius * distance;
-        const y = height / 2 + Math.sin(angle) * radius * distance * .4;
-        ctx.globalAlpha = .48 + .5 * (1 - p.t);
-        ctx.fillStyle = i % 4 === 0 ? "#ffffff" : i % 2 ? "#c4b5fd" : "#60a5fa";
+        const px = Math.cos(angle) * radius * distance;
+        const py = Math.sin(angle) * radius * distance;
+        const pz = Math.sin(p.t * Math.PI * 4 + phase) * radius * .22;
+        const tilt = .98, yaw = Math.sin(phase * .7) * .24;
+        const ty = py * Math.cos(tilt) - pz * Math.sin(tilt);
+        const tz = py * Math.sin(tilt) + pz * Math.cos(tilt);
+        const tx = px * Math.cos(yaw) + tz * Math.sin(yaw);
+        const depth = -px * Math.sin(yaw) + tz * Math.cos(yaw);
+        const perspective = 520 / (520 + depth);
+        const x = width / 2 + tx * perspective;
+        const y = height / 2 + ty * perspective;
+        ctx.globalAlpha = Math.max(.2, Math.min(1, .6 - depth / (radius * 2)));
+        ctx.fillStyle = i % 4 === 0 ? "#ffffff" : i % 2 ? "#d8b4fe" : "#a855f7";
         ctx.beginPath();
-        ctx.arc(x, y, p.size, 0, Math.PI * 2);
+        ctx.arc(x, y, p.size * perspective, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -61,7 +69,7 @@ export function GostayaVortex({ className = "", lang = "bg" }: { className?: str
     }
     function sync() {
       stop();
-      if (visible && !document.hidden && !paused && !reducedMotion) frame = requestAnimationFrame(tick);
+      if (visible && !document.hidden && !reducedMotion) frame = requestAnimationFrame(tick);
       else draw();
     }
     function resize() {
@@ -79,13 +87,11 @@ export function GostayaVortex({ className = "", lang = "bg" }: { className?: str
     document.addEventListener("visibilitychange", sync);
     resize();
     return () => { stop(); resizeObserver.disconnect(); visibilityObserver.disconnect(); document.removeEventListener("visibilitychange", sync); };
-  }, [paused, reducedMotion]);
+  }, [reducedMotion]);
 
   return <div className={`gostaya-vortex ${className}`}>
     <canvas ref={canvasRef} aria-hidden="true" />
-    {!reducedMotion ? <button type="button" className="gostaya-motion-toggle" onClick={() => setPaused(value => !value)}>
-      {lang === "bg" ? (paused ? "Пусни движението" : "Пауза на движението") : lang === "de" ? (paused ? "Animation starten" : "Animation pausieren") : (paused ? "Play animation" : "Pause animation")}
-    </button> : null}
+
   </div>;
 }
 

@@ -18,17 +18,17 @@ export default function MarketingPage({lang}:{lang:Lang}) {
       <div className="gostaya-header-inner">
         <a href={`/${lang}`} className="gostaya-wordmark">GOSTAYA</a>
         <nav className="gostaya-nav">
-          {[c.nav[0],c.nav[1],c.nav[3],c.nav[2],c.nav[4]].map((n,i)=><a key={n} href={["#why","#how","#platform","#evidence","#faq"][i]} className="hover:text-[#1479d3]">{n}</a>)}
+          {[c.nav[0],c.nav[1],c.nav[3],c.nav[2],c.nav[4]].map((n,i)=><a key={n} href={["#why","#how","#platform","#evidence","#faq"][i]} className="hover:text-[#791fc8]">{n}</a>)}
         </nav>
-        <div className="gostaya-header-actions"><div className="gostaya-languages" aria-label="Language">{(["bg","en","de"] as const).map((locale)=><a key={locale} href={`/${locale}`} hrefLang={locale} aria-current={lang===locale?"page":undefined}>{locale.toUpperCase()}</a>)}</div><DemoLaunchLink className="gostaya-primary-action rounded-xl bg-[#1479d3] px-4 py-2 text-xs font-black text-white shadow-md shadow-sky-100">{lang==="bg"?"ДЕМО":"DEMO"}</DemoLaunchLink></div>
+        <div className="gostaya-header-actions"><div className="gostaya-languages" aria-label="Language">{(["bg","en","de"] as const).map((locale)=><a key={locale} href={`/${locale}`} hrefLang={locale} aria-current={lang===locale?"page":undefined}>{locale.toUpperCase()}</a>)}</div><DemoLaunchLink className="gostaya-primary-action rounded-xl bg-[#791fc8] px-4 py-2 text-xs font-black text-white shadow-md shadow-violet-100">{lang==="bg"?"ДЕМО":"DEMO"}</DemoLaunchLink></div>
       </div>
     </header>
 
     <section className="gostaya-hero gostaya-shell">
       <div className="gostaya-hero-grid">
         <div className="gostaya-hero-copy">
-          <p className="text-[11px] font-black tracking-[.22em] text-[#1479d3]">{c.eyebrow}</p>
-          <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold leading-[1.02] tracking-tight text-[#102a43] sm:text-5xl">
+          <p className="text-[11px] font-black tracking-[.22em] text-[#791fc8]">{c.eyebrow}</p>
+          <h1 className="mt-3 max-w-4xl text-balance text-4xl font-semibold leading-[1.02] tracking-tight text-[#2b1340] sm:text-5xl">
             <BrandText text={c.title} hero/>
           </h1>
           <p className="mt-4 max-w-3xl text-pretty text-base leading-7 text-slate-600 sm:text-lg"><BrandText text={c.text}/></p>
@@ -37,8 +37,8 @@ export default function MarketingPage({lang}:{lang:Lang}) {
             <p className="gostaya-mobile-justify mt-1"><BrandText text="GOSTAYA не заменя хотелския екип — увеличава неговия оперативен капацитет, ефективност и способност да поддържа последователно обслужване."/></p>
           </div>:null}
           <div className="mt-7 flex flex-wrap gap-3">
-            <a href="/h/demo" target="_blank" rel="noreferrer" className="gostaya-primary-action rounded-2xl bg-[#1479d3] px-5 py-3 text-sm font-black text-white shadow-lg shadow-sky-200">{c.primary}</a>
-            <DemoLaunchLink className="gostaya-secondary-action rounded-2xl border border-[#8fcaf2] bg-white px-5 py-3 text-sm font-bold text-[#1479d3]">▷ {c.secondary}</DemoLaunchLink>
+            <a href="/h/demo" target="_blank" rel="noreferrer" className="gostaya-primary-action rounded-2xl bg-[#791fc8] px-5 py-3 text-sm font-black text-white shadow-lg shadow-violet-200">{c.primary}</a>
+            <DemoLaunchLink className="gostaya-secondary-action rounded-2xl border border-[#c395ec] bg-white px-5 py-3 text-sm font-bold text-[#791fc8]">▷ {c.secondary}</DemoLaunchLink>
           </div>
         </div>
 
@@ -75,8 +75,8 @@ export default function MarketingPage({lang}:{lang:Lang}) {
         {c.faqs.map(([q,a],faqIndex)=><details key={q} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <summary className="cursor-pointer font-semibold"><span><BrandText text={q}/></span></summary>
           <p className="mt-3 text-sm leading-6 text-slate-600"><BrandText text={a}/></p>
-          {faqIndex===1&&<a href="/h/demo" target="_blank" rel="noreferrer" className="gostaya-primary-action mt-4 inline-flex rounded-2xl bg-[#1479d3] px-4 py-2.5 text-xs font-black text-white shadow-md shadow-sky-100">{lang==="bg"?"Отвори хъба · PIN 2026":lang==="de"?"Guest Hub öffnen · PIN 2026":"Open Guest Hub · PIN 2026"}</a>}
-          {faqIndex===4&&<DemoLaunchLink className="gostaya-primary-action mt-4 inline-flex rounded-2xl bg-[#1479d3] px-4 py-2.5 text-xs font-black text-white shadow-md shadow-sky-100">{lang==="bg"?"Отвори общото демо · PIN 2026":lang==="de"?"Gesamtdemo öffnen · PIN 2026":"Open full demo · PIN 2026"}</DemoLaunchLink>}
+          {faqIndex===1&&<a href="/h/demo" target="_blank" rel="noreferrer" className="gostaya-primary-action mt-4 inline-flex rounded-2xl bg-[#791fc8] px-4 py-2.5 text-xs font-black text-white shadow-md shadow-violet-100">{lang==="bg"?"Отвори хъба · PIN 2026":lang==="de"?"Guest Hub öffnen · PIN 2026":"Open Guest Hub · PIN 2026"}</a>}
+          {faqIndex===4&&<DemoLaunchLink className="gostaya-primary-action mt-4 inline-flex rounded-2xl bg-[#791fc8] px-4 py-2.5 text-xs font-black text-white shadow-md shadow-violet-100">{lang==="bg"?"Отвори общото демо · PIN 2026":lang==="de"?"Gesamtdemo öffnen · PIN 2026":"Open full demo · PIN 2026"}</DemoLaunchLink>}
         </details>)}
       </div>
     </section>

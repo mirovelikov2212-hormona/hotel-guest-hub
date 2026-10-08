@@ -1,5 +1,7 @@
 "use client";
 
+import "./demo-workspace.css";
+import { DEMO_GUIDE_STEPS } from "@/lib/demo-guide";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import DemoGuideCard from "@/components/guest/DemoGuideCard";
@@ -66,17 +68,36 @@ export default function DemoWorkspace() {
   const [attempt, setAttempt] = useState(0);
   const guestFrame = useRef<HTMLIFrameElement>(null);
   const [guide, setGuide] = useState<DemoGuideModel | null>(null);
-  const [staffRole, setStaffRole] = useState<"manager" | "housekeeping" | "reception">("manager");
+  const [staffRole, setStaffRole] = useState<"manager" | "housekeeping" | "reception" | "maintenance">("manager");
   const section = searchParams.get("section");
   const demoSection = section && ["info", "housekeeping"].includes(section) ? section : null;
   const guestLang = ["bg", "en", "de", "ro", "cs", "ru"].includes(searchParams.get("guestLang") || "") ? searchParams.get("guestLang") : lang;
-  const guestSrc = `/h/demo?lang=${guestLang}${demoSection ? `&demoSection=${demoSection}` : ""}`;
-  const roleLabels = {manager: lang === "bg" ? "Мениджър" : "Manager", housekeeping: lang === "bg" ? "Хаускипинг" : "Housekeeping", reception: lang === "bg" ? "Рецепция" : lang === "de" ? "Rezeption" : "Reception"};
+  const guestSrc = `/h/demo?demoCompact=1&lang=${guestLang}${demoSection ? `&demoSection=${demoSection}` : ""}`;
+  const roleLabels = {manager: lang === "bg" ? "Мениджър" : "Manager", housekeeping: lang === "bg" ? "Хаускипинг" : "Housekeeping", maintenance: lang === "bg" ? "Поддръжка" : lang === "de" ? "Technik" : "Maintenance", reception: lang === "bg" ? "Рецепция" : lang === "de" ? "Rezeption" : "Reception"};
 
+  const stage = useRef<HTMLDivElement>(null);
+  const previousStep = useRef<number | null>(null);
+  const [available,setAvailable] = useState({width:1000,height:800});
+  useEffect(()=>{
+    const element=stage.current;
+    if(!element) return;
+    const observer=new ResizeObserver(([entry])=>setAvailable({width:entry.contentRect.width,height:entry.contentRect.height}));
+    observer.observe(element);return()=>observer.disconnect();
+  },[status]);
   useEffect(() => {
     function receive(event: MessageEvent) {
       if (event.origin !== window.location.origin || event.source !== guestFrame.current?.contentWindow || event.data?.channel !== DEMO_GUIDE_CHANNEL || event.data?.type !== "state") return;
-      if (Number.isInteger(event.data.model?.step) && Array.isArray(event.data.model?.instructions)) setGuide(event.data.model);
+      if (Number.isInteger(event.data.model?.step) && Array.isArray(event.data.model?.instructions)) {
+        const next=event.data.model as DemoGuideModel;
+        setGuide(next);
+        if(previousStep.current!==next.step) {
+          previousStep.current=next.step;
+          if(next.step===4){setStaffRole("manager");setActiveView("manager");}
+          else if(next.step===5){setStaffRole("housekeeping");setActiveView("manager");}
+          else if(next.step===7 || next.step===8){setStaffRole("reception");setActiveView("manager");}
+          else setActiveView("guest");
+        }
+      }
     }
     window.addEventListener("message", receive);
     return () => window.removeEventListener("message", receive);
@@ -115,7 +136,7 @@ export default function DemoWorkspace() {
         }
 
         // Each demo role keeps its own existing authenticated session cookie.
-        const staffResponses = await Promise.all((["manager", "housekeeping", "reception"] as const).map(role => fetch("/api/staff/auth/login", {
+        const staffResponses = await Promise.all((["manager", "housekeeping", "reception", "maintenance"] as const).map(role => fetch("/api/staff/auth/login", {
           method: "POST",
           credentials: "same-origin",
           cache: "no-store",
@@ -141,42 +162,35 @@ export default function DemoWorkspace() {
 
   const backHref = lang === "bg" ? "/bg" : lang === "de" ? "/de" : "/en";
 
-  return (
-    <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[#f5f3ff] text-[#24183b]">
-      <header className="shrink-0 border-b border-violet-100 bg-white px-3 py-2 sm:px-5 sm:py-3">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-700">{copy.eyebrow}</p>
-            <h1 className="text-base font-bold tracking-tight sm:text-xl">{copy.title}</h1>
-            <p className="hidden text-xs text-slate-600 sm:block">{copy.subtitle}</p>
-          </div>
-          <a href={backHref} className="shrink-0 rounded-xl border border-violet-200 px-3 py-2 text-xs font-bold text-violet-800">← {copy.back}</a>
-        </div>
-      </header>
-      {status !== "ready" ? (
-        <section className="flex min-h-0 flex-1 items-center justify-center px-4" aria-live="polite">
-          <div className="w-full max-w-xl rounded-3xl border border-violet-100 bg-white p-7 text-center shadow-xl shadow-violet-100/60">
-            {status === "loading" ? <><div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-violet-100 border-t-violet-600 motion-reduce:animate-none"/><p className="mt-5 font-semibold">{copy.loading}</p></> : <><p className="font-semibold">{copy.error}</p><button type="button" onClick={() => setAttempt(value => value + 1)} className="mt-5 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white">{copy.retry}</button></>}
-          </div>
-        </section>
-      ) : (
-        <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-2 p-2 sm:p-3">
-          {guide ? <div className="shrink-0"><DemoGuideCard model={guide} lang={lang} onAction={guideAction} compact/></div> : null}
-          <nav className="flex shrink-0 flex-wrap items-center gap-1 rounded-xl border border-violet-100 bg-white p-1" aria-label={copy.managerTitle}>
-            <button type="button" aria-pressed={activeView === "guest"} onClick={() => setActiveView("guest")} className={`min-h-10 rounded-lg px-3 py-2 text-xs font-bold transition sm:px-5 ${activeView === "guest" ? "bg-violet-600 text-white shadow-sm" : "text-slate-600 hover:bg-violet-50"}`}>{copy.guest} · 901</button>
-            {(["housekeeping", "reception", "manager"] as const).map(role => <button key={role} type="button" aria-pressed={activeView === "manager" && staffRole === role} onClick={() => {setStaffRole(role);setActiveView("manager");}} className={`min-h-10 rounded-lg px-3 py-2 text-xs font-bold transition sm:px-5 ${activeView === "manager" && staffRole === role ? "bg-violet-600 text-white shadow-sm" : "text-slate-600 hover:bg-violet-50"}`}>{roleLabels[role]}</button>)}
-            <p className="ml-auto hidden px-3 text-xs text-slate-500 xl:block">{copy.hint}</p>
-          </nav>
-          <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-violet-100 bg-[#ede9f5] shadow-sm">
-            <section hidden={activeView !== "guest"} className="mx-auto h-full max-w-[600px] bg-white">
-              <iframe ref={guestFrame} src={guestSrc} onLoad={() => guestFrame.current?.contentWindow?.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"sync"},window.location.origin)} title={copy.guestTitle} className="block h-full w-full border-0 bg-white" allow="clipboard-read; clipboard-write"/>
-            </section>
-            <section hidden={activeView !== "manager"} className="h-full bg-white">
-              <iframe src={`/staff/demo/${staffRole}`} title={roleLabels[staffRole]} className="block h-full w-full border-0 bg-white" allow="clipboard-read; clipboard-write"/>
-            </section>
+  const frameWidth=activeView==="guest"?390:1000;
+  const frameHeight=activeView==="guest"?780:740;
+  const scale=Math.max(.2,Math.min(1,(available.width-40)/(frameWidth+24),(available.height-40)/(frameHeight+54)));
+  return <main className="gostaya-demo-workspace">
+    <header className="gostaya-demo-top"><div><strong>GOSTAYA</strong><span>{copy.title}</span></div><a href={backHref}>← {copy.back}</a></header>
+    {status!=="ready"?<div className="gostaya-demo-preparing" aria-live="polite"><p>{status==="loading"?copy.loading:copy.error}</p>{status==="error"?<button onClick={()=>setAttempt(v=>v+1)}>{copy.retry}</button>:null}</div>:<div className="gostaya-demo-layout">
+      <aside className="gostaya-demo-sidebar">
+        <nav className="gostaya-demo-roles" aria-label={copy.managerTitle}>
+          <button type="button" aria-pressed={activeView==="guest"} onClick={()=>setActiveView("guest")}>◉ {copy.guest} · 901</button>
+          {(["reception","housekeeping","maintenance","manager"] as const).map(role=><button key={role} type="button" aria-pressed={activeView==="manager"&&staffRole===role} onClick={()=>{setStaffRole(role);setActiveView("manager");}}>{roleLabels[role]}</button>)}
+        </nav>
+        <p className="gostaya-demo-access">{lang==="bg"?"Демо стая":"Demo room"} 901 · PIN 2026</p>
+        {guide?<><DemoGuideCard model={guide} lang={lang} onAction={guideAction} compact vertical/>
+          <ol className="gostaya-demo-step-menu" aria-label={lang==="bg"?"Стъпки на демото":"Demo steps"}>{DEMO_GUIDE_STEPS[lang].map((step,i)=><li key={step.title} aria-current={guide.step===i+1?"step":undefined}><button disabled={i+1>guide.step} type="button" onClick={()=>guestFrame.current?.contentWindow?.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"navigate",step:i+1},window.location.origin)}><span>{i+1<guide.step?"✓":String(i+1).padStart(2,"0")}</span>{step.title}</button></li>)}</ol>
+        </>:<p>{copy.loading}</p>}
+      </aside>
+      <section className="gostaya-demo-preview">
+        <div className="gostaya-demo-view-heading"><strong>{activeView==="guest"?copy.guestTitle:roleLabels[staffRole]}</strong><span>{lang==="bg"?"Следвайте стъпките вляво":"Follow the steps on the left"}</span></div>
+        <div ref={stage} className="gostaya-demo-stage">
+          <div style={{width:(frameWidth+24)*scale,height:(frameHeight+54)*scale}} className="gostaya-demo-device-holder">
+            <div className={`gostaya-demo-device ${activeView==="guest"?"gostaya-demo-device-phone":"gostaya-demo-device-panel"}`} style={{width:frameWidth+24,height:frameHeight+54,transform:`scale(${scale})`}}>
+              <div className="gostaya-demo-device-top"><span>9:41</span><span>{activeView==="guest"?"GOSTAYA":"GOSTAYA · LIVE"}</span><span>•••</span></div>
+              <iframe hidden={activeView!=="guest"} ref={guestFrame} src={guestSrc} onLoad={()=>guestFrame.current?.contentWindow?.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"sync"},window.location.origin)} title={copy.guestTitle} style={{width:390,height:780}} allow="clipboard-read; clipboard-write"/>
+              {activeView==="manager"?<iframe src={`/staff/demo/${staffRole}?demoCompact=1`} title={roleLabels[staffRole]} style={{width:1000,height:740}} allow="clipboard-read; clipboard-write"/>:null}
+              <div className="gostaya-demo-device-home"/>
+            </div>
           </div>
         </div>
-      )}
-    </main>
-  );
+      </section>
+    </div>}
+  </main>;
 }

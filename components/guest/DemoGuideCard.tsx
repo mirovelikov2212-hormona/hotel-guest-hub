@@ -8,15 +8,15 @@ const COPY = {
   de: {label:"GEFÜHRTE DEMO",expected:"Das sollten Sie sehen",finished:"Demo-Aufenthalt beendet",complete:"Sie haben eine Gästeanfrage bis zur Bearbeitung und Managementkontrolle verfolgt.",busy:"Wird beendet…",labels:{room:"Zu Zimmer 901",department:"Housekeeping im Hub öffnen",manager:"Manager öffnen",housekeeping:"Housekeeping-Bereich öffnen",reception:"Rezeption öffnen",survey:"Umfrage anzeigen",checkout:"Aufenthalt beenden",previous:"Zurück",next:"Geprüft — weiter",restart:"Neu starten",hide:"Anleitung ausblenden",show:"Anleitung anzeigen"}},
 } as const;
 
-export default function DemoGuideCard({model,lang,onAction,compact=false}:{model:DemoGuideModel;lang:string;onAction:(action:DemoGuideAction)=>void;compact?:boolean}) {
+export default function DemoGuideCard({model,lang,onAction,compact=false,vertical=false}:{model:DemoGuideModel;lang:string;onAction:(action:DemoGuideAction)=>void;compact?:boolean;vertical?:boolean}) {
   const c = COPY[lang === "bg" || lang === "de" ? lang : "en"];
-  const button = "min-h-10 rounded-xl px-4 py-2 text-xs font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300";
-  if (model.hidden) return <button type="button" onClick={()=>onAction("show")} className={`${button} border border-sky-200 bg-white text-sky-800`}>{c.labels.show} · {model.step}/{model.total}</button>;
-  return <aside aria-label={c.label} className="overflow-hidden rounded-2xl border border-violet-200/25 bg-[#1E113A] text-white shadow-lg">
-    <div className="h-1 bg-gradient-to-r from-violet-400 via-indigo-400 to-blue-400"/>
+  const button = "min-h-10 rounded-xl px-4 py-2 text-xs font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300";
+  if (model.hidden) return <button type="button" onClick={()=>onAction("show")} className={`${button} border border-violet-200 bg-white text-violet-800`}>{c.labels.show} · {model.step}/{model.total}</button>;
+  return <aside aria-label={c.label} className={`overflow-hidden rounded-2xl border border-violet-200/25 bg-[#1E113A] text-white shadow-lg ${vertical?"gostaya-demo-guide-vertical":""}`}>
+    <div className="h-1 bg-gradient-to-r from-violet-400 via-indigo-400 to-purple-400"/>
     <div className={compact ? "px-3 py-2 sm:px-4 sm:py-3" : "p-4 sm:p-5"}>
       <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-[10px] font-black tracking-[.18em] text-violet-200">{c.label} · {model.finished ? "✓" : `${model.step}/${model.total}`}</p><button type="button" className="min-h-8 text-xs text-slate-300" onClick={()=>onAction("hide")}>{c.labels.hide}</button></div>
-      <div aria-live="polite" aria-atomic="true" className={`mt-1 grid ${compact ? "gap-2" : "gap-4"} lg:grid-cols-[1.5fr_1fr]`}>
+      <div aria-live="polite" aria-atomic="true" className={`mt-1 grid ${compact ? "gap-2" : "gap-4"} ${vertical?"":"lg:grid-cols-[1.5fr_1fr]"}`}>
         <div><h2 className="!text-base !font-bold !text-white">{model.finished ? c.finished : `${model.step}. ${model.title}`}</h2>
           {model.finished ? <p className="mt-2 text-sm text-slate-200">{c.complete}</p> : <ol className={`mt-1 list-decimal pl-5 text-[13px] leading-5 text-slate-200 ${compact ? "space-y-0" : "space-y-1.5"}`}>{model.instructions.map(line=><li key={line}>{line}</li>)}</ol>}
         </div>

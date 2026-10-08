@@ -188,10 +188,12 @@ export default async function HotelHubPage({ params, searchParams }: PageProps) 
   // configuration supplies content and capabilities, but must never override
   // tenant identity for guest operational API calls.
   const guestRuntimeHotelSlug = hotelSlug.trim().toLowerCase();
+  const compactDemo = guestRuntimeHotelSlug === "demo" && getSingleSearchParam((await searchParams).demoCompact) === "1";
   const guestConfig = {
     ...cfg,
     hotelSlug: guestRuntimeHotelSlug,
     operationalAiEntitled: productEntitlement.moduleAccess.operational_ai,
+    ...(compactDemo ? {theme:{...cfg.theme,background:"#f1e5fc",primary:"#7c3aed",secondary:"#b989e5",accent:"#aa75d4",surface:"#fbf7ff",soft:"#ead9f9",text:"#291640",muted:"#756080"}} : {}),
   };
 
   return (
@@ -200,7 +202,7 @@ export default async function HotelHubPage({ params, searchParams }: PageProps) 
       <GuestCommunicationsInbox
         hotelSlug={guestRuntimeHotelSlug}
         defaultLanguage={(cfg.languageDefault || "en") as LangKey}
-        brandColor={String(cfg.theme?.primary || cfg.theme?.accent || "#43B5A1")}
+        brandColor={compactDemo ? "#d8b4fe" : String(cfg.theme?.primary || cfg.theme?.accent || "#43B5A1")}
       />
     </main>
   );

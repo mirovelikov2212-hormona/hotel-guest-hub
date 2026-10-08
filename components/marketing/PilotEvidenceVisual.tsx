@@ -57,16 +57,16 @@ export default function PilotEvidenceVisual({ lang }: { lang: Lang }) {
   const max = Math.max(...DATA.map((row) => row.opens));
 
   return (
-    <div className="rounded-[28px] border border-slate-200 bg-[#fbfdff] p-5 text-[#102a43] shadow-[0_14px_40px_rgba(15,58,91,.06)] sm:p-6">
+    <div className="rounded-[28px] border border-slate-200 bg-[#f8f0ff] p-5 text-[#291640] shadow-[0_14px_40px_rgba(15,58,91,.06)] sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="text-sm font-semibold text-[#102a43]">{c.title}</div>
+          <div className="text-sm font-semibold text-[#291640]">{c.title}</div>
           <div className="mt-1 text-xs text-slate-500">{c.subtitle}</div>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-[10px] text-slate-500">
-          <span className="font-semibold text-slate-600"><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#1479d3" }} />{c.opens}</span>
-          <span className="font-semibold text-slate-600"><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#1479d3" }} />{c.requests}</span>
-          <span className="font-semibold text-slate-600"><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#1479d3" }} />{c.massages}</span>
+          <span className="font-semibold text-slate-600"><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#7c3aed" }} />{c.opens}</span>
+          <span className="font-semibold text-slate-600"><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#a855b8" }} />{c.requests}</span>
+          <span className="font-semibold text-slate-600"><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#542775" }} />{c.massages}</span>
         </div>
       </div>
 
@@ -77,17 +77,17 @@ export default function PilotEvidenceVisual({ lang }: { lang: Lang }) {
             <div key={row.key} className="flex min-w-0 flex-col items-center">
               <div className="flex h-36 w-full items-end justify-center rounded-2xl border border-slate-200 bg-white px-2 pt-2">
                 <div
-                  className="relative w-full max-w-12 rounded-t-xl bg-gradient-to-t from-sky-300 to-sky-100 shadow-[0_0_18px_rgba(56,189,248,.18)]"
+                  className="relative w-full max-w-12 rounded-t-xl bg-gradient-to-t from-violet-500 to-violet-200 shadow-[0_0_18px_rgba(124,58,237,.18)]"
                   style={{ height }}
                   title={String(row.opens)}
                 >
                   <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-600">{row.opens}</span>
                 </div>
               </div>
-              <div className="mt-2 text-xs font-bold text-[#102a43]">{c.months[row.key]}</div>
+              <div className="mt-2 text-xs font-bold text-[#291640]">{c.months[row.key]}</div>
               <div className="mt-2 flex flex-wrap justify-center gap-1 text-[9px]">
-                <span className="rounded-full border px-2 py-1 font-semibold" style={{ backgroundColor: "rgba(20,121,211,.10)", borderColor: "rgba(20,121,211,.28)", color: "#1479d3" }}>{row.requests} {c.requestShort}</span>
-                <span className="rounded-full border px-2 py-1 font-semibold" style={{ backgroundColor: "rgba(20,121,211,.10)", borderColor: "rgba(20,121,211,.28)", color: "#1479d3" }}>{row.massages} {c.massageShort}</span>
+                <span className="rounded-full border px-2 py-1 font-semibold" style={{ backgroundColor: "#f4e1f5", borderColor: "#d39ed7", color: "#913797" }}>{row.requests} {c.requestShort}</span>
+                <span className="rounded-full border px-2 py-1 font-semibold" style={{ backgroundColor: "#e8daf1", borderColor: "#b795d2", color: "#542775" }}>{row.massages} {c.massageShort}</span>
               </div>
             </div>
           );

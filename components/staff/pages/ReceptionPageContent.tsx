@@ -1,5 +1,7 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
+import DemoCompactPanel from "../DemoCompactPanel";
 import { useEffect, useMemo, useState } from "react";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
@@ -378,7 +380,7 @@ function isReceptionOperationalDepartment(department: string) {
   );
 }
 
-export default function ReceptionPage({
+function FullReceptionPage({
   hotelTimeZone,
 }: {
   hotelTimeZone: string;
@@ -651,4 +653,11 @@ export default function ReceptionPage({
       />
     </main>
   );
+}
+
+export default function ReceptionPage(props: {hotelTimeZone:string}) {
+  const query=useSearchParams();
+  const {hotelSlug}=useStaffStore();
+  if(hotelSlug==="demo" && query.get("demoCompact")==="1") return <DemoCompactPanel role="reception"/>;
+  return <FullReceptionPage {...props}/>;
 }
