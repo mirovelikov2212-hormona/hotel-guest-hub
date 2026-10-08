@@ -1,5 +1,6 @@
 "use client";
 
+import { notifyDemoUpdate, subscribeDemoUpdates } from "@/lib/demo-live";
 import {
   createContext,
   useCallback,
@@ -201,6 +202,7 @@ async function updateStaffRequestStatus(input: {
   if (!response.ok) {
     throw new Error(`Failed to update request status: ${response.status}`);
   }
+  notifyDemoUpdate(input.hotelSlug);
 }
 
 async function setStaffRequestBillingStatus(input: {
@@ -400,6 +402,7 @@ export function StaffStoreProvider({
       forceResumeRefresh();
     };
 
+    const unsubscribeDemo = subscribeDemoUpdates(normalizedHotelSlug, forceResumeRefresh);
     window.addEventListener("focus", handleFocus);
     window.addEventListener("pageshow", handlePageShow);
     window.addEventListener("online", handleOnline);
@@ -407,6 +410,7 @@ export function StaffStoreProvider({
 
     return () => {
       cancelled = true;
+      unsubscribeDemo();
       if (timer !== undefined) window.clearTimeout(timer);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("pageshow", handlePageShow);

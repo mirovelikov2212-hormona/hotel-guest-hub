@@ -1,5 +1,6 @@
 "use client";
 
+import { notifyDemoUpdate, subscribeDemoUpdates } from "@/lib/demo-live";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -130,7 +131,8 @@ export default function GuestCommunicationsInbox({ hotelSlug, defaultLanguage, b
     void loadMessages(stay, language);
     if (!stay) return;
     const timer = window.setInterval(() => void loadMessages(readStay(hotelSlug), readLanguage(defaultLanguage)), 15_000);
-    return () => window.clearInterval(timer);
+    const unsubscribe = subscribeDemoUpdates(hotelSlug, () => void loadMessages(readStay(hotelSlug), readLanguage(defaultLanguage)));
+    return () => {window.clearInterval(timer);unsubscribe();};
   }, [defaultLanguage, hotelSlug, language, loadMessages, stay]);
 
   const unreadCount = useMemo(() => messages.filter((message) => !seenIds.has(message.id) && message.senderType !== "guest").length, [messages, seenIds]);
@@ -157,6 +159,7 @@ export default function GuestCommunicationsInbox({ hotelSlug, defaultLanguage, b
       });
       if (!response.ok) throw new Error(`reply ${response.status}`);
       setReply("");
+      notifyDemoUpdate(hotelSlug);
       await loadMessages(stay, language);
     } catch (error) {
       console.warn("Guest direct reply failed", error);

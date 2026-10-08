@@ -1,10 +1,10 @@
 "use client";
-import MarketingIcon from "./MarketingIcon";
+import { GostayaRotatingTabs } from "./GostayaMotion";
 import ProductExperience from "./ProductExperience";
 
 
-import { useState } from "react";
-import Link from "next/link";
+
+
 import DemoLaunchLink from "./DemoLaunchLink";
 
 type Lang = "bg" | "en" | "de";
@@ -566,45 +566,20 @@ function BrandText({ text }: { text: string }) {
   return <>{text.split(/(GOSTAYA)/g).map((part, index) => part === "GOSTAYA" ? <span key={index} className="gostaya-mobile-brand">{part}</span> : part)}</>;
 }
 
-const MODULE_ICONS: Record<string,string> = {guest:"phone",team:"reception",staff:"reception",manager:"chart",training:"training",revenue:"euro",integrations:"link"};
-
 export default function ProductWalkthrough({ lang }: { lang: Lang }) {
-  const copy=COPY[lang];
-  const [activeKey,setActiveKey]=useState(copy.views[0].key);
-  const active=copy.views.find(view=>view.key===activeKey)||copy.views[0];
+  const copy = COPY[lang];
+  const title = lang === "bg" ? "Разгледайте GOSTAYA в действие" : lang === "de" ? "GOSTAYA in Aktion erleben" : "Explore GOSTAYA in action";
   return <section className="gostaya-shell gostaya-section gostaya-platform">
-    <p className="gostaya-eyebrow">{copy.explorerLabel}</p><h2>{copy.flowTitle}</h2><p className="gostaya-body">{copy.flowText}</p>
-    <div className="gostaya-module-tabs" role="tablist" aria-label={copy.flowTitle}>
-      {copy.views.map((view,index)=><button key={view.key} type="button" role="tab" id={`module-${view.key}`} aria-controls="module-panel" aria-selected={active.key===view.key} tabIndex={active.key===view.key?0:-1} onClick={()=>setActiveKey(view.key)} onKeyDown={event=>{
-        let next=index;
-        if(event.key==="ArrowRight") next=(index+1)%copy.views.length;
-        else if(event.key==="ArrowLeft") next=(index-1+copy.views.length)%copy.views.length;
-        else if(event.key==="Home") next=0;
-        else if(event.key==="End") next=copy.views.length-1;
-        else return;
-        event.preventDefault();setActiveKey(copy.views[next].key);document.getElementById(`module-${copy.views[next].key}`)?.focus();
-      }} className="gostaya-module-tab"><span aria-hidden="true"><MarketingIcon name={MODULE_ICONS[view.key]||"reception"}/></span>{view.nav}</button>)}
-    </div>
-    <div className="gostaya-platform-grid">
-      <div id="module-panel" role="tabpanel" aria-labelledby={`module-${active.key}`} tabIndex={0} className="gostaya-module-panel">
-        <div className="gostaya-module-explanation"><p className="gostaya-eyebrow">{active.eyebrow}</p><h3><BrandText text={active.title}/></h3><p className="gostaya-body"><BrandText text={active.text}/></p>
-          <div className="gostaya-feature-grid">{active.previewItems.slice(0,3).map(item=><div key={item.label}><span aria-hidden="true">✓</span><div><h4>{item.label}</h4><p>{item.detail}</p></div></div>)}</div>
+    <p className="gostaya-eyebrow">{copy.explorerLabel}</p><h2>{title}</h2>
+    <p className="gostaya-body">{lang === "bg" ? "От първия въпрос на госта до управленското решение. Изберете модул и вижте неговата роля." : lang === "de" ? "Von der ersten Gästefrage bis zur Managemententscheidung. Wählen Sie einen Bereich." : "From the guest’s first question to a management decision. Choose a module to explore."}</p>
+    <GostayaRotatingTabs lang={lang} label={title} tabs={copy.views.map(view => ({id:view.key, label:view.nav, content:
+      <div className="gostaya-module-panel">
+        <div className="gostaya-module-explanation"><p className="gostaya-eyebrow">{view.eyebrow}</p><h3><BrandText text={view.title}/></h3><p className="gostaya-body"><BrandText text={view.text}/></p>
+          <ul className="gostaya-module-benefits">{view.previewItems.slice(0,3).map(item=><li key={item.label}><span aria-hidden="true">✓</span>{item.label}</li>)}</ul>
         </div>
-        <div className="gostaya-product-experience" key={active.key}><ProductExperience moduleKey={active.key} lang={lang}/></div>
+        <div className="gostaya-product-experience"><ProductExperience moduleKey={view.key} lang={lang}/></div>
       </div>
-      <aside className="gostaya-demo-card"><p className="gostaya-eyebrow">{lang==="bg"?"ОПИТАЙТЕ НА ЖИВО":lang==="de"?"LIVE AUSPROBIEREN":"TRY IT LIVE"}</p>
-        <h3>{lang==="bg"?"От госта до екипа.":lang==="de"?"Vom Gast zum Team.":"From guest to team."}</h3>
-        <p>{lang==="bg"?"Следвайте насоките: потвърдете стая 901, изпратете заявка за хавлии и вижте как се обработва от екипа и отразява при мениджъра.":lang==="de"?"Guest Hub öffnen, Testanfrage senden und im Abteilungspanel verfolgen.":"Open the hub, send a test request and follow it in the department panel."}</p>
-        <div className="gostaya-demo-access"><span>{lang==="bg"?"Демо стая":lang==="de"?"Demo-Zimmer":"Demo room"} <b>901</b></span><span>PIN <b>2026</b></span></div>
-        <Link href="/h/demo" className="gostaya-primary-action">{lang==="bg"?"Разгледай Демо Хъб":lang==="de"?"Demo-Hub öffnen":"Explore Demo Hub"}</Link>
-        <div className="gostaya-demo-departments">{[
-          ["reception",lang==="bg"?"Рецепция":lang==="de"?"Rezeption":"Reception","reception"],
-          ["housekeeping",lang==="bg"?"Хаускипинг":"Housekeeping","housekeeping"],
-          ["maintenance",lang==="bg"?"Поддръжка":lang==="de"?"Technik":"Maintenance","maintenance"],
-          ["chart",lang==="bg"?"Мениджър":"Manager","manager"]
-        ].map(([icon,label,route])=><a key={route} href={`/staff/demo/${route}`} className="gostaya-demo-department"><span aria-hidden="true"><MarketingIcon name={icon}/></span>{label}</a>)}</div>
-        <DemoLaunchLink className="gostaya-demo-workspace-link">{lang==="bg"?"Стартирай демото стъпка по стъпка":lang==="de"?"Geführte Demo starten":"Start the guided demo"}</DemoLaunchLink>
-      </aside>
-    </div>
+    }))}/>
+    <div className="gostaya-platform-launch"><div><strong>{lang === "bg" ? "Пробвайте сами. С ясни насоки на всяка стъпка." : lang === "de" ? "Selbst ausprobieren. Mit Anleitung bei jedem Schritt." : "Try it yourself. Clear guidance at every step."}</strong><p>{lang === "bg" ? "Изпратете заявка за хавлии и проследете обработката ѝ от екипа." : lang === "de" ? "Handtücher anfragen und die Bearbeitung durch das Team verfolgen." : "Request towels and follow the team’s progress."}</p><small>{lang === "bg" ? "Демо стая" : lang === "de" ? "Demo-Zimmer" : "Demo room"} 901 · PIN 2026</small></div><DemoLaunchLink className="gostaya-primary-action">{lang === "bg" ? "Изпробвай с насоки" : lang === "de" ? "Mit Anleitung ausprobieren" : "Try with guidance"}<span aria-hidden="true">→</span></DemoLaunchLink></div>
   </section>;
 }

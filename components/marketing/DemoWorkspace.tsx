@@ -12,7 +12,7 @@ const COPY = {
   bg: {
     eyebrow: "GOSTAYA LIVE DEMO",
     title: "Гостът и хотелът в един екран",
-    subtitle: "Направете заявка в Guest Hub и проследете същото действие веднага в Manager панела.",
+    subtitle: "Изпратете заявка като гост и проследете обработката ѝ от екипа и мениджъра.",
     guest: "Гост",
     manager: "Хотел",
     guestTitle: "Guest Hub · стая 901",
@@ -21,7 +21,7 @@ const COPY = {
     retry: "Опитай отново",
     error: "Демо средата не можа да се подготви автоматично.",
     back: "Към сайта",
-    hint: "Desktop: двата изгледа работят едновременно. На телефон превключвайте между тях от бутоните горе.",
+    hint: "Изберете изглед. Насоките остават тук, докато работите в него.",
   },
   en: {
     eyebrow: "GOSTAYA LIVE DEMO",
@@ -35,7 +35,7 @@ const COPY = {
     retry: "Try again",
     error: "The demo workspace could not be prepared automatically.",
     back: "Back to website",
-    hint: "Desktop: both views stay live at the same time. On mobile, switch between them using the buttons above.",
+    hint: "Choose a view. The guide stays here while you use it.",
   },
   de: {
     eyebrow: "GOSTAYA LIVE DEMO",
@@ -49,7 +49,7 @@ const COPY = {
     retry: "Erneut versuchen",
     error: "Der Demo-Workspace konnte nicht automatisch vorbereitet werden.",
     back: "Zur Website",
-    hint: "Desktop: beide Ansichten bleiben gleichzeitig aktiv. Auf dem Smartphone wechseln Sie oben zwischen den Ansichten.",
+    hint: "Wählen Sie eine Ansicht. Die Anleitung bleibt dabei sichtbar.",
   },
 } as const;
 
@@ -142,115 +142,40 @@ export default function DemoWorkspace() {
   const backHref = lang === "bg" ? "/bg" : lang === "de" ? "/de" : "/en";
 
   return (
-    <main className="min-h-screen bg-[#eef6fc] text-[#102a43]">
-      <header className="sticky top-0 z-30 border-b border-sky-100 bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
-        <div className="mx-auto flex max-w-[1800px] flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[#f5f3ff] text-[#24183b]">
+      <header className="shrink-0 border-b border-violet-100 bg-white px-3 py-2 sm:px-5 sm:py-3">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#1479d3]">
-              {copy.eyebrow}
-            </div>
-            <h1 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">{copy.title}</h1>
-            <p className="mt-1 max-w-3xl text-sm text-slate-600">{copy.subtitle}</p>
+            <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-700">{copy.eyebrow}</p>
+            <h1 className="text-base font-bold tracking-tight sm:text-xl">{copy.title}</h1>
+            <p className="hidden text-xs text-slate-600 sm:block">{copy.subtitle}</p>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-2xl border border-sky-200 bg-[#f7fbff] p-1 lg:hidden">
-              <button
-                type="button"
-                onClick={() => setActiveView("guest")}
-                className={`rounded-xl px-4 py-2 text-sm font-bold transition ${activeView === "guest" ? "bg-[#1479d3] text-white shadow-sm" : "text-slate-600"}`}
-              >
-                {copy.guest}
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveView("manager")}
-                className={`rounded-xl px-4 py-2 text-sm font-bold transition ${activeView === "manager" ? "bg-[#1479d3] text-white shadow-sm" : "text-slate-600"}`}
-              >
-                {copy.manager}
-              </button>
-            </div>
-            <a
-              href={backHref}
-              className="rounded-xl border border-sky-200 bg-white px-4 py-2 text-sm font-bold text-[#0e5f91] shadow-sm"
-            >
-              ← {copy.back}
-            </a>
-          </div>
+          <a href={backHref} className="shrink-0 rounded-xl border border-violet-200 px-3 py-2 text-xs font-bold text-violet-800">← {copy.back}</a>
         </div>
       </header>
-
       {status !== "ready" ? (
-        <section className="mx-auto flex min-h-[70vh] max-w-xl items-center justify-center px-4">
-          <div className="w-full rounded-3xl border border-sky-200 bg-white p-7 text-center shadow-xl shadow-sky-100/60">
-            {status === "loading" ? (
-              <>
-                <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-sky-100 border-t-[#1479d3]" />
-                <p className="mt-5 text-base font-semibold">{copy.loading}</p>
-              </>
-            ) : (
-              <>
-                <p className="text-base font-semibold">{copy.error}</p>
-                <button
-                  type="button"
-                  onClick={() => setAttempt((value) => value + 1)}
-                  className="mt-5 rounded-xl bg-[#1479d3] px-5 py-3 text-sm font-bold text-white"
-                >
-                  {copy.retry}
-                </button>
-              </>
-            )}
+        <section className="flex min-h-0 flex-1 items-center justify-center px-4" aria-live="polite">
+          <div className="w-full max-w-xl rounded-3xl border border-violet-100 bg-white p-7 text-center shadow-xl shadow-violet-100/60">
+            {status === "loading" ? <><div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-violet-100 border-t-violet-600 motion-reduce:animate-none"/><p className="mt-5 font-semibold">{copy.loading}</p></> : <><p className="font-semibold">{copy.error}</p><button type="button" onClick={() => setAttempt(value => value + 1)} className="mt-5 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white">{copy.retry}</button></>}
           </div>
         </section>
       ) : (
-        <>
-          <div className="mx-auto max-w-[1800px] px-3 pb-3 pt-3 sm:px-4">
-            <p className="mb-3 text-center text-xs font-medium text-slate-500">{copy.hint}</p>
-            {demoSection ? <p className="mb-3 rounded-xl border border-sky-200 bg-white p-3 text-sm text-sky-900">{lang === "bg" ? "Избраната секция от ИИ примера ще се отвори след потвърждаване на стая 901. Бутонът само отваря услугата — заявката или резервацията изисква ваше потвърждение." : lang === "de" ? "Der im KI-Beispiel gewählte Bereich öffnet sich nach Bestätigung von Zimmer 901. Eine Anfrage oder Buchung erfordert Ihre Bestätigung." : "The section selected in the AI example opens after confirming room 901. A request or booking still requires your confirmation."}</p> : null}
-            {guide ? <div className="mb-4"><DemoGuideCard model={guide} lang={lang} onAction={guideAction}/></div> : null}
-
-            <div className="grid min-h-[calc(100vh-150px)] gap-3 lg:grid-cols-[440px_minmax(0,1fr)]">
-              <section
-                className={`overflow-hidden rounded-[28px] border border-sky-200 bg-white shadow-[0_18px_50px_rgba(15,58,91,.10)] ${activeView === "guest" ? "block" : "hidden"} lg:block`}
-              >
-                <div className="flex h-11 items-center justify-between border-b border-sky-100 bg-[#f8fbfe] px-4">
-                  <span className="text-sm font-bold">{copy.guestTitle}</span>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                    LIVE
-                  </span>
-                </div>
-                <iframe
-                  ref={guestFrame}
-                  src={guestSrc}
-                  onLoad={() => guestFrame.current?.contentWindow?.postMessage({channel: DEMO_GUIDE_CHANNEL, type: "sync"}, window.location.origin)}
-                  title={copy.guestTitle}
-                  className="h-[calc(100vh-205px)] min-h-[720px] w-full border-0 bg-white"
-                  allow="clipboard-read; clipboard-write"
-                />
-              </section>
-
-              <section
-                className={`overflow-hidden rounded-[28px] border border-sky-200 bg-white shadow-[0_18px_50px_rgba(15,58,91,.10)] ${activeView === "manager" ? "block" : "hidden"} lg:block`}
-              >
-                <div className="flex h-11 items-center justify-between border-b border-sky-100 bg-[#f8fbfe] px-4">
-                  <span className="text-sm font-bold">{roleLabels[staffRole]}</span>
-                  <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-sky-700">
-                    LIVE
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2 border-b border-sky-100 p-3" role="group" aria-label={copy.managerTitle}>
-                  {(["manager", "housekeeping", "reception"] as const).map(role => <button key={role} type="button" aria-pressed={staffRole === role} onClick={() => setStaffRole(role)} className={`min-h-10 rounded-xl px-3 py-2 text-xs font-bold ${staffRole === role ? "bg-[#1479d3] text-white" : "bg-sky-50 text-sky-900"}`}>{roleLabels[role]}</button>)}
-                </div>
-                <iframe
-                  src={`/staff/demo/${staffRole}`}
-                  title={roleLabels[staffRole]}
-                  className="h-[calc(100vh-205px)] min-h-[720px] w-full border-0 bg-white"
-                  allow="clipboard-read; clipboard-write"
-                />
-              </section>
-            </div>
+        <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-2 p-2 sm:p-3">
+          {guide ? <div className="shrink-0"><DemoGuideCard model={guide} lang={lang} onAction={guideAction} compact/></div> : null}
+          <nav className="flex shrink-0 flex-wrap items-center gap-1 rounded-xl border border-violet-100 bg-white p-1" aria-label={copy.managerTitle}>
+            <button type="button" aria-pressed={activeView === "guest"} onClick={() => setActiveView("guest")} className={`min-h-10 rounded-lg px-3 py-2 text-xs font-bold transition sm:px-5 ${activeView === "guest" ? "bg-violet-600 text-white shadow-sm" : "text-slate-600 hover:bg-violet-50"}`}>{copy.guest} · 901</button>
+            {(["housekeeping", "reception", "manager"] as const).map(role => <button key={role} type="button" aria-pressed={activeView === "manager" && staffRole === role} onClick={() => {setStaffRole(role);setActiveView("manager");}} className={`min-h-10 rounded-lg px-3 py-2 text-xs font-bold transition sm:px-5 ${activeView === "manager" && staffRole === role ? "bg-violet-600 text-white shadow-sm" : "text-slate-600 hover:bg-violet-50"}`}>{roleLabels[role]}</button>)}
+            <p className="ml-auto hidden px-3 text-xs text-slate-500 xl:block">{copy.hint}</p>
+          </nav>
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-violet-100 bg-[#ede9f5] shadow-sm">
+            <section hidden={activeView !== "guest"} className="mx-auto h-full max-w-[600px] bg-white">
+              <iframe ref={guestFrame} src={guestSrc} onLoad={() => guestFrame.current?.contentWindow?.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"sync"},window.location.origin)} title={copy.guestTitle} className="block h-full w-full border-0 bg-white" allow="clipboard-read; clipboard-write"/>
+            </section>
+            <section hidden={activeView !== "manager"} className="h-full bg-white">
+              <iframe src={`/staff/demo/${staffRole}`} title={roleLabels[staffRole]} className="block h-full w-full border-0 bg-white" allow="clipboard-read; clipboard-write"/>
+            </section>
           </div>
-        </>
+        </div>
       )}
     </main>
   );

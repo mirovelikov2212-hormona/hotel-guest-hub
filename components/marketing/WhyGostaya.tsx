@@ -1,3 +1,4 @@
+import { GostayaReveal } from "./GostayaMotion";
 import MarketingIcon from "./MarketingIcon";
 import Image from "next/image";
 
@@ -47,10 +48,10 @@ export default function WhyGostaya({ lang }: { lang: Lang }) {
       <h2>{c.title.split("GOSTAYA")[0]}<span className="gostaya-mobile-brand">GOSTAYA</span></h2>
       <p className="gostaya-lead">{c.subtitle}</p>
       <p className="gostaya-body">{c.text}</p>
-      <div className="gostaya-benefits">{c.cards.map(([title,text],i)=><article key={title}>
+      <div className="gostaya-benefits">{c.cards.map(([title,text],i)=><GostayaReveal key={title} delayMs={i*60}><article>
         <span className="gostaya-emoji" aria-hidden="true"><MarketingIcon name={["settings","chart","sparkle","team"][i]}/></span>
         <h3>{title}</h3><p>{text}</p>
-      </article>)}</div>
+      </article></GostayaReveal>)}</div>
     </div>
     <div className="gostaya-manager-photo"><Image src="/marketing/reference/gostaya-manager-hq.webp" alt="" fill sizes="(min-width: 1024px) 360px, (min-width: 768px) 30vw, 100vw" className="object-cover"/>
       <div className="gostaya-photo-caption">{lang === "bg" ? "Технологията координира. Екипът се грижи." : lang === "de" ? "Technologie koordiniert. Ihr Team kümmert sich." : "Technology coordinates. Your team cares."}</div>

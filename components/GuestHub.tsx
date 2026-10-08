@@ -222,6 +222,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
 // END_STAYHUB_SECTION_ICON_HELPERS
 
 
+import { notifyDemoUpdate, subscribeDemoUpdates } from "@/lib/demo-live";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { StaffDepartment, StaffRequestType, StaffServiceTime, StaffRequestStatus } from "@/lib/staff/types";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -3820,7 +3821,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
     const interval = window.setInterval(() => {
       void safeLoad(true);
-    }, 30000);
+    }, config.hotelSlug === "demo" ? 5000 : 30000);
+    const unsubscribeDemo = subscribeDemoUpdates(config.hotelSlug, () => void safeLoad(true));
 
     const handleFocus = () => {
       void safeLoad(true);
@@ -3837,11 +3839,12 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
 
     return () => {
       cancelled = true;
+      unsubscribeDemo();
       window.clearInterval(interval);
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [activeStayId, guestRequestRefs, hotelScopeReady, loadGuestRequests, room, roomConfirmed, stayDeviceId]);
+  }, [activeStayId, config.hotelSlug, guestRequestRefs, hotelScopeReady, loadGuestRequests, room, roomConfirmed, stayDeviceId]);
 
   const ensureConfirmedRoom = () => {
     if (roomConfirmed && room.trim()) return true;
@@ -6089,6 +6092,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         ...prev.filter((item) => item.id !== created.id),
       ]);
 
+      notifyDemoUpdate(config.hotelSlug);
       trackGuestEvent({
         eventName: "request_created",
         eventCategory: "request",

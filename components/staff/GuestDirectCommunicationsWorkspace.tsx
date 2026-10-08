@@ -1,5 +1,6 @@
 "use client";
 
+import { notifyDemoUpdate, subscribeDemoUpdates } from "@/lib/demo-live";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import StaffCollapsiblePanel from "@/components/staff/StaffCollapsiblePanel";
@@ -139,6 +140,7 @@ export default function GuestDirectCommunicationsWorkspace({ hotelSlug, role }: 
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [sendError, setSendError] = useState("");
   const [seenGuestMessageIds, setSeenGuestMessageIds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => { setSeenGuestMessageIds(readSeenGuestMessages(hotelSlug, role)); }, [hotelSlug, role]);
@@ -162,8 +164,9 @@ export default function GuestDirectCommunicationsWorkspace({ hotelSlug, role }: 
   useEffect(() => {
     void load();
     const timer = window.setInterval(() => void load(), 10_000);
-    return () => window.clearInterval(timer);
-  }, [load]);
+    const unsubscribe = subscribeDemoUpdates(hotelSlug, () => void load());
+    return () => {window.clearInterval(timer);unsubscribe();};
+  }, [hotelSlug, load]);
 
   const stays = payload?.stays || [];
   const messages = payload?.messages || [];
@@ -189,17 +192,17 @@ export default function GuestDirectCommunicationsWorkspace({ hotelSlug, role }: 
 
   async function send() {
     if (!stayId || !body.trim() || busy || !payload?.deliveryEnabled) return;
-    setBusy(true); setError("");
+    setBusy(true); setSendError("");
     try {
       const response = await fetch("/api/staff/guest-direct-communications", {
         method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hotelSlug, role, stayId, body: body.trim() }),
       });
       if (!response.ok) throw new Error(`direct send ${response.status}`);
-      setBody(""); await load();
-    } catch (sendError) {
-      console.error("Guest direct communications send failed", sendError);
-      setError(copy.error);
+      setBody(""); notifyDemoUpdate(hotelSlug); await load();
+    } catch (sendFailure) {
+      console.error("Guest direct communications send failed", sendFailure);
+      setSendError(copy.error);
     } finally { setBusy(false); }
   }
 
@@ -222,7 +225,7 @@ export default function GuestDirectCommunicationsWorkspace({ hotelSlug, role }: 
   return (
     <div className="mb-5">
       <StaffCollapsiblePanel title={copy.title} summary={copy.summary} badge={headerBadge}>
-        {error ? <div className="mb-4 rounded-xl border border-rose-400/25 bg-rose-400/10 p-3 text-sm text-rose-700">{error}</div> : null}
+        {error || sendError ? <div role="alert" className="mb-4 rounded-xl border border-rose-400/25 bg-rose-400/10 p-3 text-sm text-rose-700">{sendError || error}</div> : null}
         {payload && !payload.deliveryEnabled ? <div className="mb-4 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3 text-sm text-amber-800">{copy.disabled}</div> : null}
         <div className="grid gap-5 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
           <div className="space-y-3 rounded-2xl border border-[var(--staff-border)] bg-[var(--staff-surface)] p-4">

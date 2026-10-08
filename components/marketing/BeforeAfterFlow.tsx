@@ -13,5 +13,6 @@ export default function BeforeAfterFlow({lang}:{lang:Lang}) {
       <ol>{steps.map((step,i)=><li key={step}><span className="gostaya-step-number">{String(i+1).padStart(2,"0")}</span><span><BrandText text={step}/></span></li>)}</ol>
       <div className="gostaya-flow-result">{lang==="bg"?(column?"Един проследим процес. От госта до мениджъра.":"Координацията зависи от обаждания и препредаване."):lang==="de"?(column?"Ein nachvollziehbarer Ablauf – vom Gast bis zum Management.":"Koordination durch Anrufe und manuelle Weitergabe."):(column?"One traceable process, from guest to manager.":"Coordination relies on calls and manual handovers.")}</div>
     </article>)}</div>
+    <div className="gostaya-time-saved"><strong>{c.saved}</strong><p>{c.note}</p></div>
   </section>;
 }

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
-import { MarketingFlag } from "./MarketingIcon";
+import MarketingIcon, { MarketingFlag } from "./MarketingIcon";
 import MassageBookingExample from "./MassageBookingExample";
 
 const CONVERSATIONS = {
@@ -30,7 +29,7 @@ export default function AiConciergeExample({ lang }: { lang: "bg" | "en" | "de" 
   const [bookingOpen, setBookingOpen] = useState(false);
   const c = CONVERSATIONS[language];
   return <div className="gostaya-ai-example">
-    <div className="gostaya-ai-example-header"><Image src="/marketing/reference/gostaya-ai-concierge.webp" alt="" width={80} height={80}/><div><strong>GOSTAYA AI</strong><p lang={language === "cz" ? "cs" : language}>{c.hello}</p></div></div>
+    <div className="gostaya-ai-example-header"><span className="gostaya-ai-signal" aria-hidden="true"><MarketingIcon name="sparkle"/></span><div><strong>GOSTAYA AI</strong><p lang={language === "cz" ? "cs" : language}>{c.hello}</p></div></div>
     <div className="gostaya-ai-language-picker" role="group" aria-label={lang === "bg" ? "Език на примера" : lang === "de" ? "Sprache des Beispiels" : "Example language"}>{(Object.keys(CONVERSATIONS) as (keyof typeof CONVERSATIONS)[]).map(locale => <button key={locale} type="button" aria-pressed={language === locale} aria-label={CONVERSATIONS[locale].name} title={CONVERSATIONS[locale].name} onClick={() => {setLanguage(locale);setBookingOpen(false);}}><MarketingFlag country={locale}/><span>{locale === "cz" ? "CS" : locale.toUpperCase()}</span></button>)}</div>
     <div lang={language === "cz" ? "cs" : language}><div className="gostaya-ai-question-picker" role="group" aria-label={c.hello}>{c.questions.map((label,i)=><button key={i} type="button" aria-pressed={question === i} onClick={() => {setQuestion(i);setBookingOpen(false);}}>{label}</button>)}</div>
       <div className="gostaya-ai-transcript" aria-live="polite" aria-atomic="true"><p className="gostaya-ai-question">{c.questions[question]}</p><p className="gostaya-ai-answer" key={`${language}-${question}`}>{c.answers[question]}</p>{question === 2 ? <button type="button" className="gostaya-ai-response-action" aria-expanded={bookingOpen} onClick={()=>setBookingOpen(!bookingOpen)}>{ACTION_LABELS[language][question]} <span aria-hidden="true">→</span></button> : <a className="gostaya-ai-response-action" href={`/demo?lang=${lang}&guestLang=${language === "cz" ? "cs" : language}&section=${ACTION_SECTIONS[question]}`}>{ACTION_LABELS[language][question]} <span aria-hidden="true">→</span></a>}</div></div>
