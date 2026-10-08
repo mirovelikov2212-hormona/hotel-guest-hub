@@ -1,6 +1,7 @@
 "use client";
 
 import { notifyDemoUpdate, subscribeDemoUpdates } from "@/lib/demo-live";
+import { demoStorageKey } from "@/lib/demo-session";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -48,7 +49,8 @@ function normalizeLanguage(value: unknown): LangKey {
 function readStay(hotelSlug: string): StoredGuestRoomState | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(`guesthub_room_state:${String(hotelSlug || "default").trim().toLowerCase()}`);
+    const key = `guesthub_room_state:${String(hotelSlug || "default").trim().toLowerCase()}`;
+    const raw = window.localStorage.getItem(hotelSlug === "demo" ? demoStorageKey(key) : key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as StoredGuestRoomState;
     if (!parsed?.roomConfirmed || !parsed.stayId || !parsed.stayDeviceId || !parsed.deviceToken) return null;
@@ -65,7 +67,8 @@ function readLanguage(defaultLanguage: LangKey): LangKey {
 function readSeen(hotelSlug: string) {
   if (typeof window === "undefined") return new Set<string>();
   try {
-    const raw = window.localStorage.getItem(`stayhub:guest-communications-seen:v1:${hotelSlug}`);
+    const key = `stayhub:guest-communications-seen:v1:${hotelSlug}`;
+    const raw = window.localStorage.getItem(hotelSlug === "demo" ? demoStorageKey(key) : key);
     const parsed = raw ? JSON.parse(raw) : [];
     return new Set(Array.isArray(parsed) ? parsed.map(String).filter(Boolean).slice(0, 100) : []);
   } catch { return new Set<string>(); }
@@ -73,7 +76,7 @@ function readSeen(hotelSlug: string) {
 
 function writeSeen(hotelSlug: string, ids: string[]) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(`stayhub:guest-communications-seen:v1:${hotelSlug}`, JSON.stringify(Array.from(new Set(ids)).slice(0, 100))); }
+  try { const key = `stayhub:guest-communications-seen:v1:${hotelSlug}`; window.localStorage.setItem(hotelSlug === "demo" ? demoStorageKey(key) : key, JSON.stringify(Array.from(new Set(ids)).slice(0, 100))); }
   catch { }
 }
 
@@ -138,12 +141,13 @@ export default function GuestCommunicationsInbox({ hotelSlug, defaultLanguage, b
   const unreadCount = useMemo(() => messages.filter((message) => !seenIds.has(message.id) && message.senderType !== "guest").length, [messages, seenIds]);
 
   const openInbox = useCallback(() => {
+    refreshIdentity();
     setOpen(true);
     const nextSeen = new Set(seenIds);
     for (const message of messages) nextSeen.add(message.id);
     setSeenIds(nextSeen);
     writeSeen(hotelSlug, Array.from(nextSeen));
-  }, [hotelSlug, messages, seenIds]);
+  }, [hotelSlug, messages, seenIds, refreshIdentity]);
 
   useEffect(() => {
     if (!open && unreadCount > 0) openInbox();
@@ -167,7 +171,7 @@ export default function GuestCommunicationsInbox({ hotelSlug, defaultLanguage, b
     } finally { setSending(false); }
   }
 
-  if (!stay) return null;
+  if (!stay && variant !== "tile") return null;
 
   return (
     <div className={variant === "tile" ? "stayhub-demo-message-tile" : "fixed bottom-5 right-4 z-[80] sm:bottom-6 sm:right-6"} style={{ "--guest-message-brand": brandColor } as CSSProperties}>

@@ -44,7 +44,7 @@ export default function MarketingPage({lang}:{lang:Lang}) {
 
         <div className="gostaya-hero-image">
           <Image
-            src="/marketing/reference/gostaya-hero-resort-hq.webp"
+            src="/marketing/reference/gostaya-sunset-reference.jpg"
             alt=""
             fill
             priority

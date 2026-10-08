@@ -3,6 +3,7 @@ import "./globals.css";
 import "./internal-tools-brand.css";
 import "./demo-refinements.css";
 import "./demo-session-layout.css";
+import "./gostaya-visual-refinements.css";
 import PWARegister from "@/components/PWARegister";
 
 export const metadata: Metadata = {

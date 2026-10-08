@@ -8811,7 +8811,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
   return (
     <div className="stayhub-premium-screen mx-auto min-h-screen max-w-md" style={themeStyle}>
-      {isPublicDemoHotel ? <div id="gostaya-demo-mobile-guide-slot" className="stayhub-demo-mobile-guide-slot"><div className="gostaya-demo-mobile-language"><strong>GOSTAYA</strong><select aria-label="Language" value={String(lang)} onChange={event=>setLang(event.target.value as LangKey)}>{config.languages.map(locale=><option key={String(locale)} value={String(locale)}>{String(locale).toUpperCase()}</option>)}</select></div></div> : null}
+      {isPublicDemoHotel ? <div id="gostaya-demo-mobile-guide-slot" className="stayhub-demo-mobile-guide-slot"><div className="gostaya-demo-mobile-language"><strong>GOSTAYA</strong><select className="stayhub-language-select" aria-label="Language" value={String(lang)} onChange={event=>setLang(event.target.value as LangKey)}>{config.languages.map(locale=><option key={String(locale)} value={String(locale)}>{String(locale).toUpperCase()}</option>)}</select></div></div> : null}
       {!(isPublicDemoHotel && sp.get("demoMobile") === "1") ? <div className="stayhub-demo-hero-shell relative">
         <div className="stayhub-premium-hero relative h-[246px] sm:h-[270px] md:h-[300px] w-full overflow-hidden">
           <img

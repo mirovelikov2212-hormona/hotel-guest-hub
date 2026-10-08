@@ -1,0 +1,69 @@
+@font-face {
+  font-family: 'Cormorant';
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/marketing/fonts/cormorant-italic-500.woff) format('woff');
+}
+@font-face {
+  font-family: 'Cormorant';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/marketing/fonts/cormorant-normal-500.woff) format('woff');
+}
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/marketing/fonts/onest-normal-400.woff) format('woff');
+}
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(/marketing/fonts/onest-normal-600.woff) format('woff');
+}
+@font-face {
+  font-family: 'Onest';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/marketing/fonts/onest-normal-700.woff) format('woff');
+}
+
+/* Public marketing/demo polish; production hotel themes remain configurable. */
+.gostaya-marketing button,.gostaya-marketing .gostaya-primary-action,.gostaya-marketing .gostaya-secondary-action,.gostaya-marketing .gostaya-ai-action,.gostaya-demo-workspace button,.gostaya-demo-workspace .gostaya-demo-top>a,.gostaya-demo-guest button,.demo-compact-panel button,.gostaya-module-dialog button{border-radius:999px!important}
+/* Large utility/service cards retain a rounded rectangular silhouette. */
+.gostaya-demo-guest .stayhub-premium-tile,.gostaya-demo-guest .stayhub-install-card,.gostaya-demo-guest .stayhub-premium-push-card,.gostaya-demo-guest .stayhub-demo-message-button{border-radius:22px!important}
+.gostaya-demo-guest .stayhub-demo-message-button::after{border-radius:0 0 21px 21px!important}
+.gostaya-demo-guest .stayhub-language-select{appearance:none!important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%23603095' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;background-repeat:no-repeat!important;background-position:right 8px center!important;background-size:16px!important;padding-right:30px!important;min-width:70px;color:#603095!important}
+.gostaya-demo-guest .stayhub-language-select:focus-visible{outline:2px solid #7c3aed;outline-offset:2px}
+/* Explicit top-layer centering after CSS resets. */
+.gostaya-module-dialog[open]{position:fixed;inset:0;margin:auto!important;width:min(620px,calc(100vw - 24px));height:fit-content;max-height:calc(100dvh - 32px);box-sizing:border-box}
+.gostaya-module-slide .gostaya-product-experience{width:100%;margin-inline:auto;min-width:0}
+.gostaya-module-slide .gostaya-module-panel{width:100%;min-width:0;margin:0}
+/* Reference photographs are clipped in layout; their original pixels are preserved. */
+.gostaya-marketing .gostaya-brand-stage{padding:24px 52px 28px 20px;min-height:580px}
+.gostaya-reference-phone{width:260px;max-width:100%;margin:auto;padding:12px 15px 10px;border:7px solid #111824;border-radius:43px;background:var(--hotel-surface);color:var(--hotel-ink);box-shadow:0 20px 42px #25163b25;font-family:"Onest",Arial,sans-serif;overflow:hidden}
+.gostaya-reference-notch{width:78px;height:22px;margin:0 auto 18px;border-radius:99px;background:#050505}
+.gostaya-reference-hotel{display:flex;justify-content:space-between;align-items:center;gap:9px;margin:0 3px 14px}
+.gostaya-reference-hotel strong{font-family:var(--hotel-font);font-style:var(--hotel-font-style);font-size:16px;font-weight:600;color:var(--hotel-ink);line-height:1.2}
+.gostaya-reference-hotel>span{flex:none;font-size:10px;font-weight:700;color:var(--hotel-muted);white-space:nowrap}
+.gostaya-reference-photo{position:relative;width:100%;overflow:hidden;border-radius:22px;background:var(--hotel-surface)}
+.gostaya-reference-photo img{position:absolute;object-fit:fill}
+.gostaya-reference-welcome{padding:16px 3px 18px;min-height:125px}
+.gostaya-marketing .gostaya-reference-welcome p{margin:0;color:var(--hotel-muted);font-size:12px;line-height:1.45;text-align:left}
+.gostaya-marketing .gostaya-reference-welcome h3{margin:3px 0 9px;color:var(--hotel-accent);font-family:var(--hotel-font);font-style:var(--hotel-font-style);font-size:23px;line-height:1.06;font-weight:600;letter-spacing:-.025em;text-wrap:initial}
+.gostaya-reference-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:2px 3px 12px}
+.gostaya-reference-tiles>div{display:flex;align-items:center;justify-content:center;min-height:44px;border:1px solid color-mix(in srgb,var(--hotel-accent) 18%,transparent);border-radius:15px;background:var(--hotel-card);color:var(--hotel-ink);font-size:11px;font-weight:600;line-height:1.25;text-align:center;padding:8px 4px}
+.gostaya-reference-home{width:66px;height:3px;margin:auto;border-radius:99px;background:var(--hotel-ink);opacity:.35}
+.gostaya-reference-phone[data-hotel-type=luxury] .gostaya-reference-hotel strong{color:var(--hotel-accent);font-size:21px}
+.gostaya-reference-phone[data-hotel-type=luxury] .gostaya-reference-welcome h3{font-size:30px;font-weight:500}
+.gostaya-reference-phone[data-hotel-type=boutique] .gostaya-reference-welcome h3{font-size:28px}
+.gostaya-marketing .gostaya-brand-palette{max-width:175px;right:-8px;bottom:30px}
+.gostaya-marketing .gostaya-brand-palette strong{font-family:"Onest",Arial,sans-serif!important;font-size:12px}
+@media(max-width:760px){.gostaya-marketing .gostaya-brand-device{max-width:350px;width:100%;margin-inline:auto}.gostaya-marketing .gostaya-brand-stage{padding:20px 38px 28px 10px;min-height:565px}.gostaya-module-slide .gostaya-product-experience{padding:17px 12px}.gostaya-module-dialog[open]{max-width:calc(100vw - 24px)}}
+@media(prefers-reduced-motion:reduce){.gostaya-brand-transition{animation:none!important}}
