@@ -1,3 +1,4 @@
+import {validDemoTimeZone,demoRoutingApplies,demoRequestReady} from "@/lib/demo-routing.mjs";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";
@@ -124,11 +125,12 @@ function canRoleUpdateDepartment(
   department: StaffDepartment | undefined,
   serviceTime?: string,
   hotelConfig?: HotelConfig | null,
+  demoWorking?: boolean,
 ) {
-  const afterHours = !isDepartmentWorkingHoursForConfig({
+  const afterHours = demoWorking === undefined ? !isDepartmentWorkingHoursForConfig({
     hotelConfig,
     department: role,
-  });
+  }) : !demoWorking;
 
   if (role === "manager") {
     return (
@@ -203,7 +205,7 @@ export async function POST(req: NextRequest) {
 
     const { data: requestRow, error: requestError } = await supabaseAdmin
       .from("guest_requests")
-      .select("id, hotel_id, stay_id, stay_device_id, status, metadata_json, request_type, room_number_snapshot, is_test, test_expires_at")
+      .select("id, hotel_id, stay_id, stay_device_id, status, metadata_json, request_type, room_number_snapshot, created_at, is_test, test_expires_at")
       .eq("id", requestId)
       .eq("hotel_id", scope.hotelId)
       .maybeSingle();
@@ -215,7 +217,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const requestData = requestRow as GuestRequestRow & { request_type: string };
+    const requestData = requestRow as GuestRequestRow & { request_type: string; created_at:string };
 
     if (requestData.status === status) {
       return NextResponse.json({ ok: true, noop: true });
@@ -224,6 +226,9 @@ export async function POST(req: NextRequest) {
     const normalizedType = normalizeStaffRequestType(requestData.request_type, requestData.metadata_json?.department);
     const department = requestData.metadata_json?.department ?? getDepartmentForRequestType(normalizedType);
     const serviceTime = requestData.metadata_json?.serviceTime;
+    const demoTimeZone = validDemoTimeZone(body?.demoTimeZone);
+    const demoWorking = demoTimeZone && demoRoutingApplies(scope.hotelSlug,requestData.is_test,requestData.room_number_snapshot)
+      ? demoRequestReady({serviceTime,createdAtIso:requestData.created_at},demoTimeZone) : undefined;
 
     if (
       !canRoleUpdateDepartment(
@@ -231,6 +236,7 @@ export async function POST(req: NextRequest) {
         department,
         serviceTime,
         operationalConfig,
+        demoWorking,
       )
     ) {
       return NextResponse.json(
@@ -249,6 +255,9 @@ export async function POST(req: NextRequest) {
     if (status === "completed") {
       const completedAt = new Date().toISOString();
       payload.resolved_at = completedAt;
+      if(demoRoutingApplies(scope.hotelSlug,requestData.is_test,requestData.room_number_snapshot)) {
+        payload.test_expires_at=new Date(Date.now()+180_000).toISOString();
+      }
       payload.closed_at = completedAt;
 
       if (

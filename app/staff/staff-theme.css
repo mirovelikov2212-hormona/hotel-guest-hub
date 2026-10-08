@@ -501,3 +501,4 @@
 .stayhub-staff-shell.gostaya-demo-compact-shell[data-staff-theme="light"] .stayhub-staff-workspace .demo-compact-panel .stayhub-communication-card{background:#faf5ff!important;border-color:#d7bceb!important;color:#291640!important}
 
 .gostaya-demo-compact-shell{--gostaya-ui-blue:#7c3aed!important;--gostaya-ui-blue-deep:#67359a!important;--gostaya-ui-blue-soft:#efe3fa!important}
+@media(max-width:700px){.gostaya-demo-compact-shell>div.mx-auto{padding:10px!important}.demo-compact-panel>header{padding:12px}.demo-compact-panel h1{font-size:20px!important}.demo-request-filters{grid-template-columns:repeat(2,1fr);gap:6px}.demo-request-filters button{padding:9px}.demo-request-filters b{font-size:17px}.demo-request-grid{grid-template-columns:1fr}.demo-request-grid article{padding:14px}.demo-panel-empty{padding:30px 16px}.demo-compact-panel>footer{display:block}}

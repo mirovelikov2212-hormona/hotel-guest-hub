@@ -24,14 +24,14 @@ export function GostayaVortex({ className = "" }: { className?: string; lang?: "
     if (!ctx) return;
     let width = 1, height = 1, visible = false, frame = 0, last = 0, phase = 0;
     // Deterministic seeds; no React updates per frame.
-    const particles = Array.from({ length: 280 }, (_, i) => ({
-      t: i / 280, size: .8 + ((i * 17) % 11) / 12, arm: i % 3,
+    const particles = Array.from({ length: 680 }, (_, i) => ({
+      t: i / 680, size: .8 + ((i * 17) % 11) / 12, arm: i % 3,
     }));
     function draw() {
       if (!canvas || !ctx) return;
       ctx.clearRect(0, 0, width, height);
       const radius = Math.min(width * .43, height * 1.08);
-      const count = width < 350 ? 160 : particles.length;
+      const count = width < 350 ? 340 : particles.length;
       for (let i = 0; i < count; i++) {
         const p = particles[Math.floor(i * particles.length / count)];
         const distance = .13 + p.t * .87;
@@ -46,7 +46,7 @@ export function GostayaVortex({ className = "" }: { className?: string; lang?: "
         const depth = -px * Math.sin(yaw) + tz * Math.cos(yaw);
         const perspective = 520 / (520 + depth);
         const x = width / 2 + tx * perspective;
-        const y = height / 2 + ty * perspective;
+        const y = height * .58 + ty * perspective;
         ctx.globalAlpha = Math.max(.2, Math.min(1, .6 - depth / (radius * 2)));
         ctx.fillStyle = i % 4 === 0 ? "#ffffff" : i % 2 ? "#d8b4fe" : "#a855f7";
         ctx.beginPath();

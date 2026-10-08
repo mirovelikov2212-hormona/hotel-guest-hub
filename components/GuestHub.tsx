@@ -2927,6 +2927,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   ]);
 
   const [guestRequests, setGuestRequests] = useState<GuestStatusItem[]>([]);
+  const [demoRequest,setDemoRequest] = useState<{id:string;status:string}|undefined>();
+  const demoCompletionTimers = useRef(new Map<string,ReturnType<typeof setTimeout>>());
+  const demoExpiredCompletions = useRef(new Set<string>());
+  useEffect(()=>()=>{for(const timer of demoCompletionTimers.current.values()) clearTimeout(timer);},[]);
   const [guestRequestsLoading, setGuestRequestsLoading] = useState(false);
   const [showRequestSuccess, setShowRequestSuccess] = useState(false);
   const [submittingRequest, setSubmittingRequest] = useState(false);
@@ -3700,8 +3704,8 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
   );
 
   const activeGuestRequests = useMemo(
-    () => guestRequests.filter((item) => item.status !== "completed"),
-    [guestRequests]
+    () => guestRequests.filter((item) => isPublicDemoHotel || item.status !== "completed"),
+    [guestRequests,isPublicDemoHotel]
   );
 
   const contact = config.contacts;
@@ -3754,7 +3758,23 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         );
 
         const completedIds = new Set(rows.filter((row) => row.status === "completed").map((row) => row.id));
-        const activeItems = rows.filter((row) => row.status !== "completed").map((row) => ({
+        if (isPublicDemoHotel) {
+          setDemoRequest(previous => {
+            const current=rows.find(row=>row.id===previous?.id);
+            return current && previous?.status!==current.status ? {id:current.id,status:current.status} : previous;
+          });
+          const frame=window.frameElement as HTMLIFrameElement|null;
+          if (!frame?.hidden) for(const row of rows) {
+            if(row.status!=="completed" || demoCompletionTimers.current.has(row.id) || demoExpiredCompletions.current.has(row.id)) continue;
+            demoCompletionTimers.current.set(row.id,setTimeout(()=>{
+              demoExpiredCompletions.current.add(row.id);
+              setGuestRequests(previous=>previous.filter(item=>item.id!==row.id));
+              const remaining=readStoredGuestRequestRefs().filter(item=>item.id!==row.id);
+              writeStoredGuestRequestRefs(remaining);setGuestRequestRefs(remaining);
+            },12_000));
+          }
+        }
+        const activeItems = rows.filter((row) => isPublicDemoHotel ? !demoExpiredCompletions.current.has(row.id) : row.status !== "completed").map((row) => ({
           id: row.id,
           room: row.room,
           title: row.title,
@@ -3778,7 +3798,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
           }))
         );
 
-        if (completedIds.size) {
+        if (completedIds.size && !isPublicDemoHotel) {
           const nextRefs = readStoredGuestRequestRefs().filter(
             (item) => !(item.room === room && completedIds.has(item.id))
           );
@@ -3791,7 +3811,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         if (!silent) setGuestRequestsLoading(false);
       }
     },
-    [activeStayId, config.hotelSlug, guestRequestRefs, hotelScopeReady, room, roomConfirmed, stayDeviceId]
+    [activeStayId, config.hotelSlug, guestRequestRefs, hotelScopeReady, room, roomConfirmed, stayDeviceId,isPublicDemoHotel]
   );
 
   useEffect(() => {
@@ -6092,6 +6112,7 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         ...prev.filter((item) => item.id !== created.id),
       ]);
 
+      if(isPublicDemoHotel) setDemoRequest({id:created.id,status:created.status});
       notifyDemoUpdate(config.hotelSlug);
       trackGuestEvent({
         eventName: "request_created",
@@ -9258,7 +9279,7 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
       ) : null}
 
       {roomConfirmed && activeGuestRequests.length > 0 ? (
-        <div className="mt-3 px-4">
+        <div id="gostaya-demo-request-status" className="mt-3 px-4">
           <div className="rounded-2xl stayhub-panel p-4">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-base font-semibold text-white">{roomCopy.myRequestsTitle}</h2>
@@ -9531,6 +9552,12 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
             String(openQuickServiceId || ""),
           )}
           hasRequest={showRequestSuccess}
+          latestRequest={demoRequest}
+          onFocusRequests={()=>{
+            void loadGuestRequests(undefined,{silent:true}).then(()=>{
+              document.getElementById("gostaya-demo-request-status")?.scrollIntoView({behavior:"smooth",block:"center"});
+            });
+          }}
           onFocusRoom={() => {
             setManualRoomInput("901");
             window.setTimeout(() => {

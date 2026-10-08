@@ -188,7 +188,7 @@ export default async function HotelHubPage({ params, searchParams }: PageProps) 
   // configuration supplies content and capabilities, but must never override
   // tenant identity for guest operational API calls.
   const guestRuntimeHotelSlug = hotelSlug.trim().toLowerCase();
-  const compactDemo = guestRuntimeHotelSlug === "demo" && getSingleSearchParam((await searchParams).demoCompact) === "1";
+  const compactDemo = guestRuntimeHotelSlug === "demo";
   const guestConfig = {
     ...cfg,
     hotelSlug: guestRuntimeHotelSlug,

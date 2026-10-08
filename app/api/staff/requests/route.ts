@@ -1,3 +1,4 @@
+import {validDemoTimeZone,demoRoutingApplies,demoRequestReady} from "@/lib/demo-routing.mjs";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import type { StaffRole } from "@/lib/staff-auth/cookie-name";
@@ -382,9 +383,12 @@ export async function GET(req: NextRequest) {
         hotelConfig: operationalConfig,
         department: role,
       });
-      if (coverage.workingHoursKnown && !coverage.working) {
-        requests = requests.filter((request) => request.status === "completed");
-      }
+      const demoTimeZone = validDemoTimeZone(searchParams.get("demoTimeZone"));
+      requests = requests.filter(request => {
+        if (request.status === "completed") return true;
+        if (demoTimeZone && demoRoutingApplies(scope.hotelSlug,request.isTest,request.room)) return demoRequestReady(request,demoTimeZone);
+        return !coverage.workingHoursKnown || coverage.working;
+      });
     }
 
     return NextResponse.json(

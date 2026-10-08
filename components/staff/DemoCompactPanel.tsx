@@ -1,4 +1,5 @@
 "use client";
+import {browserDemoTimeZone} from "@/lib/demo-routing.mjs";
 import { useState } from "react";
 import { useStaffStore } from "./store/StaffStoreProvider";
 import { useStaffUi } from "./StaffUiProvider";
@@ -26,7 +27,7 @@ export default function DemoCompactPanel({role}:{role:Role}) {
   async function change(id:string,status:StaffRequestStatus) {
     setBusy(id);setError("");
     try {
-      const response=await fetch("/api/staff/request-status",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,requestId:id,status,hotelSlug:"demo",role})});
+      const response=await fetch("/api/staff/request-status",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,requestId:id,status,hotelSlug:"demo",role,demoTimeZone:browserDemoTimeZone()})});
       if(!response.ok) throw new Error(String(response.status));
       notifyDemoUpdate("demo");
     } catch {setError(bg?"Промяната не е записана. Проверете отдела и опитайте отново.":de?"Änderung nicht gespeichert. Abteilung prüfen und erneut versuchen.":"Change was not saved. Check the department and try again.");}
@@ -40,8 +41,8 @@ export default function DemoCompactPanel({role}:{role:Role}) {
       {error?<p className="demo-panel-error" role="alert">{error}</p>:null}
       <div className="demo-request-grid">{filtered.slice(safePage*6,safePage*6+6).map(r=><article key={r.id}>
         <div className="demo-ticket-top"><strong>{bg?"Стая":de?"Zimmer":"Room"} {r.room}</strong><span className={`demo-status demo-status-${r.status}`}>{translateStaffStatus(r.status,lang)}</span></div>
-        <h2>{(lang==="en"?r.typeLabelEn:lang==="de"?r.typeLabelDe:r.typeLabelBg)||r.typeLabel}</h2><p>{translateDepartment(r.department,lang)} · {new Intl.DateTimeFormat(lang,{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Sofia"}).format(new Date(r.createdAtIso))}</p>
-        <div className="demo-ticket-actions">{r.status!=="completed"?<><button type="button" disabled={busy===r.id || r.status==="in_progress"} onClick={()=>void change(r.id,"in_progress")}>СТАРТ</button><button type="button" disabled={busy===r.id} onClick={()=>void change(r.id,"completed")}>{bg?"ГОТОВО":de?"ERLEDIGT":"DONE"}</button></>:<span>{bg?"Изпълнението е записано":de?"Erledigung gespeichert":"Completion recorded"}</span>}</div>
+        <h2>{(lang==="en"?r.typeLabelEn:lang==="de"?r.typeLabelDe:r.typeLabelBg)||r.typeLabel}</h2><p>{translateDepartment(r.department,lang)} · {new Intl.DateTimeFormat(lang,{hour:"2-digit",minute:"2-digit",timeZone:browserDemoTimeZone()}).format(new Date(r.createdAtIso))}</p>
+        <div className="demo-ticket-actions">{r.status!=="completed"?<><button type="button" disabled={busy===r.id || r.status==="in_progress"} onClick={()=>void change(r.id,"in_progress")}>{bg?"СТАРТ":"START"}</button><button type="button" disabled={busy===r.id} onClick={()=>void change(r.id,"completed")}>{bg?"ГОТОВО":de?"ERLEDIGT":"DONE"}</button></>:<span>{bg?"Изпълнението е записано":de?"Erledigung gespeichert":"Completion recorded"}</span>}</div>
       </article>)}</div>
       {!filtered.length?<div className="demo-panel-empty"><span aria-hidden="true">✓</span><h2>{bg?"Няма заявки в този изглед":de?"Keine Anfragen in dieser Ansicht":"No requests in this view"}</h2><p>{bg?"Изпратете заявка от хъба на госта. Тук ще видите стаята, услугата и нейния статус.":de?"Senden Sie eine Anfrage im Guest Hub. Zimmer, Service und Status erscheinen hier.":"Send a request from the Guest Hub to see its room, service and status here."}</p></div>:null}
       <footer><p>{bg?"Статусите се зареждат от сървъра. Виждате действително записаните промени.":de?"Status wird vom Server geladen.":"Statuses are loaded from the server."}</p>{pages>1?<div><button disabled={safePage===0} onClick={()=>setPage(safePage-1)} aria-label="Previous page">←</button><span>{safePage+1}/{pages}</span><button disabled={safePage===pages-1} onClick={()=>setPage(safePage+1)} aria-label="Next page">→</button></div>:null}</footer>

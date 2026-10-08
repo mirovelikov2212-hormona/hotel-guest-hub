@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import DemoGuideCard from "./DemoGuideCard";
 import { DEMO_GUIDE_ACTIONS, DEMO_GUIDE_CHANNEL, DEMO_GUIDE_STEPS, type DemoGuideAction, type DemoGuideModel } from "@/lib/demo-guide";
 
 type Props = {
-  lang: string; roomConfirmed: boolean; room: string; departmentOpen: boolean; hasRequest: boolean;
+  lang: string; roomConfirmed: boolean; room: string; departmentOpen: boolean; hasRequest: boolean; latestRequest?:{id:string;status:string}; onFocusRequests:()=>void;
   onFocusRoom: () => void; onOpenDepartment: () => void; onForceSurvey: () => void; onEndStay: () => Promise<boolean>;
 };
 const STEP_KEY = "gostaya-demo-guide-step-v4";
@@ -24,7 +24,7 @@ const subscribeEnvironment = () => () => {};
 const serverStep = () => 1;
 const serverEmbedded = () => false;
 
-export default function DemoJourneyGuide({lang,roomConfirmed,room,departmentOpen,hasRequest,onFocusRoom,onOpenDepartment,onForceSurvey,onEndStay}:Props) {
+export default function DemoJourneyGuide({lang,roomConfirmed,room,departmentOpen,hasRequest,latestRequest,onFocusRequests,onFocusRoom,onOpenDepartment,onForceSurvey,onEndStay}:Props) {
   const locale = lang === "bg" || lang === "de" ? lang : "en";
   const steps = DEMO_GUIDE_STEPS[locale];
   const step = useSyncExternalStore(subscribeStep, readStep, serverStep);
@@ -39,20 +39,21 @@ export default function DemoJourneyGuide({lang,roomConfirmed,room,departmentOpen
 
   const current = steps[step-1];
   const canContinue = step === 1 ? roomConfirmed && room === "901" : step === 2 ? observed.department : step === 3 ? observed.request : true;
-  const model: DemoGuideModel = {step,total:steps.length,...current,canContinue,hidden,finished,busy};
+  const model: DemoGuideModel = {step,total:steps.length,...current,canContinue,hidden,finished,busy,request:latestRequest};
 
-  function move(next:number) {
+  const move = useCallback((next:number) => {
     const safe = Math.max(1,Math.min(steps.length,next));
     memoryStep = safe;
     try { sessionStorage.setItem(STEP_KEY,String(safe)); } catch {}
     window.dispatchEvent(new Event(STEP_KEY));
-  }
+  },[steps.length]);
   async function act(action:DemoGuideAction) {
+    if (action === "guest") onFocusRequests();
     if (action === "room") onFocusRoom();
     if (action === "department") onOpenDepartment();
     if (action === "survey") onForceSurvey();
     if (action === "previous") move(step-1);
-    if (action === "next" && canContinue) move(step+1);
+    if (action === "next" && canContinue) move(step === 4 && ["in_progress","completed"].includes(latestRequest?.status || "") ? 6 : step+1);
     if (action === "hide") setHidden(true);
     if (action === "show") setHidden(false);
     if (action === "restart") {setFinished(false);setObserved({request: false, department: false});move(1);onFocusRoom();}
@@ -68,10 +69,17 @@ export default function DemoJourneyGuide({lang,roomConfirmed,room,departmentOpen
   }
 
   useEffect(()=>{
+    if (!latestRequest?.id) return;
+    if (step >= 2 && step <= 3) move(4);
+    else if (latestRequest.status === "completed" && step >= 4 && step <= 5) move(6);
+  },[latestRequest?.id,latestRequest?.status,step,move]);
+
+  useEffect(()=>{
     if (!embedded) return;
     window.parent.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"state",model},window.location.origin);
     function receive(event:MessageEvent) {
       if (event.origin !== window.location.origin || event.source !== window.parent || event.data?.channel !== DEMO_GUIDE_CHANNEL) return;
+      if (event.data.type === "reveal-request") onFocusRequests();
       if (event.data.type === "sync") window.parent.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"state",model},window.location.origin);
       if (event.data.type === "navigate" && Number.isInteger(event.data.step) && event.data.step >= 1 && event.data.step <= step) move(event.data.step);
       if (event.data.type === "action" && DEMO_GUIDE_ACTIONS.includes(event.data.action)) void act(event.data.action);

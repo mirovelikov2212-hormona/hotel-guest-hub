@@ -1,4 +1,5 @@
 "use client";
+import {browserDemoTimeZone} from "@/lib/demo-routing.mjs";
 
 import { notifyDemoUpdate, subscribeDemoUpdates } from "@/lib/demo-live";
 import {
@@ -156,6 +157,7 @@ async function fetchStaffRequests(input: {
     _: String(Date.now()),
   });
 
+  if(input.hotelSlug === "demo") params.set("demoTimeZone",browserDemoTimeZone());
   const response = await fetch(`/api/staff/requests?${params.toString()}`, {
     method: "GET",
     credentials: "include",
@@ -355,7 +357,7 @@ export function StaffStoreProvider({
           requestFeedVersionRef.current === null ||
           requestFeedVersionRef.current !== feedState.requestsVersion;
 
-        if (force || changed) {
+        if (force || changed || normalizedHotelSlug === "demo") {
           await loadRequests();
         }
         requestFeedVersionRef.current = feedState.requestsVersion;

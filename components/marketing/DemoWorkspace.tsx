@@ -1,7 +1,8 @@
 "use client";
 
 import "./demo-workspace.css";
-import { DEMO_GUIDE_STEPS } from "@/lib/demo-guide";
+import {browserDemoTimeZone,demoDepartmentWorking} from "@/lib/demo-routing.mjs";
+import { DEMO_GUIDE_STEPS, DEMO_SHORT_GUIDE } from "@/lib/demo-guide";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import DemoGuideCard from "@/components/guest/DemoGuideCard";
@@ -77,6 +78,14 @@ export default function DemoWorkspace() {
 
   const stage = useRef<HTMLDivElement>(null);
   const previousStep = useRef<number | null>(null);
+  const [isMobile,setIsMobile]=useState(false);
+  const [clock,setClock]=useState(new Date());
+  useEffect(()=>{
+    const resize=()=>setIsMobile(window.innerWidth<=760);resize();window.addEventListener("resize",resize);
+    const timer=setInterval(()=>setClock(new Date()),30_000);
+    return()=>{window.removeEventListener("resize",resize);clearInterval(timer);};
+  },[]);
+  const working=demoDepartmentWorking(browserDemoTimeZone(),clock);
   const [available,setAvailable] = useState({width:1000,height:800});
   useEffect(()=>{
     const element=stage.current;
@@ -89,11 +98,11 @@ export default function DemoWorkspace() {
       if (event.origin !== window.location.origin || event.source !== guestFrame.current?.contentWindow || event.data?.channel !== DEMO_GUIDE_CHANNEL || event.data?.type !== "state") return;
       if (Number.isInteger(event.data.model?.step) && Array.isArray(event.data.model?.instructions)) {
         const next=event.data.model as DemoGuideModel;
-        setGuide(next);
+        setGuide({...next,...DEMO_GUIDE_STEPS[lang][next.step-1]});
         if(previousStep.current!==next.step) {
           previousStep.current=next.step;
           if(next.step===4){setStaffRole("manager");setActiveView("manager");}
-          else if(next.step===5){setStaffRole("housekeeping");setActiveView("manager");}
+          else if(next.step===5){setStaffRole(demoDepartmentWorking(browserDemoTimeZone()) ? "housekeeping" : "reception");setActiveView("manager");}
           else if(next.step===7 || next.step===8){setStaffRole("reception");setActiveView("manager");}
           else setActiveView("guest");
         }
@@ -101,15 +110,19 @@ export default function DemoWorkspace() {
     }
     window.addEventListener("message", receive);
     return () => window.removeEventListener("message", receive);
-  }, []);
+  }, [lang]);
+
+  useEffect(()=>{
+    if(status==="ready" && activeView==="guest") guestFrame.current?.contentWindow?.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"reveal-request"},window.location.origin);
+  },[activeView,status,guide?.step]);
 
   function guideAction(action: DemoGuideAction) {
     if (action === "manager" || action === "housekeeping" || action === "reception") {
-      setStaffRole(action);
+      setStaffRole(action === "housekeeping" && !working ? "reception" : action);
       setActiveView("manager");
       return;
     }
-    if (["room", "department", "survey", "restart"].includes(action)) setActiveView("guest");
+    if (["guest", "room", "department", "survey", "restart"].includes(action)) setActiveView("guest");
     guestFrame.current?.contentWindow?.postMessage({channel: DEMO_GUIDE_CHANNEL, type: "action", action}, window.location.origin);
   }
 
@@ -162,20 +175,24 @@ export default function DemoWorkspace() {
 
   const backHref = lang === "bg" ? "/bg" : lang === "de" ? "/de" : "/en";
 
-  const frameWidth=activeView==="guest"?390:1000;
-  const frameHeight=activeView==="guest"?780:740;
-  const scale=Math.max(.2,Math.min(1,(available.width-40)/(frameWidth+24),(available.height-40)/(frameHeight+54)));
+  const frameWidth=isMobile?Math.max(260,available.width-24):activeView==="guest"?390:1000;
+  const frameHeight=isMobile?Math.max(240,available.height-54):activeView==="guest"?780:740;
+  const scale=isMobile?1:Math.max(.2,Math.min(1,(available.width-40)/(frameWidth+24),(available.height-40)/(frameHeight+54)));
+  const displayGuide = guide?.step===5 ? {...guide,title:lang==="bg"?`Обработете заявката в ${working?"Хаускипинг":"Рецепция"}`:guide.title,actions:[working?"housekeeping":"reception"] as DemoGuideAction[]} : guide;
+  const timeZone=browserDemoTimeZone();
+  const clockLabel=new Intl.DateTimeFormat(lang,{hour:"2-digit",minute:"2-digit",timeZone}).format(clock);
   return <main className="gostaya-demo-workspace">
     <header className="gostaya-demo-top"><div><strong>GOSTAYA</strong><span>{copy.title}</span></div><a href={backHref}>← {copy.back}</a></header>
     {status!=="ready"?<div className="gostaya-demo-preparing" aria-live="polite"><p>{status==="loading"?copy.loading:copy.error}</p>{status==="error"?<button onClick={()=>setAttempt(v=>v+1)}>{copy.retry}</button>:null}</div>:<div className="gostaya-demo-layout">
       <aside className="gostaya-demo-sidebar">
         <nav className="gostaya-demo-roles" aria-label={copy.managerTitle}>
-          <button type="button" aria-pressed={activeView==="guest"} onClick={()=>setActiveView("guest")}>◉ {copy.guest} · 901</button>
+          <button type="button" aria-pressed={activeView==="guest"} onClick={()=>{setActiveView("guest");guestFrame.current?.contentWindow?.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"reveal-request"},window.location.origin);}}>◉ {copy.guest} · 901</button>
           {(["reception","housekeeping","maintenance","manager"] as const).map(role=><button key={role} type="button" aria-pressed={activeView==="manager"&&staffRole===role} onClick={()=>{setStaffRole(role);setActiveView("manager");}}>{roleLabels[role]}</button>)}
         </nav>
         <p className="gostaya-demo-access">{lang==="bg"?"Демо стая":"Demo room"} 901 · PIN 2026</p>
-        {guide?<><DemoGuideCard model={guide} lang={lang} onAction={guideAction} compact vertical/>
-          <ol className="gostaya-demo-step-menu" aria-label={lang==="bg"?"Стъпки на демото":"Demo steps"}>{DEMO_GUIDE_STEPS[lang].map((step,i)=><li key={step.title} aria-current={guide.step===i+1?"step":undefined}><button disabled={i+1>guide.step} type="button" onClick={()=>guestFrame.current?.contentWindow?.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"navigate",step:i+1},window.location.origin)}><span>{i+1<guide.step?"✓":String(i+1).padStart(2,"0")}</span>{step.title}</button></li>)}</ol>
+        <details className="gostaya-demo-routing-note"><summary>{clockLabel} · {timeZone} · {lang==="bg"?(working?"Дневна смяна":"Поема Рецепция"):(working?"Day shift":"Reception covers")}</summary><p>{lang==="bg"?"08:00–17:00: заявките се виждат в съответния отдел, Рецепция и Мениджър. След 17:00 — само Рецепция и Мениджър. Неизпълнените заявки и тези за следващия ден се появяват в отдела в 08:00. Това е примерното правило на демо хотела; часовете тук следват браузъра ви.":lang==="de"?"08:00–17:00: zuständige Abteilung, Rezeption und Manager. Außerhalb der Schicht: Rezeption und Manager. Offene Anfragen kehren um 08:00 zur Abteilung zurück. Diese Demo nutzt Ihre Browser-Zeitzone.":"08:00–17:00: responsible department, Reception and Manager. After hours: Reception and Manager. Pending requests return to the department at 08:00. This demo uses your browser time zone."}</p></details>
+        {displayGuide?<>{isMobile?<div className="gostaya-demo-mobile-guide"><strong>{displayGuide.step}/{displayGuide.total} · {displayGuide.title}</strong><p>{DEMO_SHORT_GUIDE[lang][displayGuide.step-1]}</p><div>{displayGuide.step>1?<button onClick={()=>guideAction("previous")}>←</button>:null}{displayGuide.actions[0]?<button onClick={()=>guideAction(displayGuide.actions[0])}>{lang==="bg"?"Отвори":lang==="de"?"Öffnen":"Open"}</button>:null}{displayGuide.step<displayGuide.total?<button disabled={!displayGuide.canContinue} onClick={()=>guideAction("next")}>{lang==="bg"?"Продължи →":lang==="de"?"Weiter →":"Next →"}</button>:null}</div></div>:<DemoGuideCard model={displayGuide} lang={lang} onAction={guideAction} compact vertical/>}
+          <ol className="gostaya-demo-step-menu" aria-label={lang==="bg"?"Стъпки на демото":"Demo steps"}>{DEMO_GUIDE_STEPS[lang].map((step,i)=><li key={step.title} aria-current={displayGuide.step===i+1?"step":undefined}><button disabled={i+1>displayGuide.step} type="button" onClick={()=>guestFrame.current?.contentWindow?.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"navigate",step:i+1},window.location.origin)}><span>{i+1<displayGuide.step?"✓":String(i+1).padStart(2,"0")}</span>{step.title}</button></li>)}</ol>
         </>:<p>{copy.loading}</p>}
       </aside>
       <section className="gostaya-demo-preview">
@@ -184,8 +201,8 @@ export default function DemoWorkspace() {
           <div style={{width:(frameWidth+24)*scale,height:(frameHeight+54)*scale}} className="gostaya-demo-device-holder">
             <div className={`gostaya-demo-device ${activeView==="guest"?"gostaya-demo-device-phone":"gostaya-demo-device-panel"}`} style={{width:frameWidth+24,height:frameHeight+54,transform:`scale(${scale})`}}>
               <div className="gostaya-demo-device-top"><span>9:41</span><span>{activeView==="guest"?"GOSTAYA":"GOSTAYA · LIVE"}</span><span>•••</span></div>
-              <iframe hidden={activeView!=="guest"} ref={guestFrame} src={guestSrc} onLoad={()=>guestFrame.current?.contentWindow?.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"sync"},window.location.origin)} title={copy.guestTitle} style={{width:390,height:780}} allow="clipboard-read; clipboard-write"/>
-              {activeView==="manager"?<iframe src={`/staff/demo/${staffRole}?demoCompact=1`} title={roleLabels[staffRole]} style={{width:1000,height:740}} allow="clipboard-read; clipboard-write"/>:null}
+              <iframe hidden={activeView!=="guest"} ref={guestFrame} src={guestSrc} onLoad={()=>guestFrame.current?.contentWindow?.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"sync"},window.location.origin)} title={copy.guestTitle} style={{width:isMobile?frameWidth:390,height:isMobile?frameHeight:780}} allow="clipboard-read; clipboard-write"/>
+              {activeView==="manager"?<iframe src={`/staff/demo/${staffRole}?demoCompact=1`} title={roleLabels[staffRole]} style={{width:frameWidth,height:frameHeight}} allow="clipboard-read; clipboard-write"/>:null}
               <div className="gostaya-demo-device-home"/>
             </div>
           </div>

@@ -236,7 +236,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const testRoomPolicy = await getTestRoomPolicy(hotel.id, room);
+    const configuredTestRoomPolicy = await getTestRoomPolicy(hotel.id, room);
+    // Public demo requests must survive until the next 08:00 shift handover.
+    // Other hotels retain their configured test-room TTL unchanged.
+    const testRoomPolicy = hotel.slug === "demo" && configuredTestRoomPolicy.isTest && String(room) === "901"
+      ? {...configuredTestRoomPolicy,autoDeleteAfterSeconds:36*60*60,expiresAt:new Date(Date.now()+36*60*60*1000).toISOString()}
+      : configuredTestRoomPolicy;
     const isolationFields = getOperationalIsolationFields({ hotel, testRoomPolicy });
     const isolationMetadata = getOperationalIsolationMetadata({ hotel, testRoomPolicy });
     const suppressLivePush = shouldSuppressLivePush({ hotel, testRoomPolicy });
