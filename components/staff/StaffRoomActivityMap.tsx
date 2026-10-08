@@ -93,7 +93,7 @@ function formatUpdated(value: string | undefined, lang: "bg" | "en" | "de") {
   }).format(date);
 }
 
-export default function StaffRoomActivityMap({ hotelSlug, role }: { hotelSlug: string; role: "reception" | "manager" }) {
+export default function StaffRoomActivityMap({ hotelSlug, role, defaultOpen = false }: { hotelSlug: string; role: "reception" | "manager"; defaultOpen?: boolean }) {
   const { lang } = useStaffUi();
   const uiLang: "bg" | "en" | "de" = lang === "de" ? "de" : lang === "en" ? "en" : "bg";
   const copy = COPY[uiLang];
@@ -138,7 +138,7 @@ export default function StaffRoomActivityMap({ hotelSlug, role }: { hotelSlug: s
 
   return (
     <div className="mb-5">
-      <StaffCollapsiblePanel title={copy.title} summary={copy.summary} badge={badge}>
+      <StaffCollapsiblePanel defaultOpen={defaultOpen} title={copy.title} summary={copy.summary} badge={badge}>
         {error ? <div className="mb-4 rounded-xl border border-rose-400/25 bg-rose-400/10 p-3 text-sm text-rose-700">{error}</div> : null}
         {summary?.unconfiguredActiveRooms ? (
           <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-800">

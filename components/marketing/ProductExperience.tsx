@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import MarketingIcon from "./MarketingIcon";
+import ProductModuleExplorer from "./ProductModuleExplorer";
 
 type Lang = "bg" | "en" | "de";
 const COPY = {
@@ -78,10 +79,12 @@ function RequestJourney({ lang }: { lang: Lang }) {
 function Departments({ lang }: { lang: Lang }) {
   const c = COPY[lang];
   const [selected, setSelected] = useState(0);
+  const [status, setStatus] = useState(1);
+  const action = lang === "bg" ? "Покажи следващия статус" : lang === "de" ? "Nächsten Status anzeigen" : "Show next status";
   return <div className="gostaya-department-example"><div className="gostaya-example-heading"><span>{c.example}</span></div><h4>{c.departmentTitle}</h4>
-    <div className="gostaya-department-picker" role="group" aria-label={c.departmentTitle}>{c.departments.map((department, i) => <button key={department} type="button" aria-pressed={selected === i} onClick={() => setSelected(i)}><MarketingIcon name={["reception", "housekeeping", "maintenance", "chart"][i]}/><span>{department}</span></button>)}</div>
+    <div className="gostaya-department-picker" role="group" aria-label={c.departmentTitle}>{c.departments.map((department, i) => <button key={department} type="button" aria-pressed={selected === i} onClick={() => { setSelected(i); setStatus(1); }}><MarketingIcon name={["reception", "housekeeping", "maintenance", "chart"][i]}/><span>{department}</span></button>)}</div>
     <div className="gostaya-department-content" key={selected} aria-live="polite"><div className="gostaya-example-heading"><strong>{c.departments[selected]}</strong><span>{c.example}</span></div><p>{c.description[selected]}</p>
-      {selected < 3 ? <div className="gostaya-request-ticket"><div><span className="gostaya-request-room">{c.room}</span><strong>{c.tickets[selected]}</strong></div><span className="gostaya-status">{c.stages[1]}</span></div> : <div className="gostaya-manager-rows">{c.departments.slice(0,3).map((name,i)=><div key={name}><MarketingIcon name={["reception","housekeeping","maintenance"][i]}/><strong>{name}</strong><span className="gostaya-status">{c.stages[i+1]}</span></div>)}</div>}
+      {selected < 3 ? <><div className="gostaya-request-ticket"><div><span className="gostaya-request-room">{c.room}</span><strong>{c.tickets[selected]}</strong></div><span className="gostaya-status" data-complete={status === 3}>{c.stages[status]}</span></div><button type="button" className="gostaya-secondary-action" onClick={() => setStatus(status === 3 ? 1 : status + 1)}>{action}</button></> : <div className="gostaya-manager-rows">{c.departments.slice(0,3).map((name,i)=><div key={name}><MarketingIcon name={["reception","housekeeping","maintenance"][i]}/><strong>{name}</strong><span className="gostaya-status">{c.stages[i+1]}</span></div>)}</div>}
     </div><small className="gostaya-example-note">{c.demoNote}</small>
   </div>;
 }
@@ -90,8 +93,7 @@ export default function ProductExperience({ moduleKey, lang }: { moduleKey: stri
   const c = COPY[lang];
   if (moduleKey === "guest") return <RequestJourney lang={lang}/>;
   if (moduleKey === "staff" || moduleKey === "team") return <Departments lang={lang}/>;
-  if (moduleKey === "manager") return <div className="gostaya-manager-example"><div className="gostaya-example-heading"><span>MANAGER INTELLIGENCE</span></div><h4>{c.managerTitle}</h4><div className="gostaya-intelligence-cycle">{c.cycle.map((label,i)=><div key={label} data-approval={i===3}><span>0{i+1}</span><strong>{label}</strong>{i===3 && <MarketingIcon name="team"/>}</div>)}</div><p className="gostaya-example-note">{c.managerNote}</p></div>;
-  const index = moduleKey === "training" ? 0 : moduleKey === "revenue" ? 1 : 2;
-  const labels = [c.training, c.revenue, c.integration][index];
-  return <div className="gostaya-module-illustration"><div className="gostaya-example-heading"><span>{c.example}</span></div><div className="gostaya-module-sequence">{labels.map((label,i)=><div key={label}><span className="gostaya-sequence-icon"><MarketingIcon name={[["info","training","chart"],["massage","euro","chart"],["settings","link","business"]][index][i]}/></span><strong>{label}</strong><span>0{i+1}</span></div>)}</div><p className="gostaya-example-note">{c.moduleNotes[index]}</p></div>;
+  if (moduleKey === "manager") return <div className="gostaya-manager-example"><ProductModuleExplorer moduleKey="manager" lang={lang} /><div className="gostaya-example-heading"><span>MANAGER INTELLIGENCE</span></div><h4>{c.managerTitle}</h4><div className="gostaya-intelligence-cycle">{c.cycle.map((label,i)=><div key={label} data-approval={i===3}><span>0{i+1}</span><strong>{label}</strong>{i===3 && <MarketingIcon name="team"/>}</div>)}</div><p className="gostaya-example-note">{c.managerNote}</p></div>;
+  const key = moduleKey === "training" ? "training" : moduleKey === "revenue" ? "revenue" : "integrations";
+  return <ProductModuleExplorer moduleKey={key} lang={lang} />;
 }

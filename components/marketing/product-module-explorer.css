@@ -1,0 +1,29 @@
+.gostaya-inner-explorer { display: grid; gap: 1rem; }
+.gostaya-inner-explorer nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+.gostaya-inner-explorer nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; min-height: 92px; padding: .8rem .5rem; border: 1px solid #ddd6fe; border-radius: 1.2rem; background: #f5f3ff; color: #6d28d9; font-size: .85rem; font-weight: 650; transition: background .2s, color .2s; }
+.gostaya-inner-explorer nav button[aria-pressed="true"] { background: #7c3aed; color: #fff; border-color: #7c3aed; box-shadow: 0 5px 20px #7c3aed22; }
+.gostaya-inner-explorer nav .gostaya-icon { width: 26px; height: 26px; }
+.gostaya-inner-preview { padding: 1.25rem; border-radius: 1.5rem; border: 1px solid #e9d5ff; background: #fff; box-shadow: 0 12px 35px #3b07640d; animation: gostaya-inner-open .25s ease; }
+.gostaya-inner-preview h4 { margin-top: .8rem; color: #2a1b4e; font-size: 1.25rem; font-weight: 700; }
+.gostaya-inner-preview > p { color: #6b587c; font-size: .9rem; line-height: 1.6; margin-top: .5rem; }
+.gostaya-inner-preview dl { margin-top: 1.25rem; display: grid; gap: .5rem; }
+.gostaya-inner-preview dl > div { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem; border-radius: .8rem; background: #f5f3ff; font-size: .85rem; }
+.gostaya-inner-preview dt { color: #6b587c; }
+.gostaya-inner-preview dd { text-align: right; color: #5b21b6; font-weight: 650; }
+.gostaya-manager-teaser { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; border-radius: 2rem; margin-top: 2rem; background: #1e113a; color: #fff; }
+.gostaya-manager-teaser-copy { padding: 2rem; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1rem; }
+.gostaya-manager-teaser-copy h3 { color: #fff; font-size: clamp(1.3rem, 2.2vw, 2rem); font-weight: 650; line-height: 1.2; }
+.gostaya-manager-teaser-copy p { color: #e9d5ff; line-height: 1.65; font-size: .95rem; }
+.gostaya-manager-teaser-image { position: relative; min-height: 270px; }
+.gostaya-manager-teaser-image img { object-fit: cover; }
+.gostaya-manager-teaser-image::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, #1e113a, transparent 50%); }
+@keyframes gostaya-inner-open { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 700px) {
+  .gostaya-inner-explorer nav button { font-size: .8rem; padding: .6rem .3rem; }
+  .gostaya-inner-preview { padding: 1rem; }
+  .gostaya-manager-teaser { grid-template-columns: 1fr; }
+  .gostaya-manager-teaser-copy { padding: 1.5rem; }
+  .gostaya-manager-teaser-image { min-height: 190px; }
+  .gostaya-manager-teaser-image::after { background: linear-gradient(#1e113a, transparent 65%); }
+}
+@media (prefers-reduced-motion: reduce) { .gostaya-inner-preview { animation: none; } }

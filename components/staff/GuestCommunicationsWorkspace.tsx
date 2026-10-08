@@ -168,7 +168,7 @@ function statusTone(status: string) {
   return "border-amber-400/25 bg-amber-400/10 text-amber-700";
 }
 
-export default function GuestCommunicationsWorkspace({ hotelSlug, role }: { hotelSlug: string; role: string }) {
+export default function GuestCommunicationsWorkspace({ hotelSlug, role, defaultOpen = false }: { hotelSlug: string; role: string; defaultOpen?: boolean }) {
   const { lang } = useStaffUi();
   const uiLang = lang === "de" ? "de" : lang === "en" ? "en" : "bg";
   const copy = COPY[uiLang];
@@ -257,7 +257,7 @@ export default function GuestCommunicationsWorkspace({ hotelSlug, role }: { hote
 
   return (
     <div className="mb-5">
-      <StaffCollapsiblePanel title={copy.title} summary={copy.intro} badge={payload ? <span className="rounded-full border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-2.5 py-1 text-xs font-semibold">{copy.reach}: {messageReachRooms}</span> : null}>
+      <StaffCollapsiblePanel defaultOpen={defaultOpen} title={copy.title} summary={copy.intro} badge={payload ? <span className="rounded-full border border-[var(--staff-border)] bg-[var(--staff-surface-muted)] px-2.5 py-1 text-xs font-semibold">{copy.reach}: {messageReachRooms}</span> : null}>
         {error ? <div className="mb-4 rounded-xl border border-rose-400/25 bg-rose-400/10 p-3 text-sm text-rose-700">{error}</div> : null}
         {loading && !payload ? <p className="text-sm text-[var(--staff-muted)]">…</p> : null}
         {payload ? (

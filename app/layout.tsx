@@ -17,14 +17,11 @@ export const metadata: Metadata = {
     title: "StayHub",
   },
   icons: {
-    icon: [
-      { url: "/icons/icon-192.png?v=3", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png?v=3", sizes: "512x512", type: "image/png" },
-    ],
+    icon: [{ url: "/favicon.ico", sizes: "any", type: "image/x-icon" }],
     apple: [
       { url: "/apple-touch-icon.png?v=3", sizes: "180x180", type: "image/png" },
     ],
-    shortcut: [{ url: "/icons/icon-192.png?v=3" }],
+    shortcut: [{ url: "/favicon.ico" }],
   },
 };
 

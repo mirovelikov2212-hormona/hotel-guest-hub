@@ -65,7 +65,8 @@ export default function DemoWorkspace() {
   const searchParams = useSearchParams();
   const lang = useMemo(() => normalizeLang(searchParams.get("lang")), [searchParams]);
   const copy = COPY[lang];
-  const [activeView, setActiveView] = useState<DemoView>("guest");
+  const managerExperience = searchParams.get("managerExperience") === "1";
+  const [activeView, setActiveView] = useState<DemoView>(managerExperience ? "manager" : "guest");
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
   const guestFrame = useRef<HTMLIFrameElement>(null);
@@ -245,7 +246,7 @@ export default function DemoWorkspace() {
             <div className={`gostaya-demo-device ${activeView==="guest"?"gostaya-demo-device-phone":"gostaya-demo-device-panel"}`} style={{width:frameWidth+24,height:frameHeight+54,transform:`scale(${scale})`}}>
               <div className="gostaya-demo-device-top"><span>9:41</span><span>{activeView==="guest"?"GOSTAYA":"GOSTAYA · LIVE"}</span><span>•••</span></div>
               <iframe hidden={activeView!=="guest"} ref={guestFrame} src={guestSrc} onLoad={()=>guestFrame.current?.contentWindow?.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"sync"},window.location.origin)} title={copy.guestTitle} style={{width:isMobile?frameWidth:390,height:isMobile?frameHeight:780}} allow="clipboard-read; clipboard-write"/>
-              {activeView==="manager"?<iframe ref={staffFrame} src={`/staff/demo/${staffRole}?demoCompact=1&requestFilter=${requestFilter}${staffRole === "manager" && submittedSurveyId ? `&panel=surveys&surveyId=${encodeURIComponent(submittedSurveyId)}` : ""}`} title={roleLabels[staffRole]} style={{width:frameWidth,height:frameHeight}} allow="clipboard-read; clipboard-write"/>:null}
+              {activeView==="manager"?<iframe ref={staffFrame} src={`/staff/demo/${staffRole}?demoCompact=1${managerExperience && staffRole === "manager" ? "&managerExperience=1" : ""}&demoSession=${demoSession || ""}&requestFilter=${requestFilter}${staffRole === "manager" && submittedSurveyId ? `&panel=surveys&surveyId=${encodeURIComponent(submittedSurveyId)}` : ""}`} title={roleLabels[staffRole]} style={{width:frameWidth,height:frameHeight}} allow="clipboard-read; clipboard-write"/>:null}
               <div className="gostaya-demo-device-home"/>
             </div>
           </div>

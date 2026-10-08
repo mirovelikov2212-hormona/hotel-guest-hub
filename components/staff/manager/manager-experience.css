@@ -1,0 +1,107 @@
+.manager-experience {
+  --manager-purple: #7c3aed;
+  position: relative;
+  height: calc(100svh - 2rem);
+  min-height: 620px;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  background: #1e113a;
+  color: #fff;
+}
+.manager-experience-topbar {
+  position: absolute; inset: 0 0 auto; z-index: 4;
+  display: flex; align-items: center; gap: 1.25rem;
+  min-height: 76px; padding: 1rem 1.5rem;
+  background: linear-gradient(#1e113a, #1e113acc, transparent);
+}
+.manager-experience-wordmark { color: #d8b4fe; font-size: 1.1rem; font-weight: 800; }
+.manager-experience-hotel { display: grid; gap: .2rem; font-size: .85rem; }
+.manager-experience-hotel span { color: #e9d5ff; font-size: .8rem; }
+.manager-experience-controls { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
+.manager-experience-controls button, .manager-experience-controls select {
+  min-height: 40px; padding: .5rem .8rem; border: 1px solid #d8b4fe55;
+  border-radius: 999px; background: #281540; color: #f5f3ff; font-size: .8rem;
+}
+.manager-experience :focus-visible { outline: 3px solid #e9d5ff; outline-offset: 4px; }
+.manager-intro-scene, .manager-lobby { position: absolute; inset: 0; }
+.manager-intro-scene picture { position: absolute; inset: 0; }
+.manager-intro-scene img { width: 100%; height: 100%; object-fit: cover; }
+.manager-intro-open, .manager-intro-press { opacity: 0; transition: opacity 1.2s ease; }
+[data-scene="opening"] .manager-intro-open, [data-scene="ringing"] .manager-intro-press { opacity: 1; }
+.manager-door-key, .manager-bell-button {
+  position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: .75rem; min-height: 48px;
+  padding: .9rem 1.5rem; border-radius: 999px; border: 1px solid #e9d5ff88;
+  background: #2a1b4eee; color: #fff; font-weight: 600;
+  box-shadow: 0 0 35px #a855f755;
+}
+.manager-door-key { left: 63%; top: 43%; bottom: auto; width: 65px; height: 65px; padding: 0; border-radius: 50%; background: #7c3aed22; }
+.manager-door-key span { width: 14px; height: 14px; margin: auto; border-radius: 50%; background: #e9d5ff; box-shadow: 0 0 25px #c084fc; }
+.manager-bell-button { left: 54%; top: 43%; bottom: auto; width: 24%; height: 25%; border: 0; background: transparent; box-shadow: none; }
+.manager-intro-caption { position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%); width: max-content; max-width: 90%; padding: .8rem 1.2rem; border-radius: 999px; background: #2a1b4eee; color: #fff; font-size: .9rem; text-align: center; }
+.manager-lobby-image { object-fit: cover; }
+.manager-lobby h1 {
+  position: absolute; top: 94px; left: 0; right: 0; z-index: 1;
+  text-align: center; font-size: clamp(1.1rem, 2vw, 1.7rem); font-weight: 600; color: #fff;
+}
+.manager-lobby-bell { position: absolute; left: 41%; top: 42%; width: 18%; height: 25%; z-index: 2; border-radius: 50%; }
+.manager-lobby-modules { position: absolute; inset: 110px 32px; pointer-events: none; }
+.manager-lobby-links { position: absolute; inset: 0; width: 100%; height: 100%; stroke: #d8b4fe; stroke-width: .12; opacity: .6; }
+.manager-lobby-module {
+  position: absolute; left: calc(50% + var(--module-x)); top: calc(50% + var(--module-y));
+  transform: translate(-50%, -50%); width: clamp(110px, 12vw, 145px); min-height: 110px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem;
+  padding: 1rem .6rem; border: 1px solid #d8b4fe77; border-radius: 1.5rem;
+  color: #fff; background: linear-gradient(145deg, #4c2678ed, #241137ed);
+  box-shadow: 0 12px 32px #09031166, inset 0 1px #f5f3ff22;
+  pointer-events: auto; transition: background .2s, box-shadow .2s;
+  animation: manager-module-arrive .45s both; animation-delay: calc(var(--module-order) * 45ms);
+}
+.manager-lobby-module:hover { background: #6d28d9; box-shadow: 0 0 30px #a855f766; }
+.manager-lobby-module strong { font-size: .85rem; line-height: 1.25; text-align: center; }
+.manager-module-badge { position: absolute; top: -.4rem; right: -.4rem; padding: .2rem .55rem; border-radius: 999px; background: #ede9fe; color: #4c1d95; font-size: .8rem; font-weight: 800; }
+.manager-sound-credits { position: absolute; bottom: 6px; right: 16px; font-size: 10px; color: #e9d5ff99; }
+.manager-module-dialog {
+  width: min(1100px, calc(100vw - 32px)); max-width: none; height: calc(100svh - 32px);
+  max-height: none; margin: auto; padding: 0; overflow: hidden;
+  border: 1px solid #c4b5fd; border-radius: 1.5rem; background: #f5f3ff; color: #241137;
+  box-shadow: 0 25px 100px #160a2c88;
+}
+.manager-module-dialog::backdrop { background: #160a2caa; backdrop-filter: blur(10px); }
+.manager-module-dialog > article { display: flex; flex-direction: column; height: 100%; }
+.manager-module-dialog-header { display: flex; align-items: center; gap: 1rem; flex-shrink: 0; padding: 1rem 1.25rem; border-bottom: 1px solid #ddd6fe; background: #fff; }
+.manager-module-dialog-header h2 { color: #2a1b4e; font-size: 1.2rem; font-weight: 700; }
+.manager-module-dialog-header p { font-size: .85rem; color: #6b587c; }
+.manager-module-dialog-header nav { display: flex; gap: .4rem; margin-left: auto; }
+.manager-module-dialog-header button { min-width: 44px; min-height: 44px; padding: .5rem .8rem; border-radius: 999px; color: #6d28d9; background: #f5f3ff; }
+.manager-module-content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 1.5rem; display: grid; gap: 1.25rem; align-content: start; }
+.manager-module-content .manager-module-grid { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@keyframes manager-module-arrive { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 700px) {
+  .manager-experience { min-height: 680px; height: auto; border-radius: 1rem; }
+  .manager-experience-topbar { padding: .75rem; gap: .5rem; flex-wrap: wrap; }
+  .manager-experience-hotel { display: none; }
+  .manager-experience-controls { gap: .3rem; }
+  .manager-experience-controls button { font-size: .75rem; padding: .4rem .65rem; }
+  .manager-lobby { position: relative; min-height: 680px; padding: 80px 1rem 2.25rem; }
+  .manager-lobby-image { opacity: .35; object-position: center; }
+  .manager-lobby h1 { position: relative; top: auto; margin: 1rem 0 1.25rem; font-size: 1.2rem; }
+  .manager-lobby-bell { display: none; }
+  .manager-lobby-modules { position: relative; inset: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+  .manager-lobby-links { display: none; }
+  .manager-lobby-module { position: relative; left: auto; top: auto; transform: none; width: 100%; min-height: 135px; padding: .8rem .3rem; }
+  .manager-lobby-module img { width: 42px; height: 42px; }
+  .manager-lobby-module strong { font-size: .8rem; }
+  .manager-door-key { left: 68%; top: 45%; width: 60px; }
+  .manager-bell-button { left: 50%; top: 43%; width: 48%; }
+  .manager-module-dialog { width: 100%; height: 100svh; border-radius: 0; }
+  .manager-module-dialog-header { padding: .75rem; flex-wrap: wrap; gap: .5rem; }
+  .manager-module-dialog-header p { display: none; }
+  .manager-module-dialog-header h2 { font-size: 1rem; }
+  .manager-dialog-back { font-size: .8rem; }
+  .manager-module-content { padding: 1rem; }
+  .manager-module-content .manager-module-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .manager-experience *, .manager-experience *::before { animation: none !important; transition: none !important; }
+}

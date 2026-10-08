@@ -2,6 +2,8 @@
 
 import { useSearchParams } from "next/navigation";
 import DemoCompactPanel from "../DemoCompactPanel";
+import ManagerExperience from "../manager/ManagerExperience";
+import { getManagerModuleCopy } from "../manager/manager-module-copy";
 import { useEffect, useMemo, useState } from "react";
 import StaffAlertSoundButton from "@/components/staff/StaffAlertSoundButton";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
@@ -590,7 +592,6 @@ function FullManagerPage() {
 
   const summary = useMemo(() => getRequestSummary(reportRequests), [reportRequests]);
   const problemRequests = useMemo(() => reportRequests.filter(isTechnicalProblem), [reportRequests]);
-  const problemSummary = useMemo(() => getRequestSummary(problemRequests), [problemRequests]);
 
   const requestTypeStats = useMemo(() => buildRequestTypeStats(reportRequests, lang), [reportRequests, lang]);
   const issueTypeStats = useMemo(() => buildRequestTypeStats(problemRequests, lang), [problemRequests, lang]);
@@ -814,77 +815,34 @@ function FullManagerPage() {
     downloadFile(`manager-${activeReport}.xls`, rowsToExcelHtml(activeLabel, reportRows), "application/vnd.ms-excel;charset=utf-8;");
   }
 
-  return (
-    <main className="space-y-6 pb-safe">
-      <section className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-3">
-              <span className="stayhub-staff-brand-dot" aria-hidden="true" />
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#1479d3]">GOSTAYA</p>
-              <span className="stayhub-staff-brand-dot" aria-hidden="true" />
+  const query = useSearchParams();
+  const labels = getManagerModuleCopy(lang);
+  const drilldownPanel = (
+    selectedDrilldown && drilldownData ? (
+          <div className="mt-5 rounded-2xl border border-violet-300/25 bg-violet-300/5 p-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-violet-100/70">{t.reportDetails}</p>
+                <h4 className="mt-1 text-xl font-semibold text-white">{drilldownData.title}</h4>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">{drilldownData.subtitle}</p>
+              </div>
+              <button type="button" onClick={() => setSelectedDrilldown(null)} className="rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm font-medium text-white/85 transition hover:border-white/20 hover:bg-black/30">{t.closeDetails}</button>
             </div>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[#102a43]">
-              {displayHotelName} - {t.managerDashboard}
-            </h1>
+
+            <div className="mt-4 space-y-4">
+              {drilldownData.requests.length ? (
+                drilldownData.requests.map((request) => (
+                  <StaffRequestCard key={`${selectedDrilldown.kind}-${request.id}`} request={request} mode="manager" />
+                ))
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">{t.reportDetailsEmpty}</div>
+              )}
+            </div>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-            <StaffAlertSoundButton soundEnabled={soundEnabled} onToggle={toggleSound} />
-            {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="manager" embedded /> : null}
-            <select
-              value={lang}
-              onChange={(event) => setLang(event.target.value as typeof lang)}
-              className="stayhub-staff-select min-h-11 w-fit rounded-2xl border px-4 py-2.5 text-sm outline-none"
-              aria-label="Език на служебния интерфейс"
-            >
-              <option value="bg">BG</option>
-              <option value="en">EN</option>
-              <option value="de">DE</option>
-            </select>
-          </div>
-        </div>
-
-        {lang === "bg" ? (
-          <p className="mt-3 text-sm leading-6 text-white/70">
-            <span className="block">Пълен оперативен преглед за всички отдели.</span>
-            <span className="block lg:whitespace-nowrap">Фокус върху активното натоварване, върнатите заявки и най-старите нерешени задачи.</span>
-          </p>
-        ) : (
-          <p className="mt-3 text-sm leading-6 text-white/70">{t.managerIntro}</p>
-        )}
-      </section>
-
-      {hotelSlug ? <GuestCommunicationsWorkspace hotelSlug={hotelSlug} role="manager" /> : null}
-      {hotelSlug ? <StaffRoomActivityMap hotelSlug={hotelSlug} role="manager" /> : null}
-      {hotelSlug ? <StaffMassageReservationsPanel hotelSlug={hotelSlug} role="manager" /> : null}
-
-      {hotelSlug ? (
-        <section
-          className="manager-module-grid grid auto-rows-fr items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3"
-          aria-label="Manager modules"
-        >
-          <ManagerIntelligenceAccessCard hotelSlug={hotelSlug} />
-          <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="manager" />
-          <RevenueAccessCard hotelSlug={hotelSlug} />
-          <GostayaValueAccessCard hotelSlug={hotelSlug} />
-          <IntegrationStatusCard hotelSlug={hotelSlug} />
-          <ManagerProblemReportCard hotelSlug={hotelSlug} />
-        </section>
-      ) : null}
-
-      <ManagerTodaySurveysCard
-        surveys={managerActiveSurveys}
-        lang={lang}
-        markingId={markingSurveyId}
-        onMarkRead={(id) => void markSurveyRead(id)}
-      />
-
-      {hotelSlug ? <ManagerContentOffersEditor hotelSlug={hotelSlug} lang={lang} /> : null}
-
-      {hotelSlug ? <ManagerHubContentEditor hotelSlug={hotelSlug} lang={lang} /> : null}
-
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
+        ) : null
+  );
+  const operationsPanel = (
+<section className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-white/40">{t.active}</p>
           <h3 className="staff-section-title mt-1 text-xl font-semibold text-white">{t.managerOperationsTitle}</h3>
@@ -939,8 +897,9 @@ function FullManagerPage() {
           )}
         </div>
       </section>
-
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
+  );
+  const reportsPanel = (
+<section className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-white/40">{t.reportsCompactLabel}</p>
@@ -1181,36 +1140,44 @@ function FullManagerPage() {
           ) : null}
         </div>
 
-        {selectedDrilldown && drilldownData ? (
-          <div className="mt-5 rounded-2xl border border-violet-300/25 bg-violet-300/5 p-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-violet-100/70">{t.reportDetails}</p>
-                <h4 className="mt-1 text-xl font-semibold text-white">{drilldownData.title}</h4>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">{drilldownData.subtitle}</p>
-              </div>
-              <button type="button" onClick={() => setSelectedDrilldown(null)} className="rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm font-medium text-white/85 transition hover:border-white/20 hover:bg-black/30">{t.closeDetails}</button>
-            </div>
-
-            <div className="mt-4 space-y-4">
-              {drilldownData.requests.length ? (
-                drilldownData.requests.map((request) => (
-                  <StaffRequestCard key={`${selectedDrilldown.kind}-${request.id}`} request={request} mode="manager" />
-                ))
-              ) : (
-                <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-white/60">{t.reportDetailsEmpty}</div>
-              )}
-            </div>
-          </div>
-        ) : null}
+        {drilldownPanel}
       </section>
-    </main>
   );
+  const moduleContents = {
+    messages: hotelSlug ? <GuestCommunicationsWorkspace hotelSlug={hotelSlug} role="manager" defaultOpen /> : null,
+    rooms: hotelSlug ? <StaffRoomActivityMap hotelSlug={hotelSlug} role="manager" defaultOpen /> : null,
+    intelligence: hotelSlug ? <ManagerIntelligenceAccessCard hotelSlug={hotelSlug} /> : null,
+    training: hotelSlug ? <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="manager" /> : null,
+    reports: <><ManagerTodaySurveysCard surveys={managerActiveSurveys} lang={lang} markingId={markingSurveyId} onMarkRead={(id) => void markSurveyRead(id)} />{reportsPanel}</>,
+    massages: hotelSlug ? <StaffMassageReservationsPanel hotelSlug={hotelSlug} role="manager" /> : null,
+    value: hotelSlug ? <div className="manager-module-grid"><RevenueAccessCard hotelSlug={hotelSlug} /><GostayaValueAccessCard hotelSlug={hotelSlug} /></div> : null,
+    configuration: hotelSlug ? <><IntegrationStatusCard hotelSlug={hotelSlug} /><ManagerContentOffersEditor hotelSlug={hotelSlug} lang={lang} /><ManagerHubContentEditor hotelSlug={hotelSlug} lang={lang} /></> : null,
+    requests: <>{hotelSlug ? <ManagerProblemReportCard hotelSlug={hotelSlug} /> : null}{operationsPanel}{drilldownPanel}</>,
+  };
+
+  return <ManagerExperience
+    hotelSlug={hotelSlug || "hotel"}
+    hotelName={displayHotelName}
+    lang={lang}
+    initialModule={query.get("panel") === "surveys" ? "reports" : query.get("module") || undefined}
+    modules={labels.map((module) => ({
+      ...module,
+      badge: module.id === "requests" ? operationalRequests.length : undefined,
+      content: moduleContents[module.id],
+    }))}
+    toolbar={<>
+      <StaffAlertSoundButton soundEnabled={soundEnabled} onToggle={toggleSound} />
+      {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="manager" embedded /> : null}
+      <select value={lang} onChange={(event) => setLang(event.target.value as typeof lang)} aria-label="Staff UI language">
+        <option value="bg">BG</option><option value="en">EN</option><option value="de">DE</option>
+      </select>
+    </>}
+  />;
 }
 
 export default function ManagerPage() {
   const query=useSearchParams();
   const {hotelSlug}=useStaffStore();
-  if(hotelSlug==="demo" && query.get("demoCompact")==="1") return <DemoCompactPanel role="manager"/>;
+  if(hotelSlug==="demo" && query.get("demoCompact")==="1" && query.get("managerExperience")!=="1") return <DemoCompactPanel role="manager"/>;
   return <FullManagerPage/>;
 }

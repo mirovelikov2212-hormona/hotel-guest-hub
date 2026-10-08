@@ -1,6 +1,7 @@
 "use client";
 import { GostayaRotatingTabs } from "./GostayaMotion";
 import ProductExperience from "./ProductExperience";
+import Image from "next/image";
 
 
 
@@ -580,6 +581,15 @@ export default function ProductWalkthrough({ lang }: { lang: Lang }) {
         <div className="gostaya-product-experience"><ProductExperience moduleKey={view.key} lang={lang}/></div>
       </div>
     }))}/>
+    <div className="gostaya-manager-teaser">
+      <div className="gostaya-manager-teaser-copy">
+        <p className="gostaya-eyebrow">{lang === "bg" ? "ЕДИН ПАНЕЛ. ЦЕЛИЯТ ХОТЕЛ." : lang === "de" ? "EIN BEREICH. DAS GANZE HOTEL." : "ONE PANEL. THE WHOLE HOTEL."}</p>
+        <h3>{lang === "bg" ? "Отворете вратата към управлението на хотела." : lang === "de" ? "Öffnen Sie die Tür zum Hotelmanagement." : "Open the door to hotel management."}</h3>
+        <p>{lang === "bg" ? "Заявки, съобщения, анкети, масажи и отчети — разгледайте модулите в мениджърския панел на демо хотела." : lang === "de" ? "Anfragen, Mitteilungen, Umfragen, Massagen und Berichte im Manager-Bereich des Demo-Hotels." : "Requests, messages, surveys, massages and reports — explore the demo hotel's manager modules."}</p>
+        <a className="gostaya-primary-action" href={`/demo?lang=${lang}&managerExperience=1`}>{lang === "bg" ? "Отвори мениджърския панел" : lang === "de" ? "Manager-Bereich öffnen" : "Open manager panel"}</a>
+      </div>
+      <div className="gostaya-manager-teaser-image"><Image src="/marketing/manager/intro/hub.webp" alt="" fill sizes="(min-width: 700px) 45vw, 100vw" /></div>
+    </div>
     <div className="gostaya-platform-launch"><div><strong>{lang === "bg" ? "Пробвайте сами. С ясни насоки на всяка стъпка." : lang === "de" ? "Selbst ausprobieren. Mit Anleitung bei jedem Schritt." : "Try it yourself. Clear guidance at every step."}</strong><p>{lang === "bg" ? "Изпратете заявка за хавлии и проследете обработката ѝ от екипа." : lang === "de" ? "Handtücher anfragen und die Bearbeitung durch das Team verfolgen." : "Request towels and follow the team’s progress."}</p><small>{lang === "bg" ? "Демо стая" : lang === "de" ? "Demo-Zimmer" : "Demo room"} 901 · PIN 2026</small></div><DemoLaunchLink className="gostaya-primary-action">{lang === "bg" ? "Изпробвай с насоки" : lang === "de" ? "Mit Anleitung ausprobieren" : "Try with guidance"}<span aria-hidden="true">→</span></DemoLaunchLink></div>
   </section>;
 }
