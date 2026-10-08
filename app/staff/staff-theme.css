@@ -494,8 +494,10 @@
 .demo-compact-panel>footer{display:flex;align-items:center;justify-content:space-between;margin-top:16px}.demo-compact-panel>footer>div{display:flex;align-items:center;gap:10px}.demo-compact-panel>footer p{font-size:11px}
 .demo-panel-error{padding:12px;background:#f4e5f9;border-radius:12px;color:#662580!important}
 @media(max-width:700px){.demo-request-grid{grid-template-columns:repeat(2,1fr)}}
-.gostaya-demo-compact-shell .demo-compact-panel button{background:#f8f0ff!important;background-image:none!important;color:#67359a!important;border-color:#d0b5e4!important}
-.gostaya-demo-compact-shell .demo-compact-panel button *{color:inherit!important}
-.gostaya-demo-compact-shell .demo-compact-panel button[aria-pressed=true],.gostaya-demo-compact-shell .demo-ticket-actions button:last-child{background:#7c3aed!important;color:#fff!important;border-color:#7c3aed!important}
-.gostaya-demo-compact-shell .demo-compact-panel h2{color:#291640!important}
-.gostaya-demo-compact-shell .demo-compact-panel .stayhub-communication-card{background:#faf5ff!important;border-color:#d7bceb!important;color:#291640!important}
+.stayhub-staff-shell.gostaya-demo-compact-shell[data-staff-theme="light"] .stayhub-staff-workspace .demo-compact-panel button{background:#f8f0ff!important;background-image:none!important;color:#67359a!important;border-color:#d0b5e4!important}
+.stayhub-staff-shell.gostaya-demo-compact-shell[data-staff-theme="light"] .stayhub-staff-workspace .demo-compact-panel button *{color:inherit!important}
+.stayhub-staff-shell.gostaya-demo-compact-shell[data-staff-theme="light"] .stayhub-staff-workspace .demo-compact-panel button[aria-pressed=true],.stayhub-staff-shell.gostaya-demo-compact-shell[data-staff-theme="light"] .stayhub-staff-workspace .demo-ticket-actions button:last-child{background:#7c3aed!important;color:#fff!important;border-color:#7c3aed!important}
+.stayhub-staff-shell.gostaya-demo-compact-shell[data-staff-theme="light"] .stayhub-staff-workspace .demo-compact-panel h2{color:#291640!important}
+.stayhub-staff-shell.gostaya-demo-compact-shell[data-staff-theme="light"] .stayhub-staff-workspace .demo-compact-panel .stayhub-communication-card{background:#faf5ff!important;border-color:#d7bceb!important;color:#291640!important}
+
+.gostaya-demo-compact-shell{--gostaya-ui-blue:#7c3aed!important;--gostaya-ui-blue-deep:#67359a!important;--gostaya-ui-blue-soft:#efe3fa!important}
