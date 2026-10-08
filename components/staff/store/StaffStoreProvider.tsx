@@ -2,6 +2,7 @@
 import {browserDemoTimeZone} from "@/lib/demo-routing.mjs";
 
 import { notifyDemoUpdate, subscribeDemoUpdates } from "@/lib/demo-live";
+import { DEMO_GUIDE_CHANNEL } from "@/lib/demo-guide";
 import {
   createContext,
   useCallback,
@@ -196,6 +197,7 @@ async function updateStaffRequestStatus(input: {
       status: input.status,
       hotelSlug: input.hotelSlug,
       role: input.role,
+      ...(input.hotelSlug === "demo" ? { demoTimeZone: browserDemoTimeZone() } : {}),
     }),
   });
 
@@ -205,6 +207,9 @@ async function updateStaffRequestStatus(input: {
     throw new Error(`Failed to update request status: ${response.status}`);
   }
   notifyDemoUpdate(input.hotelSlug);
+  if (input.hotelSlug === "demo" && window.parent !== window && ["in_progress", "completed"].includes(input.status)) {
+    window.parent.postMessage({ channel: DEMO_GUIDE_CHANNEL, type: "request-status", requestId: input.id, status: input.status }, window.location.origin);
+  }
 }
 
 async function setStaffRequestBillingStatus(input: {

@@ -95,10 +95,10 @@ export default function ManagerExperience({ hotelSlug, hotelName, lang, modules,
         <a href={`/${lang}`} className="manager-experience-wordmark">GOSTAYA</a>
         <div className="manager-experience-hotel"><strong>{copy.title}</strong><span>{hotelName}</span></div>
         <div className="manager-experience-controls">
-          <button type="button" className="manager-scene-control" aria-pressed={soundEnabled} onClick={() => {
+          <button type="button" className="manager-scene-control" aria-label={copy.sound} title={copy.sound} aria-pressed={soundEnabled} onClick={() => {
             if (soundEnabled) sounds.current.forEach((sound) => sound.pause());
             setSoundEnabled((enabled) => !enabled);
-          }}>{copy.sound} {soundEnabled ? "◖))" : "×"}</button>
+          }}><span className="manager-sound-label">{copy.sound} </span>{soundEnabled ? "◖))" : "×"}</button>
           {currentScene === "hub" ? <button type="button" className="manager-scene-control" onClick={() => { setActiveModule(undefined); setScene("door"); }}>{copy.replay}</button> :
             <button type="button" className="manager-scene-control" onClick={finishIntro}>{copy.skip}</button>}
           {toolbar}

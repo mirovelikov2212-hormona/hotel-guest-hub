@@ -137,7 +137,10 @@ export default function DemoWorkspace() {
           previewTimer.current=setTimeout(()=>{cancelPreview();setStaffRole("manager");setActiveView("manager");},6000);
         }
         if(previousStep.current!==next.step) {
+          const initialGuideState = previousStep.current === null;
           previousStep.current=next.step;
+          // The hidden guest frame must not interrupt a direct manager tour.
+          if (managerExperience && initialGuideState && next.step === 1) return;
           if(previewPending.current)return;
           if(next.step===4){setStaffRole("manager");setActiveView("manager");}
           else if(next.step===5){setStaffRole(demoDepartmentWorking(browserDemoTimeZone()) ? "housekeeping" : "reception");setActiveView("manager");}
@@ -148,7 +151,7 @@ export default function DemoWorkspace() {
     }
     window.addEventListener("message", receive);
     return () => window.removeEventListener("message", receive);
-  }, [lang]);
+  }, [lang, managerExperience]);
 
   useEffect(()=>{
     if(status==="ready" && activeView==="guest") guestFrame.current?.contentWindow?.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"reveal-request"},window.location.origin);
@@ -226,6 +229,12 @@ export default function DemoWorkspace() {
   const displayGuide = guide?.step===5 ? {...guide,title:lang==="bg"?`Обработете заявката в ${responsibleName}`:lang==="de"?`In ${responsibleName} bearbeiten`:`Process the request in ${responsibleName}`,instructions:[routingInstruction,...guide.instructions.slice(1)],actions:[working?"housekeeping":"reception"] as DemoGuideAction[]} : guide;
   const timeZone=browserDemoTimeZone();
   const clockLabel=new Intl.DateTimeFormat(lang,{hour:"2-digit",minute:"2-digit",timeZone}).format(clock);
+  const managerTour = managerExperience && activeView === "manager" && staffRole === "manager" && (!guide || guide.step === 1);
+  const managerTourCopy = {
+    bg: { title: "Разгледайте мениджърския панел", steps: ["Докоснете ключа и отворете вратата.", "Натиснете звънеца и изберете модул.", "Върнете се към модулите или преминете към следващия със стрелките."], guest: "Изпратете заявка като гост" },
+    en: { title: "Explore the manager panel", steps: ["Tap the key to open the door.", "Ring the bell and choose a module.", "Return to modules or use the arrows to explore the next one."], guest: "Create a guest request" },
+    de: { title: "Manager-Bereich entdecken", steps: ["Tippen Sie den Schlüssel an und öffnen Sie die Tür.", "Betätigen Sie die Klingel und wählen Sie ein Modul.", "Kehren Sie zu den Modulen zurück oder wechseln Sie mit den Pfeilen."], guest: "Gastanfrage senden" },
+  }[lang];
   return <main className="gostaya-demo-workspace">
     <header className="gostaya-demo-top"><div><strong>GOSTAYA</strong><span>{copy.title}</span></div><a href={backHref}>← {copy.back}</a></header>
     {status!=="ready"?<div className="gostaya-demo-preparing" aria-live="polite"><p>{status==="loading"?copy.loading:copy.error}</p>{status==="error"?<button onClick={()=>setAttempt(v=>v+1)}>{copy.retry}</button>:null}</div>:<div className="gostaya-demo-layout">
@@ -236,7 +245,7 @@ export default function DemoWorkspace() {
         </nav>
         <p className="gostaya-demo-access">{lang==="bg"?"Демо стая":"Demo room"} 901 · PIN 2026</p>
         <details className="gostaya-demo-routing-note"><summary>{clockLabel} · {timeZone} · {lang==="bg"?(working?"Дневна смяна":"Поема Рецепция"):(working?"Day shift":"Reception covers")}</summary><p>{lang==="bg"?"08:00–17:00: заявките се виждат в съответния отдел, Рецепция и Мениджър. След 17:00 — само Рецепция и Мениджър. Неизпълнените заявки и тези за следващия ден се появяват в отдела в 08:00. Това е примерното правило на демо хотела; часовете тук следват браузъра ви.":lang==="de"?"08:00–17:00: zuständige Abteilung, Rezeption und Manager. Außerhalb der Schicht: Rezeption und Manager. Offene Anfragen kehren um 08:00 zur Abteilung zurück. Diese Demo nutzt Ihre Browser-Zeitzone.":"08:00–17:00: responsible department, Reception and Manager. After hours: Reception and Manager. Pending requests return to the department at 08:00. This demo uses your browser time zone."}</p></details>
-        {displayGuide?<>{isMobile?(activeView==="manager"?<div className="gostaya-demo-mobile-guide"><strong>{displayGuide.step}/{displayGuide.total} · {displayGuide.title}</strong><p>{displayGuide.step===5 ? routingInstruction : DEMO_SHORT_GUIDE[lang][displayGuide.step-1]}</p><div>{displayGuide.step>1?<button onClick={()=>guideAction("previous")}>←</button>:null}{displayGuide.actions[0]?<button onClick={()=>guideAction(displayGuide.actions[0])}>{lang==="bg"?"Отвори":lang==="de"?"Öffnen":"Open"}</button>:null}{displayGuide.step<displayGuide.total?<button disabled={!displayGuide.canContinue} onClick={()=>guideAction("next")}>{lang==="bg"?"Продължи →":lang==="de"?"Weiter →":"Next →"}</button>:null}</div></div>:null):<DemoGuideCard model={displayGuide} lang={lang} onAction={guideAction} compact vertical/>}
+        {managerTour ? <div className="gostaya-demo-manager-guide"><strong>{managerTourCopy.title}</strong><ol>{managerTourCopy.steps.map((step) => <li key={step}>{step}</li>)}</ol><button type="button" onClick={() => guideAction("guest")}>{managerTourCopy.guest} →</button></div> : displayGuide?<>{isMobile?(activeView==="manager"?<div className="gostaya-demo-mobile-guide"><strong>{displayGuide.step}/{displayGuide.total} · {displayGuide.title}</strong><p>{displayGuide.step===5 ? routingInstruction : DEMO_SHORT_GUIDE[lang][displayGuide.step-1]}</p><div>{displayGuide.step>1?<button onClick={()=>guideAction("previous")}>←</button>:null}{displayGuide.actions[0]?<button onClick={()=>guideAction(displayGuide.actions[0])}>{lang==="bg"?"Отвори":lang==="de"?"Öffnen":"Open"}</button>:null}{displayGuide.step<displayGuide.total?<button disabled={!displayGuide.canContinue} onClick={()=>guideAction("next")}>{lang==="bg"?"Продължи →":lang==="de"?"Weiter →":"Next →"}</button>:null}</div></div>:null):<DemoGuideCard model={displayGuide} lang={lang} onAction={guideAction} compact vertical/>}
         </>:<p>{copy.loading}</p>}
       </aside>
       <section className="gostaya-demo-preview">
@@ -246,7 +255,7 @@ export default function DemoWorkspace() {
             <div className={`gostaya-demo-device ${activeView==="guest"?"gostaya-demo-device-phone":"gostaya-demo-device-panel"}`} style={{width:frameWidth+24,height:frameHeight+54,transform:`scale(${scale})`}}>
               <div className="gostaya-demo-device-top"><span>9:41</span><span>{activeView==="guest"?"GOSTAYA":"GOSTAYA · LIVE"}</span><span>•••</span></div>
               <iframe hidden={activeView!=="guest"} ref={guestFrame} src={guestSrc} onLoad={()=>guestFrame.current?.contentWindow?.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"sync"},window.location.origin)} title={copy.guestTitle} style={{width:isMobile?frameWidth:390,height:isMobile?frameHeight:780}} allow="clipboard-read; clipboard-write"/>
-              {activeView==="manager"?<iframe ref={staffFrame} src={`/staff/demo/${staffRole}?demoCompact=1${managerExperience && staffRole === "manager" ? "&managerExperience=1" : ""}&demoSession=${demoSession || ""}&requestFilter=${requestFilter}${staffRole === "manager" && submittedSurveyId ? `&panel=surveys&surveyId=${encodeURIComponent(submittedSurveyId)}` : ""}`} title={roleLabels[staffRole]} style={{width:frameWidth,height:frameHeight}} allow="clipboard-read; clipboard-write"/>:null}
+              {activeView==="manager"?<iframe ref={staffFrame} src={`/staff/demo/${staffRole}?demoCompact=1${managerExperience && staffRole === "manager" ? `&managerExperience=1${guide?.request ? "&module=requests" : ""}` : ""}&demoSession=${demoSession || ""}&requestFilter=${requestFilter}${staffRole === "manager" && submittedSurveyId ? `&panel=surveys&surveyId=${encodeURIComponent(submittedSurveyId)}` : ""}`} title={roleLabels[staffRole]} style={{width:frameWidth,height:frameHeight}} allow="clipboard-read; clipboard-write"/>:null}
               <div className="gostaya-demo-device-home"/>
             </div>
           </div>

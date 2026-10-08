@@ -38,7 +38,7 @@ export default function StaffHotelShell({ hotelSlug, brand, children }: {
   }, [pathname]);
 
   return <div
-    className={`stayhub-staff-shell gostaya-light-staff min-h-screen ${compact ? "gostaya-demo-compact-shell" : ""}`}
+    className={`stayhub-staff-shell gostaya-light-staff min-h-screen ${compact ? "gostaya-demo-compact-shell" : ""} ${role === "manager" && (!compact || query.get("managerExperience") === "1") ? "gostaya-manager-shell" : ""}`}
     data-staff-theme="light" data-brand-source="gostaya" style={BRAND_STYLE}
   >
     <div className="stayhub-staff-brand-rail" aria-hidden="true" />

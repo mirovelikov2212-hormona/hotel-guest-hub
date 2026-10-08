@@ -530,6 +530,7 @@ function downloadFile(filename: string, content: string, mimeType: string) {
 }
 
 function FullManagerPage() {
+  const query = useSearchParams();
   const { lang, setLang } = useStaffUi();
   const t = staffText(lang);
   const {
@@ -582,7 +583,9 @@ function FullManagerPage() {
 
   useStaffTabTitleAlert(managerAlertRequests);
   const [activeReport, setActiveReport] = useState<ReportView>("requests_snapshot");
-  const [selectedDrilldown, setSelectedDrilldown] = useState<DrilldownSelection | null>(null);
+  const [selectedDrilldown, setSelectedDrilldown] = useState<DrilldownSelection | null>(() =>
+    isDemoHotel && query.get("requestFilter") === "completed" ? { kind: "request_status", status: "completed" } : null,
+  );
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
@@ -815,7 +818,6 @@ function FullManagerPage() {
     downloadFile(`manager-${activeReport}.xls`, rowsToExcelHtml(activeLabel, reportRows), "application/vnd.ms-excel;charset=utf-8;");
   }
 
-  const query = useSearchParams();
   const labels = getManagerModuleCopy(lang);
   const drilldownPanel = (
     selectedDrilldown && drilldownData ? (
@@ -1151,7 +1153,7 @@ function FullManagerPage() {
     reports: <><ManagerTodaySurveysCard surveys={managerActiveSurveys} lang={lang} markingId={markingSurveyId} onMarkRead={(id) => void markSurveyRead(id)} />{reportsPanel}</>,
     massages: hotelSlug ? <StaffMassageReservationsPanel hotelSlug={hotelSlug} role="manager" /> : null,
     value: hotelSlug ? <div className="manager-module-grid"><RevenueAccessCard hotelSlug={hotelSlug} /><GostayaValueAccessCard hotelSlug={hotelSlug} /></div> : null,
-    configuration: hotelSlug ? <><IntegrationStatusCard hotelSlug={hotelSlug} /><ManagerContentOffersEditor hotelSlug={hotelSlug} lang={lang} /><ManagerHubContentEditor hotelSlug={hotelSlug} lang={lang} /></> : null,
+    configuration: hotelSlug ? <><ManagerPwaControls hotelSlug={hotelSlug} role="manager" /><StaffAlertSoundButton soundEnabled={soundEnabled} onToggle={toggleSound} /><IntegrationStatusCard hotelSlug={hotelSlug} /><ManagerContentOffersEditor hotelSlug={hotelSlug} lang={lang} /><ManagerHubContentEditor hotelSlug={hotelSlug} lang={lang} /></> : null,
     requests: <>{hotelSlug ? <ManagerProblemReportCard hotelSlug={hotelSlug} /> : null}{operationsPanel}{drilldownPanel}</>,
   };
 
@@ -1166,8 +1168,6 @@ function FullManagerPage() {
       content: moduleContents[module.id],
     }))}
     toolbar={<>
-      <StaffAlertSoundButton soundEnabled={soundEnabled} onToggle={toggleSound} />
-      {hotelSlug ? <ManagerPwaControls hotelSlug={hotelSlug} role="manager" embedded /> : null}
       <select value={lang} onChange={(event) => setLang(event.target.value as typeof lang)} aria-label="Staff UI language">
         <option value="bg">BG</option><option value="en">EN</option><option value="de">DE</option>
       </select>

@@ -8,6 +8,9 @@
   background: #1e113a;
   color: #fff;
 }
+.gostaya-manager-shell > .stayhub-staff-brand-rail { display: none; }
+.gostaya-demo-compact-shell.gostaya-manager-shell > div.mx-auto { padding: 8px !important; }
+.gostaya-demo-compact-shell .manager-experience { height: calc(100svh - 16px); }
 .manager-experience-topbar {
   position: absolute; inset: 0 0 auto; z-index: 4;
   display: flex; align-items: center; gap: 1.25rem;
@@ -78,20 +81,21 @@
 .manager-module-content .manager-module-grid { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @keyframes manager-module-arrive { from { opacity: 0; } to { opacity: 1; } }
 @media (max-width: 700px) {
-  .manager-experience { min-height: 680px; height: auto; border-radius: 1rem; }
+  .manager-experience { min-height: 0; height: calc(100svh - 32px); border-radius: 1rem; }
   .manager-experience-topbar { padding: .75rem; gap: .5rem; flex-wrap: wrap; }
   .manager-experience-hotel { display: none; }
   .manager-experience-controls { gap: .3rem; }
   .manager-experience-controls button { font-size: .75rem; padding: .4rem .65rem; }
-  .manager-lobby { position: relative; min-height: 680px; padding: 80px 1rem 2.25rem; }
+  .manager-sound-label { display: none; }
+  .manager-lobby { display: flex; flex-direction: column; padding: 100px .75rem 1.75rem; }
   .manager-lobby-image { opacity: .35; object-position: center; }
-  .manager-lobby h1 { position: relative; top: auto; margin: 1rem 0 1.25rem; font-size: 1.2rem; }
+  .manager-lobby h1 { position: relative; top: auto; margin: 0 0 .75rem; font-size: 1rem; flex-shrink: 0; }
   .manager-lobby-bell { display: none; }
-  .manager-lobby-modules { position: relative; inset: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+  .manager-lobby-modules { position: relative; inset: auto; flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: .5rem; }
   .manager-lobby-links { display: none; }
-  .manager-lobby-module { position: relative; left: auto; top: auto; transform: none; width: 100%; min-height: 135px; padding: .8rem .3rem; }
-  .manager-lobby-module img { width: 42px; height: 42px; }
-  .manager-lobby-module strong { font-size: .8rem; }
+  .manager-lobby-module { position: relative; left: auto; top: auto; transform: none; width: 100%; min-height: 0; padding: .5rem .3rem; gap: .3rem; }
+  .manager-lobby-module img { width: 36px; height: 36px; flex-shrink: 0; }
+  .manager-lobby-module strong { font-size: .75rem; }
   .manager-door-key { left: 68%; top: 45%; width: 60px; }
   .manager-bell-button { left: 50%; top: 43%; width: 48%; }
   .manager-module-dialog { width: 100%; height: 100svh; border-radius: 0; }
