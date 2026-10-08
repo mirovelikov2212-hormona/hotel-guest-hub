@@ -118,7 +118,7 @@ export default function ManagerExperience({ hotelSlug, hotelName, lang, modules,
           onClick={() => { playSound("bell"); setScene("ringing"); }} />
         <p className="manager-intro-caption">{copy.bell}</p>
       </section> : <section className="manager-lobby" aria-label={copy.title}>
-        <Image src={`${ASSETS}/intro/hub.webp`} alt="" fill sizes="100vw" className="manager-lobby-image" />
+        <Image src={`${ASSETS}/intro/hub.webp`} alt="" fill unoptimized loading="eager" className="manager-lobby-image" />
         <h1>{copy.welcome}</h1>
         <button type="button" className="manager-lobby-bell manager-scene-control" aria-label={copy.bell} onClick={() => playSound("bell")} />
         <nav className="manager-lobby-modules" aria-label={copy.title}>
@@ -133,7 +133,7 @@ export default function ManagerExperience({ hotelSlug, hotelName, lang, modules,
             const angle = -Math.PI / 2 + index * Math.PI * 2 / modules.length;
             const style = { "--module-x": `${Math.cos(angle) * 38}%`, "--module-y": `${Math.sin(angle) * 35}%`, "--module-order": index } as CSSProperties;
             return <button key={module.id} type="button" className="manager-lobby-module manager-scene-control" style={style} onClick={() => selectModule(module.id)}>
-              <Image src={`${ASSETS}/emoji/${module.icon}.webp`} alt="" width={56} height={56} />
+              <Image src={`${ASSETS}/emoji/${module.icon}.webp`} alt="" width={56} height={56} unoptimized loading="eager" />
               <strong>{module.label}</strong>
               {module.badge !== undefined ? <span className="manager-module-badge">{module.badge}</span> : null}
             </button>;

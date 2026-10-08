@@ -25,6 +25,7 @@
   min-height: 40px; padding: .5rem .8rem; border: 1px solid #d8b4fe55;
   border-radius: 999px; background: #281540; color: #f5f3ff; font-size: .8rem;
 }
+.manager-experience-controls select { color: #4c1d95; }
 .manager-experience :focus-visible { outline: 3px solid #e9d5ff; outline-offset: 4px; }
 .manager-intro-scene, .manager-lobby { position: absolute; inset: 0; }
 .manager-intro-scene picture { position: absolute; inset: 0; }
