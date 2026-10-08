@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./internal-tools-brand.css";
 import "./demo-refinements.css";
+import "./demo-session-layout.css";
 import PWARegister from "@/components/PWARegister";
 
 export const metadata: Metadata = {

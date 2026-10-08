@@ -1,3 +1,4 @@
+import { readPublicDemoSession } from "@/lib/server/public-demo-session";
 import {validDemoTimeZone,demoRoutingApplies,demoRequestReady} from "@/lib/demo-routing.mjs";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
@@ -364,6 +365,8 @@ export async function GET(req: NextRequest) {
     if (role === "housekeeping" || role === "maintenance") {
       query = query.contains("metadata_json", { department: role });
     }
+
+    if (hotelSlug === "demo") query = query.eq("is_test", true).eq("room_number_snapshot", "901").contains("metadata_json", {publicDemoSessionId: readPublicDemoSession(req) || "no-session"});
 
     const { data, error } = await query;
 

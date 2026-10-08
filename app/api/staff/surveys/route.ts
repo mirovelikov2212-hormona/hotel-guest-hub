@@ -1,3 +1,4 @@
+import { readPublicDemoSession } from "@/lib/server/public-demo-session";
 import { NextRequest, NextResponse } from "next/server";
 import type { StaffRole } from "@/lib/staff-auth/cookie-name";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
@@ -174,6 +175,8 @@ export async function GET(req: NextRequest) {
     } else {
       query = query.gte("guest_submitted_at", recentCutoff);
     }
+
+    if (hotelSlug === "demo") query = query.eq("is_test", true).eq("room_number", "901").contains("metadata_json", {publicDemoSessionId: readPublicDemoSession(req) || "no-session"});
 
     const { data, error } = await query;
     if (error) {

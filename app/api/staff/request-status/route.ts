@@ -1,5 +1,6 @@
 import {validDemoTimeZone,demoRoutingApplies,demoRequestReady} from "@/lib/demo-routing.mjs";
 import { NextRequest, NextResponse } from "next/server";
+import { readPublicDemoSession } from "@/lib/server/public-demo-session";
 import { getCurrentStaffSession } from "@/lib/staff-auth/session";
 import { enforceStaffSameOrigin } from "@/lib/staff-auth/request-origin";
 import type { StaffRole } from "@/lib/staff-auth/cookie-name";
@@ -218,6 +219,10 @@ export async function POST(req: NextRequest) {
     }
 
     const requestData = requestRow as GuestRequestRow & { request_type: string; created_at:string };
+
+    if (hotelSlug === "demo" && (!requestData.is_test || requestData.room_number_snapshot !== "901" || requestData.metadata_json?.publicDemoSessionId !== readPublicDemoSession(req))) {
+      return NextResponse.json({ok:false,error:"Request does not belong to this demo session"}, {status:404});
+    }
 
     if (requestData.status === status) {
       return NextResponse.json({ ok: true, noop: true });

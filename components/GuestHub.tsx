@@ -222,6 +222,7 @@ function PremiumSectionIcon({ id }: { id?: string }) {
 // END_STAYHUB_SECTION_ICON_HELPERS
 
 
+import { currentDemoSession, demoStorageKey } from "@/lib/demo-session";
 import { notifyDemoUpdate, subscribeDemoUpdates } from "@/lib/demo-live";
 import { DEMO_GUIDE_CHANNEL } from "@/lib/demo-guide";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -1437,7 +1438,8 @@ const GUEST_REQUEST_REFS_STORAGE_KEY = "guesthub_guest_request_refs";
 const GUEST_MASSAGE_BOOKINGS_STORAGE_KEY = "guesthub_massage_bookings_v1";
 
 function getGuestRoomStateStorageKey(hotelSlug: string) {
-  return `guesthub_room_state:${String(hotelSlug || "default").trim().toLowerCase()}`;
+  const key = `guesthub_room_state:${String(hotelSlug || "default").trim().toLowerCase()}`;
+  return hotelSlug === "demo" ? demoStorageKey(key) : key;
 }
 
 function readStoredGuestRoomState(hotelSlug: string): StoredGuestRoomState | null {
@@ -1480,6 +1482,8 @@ function writeStoredGuestRoomState(hotelSlug: string, state: StoredGuestRoomStat
 
 function getOrCreateGuestStayDeviceToken() {
   if (typeof window === "undefined") return "";
+  const demoSession=currentDemoSession();
+  if(demoSession)return demoSession;
   try {
     const existing = String(window.localStorage.getItem(GUEST_STAY_DEVICE_STORAGE_KEY) || "").trim();
     if (existing) return existing;
@@ -1508,7 +1512,7 @@ function readStoredGuestRequestRefs(): StoredGuestRequestRef[] {
   if (typeof window === "undefined") return [];
 
   try {
-    const raw = window.localStorage.getItem(GUEST_REQUEST_REFS_STORAGE_KEY);
+    const raw = window.localStorage.getItem(demoStorageKey(GUEST_REQUEST_REFS_STORAGE_KEY));
     if (!raw) return [];
 
     const parsed: unknown = JSON.parse(raw);
@@ -1533,7 +1537,7 @@ function writeStoredGuestRequestRefs(refs: StoredGuestRequestRef[]) {
 
   try {
     window.localStorage.setItem(
-      GUEST_REQUEST_REFS_STORAGE_KEY,
+      demoStorageKey(GUEST_REQUEST_REFS_STORAGE_KEY),
       JSON.stringify(refs)
     );
   } catch (error) {
@@ -1569,7 +1573,7 @@ function readStoredGuestMassageBookings(): StoredGuestMassageBooking[] {
   if (typeof window === "undefined") return [];
 
   try {
-    const raw = window.localStorage.getItem(GUEST_MASSAGE_BOOKINGS_STORAGE_KEY);
+    const raw = window.localStorage.getItem(demoStorageKey(GUEST_MASSAGE_BOOKINGS_STORAGE_KEY));
     if (!raw) return [];
 
     const parsed: unknown = JSON.parse(raw);
@@ -1600,7 +1604,7 @@ function writeStoredGuestMassageBookings(bookings: StoredGuestMassageBooking[]) 
 
   try {
     window.localStorage.setItem(
-      GUEST_MASSAGE_BOOKINGS_STORAGE_KEY,
+      demoStorageKey(GUEST_MASSAGE_BOOKINGS_STORAGE_KEY),
       JSON.stringify(bookings.slice(0, 20))
     );
   } catch (error) {
@@ -3799,6 +3803,9 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
             createdAt: String(item.createdAt),
           }))
         );
+        if(isPublicDemoHotel && !(window.frameElement as HTMLIFrameElement|null)?.hidden) {
+          window.parent.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"requests-loaded",requests:rows.map(row=>({id:row.id,status:row.status}))},window.location.origin);
+        }
 
         if (completedIds.size && !isPublicDemoHotel) {
           const nextRefs = readStoredGuestRequestRefs().filter(
@@ -6114,7 +6121,10 @@ export default function GuestHub({ config }: { config: HotelConfig }) {
         ...prev.filter((item) => item.id !== created.id),
       ]);
 
-      if(isPublicDemoHotel) setDemoRequest({id:created.id,status:created.status});
+      if(isPublicDemoHotel) {
+        setDemoRequest({id:created.id,status:created.status});
+        window.parent.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"request-created",requestId:created.id},window.location.origin);
+      }
       notifyDemoUpdate(config.hotelSlug);
       trackGuestEvent({
         eventName: "request_created",
@@ -8801,7 +8811,8 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
 
   return (
     <div className="stayhub-premium-screen mx-auto min-h-screen max-w-md" style={themeStyle}>
-      <div className="relative">
+      {isPublicDemoHotel ? <div id="gostaya-demo-mobile-guide-slot" className="stayhub-demo-mobile-guide-slot"><div className="gostaya-demo-mobile-language"><strong>GOSTAYA</strong><select aria-label="Language" value={String(lang)} onChange={event=>setLang(event.target.value as LangKey)}>{config.languages.map(locale=><option key={String(locale)} value={String(locale)}>{String(locale).toUpperCase()}</option>)}</select></div></div> : null}
+      {!(isPublicDemoHotel && sp.get("demoMobile") === "1") ? <div className="stayhub-demo-hero-shell relative">
         <div className="stayhub-premium-hero relative h-[246px] sm:h-[270px] md:h-[300px] w-full overflow-hidden">
           <img
             src={guestRuntimeCapabilities.coverImage}
@@ -8842,7 +8853,7 @@ ${tUI("wifi_password")}: ${config.wifi.password || "-"}`,
             <p className="stayhub-hero-subtitle mt-1 text-sm">{tUI("hero_subtitle")}</p>
           </div>
         </div>
-      </div>
+      </div> : null}
 
       {roomConfirmed && room.trim() ? (
         <div className="stayhub-confirmed-room-wrap px-4">
@@ -9432,7 +9443,7 @@ ${stayCopy.confirmLine.replace("{checkIn}", checkInDate).replace("{checkOut}", c
 
         </div>
 
-        <p className="mt-6 text-center text-xs text-neutral-400">{tUI("notice")}</p>
+        {!isPublicDemoHotel ? <p className="mt-6 text-center text-xs text-neutral-400">{tUI("notice")}</p> : null}
       </div>
 
 

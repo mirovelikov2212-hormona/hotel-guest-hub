@@ -730,7 +730,8 @@ export default function Day3GuestSurvey({
 
   const isEligible = useMemo(() => {
     if (!roomConfirmed || !normalizeRoomNumber(room) || !stayId || !stayDeviceId) return false;
-    if (!checkInDate || !checkOutDate || storedState.submittedAt) return false;
+    const repeatDemo=hotelSlug === "demo" && room === "901" && launchContext.source === "manual_force";
+    if (!checkInDate || !checkOutDate || (storedState.submittedAt && !repeatDemo)) return false;
 
     const hotelNow = getHotelTimeParts(timezone);
     const insideWindow = isDateInsideGuestSurveyWindow({
@@ -749,6 +750,7 @@ export default function Day3GuestSurvey({
   }, [
     checkInDate,
     checkOutDate,
+    hotelSlug,
     clockTick,
     launchContext,
     room,
@@ -1043,6 +1045,7 @@ export default function Day3GuestSurvey({
       writeStoredSurveyState(storageKey, next);
       setStoredState(next);
       resetSurveyUi();
+      if(hotelSlug === "demo") {clearSurveyLaunchParamsFromUrl();setLaunchContext({source:"automatic",bypassWindow:false,bypassSnooze:false});}
       if (result.survey?.id) onSubmitted?.(result.survey.id);
     } catch (error) {
       console.error("day3 survey submit failed", error);
@@ -1130,8 +1133,8 @@ export default function Day3GuestSurvey({
                           : "border-[#d7dcde] bg-white text-[#202627] hover:bg-[#43baad]/10"
                       )}
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#202627]/25 text-sm font-bold">
-                        {value}
+                      <span className="flex h-8 w-12 shrink-0 items-center justify-center rounded-full border border-[#202627]/25 text-sm font-bold">
+                        {value}/5
                       </span>
                       <span className="text-sm font-medium">{copy.ratingLabels[value]}</span>
                     </button>

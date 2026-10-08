@@ -1,0 +1,15 @@
+/* Session demo polish stays separate from hotel branding. */
+.gostaya-demo-guest .stayhub-demo-message-button{overflow:hidden!important;isolation:isolate}
+.gostaya-demo-guest .stayhub-demo-message-button::after{border-radius:0 0 17px 17px!important}
+.stayhub-demo-mobile-guide-slot{display:none}
+.gostaya-demo-guest[data-demo-mobile=true] .stayhub-demo-hero-shell{display:none}
+.gostaya-demo-guest[data-demo-mobile=true] .stayhub-demo-mobile-guide-slot{display:block;padding:10px 12px 4px}
+.stayhub-demo-mobile-guide-slot .gostaya-demo-mobile-guide{padding:10px 12px;border-radius:15px;background:#1e113a;color:#fff}
+.stayhub-demo-mobile-guide-slot strong{display:block;font-size:12px;line-height:1.35}
+.stayhub-demo-mobile-guide-slot p{font-size:12px;line-height:1.45;margin:5px 0 8px;color:#e9d5ff}
+.stayhub-demo-mobile-guide-slot .gostaya-demo-mobile-guide>div{display:flex;gap:5px;flex-wrap:wrap}
+.stayhub-demo-mobile-guide-slot button{padding:6px 9px;min-height:30px;border-radius:8px;background:#7c3aed;font-size:11px;font-weight:650;color:#fff}
+.stayhub-demo-mobile-guide-slot button:disabled{opacity:.4}
+
+.gostaya-demo-mobile-language{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;color:#7c3aed}
+.gostaya-demo-mobile-language strong{font-size:15px;font-weight:850}.gostaya-demo-mobile-language select{font-size:12px;background:#f7f0ff;border:1px solid #d8b4fe;border-radius:8px;padding:4px 8px}

@@ -1,5 +1,6 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { publicDemoSessionMetadata } from "@/lib/server/public-demo-session";
 import { validateGuestRequestCreatePayload } from "@/lib/server/guest-request-input-validation.mjs";
 import { resolveGuestRequestAuthority } from "@/lib/server/guest-request-authority.mjs";
 import { isFactoryManagedGuestConfig } from "@/lib/guest/guest-runtime-capabilities.mjs";
@@ -401,6 +402,7 @@ export async function POST(req: NextRequest) {
           }
         : undefined,
       ...isolationMetadata,
+      ...publicDemoSessionMetadata(req, hotelSlug, Boolean(isolationFields.is_test), room),
     };
     const staffTitleBg = authoritativeStaffLabels?.bg || getOperationalRequestTitleBg({
       requestType: legacyNormalizedType,

@@ -7,6 +7,7 @@ import { useStaffStore } from "./store/StaffStoreProvider";
 import { useStaffUi } from "./StaffUiProvider";
 import GuestDirectCommunicationsWorkspace from "./GuestDirectCommunicationsWorkspace";
 import GuestCommunicationsWorkspace from "./GuestCommunicationsWorkspace";
+import { DEMO_GUIDE_CHANNEL } from "@/lib/demo-guide";
 import { notifyDemoUpdate } from "@/lib/demo-live";
 import { translateDepartment, translateStaffStatus } from "@/lib/staff/ui-copy";
 import type { StaffRequestStatus } from "@/lib/staff/types";
@@ -18,7 +19,7 @@ export default function DemoCompactPanel({role}:{role:Role}) {
   const bg=lang==="bg", de=lang==="de";
   const searchParams = useSearchParams();
   const [tab,setTab]=useState(role === "manager" && searchParams.get("panel") === "surveys" ? "surveys" : "requests");
-  const [filter,setFilter]=useState("active");
+  const [filter,setFilter]=useState(["in_progress","completed"].includes(searchParams.get("requestFilter") || "") ? searchParams.get("requestFilter")! : "active");
   const [page,setPage]=useState(0);
   const [busy,setBusy]=useState<string|null>(null);
   const [error,setError]=useState("");
@@ -31,8 +32,10 @@ export default function DemoCompactPanel({role}:{role:Role}) {
     setBusy(id);setError("");
     try {
       const response=await fetch("/api/staff/request-status",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,requestId:id,status,hotelSlug:"demo",role,demoTimeZone:browserDemoTimeZone()})});
-      if(!response.ok) throw new Error(String(response.status));
+      const result=await response.json();
+      if(!response.ok || !result.ok) throw new Error(String(response.status));
       notifyDemoUpdate("demo");
+      window.parent.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"request-status",requestId:id,status},window.location.origin);
     } catch {setError(bg?"Промяната не е записана. Проверете отдела и опитайте отново.":de?"Änderung nicht gespeichert. Abteilung prüfen und erneut versuchen.":"Change was not saved. Check the department and try again.");}
     finally {setBusy(null);}
   }

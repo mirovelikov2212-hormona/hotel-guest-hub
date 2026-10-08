@@ -196,8 +196,9 @@ export default async function HotelHubPage({ params, searchParams }: PageProps) 
     ...(compactDemo ? {theme:{...cfg.theme,background:"#f1e5fc",primary:"#7c3aed",secondary:"#b989e5",accent:"#aa75d4",surface:"#fbf7ff",soft:"#ead9f9",text:"#291640",muted:"#756080"}} : {}),
   };
 
+  const demoParams = compactDemo ? await searchParams : {};
   return (
-    <main className={compactDemo ? "gostaya-demo-guest min-h-screen" : "min-h-screen bg-neutral-950 text-neutral-50"}>
+    <main data-demo-mobile={compactDemo && getSingleSearchParam(demoParams.demoMobile) === "1" ? "true" : undefined} className={compactDemo ? "gostaya-demo-guest min-h-screen" : "min-h-screen bg-neutral-950 text-neutral-50"}>
       <GuestHub config={guestConfig} />
       {!compactDemo ? <GuestCommunicationsInbox
         hotelSlug={guestRuntimeHotelSlug}

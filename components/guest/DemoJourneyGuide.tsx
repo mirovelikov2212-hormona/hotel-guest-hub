@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
+import { demoStorageKey } from "@/lib/demo-session";
+import { DEMO_SHORT_GUIDE } from "@/lib/demo-guide";
 import DemoGuideCard from "./DemoGuideCard";
 import { DEMO_GUIDE_ACTIONS, DEMO_GUIDE_CHANNEL, DEMO_GUIDE_STEPS, type DemoGuideAction, type DemoGuideModel } from "@/lib/demo-guide";
 
@@ -11,7 +14,7 @@ type Props = {
 const STEP_KEY = "gostaya-demo-guide-step-v4";
 let memoryStep = 1;
 function readStep() {
-  try { const n = Number(sessionStorage.getItem(STEP_KEY)); return Number.isInteger(n) && n >= 1 && n <= 10 ? n : memoryStep; } catch { return memoryStep; }
+  try { const n = Number(sessionStorage.getItem(demoStorageKey(STEP_KEY))); return Number.isInteger(n) && n >= 1 && n <= 10 ? n : memoryStep; } catch { return memoryStep; }
 }
 function subscribeStep(callback: () => void) {
   window.addEventListener(STEP_KEY, callback);
@@ -44,7 +47,7 @@ export default function DemoJourneyGuide({lang,roomConfirmed,room,departmentOpen
   const move = useCallback((next:number) => {
     const safe = Math.max(1,Math.min(steps.length,next));
     memoryStep = safe;
-    try { sessionStorage.setItem(STEP_KEY,String(safe)); } catch {}
+    try { sessionStorage.setItem(demoStorageKey(STEP_KEY),String(safe)); } catch {}
     window.dispatchEvent(new Event(STEP_KEY));
   },[steps.length]);
   async function act(action:DemoGuideAction) {
@@ -58,13 +61,14 @@ export default function DemoJourneyGuide({lang,roomConfirmed,room,departmentOpen
     if (action === "show") setHidden(false);
     if (action === "restart") {setFinished(false);setObserved({request: false, department: false});move(1);onFocusRoom();}
     if (["manager","housekeeping","reception"].includes(action)) {
+      if(embedded) {window.parent.postMessage({channel:DEMO_GUIDE_CHANNEL,type:"open-role",role:action},window.location.origin);return;}
       window.open(`/staff/demo/${action}`,"_blank","noopener,noreferrer");
     }
     if (action === "checkout" && !busy) {
       setBusy(true);
       const ok = await onEndStay().catch(()=>false);
       setBusy(false);
-      if (ok) {setFinished(true);try {sessionStorage.removeItem(STEP_KEY);} catch {}}
+      if (ok) {setFinished(true);try {sessionStorage.removeItem(demoStorageKey(STEP_KEY));} catch {}}
     }
   }
 
@@ -88,6 +92,9 @@ export default function DemoJourneyGuide({lang,roomConfirmed,room,departmentOpen
     return ()=>window.removeEventListener("message",receive);
   });
 
-  if (embedded) return null;
+  if (embedded) {
+    const host=document.querySelector("[data-demo-mobile=true] #gostaya-demo-mobile-guide-slot");
+    return host ? createPortal(<div className="gostaya-demo-mobile-guide"><strong>{step}/{steps.length} · {current.title}</strong><p>{DEMO_SHORT_GUIDE[locale][step-1]}</p><div>{step>1?<button onClick={()=>void act("previous")}>←</button>:null}{current.actions[0]?<button onClick={()=>void act(current.actions[0])}>{locale==="bg"?"Отвори":locale==="de"?"Öffnen":"Open"}</button>:null}{step<steps.length?<button disabled={!canContinue} onClick={()=>void act("next")}>{locale==="bg"?"Продължи →":locale==="de"?"Weiter →":"Next →"}</button>:null}<button onClick={()=>void act("survey")}>{locale==="bg"?"Анкета":locale==="de"?"Umfrage":"Survey"}</button></div></div>,host) : null;
+  }
   return <div className="px-4 pb-3"><DemoGuideCard model={model} lang={locale} onAction={action=>void act(action)}/></div>;
 }

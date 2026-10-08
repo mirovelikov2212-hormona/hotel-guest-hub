@@ -1,5 +1,6 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { publicDemoSessionMetadata, readPublicDemoSession } from "@/lib/server/public-demo-session";
 import { sendManagerPushNotification } from "@/lib/staff-push/web-push";
 import { translateGuestTextToStaffLanguages } from "@/lib/server/staff-translation";
 import { getTestRoomPolicy } from "@/lib/server/test-rooms";
@@ -245,6 +246,7 @@ export async function POST(req: NextRequest) {
       ...isolationFields,
       metadata_json: {
         ...isolationMetadata,
+        ...publicDemoSessionMetadata(req, hotelSlug, Boolean(isolationFields.is_test), room),
         hotelTimezone: timezone,
         source: "guest_hub",
         launchSource,
@@ -271,6 +273,11 @@ export async function POST(req: NextRequest) {
     if (error?.code === "23505") {
       const duplicate = await findExistingStayDeviceSurvey({ stayId, stayDeviceId });
       if (duplicate.data?.id) {
+        if (hotelSlug === "demo" && room === "901" && isolationFields.is_test && readPublicDemoSession(req)) {
+          const repeated = await supabaseAdmin.from("guest_surveys").update(insertPayload).eq("id", duplicate.data.id).eq("hotel_id", hotel.id).eq("is_test", true).eq("stay_id", stayId).eq("stay_device_id", stayDeviceId).contains("metadata_json", {publicDemoSessionId: readPublicDemoSession(req)}).select("id").maybeSingle();
+          if (repeated.error || !repeated.data) return validationError("Could not repeat this demo survey.", "DEMO_SURVEY_RETRY_FAILED", 409);
+          return NextResponse.json({ok:true,survey:{id:repeated.data.id},repeated:true}, {headers:NO_STORE_HEADERS});
+        }
         return NextResponse.json(
           { ok: true, survey: { id: duplicate.data.id }, duplicate: true },
           { headers: NO_STORE_HEADERS },
