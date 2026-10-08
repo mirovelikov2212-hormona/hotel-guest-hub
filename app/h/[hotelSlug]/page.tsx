@@ -197,7 +197,7 @@ export default async function HotelHubPage({ params, searchParams }: PageProps) 
   };
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-50">
+    <main className={compactDemo ? "gostaya-demo-guest min-h-screen" : "min-h-screen bg-neutral-950 text-neutral-50"}>
       <GuestHub config={guestConfig} />
       <GuestCommunicationsInbox
         hotelSlug={guestRuntimeHotelSlug}
