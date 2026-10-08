@@ -25,21 +25,21 @@ export function GostayaVortex({ className = "", lang = "bg" }: { className?: str
     if (!ctx) return;
     let width = 1, height = 1, visible = false, frame = 0, last = 0, phase = 0;
     // Deterministic seeds; no React updates per frame.
-    const particles = Array.from({ length: 100 }, (_, i) => ({
-      t: i / 100, size: .6 + ((i * 17) % 11) / 10, arm: i % 3,
+    const particles = Array.from({ length: 144 }, (_, i) => ({
+      t: i / 144, size: .8 + ((i * 17) % 11) / 12, arm: i % 3,
     }));
     function draw() {
       if (!canvas || !ctx) return;
       ctx.clearRect(0, 0, width, height);
-      const radius = Math.min(width, height) * .43;
-      const count = width < 560 ? 60 : particles.length;
+      const radius = Math.min(width * .43, height * 1.08);
+      const count = width < 350 ? 90 : particles.length;
       for (let i = 0; i < count; i++) {
         const p = particles[Math.floor(i * particles.length / count)];
         const distance = .13 + p.t * .87;
         const angle = p.t * Math.PI * 5 + p.arm * (Math.PI * 2 / 3) + phase;
         const x = width / 2 + Math.cos(angle) * radius * distance;
-        const y = height / 2 + Math.sin(angle) * radius * distance * .7;
-        ctx.globalAlpha = .35 + .6 * (1 - p.t);
+        const y = height / 2 + Math.sin(angle) * radius * distance * .4;
+        ctx.globalAlpha = .48 + .5 * (1 - p.t);
         ctx.fillStyle = i % 4 === 0 ? "#ffffff" : i % 2 ? "#c4b5fd" : "#60a5fa";
         ctx.beginPath();
         ctx.arc(x, y, p.size, 0, Math.PI * 2);

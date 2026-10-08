@@ -336,3 +336,5 @@
 @media(max-width:600px){.gostaya-hero-copy{padding:32px 23px 12px}.gostaya-hero-image{min-height:390px}.gostaya-tabs-nav{grid-template-columns:repeat(3,minmax(0,1fr))}.gostaya-tabs-nav [role=tab]{font-size:.74rem}.gostaya-tabs-line{display:none}.gostaya-tab-panel .gostaya-module-panel{padding:20px 16px}.gostaya-platform-launch{flex-direction:column;align-items:stretch;gap:18px}.gostaya-platform-launch .gostaya-primary-action{width:100%}.gostaya-time-saved{padding:20px}.gostaya-time-saved strong{font-size:1rem}.gostaya-ai-copy .gostaya-vortex{min-height:130px;max-height:150px}.gostaya-marketing .gostaya-ai-banner{padding:28px 20px}}
 
 .gostaya-marketing .gostaya-hotel-types .gostaya-hotel-type-chip[aria-pressed="true"]{background:#7c3aed;border-color:#7c3aed;color:#fff;box-shadow:0 6px 20px #7c3aed20}
+
+.gostaya-request-stages li,.gostaya-request-stages li[data-active=true]{border-top-color:transparent}
