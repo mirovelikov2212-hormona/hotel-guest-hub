@@ -3473,101 +3473,216 @@ input.stayhub-card::placeholder {
 .gostaya-demo-guest .stayhub-premium-screen .stayhub-request-status-badge{background:#e9d5ff!important;color:#5b2188!important;-webkit-text-fill-color:#5b2188!important;border-color:#c8a0e7!important}
 .gostaya-demo-guest .stayhub-premium-screen .stayhub-install-card::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-premium-push-card::after{background:radial-gradient(ellipse at 50% 100%,#b77bea66,#a574d533 45%,transparent 72%)!important}
 
+
 /* Remaining legacy green tint, isolated to the public demo. */
-.gostaya-demo-guest .stayhub-section-shell{box-shadow:0 10px 24px rgba(32,38,39,0.10) !important}
-.gostaya-demo-guest .stayhub-premium-screen{--stayhub-premium-muted:rgba(6,72,74,0.68) !important;--stayhub-premium-line:rgba(67,186,173,0.34) !important;background:radial-gradient(circle at 20% 0%, rgba(67,186,173,0.16), transparent 30%),
-    linear-gradient(180deg, #f8fffd 0%, #eef8f5 48%, #f7fffc 100%) !important}
-.gostaya-demo-guest .stayhub-premium-hero{box-shadow:0 18px 34px rgba(10,70,72,0.13) !important}
+.gostaya-demo-guest .stayhub-section-shell{border:1px solid var(--stayhub-action, #7f4aae) !important;box-shadow:0 10px 24px rgba(36,32,39,0.10) !important}
+.gostaya-demo-guest .stayhub-section-header{background:var(--stayhub-action, #7f4aae) !important}
+.gostaya-demo-guest .stayhub-panel{border:1px solid var(--stayhub-action, #7f4aae) !important}
+.gostaya-demo-guest .stayhub-card,.gostaya-demo-guest .stayhub-card-header,.gostaya-demo-guest .stayhub-action-card{background:color-mix(in srgb, var(--stayhub-action, #7f4aae) 86%, var(--stayhub-soft, #f5f5f5) 14%) !important}
+.gostaya-demo-guest .stayhub-card-header{background:color-mix(in srgb, var(--stayhub-action, #7f4aae) 78%, var(--stayhub-soft, #f5f5f5) 22%) !important}
+.gostaya-demo-guest .stayhub-action-card:hover{background:var(--stayhub-action, #7f4aae) !important}
+.gostaya-demo-guest .stayhub-intro-modal{border:1px solid var(--stayhub-action, #7f4aae) !important;color:var(--stayhub-primary, #624080) !important}
+.gostaya-demo-guest .stayhub-intro-title{color:var(--stayhub-primary, #624080) !important}
+.gostaya-demo-guest .stayhub-intro-body{color:var(--stayhub-primary, #624080) !important}
+.gostaya-demo-guest .stayhub-language-pill{background:var(--stayhub-action, #7f4aae) !important}
+.gostaya-demo-guest .stayhub-room-panel{border:1px solid var(--stayhub-action, #7f4aae) !important;color:#242027 !important}
+.gostaya-demo-guest .stayhub-room-panel .text-white,.gostaya-demo-guest .stayhub-room-panel .text-neutral-100,.gostaya-demo-guest .stayhub-room-panel .text-neutral-200,.gostaya-demo-guest .stayhub-room-panel .text-neutral-300,.gostaya-demo-guest .stayhub-room-panel .text-neutral-400,.gostaya-demo-guest .stayhub-room-panel .text-neutral-500{color:#242027 !important}
+.gostaya-demo-guest .stayhub-room-panel .stayhub-card,.gostaya-demo-guest .stayhub-room-panel input.stayhub-card{background:var(--stayhub-action, #7f4aae) !important}
+.gostaya-demo-guest .stayhub-room-panel input.stayhub-card::placeholder{color:color-mix(in srgb, var(--stayhub-text, #f5f5f5) 82%, #242027 18%) !important}
+.gostaya-demo-guest .stayhub-language-pill-active{background:var(--stayhub-action, #7f4aae) !important;border:2px solid #242027 !important}
+.gostaya-demo-guest .stayhub-refresh-button{background:var(--stayhub-action, #7f4aae) !important;color:#242027 !important;border:1px solid #242027 !important}
+.gostaya-demo-guest .stayhub-refresh-button:hover{background:color-mix(in srgb, var(--stayhub-action, #7f4aae) 86%, var(--stayhub-soft, #f5f5f5) 14%) !important;color:#242027 !important}
+.gostaya-demo-guest .stayhub-premium-screen{--stayhub-premium-ink:#2a0a46 !important;--stayhub-premium-muted:rgba(42,10,70,0.68) !important;--stayhub-premium-line:rgba(130,74,179,0.34) !important;--stayhub-premium-teal:var(--stayhub-action, #824ab3) !important;--stayhub-premium-mist:#f5f0f9 !important;background:radial-gradient(circle at 20% 0%, rgba(130,74,179,0.16), transparent 30%),
+    linear-gradient(180deg, #fcf8ff 0%, #f3eff7 48%, #fbf7ff 100%) !important}
+.gostaya-demo-guest .stayhub-premium-hero{background:#ede8f2 !important;box-shadow:0 18px 34px rgba(43,14,68,0.13) !important}
 .gostaya-demo-guest .stayhub-premium-hero-overlay{background:linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(255,255,255,0.34) 32%, rgba(255,255,255,0.76) 100%),
-    radial-gradient(ellipse at bottom, rgba(67,186,173,0.28), transparent 46%) !important}
-.gostaya-demo-guest .stayhub-wordmark{text-shadow:0 1px 10px rgba(255,255,255,0.78) !important}
-.gostaya-demo-guest .stayhub-language-select{background:rgba(255,255,255,0.72) !important;border:1px solid rgba(67,186,173,0.38) !important;box-shadow:0 8px 18px rgba(10,70,72,0.10) !important}
-.gostaya-demo-guest .stayhub-hero-pill,.gostaya-demo-guest .stayhub-confirmed-room-card{background:rgba(255,255,255,0.82) !important;border:1px solid rgba(67,186,173,0.35) !important;box-shadow:0 8px 18px rgba(10,70,72,0.10) !important}
+    radial-gradient(ellipse at bottom, rgba(130,74,179,0.28), transparent 46%) !important}
+.gostaya-demo-guest .stayhub-wordmark{color:#3c1161 !important;text-shadow:0 1px 10px rgba(255,255,255,0.78) !important}
+.gostaya-demo-guest .stayhub-wordmark span + span{color:#441171 !important}
+.gostaya-demo-guest .stayhub-language-select{background:rgba(255,255,255,0.72) !important;border:1px solid rgba(130,74,179,0.38) !important;box-shadow:0 8px 18px rgba(43,14,68,0.10) !important}
+.gostaya-demo-guest .stayhub-hero-pill,.gostaya-demo-guest .stayhub-confirmed-room-card{background:rgba(255,255,255,0.82) !important;border:1px solid rgba(130,74,179,0.35) !important;box-shadow:0 8px 18px rgba(43,14,68,0.10) !important}
 .gostaya-demo-guest .stayhub-confirmed-room-icon{color:#ffffff !important}
-.gostaya-demo-guest .stayhub-premium-screen .stayhub-section-shell,.gostaya-demo-guest .stayhub-premium-screen .stayhub-panel,.gostaya-demo-guest .stayhub-premium-screen .stayhub-card,.gostaya-demo-guest .stayhub-premium-screen .stayhub-action-card,.gostaya-demo-guest .stayhub-premium-push-card{background:rgba(255,255,255,0.88) !important;box-shadow:0 12px 24px rgba(10,70,72,0.09) !important}
-.gostaya-demo-guest .stayhub-premium-screen .stayhub-section-header{background:rgba(255,255,255,0.9) !important;border-bottom:1px solid rgba(67,186,173,0.22) !important}
-.gostaya-demo-guest .stayhub-premium-screen .stayhub-section-shell::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-panel::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-card::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-action-card::after,.gostaya-demo-guest .stayhub-premium-push-card::after,.gostaya-demo-guest .stayhub-premium-tile::after{background:radial-gradient(ellipse at 50% 100%, rgba(67,186,173,0.26), rgba(67,186,173,0.12) 42%, transparent 72%) !important}
-.gostaya-demo-guest .stayhub-premium-tile{background:rgba(255,255,255,0.9) !important;box-shadow:0 12px 24px rgba(10,70,72,0.08) !important}
-.gostaya-demo-guest .stayhub-premium-tile-active{box-shadow:0 0 0 2px rgba(67,186,173,0.22), 0 12px 24px rgba(10,70,72,0.10) !important}
-.gostaya-demo-guest .stayhub-premium-tile-icon{background:rgba(67,186,173,0.12) !important;border:1px solid rgba(67,186,173,0.25) !important}
-.gostaya-demo-guest .stayhub-premium-tile-arrow{border:1px solid rgba(67,186,173,0.28) !important;background:rgba(255,255,255,0.7) !important}
-.gostaya-demo-guest .stayhub-premium-screen input.stayhub-card,.gostaya-demo-guest .stayhub-premium-screen textarea.stayhub-card{background:rgba(255,255,255,0.92) !important;border-color:rgba(67,186,173,0.34) !important}
-.gostaya-demo-guest .stayhub-premium-screen input.stayhub-card::placeholder,.gostaya-demo-guest .stayhub-premium-screen textarea.stayhub-card::placeholder{color:rgba(6,72,74,0.48) !important}
-.gostaya-demo-guest .stayhub-premium-push-icon{background:rgba(67,186,173,0.12) !important;border:1px solid rgba(67,186,173,0.25) !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-section-shell,.gostaya-demo-guest .stayhub-premium-screen .stayhub-panel,.gostaya-demo-guest .stayhub-premium-screen .stayhub-card,.gostaya-demo-guest .stayhub-premium-screen .stayhub-action-card,.gostaya-demo-guest .stayhub-premium-push-card{background:rgba(255,255,255,0.88) !important;box-shadow:0 12px 24px rgba(43,14,68,0.09) !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-section-header{background:rgba(255,255,255,0.9) !important;border-bottom:1px solid rgba(130,74,179,0.22) !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-section-shell::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-panel::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-card::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-action-card::after,.gostaya-demo-guest .stayhub-premium-push-card::after,.gostaya-demo-guest .stayhub-premium-tile::after{background:radial-gradient(ellipse at 50% 100%, rgba(130,74,179,0.26), rgba(130,74,179,0.12) 42%, transparent 72%) !important}
+.gostaya-demo-guest .stayhub-premium-tile{background:rgba(255,255,255,0.9) !important;box-shadow:0 12px 24px rgba(43,14,68,0.08) !important}
+.gostaya-demo-guest .stayhub-premium-tile-active{box-shadow:0 0 0 2px rgba(130,74,179,0.22), 0 12px 24px rgba(43,14,68,0.10) !important}
+.gostaya-demo-guest .stayhub-premium-tile-icon{background:rgba(130,74,179,0.12) !important;border:1px solid rgba(130,74,179,0.25) !important;color:#4c1978 !important}
+.gostaya-demo-guest .stayhub-premium-tile-arrow{border:1px solid rgba(130,74,179,0.28) !important;color:#410e6d !important;background:rgba(255,255,255,0.7) !important}
+.gostaya-demo-guest .stayhub-premium-screen input.stayhub-card,.gostaya-demo-guest .stayhub-premium-screen textarea.stayhub-card{background:rgba(255,255,255,0.92) !important;border-color:rgba(130,74,179,0.34) !important}
+.gostaya-demo-guest .stayhub-premium-screen input.stayhub-card::placeholder,.gostaya-demo-guest .stayhub-premium-screen textarea.stayhub-card::placeholder{color:rgba(42,10,70,0.48) !important}
+.gostaya-demo-guest .stayhub-premium-push-icon{background:rgba(130,74,179,0.12) !important;border:1px solid rgba(130,74,179,0.25) !important;color:#4c1978 !important}
 .gostaya-demo-guest .stayhub-premium-push-button{color:#ffffff !important}
-.gostaya-demo-guest .stayhub-premium-push-secondary{background:rgba(255,255,255,0.82) !important;border:1px solid rgba(67,186,173,0.3) !important}
-.gostaya-demo-guest .stayhub-premium-screen{--stayhub-premium-muted:rgba(6,72,74,0.66) !important;--stayhub-premium-line:rgba(67,186,173,0.32) !important}
+.gostaya-demo-guest .stayhub-premium-push-secondary{background:rgba(255,255,255,0.82) !important;border:1px solid rgba(130,74,179,0.3) !important}
+.gostaya-demo-guest .stayhub-premium-screen{--stayhub-premium-ink:#2a0a46 !important;--stayhub-premium-muted:rgba(42,10,70,0.66) !important;--stayhub-premium-line:rgba(130,74,179,0.32) !important;--stayhub-premium-teal:var(--stayhub-action, #824ab3) !important;background:linear-gradient(180deg, #fbf7ff 0%, #f4eff8 54%, #fcf9ff 100%) !important}
 .gostaya-demo-guest .stayhub-premium-hero-overlay{background:linear-gradient(180deg, rgba(255,255,255,0.64) 0%, rgba(255,255,255,0.18) 42%, rgba(255,255,255,0.58) 100%),
-    radial-gradient(ellipse at 50% 105%, rgba(67,186,173,0.32), rgba(67,186,173,0.12) 42%, transparent 72%) !important}
-.gostaya-demo-guest .stayhub-premium-hero::after{background:radial-gradient(ellipse at 50% 100%, rgba(67,186,173,0.22), rgba(67,186,173,0.08) 52%, transparent 72%) !important}
-.gostaya-demo-guest .stayhub-language-select{background:rgba(255,255,255,0.82) !important;border:1px solid rgba(67,186,173,0.36) !important;box-shadow:0 8px 18px rgba(10,70,72,0.10) !important}
-.gostaya-demo-guest .stayhub-premium-tile{box-shadow:0 8px 18px rgba(10,70,72,0.075) !important}
-.gostaya-demo-guest .stayhub-premium-tile::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-section-shell::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-panel::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-card::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-action-card::after,.gostaya-demo-guest .stayhub-premium-push-card::after,.gostaya-demo-guest .stayhub-premium-locked-card::after{background:radial-gradient(ellipse at 50% 100%, rgba(67,186,173,0.28), rgba(67,186,173,0.11) 46%, transparent 74%) !important}
-.gostaya-demo-guest .stayhub-premium-tile-icon,.gostaya-demo-guest .stayhub-section-header-icon{background:rgba(67,186,173,0.10) !important;border:1px solid rgba(67,186,173,0.25) !important}
+    radial-gradient(ellipse at 50% 105%, rgba(130,74,179,0.32), rgba(130,74,179,0.12) 42%, transparent 72%) !important}
+.gostaya-demo-guest .stayhub-premium-hero::after{background:radial-gradient(ellipse at 50% 100%, rgba(130,74,179,0.22), rgba(130,74,179,0.08) 52%, transparent 72%) !important}
+.gostaya-demo-guest .stayhub-wordmark{color:#390f5d !important}
+.gostaya-demo-guest .stayhub-language-select{background:rgba(255,255,255,0.82) !important;color:#2a0a46 !important;border:1px solid rgba(130,74,179,0.36) !important;box-shadow:0 8px 18px rgba(43,14,68,0.10) !important}
+.gostaya-demo-guest .stayhub-premium-tile{box-shadow:0 8px 18px rgba(43,14,68,0.075) !important}
+.gostaya-demo-guest .stayhub-premium-tile::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-section-shell::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-panel::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-card::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-action-card::after,.gostaya-demo-guest .stayhub-premium-push-card::after,.gostaya-demo-guest .stayhub-premium-locked-card::after{background:radial-gradient(ellipse at 50% 100%, rgba(130,74,179,0.28), rgba(130,74,179,0.11) 46%, transparent 74%) !important}
+.gostaya-demo-guest .stayhub-premium-tile-icon,.gostaya-demo-guest .stayhub-section-header-icon{background:rgba(130,74,179,0.10) !important;border:1px solid rgba(130,74,179,0.25) !important;color:#4c1978 !important}
 .gostaya-demo-guest .stayhub-premium-tile-locked .stayhub-premium-tile-arrow{border-color:rgba(215,154,0,0.38) !important}
-.gostaya-demo-guest .stayhub-premium-locked-card{box-shadow:0 10px 22px rgba(10,70,72,0.08) !important}
+.gostaya-demo-guest .stayhub-section-header-chevron{color:#2a0a46 !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-section-shell,.gostaya-demo-guest .stayhub-premium-screen .stayhub-panel,.gostaya-demo-guest .stayhub-premium-screen .stayhub-card,.gostaya-demo-guest .stayhub-premium-screen .stayhub-action-card,.gostaya-demo-guest .stayhub-premium-push-card,.gostaya-demo-guest .stayhub-premium-locked-card{color:#2a0a46 !important}
+.gostaya-demo-guest .stayhub-premium-locked-card{box-shadow:0 10px 22px rgba(43,14,68,0.08) !important}
 .gostaya-demo-guest .stayhub-premium-lock-dot{border:1px solid rgba(215,154,0,0.35) !important}
-.gostaya-demo-guest .stayhub-premium-screen{--stayhub-premium-line:rgba(67,186,173,0.34) !important;--stayhub-premium-soft:rgba(213,246,240,0.82) !important;background:radial-gradient(circle at 50% 38%, rgba(145,230,218,0.28), transparent 34%),
-    linear-gradient(180deg, #eef9f7 0%, #f7fffd 44%, #effaf7 100%) !important}
-.gostaya-demo-guest .stayhub-premium-hero{box-shadow:0 20px 42px rgba(7,82,85,0.14) !important}
+.gostaya-demo-guest .stayhub-premium-screen{--stayhub-premium-ink:#300c50 !important;--stayhub-premium-teal-deep:#4a0f7d !important;--stayhub-premium-teal:#824ab3 !important;--stayhub-premium-line:rgba(130,74,179,0.34) !important;--stayhub-premium-mist:#f3eef8 !important;--stayhub-premium-soft:rgba(230,215,244,0.82) !important;background:radial-gradient(circle at 50% 38%, rgba(190,150,225,0.28), transparent 34%),
+    linear-gradient(180deg, #f4eff8 0%, #fbf7ff 44%, #f5f0f9 100%) !important}
+.gostaya-demo-guest .stayhub-premium-hero{box-shadow:0 20px 42px rgba(48,12,80,0.14) !important}
 .gostaya-demo-guest .stayhub-premium-hero-overlay{background:linear-gradient(180deg, rgba(255,255,255,0.76) 0%, rgba(255,255,255,0.14) 42%, rgba(255,255,255,0.70) 100%),
-    radial-gradient(ellipse at 50% 92%, rgba(235,255,251,0.94) 0%, rgba(235,255,251,0.52) 40%, transparent 66%) !important}
-.gostaya-demo-guest .stayhub-language-select{border:1px solid rgba(67,186,173,0.45) !important;background:rgba(255,255,255,0.88) !important;box-shadow:0 10px 28px rgba(7,82,85,0.12) !important}
+    radial-gradient(ellipse at 50% 92%, rgba(246,236,254,0.94) 0%, rgba(246,236,254,0.52) 40%, transparent 66%) !important}
+.gostaya-demo-guest .stayhub-wordmark{color:#3d0f66 !important}
+.gostaya-demo-guest .stayhub-wordmark::after{background:radial-gradient(ellipse at 25% 70%, rgba(130,74,179,0.78) 0 20%, transparent 23%),
+    radial-gradient(ellipse at 62% 35%, rgba(130,74,179,0.62) 0 23%, transparent 26%) !important;border-bottom:2px solid rgba(130,74,179,0.86) !important}
+.gostaya-demo-guest .stayhub-language-select{border:1px solid rgba(130,74,179,0.45) !important;background:rgba(255,255,255,0.88) !important;box-shadow:0 10px 28px rgba(48,12,80,0.12) !important}
+.gostaya-demo-guest .stayhub-hero-title{color:#300c50 !important}
+.gostaya-demo-guest .stayhub-hero-subtitle{color:rgba(48,12,80,0.74) !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-panel,.gostaya-demo-guest .stayhub-premium-screen .stayhub-section-shell,.gostaya-demo-guest .stayhub-premium-screen .stayhub-card,.gostaya-demo-guest .stayhub-premium-screen .stayhub-action-card,.gostaya-demo-guest .stayhub-premium-push-card,.gostaya-demo-guest .stayhub-premium-locked-card{box-shadow:0 14px 34px rgba(48,12,80,0.10) !important}
 .gostaya-demo-guest .stayhub-premium-screen .stayhub-panel::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-section-shell::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-card::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-action-card::after,.gostaya-demo-guest .stayhub-premium-push-card::after,.gostaya-demo-guest .stayhub-premium-locked-card::after,.gostaya-demo-guest .stayhub-premium-tile::after{background:radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.56), transparent 60%),
-    linear-gradient(180deg, rgba(219,250,245,0.22), rgba(138,229,216,0.54)) !important}
+    linear-gradient(180deg, rgba(235,221,248,0.22), rgba(186,143,224,0.54)) !important}
+.gostaya-demo-guest .stayhub-room-panel h2::before{background:rgba(130,74,179,0.14) !important;border:1px solid rgba(130,74,179,0.26) !important}
+.gostaya-demo-guest .stayhub-room-panel label{color:rgba(48,12,80,0.74) !important}
+.gostaya-demo-guest .stayhub-room-panel button{background:linear-gradient(180deg, #621ba0, #470f78) !important}
 .gostaya-demo-guest .stayhub-confirmed-room-card{border:1px solid rgba(114,63,159,0.25) !important;background:rgba(246,237,254,0.92) !important;color:#4d296c !important;box-shadow:0 7px 18px rgba(77,41,108,0.14) !important}
 .gostaya-demo-guest .stayhub-confirmed-room-icon{background:#6c329f !important;color:#ffffff !important}
-.gostaya-demo-guest .stayhub-premium-tile-icon{background:rgba(231,251,247,0.88) !important}
+.gostaya-demo-guest .stayhub-premium-tile{border:1px solid rgba(130,74,179,0.28) !important;box-shadow:0 10px 22px rgba(48,12,80,0.08) !important}
+.gostaya-demo-guest .stayhub-premium-tile-icon{color:#501d7d !important;border:1px solid rgba(130,74,179,0.25) !important;background:rgba(242,232,250,0.88) !important}
+.gostaya-demo-guest .stayhub-premium-tile-arrow{color:#3e1067 !important;border:1px solid rgba(130,74,179,0.32) !important}
+.gostaya-demo-guest .stayhub-section-header-icon{background:rgba(242,232,250,0.96) !important;border:1px solid rgba(130,74,179,0.24) !important;color:#501d7d !important}
+.gostaya-demo-guest .stayhub-premium-screen button[aria-label*='AI'],.gostaya-demo-guest .stayhub-premium-screen button.fixed.bottom-5{border:1px solid rgba(48,12,80,0.55) !important;box-shadow:0 18px 38px rgba(48,12,80,0.12) !important}
+.gostaya-demo-guest .stayhub-premium-screen button.fixed.bottom-5 > span:first-child{background:rgba(130,74,179,0.16) !important}
 .gostaya-demo-guest .stayhub-premium-screen a[href^='tel:']{border:1px solid rgba(244,106,135,0.35) !important}
+.gostaya-demo-guest .stayhub-premium-screen{background:linear-gradient(180deg, #f7f3fa 0%, #fdfbff 42%, #f5f0f9 100%) !important}
 .gostaya-demo-guest .stayhub-premium-hero-overlay{background:linear-gradient(180deg, rgba(255,255,255,0.50) 0%, rgba(255,255,255,0.12) 38%, rgba(255,255,255,0.70) 100%),
-    radial-gradient(ellipse at 50% 92%, rgba(231,250,246,0.96) 0%, rgba(231,250,246,0.54) 46%, transparent 70%) !important}
-.gostaya-demo-guest .stayhub-room-modal{background:rgba(9,17,18,0.94) !important}
-.gostaya-demo-guest .stayhub-room-switch-secondary{background:rgba(236,245,244,0.95) !important}
-.gostaya-demo-guest .stayhub-room-modal{background:rgba(5,16,18,0.96) !important}
+    radial-gradient(ellipse at 50% 92%, rgba(241,232,249,0.96) 0%, rgba(241,232,249,0.54) 46%, transparent 70%) !important}
+.gostaya-demo-guest .stayhub-hero-subtitle{color:rgba(48,12,80,0.82) !important}
+.gostaya-demo-guest .stayhub-premium-tile{box-shadow:0 8px 18px rgba(48,12,80,0.075) !important}
+.gostaya-demo-guest .stayhub-premium-tile::after{background:radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.62), transparent 58%),
+    linear-gradient(180deg, rgba(239,226,250,0.18), rgba(184,139,223,0.52)) !important}
+.gostaya-demo-guest .stayhub-premium-tile-icon{background:rgba(242,232,250,0.93) !important;border:1px solid rgba(130,74,179,0.32) !important;color:#4d187b !important;box-shadow:inset 0 0 0 7px rgba(255,255,255,0.36), 0 4px 10px rgba(48,12,80,0.04) !important}
+.gostaya-demo-guest .stayhub-premium-tile-label{color:#300c50 !important}
+.gostaya-demo-guest .stayhub-room-modal{background:rgba(14,10,17,0.94) !important}
+.gostaya-demo-guest .stayhub-room-modal button:last-of-type{background:linear-gradient(180deg, #824ab3, #5c1f91) !important}
+.gostaya-demo-guest .stayhub-premium-screen button.fixed.bottom-5{border:1px solid rgba(48,12,80,0.54) !important}
+.gostaya-demo-guest .stayhub-ai-icon{color:#4a0f7d !important;background:rgba(130,74,179,0.14) !important}
+.gostaya-demo-guest .stayhub-hero-subtitle{color:rgba(48,12,80,0.9) !important}
+.gostaya-demo-guest .stayhub-room-switch-link{color:#3c1162 !important}
+.gostaya-demo-guest .stayhub-room-switch-secondary{background:rgba(241,237,244,0.95) !important;color:#3c1162 !important;border:1px solid rgba(130,74,179,0.3) !important}
+.gostaya-demo-guest .stayhub-room-modal{background:rgba(12,6,17,0.96) !important}
+.gostaya-demo-guest .stayhub-premium-tile::after{background:radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.68), transparent 58%),
+    linear-gradient(180deg, rgba(235,221,248,0.18), rgba(196,159,229,0.5)) !important}
+.gostaya-demo-guest .stayhub-ai-trigger{border:1px solid rgba(130,74,179,0.4) !important;box-shadow:0 12px 28px rgba(48,12,80,0.12) !important}
+.gostaya-demo-guest .stayhub-ai-trigger .stayhub-ai-icon{background:rgba(130,74,179,0.12) !important}
 .gostaya-demo-guest .stayhub-confirmed-room-card,.gostaya-demo-guest .stayhub-room-switch-link.stayhub-confirmed-room-card{background:rgba(246,237,254,0.94) !important;border:1px solid rgba(114,63,159,0.28) !important;color:#411766 !important;box-shadow:0 9px 20px rgba(77,41,108,0.13) !important}
-.gostaya-demo-guest .stayhub-room-switch-link.stayhub-confirmed-room-card:focus,.gostaya-demo-guest .stayhub-room-switch-link.stayhub-confirmed-room-card:focus-visible,.gostaya-demo-guest .stayhub-premium-tile:focus,.gostaya-demo-guest .stayhub-premium-tile:focus-visible{box-shadow:0 9px 20px rgba(77,41,108,0.13), 0 0 0 2px rgba(67,186,173,0.18) !important}
+.gostaya-demo-guest .stayhub-room-switch-link.stayhub-confirmed-room-card:focus,.gostaya-demo-guest .stayhub-room-switch-link.stayhub-confirmed-room-card:focus-visible,.gostaya-demo-guest .stayhub-premium-tile:focus,.gostaya-demo-guest .stayhub-premium-tile:focus-visible{box-shadow:0 9px 20px rgba(77,41,108,0.13), 0 0 0 2px rgba(130,74,179,0.18) !important}
+.gostaya-demo-guest .stayhub-section-window{border:1px solid rgba(130,74,179,0.34) !important;background:rgba(251,247,255,0.96) !important;color:#300c50 !important;box-shadow:0 24px 70px rgba(48,12,80,0.24) !important}
+.gostaya-demo-guest .stayhub-section-window-icon{color:#4e187e !important}
+.gostaya-demo-guest .stayhub-section-window-close{border:1px solid rgba(130,74,179,0.28) !important;color:#3c1162 !important}
+.gostaya-demo-guest .stayhub-premium-tile-icon{color:#4d147e !important}
+.gostaya-demo-guest .stayhub-premium-tile-icon svg{filter:drop-shadow(0 8px 10px rgba(48,12,80,0.10)) !important}
+.gostaya-demo-guest .stayhub-section-header-icon{color:#4d147e !important}
+.gostaya-demo-guest .stayhub-post-confirm-action-card > *,.gostaya-demo-guest .stayhub-post-confirm-action-card button,.gostaya-demo-guest .stayhub-post-confirm-action-card a,.gostaya-demo-guest .stayhub-premium-push-card{border:1px solid rgba(130,74,179,0.22) !important;box-shadow:0 12px 24px rgba(48,12,80,0.08) !important}
+.gostaya-demo-guest .stayhub-premium-push-icon{background:rgba(130,74,179,0.12) !important;color:#4d147e !important}
+.gostaya-demo-guest .stayhub-premium-push-title{color:#341053 !important}
+.gostaya-demo-guest .stayhub-premium-push-text,.gostaya-demo-guest .stayhub-premium-push-state,.gostaya-demo-guest .stayhub-premium-push-warning{color:rgba(44,32,55,0.72) !important}
+.gostaya-demo-guest .stayhub-premium-push-button,.gostaya-demo-guest .stayhub-premium-push-secondary{color:#4d147e !important}
+.gostaya-demo-guest .stayhub-post-confirm-action-card button,.gostaya-demo-guest .stayhub-post-confirm-action-card a{color:#341053 !important}
+.gostaya-demo-guest .stayhub-premium-tile{box-shadow:0 8px 18px rgba(48,12,80,0.075) !important}
+.gostaya-demo-guest .stayhub-premium-tile-icon{color:#4c127e !important}
+.gostaya-demo-guest .stayhub-premium-tile-icon svg{filter:drop-shadow(0 8px 10px rgba(48,12,80,0.08)) !important}
+.gostaya-demo-guest .stayhub-premium-tile-label{color:#341053 !important}
+.gostaya-demo-guest .stayhub-wordmark{color:#40116a !important}
+.gostaya-demo-guest .stayhub-confirmed-room-card:not(.stayhub-room-switch-link){border:1px solid rgba(130,74,179,0.24) !important;box-shadow:0 12px 26px rgba(48,12,80,0.10) !important}
+.gostaya-demo-guest .stayhub-confirmed-room-icon{color:#4c127e !important;background:rgba(130,74,179,0.10) !important;border:1px solid rgba(130,74,179,0.34) !important}
+.gostaya-demo-guest .stayhub-install-card,.gostaya-demo-guest .stayhub-premium-push-card{color:#341053 !important;border:1px solid rgba(130,74,179,0.21) !important;box-shadow:0 10px 24px rgba(48,12,80,0.085) !important}
+.gostaya-demo-guest .stayhub-install-icon,.gostaya-demo-guest .stayhub-premium-push-icon{color:#4c127e !important}
+.gostaya-demo-guest .stayhub-install-icon svg,.gostaya-demo-guest .stayhub-premium-push-icon svg{filter:drop-shadow(0 6px 10px rgba(48,12,80,0.08)) !important}
+.gostaya-demo-guest .stayhub-install-title,.gostaya-demo-guest .stayhub-premium-push-title{color:#4c385d !important}
+.gostaya-demo-guest .stayhub-install-hint,.gostaya-demo-guest .stayhub-premium-push-text,.gostaya-demo-guest .stayhub-premium-push-state,.gostaya-demo-guest .stayhub-premium-push-warning{color:rgba(76,56,93,0.72) !important}
+.gostaya-demo-guest .stayhub-premium-push-button,.gostaya-demo-guest .stayhub-premium-push-secondary{border:1px solid rgba(130,74,179,0.30) !important;color:#4c127e !important}
+.gostaya-demo-guest .stayhub-premium-tile{color:#341053 !important;border:1px solid rgba(130,74,179,0.20) !important;box-shadow:0 10px 22px rgba(48,12,80,0.08) !important}
+.gostaya-demo-guest .stayhub-premium-tile-icon{color:#4c127e !important}
+.gostaya-demo-guest .stayhub-premium-tile-icon svg{filter:drop-shadow(0 7px 10px rgba(48,12,80,0.07)) !important}
+.gostaya-demo-guest .stayhub-premium-tile-label{color:#4c385d !important}
+.gostaya-demo-guest .stayhub-premium-tile-active{border-color:rgba(130,74,179,0.46) !important;box-shadow:0 12px 26px rgba(48,12,80,0.12) !important}
 .gostaya-demo-guest .stayhub-confirmed-room-card,.gostaya-demo-guest .stayhub-room-switch-link.stayhub-confirmed-room-card,.gostaya-demo-guest .stayhub-confirmed-room-card:not(.stayhub-room-switch-link){background:rgba(246,237,254,0.94) !important;border:1px solid rgba(114,63,159,0.28) !important;color:#411766 !important;box-shadow:0 9px 20px rgba(77,41,108,0.13) !important}
-.gostaya-demo-guest .stayhub-room-modal-backdrop{background:rgba(7,38,40,0.28) !important}
-.gostaya-demo-guest .stayhub-room-modal{background:rgba(255,255,255,0.98) !important;border:1px solid rgba(67,186,173,0.26) !important;box-shadow:0 24px 64px rgba(7,82,85,0.20) !important}
-.gostaya-demo-guest .stayhub-room-modal p{color:rgba(7,82,85,0.88) !important}
+.gostaya-demo-guest .stayhub-room-modal-backdrop{background:rgba(24,9,38,0.28) !important}
+.gostaya-demo-guest .stayhub-room-modal{background:rgba(255,255,255,0.98) !important;border:1px solid rgba(130,74,179,0.26) !important;box-shadow:0 24px 64px rgba(48,12,80,0.20) !important}
+.gostaya-demo-guest .stayhub-room-modal,.gostaya-demo-guest .stayhub-room-modal *:not(input):not(select):not(textarea){color:#300c50 !important}
+.gostaya-demo-guest .stayhub-room-modal > div:first-child{color:#300c50 !important}
+.gostaya-demo-guest .stayhub-room-modal p{color:rgba(48,12,80,0.88) !important}
 .gostaya-demo-guest .stayhub-room-modal button:first-of-type,.gostaya-demo-guest .stayhub-room-modal button:last-of-type{background:rgba(246,237,254,0.96) !important;border:1px solid rgba(114,63,159,0.30) !important;color:#411766 !important;box-shadow:0 9px 20px rgba(77,41,108,0.12) !important}
 .gostaya-demo-guest .stayhub-room-modal button:first-of-type:hover,.gostaya-demo-guest .stayhub-room-modal button:last-of-type:hover{background:rgba(238,227,248,0.98) !important}
 .gostaya-demo-guest .stayhub-confirmed-room-card,.gostaya-demo-guest .stayhub-room-switch-link.stayhub-confirmed-room-card,.gostaya-demo-guest .stayhub-confirmed-room-card:not(.stayhub-room-switch-link){background:rgba(246,237,254,0.96) !important;border:1px solid rgba(114,63,159,0.30) !important;color:#411766 !important;box-shadow:0 9px 20px rgba(77,41,108,0.12) !important}
-.gostaya-demo-guest .stayhub-room-panel input.stayhub-card::placeholder{color:rgba(7,82,85,0.52) !important;-webkit-text-fill-color:rgba(7,82,85,0.52) !important}
+.gostaya-demo-guest .stayhub-room-panel h2,.gostaya-demo-guest .stayhub-room-panel p,.gostaya-demo-guest .stayhub-room-panel label,.gostaya-demo-guest .stayhub-room-panel .stayhub-card,.gostaya-demo-guest .stayhub-room-panel .stayhub-card *{color:#300c50 !important}
+.gostaya-demo-guest .stayhub-room-panel input.stayhub-card{color:#300c50 !important;-webkit-text-fill-color:#300c50 !important}
+.gostaya-demo-guest .stayhub-room-panel input.stayhub-card::placeholder{color:rgba(48,12,80,0.52) !important;-webkit-text-fill-color:rgba(48,12,80,0.52) !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-room-modal p,.gostaya-demo-guest .stayhub-premium-screen .stayhub-room-modal p.text-neutral-200{color:#300c50 !important;-webkit-text-fill-color:#300c50 !important}
 .gostaya-demo-guest .stayhub-language-select{background-color:rgba(255,255,255,0.88) !important}
-.gostaya-demo-guest .stayhub-premium-tile-lock{background:rgba(255,255,255,0.94) !important;border:1px solid rgba(7,82,85,0.34) !important;box-shadow:0 5px 12px rgba(7,82,85,0.10) !important}
+.gostaya-demo-guest .stayhub-premium-tile-lock{background:rgba(255,255,255,0.94) !important;border:1px solid rgba(48,12,80,0.34) !important;color:#3c1162 !important;box-shadow:0 5px 12px rgba(48,12,80,0.10) !important}
 .gostaya-demo-guest .stayhub-premium-tile-emergency{background:rgba(255,246,247,0.97) !important;border-color:rgba(239,111,129,0.34) !important;box-shadow:0 10px 22px rgba(171,70,87,0.10) !important}
-.gostaya-demo-guest .stayhub-confirmed-room-card,.gostaya-demo-guest .stayhub-room-switch-link.stayhub-confirmed-room-card,.gostaya-demo-guest .stayhub-confirmed-room-card:not(.stayhub-room-switch-link){background:rgba(255,255,255,0.97) !important;border-color:rgba(67,186,173,0.28) !important;box-shadow:0 9px 20px rgba(7,82,85,0.10) !important}
-.gostaya-demo-guest .stayhub-language-pill{border:1px solid rgba(11,133,128,0.42) !important;box-shadow:0 4px 10px rgba(7,82,85,0.06) !important}
-.gostaya-demo-guest .stayhub-language-pill-active{box-shadow:0 0 0 2px rgba(255,255,255,0.96),
-    0 4px 10px rgba(7,82,85,0.08) !important}
-.gostaya-demo-guest .stayhub-room-modal button:first-of-type,.gostaya-demo-guest .stayhub-room-modal button:last-of-type{color:#411766 !important;-webkit-text-fill-color:#411766 !important;border:1px solid rgba(114,63,159,0.38) !important;box-shadow:0 9px 20px rgba(7,82,85,0.08) !important}
-.gostaya-demo-guest .stayhub-room-modal button:first-of-type:hover,.gostaya-demo-guest .stayhub-room-modal button:last-of-type:hover{border-color:rgba(114,63,159,0.58) !important;box-shadow:0 11px 24px rgba(7,82,85,0.11) !important}
-.gostaya-demo-guest .stayhub-intro-modal > button[type="button"]{border:1px solid rgba(11,133,128,0.42) !important;box-shadow:0 8px 18px rgba(7,82,85,0.08) !important}
-.gostaya-demo-guest .stayhub-intro-modal > button[type="button"]:hover{border-color:rgba(11,133,128,0.62) !important;box-shadow:0 10px 22px rgba(7,82,85,0.11) !important}
-.gostaya-demo-guest .stayhub-language-pill{border-color:rgba(7,82,85,0.34) !important}
-.gostaya-demo-guest .stayhub-intro-modal > button[type="button"]{border-color:rgba(7,82,85,0.34) !important}
-.gostaya-demo-guest .stayhub-request-modal-backdrop{background:rgba(7,38,40,0.28) !important}
-.gostaya-demo-guest .stayhub-request-modal{border:1px solid rgba(67,186,173,0.32) !important;box-shadow:0 24px 64px rgba(7,82,85,0.20) !important}
-.gostaya-demo-guest .stayhub-request-modal-cancel,.gostaya-demo-guest .stayhub-request-modal-confirm{border:1px solid rgba(7,82,85,0.34) !important;box-shadow:0 9px 20px rgba(7,82,85,0.08) !important}
-.gostaya-demo-guest .stayhub-request-modal-cancel:hover,.gostaya-demo-guest .stayhub-request-modal-confirm:hover{border-color:rgba(7,82,85,0.56) !important;box-shadow:0 11px 24px rgba(7,82,85,0.11) !important}
-.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id]{border:1px solid rgba(67,186,173,0.34) !important;box-shadow:0 8px 18px rgba(7,82,85,0.07) !important}
-.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] > button:first-child:focus,.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] > button:first-child:focus-visible{outline:2px solid rgba(67,186,173,0.58) !important}
-.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] .stayhub-action-card,.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] div[style*="background-color"]{border:1px solid rgba(67,186,173,0.34) !important;box-shadow:0 7px 16px rgba(7,82,85,0.06) !important}
-.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] .stayhub-action-card:focus,.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] .stayhub-action-card:focus-visible{outline:2px solid rgba(67,186,173,0.58) !important}
-.gostaya-demo-guest .stayhub-section-window .stayhub-action-card:focus,.gostaya-demo-guest .stayhub-section-window .stayhub-action-card:focus-visible{outline:2px solid rgba(67,186,173,0.58) !important}
-.gostaya-demo-guest .stayhub-final-brand-cta{border:1px solid rgba(7,82,85,0.18) !important;box-shadow:0 10px 22px rgba(7,82,85,0.12) !important}
+.gostaya-demo-guest .stayhub-confirmed-room-card,.gostaya-demo-guest .stayhub-room-switch-link.stayhub-confirmed-room-card,.gostaya-demo-guest .stayhub-confirmed-room-card:not(.stayhub-room-switch-link){background:rgba(255,255,255,0.97) !important;border-color:rgba(130,74,179,0.28) !important;color:#3c1162 !important;box-shadow:0 9px 20px rgba(48,12,80,0.10) !important}
+.gostaya-demo-guest .stayhub-language-pill{color:#4c127e !important;-webkit-text-fill-color:#4c127e !important;border:1px solid rgba(76,18,126,0.42) !important;box-shadow:0 4px 10px rgba(48,12,80,0.06) !important}
+.gostaya-demo-guest .stayhub-language-pill-active{color:#300c50 !important;-webkit-text-fill-color:#300c50 !important;border:2px solid #300c50 !important;box-shadow:0 0 0 2px rgba(255,255,255,0.96),
+    0 4px 10px rgba(48,12,80,0.08) !important}
+.gostaya-demo-guest .stayhub-room-modal button:first-of-type,.gostaya-demo-guest .stayhub-room-modal button:last-of-type{color:#411766 !important;-webkit-text-fill-color:#411766 !important;border:1px solid rgba(114,63,159,0.38) !important;box-shadow:0 9px 20px rgba(48,12,80,0.08) !important}
+.gostaya-demo-guest .stayhub-room-modal button:first-of-type:hover,.gostaya-demo-guest .stayhub-room-modal button:last-of-type:hover{border-color:rgba(114,63,159,0.58) !important;box-shadow:0 11px 24px rgba(48,12,80,0.11) !important}
+.gostaya-demo-guest .stayhub-intro-modal > button[type="button"]{color:#4c127e !important;-webkit-text-fill-color:#4c127e !important;border:1px solid rgba(76,18,126,0.42) !important;box-shadow:0 8px 18px rgba(48,12,80,0.08) !important}
+.gostaya-demo-guest .stayhub-intro-modal > button[type="button"]:hover{border-color:rgba(76,18,126,0.62) !important;box-shadow:0 10px 22px rgba(48,12,80,0.11) !important}
+.gostaya-demo-guest .stayhub-intro-title,.gostaya-demo-guest .stayhub-intro-body,.gostaya-demo-guest .stayhub-language-pill,.gostaya-demo-guest .stayhub-language-pill-active,.gostaya-demo-guest .stayhub-intro-modal > button[type="button"]{color:#300c50 !important;-webkit-text-fill-color:#300c50 !important}
+.gostaya-demo-guest .stayhub-language-pill{border-color:rgba(48,12,80,0.34) !important}
+.gostaya-demo-guest .stayhub-language-pill-active{border-color:#300c50 !important}
+.gostaya-demo-guest .stayhub-intro-modal > button[type="button"]{border-color:rgba(48,12,80,0.34) !important}
+.gostaya-demo-guest .stayhub-request-modal-backdrop{background:rgba(24,9,38,0.28) !important}
+.gostaya-demo-guest .stayhub-request-modal{border:1px solid rgba(130,74,179,0.32) !important;box-shadow:0 24px 64px rgba(48,12,80,0.20) !important}
+.gostaya-demo-guest .stayhub-request-modal-title,.gostaya-demo-guest .stayhub-request-modal-message{color:#300c50 !important;-webkit-text-fill-color:#300c50 !important}
+.gostaya-demo-guest .stayhub-request-modal-cancel,.gostaya-demo-guest .stayhub-request-modal-confirm{color:#300c50 !important;-webkit-text-fill-color:#300c50 !important;border:1px solid rgba(48,12,80,0.34) !important;box-shadow:0 9px 20px rgba(48,12,80,0.08) !important}
+.gostaya-demo-guest .stayhub-request-modal-cancel:hover,.gostaya-demo-guest .stayhub-request-modal-confirm:hover{border-color:rgba(48,12,80,0.56) !important;box-shadow:0 11px 24px rgba(48,12,80,0.11) !important}
+.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id]{color:#300c50 !important;border:1px solid rgba(130,74,179,0.34) !important;box-shadow:0 8px 18px rgba(48,12,80,0.07) !important}
+.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] > button:first-child{color:#300c50 !important;-webkit-text-fill-color:#300c50 !important}
+.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] > button:first-child:focus,.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] > button:first-child:focus-visible{outline:2px solid rgba(130,74,179,0.58) !important}
+.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id],.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] span,.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] div,.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] p{color:#300c50 !important;-webkit-text-fill-color:#300c50 !important}
+.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] .stayhub-action-card,.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] div[style*="background-color"]{color:#300c50 !important;-webkit-text-fill-color:#300c50 !important;border:1px solid rgba(130,74,179,0.34) !important;box-shadow:0 7px 16px rgba(48,12,80,0.06) !important}
+.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] .stayhub-action-card:focus,.gostaya-demo-guest .stayhub-section-window [data-stayhub-request-def-id] .stayhub-action-card:focus-visible{outline:2px solid rgba(130,74,179,0.58) !important}
+.gostaya-demo-guest .stayhub-section-window .stayhub-action-card:focus,.gostaya-demo-guest .stayhub-section-window .stayhub-action-card:focus-visible{outline:2px solid rgba(130,74,179,0.58) !important}
+.gostaya-demo-guest .stayhub-premium-grid .stayhub-premium-tile-label{color:#4c385d !important;-webkit-text-fill-color:#4c385d !important}
+.gostaya-demo-guest .stayhub-final-brand-cta{background:#824ab3 !important;background-color:#824ab3 !important;color:#300c50 !important;-webkit-text-fill-color:#300c50 !important;border:1px solid rgba(48,12,80,0.18) !important;box-shadow:0 10px 22px rgba(48,12,80,0.12) !important}
+.gostaya-demo-guest .stayhub-final-brand-cta:hover{background:#824ab3 !important;background-color:#824ab3 !important;color:#300c50 !important;-webkit-text-fill-color:#300c50 !important}
 .gostaya-demo-guest .stayhub-premium-screen
-  button[data-stayhub-room-confirm-cta="true"]{border-color:rgba(7,82,85,0.18) !important}
-.gostaya-demo-guest .stayhub-premium-screen .stayhub-request-status-badge{border-color:rgba(7,82,85,0.20) !important;box-shadow:0 5px 12px rgba(7,82,85,0.10) !important}
-.gostaya-demo-guest .stayhub-premium-screen .stayhub-ai-trigger .stayhub-ai-lock-dot{border-color:rgba(7,82,85,0.34) !important;background:rgba(255,255,255,0.92) !important}
-.gostaya-demo-guest .stayhub-premium-screen .stayhub-request-toast{border-color:rgba(67,186,173,0.58) !important;box-shadow:0 18px 44px rgba(7,82,85,0.22) !important}
-.gostaya-demo-guest .stayhub-premium-screen .stayhub-request-toast-sending{background:rgba(248,255,254,0.99) !important;background-color:rgba(248,255,254,0.99) !important}
-.gostaya-demo-guest .stayhub-premium-screen .stayhub-request-toast-success{background:rgba(225,248,244,0.99) !important;background-color:rgba(225,248,244,0.99) !important}
-.gostaya-demo-guest .stayhub-refresh-button{border:1px solid rgba(7,82,85,0.18) !important}
-.gostaya-demo-guest .stayhub-refresh-button:hover{border:1px solid rgba(7,82,85,0.18) !important}
-.gostaya-demo-guest .stayhub-premium-screen .stayhub-confirmed-stay-card small{color:rgba(7,82,85,0.72) !important}
-.gostaya-demo-guest .stayhub-premium-screen .stayhub-stay-date-grid input[type="date"]{background-color:rgba(255,255,255,0.96) !important;border-color:rgba(67,186,173,0.28) !important}
+  button[data-stayhub-room-confirm-cta="true"]{background:#824ab3 !important;background-color:#824ab3 !important;color:#300c50 !important;-webkit-text-fill-color:#300c50 !important;border-color:rgba(48,12,80,0.18) !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-request-status-badge{background:#824ab3 !important;background-color:#824ab3 !important;color:#300c50 !important;-webkit-text-fill-color:#300c50 !important;border-color:rgba(48,12,80,0.20) !important;box-shadow:0 5px 12px rgba(48,12,80,0.10) !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-ai-trigger .stayhub-ai-lock-dot{color:#300c50 !important;-webkit-text-fill-color:#300c50 !important;border-color:rgba(48,12,80,0.34) !important;background:rgba(255,255,255,0.92) !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-request-toast{border-color:rgba(130,74,179,0.58) !important;color:#300c50 !important;-webkit-text-fill-color:#300c50 !important;box-shadow:0 18px 44px rgba(48,12,80,0.22) !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-request-toast-sending{background:rgba(252,248,255,0.99) !important;background-color:rgba(252,248,255,0.99) !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-request-toast-success{background:rgba(237,226,247,0.99) !important;background-color:rgba(237,226,247,0.99) !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-request-toast,.gostaya-demo-guest .stayhub-premium-screen .stayhub-request-toast *{color:#300c50 !important;-webkit-text-fill-color:#300c50 !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-refresh-button{border-color:#300c50 !important}
+.gostaya-demo-guest .stayhub-refresh-button{background:#824ab3 !important;background-color:#824ab3 !important;color:#300c50 !important;-webkit-text-fill-color:#300c50 !important;border:1px solid rgba(48,12,80,0.18) !important}
+.gostaya-demo-guest .stayhub-refresh-button:hover{background:#824ab3 !important;background-color:#824ab3 !important;color:#300c50 !important;-webkit-text-fill-color:#300c50 !important;border:1px solid rgba(48,12,80,0.18) !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-confirmed-stay-card small{color:rgba(48,12,80,0.72) !important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-stay-date-grid input[type="date"]{color:#242027 !important;background-color:rgba(255,255,255,0.96) !important;border-color:rgba(130,74,179,0.28) !important}
 .gostaya-demo-guest .stayhub-tools-theme-toggle{background:rgba(10,10,10,0.92) !important;box-shadow:0 8px 24px rgba(0,0,0,0.22) !important}
-.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .stayhub-tools-theme-toggle{background:rgba(255,255,255,0.94) !important;box-shadow:0 8px 24px rgba(24,45,54,0.12) !important}
-.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/20,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/30,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/40,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/50{background-color:rgba(239,244,246,0.92) !important}
+.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"]{background:#f5f3f7 !important;color:#1f1825 !important}
+.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .stayhub-tools-theme-toggle{border-color:#cfc9d5 !important;background:rgba(255,255,255,0.94) !important;color:#1f1825 !important;box-shadow:0 8px 24px rgba(40,26,52,0.12) !important}
+.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/90,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/80,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/70,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/60,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/50,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-950\/40{background-color:#f9f7fa !important}
+.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-800,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-neutral-800\/50{background-color:#f0edf2 !important}
+.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/20,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/30,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/40,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .bg-black\/50{background-color:rgba(243,239,246,0.92) !important}
+.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-white\/10,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-white\/15,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-white\/20{border-color:#dad4df !important}
+.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-neutral-900,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-neutral-800,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-neutral-700,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .border-neutral-600{border-color:#dad4df !important}
+.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-white,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-50,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-100,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-200{color:#1f1825 !important}
+.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-300{color:#41354b !important}
+.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-400,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-500{color:#6b5f76 !important}
+.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-600,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-neutral-700{color:#7e7288 !important}
+.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-cyan-50,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-cyan-100,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-cyan-200,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-cyan-300{color:#420f6f !important}
+.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-emerald-50,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-emerald-100,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-emerald-200,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] .text-emerald-300{color:#410e6e !important}
+.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] input::placeholder,.gostaya-demo-guest .stayhub-tools-shell[data-stayhub-tools-theme="light"] textarea::placeholder{color:#877c90 !important}
+/* Keep the original transparent icons; recolor their pixels only in the public demo. */
+.gostaya-demo-guest .stayhub-premium-tile-icon,.gostaya-demo-guest .stayhub-section-header-icon,.gostaya-demo-guest .stayhub-premium-push-icon,.gostaya-demo-guest .stayhub-install-icon{background:transparent!important;border:0!important;box-shadow:none!important}
+.gostaya-demo-guest .stayhub-premium-icon-image,.gostaya-demo-guest .stayhub-action-icon-image{background:transparent!important;border:0!important;box-shadow:none!important;filter:brightness(0) saturate(100%) invert(29%) sepia(98%) saturate(3174%) hue-rotate(248deg) brightness(98%) contrast(102%)!important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-room-modal button:first-of-type{background:#f3e8ff!important;color:#603095!important;-webkit-text-fill-color:#603095!important;border-color:#d8b4fe!important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-room-modal button:last-of-type{background:#7c3aed!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#7c3aed!important}
+.gostaya-demo-guest .stayhub-premium-screen button[data-stayhub-room-confirm-cta="true"]{background:#7c3aed!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-request-status-badge{background:#e9d5ff!important;color:#5b2188!important;-webkit-text-fill-color:#5b2188!important;border-color:#c8a0e7!important}
+.gostaya-demo-guest .stayhub-premium-screen .stayhub-install-card::after,.gostaya-demo-guest .stayhub-premium-screen .stayhub-premium-push-card::after{background:radial-gradient(ellipse at 50% 100%,#b77bea66,#a574d533 45%,transparent 72%)!important}
