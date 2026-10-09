@@ -1,0 +1,70 @@
+name: GOSTAYA Production Schema-Only Export
+
+on:
+  push:
+    branches:
+      - infra/gostaya-launch-test-schema-recovery
+    paths:
+      - ".github/workflows/gostaya-schema-only-export.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  export-public-schema:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SOURCE_DB_URL: ${{ secrets.GOSTAYA_SCHEMA_SOURCE_DB_URL }}
+    steps:
+      - name: Verify authenticated read-only source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from urllib.parse import urlsplit, unquote
+          secret = os.environ.get("SOURCE_DB_URL", "")
+          if not secret:
+              raise SystemExit("BLOCKED: configure GitHub Actions secret GOSTAYA_SCHEMA_SOURCE_DB_URL")
+          parsed = urlsplit(secret)
+          host = parsed.hostname or ""
+          user = unquote(parsed.username or "")
+          if parsed.scheme not in {"postgres", "postgresql"}:
+              raise SystemExit("BLOCKED: require a PostgreSQL URI")
+          if not (host.endswith(".supabase.co") or host.endswith(".supabase.com")):
+              raise SystemExit("BLOCKED: not a Supabase hostname")
+          if "zbpwxifcsyknorpsrzbo" not in (host + " " + user):
+              raise SystemExit("BLOCKED: source must be the GOSTAYA Production project")
+          if parsed.port != 5432:
+              raise SystemExit("BLOCKED: require direct/session pooler on port 5432")
+          if parsed.path not in {"/postgres", ""}:
+              raise SystemExit("BLOCKED: PostgreSQL database must be postgres")
+          print("Source project verified. No database URL or credentials logged.")
+          PY
+
+      - name: Export public database schema ONLY
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/gostaya-schema"
+          docker run --rm --network host \
+            -e SOURCE_DB_URL \
+            -e PGOPTIONS="-c default_transaction_read_only=on" \
+            -v "$RUNNER_TEMP/gostaya-schema:/work" \
+            postgres:17 \
+            sh -ec 'pg_dump --dbname "$SOURCE_DB_URL" --schema-only --schema=public --no-owner --no-acl --no-comments --file=/work/gostaya-public-schema.sql'
+          test -s "$RUNNER_TEMP/gostaya-schema/gostaya-public-schema.sql"
+          if grep -Eq '^[[:space:]]*(COPY|INSERT[[:space:]]+INTO)[[:space:]]' "$RUNNER_TEMP/gostaya-schema/gostaya-public-schema.sql"; then
+            echo "BLOCKED: Data statements found in supposedly schema-only export"
+            exit 1
+          fi
+          echo "Schema-only export ready. No hotel records were copied."
+
+      - name: Store temporary schema artifact (private repo)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gostaya-production-public-schema-only
+          path: ${{ runner.temp }}/gostaya-schema/gostaya-public-schema.sql
+          retention-days: 1
+          if-no-files-found: error
