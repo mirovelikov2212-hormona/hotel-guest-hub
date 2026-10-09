@@ -14,12 +14,15 @@ const STAFF_PAGE_FILES = [
 ];
 
 test("M12 gives all four staff roles the same sound, tab and push surfaces", async () => {
-  const unifiedHeader = await readProjectFile(
-    "components/staff/StaffDepartmentUnifiedHeader.tsx",
+  const sharedExperience = await readProjectFile(
+    "components/staff/manager/DepartmentExperience.tsx",
   );
-  assertContains(unifiedHeader, "StaffAlertSoundButton");
-  assertContains(unifiedHeader, "ManagerPwaControls");
-  assertContains(unifiedHeader, "role={role}");
+  assertContains(sharedExperience, "StaffAlertSoundButton");
+  assertContains(sharedExperience, "ManagerPwaControls");
+  assertContains(sharedExperience, "role={role}");
+  assertContains(sharedExperience, "soundEnabled={soundEnabled}");
+  assertContains(sharedExperience, "onToggle={onToggleSound}");
+  assertContains(sharedExperience, 'id: "settings"');
 
   for (const [role, file] of STAFF_PAGE_FILES) {
     const source = await readProjectFile(file);
@@ -31,8 +34,10 @@ test("M12 gives all four staff roles the same sound, tab and push surfaces", asy
       assertContains(source, "ManagerPwaControls");
       assertContains(source, 'role="manager"');
     } else {
-      assertContains(source, "StaffDepartmentUnifiedHeader");
+      assertContains(source, "DepartmentExperience");
       assertContains(source, `role="${role}"`);
+      assertContains(source, "soundEnabled={soundEnabled}");
+      assertContains(source, "onToggleSound={() => void toggleSound()}");
     }
   }
 
