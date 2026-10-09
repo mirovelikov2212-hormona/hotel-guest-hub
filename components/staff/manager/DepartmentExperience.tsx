@@ -29,12 +29,15 @@ export default function DepartmentExperience({ role, operations, extraModules = 
   const { lang, setLang } = useStaffUi();
   const copy = COPY[lang];
   const slug = hotelSlug || "demo";
+  const displayHotelName = slug === "demo"
+    ? (lang === "bg" ? "Демо хотел" : lang === "de" ? "Demo-Hotel" : "Demo hotel")
+    : hotelName || slug;
   const modules: ManagerModule[] = [
     { id: "requests", label: copy.requests, description: copy.tasks, icon: role === "maintenance" ? "hammer_and_wrench" : "clipboard", badge: count, content: operations },
     ...extraModules,
     { id: "training", label: copy.training, description: copy.learn, icon: "graduation_cap", content: <StaffDevelopmentAccessCard hotelSlug={slug} role={role} /> },
     { id: "settings", label: copy.settings, description: copy.configure, icon: "desktop_computer", content: <><ManagerPwaControls hotelSlug={slug} role={role} /><StaffAlertSoundButton soundEnabled={soundEnabled} onToggle={onToggleSound} /></> },
   ];
-  return <ManagerExperience hotelSlug={slug} hotelName={hotelName || slug} lang={lang} role={role} panelTitle={copy.roles[role]} modules={modules}
+  return <ManagerExperience hotelSlug={slug} hotelName={displayHotelName} lang={lang} role={role} panelTitle={copy.roles[role]} modules={modules}
     toolbar={<select value={lang} onChange={(event) => setLang(event.target.value as typeof lang)} aria-label="Staff UI language"><option value="bg">BG</option><option value="en">EN</option><option value="de">DE</option></select>} />;
 }
