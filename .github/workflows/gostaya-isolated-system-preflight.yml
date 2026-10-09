@@ -6,6 +6,7 @@ on:
       - infra/gostaya-launch-test-schema-recovery
     paths:
       - ".github/workflows/gostaya-isolated-system-preflight.yml"
+      - "tests/contracts/m12-staff-notification-parity.contract.test.mjs"
   workflow_dispatch:
 
 permissions:
