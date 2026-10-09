@@ -145,14 +145,14 @@ test("guest request room validation fails closed when hotel or room configuratio
   assertBefore(
     source,
     "if (!hotelConfig) {",
-    'const testRoomPolicy = await getTestRoomPolicy',
+    'const configuredTestRoomPolicy = await getTestRoomPolicy',
     "Hotel config must be validated before any request processing continues.",
   );
 
   assertBefore(
     source,
     "if (validRoomNumbers.length === 0) {",
-    'const testRoomPolicy = await getTestRoomPolicy',
+    'const configuredTestRoomPolicy = await getTestRoomPolicy',
     "Room configuration must fail closed before stay validation or request insertion.",
   );
 
