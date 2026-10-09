@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "checkpoint": "launch-preview-guard-review-20261009",
+  "baseCheckpoint": "aquamarine-offseason-reporting-pause",
+  "expectedNeedsReview": 348,
+  "relocations": [
+    {
+      "filePath": "app/api/guest/day3-survey/route.ts",
+      "fromLine": 65,
+      "toLine": 66,
+      "table": "guest_surveys",
+      "operation": "select"
+    },
+    {
+      "filePath": "app/api/staff/request-status/route.ts",
+      "fromLine": 413,
+      "toLine": 427,
+      "table": "hub_events",
+      "operation": "insert"
+    },
+    {
+      "filePath": "app/api/staff/requests/route.ts",
+      "fromLine": 173,
+      "toLine": 175,
+      "table": "guest_requests",
+      "operation": "update"
+    },
+    {
+      "filePath": "app/api/staff/surveys/route.ts",
+      "fromLine": 110,
+      "toLine": 111,
+      "table": "guest_surveys",
+      "operation": "update"
+    }
+  ],
+  "additions": [],
+  "removals": []
+}
