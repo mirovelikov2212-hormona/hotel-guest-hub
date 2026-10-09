@@ -1,5 +1,7 @@
 import MarketingIcon from "./MarketingIcon";
+import Image from "next/image";
 import PilotEvidenceVisual from "./PilotEvidenceVisual";
+import "./platform-showcase.css";
 
 type Lang = "bg" | "en" | "de";
 
@@ -64,8 +66,17 @@ export default function PilotCaseStudy({lang}:{lang:Lang}) {
   const c=COPY[lang];
   return <section id="evidence" className="gostaya-shell gostaya-section gostaya-pilot">
     <div className="gostaya-pilot-heading"><div><p className="gostaya-eyebrow">{c.eyebrow}</p><h2>{c.title} <a href="https://aquamarine-kranevo.com/bg" target="_blank" rel="noreferrer">{c.hotel}</a></h2><p className="gostaya-body">{c.text}</p></div><span className="gostaya-season">{c.season}</span></div>
-    <div className="gostaya-pilot-grid"><div className="gostaya-pilot-dashboard"><div className="gostaya-dashboard-heading"><span className="gostaya-mobile-brand">GOSTAYA</span><span>{c.dashboard}</span></div><PilotEvidenceVisual lang={lang}/></div>
-      <div className="gostaya-pilot-metrics">{c.metrics.map(([value,label],i)=><div key={label}><span className="gostaya-metric-icon" aria-hidden="true"><MarketingIcon name={["bed","phone","info","reception","massage","euro"][i]}/></span><div><strong>{value}</strong><p>{label}</p></div></div>)}</div>
+    <div className="gostaya-pilot-grid">
+      <div className="gostaya-pilot-scene">
+        <Image src="/marketing/pilot-resort.webp" alt="" fill sizes="(min-width: 820px) 50vw, 100vw" />
+        <span className="gostaya-pilot-photo-label">{lang === "bg" ? "Илюстрация на хотелска среда" : lang === "de" ? "Illustration einer Hotelumgebung" : "Hotel environment illustration"}</span>
+        <div className="gostaya-pilot-dashboard"><div className="gostaya-dashboard-heading"><span className="gostaya-mobile-brand">GOSTAYA</span><span>{c.dashboard}</span></div><PilotEvidenceVisual lang={lang}/></div>
+      </div>
+      <div className="gostaya-pilot-metrics">{c.metrics.map(([value,label],i)=><div key={label} data-metric={i}>
+        <span className="gostaya-metric-icon" aria-hidden="true"><MarketingIcon name={["bed","phone","info","reception","massage","euro"][i]}/></span>
+        <div><strong>{value}</strong><p>{label}</p></div>
+        {i === 0 ? <progress value={65} max={66} aria-label={label} /> : null}
+      </div>)}</div>
     </div>
     <div className="gostaya-pilot-note"><strong>{c.estimate}</strong><p>{lang==="bg"?"Оперативна оценка, а не измерено време. 65 активни от общо 66 стаи за сезона. Отварянията не означават уникални гости. Пилотът работи без PMS интеграция.":lang==="de"?"Operative Schätzung, keine Zeitmessung. 65 von insgesamt 66 Zimmern waren in der Saison aktiv. Aufrufe sind keine einzelnen Gäste. Pilot ohne PMS-Integration.":"Operational estimate, not measured time. 65 of the hotel’s 66 rooms were active during the season. Opens are not unique guests. Pilot without PMS integration."}</p></div>
   </section>;

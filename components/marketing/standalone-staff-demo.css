@@ -1,0 +1,7 @@
+.gostaya-standalone-panel { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; background: #1e113a; color: #f5f3ff; }
+.gostaya-standalone-panel > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 54px; flex-shrink: 0; padding: 8px 20px; background: #f3eafa; color: #7c3aed; }
+.gostaya-standalone-panel header strong { font-size: 16px; }.gostaya-standalone-panel header span { color: #4c1d95; font-size: 12px; }
+.gostaya-standalone-panel header a { padding: 8px 14px; border: 1px solid #ddd6fe; border-radius: 999px; background: #fff; font-size: 12px; }
+.gostaya-standalone-panel > iframe { width: 100%; flex: 1; min-height: 0; border: 0; }.gostaya-standalone-panel > div { margin: auto; text-align: center; }
+.gostaya-standalone-panel button { margin-top: 16px; padding: 10px 20px; border-radius: 999px; background: #7c3aed; }
+@media(max-width:600px){.gostaya-standalone-panel > header{padding:6px 10px;min-height:46px}.gostaya-standalone-panel header strong{font-size:13px}.gostaya-standalone-panel header span{font-size:10px}.gostaya-standalone-panel header a{font-size:11px;padding:7px 10px}}

@@ -1,12 +1,13 @@
 "use client";
 
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import ManagerModuleDialog, { type ManagerModule } from "./ManagerModuleDialog";
 import "./manager-experience.css";
 
 type Lang = "bg" | "en" | "de";
-type Scene = "welcome" | "door" | "opening" | "bell" | "ringing" | "hub";
+type Scene = "welcome" | "door" | "opening" | "bell" | "bell-loading" | "ringing" | "hub";
 const ASSETS = "/marketing/manager";
 const INTRO_EVENT = "gostaya-manager-intro";
 const COPY = {
@@ -26,16 +27,20 @@ function subscribeMotion(callback: () => void) {
 }
 
 /** Presentation only: module contents retain their existing APIs, permissions and state. */
-export default function ManagerExperience({ hotelSlug, hotelName, lang, modules, toolbar, initialModule }: {
+export default function ManagerExperience({ hotelSlug, hotelName, lang, modules, toolbar, initialModule, panelTitle, role = "manager" }: {
   hotelSlug: string;
   hotelName: string;
   lang: Lang;
   modules: ManagerModule[];
   toolbar?: ReactNode;
   initialModule?: string;
+  panelTitle?: string;
+  role?: "manager" | "reception" | "housekeeping" | "maintenance";
 }) {
-  const copy = COPY[lang];
-  const storageKey = `gostaya:manager-intro:v1:${hotelSlug}`;
+  const copy = { ...COPY[lang], title: panelTitle || COPY[lang].title };
+  const query = useSearchParams();
+  const demoSession = hotelSlug === "demo" ? query.get("demoSession") || "" : "";
+  const storageKey = `gostaya:staff-intro:v2:${hotelSlug}:${role}:${demoSession}`;
   const introSeen = useSyncExternalStore(subscribeIntro, () => {
     try { return sessionStorage.getItem(storageKey) === "seen"; } catch { return false; }
   }, () => false);
@@ -45,10 +50,12 @@ export default function ManagerExperience({ hotelSlug, hotelName, lang, modules,
   const [activeModule, setActiveModule] = useState<string | undefined>(initialModule);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const sounds = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const playbackGeneration = useRef(0);
   const currentScene = scene === "welcome" ? (introSeen ? "hub" : "door") : scene;
   const activeIndex = modules.findIndex((module) => module.id === activeModule);
 
   const finishIntro = useCallback(() => {
+    playbackGeneration.current += 1;
     setScene("hub");
     try { sessionStorage.setItem(storageKey, "seen"); } catch { /* Storage is optional. */ }
     window.dispatchEvent(new Event(INTRO_EVENT));
@@ -64,14 +71,23 @@ export default function ManagerExperience({ hotelSlug, hotelName, lang, modules,
     return () => window.clearTimeout(timer);
   }, [scene, reducedMotion, finishIntro]);
 
-  useEffect(() => () => {
+  useEffect(() => {
     const activeSounds = sounds.current;
-    activeSounds.forEach((sound) => sound.pause());
-    activeSounds.clear();
+    for (const name of ["unlock", "bell", "tick"]) {
+      const sound = new Audio(`${ASSETS}/sfx/${name}.mp3`);
+      sound.preload = "auto";
+      sound.load();
+      activeSounds.set(name, sound);
+    }
+    return () => {
+      playbackGeneration.current += 1;
+      activeSounds.forEach((sound) => sound.pause());
+      activeSounds.clear();
+    };
   }, []);
 
   function playSound(name: "unlock" | "bell" | "tick") {
-    if (!soundEnabled) return;
+    if (!soundEnabled) return Promise.resolve();
     let sound = sounds.current.get(name);
     if (!sound) {
       sound = new Audio(`${ASSETS}/sfx/${name}.mp3`);
@@ -80,7 +96,16 @@ export default function ManagerExperience({ hotelSlug, hotelName, lang, modules,
     sound.volume = name === "tick" ? 0.25 : 0.7;
     sound.currentTime = 0;
     // Called directly by a click so playback also works on mobile browsers.
-    void sound.play().catch(() => {});
+    return sound.play().catch(() => {});
+  }
+
+  function ringBell() {
+    const generation = ++playbackGeneration.current;
+    setScene("bell-loading");
+    // The hand appears when playback starts, not while the audio is loading.
+    void playSound("bell").then(() => {
+      if (generation === playbackGeneration.current) setScene("ringing");
+    });
   }
 
   function selectModule(id: string) { playSound("tick"); setActiveModule(id); }
@@ -105,17 +130,17 @@ export default function ManagerExperience({ hotelSlug, hotelName, lang, modules,
         </div>
       </header>
 
-      {currentScene === "door" || currentScene === "opening" ? <section className="manager-intro-scene" aria-label={copy.door}>
+      {currentScene === "door" || currentScene === "opening" ? <section key="door" className="manager-intro-scene" aria-label={copy.door}>
         <picture><source media="(max-width: 700px)" srcSet={`${ASSETS}/intro/door-closed-m.webp`} /><img src={`${ASSETS}/intro/door-closed.webp`} alt="" /></picture>
         <picture className="manager-intro-open"><source media="(max-width: 700px)" srcSet={`${ASSETS}/intro/door-open-m.webp`} /><img src={`${ASSETS}/intro/door-open.webp`} alt="" /></picture>
         <button type="button" className="manager-door-key manager-scene-control" aria-label={copy.door} disabled={currentScene === "opening"}
           onClick={() => { playSound("unlock"); setScene("opening"); }}><span aria-hidden="true" /></button>
         <p className="manager-intro-caption">{copy.door}</p>
-      </section> : currentScene === "bell" || currentScene === "ringing" ? <section className="manager-intro-scene" aria-label={copy.bell}>
+      </section> : currentScene === "bell" || currentScene === "bell-loading" || currentScene === "ringing" ? <section key="bell" className="manager-intro-scene" aria-label={copy.bell}>
         <picture><source media="(max-width: 700px)" srcSet={`${ASSETS}/intro/bell-idle-m.webp`} /><img src={`${ASSETS}/intro/bell-idle.webp`} alt="" /></picture>
-        <picture className="manager-intro-press"><source media="(max-width: 700px)" srcSet={`${ASSETS}/intro/bell-palm-m.webp`} /><img src={`${ASSETS}/intro/bell-palm.webp`} alt="" /></picture>
-        <button type="button" className="manager-bell-button manager-scene-control" aria-label={copy.bell} disabled={currentScene === "ringing"}
-          onClick={() => { playSound("bell"); setScene("ringing"); }} />
+        <picture className="manager-intro-press" hidden={currentScene !== "ringing"}><source media="(max-width: 700px)" srcSet={`${ASSETS}/intro/bell-palm-m.webp`} /><img src={`${ASSETS}/intro/bell-palm.webp`} alt="" /></picture>
+        <button type="button" className="manager-bell-button manager-scene-control" aria-label={copy.bell} disabled={currentScene !== "bell"}
+          onClick={ringBell} />
         <p className="manager-intro-caption">{copy.bell}</p>
       </section> : <section className="manager-lobby" aria-label={copy.title}>
         <Image src={`${ASSETS}/intro/hub.webp`} alt="" fill unoptimized loading="eager" className="manager-lobby-image" />

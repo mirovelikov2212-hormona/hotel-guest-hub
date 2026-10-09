@@ -35,7 +35,7 @@
 }
 
 /* Public marketing/demo polish; production hotel themes remain configurable. */
-.gostaya-marketing button,.gostaya-marketing .gostaya-primary-action,.gostaya-marketing .gostaya-secondary-action,.gostaya-marketing .gostaya-ai-action,.gostaya-demo-workspace button,.gostaya-demo-workspace .gostaya-demo-top>a,.gostaya-demo-guest button,.demo-compact-panel button,.gostaya-module-dialog button{border-radius:999px!important}
+.gostaya-marketing button:not(.gostaya-department-card),.gostaya-marketing .gostaya-primary-action,.gostaya-marketing .gostaya-secondary-action,.gostaya-marketing .gostaya-ai-action,.gostaya-demo-workspace button,.gostaya-demo-workspace .gostaya-demo-top>a,.gostaya-demo-guest button,.demo-compact-panel button,.gostaya-module-dialog button{border-radius:999px!important}
 /* Large utility/service cards retain a rounded rectangular silhouette. */
 .gostaya-demo-guest .stayhub-premium-tile,.gostaya-demo-guest .stayhub-install-card,.gostaya-demo-guest .stayhub-premium-push-card,.gostaya-demo-guest .stayhub-demo-message-button{border-radius:22px!important}
 .gostaya-demo-guest .stayhub-demo-message-button::after{border-radius:0 0 21px 21px!important}

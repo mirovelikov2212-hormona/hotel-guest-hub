@@ -5,8 +5,7 @@ import DemoCompactPanel from "../DemoCompactPanel";
 import { useEffect, useMemo, useState } from "react";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
-import StaffDevelopmentAccessCard from "@/components/staff/StaffDevelopmentAccessCard";
-import StaffDepartmentUnifiedHeader from "@/components/staff/StaffDepartmentUnifiedHeader";
+import DepartmentExperience from "../manager/DepartmentExperience";
 import { useStaffAlertSound } from "@/components/staff/useStaffAlertSound";
 import { useStaffTabTitleAlert } from "@/components/staff/useStaffTabTitleAlert";
 import { useStaffStore } from "@/components/staff/store/StaffStoreProvider";
@@ -77,22 +76,8 @@ function FullHousekeepingPage() {
     return sortStaffRequests(base);
   }, [activeRequests, summaryFilter]);
 
-  return (
-    <main className="space-y-6 pb-safe">
-      <StaffDepartmentUnifiedHeader
-        hotelSlug={hotelSlug}
-        role="housekeeping"
-        departmentTitle={t.housekeeping}
-        intro={t.housekeepingIntro.replace(/\.\s+/, ".\n")}
-        operationalLabel={t.sharedHousekeepingBoard}
-        soundEnabled={soundEnabled}
-        onToggleSound={() => void toggleSound()}
-      />
-
-      {hotelSlug ? (
-        <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="housekeeping" />
-      ) : null}
-
+  const operations = (
+    <div className="space-y-6">
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StaffSummaryCard
           label={t.active}
@@ -151,8 +136,16 @@ function FullHousekeepingPage() {
           </div>
         )}
       </section>
-    </main>
+    </div>
   );
+
+  return <DepartmentExperience
+    role="housekeeping"
+    operations={operations}
+    count={activeRequests.length}
+    soundEnabled={soundEnabled}
+    onToggleSound={() => void toggleSound()}
+  />;
 }
 
 export default function HousekeepingPage() {

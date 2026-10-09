@@ -5,8 +5,8 @@ import DemoCompactPanel from "../DemoCompactPanel";
 import { useEffect, useMemo, useState } from "react";
 import StaffRequestCard from "@/components/staff/StaffRequestCard";
 import StaffSummaryCard from "@/components/staff/StaffSummaryCard";
-import StaffDevelopmentAccessCard from "@/components/staff/StaffDevelopmentAccessCard";
-import StaffDepartmentUnifiedHeader from "@/components/staff/StaffDepartmentUnifiedHeader";
+import DepartmentExperience from "../manager/DepartmentExperience";
+import type { ManagerModule } from "../manager/ManagerModuleDialog";
 import StaffRoomActivityMap from "@/components/staff/StaffRoomActivityMap";
 import StaffMassageReservationsPanel from "@/components/staff/StaffMassageReservationsPanel";
 import StaffFilterButton from "@/components/staff/StaffFilterButton";
@@ -473,37 +473,8 @@ function FullReceptionPage({
 
   useStaffTabTitleAlert(receptionAlertRequests);
 
-  return (
-    <main className="space-y-6 pb-safe">
-      <StaffDepartmentUnifiedHeader
-        hotelSlug={hotelSlug}
-        role="reception"
-        departmentTitle={t.reception}
-        intro={t.receptionIntro}
-        operationalLabel={t.controlCenterMonitoring}
-        soundEnabled={soundEnabled}
-        onToggleSound={() => void toggleSound()}
-      />
-
-      {hotelSlug ? (
-        <section id="reception-guest-messages" className="space-y-4">
-          <div id="reception-direct-message">
-            <GuestDirectCommunicationsWorkspace hotelSlug={hotelSlug} role="reception" />
-          </div>
-          <div id="reception-broadcast-message">
-            <GuestCommunicationsWorkspace hotelSlug={hotelSlug} role="reception" />
-          </div>
-        </section>
-      ) : null}
-
-      {hotelSlug ? <StaffRoomActivityMap hotelSlug={hotelSlug} role="reception" /> : null}
-
-      {hotelSlug ? <StaffMassageReservationsPanel hotelSlug={hotelSlug} role="reception" /> : null}
-
-      {hotelSlug ? (
-        <StaffDevelopmentAccessCard hotelSlug={hotelSlug} role="reception" />
-      ) : null}
-
+  const operations = (
+    <div className="space-y-6">
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StaffSummaryCard
           label={t.total}
@@ -596,14 +567,6 @@ function FullReceptionPage({
         </div>
       </section>
 
-      <ReceptionTodaySurveysCard
-        surveys={receptionActiveSurveys}
-        lang={lang}
-        markingId={markingSurveyId}
-        onMarkRead={(id) => void markSurveyRead(id)}
-      />
-
-
       <section className="space-y-4">
         <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
           <h3 className="staff-section-title">{t.receptionActions}</h3>
@@ -645,14 +608,34 @@ function FullReceptionPage({
         )}
       </section>
 
-      <ReceptionDailyHistory
-        requests={allRequests}
-        lang={lang}
-        todayKey={todayHotelDateKey}
-        hotelTimeZone={hotelTimeZone}
-      />
-    </main>
+    </div>
   );
+  const labels = {
+    bg: ["Съобщения", "Активност по стаи", "Масажи", "Анкети", "Дневна история"],
+    en: ["Messages", "Room activity", "Massages", "Surveys", "Daily history"],
+    de: ["Mitteilungen", "Zimmeraktivität", "Massagen", "Umfragen", "Tageshistorie"],
+  }[lang];
+  const extraModules: ManagerModule[] = hotelSlug ? [
+    { id: "messages", label: labels[0], description: "", icon: "megaphone", content: <div className="space-y-4">
+      <div id="reception-direct-message"><GuestDirectCommunicationsWorkspace hotelSlug={hotelSlug} role="reception" /></div>
+      <div id="reception-broadcast-message"><GuestCommunicationsWorkspace hotelSlug={hotelSlug} role="reception" defaultOpen /></div>
+    </div> },
+    { id: "rooms", label: labels[1], description: "", icon: "bed", content: <StaffRoomActivityMap hotelSlug={hotelSlug} role="reception" defaultOpen /> },
+    { id: "massages", label: labels[2], description: "", icon: "lotus", content: <StaffMassageReservationsPanel hotelSlug={hotelSlug} role="reception" /> },
+    { id: "surveys", label: labels[3], description: "", icon: "clipboard", badge: receptionActiveSurveys.length, content: <ReceptionTodaySurveysCard
+      surveys={receptionActiveSurveys} lang={lang} markingId={markingSurveyId} onMarkRead={(id) => void markSurveyRead(id)} /> },
+    { id: "history", label: labels[4], description: "", icon: "bar_chart", content: <ReceptionDailyHistory
+      requests={allRequests} lang={lang} todayKey={todayHotelDateKey} hotelTimeZone={hotelTimeZone} /> },
+  ] : [];
+
+  return <DepartmentExperience
+    role="reception"
+    operations={operations}
+    extraModules={extraModules}
+    count={requests.filter((request) => isActiveStatus(request.status)).length}
+    soundEnabled={soundEnabled}
+    onToggleSound={() => void toggleSound()}
+  />;
 }
 
 export default function ReceptionPage(props: {hotelTimeZone:string}) {
