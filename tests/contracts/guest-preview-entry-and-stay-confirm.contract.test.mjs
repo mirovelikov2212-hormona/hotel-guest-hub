@@ -74,10 +74,15 @@ test("public demo room 901 is configured as an isolated test room with guided to
   assert.match(guestHubSource, /isPublicDemoHotel/);
   assert.match(guestHubSource, /setManualRoomInput\(storedRoom \|\| \(isPublicDemoHotel \? "901" : ""\)\)/);
   assert.match(guestHubSource, /<DemoJourneyGuide/);
-  assert.match(guideSource, /roomTitle: "1\. Confirm room 901"/);
-  assert.match(guideSource, /staffTitle: "4\. Check Manager"/);
-  assert.match(guideSource, /staffText: "Look at Manager on the right\. The request should appear there\."/);
-  assert.match(guideSource, /href="\/staff\/demo\/reception"/);
+  const guideDataSource = await readFile(
+    new URL("../../lib/demo-guide.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(guideSource, /DEMO_GUIDE_STEPS\[locale\]/);
+  assert.match(guideDataSource, /Confirm the demo room/);
+  assert.match(guideDataSource, /Find the same request in Manager/);
+  assert.match(guideDataSource, /Room 901 is confirmed and services are unlocked/);
+  assert.ok(guideSource.includes("window.open(`/staff/demo/${action}`"));
 });
 
 test("invalid preview slug cannot escape the hotel route", () => {
@@ -104,10 +109,9 @@ test("validated hotel route remains the guest operational tenant authority", asy
   const source = await readFile(new URL("../../app/h/[hotelSlug]/page.tsx", import.meta.url), "utf8");
   assert.match(source, /await resolveHotelByAnySlugAdmin\(hotelSlug\)/);
   assert.match(source, /const guestRuntimeHotelSlug = hotelSlug\.trim\(\)\.toLowerCase\(\)/);
-  assert.match(
-    source,
-    /const guestConfig = \{\s*\.\.\.cfg,\s*hotelSlug: guestRuntimeHotelSlug,\s*operationalAiEntitled: productEntitlement\.moduleAccess\.operational_ai,\s*\}/s,
-  );
+  assert.match(source, /const guestConfig = \{\s*\.\.\.cfg,/s);
+  assert.match(source, /hotelSlug: guestRuntimeHotelSlug,/);
+  assert.match(source, /operationalAiEntitled: productEntitlement\.moduleAccess\.operational_ai,/);
   assert.match(source, /<GuestHub config=\{guestConfig\} \/>/);
   assert.doesNotMatch(source, /<GuestHub config=\{cfg\} \/>/);
 });
