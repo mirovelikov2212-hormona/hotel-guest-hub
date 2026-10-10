@@ -20,7 +20,7 @@ export default function MarketingPage({lang}:{lang:Lang}) {
         <nav className="gostaya-nav">
           {[c.nav[0],c.nav[1],c.nav[3],c.nav[2],c.nav[4]].map((n,i)=><a key={n} href={["#why","#how","#platform","#evidence","#faq"][i]} className="hover:text-[#791fc8]">{n}</a>)}
         </nav>
-        <div className="gostaya-header-actions"><div className="gostaya-languages" aria-label="Language">{(["bg","en","de"] as const).map((locale)=><a key={locale} href={`/${locale}`} hrefLang={locale} aria-current={lang===locale?"page":undefined}>{locale.toUpperCase()}</a>)}</div><a href="#inquiry" className="gostaya-primary-action rounded-xl bg-[#791fc8] px-4 py-2 text-xs font-black text-white shadow-md shadow-violet-100" aria-label={lang === "bg" ? "Заяви представяне на GOSTAYA" : lang === "de" ? "GOSTAYA-Präsentation anfragen" : "Request a GOSTAYA presentation"}>{lang === "bg" ? "ДЕМО" : "DEMO"}</a></div>
+        <div className="gostaya-header-actions"><a href="#inquiry" className="gostaya-primary-action rounded-xl bg-[#791fc8] px-4 py-2 text-xs font-black text-white shadow-md shadow-violet-100" aria-label={lang === "bg" ? "Заяви представяне на GOSTAYA" : lang === "de" ? "GOSTAYA-Präsentation anfragen" : "Request a GOSTAYA presentation"}>{lang === "bg" ? "ДЕМО" : "DEMO"}</a></div>
       </div>
     </header>
 

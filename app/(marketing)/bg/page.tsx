@@ -10,9 +10,7 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://gostaya.com/bg",
     languages: {
-      "x-default": "https://gostaya.com/en",
-      en: "https://gostaya.com/en",
-      de: "https://gostaya.com/de",
+      "x-default": "https://gostaya.com/bg",
       bg: "https://gostaya.com/bg",
     },
   },

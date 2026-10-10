@@ -3,6 +3,14 @@ import path from "path";
 import { withWorkflow } from "workflow/next";
 
 const nextConfig: NextConfig = {
+  // The public conference site is temporarily available in Bulgarian only.
+  async redirects() {
+    return [
+      { source: "/en", destination: "/bg", permanent: false },
+      { source: "/de", destination: "/bg", permanent: false },
+    ];
+  },
+
   turbopack: {
     root: path.resolve(__dirname),
   },
