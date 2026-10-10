@@ -24,7 +24,7 @@ export default function MarketingPage({lang}:{lang:Lang}) {
       </div>
     </header>
 
-    <p className="gostaya-preview-notice">{lang === "bg" ? "Демонстрационна версия на сайта · Пълно представяне по запитване" : lang === "de" ? "Demonstrationsversion · Vollständige Präsentation auf Anfrage" : "Demonstration website · Full presentation on request"}</p>
+    <p className="gostaya-preview-notice">{lang === "bg" ? "Демонстрационна версия на сайта" : lang === "de" ? "Demonstrationsversion" : "Demonstration website"}</p>
 
     <section className="gostaya-hero gostaya-shell">
       <div className="gostaya-hero-grid">
