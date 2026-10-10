@@ -47,6 +47,12 @@ const COPY = {
   },
 } as const;
 
+function BrandText({ text }: { text: string }) {
+  return <>{text.split(/(GOSTAYA)/g).map((part, index) => part === "GOSTAYA"
+    ? <span key={index} className="gostaya-mobile-brand">{part}</span>
+    : part)}</>;
+}
+
 export default function InquiryForm({ lang }: { lang: MarketingLanguage }) {
   const c = COPY[lang];
   const submitting = useRef(false);
@@ -93,9 +99,9 @@ export default function InquiryForm({ lang }: { lang: MarketingLanguage }) {
     <section id="inquiry" className="gostaya-shell gostaya-section gostaya-inquiry" aria-labelledby="inquiry-title">
       <div className="gostaya-inquiry-copy">
         <p className="gostaya-eyebrow">{c.eyebrow}</p>
-        <h2 id="inquiry-title">{c.title}</h2>
-        <p className="gostaya-body">{c.description}</p>
-        <p className="gostaya-inquiry-preview-note">{c.note}</p>
+        <h2 id="inquiry-title"><BrandText text={c.title}/></h2>
+        <p className="gostaya-body"><BrandText text={c.description}/></p>
+        <p className="gostaya-inquiry-preview-note"><BrandText text={c.note}/></p>
       </div>
       <form onSubmit={submit} className="gostaya-inquiry-form" aria-busy={status === "sending"}>
         <div className="gostaya-inquiry-fields">
