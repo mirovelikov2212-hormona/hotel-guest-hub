@@ -68,8 +68,8 @@ export default function PilotCaseStudy({lang}:{lang:Lang}) {
     <div className="gostaya-pilot-heading"><div><p className="gostaya-eyebrow">{c.eyebrow}</p><h2>{c.title} <a href="https://aquamarine-kranevo.com/bg" target="_blank" rel="noreferrer">{c.hotel}</a></h2><p className="gostaya-body">{c.text}</p></div><span className="gostaya-season">{c.season}</span></div>
     <div className="gostaya-pilot-grid">
       <div className="gostaya-pilot-scene">
-        <Image src="/marketing/pilot-resort.webp" alt="" fill sizes="(min-width: 820px) 50vw, 100vw" />
-        <span className="gostaya-pilot-photo-label">{lang === "bg" ? "Илюстрация на хотелска среда" : lang === "de" ? "Illustration einer Hotelumgebung" : "Hotel environment illustration"}</span>
+        <Image src="/marketing/aquamarine-pilot.jpg" alt={c.hotel} fill sizes="(min-width: 820px) 50vw, 100vw" />
+        <span className="gostaya-pilot-photo-label">{c.hotel}</span>
         <div className="gostaya-pilot-dashboard"><div className="gostaya-dashboard-heading"><span className="gostaya-mobile-brand">GOSTAYA</span><span>{c.dashboard}</span></div><PilotEvidenceVisual lang={lang}/></div>
       </div>
       <div className="gostaya-pilot-metrics">{c.metrics.map(([value,label],i)=><div key={label} data-metric={i}>
