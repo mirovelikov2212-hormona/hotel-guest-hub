@@ -1,0 +1,43 @@
+.gostaya-ai-service {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #d7c0eb;
+  border-radius: 16px;
+  background: #f7f0ff;
+  color: #3e2057;
+}
+.gostaya-marketing .gostaya-ai-service h3 {font-size: 1rem;font-weight: 700;letter-spacing: -.02em}
+.gostaya-ai-service header {display: flex;align-items: center;justify-content: space-between;gap: 12px}
+.gostaya-ai-service header>button {width: 32px;height: 32px;border: 1px solid #dec8ee;background: white;color: #642696;font-size: 1.2rem;flex-shrink: 0}
+.gostaya-ai-service-catalog {display: grid;grid-template-columns: 1fr 1fr;gap: 12px;margin-top: 14px}
+.gostaya-marketing .gostaya-ai-service-catalog>button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 16px;
+  border: 1px solid #d8bee9;
+  border-radius: 16px !important;
+  background: #fff;
+  color: #47245f;
+  text-align: left;
+  line-height: 1.5;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.gostaya-ai-service-catalog>button:hover {border-color: #9d62ca;background: #fcf8ff}
+.gostaya-ai-service-catalog .gostaya-icon {width: 28px;height: 28px;color: #7c3aed}
+.gostaya-ai-service-catalog strong {font-size: .82rem}
+.gostaya-ai-service-catalog span {font-size: .75rem;color: #7c3aed}
+.gostaya-ai-service p,.gostaya-ai-service blockquote {font-size: .8rem;line-height: 1.7;margin: 12px 0}
+.gostaya-ai-service-room {font-weight: 600;color: #71349d}
+.gostaya-ai-service label {display: block;font-size: .75rem;font-weight: 700;margin-bottom: 7px}
+.gostaya-ai-service textarea {width: 100%;padding: 10px;border: 1px solid #d5bce8;border-radius: 10px;background: white;color: #3e2057;font: inherit;font-size: 16px;resize: vertical;margin-bottom: 12px}
+.gostaya-ai-service textarea:focus-visible {outline: 2px solid #9d51d5;outline-offset: 2px}
+.gostaya-ai-service blockquote {padding: 12px;border-left: 3px solid #a67bd0;background: white;white-space: pre-wrap;overflow-wrap: anywhere}
+.gostaya-ai-service .gostaya-ai-service-note {font-size: .68rem;color: #7a608c;margin-bottom: 0}
+@media (max-width: 600px) {
+  .gostaya-ai-service {padding: 14px}
+  .gostaya-ai-service-catalog {gap: 8px}
+  .gostaya-marketing .gostaya-ai-service-catalog>button {padding: 12px}
+}
