@@ -1,7 +1,6 @@
 import { GostayaVortex } from "./GostayaMotion";
 import MarketingIcon from "./MarketingIcon";
 import AiConciergeExample from "./AiConciergeExample";
-import DemoLaunchLink from "./DemoLaunchLink";
 
 type Lang = "bg" | "en" | "de";
 
@@ -31,7 +30,6 @@ export default function AiAssistantBanner({lang}:{lang:Lang}) {
   return <section className="gostaya-shell gostaya-section gostaya-ai-banner">
     <div className="gostaya-ai-copy"><p className="gostaya-eyebrow">{c.eyebrow}</p><h2>{c.title}</h2><p>{c.text}</p>
       <div className="gostaya-ai-capabilities">{c.points.map((point,i)=><div key={point}><span aria-hidden="true"><MarketingIcon name={["chat","globe","clock"][i]}/></span><strong>{point}</strong></div>)}</div>
-      <DemoLaunchLink className="gostaya-ai-action">{lang==="bg"?"Запознайте се с AI асистента":lang==="de"?"AI-Assistent kennenlernen":"Meet your AI assistant"}</DemoLaunchLink>
     <GostayaVortex lang={lang}/></div><AiConciergeExample lang={lang}/>
   </section>;
 }
